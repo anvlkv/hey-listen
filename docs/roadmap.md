@@ -1,18 +1,18 @@
 # Roadmap
 
-## M0 — Shell (current)
+## M0 — Shell ✅
 
 - Tauri 2 + SolidJS scaffold, identifier `com.anvlkv.heylisten`.
 - Dependencies wired (frontend + Rust audio crates).
 - Fixed-region layout + dockview (Workbench tabs only) + IPC ping.
 - Builds and launches. ✅
 
-## M1 — File source + timeline
+## M1 — File source + timeline ✅
 
 - symphonia probe + decode; waveform rendering in the Timeline.
 - Analysis window (start/end) + zoom + drag preview.
 
-## M2 — Live capture
+## M2 — Live capture (current)
 
 - flexaudio sources (mic/system/process/mix); device/process enumeration.
 - Growing timeline; start timer + target duration; gain/pause/resume.

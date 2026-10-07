@@ -5,9 +5,9 @@ inputs (mic / system / per-process / mix), and fundsp synthesis — then save th
 source, analysis setup (including layout), and results into a single binary
 project file.
 
-> **Status:** launchable shell only. Dependencies are wired and the app builds
-> and runs; no analysis features are implemented yet. See
-> [`docs/roadmap.md`](docs/roadmap.md).
+> **Status:** file source + timeline (M1). Open an audio file to decode it with
+> symphonia and explore it in the Timeline (waveform, analysis window, zoom, drag
+> preview). No analysis tools yet. See [`docs/roadmap.md`](docs/roadmap.md).
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
 > coding agents. AI-generated code and documentation should be reviewed before

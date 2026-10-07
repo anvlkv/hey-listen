@@ -23,23 +23,26 @@ boundary (commands, events, channels), gated by capabilities.
 - Audio PCM crosses the boundary **only** through ordered `tauri::ipc::Channel`
   streams (not events); results and commands are JSON over `invoke`.
 
-## Rust module layout (planned)
+## Rust module layout
+
+Existing modules are marked ✅; the rest are the target structure.
 
 ```
 src-tauri/src/
-├── main.rs          # desktop entry (calls lib::run)
-├── lib.rs           # Builder setup, state, handler registration
+├── main.rs          # desktop entry (calls lib::run)            ✅
+├── lib.rs           # Builder setup, state, handler registration ✅
 ├── commands/        # #[tauri::command] surface, grouped by domain
-│   ├── mod.rs
-│   ├── source.rs    # enumerate devices/processes, open/close sources
+│   ├── mod.rs       # ✅
+│   ├── source.rs    # enumerate devices/processes, open/close sources ✅ (pick_audio_file)
+│   ├── decode.rs    # open file, decode range / stream          ✅ (probe_file, stream_file)
 │   ├── capture.rs   # start/stop/gain/pause recording
-│   ├── decode.rs    # open file, decode range / stream
 │   ├── synth.rs     # build + render fundsp synth
 │   ├── analysis.rs  # run analysis over a window
 │   └── project.rs   # save/load binary project file
 ├── audio/           # engines (not commands)
+│   ├── mod.rs       # ✅
+│   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
 │   ├── capture.rs   # flexaudio Stream poll loop -> ring buffer
-│   ├── decode.rs    # symphonia demux/decode -> PCM
 │   ├── graph.rs     # fundsp Net/Sequencer backend
 │   └── analysis.rs  # oxiaudio wrappers
 ├── project/         # binary format: write/read, sections, streaming
@@ -56,6 +59,7 @@ managed via `app.manage(...)`.
 | Domain | Command | Notes |
 | --- | --- | --- |
 | Source | `list_devices`, `list_processes` | flexaudio `devices()` / `processes()` |
+| Source | `pick_audio_file` | native open dialog → path (file I/O stays in Rust) |
 | Source | `open_source`, `close_source` | file / input / synth; switching source replaces the timeline |
 | Capture | `start_capture`, `stop_capture`, `set_capture_gain`, `pause_capture`, `resume_capture` | flexaudio `Stream` |
 | Decode | `probe_file` | symphonia metadata (codec, channels, rate, duration) |
@@ -63,6 +67,10 @@ managed via `app.manage(...)`.
 | Synth | `render_synth` | build a fundsp graph, render to PCM |
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file |
+
+> **Implemented so far (M1):** `pick_audio_file`, `probe_file`, `stream_file`.
+> A file source is opened as probe → stream (the frontend drives it) rather than
+> `open_source`/`close_source`, which arrive with the other source kinds in M2+.
 
 **Channels / events** (Rust → frontend):
 
