@@ -9,6 +9,10 @@ project file.
 > and runs; no analysis features are implemented yet. See
 > [`docs/roadmap.md`](docs/roadmap.md).
 
+> **AI assistance:** This project was scaffolded and developed with the help of AI
+> coding agents. AI-generated code and documentation should be reviewed before
+> relying on it.
+
 ## Stack
 
 - **Desktop shell:** [Tauri 2](https://v2.tauri.app) (Rust core + system WebView)
