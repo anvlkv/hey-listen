@@ -11,6 +11,13 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   channels, total frames). Grows for inputs; static for file/synth.
 - **Timeline** — whole recording + `AnalysisWindow { start, end }` (frame or
   seconds) + zoom state.
+- **GraphSpec** — a fundsp editor graph (`nodes` + `edges`, with positional
+  params), built in a Workbench graph tab (`filter` or `synth`) and compiled to a
+  fundsp `Net` in the Rust core. The project's **filter graph** and a synth
+  source's graph are both `GraphSpec`s. It mirrors fundsp's `Net`: nodes are
+  pushed, each input takes **exactly one** connection, and explicit `input`
+  (filter graphs) / `output` anchor nodes bridge the graph to the net's global
+  input/output (there is no implicit summing).
 - **AnalysisSetup** — open tools/tabs + per-tool config + shared params +
   layout (dockview JSON + solid-flow node positions).
 - **AnalyzerTool** — an analysis capability (see
@@ -27,8 +34,13 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 enum Source {
     File { path: String },
     Input { kind: SourceKind, device_id: Option<String>, target_pid: Option<u32> },
-    Synth { graph: SynthGraph },
+    Synth { graph: GraphSpec },
 }
+
+// A fundsp editor graph (see `src-tauri/src/audio/graph.rs`).
+struct GraphSpec { nodes: Vec<GraphNode>, edges: Vec<GraphEdge> }
+struct GraphNode { id: String, kind: String, params: Vec<f32> }
+struct GraphEdge { from: String, from_port: usize, to: String, to_port: usize }
 
 struct AnalysisWindow { start_secs: f64, end_secs: f64 }
 

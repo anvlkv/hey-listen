@@ -1,7 +1,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
-import { setPreviewSource } from "../audio/playback";
 import type { ChannelPick, Peaks } from "../lib/waveform";
 import { resetTimeline } from "./timeline";
 
@@ -74,10 +73,10 @@ export const [error, setError] = createSignal<string | null>(null);
 /** Generation counter so a slow open can't clobber a newer one. */
 let openToken = 0;
 
-/** Clear the timeline and release the preview buffer. */
+/** Clear the timeline and drop the core-owned source PCM (ADR-9). */
 export function closeSource() {
   openToken++;
-  setPreviewSource(null, 44_100, 1);
+  void invoke("clear_audio_source");
   setSource(null);
   setStatus("empty");
   setError(null);
@@ -86,12 +85,42 @@ export function closeSource() {
 }
 
 /**
+ * Adopt freshly decoded/rendered PCM as the source (replacing the whole timeline)
+ * and reset the window/view to cover it.
+ */
+export function finalizeSource(opts: {
+  name: string;
+  detail: string;
+  samples: Float32Array;
+  sampleRate: number;
+  channels: number;
+  probe?: ProbeInfo;
+}) {
+  const channels = Math.max(1, opts.channels);
+  const frames = Math.floor(opts.samples.length / channels);
+  const duration = opts.sampleRate > 0 ? frames / opts.sampleRate : 0;
+  setSource({
+    name: opts.name,
+    detail: opts.detail,
+    samples: opts.samples,
+    frames,
+    sampleRate: opts.sampleRate,
+    channels,
+    duration,
+    probe: opts.probe,
+  });
+  resetTimeline(duration);
+  setStatus("ready");
+  void setWindowTitle(opts.name);
+}
+
+/**
  * Open a file source: probe it, then stream + assemble the decoded PCM.
  * Replaces any existing source (the whole timeline changes).
  */
 export async function openPath(path: string) {
   const token = ++openToken;
-  setPreviewSource(null, 44_100, 1);
+  void invoke("clear_audio_source");
   setSource(null);
   setError(null);
   setStatus("probing");
@@ -140,23 +169,15 @@ export async function openPath(path: string) {
   }
 
   const channels = Math.max(1, summary.channels);
-  const frames = Math.floor(total / channels);
-  const duration = summary.sampleRate > 0 ? frames / summary.sampleRate : 0;
 
-  setPreviewSource(samples, summary.sampleRate, channels);
-  setSource({
+  finalizeSource({
     name: probe.name,
     detail: probe.codec,
     samples,
-    frames,
     sampleRate: summary.sampleRate,
     channels,
-    duration,
     probe,
   });
-  resetTimeline(duration);
-  setStatus("ready");
-  void setWindowTitle(probe.name);
 }
 
 /** Show the native file picker and open the chosen file, if any. */

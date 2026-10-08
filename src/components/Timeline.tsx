@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { playhead, previewRegion, setPreviewChannel, stop as stopPreview } from "../audio/playback";
+import { playhead, previewRegion, stop as stopPreview } from "../audio/preview";
 import { columnExtent, computePeaks, type Peaks } from "../lib/waveform";
 import { channelFor } from "../state/analysis";
 import { stopFollowing } from "../state/capture";
@@ -121,7 +121,13 @@ export default function Timeline() {
   function tick() {
     raf = 0;
     if (!previewing()) return;
-    setPlaySec(playhead());
+    const position = playhead();
+    setPlaySec(position);
+    // A null position means the core stopped (ended or failed) — end the preview.
+    if (position == null) {
+      endPreview();
+      return;
+    }
     raf = requestAnimationFrame(tick);
   }
 
@@ -418,9 +424,6 @@ export default function Timeline() {
   });
 
   onCleanup(() => endPreview());
-
-  // Audition the channel that is drawn/analysed.
-  createEffect(() => setPreviewChannel(pick()));
 
   createEffect(() => {
     // Track everything the canvas draws.

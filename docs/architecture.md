@@ -33,20 +33,23 @@ src-tauri/src/
 ├── lib.rs           # Builder setup, state, handler registration ✅
 ├── commands/        # #[tauri::command] surface, grouped by domain
 │   ├── mod.rs       # ✅
-│   ├── source.rs    # enumerate devices/processes, open/close sources ✅ (pick_audio_file)
+│   ├── source.rs    # enumerate devices/processes, open/close sources ✅ (pick_audio_file, clear/begin/end capture source)
 │   ├── decode.rs    # open file, decode range / stream          ✅ (probe_file, stream_file)
-│   ├── capture.rs   # start/stop/gain/pause recording
-│   ├── synth.rs     # build + render fundsp synth
+│   ├── capture.rs   # start/stop/gain/pause recording           ✅
+│   ├── graph.rs     # filter/synth graph commands               ✅ (set_filter_graph, render_synth)
+│   ├── playback.rs  # preview playback (cpal)                   ✅
 │   ├── analysis.rs  # run analysis over a window
 │   └── project.rs   # save/load binary project file
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
 │   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
-│   ├── capture.rs   # flexaudio Stream poll loop -> ring buffer
-│   ├── graph.rs     # fundsp Net/Sequencer backend
+│   ├── capture.rs   # flexaudio Stream poll loop -> ring buffer ✅
+│   ├── graph.rs     # fundsp Net: compile (push + connect) / apply / render ✅
+│   ├── pcm.rs       # channel mixdown + linear resample        ✅
+│   ├── playback.rs  # cpal output stream + ring buffer         ✅
 │   └── analysis.rs  # oxiaudio wrappers
-├── project/         # binary format: write/read, sections, streaming
-└── state.rs         # tauri::State: capture sessions, caches
+├── state.rs         # core-owned source PCM + filter + player  ✅
+└── project/         # binary format: write/read, sections, streaming
 ```
 
 Commands are registered once in `generate_handler![...]`; shared state is
@@ -64,17 +67,20 @@ managed via `app.manage(...)`.
 | Capture | `start_capture`, `stop_capture`, `set_capture_gain`, `pause_capture`, `resume_capture` | flexaudio `Stream` |
 | Decode | `probe_file` | symphonia metadata (codec, channels, rate, duration) |
 | Decode | `stream_file` | `Channel` of PCM chunks for the timeline |
-| Synth | `render_synth` | build a fundsp graph, render to PCM |
-| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) |
+| Synth | `render_synth` | build a fundsp graph, render to PCM ✅ |
+| Filter | `set_filter_graph` | install the project filter graph (applied before preview/analysis) ✅ |
+| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file |
 
-> **Implemented so far (M2):** file source uses `pick_audio_file` → `probe_file` →
+> **Implemented so far (M3):** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
 > Live capture uses `list_devices` / `list_processes` and
 > `start_capture` / `stop_capture` / `pause_capture` / `resume_capture` /
-> `set_capture_gain`. `open_source`/`close_source` remain the planned unification
-> of both.
+> `set_capture_gain`. The core owns the source PCM: `stream_file` and
+> `render_synth` set it, `begin_capture_source` / `end_capture_source` gate
+> capture appends, and `clear_audio_source` drops it. `open_source`/`close_source`
+> remain the planned unification of the source kinds.
 
 **Channels / events** (Rust → frontend):
 
@@ -88,8 +94,9 @@ managed via `app.manage(...)`.
 1. **Open a source** — file (symphonia), input (flexaudio), or synth (fundsp).
 2. **Timeline** — the frontend receives PCM (full decode for file/synth, growing
    stream for inputs) and renders the waveform + window range.
-3. **Filter (optional)** — the user edits a fundsp graph in solid-flow; the Rust
-   backend compiles it to a `Net`/`AudioUnit` applied before analysis.
+3. **Filter (optional)** — the user edits a fundsp graph in the **Filter graph**
+   Workbench tab (`solid-flow`); the Rust backend (`audio/graph.rs`) compiles it to
+   a fundsp `Net` applied before preview and analysis.
 4. **Analysis** — the user opens analyzer tabs in the Workbench; `run_analysis`
    computes results via oxiaudio over the selected window, respecting shared
    params.
@@ -102,8 +109,10 @@ managed via `app.manage(...)`.
   into a ring buffer and are forwarded to the frontend via a `Channel`.
 - Analysis/decode: async commands run on `tauri::async_runtime` (never block the
   main thread); fundsp audio callbacks never allocate.
-- Playback (planned, ADR-9): one `cpal` output stream is kept open and fed from a
-  ring buffer; control is fire-and-forget, so scrubbing pays no stream-open cost.
+- Playback (ADR-9): one `cpal` output stream per app, opened lazily and kept open,
+  fed from a shared mono buffer loaded per preview region (mixdown → filter →
+  resample). The stream is `!Send` on macOS, so it lives on a dedicated worker
+  thread; the audio callback and the command side share an `Arc<Mutex<…>>`.
 - The frontend is single-threaded (SolidJS); heavy PCM is streamed, not posted
   as one giant JSON blob.
 

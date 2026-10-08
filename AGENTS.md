@@ -60,7 +60,8 @@ Load the matching skill (via the `skill` tool) before working in that area:
 ## Hard rules (from the spec — do not violate)
 
 - **Timeline, Sidebar, and Workbench are fixed regions, not tabs.** The only tabs
-  are analyzer tabs, and they live inside the Workbench (managed by `dockview`).
+  are Workbench tabs — the **graph editors** (`filter` / `synth`, see ADR-10) and
+  the **analyzer tabs** — and they live inside the Workbench (managed by `dockview`).
 - **One window = one project = one source.** Changing the source replaces the
   whole timeline.
 - **Analysis runs off the main thread** — Rust async command + `spawn_blocking`,
@@ -79,5 +80,5 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M0 shell is done). Deliver strictly one
+`docs/roadmap.md` tracks progress (M3 is done). Deliver strictly one
 milestone at a time; confirm current status from that file before starting.

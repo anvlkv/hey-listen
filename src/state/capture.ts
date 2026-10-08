@@ -1,7 +1,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
-import { setPreviewSource } from "../audio/playback";
 import { PeakAccumulator } from "../lib/waveform";
 import { channel, channelFor } from "./analysis";
 import { closeSource, setError, setSource, setStatus, source } from "./source";
@@ -19,8 +18,8 @@ import { resetTimeline, setView, setWindowEnd, setWindowStart } from "./timeline
 
 /** Live source kinds. */
 export type CaptureKind = "mic" | "system" | "process" | "mix";
-/** Everything the source picker can choose (synth arrives in M3). */
-export type SourceChoice = "file" | CaptureKind;
+/** Everything the source picker can choose (synth renders from its graph tab). */
+export type SourceChoice = "file" | "synth" | CaptureKind;
 
 export const KIND_LABEL: Record<CaptureKind, string> = {
   mic: "Microphone",
@@ -307,6 +306,7 @@ async function haltSession() {
   }
   session = null;
   pendingChunks = [];
+  void invoke("end_capture_source");
   setMonitoring(false);
   setLevel(0);
 }
@@ -316,7 +316,7 @@ async function ensureSession(): Promise<boolean> {
   if (session) return true;
 
   const kind = choice();
-  if (kind === "file") return false;
+  if (kind === "file" || kind === "synth") return false;
   if (kind === "process" && targetPid() == null) return false;
 
   const onChunk = new Channel<ArrayBuffer>();
@@ -380,7 +380,7 @@ export async function stopMonitor() {
 export async function startCapture() {
   if (recording() || countdown() != null) return;
   const kind = choice();
-  if (kind === "file") return;
+  if (kind === "file" || kind === "synth") return;
 
   setCaptureError(null);
   setError(null);
@@ -407,6 +407,8 @@ export async function startCapture() {
   target.peaks = new PeakAccumulator(target.channels, channelFor(target.channels));
 
   closeSource();
+  // The core keeps its own copy of the recorded audio for preview (ADR-9).
+  void invoke("begin_capture_source");
   follow = true;
   setRecording(true);
   setPaused(false);
@@ -434,11 +436,7 @@ export async function stopCapture() {
   }
 
   if (target) {
-    setPreviewSource(
-      target.samples.subarray(0, target.frames * target.channels),
-      target.sampleRate,
-      target.channels,
-    );
+    void invoke("end_capture_source");
     publish(target, false);
   }
 

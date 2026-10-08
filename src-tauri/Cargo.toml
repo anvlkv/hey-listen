@@ -30,6 +30,7 @@ flexaudio = "0.3"                                    # capture: mic / system / p
 symphonia = { version = "0.6", features = ["all"] }  # decode audio files (demux + decode)
 fundsp = "0.23"                                      # audio nets: filtering and synthesis
 oxiaudio = { version = "0.2", features = ["serde"] } # analysis
+cpal = "0.16"                                        # preview playback (Output; flexaudio already pulls it in)
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

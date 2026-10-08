@@ -8,6 +8,7 @@
 | `flexaudio` | 0.3 | capture (mic/system/process/mix) | see crates.io |
 | `symphonia` | 0.6 (`all`) | file decode / demux | MPL-2.0 |
 | `fundsp` | 0.23 | filtering + synthesis nets | see crates.io |
+| `cpal` | 0.16 | preview playback (output) | Apache-2.0 |
 | `oxiaudio` | 0.2 (`serde`) | analysis | Apache-2.0 |
 | `serde` / `serde_json` | 1 | serialization | MIT / Apache-2.0 |
 | `postcard` | 1 | binary codec for the project file | MIT / Apache-2.0 |

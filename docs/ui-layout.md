@@ -3,14 +3,15 @@
 ## The one rule
 
 **Timeline, Sidebar, Workbench, and Source are fixed regions — not tabs.** The
-only tabs in the app are **analyzer tabs**, and they live **inside the
-Workbench**.
+only tabs in the app are **Workbench tabs**: the **graph editors** (filter /
+synth) and, from M4, the **analyzer tabs**.
 
 ```
 ┌──────────────┬───────────────────────────┐
 │              │  Workbench                │
-│   Sidebar    │  (dockview — analyzer     │
-│   (tool      │   tabs ONLY)              │
+│   Sidebar    │  (dockview — Workbench    │
+│   (tool      │   tabs: graph editors +   │
+│   picker)    │   analyzers)              │
 │   picker)    │                           │
 ├──────────────┼───────────────────────────┤  ← draggable splitter
 │ Source       │  Timeline (waveform +     │
@@ -33,33 +34,37 @@ scrolling); shrinking the row below the panel's content makes the panel scroll.
 
 - The **native window title bar** carries the app name ("Hey Listen").
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
-  status only. No hero/header like a website.
+  status only. No hero/header like a website. In M3 it gained the app-level audio
+  controls: the **filter bypass toggle** and the preview **output gain + device**
+  (which drive the core player, ADR-9).
 
 ## Fixed regions
 
 | Region | Role | Notes |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback; pick a channel or downmix to mono for multichannel sources |
-| **Sidebar** (top-left) | analysis tool picker | opens analyzer tabs in the Workbench |
-| **Workbench** (top-right) | hosts analyzer tabs via `dockview` | the only tabbed area |
-| **Source** (bottom-left) | audio source picker (file / mic / system / process / mix) | changing the source replaces the whole timeline |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback; pick a channel or downmix to mono for multichannel sources; **planned:** overlay the filtered signal when a filter is active |
+| **Sidebar** (top-left) | tool picker | opens Workbench tabs (graph editors now, analyzers from M4) |
+| **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
+| **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
 
 None of these are closable, draggable, or tabbed.
 
-## Analyzer tabs (Workbench only)
+## Workbench tabs
 
 - Managed by `dockview` (mounted **only** in the Workbench region).
-- **No duplicate tabs** — a tool can be open at most once.
-- Each tab has a **params popover** to configure the tool.
-- Each tab has an **about popover** describing when/how to use that analysis.
-- **Zoom and cursor are synced across tabs** (where relevant), via shared chart
-  state (solid-uplot `createPluginBus`).
+- Two kinds: the **graph editors** (`filter`, `synth` — see ADR-10) and the
+  **analyzer tabs** (M4+).
+- **No duplicate tabs** — a tool/editor can be open at most once.
+- Each analyzer tab has a **params popover** and an **about popover**.
+- **Zoom and cursor are synced across analyzer tabs** (where relevant), via shared
+  chart state (solid-uplot `createPluginBus`).
 
 ## Sidebar
 
 Lists every available analyzer tool (see
-[`analysis-tools.md`](analysis-tools.md)). Clicking a tool opens its tab in the
-Workbench (no-op if already open; selects the existing tab).
+[`analysis-tools.md`](analysis-tools.md)) plus the two graph editors. Clicking an
+entry opens its tab in the Workbench (no-op if already open; selects the existing
+tab).
 
 ## Source picker
 

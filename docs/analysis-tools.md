@@ -83,6 +83,10 @@ MFCC coefficient count, chroma bins, onset threshold, etc.
 
 ## Filtering before analysis
 
-Audio can be filtered before analysis: the user builds a **fundsp graph** in
-solid-flow (see [`architecture.md`](architecture.md)). The graph is applied
-upstream of all analysis.
+Audio can be filtered before analysis: the user builds a **fundsp graph** in the
+Filter graph Workbench tab (see [`graph-editor.md`](graph-editor.md)). The graph is
+applied upstream of preview playback and all analysis, and can be bypassed with the
+Toolbar **Filter** toggle.
+
+The node palette is a focused subset of fundsp today; covering the full node set is
+tracked in the [roadmap](roadmap.md) backlog.

@@ -13,7 +13,7 @@ project.
 | **Input: System loopback** | flexaudio `SourceKind::SystemLoopback` | grows while recording |
 | **Input: Process loopback** | flexaudio `SourceKind::ProcessLoopback` + `target_pid` | grows while recording |
 | **Input: Mix** | flexaudio `SourceKind::Mix` (mic + system) | grows while recording |
-| **Synth** | fundsp graph (built in solid-flow) | rendered (static) or generated on demand |
+| **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source |
 
 ## Recordable inputs
 
