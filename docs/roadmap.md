@@ -68,8 +68,20 @@
 - bundle; github workflows for releases; platform matrix.
 - all pure numeric inputs should be refactored to allow dragging (up high, down low, no slider just a visual hint) as well as typing
 
-## Backlog (post-M3 polish)
+## Backlog (post-M4 polish)
 
 - **Full fundsp node coverage.** The graph-editor palette is a focused subset today; expand it to all of fundsp — every filter family and their control-input variants, dynamics, panning/stereo, modulation, reverbs, the sequencer, and custom nodes — with per-node inspectors/presets. See [`graph-editor.md`](graph-editor.md) → Planned. Add search box for filtering available nodes. Make input/output nodes undeletable, automove them to left and right edges of the flowchart. Add hints describing what each filter/node does (search the web for precise description, not fundsp specific).
 - **Timeline filtered overlay.** Draw the filtered signal over the raw waveform so the filter's effect is visible (and mark when the filter is active/bypassed). See [`ui-layout.md`](ui-layout.md).
 - **Stereo graphs** (the compiled net is mono today) and parameter smoothing for live edits.
+- **Timeline window drag.** Move the whole analysis window (keeping its width) via
+  a handle at its top, alongside the existing start/end handles.
+- **Axis label readability.** Un-truncate chart axis labels (and the Timeline
+  ruler): wider margins, smarter tick formatting / units, or rotation.
+- **UI font scale.** A user-adjustable font size / UI zoom for the whole interface.
+- **Light / dark theme.** An **auto / dark / light** setting that themes the UI
+  *and* the charts (uPlot strokes/axes, the spectrogram background + colormap, and
+  the dockview theme).
+- **Explanatory tooltips** on choices — when to use which window function,
+  hop/overlap, FFT size, and which analyzer tool.
+- **Spectrum layers.** Add **min / max / mean** magnitude layers to the spectrum
+  chart (toggle each), instead of only the averaged spectrum.
