@@ -4,6 +4,11 @@ import Readout from "./Readout";
 import SelectField from "../SelectField";
 import ZoomControls from "./ZoomControls";
 import { createAnalysis, type SpectrogramResult } from "../../state/analyzer";
+import { analyzerBus } from "../../state/chartSync";
+import { clamp01, spectroColormap } from "./colormap";
+
+/** Stable sync id for this canvas chart (there are no duplicate tabs). */
+const SPECTROGRAM_ID = "spectrogram";
 
 /** Displayed dynamic range below the peak, in dB. */
 const DB_RANGES = [40, 60, 80, 100, 120].map((value) => ({
@@ -90,6 +95,38 @@ export default function SpectrogramTab() {
     ),
   );
 
+  // Follow the shared time range when another analyzer (uPlot or heatmap) zooms it.
+  createEffect(() => {
+    const shared = analyzerBus.data.view;
+    const result = analysis.result();
+    const current = view();
+    if (
+      !shared ||
+      shared.group !== "time" ||
+      shared.sourceId === SPECTROGRAM_ID ||
+      !result ||
+      !current
+    ) {
+      return;
+    }
+    setView(clampView({ ...current, t0: shared.x[0], t1: shared.x[1] }, result));
+  });
+
+  /** Apply a view locally and (optionally) publish its time range for sync. */
+  function applyView(next: View, publishTime: boolean) {
+    const result = analysis.result();
+    if (!result) return;
+    const clamped = clampView(next, result);
+    setView(clamped);
+    if (publishTime) {
+      analyzerBus.setData("view", {
+        sourceId: SPECTROGRAM_ID,
+        group: "time",
+        x: [clamped.t0, clamped.t1],
+      });
+    }
+  }
+
   const plot = () => {
     const { width, height } = size();
     return {
@@ -120,7 +157,7 @@ export default function SpectrogramTab() {
       const bin = bins - 1 - y;
       for (let x = 0; x < frames; x++) {
         const value = magDb[x * bins + bin];
-        const [r, g, bl] = colormap(clamp01((value - floor) / span));
+        const [r, g, bl] = spectroColormap(clamp01((value - floor) / span));
         const offset = (y * frames + x) * 4;
         pixels.data[offset] = r;
         pixels.data[offset + 1] = g;
@@ -184,6 +221,7 @@ export default function SpectrogramTab() {
 
     drawAxes(ctx, v, box);
     drawHover(ctx, box);
+    drawMirror(ctx, v, box);
   }
 
   function drawAxes(
@@ -225,6 +263,29 @@ export default function SpectrogramTab() {
     ctx.moveTo(h.x + 0.5, box.y);
     ctx.lineTo(h.x + 0.5, box.y + box.height);
     ctx.stroke();
+  }
+
+  /** Draw the shared cursor from whichever other time chart is hovered. */
+  function drawMirror(
+    ctx: CanvasRenderingContext2D,
+    v: View,
+    box: { x: number; y: number; width: number; height: number },
+  ) {
+    const msg = analyzerBus.data.cursorSync;
+    if (!msg || msg.group !== "time" || msg.sourceId === SPECTROGRAM_ID || msg.x == null) return;
+    const span = v.t1 - v.t0;
+    if (!(span > 0)) return;
+    const x = box.x + ((msg.x - v.t0) / span) * box.width;
+    if (x < box.x || x > box.x + box.width) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(120, 170, 255, 0.55)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(Math.round(x) + 0.5, box.y);
+    ctx.lineTo(Math.round(x) + 0.5, box.y + box.height);
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** Value at the pointer, or `null` outside the plot area / without data. */
@@ -275,16 +336,14 @@ export default function SpectrogramTab() {
       const dy = event.clientY - pan.y;
       const dt = (dx / box.width) * (pan.view.t1 - pan.view.t0);
       const df = (dy / box.height) * (pan.view.f1 - pan.view.f0);
-      setView(
-        clampView(
-          {
-            t0: pan.view.t0 - dt,
-            t1: pan.view.t1 - dt,
-            f0: pan.view.f0 + df,
-            f1: pan.view.f1 + df,
-          },
-          result,
-        ),
+      applyView(
+        {
+          t0: pan.view.t0 - dt,
+          t1: pan.view.t1 - dt,
+          f0: pan.view.f0 + df,
+          f1: pan.view.f1 + df,
+        },
+        true,
       );
     }
     updateHover(event);
@@ -306,10 +365,10 @@ export default function SpectrogramTab() {
 
     if (event.shiftKey) {
       const at = v.f0 + ((box.y + box.height - (event.clientY - rect.top)) / box.height) * (v.f1 - v.f0);
-      setView(clampView({ ...v, f0: at + (v.f0 - at) * f, f1: at + (v.f1 - at) * f }, result));
+      applyView({ ...v, f0: at + (v.f0 - at) * f, f1: at + (v.f1 - at) * f }, false);
     } else {
       const at = v.t0 + ((event.clientX - rect.left - box.x) / box.width) * (v.t1 - v.t0);
-      setView(clampView({ ...v, t0: at + (v.t0 - at) * f, t1: at + (v.t1 - at) * f }, result));
+      applyView({ ...v, t0: at + (v.t0 - at) * f, t1: at + (v.t1 - at) * f }, true);
     }
   }
 
@@ -319,12 +378,12 @@ export default function SpectrogramTab() {
     if (!result || !v) return;
     const center = (v.t0 + v.t1) / 2;
     const half = ((v.t1 - v.t0) / 2) * factor;
-    setView(clampView({ ...v, t0: center - half, t1: center + half }, result));
+    applyView({ ...v, t0: center - half, t1: center + half }, true);
   }
 
   function fit() {
     const result = analysis.result();
-    if (result) setView(fullView(result));
+    if (result) applyView(fullView(result), true);
   }
 
   // --- lifecycle ---------------------------------------------------------
@@ -363,11 +422,17 @@ export default function SpectrogramTab() {
     return v ? `${v.t0.toFixed(3)} – ${v.t1.toFixed(3)} s` : "";
   };
 
+  const hasGrid = () => {
+    const result = analysis.result();
+    return !!result && result.frames > 0 && result.bins > 0;
+  };
+
   return (
     <AnalyzerTab
       id="spectrogram"
       loading={analysis.loading()}
       error={analysis.error()}
+      hasResult={analysis.result() != null}
       params={
         <label class="params-field">
           <span class="params-label">Dynamic range</span>
@@ -412,13 +477,25 @@ export default function SpectrogramTab() {
               if (!pan) setHover(null);
             }}
           />
-          <Show when={analysis.result()} fallback={<div class="analyzer-empty analyzer-empty-overlay">Open a source and set the analysis window.</div>}>
-            <ZoomControls
-              onZoomIn={() => zoomTime(0.5)}
-              onZoomOut={() => zoomTime(2)}
-              onFit={fit}
-              label={zoomLabel()}
-            />
+          <Show
+            when={analysis.result()}
+            fallback={<div class="analyzer-empty analyzer-empty-overlay">Open a source and set the analysis window.</div>}
+          >
+            <Show
+              when={hasGrid()}
+              fallback={
+                <div class="analyzer-empty analyzer-empty-overlay">
+                  No spectrogram data — widen the analysis window or lower the FFT size.
+                </div>
+              }
+            >
+              <ZoomControls
+                onZoomIn={() => zoomTime(0.5)}
+                onZoomOut={() => zoomTime(2)}
+                onFit={fit}
+                label={zoomLabel()}
+              />
+            </Show>
           </Show>
         </div>
       </div>
@@ -428,33 +505,4 @@ export default function SpectrogramTab() {
 
 function formatHz(hz: number): string {
   return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${hz.toFixed(0)} Hz`;
-}
-
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-/** Piecewise-linear perceptually ordered colormap (dark → blue → teal → gold → white). */
-function colormap(t: number): [number, number, number] {
-  const stops: [number, number[]][] = [
-    [0.0, [10, 16, 40]],
-    [0.25, [34, 80, 160]],
-    [0.5, [46, 160, 160]],
-    [0.75, [230, 200, 60]],
-    [1.0, [255, 255, 235]],
-  ];
-  for (let i = 1; i < stops.length; i++) {
-    if (t <= stops[i][0]) {
-      const [t0, c0] = stops[i - 1];
-      const [t1, c1] = stops[i];
-      const k = (t - t0) / (t1 - t0);
-      return [
-        Math.round(c0[0] + (c1[0] - c0[0]) * k),
-        Math.round(c0[1] + (c1[1] - c0[1]) * k),
-        Math.round(c0[2] + (c1[2] - c0[2]) * k),
-      ];
-    }
-  }
-  const last = stops[stops.length - 1][1];
-  return [last[0], last[1], last[2]];
 }

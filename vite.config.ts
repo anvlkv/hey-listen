@@ -34,6 +34,9 @@ export default defineConfig(() => ({
     // Split the large vendor libraries into their own chunks instead of one
     // >500 kB bundle (Rolldown's manual chunking).
     rolldownOptions: {
+      // Silence the informational plugin-timing diagnostic ("[PLUGIN_TIMINGS]");
+      // it is noise in the Tauri build log. Set `bundlerTimings: true` to restore it.
+      checks: { bundlerTimings: false },
       output: {
         codeSplitting: {
           groups: [

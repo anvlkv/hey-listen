@@ -48,12 +48,27 @@
 > keeps results latest-wins. Progress streaming and core-side cancellation are
 > deferred to the expensive tools in M5.
 
-## M5 — Full tool inventory + tabs
+## M5 — Full tool inventory + tabs ✅
 
 - All analysis tools (see [`analysis-tools.md`](analysis-tools.md)); params +
   about popovers; no-duplicate-tabs rule; cross-tab zoom/cursor sync.
 - swap the order of graphs and analyzers (analyzers come first)
 - searchbox at the top filters available analyzers by title and keywords
+
+> Delivered: every tool in [`analysis-tools.md`](analysis-tools.md) — the M4 trio
+> (waveform / spectrum / spectrogram) plus level meters, mel spectrogram, MFCC,
+> chromagram, the seven spectral-shape features, spectral contrast, harmonic ratio,
+> ZCR, three pitch detectors, tempo, onsets, downbeats, and the three loudness
+> tools. `audio/analysis.rs` dispatches them all through the one `run_analysis`
+> command; a per-tool `ToolOptions` carries tool-specific params (band counts, YIN
+> threshold, f0 range, bar length, momentary window). The frontend registry
+> (`state/analyzer.ts`) drives a generic view layer
+> (`components/analyzer/AnalyzerView.tsx` → series / matrix / readouts / events),
+> so a tool is a registry entry, not a new component. The Sidebar now has a search
+> box (title + keywords) and lists **analyzers first**, grouped by domain, then the
+> graph editors. Charts share one solid-uplot plugin bus (`state/chartSync.ts`):
+> cursor and x-zoom are synced across tabs (time and frequency groups), including
+> the canvas spectrogram/matrix views.
 
 ## M6 — Project file
 
@@ -67,8 +82,47 @@
 - Popout any tab in a separate window. Title reflects the tab name and source. Selecting the tab in main window should focus the secondary window.
 - bundle; github workflows for releases; platform matrix.
 - all pure numeric inputs should be refactored to allow dragging (up high, down low, no slider just a visual hint) as well as typing
+- Toolbar polish: drop the temporary `Rust backend:` debug status (the M0 ping
+  scaffold) and add a preview **output meter** beside the output gain/device.
 
-## Backlog (post-M4 polish)
+## M8 — E2E test suite
+
+- WebdriverIO + `@wdio/tauri-service` driving the built app through the system
+  WebView, with the **embedded** driver (`tauri-plugin-wdio-webdriver`) — the only
+  macOS route that needs no external driver or API key — and `@wdio/tauri-plugin`
+  for `browser.tauri.execute()` / IPC mocking.
+- Deterministic fixtures (a generated 440 Hz WAV, a chirp/noise WAV, a known synth
+  graph) so every run is reproducible.
+- Stable `data-testid`/ARIA selectors added only where a test needs one.
+- A test matrix (see [`testing.md`](testing.md)) covering **every analyzer tool**
+  (one parametrized smoke test), **both graph editors**, **all source kinds**, and
+  the cross-cutting scenarios (search, no-duplicate tabs, shared-param sync,
+  zoom/cursor sync, filter bypass, error/warning surfacing, timeline window +
+  channel select, project save/load, tab popout). A handful of correctness
+  spot-checks on the known
+  fixture is the only numeric coverage — no per-tool regression suites.
+- GitHub Actions CI on the platform matrix (macOS / Linux / Windows); capture is
+  covered by an automated error-path test, the granted happy path a manual smoke
+  (TCC prompts need a signed bundle).
+
+> Depends on M6 (project save/load) and M7 (popout) for the persistence and
+> multi-window scenarios; everything else can be exercised from M5.
+
+## M9 — MCP server (agent access + UI following)
+
+- A **Model Context Protocol (MCP)** server that exposes Hey Listen as tools an AI
+  agent can drive: open a source, run every analysis tool, edit the filter/synth
+  graphs, preview playback, and save/load projects — the same surface the UI
+  drives, not a parallel one.
+- **UI following** — agent actions are reflected in the live window and vice
+  versa: open/focus Workbench tabs, observe the selected source and analysis
+  window, and read the dockview layout, so an agent follows (and steers) the
+  user's single-window project instead of running headless.
+
+> Reuses the Rust core (`audio/*`, `commands/*`); UI following rides the Tauri IPC
+> boundary so the agent and the user share one project per window.
+
+## Backlog
 
 - **Full fundsp node coverage.** The graph-editor palette is a focused subset today; expand it to all of fundsp — every filter family and their control-input variants, dynamics, panning/stereo, modulation, reverbs, the sequencer, and custom nodes — with per-node inspectors/presets. See [`graph-editor.md`](graph-editor.md) → Planned. Add search box for filtering available nodes. Make input/output nodes undeletable, automove them to left and right edges of the flowchart. Add hints describing what each filter/node does (search the web for precise description, not fundsp specific).
 - **Timeline filtered overlay.** Draw the filtered signal over the raw waveform so the filter's effect is visible (and mark when the filter is active/bypassed). See [`ui-layout.md`](ui-layout.md).

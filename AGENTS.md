@@ -55,6 +55,7 @@ Load the matching skill (via the `skill` tool) before working in that area:
 | File decode / demux | `symphonia` |
 | Filtering + synthesis nets | `fundsp-audio` |
 | Analysis (spectral, pitch, tempo, loudness, …) | `oxiaudio` |
+| End-to-end testing (WebdriverIO + Tauri) | `tauri-webdriver-e2e` |
 
 
 ## Hard rules (from the spec — do not violate)
@@ -80,5 +81,5 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M4 is done). Deliver strictly one
+`docs/roadmap.md` tracks progress (M5 is done). Deliver strictly one
 milestone at a time; confirm current status from that file before starting.

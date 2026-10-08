@@ -39,3 +39,15 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# The audio/DSP crates are heavy numeric code; optimize them even in the dev
+# profile so analysis stays interactive (the app crate keeps the fast incremental
+# dev build). Without this, long-window spectral/pitch tools take tens of seconds.
+[profile.dev.package.oxiaudio-dsp]
+opt-level = 3
+
+[profile.dev.package.oxiaudio-core]
+opt-level = 3
+
+[profile.dev.package.oxifft]
+opt-level = 3

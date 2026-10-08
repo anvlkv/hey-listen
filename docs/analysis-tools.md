@@ -30,7 +30,8 @@ uses it. Each `run_analysis` call carries them.
 | Analysis sample rate | all tools | optional resample before analysis |
 | Frequency range (min/max Hz) | spectral, pitch | band-limit before spectral/pitch |
 
-Per-tool params (not shared) stay in each tool's params popover: the spectrum's
+Per-tool params (not shared) stay in each tool's params popover and cross IPC in a
+`ToolOptions` object alongside the shared params: the spectrum/spectrogram's
 **min / max / mean** magnitude layers, mel band count, MFCC coefficient count,
 chroma bins, onset threshold, etc.
 
@@ -96,3 +97,20 @@ Toolbar **Filter** toggle.
 
 The node palette is a focused subset of fundsp today; covering the full node set is
 tracked in the [roadmap](roadmap.md) backlog.
+
+## Implementation status
+
+All tools above are implemented (M5) in `src-tauri/src/audio/analysis.rs` and
+dispatched by the single `run_analysis` command. The frontend registry
+(`state/analyzer.ts`) declares each tool's title, description, about copy,
+keywords, sidebar section, view (series / matrix / rhythm / readouts / events), and
+per-tool params, so adding a tool is a registry entry plus its Rust function — no
+bespoke component. **No duplicate tabs** per tool, and **zoom/cursor are synced**
+across tabs (`state/chartSync.ts`).
+
+> The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
+> envelope** plus their event times, so their tabs draw the envelope with the
+> detected beats / onsets / downbeats marked on top, rather than a list of numbers.
+> Long-window analysis is kept interactive by padding short windows (so the
+> library's frame-based features always yield a frame) and by bounding the
+> frame count of the O(frames × lags) pitch / harmonic-ratio tools.
