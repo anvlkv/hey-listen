@@ -58,6 +58,11 @@ seed as `Input → Output`; synth graphs seed as `Sine → Output`.
   (signal + cutoff + Q, fed by `dc`/`lfo`), dynamics, panning/stereo, modulation
   (chorus/flanger/phaser), reverbs, the `Sequencer`, and custom nodes — plus
   per-node inspectors and presets.
+- **Node search** — a search box filters the palette's nodes by name.
+- **Anchor nodes are fixed** — `input` / `output` are undeletable and auto-pinned
+  to the left / right edges of the canvas.
+- **Node hints** — each palette node gets a short description of what it does
+  (drawn from the web, not fundsp-specific jargon).
 - **Timeline filtered overlay** so the filter's effect is visible (see
   [`ui-layout.md`](ui-layout.md)).
 - **Stereo graphs** (the net is mono today); parameter smoothing for live edits.

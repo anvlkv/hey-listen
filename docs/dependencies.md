@@ -50,5 +50,7 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); the `flexaudio-vad
   `@tauri-apps/cli` (2.12.x) while a cargo-installed `tauri-cli` may be older
   (e.g. 2.8.4). An older CLI validates `tauri.conf.json` against *its own* older
   schema and rejects newer keys (e.g. `bundle > macOS > infoPlist`) even though
-  the `tauri` crate accepts them. If you must use `cargo tauri`, keep it in step:
+  `tauri` crate accepts them. If you must use `cargo tauri`, keep it in step:
   `cargo install tauri-cli --version 2.12.1`.
+- **Release / packaging (M7):** bundle with `npm run tauri build`; add GitHub
+  release workflows and a build matrix covering the supported platforms.

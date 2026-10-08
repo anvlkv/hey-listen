@@ -38,7 +38,7 @@ src-tauri/src/
 │   ├── capture.rs   # start/stop/gain/pause recording           ✅
 │   ├── graph.rs     # filter/synth graph commands               ✅ (set_filter_graph, render_synth)
 │   ├── playback.rs  # preview playback (cpal)                   ✅
-│   ├── analysis.rs  # run analysis over a window
+│   ├── analysis.rs  # run analysis over a window                ✅ (run_analysis)
 │   └── project.rs   # save/load binary project file
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
@@ -47,7 +47,7 @@ src-tauri/src/
 │   ├── graph.rs     # fundsp Net: compile (push + connect) / apply / render ✅
 │   ├── pcm.rs       # channel mixdown + linear resample        ✅
 │   ├── playback.rs  # cpal output stream + ring buffer         ✅
-│   └── analysis.rs  # oxiaudio wrappers
+│   └── analysis.rs  # oxiaudio wrappers                         ✅
 ├── state.rs         # core-owned source PCM + filter + player  ✅
 └── project/         # binary format: write/read, sections, streaming
 ```
@@ -73,14 +73,16 @@ managed via `app.manage(...)`.
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file |
 
-> **Implemented so far (M3):** file source uses `pick_audio_file` → `probe_file` →
+> **Implemented so far (M4):** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
 > Live capture uses `list_devices` / `list_processes` and
 > `start_capture` / `stop_capture` / `pause_capture` / `resume_capture` /
 > `set_capture_gain`. The core owns the source PCM: `stream_file` and
 > `render_synth` set it, `begin_capture_source` / `end_capture_source` gate
-> capture appends, and `clear_audio_source` drops it. `open_source`/`close_source`
-> remain the planned unification of the source kinds.
+> capture appends, and `clear_audio_source` drops it. Analysis uses the single
+> `run_analysis` command (tool id + window + shared params → typed result); the
+> first tools are waveform, spectrum, and spectrogram.
+> `open_source`/`close_source` remain the planned unification of the source kinds.
 
 **Channels / events** (Rust → frontend):
 
@@ -128,6 +130,11 @@ thread); analysis runs in Rust.
   blocking pool, leaving the async workers free for capture/decode.
 - Results return via the invoke promise; long runs stream progress via a
   `Channel`.
+
+> **Implemented (M4):** the frontend (`state/analyzer.ts`) debounces auto-run on
+> the source / window / shared params / filter, and keeps results latest-wins with
+> a per-tool generation counter. Progress streaming and core-side mid-run
+> cancellation are deferred to the expensive tools (M5).
 
 **Trigger policy:**
 

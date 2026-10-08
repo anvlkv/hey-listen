@@ -5,10 +5,9 @@ inputs (mic / system / per-process / mix), and fundsp synthesis — then save th
 source, analysis setup (including layout), and results into a single binary
 project file.
 
-> **Status:** file source + live capture (M1–M2). Open an audio file (symphonia)
-> or record a microphone / system / per-process / mic+system source (flexaudio) and
-> explore it in the Timeline (growing waveform, analysis window, zoom, drag
-> preview). No analysis tools yet. See [`docs/roadmap.md`](docs/roadmap.md).
+> **Status:** M0–M4 — file source, live capture, fundsp filter/synth graphs, core
+> preview playback, and the first analysis tools (waveform, spectrum, spectrogram)
+> as Workbench tabs. See [`docs/roadmap.md`](docs/roadmap.md).
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
 > coding agents. AI-generated code and documentation should be reviewed before
@@ -31,8 +30,9 @@ project file.
 ## Layout rule (read this first)
 
 `Timeline`, `Sidebar`, and `Workbench` are **fixed regions** — they are **not**
-tabs. The **only** tabs are analyzer tabs, and they live **inside the Workbench**
-(managed by `dockview`). See [`docs/ui-layout.md`](docs/ui-layout.md).
+tabs. The **only** tabs are the **Workbench tabs** — the graph editors (filter /
+synth) and the analyzer tools — and they live **inside the Workbench** (managed by
+`dockview`). See [`docs/ui-layout.md`](docs/ui-layout.md).
 
 ## Develop
 

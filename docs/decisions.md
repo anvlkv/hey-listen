@@ -29,6 +29,9 @@ be versioned carefully (see
 
 **Decision:** each Tauri window hosts one independent project; no shared state.
 
+> A **popout** (M7) is not a second project window: it moves one Workbench *tab*
+> into a dockview popout window for the *same* project (see `ui-layout.md`).
+
 ## ADR-4 — PCM over `tauri::ipc::Channel`, not events
 
 **Decision:** ordered, high-throughput audio streams use `Channel`; events are
@@ -85,11 +88,15 @@ attributes; Kobalte ships no CSS.
 portaled and positioned by Kobalte, so they escape the fixed Source panel and flip
 above it; `Meter` exposes `--kb-meter-fill-width`, and `Slider` positions its
 fill/thumb inline, so our CSS only supplies appearance. **Tabs are deliberately
-not used:** the only tabs in the app are the analyzer tabs inside the Workbench,
-owned by `dockview` (ADR-1), so a Kobalte `Tabs` region would violate that rule.
+not used:** the only tabs in the app are the Workbench tabs (the graph editors and
+the analyzers) inside the Workbench, owned by `dockview` (ADR-1), so a Kobalte
+`Tabs` region would violate that rule.
 The vendor libraries push the bundle past Vite's 500 kB warning, so
 `vite.config.ts` splits them into their own chunks (`dockview`, `kobalte`) with
 `build.rolldownOptions.output.codeSplitting`; the app chunk itself stays small.
+
+> **Planned (M7):** pure numeric inputs (the `NumberField`s and graph-node params)
+> gain **drag-to-adjust** — drag up/down to change the value — alongside typing.
 
 ## ADR-9 — Move preview playback into the Rust core (cpal)
 

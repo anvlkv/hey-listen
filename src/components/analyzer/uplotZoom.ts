@@ -1,0 +1,91 @@
+import { createSignal } from "solid-js";
+import type { TooltipProps } from "@dschz/solid-uplot/plugins";
+
+/** The uPlot instance type, taken from the wrapper's plugin props (avoids a CJS default import). */
+type UplotInstance = TooltipProps["u"];
+
+/**
+ * Zoom/pan controller for a 1-D solid-uplot chart (waveform, spectrum).
+ *
+ * uPlot has no built-in wheel zoom, so we add it (around the pointer) here, plus
+ * explicit zoom in/out and fit. Drag-select zoom stays uPlot's own. The visible
+ * x-range is tracked so the controls can show it.
+ */
+export interface UplotZoom {
+  /** Attach to `SolidUplot`'s `onCreate`. */
+  onReady: (u: UplotInstance) => void;
+  /** Attach to the plot wrapper's `onWheel`. */
+  wheel: (event: WheelEvent) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  /** Reset the x-axis to the full data extent. */
+  fit: () => void;
+  /** The visible x-range, kept in sync with every scale change. */
+  range: () => [number, number] | null;
+}
+
+export function createUplotZoom(): UplotZoom {
+  const [instance, setInstance] = createSignal<UplotInstance | null>(null);
+  const [range, setRange] = createSignal<[number, number] | null>(null);
+
+  const sync = (u: UplotInstance) => {
+    const scale = u.scales.x;
+    if (typeof scale.min === "number" && typeof scale.max === "number") {
+      setRange([scale.min, scale.max]);
+    }
+  };
+
+  const apply = (min: number, max: number) => {
+    const u = instance();
+    if (!u || !(max > min)) return;
+    u.setScale("x", { min, max });
+  };
+
+  const scaleX = (): [number, number] | null => {
+    const scale = instance()?.scales.x;
+    if (typeof scale?.min === "number" && typeof scale.max === "number") {
+      return [scale.min, scale.max];
+    }
+    return null;
+  };
+
+  const factor = (f: number) => {
+    const current = scaleX();
+    if (!current) return;
+    const [min, max] = current;
+    const center = (min + max) / 2;
+    const half = ((max - min) / 2) * f;
+    apply(center - half, center + half);
+  };
+
+  return {
+    onReady(u) {
+      setInstance(u);
+      const onSetScale = (self: UplotInstance, key: string) => {
+        if (key === "x") sync(self);
+      };
+      if (u.hooks.setScale) u.hooks.setScale.push(onSetScale);
+      else u.hooks.setScale = [onSetScale];
+      sync(u);
+    },
+    wheel(event) {
+      const u = instance();
+      const current = scaleX();
+      if (!u || !u.over || !current) return;
+      event.preventDefault();
+      const rect = u.over.getBoundingClientRect();
+      const at = u.posToVal(event.clientX - rect.left, "x");
+      const f = event.deltaY < 0 ? 0.8 : 1.25;
+      apply(at + (current[0] - at) * f, at + (current[1] - at) * f);
+    },
+    zoomIn: () => factor(0.5),
+    zoomOut: () => factor(2),
+    fit() {
+      const u = instance();
+      const xs = u?.data[0];
+      if (!u || !xs || xs.length < 2) return;
+      apply(xs[0], xs[xs.length - 1]);
+    },
+    range,
+  };
+}

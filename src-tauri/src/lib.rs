@@ -43,6 +43,7 @@ pub fn run() {
             commands::playback::stop_preview,
             commands::playback::set_output_gain,
             commands::playback::preview_position,
+            commands::analysis::run_analysis,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
