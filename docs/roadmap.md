@@ -12,15 +12,22 @@
 - symphonia probe + decode; waveform rendering in the Timeline.
 - Analysis window (start/end) + zoom + drag preview.
 
-## M2 — Live capture (current)
+## M2 — Live capture ✅
 
-- flexaudio sources (mic/system/process/mix); device/process enumeration.
-- Growing timeline; start timer + target duration; gain/pause/resume.
+- Input source picker (file / mic / system / process / mix) lives in the
+  **bottom-left** corner — the intersection of the Sidebar and Timeline regions.
+- flexaudio sources (mic/system/process/mix); device/process enumeration
+  (comboboxes).
+- Growing timeline; start timer + target duration; gain/pause/resume + input meter.
+- macOS capture permissions (microphone + system/process audio) via a merged
+  `Info.plist`.
 
 ## M3 — Filtering + synthesis graphs
 
 - solid-flow fundsp graph editor; apply graph before analysis.
 - fundsp synth source (build in solid-flow, render to PCM).
+- Move preview playback into the Rust core (cpal), with the PCM owned by the core
+  — see ADR-9.
 
 ## M4 — Analysis engine + first tools
 
@@ -40,4 +47,4 @@
 
 ## M7 — Multi-window + polish + packaging
 
-- N independent project windows; macOS capture permissions; bundle/icons.
+- N independent project windows; bundle/icons.

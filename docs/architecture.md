@@ -65,16 +65,21 @@ managed via `app.manage(...)`.
 | Decode | `probe_file` | symphonia metadata (codec, channels, rate, duration) |
 | Decode | `stream_file` | `Channel` of PCM chunks for the timeline |
 | Synth | `render_synth` | build a fundsp graph, render to PCM |
+| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) |
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file |
 
-> **Implemented so far (M1):** `pick_audio_file`, `probe_file`, `stream_file`.
-> A file source is opened as probe → stream (the frontend drives it) rather than
-> `open_source`/`close_source`, which arrive with the other source kinds in M2+.
+> **Implemented so far (M2):** file source uses `pick_audio_file` → `probe_file` →
+> `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
+> Live capture uses `list_devices` / `list_processes` and
+> `start_capture` / `stop_capture` / `pause_capture` / `resume_capture` /
+> `set_capture_gain`. `open_source`/`close_source` remain the planned unification
+> of both.
 
 **Channels / events** (Rust → frontend):
 
-- `capture_chunk` (Channel) — 20 ms PCM chunks as the timeline grows.
+- `capture_chunk` (Channel) — 20 ms PCM chunks as the timeline grows (passed to
+  `start_capture` as `onChunk`).
 - `source_status` — device lost, stall, permission, etc. (flexaudio `Event`).
 - `analysis_progress` — long-running analysis updates.
 
@@ -97,6 +102,8 @@ managed via `app.manage(...)`.
   into a ring buffer and are forwarded to the frontend via a `Channel`.
 - Analysis/decode: async commands run on `tauri::async_runtime` (never block the
   main thread); fundsp audio callbacks never allocate.
+- Playback (planned, ADR-9): one `cpal` output stream is kept open and fed from a
+  ring buffer; control is fire-and-forget, so scrubbing pays no stream-open cost.
 - The frontend is single-threaded (SolidJS); heavy PCM is streamed, not posted
   as one giant JSON blob.
 

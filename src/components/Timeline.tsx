@@ -1,7 +1,11 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { playhead, previewRegion, stop as stopPreview } from "../audio/playback";
+import { playhead, previewRegion, setPreviewChannel, stop as stopPreview } from "../audio/playback";
 import { columnExtent, computePeaks, type Peaks } from "../lib/waveform";
+import { channelFor } from "../state/analysis";
+import { stopFollowing } from "../state/capture";
 import { source, status } from "../state/source";
+import Button from "./Button";
+import ChannelSelect from "./ChannelSelect";
 import {
   setView,
   setWindowEnd,
@@ -66,10 +70,19 @@ export default function Timeline() {
   const duration = () => source()?.duration ?? 0;
   const span = () => Math.max(1e-9, viewEnd() - viewStart());
   const plotW = () => Math.max(1, cssW() - PLOT_PAD * 2);
+  /** The timeline is interactive for a settled source or a growing capture. */
+  const active = () => status() === "ready" || status() === "capturing";
+
+  /** Analysis/display channel for the current source (see `state/analysis.ts`). */
+  const pick = () => channelFor(source()?.channels ?? 1);
 
   const peaks = createMemo<Peaks | null>(() => {
     const s = source();
-    return s ? computePeaks(s.samples, s.frames, s.channels) : null;
+    if (!s) return null;
+    const want = pick();
+    // Live captures maintain their peaks incrementally; files compute them lazily.
+    if (s.peaks && s.peaksChannel === want) return s.peaks;
+    return computePeaks(s.samples, s.frames, s.channels, want);
   });
 
   const t2x = (t: number) => PLOT_PAD + ((t - viewStart()) / span()) * plotW();
@@ -185,7 +198,7 @@ export default function Timeline() {
       for (let x = x0; x < x1; x++) {
         const f0 = x2t(x) * s.sampleRate;
         const f1 = x2t(x + 1) * s.sampleRate;
-        const [lo, hi] = columnExtent(p, s.samples, s.frames, s.channels, f0, f1);
+        const [lo, hi] = columnExtent(p, s.samples, s.frames, s.channels, f0, f1, pick());
         const yHi = mid - hi * half;
         const yLo = mid - lo * half;
         ctx.moveTo(x + 0.5, Math.min(yHi, yLo));
@@ -283,7 +296,8 @@ export default function Timeline() {
   }
 
   function onPointerDown(e: PointerEvent) {
-    if (status() !== "ready" || !source()) return;
+    if (!active() || !source()) return;
+    stopFollowing();
     const x = pointerX(e);
     const ws = t2x(windowStart());
     const we = t2x(windowEnd());
@@ -352,6 +366,7 @@ export default function Timeline() {
 
   function onWheel(e: WheelEvent) {
     if (!source()) return;
+    stopFollowing();
     e.preventDefault();
     const t = x2t(pointerX(e));
     const factor = e.deltaY < 0 ? 0.8 : 1.25;
@@ -359,14 +374,21 @@ export default function Timeline() {
   }
 
   function zoomBy(factor: number) {
+    stopFollowing();
     const center = (viewStart() + viewEnd()) / 2;
     applyView(center + (viewStart() - center) * factor, center + (viewEnd() - center) * factor);
   }
 
   function zoomToWindow() {
+    stopFollowing();
     const wDur = windowEnd() - windowStart();
     const pad = Math.max(wDur * 0.05, 1e-3);
     applyView(Math.max(0, windowStart() - pad), Math.min(duration(), windowEnd() + pad));
+  }
+
+  function fitAll() {
+    stopFollowing();
+    applyView(0, duration());
   }
 
   // --- lifecycle ---------------------------------------------------------
@@ -397,6 +419,9 @@ export default function Timeline() {
 
   onCleanup(() => endPreview());
 
+  // Audition the channel that is drawn/analysed.
+  createEffect(() => setPreviewChannel(pick()));
+
   createEffect(() => {
     // Track everything the canvas draws.
     source();
@@ -423,52 +448,50 @@ export default function Timeline() {
           </span>
           <span class="timeline-dim">Δ {formatTime(windowDuration())}</span>
         </div>
+        <Show when={(source()?.channels ?? 1) > 1}>
+          <ChannelSelect />
+        </Show>
         <div class="timeline-actions">
-          <button
-            type="button"
+          <Button
             class="timeline-btn"
             disabled={status() !== "ready"}
             title="Preview the analysis window"
             onClick={togglePreview}
           >
             {previewing() ? "■ Stop" : "▶ Preview"}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class="timeline-btn"
-            disabled={status() !== "ready"}
+            disabled={!active()}
             title="Zoom to the analysis window"
             onClick={zoomToWindow}
           >
             Window
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class="timeline-btn"
-            disabled={status() !== "ready"}
+            disabled={!active()}
             title="Zoom out"
             onClick={() => zoomBy(1.5)}
           >
             −
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class="timeline-btn"
-            disabled={status() !== "ready"}
+            disabled={!active()}
             title="Zoom in"
             onClick={() => zoomBy(1 / 1.5)}
           >
             +
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class="timeline-btn"
-            disabled={status() !== "ready"}
+            disabled={!active()}
             title="Fit the whole source"
-            onClick={() => applyView(0, duration())}
+            onClick={fitAll}
           >
             Fit
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -480,13 +503,13 @@ export default function Timeline() {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         />
-        <Show when={status() !== "ready"}>
+        <Show when={!active()}>
           <div class="timeline-overlay">
-            <Show when={status() === "empty"}>Open an audio file to begin</Show>
+            <Show when={status() === "empty"}>Open a file or record a source to begin</Show>
             <Show when={status() === "probing"}>Reading metadata…</Show>
             <Show when={status() === "decoding"}>Decoding audio…</Show>
             <Show when={status() === "error"}>
-              <span class="timeline-error">Failed to open source (see toolbar)</span>
+              <span class="timeline-error">Source failed — see the Source panel</span>
             </Show>
           </div>
         </Show>

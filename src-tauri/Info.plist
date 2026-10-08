@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Merged into the bundle Info.plist (see docs/source-model.md). macOS
+         requires these usage descriptions before it will grant microphone and
+         system/process audio capture (TCC). -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Hey Listen records microphone audio so you can analyse it.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Hey Listen records system and per-application audio so you can analyse it.</string>
+</dict>
+</plist>

@@ -42,7 +42,9 @@ reserved for status/signals.
 
 **Decision:** shared params (FFT size, hop/overlap, randomized overlap, window
 function, channel, frequency range) live in one Solid store and are sent with
-each `run_analysis`, guaranteeing cross-tool sync.
+each `run_analysis`, guaranteeing cross-tool sync. The store is
+`src/state/analysis.ts` — the channel selection landed with the source work; the
+rest arrives in M4.
 
 ## ADR-7 — Timeline waveform on a 2D canvas; preview via Web Audio
 
@@ -61,3 +63,56 @@ in the WebView; Rust has no playback path.
 (solid-uplot remains for analyzer tabs in M4+). The full PCM is retained in the
 frontend, which is fine for M1 but may need revisiting for very large files /
 live capture.
+
+> **Superseded in part by ADR-9 (M3):** preview playback and PCM ownership move
+> into the Rust core.
+
+## ADR-8 — Kobalte for accessible UI primitives
+
+**Context:** the Source picker needs real form controls (comboboxes, selects) with
+keyboard support, typeahead, focus management and correct ARIA wiring. Hand-rolling
+these is error-prone.
+
+**Decision:** use `@kobalte/core` (unstyled, accessible, composable SolidJS
+primitives) for such controls, imported from per-component subpaths (e.g.
+`@kobalte/core/combobox`). We style the parts ourselves via their `data-*` state
+attributes; Kobalte ships no CSS.
+
+**Consequence:** the Source picker and Timeline use Kobalte primitives: `Select`
+(source kind), `Combobox` (device / application), `Slider` (gain), `NumberField`
+(start/stop timers), `Meter` (input level) and `Button` (throughout). Popups are
+portaled and positioned by Kobalte, so they escape the fixed Source panel and flip
+above it; `Meter` exposes `--kb-meter-fill-width`, and `Slider` positions its
+fill/thumb inline, so our CSS only supplies appearance. **Tabs are deliberately
+not used:** the only tabs in the app are the analyzer tabs inside the Workbench,
+owned by `dockview` (ADR-1), so a Kobalte `Tabs` region would violate that rule.
+The vendor libraries push the bundle past Vite's 500 kB warning, so
+`vite.config.ts` splits them into their own chunks (`dockview`, `kobalte`) with
+`build.rolldownOptions.output.codeSplitting`; the app chunk itself stays small.
+
+## ADR-9 — Move preview playback into the Rust core (cpal)
+
+**Context:** ADR-7 keeps preview playback in the frontend (Web Audio) because the
+decoded PCM is already in the WebView. That was a scoped M1 shortcut, and it
+conflicts with "the Rust core owns all audio I/O" — playback *is* audio I/O. It
+also diverges from analysis: from M3 the fundsp graph is applied in Rust *before*
+analysis, so a frontend preview would play raw PCM while the analyzers see the
+filtered signal. The channel selection already had to be duplicated once in JS
+(`audio/playback.ts`) and once as the shared analysis param. The full PCM also
+lives twice in the WebView (`Float32Array` + `AudioBuffer`) and grows unbounded
+for live capture.
+
+**Decision:** move preview playback into the Rust core over `cpal` (already in the
+dependency tree via flexaudio's mic backend). Keep one output stream open and
+drive it from a ring buffer with `play(region, loop)` / `stop` / `seek` / gain, so
+interactive scrubbing pays neither stream-open nor IPC latency. PCM ownership
+moves to the core: file sources are re-read/seeked (or cached) in Rust and live
+capture retains its PCM in Rust; the WebView keeps only the peak envelope the
+Timeline draws from.
+
+**Consequence:** new commands (`preview_region`, `stop_preview`,
+`set_output_gain`, `list_output_devices`) plus stream-error events, and the
+frontend preview module (`src/audio/playback.ts`) goes away. Scheduled with M3,
+the first point where "what you hear" must equal "what is analysed". Coupled to
+the "where does the PCM live" question that the project file (M6, `DATA` section)
+settles anyway.

@@ -40,7 +40,7 @@ struct SharedParams {
     window_fn: WindowFn,         // Hann / Hamming / Blackman / rectangular
 
     // signal conditioning
-    channel: ChannelSelect,      // mono-mix / left / right / mid / side
+    channel: ChannelSelect,      // Downmix (mono) | Channel(n) — 0-based
     resample_to: Option<u32>,    // optional analysis sample rate
 
     // spectral range

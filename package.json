@@ -14,6 +14,7 @@
   "dependencies": {
     "@dschz/solid-flow": "^0.2.6",
     "@dschz/solid-uplot": "^0.5.2",
+    "@kobalte/core": "^0.13.14",
     "@tauri-apps/api": "^2",
     "dockview": "^8.4.1",
     "solid-js": "^1.9.3",
