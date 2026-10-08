@@ -10,6 +10,8 @@ as a tab in the Workbench.
 - Each tool has an **about popover** (when/how to use it).
 - Each tool carries **keywords** (search terms) for the Sidebar search box, which
   filters analyzers by title and keywords.
+- Each **choice** (window function, hop/overlap, FFT size, analyzer) carries an
+  explanatory tooltip ("when to use which").
 - Results are computed over the analysis window by the Rust backend
   (`oxiaudio`), respecting shared params.
 
@@ -28,8 +30,9 @@ uses it. Each `run_analysis` call carries them.
 | Analysis sample rate | all tools | optional resample before analysis |
 | Frequency range (min/max Hz) | spectral, pitch | band-limit before spectral/pitch |
 
-Per-tool params (not shared) stay in each tool's params popover: mel band count,
-MFCC coefficient count, chroma bins, onset threshold, etc.
+Per-tool params (not shared) stay in each tool's params popover: the spectrum's
+**min / max / mean** magnitude layers, mel band count, MFCC coefficient count,
+chroma bins, onset threshold, etc.
 
 ## Tool inventory (oxiaudio)
 
@@ -44,6 +47,7 @@ MFCC coefficient count, chroma bins, onset threshold, etc.
 
 | Tool | oxiaudio |
 | --- | --- |
+| Spectrum | `dsp::spectral::stft` (magnitude, averaged per bin) |
 | Spectrogram | `dsp::spectral::stft` |
 | Mel spectrogram | `dsp::spectral::melspectrogram` |
 | MFCC | `dsp::mfcc` |

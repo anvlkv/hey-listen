@@ -40,6 +40,7 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - Shows the whole recording plus the **analysis window** (`start..end`).
 - For extra-short windows the timeline **zooms in** on the window.
 - Dragging `start` or `end` plays back a **preview** of that region.
+- The whole window can be **dragged** (keeping its width) via a handle at its top.
 - For a **multichannel** source, a channel selector (in the Timeline toolbar) picks
   the channel to display/analyse, or downmixes to mono. It is the shared analysis
   param, so the waveform, preview playback and (M4+) analyzers all agree.

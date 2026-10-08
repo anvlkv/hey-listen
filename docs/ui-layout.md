@@ -39,12 +39,21 @@ scrolling); shrinking the row below the panel's content makes the panel scroll.
   (which drive the core player, ADR-9).
 - **Numeric inputs** gain **drag-to-adjust** (drag up/down to change the value, a
   visual affordance rather than a slider) in addition to typing — M7.
+- A user-adjustable **font size / UI zoom** scales the whole interface — M4+
+  polish.
+
+## Theming
+
+The app ships a **light / dark / auto** theme (M4+ polish). It drives the UI via
+CSS custom properties **and** the charts: the uPlot series/axis colours, the
+spectrogram canvas background and colormap, and the dockview theme all follow the
+active theme. Today the shell is dark-only with chart colours hardcoded.
 
 ## Fixed regions
 
 | Region | Role | Notes |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback; pick a channel or downmix to mono for multichannel sources; **planned:** overlay the filtered signal when a filter is active |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **planned:** overlay the filtered signal when a filter is active |
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first, then the graph editors (M5); a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
@@ -67,6 +76,8 @@ None of these are closable, draggable, or tabbed.
 - Analyzer charts **zoom on scroll** and carry an on-chart **zoom control**
   (zoom in / out / fit with a range readout); the spectrogram also **pans by
   dragging** (wheel zooms time, Shift+wheel zooms frequency).
+- Axis labels stay **un-truncated** — sized margins and formatted ticks/units
+  (M4+ polish).
 - **Zoom and cursor are synced across analyzer tabs** (where relevant), via shared
   chart state (solid-uplot `createPluginBus`) — M5.
 
