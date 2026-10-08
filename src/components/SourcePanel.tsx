@@ -6,6 +6,7 @@ import { createEffect, on, Show } from "solid-js";
 import Button from "./Button";
 import Combobox from "./Combobox";
 import { openFileDialog, source } from "../state/source";
+import { openTool } from "../state/workbench";
 import {
   applyGain,
   cancelCountdown,
@@ -65,13 +66,14 @@ interface SourceChoiceOption {
   label: string;
 }
 
-/** The source kinds the picker offers (synth arrives in M3). */
+/** The source kinds the picker offers (synth renders from its Workbench tab). */
 const SOURCE_CHOICES: SourceChoiceOption[] = [
   { value: "file", label: "Audio file" },
   { value: "mic", label: "Microphone" },
   { value: "system", label: "System audio" },
   { value: "process", label: "Application" },
   { value: "mix", label: "Mic + system" },
+  { value: "synth", label: "Synth (graph)" },
 ];
 
 const micDevices = () => devices().filter((d) => d.sourceKind === "mic" && !d.isLoopback);
@@ -108,13 +110,17 @@ export default function SourcePanel() {
     on(
       () => [choice(), deviceId(), targetPid(), mixMicDeviceId(), mixSystemDeviceId()] as const,
       ([kind, , pid]) => {
-        if (kind === "file" || (kind === "process" && pid == null)) void stopMonitor();
+        if (kind === "file" || kind === "synth" || (kind === "process" && pid == null))
+          void stopMonitor();
         else void startMonitor();
       },
     ),
   );
 
   const deviceOptions = () => toOptions(choice() === "mic" ? micDevices() : systemDevices());
+
+  /** Live kinds (mic/system/process/mix) expose gain, meter and record controls. */
+  const liveKind = () => choice() !== "file" && choice() !== "synth";
 
   const processOptions = () =>
     processes().map((proc) => ({
@@ -185,6 +191,12 @@ export default function SourcePanel() {
         </Button>
       </Show>
 
+      <Show when={choice() === "synth"}>
+        <Button class="src-button" onClick={() => openTool("synth")}>
+          Open synth graph…
+        </Button>
+      </Show>
+
       <Show when={choice() === "mic" || choice() === "system"}>
         <div class="src-field">
           <span class="src-label">Device</span>
@@ -239,7 +251,7 @@ export default function SourcePanel() {
         </div>
       </Show>
 
-      <Show when={choice() !== "file"}>
+      <Show when={liveKind()}>
         <Slider
           class="src-field"
           value={[gain()]}

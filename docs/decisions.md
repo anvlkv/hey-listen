@@ -10,7 +10,8 @@ inside the Workbench. Timeline/Sidebar/Workbench are fixed Solid regions, not
 dockview panels.
 
 **Consequence:** docking/tab features are limited to the Workbench, which is
-exactly the requirement.
+exactly the requirement. The Workbench hosts the **graph editors** (filter/synth,
+ADR-10) and, from M4, the analyzer tabs.
 
 ## ADR-2 — Binary project file (postcard + raw PCM sections)
 
@@ -116,3 +117,43 @@ frontend preview module (`src/audio/playback.ts`) goes away. Scheduled with M3,
 the first point where "what you hear" must equal "what is analysed". Coupled to
 the "where does the PCM live" question that the project file (M6, `DATA` section)
 settles anyway.
+
+> **Implemented (M3):** the core owns the source PCM (`state.rs`): `stream_file`
+> caches the decode, `render_synth` caches the render, live capture appends while
+> recording, and `clear_audio_source` drops it. `audio/playback.rs` keeps one
+> `cpal` output stream open on a dedicated worker (the stream is `!Send` on macOS)
+> and plays the region after mixdown → filter → resample; `audio/preview.ts`
+> replaces the deleted Web Audio module. Because the core filters a region *when it
+> is loaded*, the frontend re-issues the active preview whenever the filter graph,
+> analysis channel, or output device changes — otherwise a filter edit would only
+> be heard on the next preview.
+>
+> **Transitional deviation:** the frontend still retains a full PCM copy for the
+> Timeline *waveform* (peaks + zoomed raw-sample fallback). ADR-9's "the WebView
+> keeps only the peak envelope" needs Rust-side peak/LOD streaming and is deferred;
+> until then the PCM exists twice (traced here deliberately).
+
+## ADR-10 — The graph editors are Workbench tabs
+
+**Context:** M3 adds two fundsp editors (filter and synth). They are not analyzer
+*tools* (they produce no analysis result and are not in `analysis-tools.md`), yet
+they are tabbed, dockable content that belongs next to the analyzers. ADR-1 (and
+`ui-layout.md`) had said the Workbench hosts "analyzer tabs only".
+
+**Decision:** the Workbench (`dockview`) hosts the **graph editors** as their own
+panels/tabs — `filter` and `synth` — alongside the analyzer tabs arriving in M4.
+The fixed-region rule is unchanged: Timeline, Sidebar, Source, and Workbench are
+still regions, not tabs, and dockview is still mounted only in the Workbench.
+
+**Consequence:** the Tab rule generalizes to "the only tabs are Workbench tabs",
+which are the graph editors plus the analyzers. The Sidebar's tool list opens
+both kinds; no duplicates (a tool is open at most once). Graph state lives at
+module scope (`state/graph.ts`), so a closed/reopened tab keeps its graph.
+
+**Graph model (mirrors fundsp `Net`):** the editor compiles to a literal
+push + connect — `net.push` per node, `net.connect` per edge, with each input
+taking exactly one source (a second connection to the same input is rejected in
+the UI **and** the core). Explicit `input` / `output` anchor nodes bridge the
+graph to the net's global input/output; a `mix` node sums two signals. What is
+wired to `output` is exactly the graph's result — there is no implicit summing of
+"terminal" nodes.

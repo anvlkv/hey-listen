@@ -7,12 +7,13 @@
 use std::sync::Mutex;
 
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::audio::capture::{
     self, CaptureConfig, CaptureError, CaptureHandle, CaptureKind, CaptureMessage, DeviceDto,
     ProcessDto,
 };
+use crate::state::AudioState;
 
 /// Shared capture session (at most one running capture at a time).
 pub type CaptureState = Mutex<Option<CaptureHandle>>;
@@ -86,8 +87,11 @@ pub fn start_capture(
     };
 
     let status_app = app.clone();
+    let recording_sink = app.state::<AudioState>().recording_sink();
     let sink = move |message: CaptureMessage| match message {
         CaptureMessage::Chunk(samples) => {
+            // Keep the core's copy in sync so preview playback can use it (ADR-9).
+            recording_sink.append(&samples);
             let mut bytes = Vec::with_capacity(samples.len() * 4);
             for sample in &samples {
                 bytes.extend_from_slice(&sample.to_le_bytes());

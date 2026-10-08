@@ -78,6 +78,96 @@ body,
   max-width: 40%;
 }
 
+/* Toolbar audio controls (filter bypass + output gain/device). */
+.toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  color: #8a8a8a;
+  user-select: none;
+}
+
+.toolbar-readout {
+  min-width: 32px;
+  font-size: 11px;
+  color: #c8c8c8;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.toolbar-slider {
+  display: flex;
+  align-items: center;
+  width: 88px;
+}
+
+.toolbar-field {
+  width: 190px;
+}
+
+.toolbar-field .combo {
+  width: 100%;
+}
+
+/* Kobalte Switch (filter bypass). */
+.toolbar-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toolbar-switch-control {
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 16px;
+  padding: 2px;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 100ms linear;
+}
+
+.toolbar-switch-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #b6c8e6;
+  transition: transform 100ms ease;
+}
+
+.toolbar-switch[data-checked] .toolbar-switch-control,
+.toolbar-switch-control[data-checked] {
+  background: #2f4a7a;
+  border-color: #3f63a0;
+}
+
+.toolbar-switch[data-checked] .toolbar-switch-thumb,
+.toolbar-switch-control[data-checked] .toolbar-switch-thumb {
+  transform: translateX(14px);
+  background: #d6e4ff;
+}
+
 .app-main {
   flex: 1;
   display: flex;
@@ -622,7 +712,291 @@ body,
 }
 
 .sidebar-empty {
+  margin-top: 12px;
   font-size: 12px;
+  color: #6f6f6f;
+}
+
+.sidebar-section-title {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.sidebar-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  text-align: left;
+  color: #e6e6e6;
+  background: #2b2b2b;
+  border: 1px solid #3c3c3c;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.sidebar-tool:hover {
+  background: #333;
+  border-color: #4a4a4a;
+}
+
+.sidebar-tool-open {
+  border-color: #5898ff;
+}
+
+.sidebar-tool-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sidebar-tool-desc {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+
+/* Workbench panel content host (each graph tab). */
+.workbench-panel {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* --- Graph editor (filter / synth tabs) --------------------------------- */
+
+.graph-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #1f1f1f;
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #c8c8c8;
+  background: #252525;
+  border-bottom: 1px solid #333;
+}
+
+.graph-toolbar-title {
+  font-weight: 600;
+  color: #e6e6e6;
+}
+
+.graph-toolbar-hint {
+  color: #8a8a8a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-status {
+  color: #8a8a8a;
+}
+
+.graph-error {
+  max-width: 38%;
+  color: #ff7b72;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-toolbar .graph-btn:first-of-type {
+  margin-left: auto;
+}
+
+.graph-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #8a8a8a;
+}
+
+.graph-number {
+  width: 52px;
+  height: 22px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 12px;
+  color: #e6e6e6;
+  background: #2b2b2b;
+  border: 1px solid #454545;
+  border-radius: 4px;
+}
+
+.graph-btn {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #e6e6e6;
+  background: #333;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-btn:hover:not(:disabled) {
+  background: #3f3f3f;
+}
+
+.graph-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.graph-btn-primary {
+  color: #d6e4ff;
+  background: #2f4a7a;
+  border-color: #3f63a0;
+}
+
+.graph-btn-primary:hover:not(:disabled) {
+  background: #3a5a90;
+}
+
+.graph-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-warn {
+  max-width: 40%;
+  color: #ffcf6b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 210px;
+  padding: 8px;
+  background: rgba(37, 37, 37, 0.94);
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+}
+
+.graph-palette-title {
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.graph-palette-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.graph-palette-btn {
+  height: 22px;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 11px;
+  color: #d6d6d6;
+  background: #333;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-palette-btn:hover {
+  background: #3f3f3f;
+}
+
+/* Custom graph node. */
+.graph-node {
+  min-width: 140px;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #e6e6e6;
+  background: #2b2b2b;
+  border: 1px solid #454545;
+  border-radius: 6px;
+}
+
+.graph-node-anchor {
+  min-width: 96px;
+  background: #26364d;
+  border-color: #3f63a0;
+}
+
+.graph-node-anchor .graph-node-title {
+  text-align: center;
+  color: #d6e4ff;
+}
+
+.graph-node-selected {
+  border-color: #5898ff;
+  box-shadow: 0 0 0 1px #5898ff;
+}
+
+.graph-node-title {
+  font-weight: 600;
+}
+
+.graph-node-params {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.graph-param {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.graph-param-label {
+  flex: 1;
+  font-size: 10px;
+  color: #9a9a9a;
+}
+
+.graph-param-input {
+  width: 58px;
+  height: 20px;
+  padding: 0 3px;
+  font: inherit;
+  font-size: 11px;
+  color: #e6e6e6;
+  background: #1f1f1f;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+}
+
+.graph-param-unit {
+  width: 18px;
+  font-size: 10px;
   color: #6f6f6f;
 }
 

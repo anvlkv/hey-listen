@@ -1,5 +1,17 @@
+import { Switch } from "@kobalte/core/switch";
+import { Slider } from "@kobalte/core/slider";
 import { invoke } from "@tauri-apps/api/core";
 import { createSignal, onMount, Show } from "solid-js";
+import Combobox from "./Combobox";
+import { filterEnabled, setFilterEnabled } from "../state/graph";
+import {
+  applyOutputGain,
+  outputDeviceId,
+  outputDevices,
+  outputGain,
+  refreshOutputDevices,
+  setOutputDeviceId,
+} from "../state/output";
 import { error, status } from "../state/source";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -9,7 +21,10 @@ const STATUS_LABEL: Record<string, string> = {
 
 /**
  * App toolbar (no title/branding — the native title bar carries the app name).
- * Holds app-level status; the audio source picker lives in the bottom-left
+ *
+ * Holds app-level status **and** app-level audio controls: the filter-graph
+ * bypass toggle and the preview output (gain + device), all of which drive the
+ * core's preview player (ADR-9). The audio source picker lives in the bottom-left
  * Source region (see `docs/ui-layout.md`).
  */
 export default function Toolbar() {
@@ -19,7 +34,14 @@ export default function Toolbar() {
     invoke<string>("ping")
       .then((msg) => setBackend(msg))
       .catch((err) => setBackend(`error: ${String(err)}`));
+    void refreshOutputDevices();
   });
+
+  const deviceOptions = () =>
+    outputDevices().map((device) => ({
+      value: device.id,
+      label: device.isDefault ? `${device.name} (default)` : device.name,
+    }));
 
   return (
     <header class="app-toolbar">
@@ -28,6 +50,52 @@ export default function Toolbar() {
       </Show>
 
       <div class="toolbar-spacer" />
+
+      <div class="toolbar-controls">
+        <Switch
+          class="toolbar-switch"
+          checked={filterEnabled()}
+          onChange={setFilterEnabled}
+          title="Apply the filter graph to preview (and analysis)"
+        >
+          <Switch.Label class="toolbar-label">Filter</Switch.Label>
+          <Switch.Input class="toolbar-switch-input" />
+          <Switch.Control class="toolbar-switch-control">
+            <Switch.Thumb class="toolbar-switch-thumb" />
+          </Switch.Control>
+        </Switch>
+
+        <div class="toolbar-group" title="Preview output gain">
+          <span class="toolbar-label">Output</span>
+          <Slider
+            class="toolbar-slider"
+            value={[outputGain()]}
+            onChange={(values) => applyOutputGain(values[0])}
+            minValue={0}
+            maxValue={2}
+            step={0.05}
+            aria-label="Preview output gain"
+          >
+            <Slider.Track class="gain-track">
+              <Slider.Fill class="gain-fill" />
+              <Slider.Thumb class="gain-thumb">
+                <Slider.Input class="gain-input" />
+              </Slider.Thumb>
+            </Slider.Track>
+          </Slider>
+          <span class="toolbar-readout">{Math.round(outputGain() * 100)}%</span>
+        </div>
+
+        <div class="toolbar-field">
+          <Combobox
+            options={deviceOptions()}
+            value={outputDeviceId()}
+            onChange={setOutputDeviceId}
+            emptyLabel="System default"
+            label="Output device"
+          />
+        </div>
+      </div>
 
       <Show when={error()}>
         <span class="app-status app-status-error" title={error() ?? undefined}>
