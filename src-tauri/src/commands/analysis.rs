@@ -9,11 +9,11 @@
 use serde::Deserialize;
 use tauri::{AppHandle, Manager};
 
-use crate::audio::analysis::{self, AnalysisError, AnalysisResult, SharedParams};
+use crate::audio::analysis::{self, AnalysisError, AnalysisResult, SharedParams, ToolOptions};
 use crate::state::AudioState;
 
 /// One `run_analysis` request: the tool id, the analysis window (source seconds),
-/// and the shared params (`docs/data-model.md`).
+/// the shared params, and any per-tool options (`docs/data-model.md`).
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalysisRequest {
@@ -21,6 +21,8 @@ pub struct AnalysisRequest {
     pub start: f64,
     pub end: f64,
     pub params: SharedParams,
+    #[serde(default)]
+    pub options: ToolOptions,
 }
 
 /// Run an analysis tool over `start..end` and return its result.
@@ -34,6 +36,7 @@ pub async fn run_analysis(
         start,
         end,
         params,
+        options,
     } = request;
 
     // Slice the windowed region (a copy) and read the active filter under the lock,
@@ -77,7 +80,7 @@ pub async fn run_analysis(
             params.channel,
             params.resample_to,
         )?;
-        analysis::run(&tool, &mono, rate, &params)
+        analysis::run(&tool, &mono, rate, &params, &options)
     })
     .await
     .map_err(|err| AnalysisError::Analysis(err.to_string()))?

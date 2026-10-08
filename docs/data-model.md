@@ -26,6 +26,9 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 - **AnalysisResult** — cached output of a tool over a window (typed payload +
   the params/window it was computed for).
 - **SharedParams** — analysis params synced across tools (FFT size, hop/overlap, window function, channel, frequency range, …).
+- **ToolOptions** — per-tool params that are *not* shared (band/coefficient counts,
+  YIN threshold, f0 range, bar length, momentary window, …); they ride along with
+  every `run_analysis` call and fall back to per-tool defaults when absent.
 - **LayoutState** — `dockview` `api.toJSON()` + solid-flow graph positions.
 
 ## Sketch (Rust)
@@ -58,6 +61,22 @@ struct SharedParams {
     // spectral range
     freq_min_hz: f64,
     freq_max_hz: f64,
+}
+
+// Per-tool options, sent with every `run_analysis` call next to `SharedParams`.
+// Every field is optional; absent fields use the tool's defaults.
+struct ToolOptions {
+    n_mels: Option<usize>,
+    n_mfcc: Option<usize>,
+    n_bands: Option<usize>,
+    rolloff_percent: Option<f32>,
+    yin_threshold: Option<f32>,
+    min_f0_hz: Option<f32>,
+    max_f0_hz: Option<f32>,
+    bar_length: Option<usize>,
+    window_ms: Option<u32>,
+    f_min_hz: Option<f32>,
+    f_max_hz: Option<f32>,
 }
 
 struct Project {

@@ -36,7 +36,9 @@ scrolling); shrinking the row below the panel's content makes the panel scroll.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
   status only. No hero/header like a website. In M3 it gained the app-level audio
   controls: the **filter bypass toggle** and the preview **output gain + device**
-  (which drive the core player, ADR-9).
+  (which drive the core player, ADR-9). M7 polish adds a preview **output meter**
+  next to gain/device and removes the temporary **`Rust backend:`** status — the M0
+  IPC-ping scaffold, which is obsolete once the core is proven.
 - **Numeric inputs** gain **drag-to-adjust** (drag up/down to change the value, a
   visual affordance rather than a slider) in addition to typing — M7.
 - A user-adjustable **font size / UI zoom** scales the whole interface — M4+
@@ -54,7 +56,7 @@ active theme. Today the shell is dark-only with chart colours hardcoded.
 | Region | Role | Notes |
 | --- | --- | --- |
 | **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **planned:** overlay the filtered signal when a filter is active |
-| **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first, then the graph editors (M5); a search box filters the analyzer list |
+| **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
 
@@ -73,22 +75,29 @@ None of these are closable, draggable, or tabbed.
   title shows the tab name + source, and focusing the tab in the main window
   raises the popout.
 - Each analyzer tab has a **params popover** and an **about popover**.
+- A **busy indicator** shows progress without blocking: the **first** computation
+  (nothing to show yet) spins in the **centre** of the tab; a **recompute** (params
+  or window change while a result is on screen) spins in the **bottom-right corner**
+  so the stale result stays visible.
 - Analyzer charts **zoom on scroll** and carry an on-chart **zoom control**
   (zoom in / out / fit with a range readout); the spectrogram also **pans by
   dragging** (wheel zooms time, Shift+wheel zooms frequency).
 - Axis labels stay **un-truncated** — sized margins and formatted ticks/units
   (M4+ polish).
-- **Zoom and cursor are synced across analyzer tabs** (where relevant), via shared
-  chart state (solid-uplot `createPluginBus`) — M5.
+- **Zoom and cursor are synced across analyzer tabs** (where relevant): every
+  uPlot chart shares one `createPluginBus` (`state/chartSync.ts`), so the hovered
+  cursor is mirrored onto the others and x-zoom is shared within a group (time
+  charts follow each other; the spectrum group follows frequency). The canvas
+  spectrogram / matrix views join the time group too.
 
 ## Sidebar
 
 Lists every available analyzer tool (see
 [`analysis-tools.md`](analysis-tools.md)) and, below them, the two graph editors —
-**analyzers come first** (M5). A **search box** at the top filters the analyzer
-list by title and keywords (M5); the graph editors are always shown. Clicking an
-entry opens its tab in the Workbench (no-op if already open; selects the existing
-tab).
+**analyzers come first**, grouped by domain (time / spectral / pitch / rhythm /
+loudness). A **search box** at the top filters the analyzer list by title,
+description, and keywords; the graph editors are always shown. Clicking an entry
+opens its tab in the Workbench (no-op if already open; selects the existing tab).
 
 ## Source picker
 

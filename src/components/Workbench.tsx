@@ -1,30 +1,43 @@
 import { DockviewComponent, themeDark } from "dockview";
 import "dockview/dist/styles/dockview.css";
-import { onCleanup, onMount } from "solid-js";
+import { onCleanup, onMount, type Component } from "solid-js";
 import { render } from "solid-js/web";
 import FilterGraphTab from "./FilterGraphTab";
 import SynthGraphTab from "./SynthGraphTab";
+import AnalyzerView from "./analyzer/AnalyzerView";
 import SpectrogramTab from "./analyzer/SpectrogramTab";
 import SpectrumTab from "./analyzer/SpectrumTab";
 import WaveformTab from "./analyzer/WaveformTab";
+import { ANALYZERS, type AnalyzerId } from "../state/analyzer";
 import { setDockApi, setOpenTools, type ToolId } from "../state/workbench";
 
 /**
  * Workbench (fixed region): hosts the Workbench tabs, and is the **only** tabbed
  * area in the app — so `dockview` is mounted here and nowhere else.
  *
- * The tabs are the graph editors (filter / synth) and the analyzer tools
- * (waveform / spectrum / spectrogram). Each panel's content is a Solid root
- * rendered into the panel element and disposed when dockview unmounts it (the graph
- * state lives in `state/graph.ts` and analyzer results are re-derived, so closing a
- * tab is safe).
+ * The tabs are the graph editors (filter / synth) and the analyzer tools. Each
+ * panel's content is a Solid root rendered into the panel element and disposed when
+ * dockview unmounts it (the graph state lives in `state/graph.ts` and analyzer
+ * results are re-derived, so closing a tab is safe).
  */
+
+/** Analyzers that keep a bespoke chart; the rest use the generic [`AnalyzerView`]. */
+const SPECIAL_ANALYZER_VIEWS: Partial<Record<AnalyzerId, Component>> = {
+  waveform: WaveformTab,
+  spectrum: SpectrumTab,
+  spectrogram: SpectrogramTab,
+};
+
+function analyzerRenderer(id: AnalyzerId): (host: HTMLElement) => () => void {
+  const Special = SPECIAL_ANALYZER_VIEWS[id];
+  if (Special) return (host) => render(() => <Special />, host);
+  return (host) => render(() => <AnalyzerView id={id} />, host);
+}
+
 const RENDERERS: Record<string, (host: HTMLElement) => () => void> = {
   filter: (host) => render(() => <FilterGraphTab />, host),
   synth: (host) => render(() => <SynthGraphTab />, host),
-  waveform: (host) => render(() => <WaveformTab />, host),
-  spectrum: (host) => render(() => <SpectrumTab />, host),
-  spectrogram: (host) => render(() => <SpectrogramTab />, host),
+  ...Object.fromEntries(ANALYZERS.map((def) => [def.id, analyzerRenderer(def.id)])),
 };
 
 export default function Workbench() {

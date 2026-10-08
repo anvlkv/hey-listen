@@ -1,14 +1,14 @@
-import { SolidUplot, createPluginBus } from "@dschz/solid-uplot";
-import { cursor, tooltip, type CursorPluginMessageBus, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { SolidUplot } from "@dschz/solid-uplot";
+import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
+import { mirrorCursor, syncView } from "./syncPlugins";
+import { analyzerBus } from "../../state/chartSync";
 import { createAnalysis, type WaveformResult } from "../../state/analyzer";
-
-const bus = createPluginBus<CursorPluginMessageBus>();
 
 const AXIS = {
   stroke: "#8a8a8a",
@@ -51,7 +51,12 @@ export default function WaveformTab() {
   };
 
   return (
-    <AnalyzerTab id="waveform" loading={analysis.loading()} error={analysis.error()}>
+    <AnalyzerTab
+      id="waveform"
+      loading={analysis.loading()}
+      error={analysis.error()}
+      hasResult={analysis.result() != null}
+    >
       <Show
         when={analysis.result()}
         fallback={<div class="analyzer-empty">Open a source and set the analysis window.</div>}
@@ -65,7 +70,14 @@ export default function WaveformTab() {
               <Readout label="Rate" value={`${result().sampleRate} Hz`} />
             </div>
             <div class="analyzer-plot" onWheel={zoom.wheel}>
-              <Show when={data()[0].length >= 2}>
+              <Show
+                when={data()[0].length >= 2}
+                fallback={
+                  <div class="analyzer-empty">
+                    Empty window — widen the analysis window.
+                  </div>
+                }
+              >
                 <ZoomControls
                   onZoomIn={zoom.zoomIn}
                   onZoomOut={zoom.zoomOut}
@@ -74,8 +86,8 @@ export default function WaveformTab() {
                 />
                 <SolidUplot
                   autoResize
-                  pluginBus={bus}
-                  plugins={[cursor(), tooltip(Tooltip)]}
+                  pluginBus={analyzerBus}
+                  plugins={[cursor(), tooltip(Tooltip), mirrorCursor("time"), syncView("time")]}
                   onCreate={zoom.onReady}
                   data={data()}
                   series={[

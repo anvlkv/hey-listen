@@ -12,6 +12,7 @@
 //! **resampled** — so what is analysed matches what is heard (ADR-9).
 
 use oxiaudio::dsp::spectral::{stft, WindowFn};
+use oxiaudio::dsp::PitchFrame;
 use oxiaudio::{AudioBuffer, ChannelLayout, SampleFormat};
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,22 @@ const MAX_SPEC_BINS: usize = 512;
 /// Cap on the STFT's transient memory: frames × bins complex cells. A longer
 /// window widens the hop so the engine never allocates unboundedly.
 const MAX_STFT_CELLS: usize = 8_000_000;
+
+// Per-tool option defaults (see `docs/analysis-tools.md`).
+const DEFAULT_N_MELS: usize = 64;
+const DEFAULT_N_MFCC: usize = 13;
+const DEFAULT_N_BANDS: usize = 6;
+const DEFAULT_ROLLOFF: f32 = 0.85;
+const DEFAULT_YIN_THRESHOLD: f32 = 0.12;
+const DEFAULT_MIN_F0: f32 = 60.0;
+const DEFAULT_MAX_F0: f32 = 1200.0;
+/// Cap on frames for the O(frames × lags) pitch / harmonic-ratio tools, so a long
+/// window stays interactive (the hop widens to keep the frame count bounded).
+const MAX_PITCH_FRAMES: usize = 512;
+/// Cap on frames for the onset-strength envelope handed to the rhythm charts.
+const MAX_RHYTHM_FRAMES: usize = 4096;
+
+const DEFAULT_BAR_LENGTH: usize = 4;
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -183,6 +200,169 @@ pub struct SpectrogramResult {
     pub max_db: f32,
 }
 
+/// Time-domain level readouts (peak / RMS), without the waveform envelope.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LevelsResult {
+    pub sample_rate: u32,
+    pub frames: usize,
+    pub duration: f64,
+    pub peak: f32,
+    pub rms: f32,
+    pub peak_db: f32,
+    pub rms_db: f32,
+}
+
+/// One scalar value per analysis frame, plotted against time. `values` may contain
+/// gaps (`None`) — e.g. unvoiced pitch frames or silent loudness blocks.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeriesResult {
+    pub sample_rate: u32,
+    pub hop_size: usize,
+    pub frames: usize,
+    /// Frame times in seconds.
+    pub times: Vec<f32>,
+    pub values: Vec<Option<f32>>,
+    pub min_value: f32,
+    pub max_value: f32,
+}
+
+/// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MatrixResult {
+    pub sample_rate: u32,
+    pub hop_size: usize,
+    pub frames: usize,
+    pub bins: usize,
+    pub duration: f32,
+    /// Frame times in seconds.
+    pub times: Vec<f32>,
+    /// Band-axis positions (index or Hz) for the retained bands.
+    pub bands: Vec<f32>,
+    /// Frame-major `frames * bins` values.
+    pub values: Vec<f32>,
+    pub min_value: f32,
+    pub max_value: f32,
+}
+
+/// Tempo / onset / downbeat analysis over one window: the onset-strength envelope
+/// (one value per frame) plus the detected beat grid and event times. The rhythm
+/// charts draw the envelope and mark the relevant events on it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RhythmResult {
+    pub bpm: f32,
+    pub confidence: f32,
+    pub hop_size: usize,
+    /// Frame times (seconds) of `onset_strength`.
+    pub times: Vec<f32>,
+    /// Onset-strength envelope (half-wave-rectified spectral flux).
+    pub onset_strength: Vec<f32>,
+    /// Detected onset times (seconds).
+    pub onset_times: Vec<f32>,
+    /// Estimated beat times (seconds).
+    pub beat_times: Vec<f32>,
+    /// Estimated downbeat times (seconds).
+    pub downbeat_times: Vec<f32>,
+}
+
+/// Integrated loudness (EBU R128).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LufsResult {
+    pub lufs: f32,
+}
+
+/// Loudness range (LRA), in LU.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LraResult {
+    pub lra: f32,
+}
+
+/// Per-tool options (not shared across tools). Absent fields fall back to the tool
+/// defaults; see `docs/analysis-tools.md`.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolOptions {
+    #[serde(default)]
+    pub n_mels: Option<usize>,
+    #[serde(default)]
+    pub n_mfcc: Option<usize>,
+    #[serde(default)]
+    pub n_bands: Option<usize>,
+    #[serde(default)]
+    pub rolloff_percent: Option<f32>,
+    #[serde(default)]
+    pub yin_threshold: Option<f32>,
+    #[serde(default)]
+    pub min_f0_hz: Option<f32>,
+    #[serde(default)]
+    pub max_f0_hz: Option<f32>,
+    #[serde(default)]
+    pub bar_length: Option<usize>,
+    #[serde(default)]
+    pub window_ms: Option<u32>,
+    #[serde(default)]
+    pub f_min_hz: Option<f32>,
+    #[serde(default)]
+    pub f_max_hz: Option<f32>,
+}
+
+impl ToolOptions {
+    fn n_mels(&self) -> usize {
+        self.n_mels.unwrap_or(DEFAULT_N_MELS).clamp(8, 256)
+    }
+
+    fn n_mfcc(&self) -> usize {
+        self.n_mfcc.unwrap_or(DEFAULT_N_MFCC).clamp(1, 64)
+    }
+
+    fn n_bands(&self) -> usize {
+        self.n_bands.unwrap_or(DEFAULT_N_BANDS).clamp(2, 16)
+    }
+
+    fn rolloff_percent(&self) -> f32 {
+        self.rolloff_percent
+            .unwrap_or(DEFAULT_ROLLOFF)
+            .clamp(0.01, 0.99)
+    }
+
+    fn yin_threshold(&self) -> f32 {
+        self.yin_threshold
+            .unwrap_or(DEFAULT_YIN_THRESHOLD)
+            .clamp(0.01, 0.9)
+    }
+
+    fn min_f0_hz(&self) -> f32 {
+        self.min_f0_hz.unwrap_or(DEFAULT_MIN_F0).max(1.0)
+    }
+
+    fn max_f0_hz(&self) -> f32 {
+        self.max_f0_hz
+            .unwrap_or(DEFAULT_MAX_F0)
+            .max(self.min_f0_hz() + 1.0)
+    }
+
+    fn bar_length(&self) -> usize {
+        self.bar_length.unwrap_or(DEFAULT_BAR_LENGTH).clamp(2, 12)
+    }
+
+    fn window_ms(&self) -> Option<u32> {
+        self.window_ms.filter(|&ms| ms > 0)
+    }
+
+    fn mel_f_min(&self) -> Option<f32> {
+        self.f_min_hz.filter(|&f| f > 0.0)
+    }
+
+    fn mel_f_max(&self) -> Option<f32> {
+        self.f_max_hz.filter(|&f| f > 0.0)
+    }
+}
+
 /// A tool's result, tagged by the tool id that produced it.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "tool", rename_all = "camelCase")]
@@ -190,6 +370,29 @@ pub enum AnalysisResult {
     Waveform(WaveformResult),
     Spectrum(SpectrumResult),
     Spectrogram(SpectrogramResult),
+    Levels(LevelsResult),
+    MelSpectrogram(MatrixResult),
+    Mfcc(MatrixResult),
+    Chromagram(MatrixResult),
+    SpectralContrast(MatrixResult),
+    SpectralCentroid(SeriesResult),
+    SpectralFlux(SeriesResult),
+    SpectralRolloff(SeriesResult),
+    SpectralFlatness(SeriesResult),
+    SpectralBandwidth(SeriesResult),
+    SpectralEntropy(SeriesResult),
+    SpectralCrest(SeriesResult),
+    HarmonicRatio(SeriesResult),
+    ZeroCrossingRate(SeriesResult),
+    PitchPyin(SeriesResult),
+    PitchYin(SeriesResult),
+    PitchAutocorr(SeriesResult),
+    Tempo(RhythmResult),
+    Onsets(RhythmResult),
+    Downbeats(RhythmResult),
+    LoudnessIntegrated(LufsResult),
+    LoudnessMomentary(SeriesResult),
+    LoudnessRange(LraResult),
 }
 
 // --- signal conditioning -------------------------------------------------
@@ -401,15 +604,248 @@ pub fn spectrogram(
     })
 }
 
+// --- tool helpers --------------------------------------------------------
+
+fn seconds(frames: usize, sample_rate: u32) -> f64 {
+    if sample_rate > 0 {
+        frames as f64 / f64::from(sample_rate)
+    } else {
+        0.0
+    }
+}
+
+/// The `(fft, hop)` grid a frame-based tool should use for this signal.
+fn frame_grid(len: usize, params: &SharedParams) -> (usize, usize) {
+    let fft = params.fft_size();
+    let hop = effective_hop(fft, len, params.hop_size(fft));
+    (fft, hop)
+}
+
+/// Zero-pad `mono` up to `fft` samples. The library's frame-based features (unlike
+/// our STFT) do not pad, so a window shorter than the FFT would otherwise yield no
+/// frames at all — padding keeps them (and the pitch trackers) non-empty.
+fn pad_to_fft(mono: &[f32], fft: usize) -> Vec<f32> {
+    let mut buffer = vec![0.0f32; fft];
+    let n = mono.len().min(fft);
+    buffer[..n].copy_from_slice(&mono[..n]);
+    buffer
+}
+
+/// The frame grid for the O(frames × lags) tools (pitch, harmonic ratio): like
+/// [`frame_grid`], but the hop is widened so the frame count never exceeds
+/// [`MAX_PITCH_FRAMES`], keeping a long window interactive.
+fn pitch_grid(len: usize, params: &SharedParams) -> (usize, usize) {
+    let fft = params.fft_size();
+    let hop = effective_hop(fft, len, params.hop_size(fft));
+    let min_hop = len.div_ceil(MAX_PITCH_FRAMES).max(1);
+    (fft, hop.max(min_hop))
+}
+
+/// The onset-strength envelope for the rhythm tools: half-wave-rectified spectral
+/// flux per frame, with the hop widened so the frame count stays bounded.
+fn onset_envelope(mono: &[f32], sample_rate: u32, params: &SharedParams) -> (usize, Vec<f32>) {
+    let fft = params.fft_size();
+    let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
+    let min_hop = mono.len().div_ceil(MAX_RHYTHM_FRAMES).max(1);
+    let hop = hop.max(min_hop);
+    let buf = mono_buffer(mono, sample_rate);
+    let env = oxiaudio::dsp::spectral::spectral_flux(&buf, fft, hop);
+    (hop, env)
+}
+
+/// Frame start times (seconds) for `frames` frames at `hop` samples.
+fn frame_times(frames: usize, hop: usize, sample_rate: u32) -> Vec<f32> {
+    let dt = hop.max(1) as f32 / sample_rate.max(1) as f32;
+    (0..frames).map(|i| i as f32 * dt).collect()
+}
+
+fn build_series(
+    times: Vec<f32>,
+    values: Vec<Option<f32>>,
+    hop: usize,
+    sample_rate: u32,
+) -> SeriesResult {
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
+    for value in values.iter().flatten() {
+        min = min.min(*value);
+        max = max.max(*value);
+    }
+    SeriesResult {
+        sample_rate,
+        hop_size: hop,
+        frames: values.len(),
+        times,
+        values,
+        min_value: if min.is_finite() { min } else { 0.0 },
+        max_value: if max.is_finite() { max } else { 0.0 },
+    }
+}
+
+/// Wrap one `f32` value per frame (non-finite values become gaps).
+fn series_from_vec(values: Vec<f32>, hop: usize, sample_rate: u32) -> SeriesResult {
+    let times = frame_times(values.len(), hop, sample_rate);
+    let values = values
+        .into_iter()
+        .map(|value| value.is_finite().then_some(value))
+        .collect();
+    build_series(times, values, hop, sample_rate)
+}
+
+/// Wrap a pitch track: unvoiced frames become gaps, times come from the tracker.
+fn pitch_series(frames: Vec<PitchFrame>, hop: usize, sample_rate: u32) -> SeriesResult {
+    let times = frames
+        .iter()
+        .map(|frame| frame.time_seconds as f32)
+        .collect();
+    let values = frames
+        .iter()
+        .map(|frame| {
+            (frame.is_voiced && frame.frequency_hz.is_finite() && frame.frequency_hz > 0.0)
+                .then_some(frame.frequency_hz)
+        })
+        .collect();
+    build_series(times, values, hop, sample_rate)
+}
+
+/// Flatten a `frames × bands` matrix into a [`MatrixResult`].
+fn build_matrix(frames: Vec<Vec<f32>>, hop: usize, sample_rate: u32) -> MatrixResult {
+    let n_frames = frames.len();
+    let bins = frames.first().map(Vec::len).unwrap_or(0);
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
+    let mut values = Vec::with_capacity(n_frames * bins);
+    for frame in &frames {
+        for &value in frame {
+            let value = if value.is_finite() { value } else { 0.0 };
+            min = min.min(value);
+            max = max.max(value);
+            values.push(value);
+        }
+    }
+    MatrixResult {
+        sample_rate,
+        hop_size: hop,
+        frames: n_frames,
+        bins,
+        duration: seconds(n_frames * hop.max(1), sample_rate) as f32,
+        times: frame_times(n_frames, hop, sample_rate),
+        bands: (0..bins).map(|i| i as f32).collect(),
+        values,
+        min_value: if min.is_finite() { min } else { 0.0 },
+        max_value: if max.is_finite() { max } else { 0.0 },
+    }
+}
+
+fn oxi_err(err: oxiaudio::OxiAudioError) -> AnalysisError {
+    AnalysisError::Analysis(err.to_string())
+}
+
+// --- new tools -----------------------------------------------------------
+
+/// Time-domain level meters: peak / RMS in linear and dBFS.
+pub fn levels(mono: &[f32], sample_rate: u32) -> LevelsResult {
+    let buf = mono_buffer(mono, sample_rate);
+    LevelsResult {
+        sample_rate,
+        frames: mono.len(),
+        duration: seconds(mono.len(), sample_rate),
+        peak: buf.peak_amplitude(),
+        rms: buf.rms_amplitude(),
+        peak_db: db_or_floor(buf.peak_db()),
+        rms_db: db_or_floor(buf.rms_db()),
+    }
+}
+
+/// Log-mel spectrogram (frame × mel band).
+pub fn mel_spectrogram(
+    mono: &[f32],
+    sample_rate: u32,
+    params: &SharedParams,
+    options: &ToolOptions,
+) -> Result<MatrixResult, AnalysisError> {
+    let (fft, hop) = frame_grid(mono.len(), params);
+    let buf = mono_buffer(mono, sample_rate);
+    let (band_lo, band_hi) = params.band(sample_rate);
+    let f_min = options.mel_f_min().unwrap_or(band_lo as f32).max(0.0);
+    let f_max = options
+        .mel_f_max()
+        .unwrap_or(band_hi as f32)
+        .max(f_min + 1.0);
+    let mel =
+        oxiaudio::dsp::spectral::melspectrogram(&buf, options.n_mels(), f_min, f_max, fft, hop)
+            .map_err(oxi_err)?;
+    Ok(build_matrix(mel, hop, sample_rate))
+}
+
+/// Mel-frequency cepstral coefficients (frame × coefficient).
+pub fn mfcc(
+    mono: &[f32],
+    sample_rate: u32,
+    params: &SharedParams,
+    options: &ToolOptions,
+) -> Result<MatrixResult, AnalysisError> {
+    let (fft, hop) = frame_grid(mono.len(), params);
+    let buf = mono_buffer(mono, sample_rate);
+    let coeffs = oxiaudio::dsp::spectral::mfcc(&buf, options.n_mfcc(), options.n_mels(), fft, hop)
+        .map_err(oxi_err)?;
+    Ok(build_matrix(coeffs, hop, sample_rate))
+}
+
+/// Chromagram (frame × 12 pitch classes).
+pub fn chromagram(
+    mono: &[f32],
+    sample_rate: u32,
+    params: &SharedParams,
+) -> Result<MatrixResult, AnalysisError> {
+    let (fft, hop) = frame_grid(mono.len(), params);
+    let buf = mono_buffer(mono, sample_rate);
+    let frames = oxiaudio::dsp::spectral::chromagram(&buf, fft, hop)
+        .into_iter()
+        .map(|frame| frame.to_vec())
+        .collect();
+    Ok(build_matrix(frames, hop, sample_rate))
+}
+
+/// Spectral contrast (frame × octave band, in dB).
+pub fn spectral_contrast(
+    mono: &[f32],
+    sample_rate: u32,
+    params: &SharedParams,
+    options: &ToolOptions,
+) -> Result<MatrixResult, AnalysisError> {
+    let (fft, hop) = frame_grid(mono.len(), params);
+    let buf = mono_buffer(mono, sample_rate);
+    let frames = oxiaudio::dsp::spectral::spectral_contrast(&buf, fft, hop, options.n_bands())
+        .map_err(oxi_err)?;
+    Ok(build_matrix(frames, hop, sample_rate))
+}
+
 /// Dispatch a tool id to its implementation.
 pub fn run(
     tool: &str,
     mono: &[f32],
     sample_rate: u32,
     params: &SharedParams,
+    options: &ToolOptions,
 ) -> Result<AnalysisResult, AnalysisError> {
+    let fft = params.fft_size();
+    let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
+    let (pitch_fft, pitch_hop) = pitch_grid(mono.len(), params);
+    // The library's frame-based features do not zero-pad, so feed them a padded
+    // copy: a window shorter than the FFT still yields a frame. `spectrum` /
+    // `spectrogram` and the time-domain / loudness tools keep the original signal.
+    let padded;
+    let lib_mono: &[f32] = if mono.len() < fft {
+        padded = pad_to_fft(mono, fft);
+        &padded
+    } else {
+        mono
+    };
+    let lib_buf = || mono_buffer(lib_mono, sample_rate);
     match tool {
         "waveform" => Ok(AnalysisResult::Waveform(waveform(mono, sample_rate))),
+        "levels" => Ok(AnalysisResult::Levels(levels(mono, sample_rate))),
         "spectrum" => Ok(AnalysisResult::Spectrum(spectrum(
             mono,
             sample_rate,
@@ -420,6 +856,195 @@ pub fn run(
             sample_rate,
             params,
         )?)),
+        "melSpectrogram" => Ok(AnalysisResult::MelSpectrogram(mel_spectrogram(
+            lib_mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
+        "mfcc" => Ok(AnalysisResult::Mfcc(mfcc(
+            lib_mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
+        "chromagram" => Ok(AnalysisResult::Chromagram(chromagram(
+            lib_mono,
+            sample_rate,
+            params,
+        )?)),
+        "spectralContrast" => Ok(AnalysisResult::SpectralContrast(spectral_contrast(
+            lib_mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
+        "spectralCentroid" => Ok(AnalysisResult::SpectralCentroid(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_centroid(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "spectralFlux" => Ok(AnalysisResult::SpectralFlux(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_flux(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "spectralRolloff" => Ok(AnalysisResult::SpectralRolloff(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_rolloff(
+                &lib_buf(),
+                fft,
+                hop,
+                options.rolloff_percent(),
+            ),
+            hop,
+            sample_rate,
+        ))),
+        "spectralFlatness" => Ok(AnalysisResult::SpectralFlatness(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_flatness(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "spectralBandwidth" => Ok(AnalysisResult::SpectralBandwidth(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_bandwidth(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "spectralEntropy" => Ok(AnalysisResult::SpectralEntropy(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_entropy(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "spectralCrest" => Ok(AnalysisResult::SpectralCrest(series_from_vec(
+            oxiaudio::dsp::spectral::spectral_crest_factor(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "harmonicRatio" => Ok(AnalysisResult::HarmonicRatio(series_from_vec(
+            oxiaudio::dsp::spectral::harmonic_ratio(
+                &lib_buf(),
+                pitch_fft,
+                pitch_hop,
+                options.min_f0_hz(),
+                options.max_f0_hz(),
+            ),
+            pitch_hop,
+            sample_rate,
+        ))),
+        "zeroCrossingRate" => Ok(AnalysisResult::ZeroCrossingRate(series_from_vec(
+            oxiaudio::dsp::spectral::zero_crossing_rate(&lib_buf(), fft, hop),
+            hop,
+            sample_rate,
+        ))),
+        "pitchPyin" => Ok(AnalysisResult::PitchPyin(pitch_series(
+            oxiaudio::dsp::detect_pitch_pyin(&lib_buf(), pitch_fft, pitch_hop),
+            pitch_hop,
+            sample_rate,
+        ))),
+        "pitchYin" => Ok(AnalysisResult::PitchYin(pitch_series(
+            oxiaudio::dsp::detect_pitch_yin(
+                &lib_buf(),
+                pitch_fft,
+                pitch_hop,
+                options.yin_threshold(),
+            ),
+            pitch_hop,
+            sample_rate,
+        ))),
+        "pitchAutocorr" => Ok(AnalysisResult::PitchAutocorr(pitch_series(
+            oxiaudio::dsp::detect_pitch_autocorr(
+                &lib_buf(),
+                pitch_fft,
+                pitch_hop,
+                options.min_f0_hz(),
+                options.max_f0_hz(),
+            ),
+            pitch_hop,
+            sample_rate,
+        ))),
+        "tempo" => {
+            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
+            let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
+            Ok(AnalysisResult::Tempo(RhythmResult {
+                bpm: est.bpm,
+                confidence: est.confidence,
+                hop_size: env_hop,
+                times: frame_times(onset_strength.len(), env_hop, sample_rate),
+                onset_strength,
+                onset_times: vec![],
+                beat_times: est.beat_times.iter().map(|&t| t as f32).collect(),
+                downbeat_times: vec![],
+            }))
+        }
+        "onsets" => {
+            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
+            let times = oxiaudio::dsp::detect_onsets(&lib_buf(), fft, hop).map_err(oxi_err)?;
+            Ok(AnalysisResult::Onsets(RhythmResult {
+                bpm: 0.0,
+                confidence: 0.0,
+                hop_size: env_hop,
+                times: frame_times(onset_strength.len(), env_hop, sample_rate),
+                onset_strength,
+                onset_times: times.iter().map(|&t| t as f32).collect(),
+                beat_times: vec![],
+                downbeat_times: vec![],
+            }))
+        }
+        "downbeats" => {
+            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
+            let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
+            let downbeats = oxiaudio::dsp::detect_downbeats(
+                &lib_buf(),
+                &est.beat_times,
+                est.bpm,
+                options.bar_length(),
+            );
+            Ok(AnalysisResult::Downbeats(RhythmResult {
+                bpm: est.bpm,
+                confidence: est.confidence,
+                hop_size: env_hop,
+                times: frame_times(onset_strength.len(), env_hop, sample_rate),
+                onset_strength,
+                onset_times: vec![],
+                beat_times: est.beat_times.iter().map(|&t| t as f32).collect(),
+                downbeat_times: downbeats.iter().map(|&t| t as f32).collect(),
+            }))
+        }
+        "loudnessIntegrated" => {
+            let lufs = oxiaudio::dsp::loudness_lufs(&lib_buf());
+            Ok(AnalysisResult::LoudnessIntegrated(LufsResult {
+                lufs: if lufs.is_finite() { lufs } else { DB_FLOOR },
+            }))
+        }
+        "loudnessMomentary" => {
+            let buf = lib_buf();
+            let (values, hop_samples) = match options.window_ms() {
+                Some(ms) => (
+                    oxiaudio::dsp::loudness_momentary_windowed(&buf, ms),
+                    (sample_rate as u64 * ms as u64 / 1000) as usize,
+                ),
+                None => (
+                    oxiaudio::dsp::loudness_momentary(&buf),
+                    (sample_rate as usize / 10).max(1),
+                ),
+            };
+            let times = frame_times(values.len(), hop_samples, sample_rate);
+            let values = values
+                .into_iter()
+                .map(|value| value.is_finite().then_some(value))
+                .collect();
+            Ok(AnalysisResult::LoudnessMomentary(build_series(
+                times,
+                values,
+                hop_samples,
+                sample_rate,
+            )))
+        }
+        "loudnessRange" => {
+            let lra = oxiaudio::dsp::loudness_range(&lib_buf());
+            Ok(AnalysisResult::LoudnessRange(LraResult {
+                lra: if lra.is_finite() { lra } else { 0.0 },
+            }))
+        }
         other => Err(AnalysisError::UnknownTool(other.to_string())),
     }
 }
@@ -700,8 +1325,165 @@ mod tests {
     #[test]
     fn unknown_tool_is_an_error() {
         assert!(matches!(
-            run("nope", &[0.0], RATE, &params(1024)),
+            run("nope", &[0.0], RATE, &params(1024), &ToolOptions::default()),
             Err(AnalysisError::UnknownTool(_))
         ));
+    }
+
+    #[test]
+    fn level_meters_match_the_waveform_readouts() {
+        let mono = sine(1_000.0, 0.5);
+        let result = levels(&mono, RATE);
+        assert_eq!(result.frames, mono.len());
+        assert!((result.peak - 0.5).abs() < 0.02, "peak = {}", result.peak);
+        assert!(
+            (result.peak_db + 6.0).abs() < 1.0,
+            "peak_db = {}",
+            result.peak_db
+        );
+    }
+
+    #[test]
+    fn spectral_features_return_one_value_per_frame() {
+        let mono = sine(1_000.0, 0.5);
+        let p = params(2048);
+        let options = ToolOptions::default();
+        let centroid = run("spectralCentroid", &mono, RATE, &p, &options).expect("centroid");
+        match centroid {
+            AnalysisResult::SpectralCentroid(series) => {
+                assert!(series.frames > 0);
+                assert_eq!(series.values.len(), series.frames);
+                assert_eq!(series.times.len(), series.frames);
+                // A 1 kHz sine has its energy near 1 kHz.
+                let mean: f32 =
+                    series.values.iter().flatten().copied().sum::<f32>() / series.frames as f32;
+                assert!((mean - 1_000.0).abs() < 120.0, "mean centroid = {mean}");
+            }
+            other => panic!("unexpected result: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn chromagram_has_twelve_bands() {
+        let mono = sine(440.0, 0.5);
+        let result = chromagram(&mono, RATE, &params(2048)).expect("chromagram");
+        assert_eq!(result.bins, 12);
+        assert_eq!(result.values.len(), result.frames * 12);
+    }
+
+    #[test]
+    fn pitch_marks_unvoiced_frames_as_gaps() {
+        // A pure tone is voiced; the tail (silence) should not be.
+        let mut mono = sine(440.0, 0.5);
+        mono.extend(std::iter::repeat(0.0).take(RATE as usize / 4));
+        let result = match run(
+            "pitchPyin",
+            &mono,
+            RATE,
+            &params(2048),
+            &ToolOptions::default(),
+        )
+        .expect("pitch")
+        {
+            AnalysisResult::PitchPyin(series) => series,
+            other => panic!("unexpected result: {other:?}"),
+        };
+        assert!(result.frames > 0);
+        let voiced = result.values.iter().flatten().count();
+        assert!(voiced > 0, "expected some voiced frames");
+        assert!(voiced < result.frames, "expected some silent gaps");
+    }
+
+    #[test]
+    fn loudness_tools_return_finite_values() {
+        let mono = sine(1_000.0, 1.0);
+        match run(
+            "loudnessIntegrated",
+            &mono,
+            RATE,
+            &params(2048),
+            &ToolOptions::default(),
+        )
+        .expect("lufs")
+        {
+            AnalysisResult::LoudnessIntegrated(result) => {
+                assert!(result.lufs.is_finite(), "lufs = {}", result.lufs);
+            }
+            other => panic!("unexpected result: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tempo_and_onsets_run_without_error() {
+        let mono = sine(1_000.0, 1.0);
+        let options = ToolOptions::default();
+        assert!(run("tempo", &mono, RATE, &params(2048), &options).is_ok());
+        assert!(run("onsets", &mono, RATE, &params(2048), &options).is_ok());
+        assert!(run("downbeats", &mono, RATE, &params(2048), &options).is_ok());
+    }
+
+    #[test]
+    fn short_window_pads_library_tools() {
+        // A handful of samples: the library's frame-based features (unlike our STFT)
+        // do not pad, so without padding these would come back empty.
+        let mono: Vec<f32> = vec![0.1, -0.1, 0.05, -0.05, 0.2, -0.2, 0.1, -0.1];
+        let p = params(2048);
+        let options = ToolOptions::default();
+        match run("chromagram", &mono, RATE, &p, &options).expect("chromagram") {
+            AnalysisResult::Chromagram(r) => {
+                assert!(r.frames >= 1, "frames = {}", r.frames);
+                assert_eq!(r.bins, 12);
+            }
+            other => panic!("unexpected result: {other:?}"),
+        }
+        match run("spectralCentroid", &mono, RATE, &p, &options).expect("centroid") {
+            AnalysisResult::SpectralCentroid(r) => {
+                assert!(r.frames >= 1, "frames = {}", r.frames)
+            }
+            other => panic!("unexpected result: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pitch_frames_are_capped() {
+        // A long window keeps the O(frames × lags) pitch tools bounded.
+        let mono = sine(440.0, 30.0);
+        let pitch = match run(
+            "pitchYin",
+            &mono,
+            RATE,
+            &params(2048),
+            &ToolOptions::default(),
+        )
+        .expect("pitch")
+        {
+            AnalysisResult::PitchYin(r) => r,
+            other => panic!("unexpected result: {other:?}"),
+        };
+        assert!(pitch.frames > 0);
+        assert!(
+            pitch.frames <= MAX_PITCH_FRAMES,
+            "frames = {}",
+            pitch.frames
+        );
+    }
+
+    #[test]
+    fn rhythm_result_carries_the_envelope() {
+        let mono = sine(1_000.0, 1.0);
+        let r = match run(
+            "onsets",
+            &mono,
+            RATE,
+            &params(2048),
+            &ToolOptions::default(),
+        )
+        .expect("onsets")
+        {
+            AnalysisResult::Onsets(r) => r,
+            other => panic!("unexpected result: {other:?}"),
+        };
+        assert!(!r.onset_strength.is_empty());
+        assert_eq!(r.times.len(), r.onset_strength.len());
     }
 }
