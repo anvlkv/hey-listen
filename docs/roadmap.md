@@ -35,15 +35,25 @@
 > is compiled in Rust (`audio/graph.rs`). The frontend retains a PCM copy only for
 > the Timeline waveform — a transitional duplication, see ADR-9.
 
-## M4 — Analysis engine + first tools
+## M4 — Analysis engine + first tools ✅
 
 - oxiaudio wrappers; `run_analysis` command; shared FFT params.
 - First tools: waveform, spectrum/FFT, spectrogram.
+
+> Delivered: `audio/analysis.rs` (tool implementations + shared conditioning),
+> the single `run_analysis` command, and the shared params store
+> (`state/analysis.ts`). Analyzer tabs (waveform / spectrum / spectrogram) are
+> Workbench tabs with params + about popovers, listed in the Sidebar under
+> **Analyzers**; the shared runner (`state/analyzer.ts`) debounces auto-run and
+> keeps results latest-wins. Progress streaming and core-side cancellation are
+> deferred to the expensive tools in M5.
 
 ## M5 — Full tool inventory + tabs
 
 - All analysis tools (see [`analysis-tools.md`](analysis-tools.md)); params +
   about popovers; no-duplicate-tabs rule; cross-tab zoom/cursor sync.
+- swap the order of graphs and analyzers (analyzers come first)
+- searchbox at the top filters available analyzers by title and keywords
 
 ## M6 — Project file
 
@@ -53,17 +63,13 @@
 
 ## M7 — Multi-window + polish + packaging
 
-- N independent project windows; bundle/icons.
+- N independent project windows; 
+- Popout any tab in a separate window. Title reflects the tab name and source. Selecting the tab in main window should focus the secondary window.
+- bundle; github workflows for releases; platform matrix.
+- all pure numeric inputs should be refactored to allow dragging (up high, down low, no slider just a visual hint) as well as typing
 
 ## Backlog (post-M3 polish)
 
-- **Full fundsp node coverage.** The graph-editor palette is a focused subset
-  today; expand it to all of fundsp — every filter family and their control-input
-  variants, dynamics, panning/stereo, modulation, reverbs, the sequencer, and custom
-  nodes — with per-node inspectors/presets. See
-  [`graph-editor.md`](graph-editor.md) → Planned.
-- **Timeline filtered overlay.** Draw the filtered signal over the raw waveform so
-  the filter's effect is visible (and mark when the filter is active/bypassed). See
-  [`ui-layout.md`](ui-layout.md).
-- **Stereo graphs** (the compiled net is mono today) and parameter smoothing for
-  live edits.
+- **Full fundsp node coverage.** The graph-editor palette is a focused subset today; expand it to all of fundsp — every filter family and their control-input variants, dynamics, panning/stereo, modulation, reverbs, the sequencer, and custom nodes — with per-node inspectors/presets. See [`graph-editor.md`](graph-editor.md) → Planned. Add search box for filtering available nodes. Make input/output nodes undeletable, automove them to left and right edges of the flowchart. Add hints describing what each filter/node does (search the web for precise description, not fundsp specific).
+- **Timeline filtered overlay.** Draw the filtered signal over the raw waveform so the filter's effect is visible (and mark when the filter is active/bypassed). See [`ui-layout.md`](ui-layout.md).
+- **Stereo graphs** (the compiled net is mono today) and parameter smoothing for live edits.

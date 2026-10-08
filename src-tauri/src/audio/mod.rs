@@ -5,6 +5,7 @@
 //! layer in `crate::commands` adapts them to the IPC boundary. See
 //! `docs/architecture.md`.
 
+pub mod analysis;
 pub mod capture;
 pub mod decode;
 pub mod graph;

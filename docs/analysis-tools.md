@@ -8,6 +8,8 @@ as a tab in the Workbench.
 - Stable `tool id` (string). **No duplicate tabs** per tool.
 - Each tool has a **params popover** (per-tool config).
 - Each tool has an **about popover** (when/how to use it).
+- Each tool carries **keywords** (search terms) for the Sidebar search box, which
+  filters analyzers by title and keywords.
 - Results are computed over the analysis window by the Rust backend
   (`oxiaudio`), respecting shared params.
 

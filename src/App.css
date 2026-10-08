@@ -20,6 +20,8 @@ body,
 #root {
   margin: 0;
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .app-shell {
@@ -1011,4 +1013,378 @@ body,
 
 .analyzer-title {
   font-weight: 600;
+}
+
+/* --- Analyzer tabs (waveform / spectrum / spectrogram) ------------------ */
+
+.sidebar-section-gap {
+  margin-top: 16px;
+}
+
+.analyzer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #1f1f1f;
+}
+
+.analyzer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #c8c8c8;
+  background: #252525;
+  border-bottom: 1px solid #333;
+}
+
+.analyzer-status {
+  color: #8a8a8a;
+}
+
+.analyzer-error {
+  max-width: 38%;
+  color: #ff7b72;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyzer-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.analyzer-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.analyzer-chart {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.analyzer-readouts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  flex: none;
+  padding: 6px 10px;
+  font-size: 11px;
+  border-bottom: 1px solid #2b2b2b;
+}
+
+.readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.readout-label {
+  color: #7f7f7f;
+}
+
+.readout-value {
+  color: #d6d6d6;
+  font-variant-numeric: tabular-nums;
+}
+
+.analyzer-plot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 0;
+}
+
+.analyzer-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+.analyzer-empty-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Spectrogram canvas (raster heatmap — the Timeline precedent, ADR-7). */
+.spectrogram-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 0;
+}
+
+.spectrogram-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Zoom controls, overlaid on the top-right of a chart. */
+.zoom-controls {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  background: rgba(37, 37, 37, 0.92);
+  border: 1px solid #3c3c3c;
+  border-radius: 5px;
+}
+
+.zoom-btn {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: #d6d6d6;
+  background: #333;
+  border: 1px solid #454545;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.zoom-btn:hover {
+  background: #3f3f3f;
+}
+
+.zoom-readout {
+  padding-left: 3px;
+  font-size: 10px;
+  color: #9a9a9a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Cursor tooltip for analyzer charts (solid-uplot tooltip plugin). */
+.chart-tooltip {
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #e6e6e6;
+  background: rgba(24, 24, 24, 0.94);
+  border: 1px solid #454545;
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.chart-tooltip-x {
+  margin-bottom: 2px;
+  color: #9a9a9a;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-tooltip-label {
+  color: #8a8a8a;
+}
+
+.chart-tooltip-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Popover (Kobalte) -------------------------------------------------- */
+
+.pop-trigger {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #d6d6d6;
+  background: #333;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pop-trigger:hover {
+  background: #3f3f3f;
+}
+
+.pop-trigger[data-expanded] {
+  color: #d6e4ff;
+  border-color: #5898ff;
+}
+
+.pop-panel {
+  z-index: 1000;
+  padding: 12px;
+  background: #2b2b2b;
+  border: 1px solid #454545;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+
+.pop-arrow {
+  fill: #2b2b2b;
+  stroke: #454545;
+}
+
+.pop-panel-about {
+  max-width: 320px;
+}
+
+.about-title {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e6e6;
+}
+
+.about-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #bdbdbd;
+}
+
+/* --- Shared / per-tool params form ------------------------------------- */
+
+.params-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 264px;
+}
+
+.params-heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.params-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.params-label {
+  flex: none;
+  color: #9a9a9a;
+}
+
+.params-field .select-field {
+  flex: 1;
+  min-width: 0;
+  max-width: 150px;
+}
+
+.params-field .timeline-channel {
+  flex: 1;
+  min-width: 0;
+  max-width: 150px;
+}
+
+.params-dim {
+  font-size: 11px;
+  color: #7f7f7f;
+}
+
+.params-note {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #7f7f7f;
+}
+
+.params-range {
+  align-items: center;
+}
+
+.params-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.params-range-inputs .src-num {
+  width: 54px;
+}
+
+.params-num {
+  display: inline-flex;
+}
+
+/* Shared switch styling matches the Toolbar switch. */
+.params-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.params-switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.params-switch-control {
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 16px;
+  padding: 2px;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 100ms linear;
+}
+
+.params-switch-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #b6c8e6;
+  transition: transform 100ms ease;
+}
+
+.params-switch[data-checked] .params-switch-control,
+.params-switch-control[data-checked] {
+  background: #2f4a7a;
+  border-color: #3f63a0;
+}
+
+.params-switch[data-checked] .params-switch-thumb,
+.params-switch-control[data-checked] .params-switch-thumb {
+  transform: translateX(14px);
+  background: #d6e4ff;
+}
+
+.select-field {
+  display: flex;
+  min-width: 0;
 }
