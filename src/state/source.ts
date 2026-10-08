@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { setPreviewSource } from "../audio/playback";
+import type { ChannelPick, Peaks } from "../lib/waveform";
 import { resetTimeline } from "./timeline";
 
 const BASE_TITLE = "Hey Listen";
@@ -34,26 +35,41 @@ interface StreamSummary {
   frames: number;
 }
 
-/** The current project's audio source: decoded PCM backing the timeline. */
+/**
+ * The current project's audio source: PCM backing the timeline. Static for files,
+ * growing for live captures.
+ */
 export interface AudioSource {
-  probe: ProbeInfo;
-  /** Interleaved `f32`, length `frames * channels`. */
-  samples: Float32Array;
-  frames: number;
+  /** Display name (file name, or a label such as "Microphone"). */
+  name: string;
+  /** Short descriptor (codec, or the source kind). */
+  detail: string;
   sampleRate: number;
   channels: number;
+  frames: number;
   /** Duration in seconds. */
   duration: number;
+  /**
+   * Interleaved `f32`. Length is `frames * channels` for files, but capture
+   * buffers over-allocate, so read only up to `frames`.
+   */
+  samples: Float32Array;
+  /** Incrementally maintained peaks (capture); files compute them lazily. */
+  peaks?: Peaks;
+  /** The channel `peaks` was computed for (capture) — see `state/analysis.ts`. */
+  peaksChannel?: ChannelPick;
+  /** File metadata, when the source is a file. */
+  probe?: ProbeInfo;
+  /** True while a live capture is still growing. */
+  live?: boolean;
 }
 
-export type SourceStatus = "empty" | "probing" | "decoding" | "ready" | "error";
+export type SourceStatus = "empty" | "probing" | "decoding" | "capturing" | "ready" | "error";
 
 /** One window = one project = one source, so a single source store suffices. */
-const [source, setSource] = createSignal<AudioSource | null>(null);
-const [status, setStatus] = createSignal<SourceStatus>("empty");
-const [error, setError] = createSignal<string | null>(null);
-
-export { source, status, error };
+export const [source, setSource] = createSignal<AudioSource | null>(null);
+export const [status, setStatus] = createSignal<SourceStatus>("empty");
+export const [error, setError] = createSignal<string | null>(null);
 
 /** Generation counter so a slow open can't clobber a newer one. */
 let openToken = 0;
@@ -129,12 +145,14 @@ export async function openPath(path: string) {
 
   setPreviewSource(samples, summary.sampleRate, channels);
   setSource({
-    probe,
+    name: probe.name,
+    detail: probe.codec,
     samples,
     frames,
     sampleRate: summary.sampleRate,
     channels,
     duration,
+    probe,
   });
   resetTimeline(duration);
   setStatus("ready");

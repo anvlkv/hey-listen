@@ -4,6 +4,7 @@
 //! IPC boundary (argument/return types, `Channel`s) but keep the audio work in
 //! the engine modules. See `docs/architecture.md` for the planned inventory.
 
+pub mod capture;
 pub mod decode;
 pub mod source;
 

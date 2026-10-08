@@ -18,6 +18,7 @@
 | Package | Version | Purpose | License |
 | --- | --- | --- | --- |
 | `solid-js` | ^1.9 | UI | MIT |
+| `@kobalte/core` | ^0.13 | accessible UI primitives (combobox, select, …) | MIT |
 | `@tauri-apps/api` / `@tauri-apps/cli` | ^2 | IPC / CLI | MIT / Apache-2.0 |
 | `dockview` | ^8 | Workbench docking (tabs) | MIT |
 | `@dschz/solid-flow` | ^0.2 | fundsp graph editor | MIT |
@@ -40,3 +41,13 @@
 Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); the `flexaudio-vad` /
 `flexaudio-encode` add-ons (not yet used) require ≥ 1.91. Toolchain in use:
 1.99.
+
+## Tooling notes
+
+- **Prefer the npm CLI** (`npm run tauri dev` / `npm run tauri build`) over a
+  `cargo install`ed `cargo tauri`. The two can drift apart: the npm CLI tracks
+  `@tauri-apps/cli` (2.12.x) while a cargo-installed `tauri-cli` may be older
+  (e.g. 2.8.4). An older CLI validates `tauri.conf.json` against *its own* older
+  schema and rejects newer keys (e.g. `bundle > macOS > infoPlist`) even though
+  the `tauri` crate accepts them. If you must use `cargo tauri`, keep it in step:
+  `cargo install tauri-cli --version 2.12.1`.

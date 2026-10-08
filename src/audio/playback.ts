@@ -5,7 +5,12 @@
  * (streamed for the waveform), so a region can be auditioned without a round
  * trip to Rust. The `AudioBuffer` is built lazily on first use to keep source
  * loading snappy.
+ *
+ * Playback follows the Timeline's channel selection, so you hear what is drawn
+ * (and, later, what is analysed).
  */
+
+import type { ChannelPick } from "../lib/waveform";
 
 let ctx: AudioContext | null = null;
 let gain: GainNode | null = null;
@@ -14,6 +19,7 @@ let gain: GainNode | null = null;
 let samples: Float32Array | null = null;
 let sampleRate = 44_100;
 let channels = 1;
+let pick: ChannelPick = "mix";
 let buffer: AudioBuffer | null = null;
 
 let active: AudioBufferSourceNode | null = null;
@@ -42,15 +48,34 @@ function ensureBuffer(): AudioBuffer | null {
   const ac = ensureContext();
   const frames = Math.floor(samples.length / channels);
   if (frames <= 0) return null;
-  const buf = ac.createBuffer(channels, frames, sampleRate);
-  for (let c = 0; c < channels; c++) {
-    const plane = buf.getChannelData(c);
-    for (let i = 0; i < frames; i++) {
-      plane[i] = samples[i * channels + c];
+
+  // Mono buffer: either the downmix or the selected channel.
+  const buf = ac.createBuffer(1, frames, sampleRate);
+  const plane = buf.getChannelData(0);
+  const mixed = pick === "mix";
+  const offset = mixed ? 0 : Math.min(Math.max(pick as number, 0), channels - 1);
+  const inv = 1 / channels;
+
+  for (let i = 0; i < frames; i++) {
+    const base = i * channels;
+    if (mixed) {
+      let sum = 0;
+      for (let c = 0; c < channels; c++) sum += samples[base + c];
+      plane[i] = sum * inv;
+    } else {
+      plane[i] = samples[base + offset];
     }
   }
+
   buffer = buf;
   return buf;
+}
+
+/** Follow the Timeline's channel selection (rebuilds the buffer on next play). */
+export function setPreviewChannel(next: ChannelPick) {
+  if (next === pick) return;
+  pick = next;
+  buffer = null;
 }
 
 /** Point the previewer at a new source (or `null` to clear it). */

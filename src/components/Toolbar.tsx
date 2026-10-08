@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createSignal, onMount, Show } from "solid-js";
-import { error, openFileDialog, source, status } from "../state/source";
+import { error, status } from "../state/source";
 
 const STATUS_LABEL: Record<string, string> = {
   probing: "reading metadata…",
@@ -9,11 +9,11 @@ const STATUS_LABEL: Record<string, string> = {
 
 /**
  * App toolbar (no title/branding — the native title bar carries the app name).
- * Holds app-level actions: open/replace the source, plus status.
+ * Holds app-level status; the audio source picker lives in the bottom-left
+ * Source region (see `docs/ui-layout.md`).
  */
 export default function Toolbar() {
   const [backend, setBackend] = createSignal("…");
-  const busy = () => status() === "probing" || status() === "decoding";
 
   onMount(() => {
     invoke<string>("ping")
@@ -23,23 +23,6 @@ export default function Toolbar() {
 
   return (
     <header class="app-toolbar">
-      <button
-        type="button"
-        class="toolbar-btn"
-        disabled={busy()}
-        onClick={() => void openFileDialog()}
-      >
-        {source() ? "Replace audio file…" : "Open audio file…"}
-      </button>
-
-      <Show when={source()}>
-        {(s) => (
-          <span class="toolbar-source">
-            {s().probe.name} · {s().probe.codec} · {s().sampleRate} Hz · {s().channels} ch
-          </span>
-        )}
-      </Show>
-
       <Show when={STATUS_LABEL[status()]}>
         <span class="app-status">{STATUS_LABEL[status()]}</span>
       </Show>

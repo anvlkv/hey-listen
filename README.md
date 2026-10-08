@@ -5,8 +5,9 @@ inputs (mic / system / per-process / mix), and fundsp synthesis — then save th
 source, analysis setup (including layout), and results into a single binary
 project file.
 
-> **Status:** file source + timeline (M1). Open an audio file to decode it with
-> symphonia and explore it in the Timeline (waveform, analysis window, zoom, drag
+> **Status:** file source + live capture (M1–M2). Open an audio file (symphonia)
+> or record a microphone / system / per-process / mic+system source (flexaudio) and
+> explore it in the Timeline (growing waveform, analysis window, zoom, drag
 > preview). No analysis tools yet. See [`docs/roadmap.md`](docs/roadmap.md).
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
@@ -17,6 +18,7 @@ project file.
 
 - **Desktop shell:** [Tauri 2](https://v2.tauri.app) (Rust core + system WebView)
 - **UI:** [SolidJS](https://www.solidjs.com) + TypeScript + Vite
+- **UI primitives (a11y):** [`@kobalte/core`](https://kobalte.dev) — unstyled, accessible (combobox, select, …)
 - **Docking (Workbench tabs only):** [`dockview`](https://dockview.dev)
 - **Graph editor (fundsp filter/synth):** [`@dschz/solid-flow`](https://github.com/dsnchz/solid-flow)
 - **Charts:** [`@dschz/solid-uplot`](https://github.com/dsnchz/solid-uplot) + `uplot`

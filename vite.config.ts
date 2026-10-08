@@ -29,4 +29,19 @@ export default defineConfig(() => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+
+  build: {
+    // Split the large vendor libraries into their own chunks instead of one
+    // >500 kB bundle (Rolldown's manual chunking).
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: "dockview", test: /node_modules[\\/]dockview/ },
+            { name: "kobalte", test: /node_modules[\\/]@kobalte/ },
+          ],
+        },
+      },
+    },
+  },
 }));
