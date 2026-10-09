@@ -11,9 +11,3 @@ pub mod graph;
 pub mod playback;
 pub mod project;
 pub mod source;
-
-/// Minimal health check used to verify the IPC boundary from the frontend shell.
-#[tauri::command]
-pub fn ping() -> &'static str {
-    "pong"
-}

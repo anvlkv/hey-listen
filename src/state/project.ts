@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createSignal } from "solid-js";
+import { createEffect, createMemo, createRoot, createSignal } from "solid-js";
 import { toSpec, type GraphSpec } from "../lib/graph";
 import { pcmStream } from "../lib/pcmStream";
 import { applySharedParams, resetAnalysisParams, sharedParams, type SharedParamsDto } from "./analysis";
@@ -25,6 +25,7 @@ import {
   type SourceChoice,
 } from "./capture";
 import {
+  FILTER_GRAPH,
   filterEnabled,
   graphLayout,
   loadGraph,
@@ -44,6 +45,7 @@ import {
   windowStart,
 } from "./timeline";
 import { closeAllTools, layoutJson, openTools, restoreLayout } from "./workbench";
+import { resetHistory } from "./history";
 
 /**
  * Project file store (M6): save/load the binary project (see
@@ -125,8 +127,11 @@ interface LoadedProjectDto {
 export const [projectPath, setProjectPath] = createSignal<string | null>(null);
 /** An explicit project title (from a save/load); `null` = follow the source name. */
 const [projectTitle, setProjectTitle] = createSignal<string | null>(null);
+/** Whether there are unsaved edits (drives the title `*` and the close/new/open prompts). */
+export const [dirty, setDirty] = createSignal(false);
 /** The project's display name: the explicit title, else the current source's name. */
-export const projectName = () => projectTitle() ?? source()?.name ?? "Untitled project";
+export const projectName = () =>
+  (projectTitle() ?? source()?.name ?? "Untitled project") + (dirty() ? " *" : "");
 export const [projectStatus, setProjectStatus] = createSignal<"idle" | "saving" | "loading">("idle");
 export const [projectError, setProjectError] = createSignal<string | null>(null);
 /** Creation time of the loaded project, preserved across re-saves. */
@@ -233,6 +238,78 @@ function rememberRecent(path: string) {
   );
 }
 
+// --- unsaved-work tracking ---------------------------------------------------
+
+/**
+ * A signature of every piece of state the project file stores. Reading it inside a
+ * reactive effect subscribes to those signals, so any edit re-runs the effect and
+ * (once a baseline exists) flags the project dirty.
+ */
+function projectSignature(): string {
+  return JSON.stringify({
+    source: [source()?.name ?? null, source()?.frames ?? null],
+    filter: toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges),
+    synth: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges),
+    shared: sharedParams(),
+    toolOptions,
+    window: [windowStart(), windowEnd()],
+    view: [viewStart(), viewEnd()],
+    filterEnabled: filterEnabled(),
+    openTools: openTools(),
+    layout: layoutJson(),
+  });
+}
+
+/** The signature at the last clean point (initial state, save, or load). */
+let baseline = projectSignature();
+/** True while restoring state, so the restore itself doesn't flag the project dirty. */
+let baselining = true;
+
+/** Take the current state as the clean baseline and clear the unsaved marker. */
+function markClean() {
+  baseline = projectSignature();
+  setDirty(false);
+}
+
+/** Suppress the dirty effect while a load/new restores state. */
+function beginBaseline() {
+  baselining = true;
+}
+
+/**
+ * Re-arm the baseline once restored state has settled. A macrotask runs after Solid
+ * has flushed the effect, so the restore neither leaves the project dirty nor hides a
+ * subsequent edit.
+ */
+function endBaseline() {
+  window.setTimeout(() => {
+    baselining = false;
+    setDirty(false);
+  }, 0);
+}
+
+createRoot(() => {
+  createEffect(() => {
+    const signature = projectSignature();
+    if (baselining) {
+      baseline = signature; // the restored state becomes the clean baseline
+      return;
+    }
+    setDirty(signature !== baseline);
+  });
+});
+
+// The app starts clean: suppress the initial effect run.
+endBaseline();
+
+// Keep the native window title in sync with the project name — its `*` marks unsaved
+// edits (`setWindowTitle` lives in `state/source.ts`). The memo dedupes so a source's
+// per-frame updates don't re-set the title.
+createRoot(() => {
+  const title = createMemo(() => projectName());
+  createEffect(() => void setWindowTitle(title()));
+});
+
 // --- save --------------------------------------------------------------------
 
 async function write(path: string): Promise<boolean> {
@@ -251,6 +328,7 @@ async function write(path: string): Promise<boolean> {
     setProjectTitle(projectLabel(path));
     void setWindowTitle(basename(path));
     rememberRecent(path);
+    markClean();
     return true;
   } catch (err) {
     setProjectError(String(err));
@@ -349,6 +427,10 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
 
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
   restoreLayout(loaded.layout?.dockview ?? null);
+
+  // 6. Start a fresh undo history for the loaded project (undo must not step
+  //    back across the project boundary).
+  resetHistory();
 }
 
 /** Open a project file (already chosen) and adopt it as the current project. */
@@ -372,12 +454,14 @@ export async function loadProject(path: string): Promise<void> {
     // Wait for the core's end-of-stream sentinel before assembling (large chunks
     // arrive asynchronously — see `lib/pcmStream.ts`).
     await stream.done;
+    beginBaseline();
     applyProject(loaded, stream.samples());
     setProjectPath(path);
     setProjectTitle(projectLabel(path));
     setCreatedMs(loaded.meta.createdMs || null);
     void setWindowTitle(basename(path));
     rememberRecent(path);
+    endBaseline();
   } catch (err) {
     setProjectError(String(err));
     setStatus("error");
@@ -405,6 +489,7 @@ export async function newProject(): Promise<void> {
   if (recording()) await stopCapture();
   await stopMonitor();
 
+  beginBaseline();
   setProjectError(null);
   closeAllTools();
   resetGraph("filter");
@@ -419,4 +504,5 @@ export async function newProject(): Promise<void> {
   setProjectPath(null);
   setProjectTitle(null);
   setCreatedMs(null);
+  resetHistory();
 }

@@ -4,6 +4,7 @@ import ChannelSelect from "../ChannelSelect";
 import SelectField from "../SelectField";
 import {
   ANALYSIS_RATES,
+  FFT_SIZE_HELP,
   FFT_SIZES,
   HOP_OPTIONS,
   WINDOW_FNS,
@@ -24,8 +25,8 @@ import {
 } from "../../state/analysis";
 
 /**
- * The **shared** analysis params (ADR-6), rendered in every analyzer's params
- * popover. Editing any control updates the one frontend store, so every open tool
+ * The **shared** analysis params (ADR-6), rendered from the main **Toolbar** (via a
+ * popover). Editing any control updates the one frontend store, so every open tool
  * re-runs with the same conditioning. Per-tool params are appended by the tool.
  *
  * See `docs/analysis-tools.md` → "Shared parameters".
@@ -34,23 +35,30 @@ export default function SharedParamsForm() {
   const fftOptions = FFT_SIZES.map((size) => ({ value: size, label: `${size}` }));
   const hopOptions = HOP_OPTIONS.map((option) => ({ value: option.value, label: option.label }));
 
+  // "When to use which" help for the current choice, surfaced as each field's
+  // tooltip. The per-option copy lives in `state/analysis.ts`.
+  const fftHelp = () => FFT_SIZE_HELP[fftSize()];
+  const hopHelp = () => HOP_OPTIONS.find((option) => option.value === hop())?.help;
+  const windowHelp = () => WINDOW_FNS.find((option) => option.value === windowFn())?.help;
+  const rateHelp = () => ANALYSIS_RATES.find((option) => option.value === resampleTo())?.help;
+
   return (
     <div class="params-form">
       <div class="params-heading">
         Shared params <span class="params-dim">synced across tools</span>
       </div>
 
-      <label class="params-field">
+      <label class="params-field" title={fftHelp()}>
         <span class="params-label">FFT size</span>
         <SelectField options={fftOptions} value={fftSize()} onChange={setFftSize} label="FFT size" />
       </label>
 
-      <label class="params-field">
+      <label class="params-field" title={hopHelp()}>
         <span class="params-label">Hop / overlap</span>
         <SelectField options={hopOptions} value={hop()} onChange={setHop} label="Hop / overlap" />
       </label>
 
-      <label class="params-field">
+      <label class="params-field" title={windowHelp()}>
         <span class="params-label">Window</span>
         <SelectField
           options={WINDOW_FNS}
@@ -60,12 +68,15 @@ export default function SharedParamsForm() {
         />
       </label>
 
-      <label class="params-field">
+      <label
+        class="params-field"
+        title="Which channel to analyse. Downmix sums all channels to mono; Left/Right (or Channel N) picks one. Applies to every tool."
+      >
         <span class="params-label">Channel</span>
         <ChannelSelect />
       </label>
 
-      <label class="params-field">
+      <label class="params-field" title={rateHelp()}>
         <span class="params-label">Analysis rate</span>
         <SelectField
           options={ANALYSIS_RATES}
@@ -90,7 +101,10 @@ export default function SharedParamsForm() {
         </Switch>
       </div>
 
-      <div class="params-field params-range">
+      <div
+        class="params-field params-range"
+        title="Band-limit spectral and pitch tools to this Hz range (0 Hz max means up to Nyquist)."
+      >
         <span class="params-label">Frequency range</span>
         <div class="params-range-inputs">
           <NumberField

@@ -1,8 +1,10 @@
 import { Switch } from "@kobalte/core/switch";
 import { Slider } from "@kobalte/core/slider";
-import { invoke } from "@tauri-apps/api/core";
-import { createSignal, onMount, Show } from "solid-js";
+import { For, onMount, Show } from "solid-js";
+import Button from "./Button";
 import Combobox from "./Combobox";
+import Popover from "./Popover";
+import SharedParamsForm from "./analyzer/SharedParamsForm";
 import { filterEnabled, setFilterEnabled } from "../state/graph";
 import {
   applyOutputGain,
@@ -13,6 +15,16 @@ import {
   setOutputDeviceId,
 } from "../state/output";
 import { projectError, projectName, projectStatus } from "../state/project";
+import {
+  FONT_SCALE_MAX,
+  FONT_SCALE_MIN,
+  fontScale,
+  nudgeFontScale,
+  setThemePreference,
+  THEME_PREFERENCES,
+  themePreference,
+  type ThemePreference,
+} from "../state/settings";
 import { error, status } from "../state/source";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -25,6 +37,12 @@ const PROJECT_LABEL: Record<string, string> = {
   loading: "loading project…",
 };
 
+const THEME_LABEL: Record<ThemePreference, string> = {
+  auto: "Auto",
+  dark: "Dark",
+  light: "Light",
+};
+
 /**
  * App toolbar (no title/branding — the native title bar carries the app name).
  *
@@ -33,14 +51,14 @@ const PROJECT_LABEL: Record<string, string> = {
  * filter-graph bypass toggle and the preview output (gain + device), which drive
  * the core (ADR-9). The audio source picker lives in the bottom-left Source region
  * (see `docs/ui-layout.md`).
+ *
+ * The **shared analysis params** (ADR-6) live here too, in an "Analysis params"
+ * popover: they are global and synced across every analyzer, so they belong in the
+ * app chrome rather than in each tool's params popover. See
+ * `docs/analysis-tools.md` → "Shared parameters".
  */
 export default function Toolbar() {
-  const [backend, setBackend] = createSignal("…");
-
   onMount(() => {
-    invoke<string>("ping")
-      .then((msg) => setBackend(msg))
-      .catch((err) => setBackend(`error: ${String(err)}`));
     void refreshOutputDevices();
   });
 
@@ -70,6 +88,10 @@ export default function Toolbar() {
       <div class="toolbar-spacer" />
 
       <div class="toolbar-controls">
+        <Popover label="Analysis params" title="Shared analysis parameters (synced across tools)">
+          <SharedParamsForm />
+        </Popover>
+
         <Switch
           class="toolbar-switch"
           checked={filterEnabled()}
@@ -113,6 +135,57 @@ export default function Toolbar() {
             label="Output device"
           />
         </div>
+
+        <Popover label="View" title="UI scale and theme">
+          <div class="params-form">
+            <div class="params-heading">
+              UI scale <span class="params-dim">{Math.round(fontScale() * 100)}%</span>
+            </div>
+            <div class="params-field">
+              <span class="params-label">Text size</span>
+              <div class="toolbar-group">
+                <Button
+                  class="toolbar-btn toolbar-btn-scale"
+                  disabled={fontScale() <= FONT_SCALE_MIN}
+                  title="Decrease UI font size"
+                  aria-label="Decrease UI font size"
+                  onClick={() => nudgeFontScale(-1)}
+                >
+                  A−
+                </Button>
+                <Button
+                  class="toolbar-btn toolbar-btn-scale"
+                  disabled={fontScale() >= FONT_SCALE_MAX}
+                  title="Increase UI font size"
+                  aria-label="Increase UI font size"
+                  onClick={() => nudgeFontScale(1)}
+                >
+                  A+
+                </Button>
+              </div>
+            </div>
+
+            <div class="params-heading">Theme</div>
+            <div class="params-field">
+              <span class="params-label">Colour</span>
+              <div class="toolbar-group">
+                <For each={THEME_PREFERENCES}>
+                  {(preference) => (
+                    <Button
+                      class="toolbar-btn toolbar-btn-theme"
+                      aria-pressed={themePreference() === preference}
+                      title={`${THEME_LABEL[preference]} theme`}
+                      aria-label={`${THEME_LABEL[preference]} theme`}
+                      onClick={() => setThemePreference(preference)}
+                    >
+                      {THEME_LABEL[preference]}
+                    </Button>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        </Popover>
       </div>
 
       <Show when={error()}>
@@ -129,7 +202,6 @@ export default function Toolbar() {
           {projectError()}
         </span>
       </Show>
-      <span class="app-status">Rust backend: {backend()}</span>
     </header>
   );
 }

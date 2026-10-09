@@ -106,7 +106,10 @@ dispatched by the single `run_analysis` command. The frontend registry
 keywords, sidebar section, view (series / matrix / rhythm / readouts / events), and
 per-tool params, so adding a tool is a registry entry plus its Rust function — no
 bespoke component. **No duplicate tabs** per tool, and **zoom/cursor are synced**
-across tabs (`state/chartSync.ts`).
+across tabs (`state/chartSync.ts`). The **spectrum** tool returns per-bin
+**min / max / mean** magnitudes and exposes each as a toggleable layer. The shared
+params now live in the app **Toolbar** (an “Analysis params” popover); a tool's own
+params popover holds only its non-shared options.
 
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the

@@ -4,7 +4,7 @@ import { toSpec } from "../lib/graph";
 import { pcmStream } from "../lib/pcmStream";
 import { recording, stopCapture } from "./capture";
 import { SYNTH_GRAPH } from "./graph";
-import { finalizeSource, setError, setStatus } from "./source";
+import { finalizeSource, setError, setStatus, source } from "./source";
 
 /**
  * Synth rendering: build the fundsp net in the core, stream the rendered PCM back,
@@ -23,6 +23,16 @@ export const [synthError, setSynthError] = createSignal<string | null>(null);
 /** Render the current synth graph for `seconds` and load it as the source. */
 export async function renderSynth(seconds: number) {
   if (rendering()) return;
+
+  // Rendering replaces the whole timeline, so confirm before discarding a source.
+  if (source() != null) {
+    const ok = await invoke<boolean>("confirm", {
+      message: "Replacing the current source discards the existing audio.",
+      title: "Replace source?",
+    });
+    if (!ok) return;
+  }
+
   setRendering(true);
   setSynthError(null);
   setError(null);

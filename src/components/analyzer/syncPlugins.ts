@@ -1,6 +1,7 @@
 import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { AnalyzerBus, SyncGroup } from "../../state/chartSync";
+import { chartTheme } from "../../state/settings";
 
 /**
  * Cross-tab sync plugins (M5).
@@ -44,7 +45,7 @@ export const mirrorCursor = (group: SyncGroup): UplotPluginFactory<AnalyzerBus> 
         const px = Math.round(x) + 0.5;
         const { ctx } = u;
         ctx.save();
-        ctx.strokeStyle = "rgba(120, 170, 255, 0.55)";
+        ctx.strokeStyle = chartTheme().mirror;
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();

@@ -1,6 +1,6 @@
-import { DockviewComponent, themeDark } from "dockview";
+import { DockviewComponent, themeDark, themeLight } from "dockview";
 import "dockview/dist/styles/dockview.css";
-import { onCleanup, onMount, type Component } from "solid-js";
+import { createEffect, onCleanup, onMount, type Component } from "solid-js";
 import { render } from "solid-js/web";
 import FilterGraphTab from "./FilterGraphTab";
 import SynthGraphTab from "./SynthGraphTab";
@@ -9,6 +9,7 @@ import SpectrogramTab from "./analyzer/SpectrogramTab";
 import SpectrumTab from "./analyzer/SpectrumTab";
 import WaveformTab from "./analyzer/WaveformTab";
 import { ANALYZERS, type AnalyzerId } from "../state/analyzer";
+import { resolvedTheme } from "../state/settings";
 import { setDockApi, setOpenTools, type ToolId } from "../state/workbench";
 
 /**
@@ -44,9 +45,12 @@ export default function Workbench() {
   let host!: HTMLDivElement;
   let dockview: DockviewComponent | undefined;
 
+  /** The dockview theme matching the active [`resolvedTheme`]. */
+  const dockTheme = () => (resolvedTheme() === "light" ? themeLight : themeDark);
+
   onMount(() => {
     dockview = new DockviewComponent(host, {
-      theme: themeDark,
+      theme: dockTheme(),
       // Tabs are dragged by pointer, not HTML5 DnD: the WebView does not drive
       // HTML5 drag reliably, which left split/join (edge drops) inoperative.
       dndStrategy: "pointer",
@@ -77,6 +81,9 @@ export default function Workbench() {
     api.onDidAddPanel(sync);
     api.onDidRemovePanel(sync);
     sync();
+
+    // Re-apply the theme on the live component when the setting changes.
+    createEffect(() => api.updateOptions({ theme: dockTheme() }));
   });
 
   onCleanup(() => {

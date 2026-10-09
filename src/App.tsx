@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
 import SourcePanel from "./components/SourcePanel";
@@ -6,6 +6,7 @@ import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
 import Workbench from "./components/Workbench";
 import { disposeCapture, initCapture } from "./state/capture";
+import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu } from "./state/menu";
 
 /** Bottom row (Source + Timeline): default height and drag limits, in px. */
@@ -27,6 +28,7 @@ export default function App() {
   const [bottomHeight, setBottomHeight] = createSignal(BOTTOM_DEFAULT);
   let main!: HTMLDivElement;
   let drag: { y: number; height: number } | null = null;
+  let disposeDragDrop: (() => void) | undefined;
 
   const clamp = (height: number) => {
     const max = Math.max(BOTTOM_MIN, (main?.clientHeight ?? 0) - TOP_MIN);
@@ -56,11 +58,13 @@ export default function App() {
   onMount(() => {
     void initCapture();
     void initMenu();
+    disposeDragDrop = initDragDrop();
     window.addEventListener("resize", handleResize);
   });
   onCleanup(() => {
     window.removeEventListener("resize", handleResize);
     disposeCapture();
+    disposeDragDrop?.();
   });
 
   return (
@@ -87,6 +91,37 @@ export default function App() {
           <Timeline />
         </div>
       </div>
+      <Show when={dragActive()}>
+        <div
+          style={{
+            position: "fixed",
+            top: "0",
+            left: "0",
+            right: "0",
+            bottom: "0",
+            "z-index": "100",
+            display: "flex",
+            "align-items": "center",
+            "justify-content": "center",
+            "pointer-events": "none",
+            background: "var(--overlay-94)",
+          }}
+        >
+          <div
+            style={{
+              padding: "22px 34px",
+              border: "2px dashed var(--accent)",
+              "border-radius": "10px",
+              background: "var(--panel)",
+              color: "var(--fg)",
+              "font-size": "0.9375rem",
+              "font-weight": "500",
+            }}
+          >
+            Drop to open audio file
+          </div>
+        </div>
+      </Show>
     </div>
   );
 }

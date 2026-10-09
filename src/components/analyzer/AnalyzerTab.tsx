@@ -1,6 +1,5 @@
 import { Show, type JSX } from "solid-js";
 import Popover from "../Popover";
-import SharedParamsForm from "./SharedParamsForm";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 
 /**
@@ -8,6 +7,10 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
  * popovers) over the tool's chart body. Each analyzer supplies its own result via
  * [`createAnalysis`](./state/analyzer.ts) and renders its chart as `children`;
  * per-tool params are passed as the `params` slot into the params popover.
+ *
+ * The **shared** analysis params (ADR-6) are global and synced, so they live in the
+ * app Toolbar's "Analysis params" popover, not here. See
+ * `docs/analysis-tools.md` → "Shared parameters".
  *
  * Busy indication: while the **first** result is computing, a spinner is centred
  * over the body; while a result is being **recomputed** (a previous one is still
@@ -19,7 +22,7 @@ export default function AnalyzerTab(props: {
   error: string | null;
   /** Whether a result is already shown (drives first-run vs recompute spinner). */
   hasResult: boolean;
-  /** Extra per-tool params, appended to the shared params form. */
+  /** Extra per-tool params, rendered in the params popover. */
   params?: JSX.Element;
   children: JSX.Element;
 }) {
@@ -41,9 +44,12 @@ export default function AnalyzerTab(props: {
         </Show>
 
         <div class="analyzer-actions">
-          <Popover label="Params" title="Shared analysis parameters">
-            <SharedParamsForm />
+          <Popover label="Params" title="Tool parameters">
             {props.params}
+            <div class="params-note">
+              Shared params (FFT size, hop/overlap, window, channel, analysis rate,
+              frequency range) are in the toolbar.
+            </div>
           </Popover>
           <Popover label="About" title={`About ${def().title}`} panelClass="pop-panel-about">
             <div class="about-title">{def().title}</div>

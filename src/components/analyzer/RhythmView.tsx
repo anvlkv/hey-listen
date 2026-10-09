@@ -8,6 +8,7 @@ import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { paddedYRange } from "./range";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
+import { chartTheme, resolvedTheme } from "../../state/settings";
 import {
   analyzerById,
   type AnalysisHandle,
@@ -17,13 +18,6 @@ import {
   type RhythmView as RhythmViewConfig,
 } from "../../state/analyzer";
 
-const AXIS = {
-  stroke: "#8a8a8a",
-  grid: { stroke: "#2b2b2b" },
-  ticks: { stroke: "#2b2b2b" },
-  font: "11px Inter, sans-serif",
-};
-
 type MarkerKind = "beats" | "onsets" | "downbeats";
 
 interface MarkerSet {
@@ -32,10 +26,15 @@ interface MarkerSet {
   width: number;
 }
 
-const MARKER_STYLE: Record<MarkerKind, { color: string; width: number }> = {
-  onsets: { color: "rgba(120, 220, 150, 0.6)", width: 1 },
-  beats: { color: "rgba(120, 170, 255, 0.55)", width: 1 },
-  downbeats: { color: "rgba(255, 175, 80, 0.95)", width: 2 },
+function axisStyle() {
+  const t = chartTheme();
+  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
+}
+
+const MARKER_STYLE: Record<MarkerKind, { dark: string; light: string; width: number }> = {
+  onsets: { dark: "rgba(120, 220, 150, 0.6)", light: "rgba(40, 140, 90, 0.55)", width: 1 },
+  beats: { dark: "rgba(120, 170, 255, 0.55)", light: "rgba(47, 111, 208, 0.55)", width: 1 },
+  downbeats: { dark: "rgba(255, 175, 80, 0.95)", light: "rgba(200, 120, 20, 0.9)", width: 2 },
 };
 
 /**
@@ -101,9 +100,10 @@ export default function RhythmView(props: {
     const sets: MarkerSet[] = [];
     for (const kind of config().markers) {
       const style = MARKER_STYLE[kind];
+      const color = resolvedTheme() === "light" ? style.light : style.dark;
       const times =
         kind === "onsets" ? r.onsetTimes : kind === "beats" ? r.beatTimes : r.downbeatTimes;
-      sets.push({ times, ...style });
+      sets.push({ times, color, width: style.width });
     }
     return sets;
   };
@@ -172,30 +172,32 @@ export default function RhythmView(props: {
               onFit={zoom.fit}
               label={zoomLabel()}
             />
-            <SolidUplot
-              autoResize
-              pluginBus={analyzerBus}
-              plugins={[
-                cursor(),
-                tooltip(Tooltip),
-                mirrorCursor("time"),
-                syncView("time"),
-                rhythmMarkers(markers),
-              ]}
-              onCreate={zoom.onReady}
-              data={data()}
-              series={[
-                {},
-                {
-                  label: "Onset strength",
-                  stroke: "#6ea8ff",
-                  width: 1,
-                  fill: "rgba(110, 168, 255, 0.16)",
-                },
-              ]}
-              scales={{ x: { time: false }, y: { range: paddedYRange } }}
-              axes={[{ ...AXIS, label: "time (s)" }, { ...AXIS, label: "onset strength" }]}
-            />
+            <Show when={resolvedTheme()} keyed>
+              <SolidUplot
+                autoResize
+                pluginBus={analyzerBus}
+                plugins={[
+                  cursor(),
+                  tooltip(Tooltip),
+                  mirrorCursor("time"),
+                  syncView("time"),
+                  rhythmMarkers(markers),
+                ]}
+                onCreate={zoom.onReady}
+                data={data()}
+                series={[
+                  {},
+                  {
+                    label: "Onset strength",
+                    stroke: chartTheme().series,
+                    width: 1,
+                    fill: chartTheme().waveFill,
+                  },
+                ]}
+                scales={{ x: { time: false }, y: { range: paddedYRange } }}
+                axes={[{ ...axisStyle(), label: "time (s)" }, { ...axisStyle(), label: "onset strength" }]}
+              />
+            </Show>
           </Show>
         </Show>
       </div>

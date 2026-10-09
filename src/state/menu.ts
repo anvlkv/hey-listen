@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { redo, undo } from "./history";
 import {
+  dirty,
   loadProject,
   newProject,
   openProject,
@@ -21,9 +24,28 @@ import {
 /** Paths already handled, so a launch request is not loaded twice. */
 const handled = new Set<string>();
 
+/**
+ * Confirm discarding unsaved work before replacing the project; `true` when it is
+ * safe to proceed (nothing is dirty, or the user chose to discard).
+ */
+async function confirmDiscard(): Promise<boolean> {
+  if (!dirty()) return true;
+  return invoke<boolean>("confirm", {
+    message: "You have unsaved changes. Discard them?",
+    title: "Discard changes?",
+  });
+}
+
+/** Run a project-replacing action, first confirming any unsaved work. */
+async function guarded(action: () => Promise<void>): Promise<void> {
+  if (await confirmDiscard()) await action();
+}
+
 async function openPaths(paths: string[]) {
-  for (const path of paths) {
-    if (handled.has(path) || path === projectPath()) continue;
+  const pending = paths.filter((path) => !handled.has(path) && path !== projectPath());
+  if (pending.length === 0) return;
+  if (!(await confirmDiscard())) return;
+  for (const path of pending) {
     handled.add(path);
     await loadProject(path);
   }
@@ -35,10 +57,10 @@ export async function initMenu() {
     await listen<string>("app:menu", (event) => {
       switch (event.payload) {
         case "new":
-          void newProject();
+          void guarded(newProject);
           break;
         case "open":
-          void openProject();
+          void guarded(openProject);
           break;
         case "save":
           void saveProject();
@@ -46,7 +68,22 @@ export async function initMenu() {
         case "saveAs":
           void saveProjectAs();
           break;
+        case "undo":
+          undo();
+          break;
+        case "redo":
+          redo();
+          break;
       }
+    });
+
+    // Warn before closing the window while there is unsaved work. The close is always
+    // routed through `close_window` (Rust): the JS `onCloseRequested` helper would
+    // otherwise call `destroy()` itself, which needs a window permission we do not hold.
+    await getCurrentWindow().onCloseRequested(async (event) => {
+      event.preventDefault();
+      if (dirty() && !(await confirmDiscard())) return;
+      void invoke("close_window").catch(() => {});
     });
 
     await listen<string[]>("app:open-project", (event) => {

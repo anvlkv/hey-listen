@@ -1,14 +1,24 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
+import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { paddedYRange } from "./range";
 import { coverage, seriesReadouts } from "./readouts";
+import {
+  frequencyAxisValues,
+  TIME_AXIS_SPACE,
+  timeAxisValues,
+  X_AXIS_SIZE,
+  Y_AXIS_SIZE,
+  Y_AXIS_SPACE,
+} from "./axisFormat";
 import { analyzerBus } from "../../state/chartSync";
+import { chartTheme, resolvedTheme } from "../../state/settings";
 import {
   analyzerById,
   type AnalysisHandle,
@@ -18,12 +28,11 @@ import {
   type SeriesView as SeriesViewConfig,
 } from "../../state/analyzer";
 
-const AXIS = {
-  stroke: "#8a8a8a",
-  grid: { stroke: "#2b2b2b" },
-  ticks: { stroke: "#2b2b2b" },
-  font: "11px Inter, sans-serif",
-};
+/** uPlot axis styling for the active theme (read on each chart (re)mount). */
+function axisStyle() {
+  const t = chartTheme();
+  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
+}
 
 const isPitch = (id: AnalyzerId) => id.startsWith("pitch");
 
@@ -41,6 +50,7 @@ export default function SeriesView(props: {
   const view = () => analyzerById(props.id).view as SeriesViewConfig;
   const result = () => props.analysis.result() as SeriesResult | null;
   const zoom = createUplotZoom();
+  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   const Tooltip = (tooltipProps: TooltipProps) => (
     <ChartTooltip
@@ -68,6 +78,16 @@ export default function SeriesView(props: {
     return range ? `${range[0].toFixed(3)} – ${range[1].toFixed(3)} s` : "";
   };
 
+  /** Right-click: reframe the timeline window from the time under the pointer. */
+  const openMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    const u = zoom.instance();
+    if (!u || !u.over) return;
+    const rect = u.over.getBoundingClientRect();
+    const time = u.posToVal(event.clientX - rect.left, "x");
+    setMenu({ x: event.clientX, y: event.clientY, time });
+  };
+
   return (
     <Show
       when={result()}
@@ -87,7 +107,7 @@ export default function SeriesView(props: {
               />
             </Show>
           </div>
-          <div class="analyzer-plot" onWheel={zoom.wheel}>
+          <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
             <Show
               when={plottable()}
               fallback={
@@ -104,26 +124,45 @@ export default function SeriesView(props: {
                 onFit={zoom.fit}
                 label={zoomLabel()}
               />
-              <SolidUplot
-                autoResize
-                pluginBus={analyzerBus}
-                plugins={[cursor(), tooltip(Tooltip), mirrorCursor("time"), syncView("time")]}
-                onCreate={zoom.onReady}
-                data={data()}
-                series={[
-                  {},
-                  {
-                    label: view().yLabel,
-                    stroke: "#6ea8ff",
-                    width: 1,
-                    points: { show: view().points ?? false, size: 4 },
-                  },
-                ]}
-                scales={{ x: { time: false }, y: { range: paddedYRange } }}
-                axes={[{ ...AXIS, label: "time (s)" }, { ...AXIS, label: view().yLabel }]}
-              />
+              <Show when={resolvedTheme()} keyed>
+                <SolidUplot
+                  autoResize
+                  pluginBus={analyzerBus}
+                  plugins={[cursor(), tooltip(Tooltip), mirrorCursor("time"), syncView("time")]}
+                  onCreate={zoom.onReady}
+                  data={data()}
+                  series={[
+                    {},
+                    {
+                      label: view().yLabel,
+                      stroke: chartTheme().series,
+                      width: 1,
+                      points: { show: view().points ?? false, size: 4 },
+                    },
+                  ]}
+                  scales={{ x: { time: false }, y: { range: paddedYRange } }}
+                  axes={[
+                    {
+                      ...axisStyle(),
+                      label: "time (s)",
+                      size: X_AXIS_SIZE,
+                      space: TIME_AXIS_SPACE,
+                      values: timeAxisValues,
+                    },
+                    {
+                      ...axisStyle(),
+                      label: view().yLabel,
+                      size: Y_AXIS_SIZE,
+                      space: Y_AXIS_SPACE,
+                      // Pitch tools plot f0 in Hz, so label that axis in kHz too.
+                      values: isPitch(props.id) ? frequencyAxisValues : undefined,
+                    },
+                  ]}
+                />
+              </Show>
             </Show>
           </div>
+          <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
         </div>
       )}
     </Show>
