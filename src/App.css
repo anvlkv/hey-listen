@@ -46,6 +46,18 @@ body,
   flex: 1;
 }
 
+/* Project name (New / Open / Save live in the native File menu). */
+.toolbar-name {
+  max-width: 220px;
+  margin-right: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6e6e6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .toolbar-btn {
   height: 26px;
   padding: 0 12px;

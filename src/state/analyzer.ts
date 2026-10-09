@@ -764,6 +764,11 @@ export function setToolOption(id: AnalyzerId, key: string, value: number) {
   setToolOptions(id, key, value);
 }
 
+/** Reset every per-tool option to its default (New Project). */
+export function resetToolOptions() {
+  setToolOptions(initialToolOptions());
+}
+
 // --- runner ----------------------------------------------------------------
 
 /** Trailing debounce for auto-run, in ms (dragging coalesces). */

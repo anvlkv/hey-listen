@@ -70,11 +70,31 @@
 > cursor and x-zoom are synced across tabs (time and frequency groups), including
 > the canvas spectrogram/matrix views.
 
-## M6 — Project file
+## M6 — Project file ✅
 
 - Binary project file read/write (see
   [`project-file-format.md`](project-file-format.md)); streaming `DATA` for
   large audio.
+
+> Delivered: `project/` (`mod`, `error`, `sections`, `read`, `write`) implements the
+> versioned container — header, section index, `META`/`SOURCE`/`DATA`/`SETUP`/
+> `LAYOUT`/`RESULTS`, and a trailing CRC-32. `DATA` is a self-describing chunked
+> interleaved-`f32` blob with a trailing chunk index + footer, so audio streams in
+> (and can be seeked) chunk-by-chunk. Commands `save_project` / `load_project` (plus
+> native open/save dialogs) bridge it: the core writes its owned PCM (ADR-9) as
+> `DATA` and streams it back on load. The Toolbar shows only the current project
+> name; the file actions live in a native **application menu** (File / Edit / View /
+> Window / Help) — **File → Open Recent** keeps the last 10 files (persisted under
+> the app config dir), the other File actions are emitted to the frontend on
+> `app:menu`, and the rest are native. The window **title** shows the project file
+> name on open/save. `.heyl` files are **associated** with the app, so a
+> double-clicked project opens it (macOS `RunEvent::Opened` / command line, drained
+> via `take_pending_open_paths`). `state/project.ts` collects the descriptor + setup +
+> layout and restores every store and the Workbench (dockview) layout on load.
+> Result caching is deferred — `RESULTS` is written empty and the analyzers
+> re-derive on load — as is `i16`/FLAC `DATA` (the core owns `f32` and always
+> writes `format = 0`). See [`project-file-format.md`](project-file-format.md) →
+> Implemented / Deferred.
 
 ## M7 — Multi-window + polish + packaging
 
@@ -84,6 +104,8 @@
 - all pure numeric inputs should be refactored to allow dragging (up high, down low, no slider just a visual hint) as well as typing
 - Toolbar polish: drop the temporary `Rust backend:` debug status (the M0 ping
   scaffold) and add a preview **output meter** beside the output gain/device.
+- chart readout bar shouldn't change height. reserve enough space for each entry upfront
+- hide or better swap timeline and sources panel. add button to replace source.
 
 ## M8 — E2E test suite
 
@@ -124,6 +146,10 @@
 
 ## Backlog
 
+- **Undo / redo.** The app keeps no edit history (there is no Edit menu). Adding
+  undo/redo means an app-level history (graph edits, layout/tab changes, shared
+  params, tool options, timeline window) plus its menu items (`CmdOrCtrl+Z` /
+  `Shift+CmdOrCtrl+Z`).
 - **Full fundsp node coverage.** The graph-editor palette is a focused subset today; expand it to all of fundsp — every filter family and their control-input variants, dynamics, panning/stereo, modulation, reverbs, the sequencer, and custom nodes — with per-node inspectors/presets. See [`graph-editor.md`](graph-editor.md) → Planned. Add search box for filtering available nodes. Make input/output nodes undeletable, automove them to left and right edges of the flowchart. Add hints describing what each filter/node does (search the web for precise description, not fundsp specific).
 - **Timeline filtered overlay.** Draw the filtered signal over the raw waveform so the filter's effect is visible (and mark when the filter is active/bypassed). See [`ui-layout.md`](ui-layout.md).
 - **Stereo graphs** (the compiled net is mono today) and parameter smoothing for live edits.
@@ -139,3 +165,7 @@
   hop/overlap, FFT size, and which analyzer tool.
 - **Spectrum layers.** Add **min / max / mean** magnitude layers to the spectrum
   chart (toggle each), instead of only the averaged spectrum.
+- **Drag&Drop file** Add input file by dragging into window.
+- **Prevent work loss** When one source exists prompt the user before replacing. Inform the user about unsaved work (title `*`, prompt)
+- **Reframing from charts** let the user select new timeline start/end on charts, right mouse button menu. disable default menus
+- **Shared params** move the shared params to the main toolbar

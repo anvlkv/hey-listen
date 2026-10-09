@@ -1,0 +1,422 @@
+import { invoke } from "@tauri-apps/api/core";
+import { createSignal } from "solid-js";
+import { toSpec, type GraphSpec } from "../lib/graph";
+import { pcmStream } from "../lib/pcmStream";
+import { applySharedParams, resetAnalysisParams, sharedParams, type SharedParamsDto } from "./analysis";
+import { resetToolOptions, setToolOptions, toolOptions } from "./analyzer";
+import {
+  choice,
+  deviceId,
+  gain,
+  KIND_LABEL,
+  mixMicDeviceId,
+  mixSystemDeviceId,
+  recording,
+  setChoice,
+  setDeviceId,
+  setGainLevel,
+  setMixMicDeviceId,
+  setMixSystemDeviceId,
+  setTargetPid,
+  stopCapture,
+  stopMonitor,
+  targetPid,
+  type CaptureKind,
+  type SourceChoice,
+} from "./capture";
+import {
+  filterEnabled,
+  graphLayout,
+  loadGraph,
+  resetGraph,
+  setFilterEnabled,
+  type GraphLayout,
+  SYNTH_GRAPH,
+} from "./graph";
+import { closeSource, setError, setSource, setStatus, setWindowTitle, source, type ProbeInfo } from "./source";
+import {
+  setView,
+  setWindowEnd,
+  setWindowStart,
+  viewEnd,
+  viewStart,
+  windowEnd,
+  windowStart,
+} from "./timeline";
+import { closeAllTools, layoutJson, openTools, restoreLayout } from "./workbench";
+
+/**
+ * Project file store (M6): save/load the binary project (see
+ * [`project-file-format.md`](../../docs/project-file-format.md)).
+ *
+ * The Rust core owns the `DATA` section (the source PCM, ADR-9) and fills in `META`;
+ * the frontend supplies `SOURCE` (a descriptor), `SETUP` (shared params, per-tool
+ * options, open tools, windows), and `LAYOUT` (dockview + graph editor state). On
+ * load the core streams the audio back for the Timeline waveform and installs the
+ * PCM for preview/analysis; this module restores the stores and the Workbench tabs,
+ * so the analyzers re-derive their results from the embedded audio.
+ */
+
+// --- IPC DTOs (mirror `src-tauri/src/project`) -------------------------------
+
+/** `SOURCE` section: what the project's single source was (camelCase keys). */
+export interface SourceDescriptorDto {
+  /** `file` | `mic` | `system` | `process` | `mix` | `synth`. */
+  kind: string;
+  path?: string | null;
+  deviceId?: string | null;
+  mixMicDeviceId?: string | null;
+  mixSystemDeviceId?: string | null;
+  targetPid?: number | null;
+  gain?: number;
+  graph?: GraphSpec | null;
+}
+
+export interface AnalysisWindowDto {
+  startSecs: number;
+  endSecs: number;
+}
+
+/** `SETUP` section. */
+export interface AnalysisSetupDto {
+  shared: SharedParamsDto;
+  toolOptions: Record<string, Record<string, number>>;
+  openTools: string[];
+  window: AnalysisWindowDto;
+  view: AnalysisWindowDto;
+  filterEnabled: boolean;
+}
+
+/** `LAYOUT` section: the dockview snapshot plus both graph editors' state. */
+export interface LayoutDto {
+  dockview: unknown | null;
+  graphs: { filter?: GraphLayout; synth?: GraphLayout };
+}
+
+export interface ProjectMetaDto {
+  name: string;
+  createdMs: number;
+  modifiedMs: number;
+  appVersion: string;
+  formatVersion: number;
+}
+
+interface SaveProjectArgs {
+  name: string;
+  createdMs?: number;
+  source: SourceDescriptorDto | null;
+  setup: AnalysisSetupDto;
+  layout: LayoutDto;
+}
+
+interface LoadedProjectDto {
+  meta: ProjectMetaDto;
+  source: SourceDescriptorDto | null;
+  setup: AnalysisSetupDto;
+  layout: LayoutDto;
+  results: unknown[];
+  sampleRate: number;
+  channels: number;
+  frames: number;
+}
+
+// --- store -------------------------------------------------------------------
+
+export const [projectPath, setProjectPath] = createSignal<string | null>(null);
+/** An explicit project title (from a save/load); `null` = follow the source name. */
+const [projectTitle, setProjectTitle] = createSignal<string | null>(null);
+/** The project's display name: the explicit title, else the current source's name. */
+export const projectName = () => projectTitle() ?? source()?.name ?? "Untitled project";
+export const [projectStatus, setProjectStatus] = createSignal<"idle" | "saving" | "loading">("idle");
+export const [projectError, setProjectError] = createSignal<string | null>(null);
+/** Creation time of the loaded project, preserved across re-saves. */
+const [createdMs, setCreatedMs] = createSignal<number | null>(null);
+
+// --- helpers -----------------------------------------------------------------
+
+function basename(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
+
+/** A file path's base name without its extension — used as the project title. */
+function projectLabel(path: string): string {
+  const name = basename(path);
+  return name.replace(/\.[^.]+$/, "") || name;
+}
+
+function fileProbe(path: string, loaded: LoadedProjectDto): ProbeInfo {
+  const channels = Math.max(1, loaded.channels);
+  const frames = Math.floor(loaded.frames);
+  return {
+    path,
+    name: basename(path),
+    codec: "embedded",
+    sampleRate: loaded.sampleRate,
+    channels,
+    bitsPerSample: 32,
+    numFrames: frames,
+    durationSecs: loaded.sampleRate > 0 ? frames / loaded.sampleRate : null,
+  };
+}
+
+function sourceName(descriptor: SourceDescriptorDto | null): string {
+  if (!descriptor) return "Source";
+  switch (descriptor.kind) {
+    case "file":
+      return descriptor.path ? basename(descriptor.path) : "Audio file";
+    case "synth":
+      return "Synth";
+    default:
+      return KIND_LABEL[descriptor.kind as CaptureKind] ?? descriptor.kind;
+  }
+}
+
+function sourceDetail(descriptor: SourceDescriptorDto | null): string {
+  if (!descriptor) return "project audio";
+  switch (descriptor.kind) {
+    case "file":
+      return "file";
+    case "synth":
+      return "fundsp synth";
+    default:
+      return "live capture";
+  }
+}
+
+/** The project's current source descriptor, derived from the source + picker. */
+function currentDescriptor(): SourceDescriptorDto | null {
+  const current = source();
+  if (!current) return null;
+  const pick = choice();
+  if (pick === "file") return { kind: "file", path: current.probe?.path ?? null };
+  if (pick === "synth") {
+    return { kind: "synth", graph: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges) };
+  }
+  return {
+    kind: pick,
+    deviceId: pick === "mic" || pick === "system" ? deviceId() : null,
+    mixMicDeviceId: pick === "mix" ? mixMicDeviceId() : null,
+    mixSystemDeviceId: pick === "mix" ? mixSystemDeviceId() : null,
+    targetPid: pick === "process" ? targetPid() : null,
+    gain: gain(),
+  };
+}
+
+function currentSetup(): AnalysisSetupDto {
+  return {
+    shared: sharedParams(),
+    toolOptions: JSON.parse(JSON.stringify(toolOptions)) as Record<string, Record<string, number>>,
+    openTools: openTools(),
+    window: { startSecs: windowStart(), endSecs: windowEnd() },
+    view: { startSecs: viewStart(), endSecs: viewEnd() },
+    filterEnabled: filterEnabled(),
+  };
+}
+
+function currentLayout(): LayoutDto {
+  return {
+    dockview: layoutJson(),
+    graphs: { filter: graphLayout("filter"), synth: graphLayout("synth") },
+  };
+}
+
+function defaultFileName(): string {
+  const base = projectLabel(projectName()).trim().replace(/[^\w.-]+/g, "_") || "project";
+  return `${base}.heyl`;
+}
+
+/** Remember a project file in the native File → Open Recent menu. */
+function rememberRecent(path: string) {
+  void invoke("add_recent_project", { path }).catch((err) =>
+    console.error("could not update the recent projects", err),
+  );
+}
+
+// --- save --------------------------------------------------------------------
+
+async function write(path: string): Promise<boolean> {
+  setProjectStatus("saving");
+  setProjectError(null);
+  try {
+    const args: SaveProjectArgs = {
+      name: projectLabel(path),
+      createdMs: createdMs() ?? undefined,
+      source: currentDescriptor(),
+      setup: currentSetup(),
+      layout: currentLayout(),
+    };
+    await invoke("save_project", { path, project: args });
+    setProjectPath(path);
+    setProjectTitle(projectLabel(path));
+    void setWindowTitle(basename(path));
+    rememberRecent(path);
+    return true;
+  } catch (err) {
+    setProjectError(String(err));
+    return false;
+  } finally {
+    setProjectStatus("idle");
+  }
+}
+
+async function pickSavePath(): Promise<string | null> {
+  try {
+    return await invoke<string | null>("pick_project_save_path", {
+      defaultName: defaultFileName(),
+    });
+  } catch (err) {
+    setProjectError(String(err));
+    return null;
+  }
+}
+
+/** Save to the current path, prompting for one if the project has never been saved. */
+export async function saveProject(): Promise<void> {
+  const existing = projectPath();
+  const path = existing ?? (await pickSavePath());
+  if (path) await write(path);
+}
+
+/** Always prompt for a path, then save. */
+export async function saveProjectAs(): Promise<void> {
+  const path = await pickSavePath();
+  if (path) await write(path);
+}
+
+// --- load --------------------------------------------------------------------
+
+function applyDescriptor(descriptor: SourceDescriptorDto | null) {
+  if (!descriptor) return;
+  setChoice(descriptor.kind as SourceChoice);
+  setDeviceId(descriptor.deviceId ?? null);
+  setMixMicDeviceId(descriptor.mixMicDeviceId ?? null);
+  setMixSystemDeviceId(descriptor.mixSystemDeviceId ?? null);
+  setTargetPid(descriptor.targetPid ?? null);
+  if (descriptor.gain != null) setGainLevel(descriptor.gain);
+}
+
+/** Restore every store from a loaded project (the PCM already streamed in). */
+function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
+  // 1. Graph editors first, so mounted graph tabs show the restored graphs.
+  loadGraph("filter", loaded.layout?.graphs?.filter);
+  loadGraph("synth", loaded.layout?.graphs?.synth);
+
+  // 2. Analysis setup.
+  applySharedParams(loaded.setup.shared);
+  setToolOptions(loaded.setup.toolOptions ?? {});
+  setFilterEnabled(loaded.setup.filterEnabled ?? true);
+
+  // 3. The source PCM + the analysis window / view it was saved with.
+  const channels = Math.max(1, loaded.channels);
+  const frames = Math.floor(samples.length / channels);
+  if (samples.length === 0) {
+    // The project had no audio; leave the timeline empty.
+    closeSource();
+  } else {
+    const duration = loaded.sampleRate > 0 ? frames / loaded.sampleRate : 0;
+    setSource({
+      name: sourceName(loaded.source),
+      detail: sourceDetail(loaded.source),
+      sampleRate: loaded.sampleRate,
+      channels,
+      frames,
+      duration,
+      samples,
+      probe:
+        loaded.source?.kind === "file" && loaded.source.path
+          ? fileProbe(loaded.source.path, loaded)
+          : undefined,
+    });
+    // Fall back to the full span if the saved window/view is missing, degenerate,
+    // or out of range for the (now loaded) source.
+    const span = (range: AnalysisWindowDto | undefined, fallbackEnd: number) => {
+      const end = Math.min(fallbackEnd, Math.max(0, range?.endSecs ?? fallbackEnd));
+      const start = Math.min(end, Math.max(0, range?.startSecs ?? 0));
+      return end > start ? { startSecs: start, endSecs: end } : { startSecs: 0, endSecs: fallbackEnd };
+    };
+    const win = span(loaded.setup.window, duration);
+    const view = span(loaded.setup.view, duration);
+    setWindowStart(win.startSecs);
+    setWindowEnd(win.endSecs);
+    setView(view.startSecs, view.endSecs);
+    setStatus("ready");
+    setError(null);
+  }
+
+  // 4. Source picker.
+  applyDescriptor(loaded.source);
+
+  // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
+  restoreLayout(loaded.layout?.dockview ?? null);
+}
+
+/** Open a project file (already chosen) and adopt it as the current project. */
+export async function loadProject(path: string): Promise<void> {
+  // Loading replaces the source, so stop any live capture first (its poll loop would
+  // otherwise keep publishing the capture buffer over the loaded timeline).
+  if (recording()) await stopCapture();
+  await stopMonitor();
+
+  setProjectStatus("loading");
+  setProjectError(null);
+  setStatus("decoding");
+
+  const stream = pcmStream();
+
+  try {
+    const loaded = await invoke<LoadedProjectDto>("load_project", {
+      path,
+      onChunk: stream.channel,
+    });
+    // Wait for the core's end-of-stream sentinel before assembling (large chunks
+    // arrive asynchronously — see `lib/pcmStream.ts`).
+    await stream.done;
+    applyProject(loaded, stream.samples());
+    setProjectPath(path);
+    setProjectTitle(projectLabel(path));
+    setCreatedMs(loaded.meta.createdMs || null);
+    void setWindowTitle(basename(path));
+    rememberRecent(path);
+  } catch (err) {
+    setProjectError(String(err));
+    setStatus("error");
+  } finally {
+    setProjectStatus("idle");
+  }
+}
+
+/** Show the native picker and load the chosen project, if any. */
+export async function openProject(): Promise<void> {
+  let path: string | null;
+  try {
+    path = await invoke<string | null>("pick_project_open_path");
+  } catch (err) {
+    setProjectError(String(err));
+    return;
+  }
+  if (path) await loadProject(path);
+}
+
+// --- new ---------------------------------------------------------------------
+
+/** Start a fresh project: drop the source, graphs, setup, and Workbench tabs. */
+export async function newProject(): Promise<void> {
+  if (recording()) await stopCapture();
+  await stopMonitor();
+
+  setProjectError(null);
+  closeAllTools();
+  resetGraph("filter");
+  resetGraph("synth");
+  resetAnalysisParams();
+  resetToolOptions();
+  setFilterEnabled(true);
+  closeSource();
+  setChoice("file");
+  setDeviceId(null);
+  setTargetPid(null);
+  setProjectPath(null);
+  setProjectTitle(null);
+  setCreatedMs(null);
+}

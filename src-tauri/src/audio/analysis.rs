@@ -47,9 +47,10 @@ const MAX_RHYTHM_FRAMES: usize = 4096;
 const DEFAULT_BAR_LENGTH: usize = 4;
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WindowKind {
+    #[default]
     Hann,
     Hamming,
     Blackman,
@@ -69,7 +70,9 @@ impl WindowKind {
 
 /// Shared analysis params, synced across tools in the frontend (ADR-6) and sent
 /// with every `run_analysis` call. See `docs/data-model.md` → `SharedParams`.
-#[derive(Debug, Clone, Deserialize)]
+///
+/// Also `Serialize`/`Default` so the project file can persist the analysis setup.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SharedParams {
     /// FFT window size in samples (the UI offers 512…8192).
@@ -1375,7 +1378,7 @@ mod tests {
     fn pitch_marks_unvoiced_frames_as_gaps() {
         // A pure tone is voiced; the tail (silence) should not be.
         let mut mono = sine(440.0, 0.5);
-        mono.extend(std::iter::repeat(0.0).take(RATE as usize / 4));
+        mono.extend(std::iter::repeat_n(0.0, RATE as usize / 4));
         let result = match run(
             "pitchPyin",
             &mono,

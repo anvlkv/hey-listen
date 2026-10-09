@@ -34,6 +34,20 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["heyl"],
+        "name": "Hey Listen Project",
+        "description": "Hey Listen audio analysis project",
+        "role": "Editor",
+        "rank": "Owner",
+        "mimeType": "application/x-hey-listen-project",
+        "exportedType": {
+          "identifier": "com.anvlkv.heylisten.project",
+          "conformsTo": ["public.data"]
+        }
+      }
     ]
   }
 }

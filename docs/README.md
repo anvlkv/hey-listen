@@ -1,7 +1,7 @@
 # Hey Listen — Planning Docs
 
 Index of the design/planning documentation. These docs are the source of truth for
-design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M5 are done).
+design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M6 are done).
 
 | Doc | What it covers |
 | --- | --- |

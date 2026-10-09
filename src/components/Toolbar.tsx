@@ -12,6 +12,7 @@ import {
   refreshOutputDevices,
   setOutputDeviceId,
 } from "../state/output";
+import { projectError, projectName, projectStatus } from "../state/project";
 import { error, status } from "../state/source";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -19,13 +20,19 @@ const STATUS_LABEL: Record<string, string> = {
   decoding: "decoding audio…",
 };
 
+const PROJECT_LABEL: Record<string, string> = {
+  saving: "saving project…",
+  loading: "loading project…",
+};
+
 /**
  * App toolbar (no title/branding — the native title bar carries the app name).
  *
- * Holds app-level status **and** app-level audio controls: the filter-graph
- * bypass toggle and the preview output (gain + device), all of which drive the
- * core's preview player (ADR-9). The audio source picker lives in the bottom-left
- * Source region (see `docs/ui-layout.md`).
+ * Holds app-level status and the current **project name** (the New / Open / Save
+ * actions live in the native **File** menu — see `src-tauri/src/menu.rs`), plus the
+ * filter-graph bypass toggle and the preview output (gain + device), which drive
+ * the core (ADR-9). The audio source picker lives in the bottom-left Source region
+ * (see `docs/ui-layout.md`).
  */
 export default function Toolbar() {
   const [backend, setBackend] = createSignal("…");
@@ -45,6 +52,17 @@ export default function Toolbar() {
 
   return (
     <header class="app-toolbar">
+      <span
+        class="toolbar-name"
+        data-testid="toolbar.project.name"
+        title={projectName()}
+      >
+        {projectName()}
+      </span>
+
+      <Show when={PROJECT_LABEL[projectStatus()]}>
+        <span class="app-status">{PROJECT_LABEL[projectStatus()]}</span>
+      </Show>
       <Show when={STATUS_LABEL[status()]}>
         <span class="app-status">{STATUS_LABEL[status()]}</span>
       </Show>
@@ -100,6 +118,15 @@ export default function Toolbar() {
       <Show when={error()}>
         <span class="app-status app-status-error" title={error() ?? undefined}>
           {error()}
+        </span>
+      </Show>
+      <Show when={projectError()}>
+        <span
+          class="app-status app-status-error"
+          data-testid="toolbar.project.error"
+          title={projectError() ?? undefined}
+        >
+          {projectError()}
         </span>
       </Show>
       <span class="app-status">Rust backend: {backend()}</span>

@@ -6,6 +6,7 @@ import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
 import Workbench from "./components/Workbench";
 import { disposeCapture, initCapture } from "./state/capture";
+import { initMenu } from "./state/menu";
 
 /** Bottom row (Source + Timeline): default height and drag limits, in px. */
 const BOTTOM_DEFAULT = 220;
@@ -54,6 +55,7 @@ export default function App() {
 
   onMount(() => {
     void initCapture();
+    void initMenu();
     window.addEventListener("resize", handleResize);
   });
   onCleanup(() => {
