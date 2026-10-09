@@ -9,6 +9,7 @@ pub mod capture;
 pub mod decode;
 pub mod graph;
 pub mod playback;
+pub mod project;
 pub mod source;
 
 /// Minimal health check used to verify the IPC boundary from the frontend shell.

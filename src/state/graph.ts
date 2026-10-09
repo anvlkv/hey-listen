@@ -122,6 +122,39 @@ export function resetGraph(graph: GraphKind) {
   handle.setNodes(nodes);
 }
 
+/** A graph's persisted editor state (nodes + edges, including positions). */
+export interface GraphLayout {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+/** Snapshot a graph's editor state for the project file. */
+export function graphLayout(graph: GraphKind): GraphLayout {
+  const handle = graphFor(graph);
+  return { nodes: handle.nodes, edges: handle.edges };
+}
+
+/** Restore a graph's editor state from a saved project. */
+export function loadGraph(graph: GraphKind, state: Partial<GraphLayout> | undefined) {
+  if (!state?.nodes?.length) {
+    // No saved editor state (or an empty graph): fall back to the seed.
+    resetGraph(graph);
+    return;
+  }
+  const handle = graphFor(graph);
+  handle.setEdges(state.edges ?? []);
+  handle.setNodes(state.nodes);
+  bumpNextId([...state.nodes, ...(state.edges ?? [])]);
+}
+
+/** Keep generated ids from colliding with restored ones (`kind-3`, `edge-7`, …). */
+function bumpNextId(items: { id: string }[]) {
+  for (const item of items) {
+    const match = /-(\d+)$/.exec(item.id);
+    if (match) nextId = Math.max(nextId, Number(match[1]) + 1);
+  }
+}
+
 /** Whether the graph already contains a node of `kind` (anchors are unique). */
 export function hasKind(graph: GraphKind, kind: string): boolean {
   return graphFor(graph).nodes.some((node) => node.data.kind === kind);

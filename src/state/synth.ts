@@ -1,6 +1,7 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { createSignal } from "solid-js";
 import { toSpec } from "../lib/graph";
+import { pcmStream } from "../lib/pcmStream";
 import { recording, stopCapture } from "./capture";
 import { SYNTH_GRAPH } from "./graph";
 import { finalizeSource, setError, setStatus } from "./source";
@@ -32,34 +33,21 @@ export async function renderSynth(seconds: number) {
   setStatus("decoding");
 
   const spec = toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges);
-  const chunks: Float32Array[] = [];
-  let total = 0;
-  const onChunk = new Channel<ArrayBuffer>();
-  onChunk.onmessage = (raw) => {
-    const chunk = new Float32Array(raw);
-    chunks.push(chunk);
-    total += chunk.length;
-  };
+  const stream = pcmStream();
 
   try {
     const summary = await invoke<StreamSummary>("render_synth", {
       spec,
       seconds,
       sampleRate: 48_000,
-      onChunk,
+      onChunk: stream.channel,
     });
-
-    const samples = new Float32Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      samples.set(chunk, offset);
-      offset += chunk.length;
-    }
+    await stream.done;
 
     finalizeSource({
       name: "Synth",
       detail: "fundsp synth",
-      samples,
+      samples: stream.samples(),
       sampleRate: summary.sampleRate,
       channels: Math.max(1, summary.channels),
     });

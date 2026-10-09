@@ -56,3 +56,62 @@ streaming for very large audio.
 - Readers skip unknown section ids (forward compatibility); missing optional
   sections (`RESULTS`) default to empty.
 - `checksum` validates the whole file on load.
+
+## Implemented (M6)
+
+Implemented in `src-tauri/src/project/` (`mod` = constants + CRC-32, `sections` =
+payload types, `write`/`read` = the codec); the `save_project` / `load_project`
+commands in `src-tauri/src/commands/project.rs` bridge it to the frontend, with
+`pick_project_open_path` / `pick_project_save_path` for the native dialogs.
+
+- **Checksum** is a **CRC-32** (IEEE 802.3), stored as a little-endian `u64` (the
+  upper 32 bits are zero) over every byte before it.
+- **Section index entries** are `offset u64` + `length u64` + `id u8` + 7 reserved
+  zero bytes; offsets are absolute from the start of the file.
+- **`DATA`** sub-layout: a 24-byte self-describing header (`sample_rate u32`,
+  `channels u16`, `format u8` = 0 for `f32`, `frames u64`, `chunk_samples u32`,
+  `chunk_count u32`), then the raw interleaved-`f32` chunks, a trailing chunk index
+  (`offset u64` + `length u64` per chunk, relative to the payload start), and a
+  16-byte footer (`chunk_count u64`, `index_offset u64`). Appending a chunk rewrites
+  only the index/footer, never earlier chunks.
+- **`SOURCE`** is a `kind`-tagged struct (not a Serde enum): `postcard` cannot encode
+  internally-tagged enums. `kind` is `file` / `mic` / `system` / `process` / `mix` /
+  `synth`; the kind-specific fields (`path`, `deviceId`, `targetPid`, `gain`,
+  `graph`, …) are optional.
+- **`LAYOUT`** carries the dockview `toJSON()` snapshot and both graph editors'
+  nodes/edges (with positions) as `serde_json`.
+- **`RESULTS`** is a `postcard` `Vec<StoredResult>`; it is written **empty** today
+  (result caching is deferred — see below). The type is defined now so the format
+  stays forward-compatible.
+
+### File association
+
+Project files use the **`.heyl`** extension. `tauri.conf.json` declares it under
+`bundle.fileAssociations` (exported UTI `com.anvlkv.heylisten.project`, role
+`Editor`, rank `Owner`), so the OS can open a project by double-click. Tauri
+delivers the path through the run loop — a macOS `open` event (`RunEvent::Opened`)
+or, on Windows/Linux, the command line — and the app loads it. A request that
+arrives before the frontend is listening is queued and drained by the
+`take_pending_open_paths` command (see `src-tauri/src/commands/project.rs`).
+
+Per-file-type **icons** are not configured: the association reuses the app icon
+(or a platform default). A distinct document icon needs platform packaging — a
+macOS `.icns` referenced from `Info.plist`, a Windows `DefaultIcon` registry
+entry, a Linux `.desktop` icon — which rides with the M7 packaging work.
+
+Opened and saved projects are remembered in **File → Open Recent** (up to 10,
+most-recent first, with a **Clear Menu** item). The list is stored as
+`recent-projects.json` under the app config directory (`src-tauri/src/recent.rs`);
+entries whose file no longer exists are hidden. The native window **title** shows
+the project file name on open/save, and the Toolbar shows the project name.
+
+### Deferred
+
+- **Result caching.** `RESULTS` is written empty and the analyzers re-derive their
+  results from the embedded audio on load. Persisting the cached results needs a
+  central result registry keyed by `(source, window, params)` (the architecture's
+  planned cache) and `Deserialize` on `AnalysisResult`; both are out of scope for
+  M6.
+- **`i16` `DATA`.** The format allows it (`format` byte), but the core stores `f32`
+  and always writes `format = 0`.
+- **FLAC-compressed `DATA`** (the optional future optimization) is not implemented.

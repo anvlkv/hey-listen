@@ -25,6 +25,12 @@ layout via `serde_json`, bulk PCM as a raw chunked `DATA` section.
 be versioned carefully (see
 [`project-file-format.md`](project-file-format.md)).
 
+> **Implemented (M6):** `src-tauri/src/project/` reads/writes the container and
+> `commands/project.rs` exposes `save_project` / `load_project`. The checksum is a
+> CRC-32 (the doc's "xxHash/CRC") and `SOURCE` is a `kind`-tagged struct, since
+> `postcard` cannot encode internally-tagged enums. `RESULTS` is written empty for
+> now (result caching deferred) — see the format doc.
+
 ## ADR-3 — One window = one project
 
 **Decision:** each Tauri window hosts one independent project; no shared state.

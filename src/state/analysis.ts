@@ -105,3 +105,29 @@ export function sharedParams(): SharedParamsDto {
     freqMaxHz: freqMaxHz(),
   };
 }
+
+/** Restore the shared params from a saved project's setup. */
+export function applySharedParams(shared: Partial<SharedParamsDto>) {
+  if (shared.fftSize != null) setFftSize(shared.fftSize);
+  if (shared.hop != null) setHop(shared.hop);
+  if (shared.randomizedOverlap != null) setRandomizedOverlap(shared.randomizedOverlap);
+  if (shared.windowFn != null) setWindowFn(shared.windowFn);
+  if (shared.channel != null) setChannel(shared.channel);
+  else setChannel("mix");
+  if (shared.resampleTo != null) setResampleTo(shared.resampleTo);
+  else setResampleTo(null);
+  if (shared.freqMinHz != null) setFreqMinHz(shared.freqMinHz);
+  if (shared.freqMaxHz != null) setFreqMaxHz(shared.freqMaxHz);
+}
+
+/** Reset the shared params to their defaults (New Project). */
+export function resetAnalysisParams() {
+  setChannel("mix");
+  setFftSize(2048);
+  setHop(0.25);
+  setRandomizedOverlap(false);
+  setWindowFn("hann");
+  setResampleTo(null);
+  setFreqMinHz(0);
+  setFreqMaxHz(0);
+}

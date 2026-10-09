@@ -33,6 +33,16 @@ scrolling); shrinking the row below the panel's content makes the panel scroll.
 ## Desktop-app conventions
 
 - The **native window title bar** carries the app name ("Hey Listen").
+- A **native application menu** carries the document actions: **File** (New /
+  Open… / Open Recent → up to 10 files + Clear Menu / Save / Save As… —
+  `CmdOrCtrl+N` / `O` / `S` / `Shift+S` — plus Close on macOS / Quit elsewhere),
+  **View** (fullscreen), **Window** (minimize/maximize), and **Help** / About. On
+  macOS the standard application menu (About / Services / Hide / Quit) precedes
+  them. File actions are emitted to the frontend via `app:menu`; the rest are
+  native. There is no **Edit** menu — the app has no document editing and no
+  history (undo/redo is deferred, see roadmap → Backlog). See
+  `src-tauri/src/menu.rs`. The **Toolbar shows only the current project name** — the
+  file actions live in the File menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
   status only. No hero/header like a website. In M3 it gained the app-level audio
   controls: the **filter bypass toggle** and the preview **output gain + device**

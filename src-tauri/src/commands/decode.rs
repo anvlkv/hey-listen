@@ -26,6 +26,9 @@ pub async fn stream_file(
     path: String,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<StreamSummary, DecodeError> {
+    // End-of-stream sentinel: large chunks are delivered asynchronously, so the
+    // frontend must not assume the last one arrived when this command returns.
+    let sentinel = on_chunk.clone();
     let (summary, samples) = tauri::async_runtime::spawn_blocking(move || {
         let mut samples: Vec<f32> = Vec::new();
         let summary = decode::decode_file(&path, |decoded| {
@@ -48,6 +51,10 @@ pub async fn stream_file(
         sample_rate: summary.sample_rate,
         channels: summary.channels,
     }));
+
+    sentinel
+        .send(InvokeResponseBody::Raw(Vec::new()))
+        .map_err(|err| DecodeError::Decode(err.to_string()))?;
 
     Ok(summary)
 }

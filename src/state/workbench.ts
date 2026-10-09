@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import type { DockviewApi } from "dockview";
+import type { DockviewApi, SerializedDockview } from "dockview";
 import { ANALYZERS, type AnalyzerId } from "./analyzer";
 
 /**
@@ -68,4 +68,36 @@ export function openTool(id: ToolId) {
     return;
   }
   api.addPanel({ id, component: id, title: toolById(id).title });
+}
+
+/** The open Workbench tab ids, in dockview order. */
+function syncOpenTools(api: DockviewApi) {
+  setOpenTools(api.panels.map((panel) => panel.id as ToolId));
+}
+
+/** Snapshot the Workbench (dockview) layout for the project file, or `null`. */
+export function layoutJson(): SerializedDockview | null {
+  return dockApi()?.toJSON() ?? null;
+}
+
+/** Restore the Workbench layout from a saved project (`null` clears it). */
+export function restoreLayout(layout: unknown) {
+  const api = dockApi();
+  if (!api) return;
+  try {
+    if (layout && typeof layout === "object") api.fromJSON(layout as SerializedDockview);
+    else api.clear();
+  } catch (err) {
+    console.error("could not restore the workbench layout", err);
+    api.clear();
+  }
+  syncOpenTools(api);
+}
+
+/** Close every Workbench tab (New Project). */
+export function closeAllTools() {
+  const api = dockApi();
+  if (!api) return;
+  api.clear();
+  setOpenTools([]);
 }

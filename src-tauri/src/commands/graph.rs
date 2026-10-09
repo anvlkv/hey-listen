@@ -66,6 +66,11 @@ pub async fn render_synth(
             .map_err(|err| GraphError::Stream(err.to_string()))?;
     }
 
+    // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
+    on_chunk
+        .send(InvokeResponseBody::Raw(Vec::new()))
+        .map_err(|err| GraphError::Stream(err.to_string()))?;
+
     let frames = pcm.len() as u64;
     app.state::<AudioState>().set_source(Some(SourcePcm {
         samples: pcm,

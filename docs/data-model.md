@@ -90,3 +90,12 @@ struct Project {
 
 See [`project-file-format.md`](project-file-format.md) for how these map to
 on-disk sections.
+
+> **Serialized `Source` (M6).** On the wire and on disk, `Source` is stored as a
+> `kind`-tagged **struct** (`SourceDescriptor` in `src-tauri/src/project/sections.rs`),
+> not a Serde enum: `postcard` cannot encode internally-tagged enums. It carries
+> `kind` (`file` / `mic` / `system` / `process` / `mix` / `synth`) plus the
+> kind-specific fields (`path`, `deviceId`, `mixMicDeviceId`, `mixSystemDeviceId`,
+> `targetPid`, `gain`, `graph`), all optional. The audio itself is embedded in the
+> `DATA` section, so the descriptor is provenance for the picker (and, for synth,
+> the rendered graph).

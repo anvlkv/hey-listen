@@ -1,13 +1,14 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
+import { pcmStream } from "../lib/pcmStream";
 import type { ChannelPick, Peaks } from "../lib/waveform";
 import { resetTimeline } from "./timeline";
 
 const BASE_TITLE = "Hey Listen";
 
 /** Reflect the current source in the native window title. */
-async function setWindowTitle(name?: string) {
+export async function setWindowTitle(name?: string) {
   try {
     await getCurrentWindow().setTitle(name ? `${name} — ${BASE_TITLE}` : BASE_TITLE);
   } catch {
@@ -139,19 +140,13 @@ export async function openPath(path: string) {
 
   setStatus("decoding");
 
-  // Collect streamed chunks, then concatenate once (avoids O(n^2) growth).
-  const chunks: Float32Array[] = [];
-  let total = 0;
-  const onChunk = new Channel<ArrayBuffer>();
-  onChunk.onmessage = (raw) => {
-    const chunk = new Float32Array(raw);
-    chunks.push(chunk);
-    total += chunk.length;
-  };
-
+  // Stream the PCM, then assemble once the core's end-of-stream sentinel arrives
+  // (large chunks are delivered asynchronously — see `lib/pcmStream.ts`).
+  const stream = pcmStream();
   let summary: StreamSummary;
   try {
-    summary = await invoke<StreamSummary>("stream_file", { path, onChunk });
+    summary = await invoke<StreamSummary>("stream_file", { path, onChunk: stream.channel });
+    await stream.done;
   } catch (err) {
     if (token === openToken) {
       setError(String(err));
@@ -161,13 +156,7 @@ export async function openPath(path: string) {
   }
   if (token !== openToken) return;
 
-  const samples = new Float32Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    samples.set(chunk, offset);
-    offset += chunk.length;
-  }
-
+  const samples = stream.samples();
   const channels = Math.max(1, summary.channels);
 
   finalizeSource({

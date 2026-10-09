@@ -39,7 +39,7 @@ src-tauri/src/
 │   ├── graph.rs     # filter/synth graph commands               ✅ (set_filter_graph, render_synth)
 │   ├── playback.rs  # preview playback (cpal)                   ✅
 │   ├── analysis.rs  # run analysis over a window                ✅ (run_analysis)
-│   └── project.rs   # save/load binary project file
+│   └── project.rs   # save/load binary project file               ✅ (M6: save/load_project, pick_project_*_path)
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
 │   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
@@ -48,8 +48,10 @@ src-tauri/src/
 │   ├── pcm.rs       # channel mixdown + linear resample        ✅
 │   ├── playback.rs  # cpal output stream + ring buffer         ✅
 │   └── analysis.rs  # oxiaudio wrappers                         ✅
+├── menu.rs          # native menu (File/View/Window/Help)      ✅ (M6: File → frontend)
+├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── state.rs         # core-owned source PCM + filter + player  ✅
-└── project/         # binary format: write/read, sections, streaming
+└── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
 ```
 
 Commands are registered once in `generate_handler![...]`; shared state is
@@ -71,7 +73,7 @@ managed via `app.manage(...)`.
 | Filter | `set_filter_graph` | install the project filter graph (applied before preview/analysis) ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
 | Analysis | `run_analysis` | tool id + window + params → result |
-| Project | `save_project`, `load_project` | binary file |
+| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths` |
 
 > **Implemented so far (M4):** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
@@ -84,12 +86,35 @@ managed via `app.manage(...)`.
 > first tools are waveform, spectrum, and spectrogram.
 > `open_source`/`close_source` remain the planned unification of the source kinds.
 
+> **Implemented (M6):** `save_project(path, { name, createdMs, source, setup, layout })`
+> writes the frontend's descriptor/setup/layout plus the core-owned PCM (ADR-9) as
+> the file's `DATA` section, and `load_project(path, onChunk)` validates the file,
+> streams `DATA` back to the frontend (for the Timeline waveform), installs the PCM
+> in the core, and returns the parsed `META`/`SOURCE`/`SETUP`/`LAYOUT`/`RESULTS`. The
+> frontend (`state/project.ts`) restores every store and the dockview layout; the
+> analyzer tabs then re-derive their results. See `project-file-format.md` →
+> Implemented.
+
 **Channels / events** (Rust → frontend):
 
 - `capture_chunk` (Channel) — 20 ms PCM chunks as the timeline grows (passed to
   `start_capture` as `onChunk`).
 - `source_status` — device lost, stall, permission, etc. (flexaudio `Event`).
 - `analysis_progress` — long-running analysis updates.
+- `app:menu` — a File-menu action id (`new` / `open` / `save` / `saveAs`) from the
+  native menu (M6); the frontend runs the matching project action. Choosing an
+  **Open Recent** entry is re-emitted as `app:open-project`.
+- `app:open-project` — opened `.heyl` paths (file association) for a running app;
+  a request that arrives before the frontend listens is drained by the
+  `take_pending_open_paths` command (M6).
+
+> **Channel ordering:** Tauri routes a `Channel` message above a size threshold
+> through an async `fetch` round-trip and re-orders by index, so the command's
+> promise can resolve **before** the last chunk. The one-shot PCM commands
+> (`stream_file`, `render_synth`, `load_project`) therefore end their channel with
+> a **zero-length sentinel**, and the frontend awaits it (`src/lib/pcmStream.ts`)
+> before assembling the buffer — otherwise a short window/buffer is derived from the
+> partial PCM.
 
 ## Data flow
 
