@@ -1,7 +1,7 @@
 //! Source management commands.
 
 use tauri::{AppHandle, Manager};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::audio::capture::{CAPTURE_CHANNELS, CAPTURE_RATE};
 use crate::state::AudioState;
@@ -27,6 +27,34 @@ pub async fn pick_audio_file(app: tauri::AppHandle) -> Option<String> {
         .blocking_pick_file()
         .and_then(|file| file.into_path().ok())
         .map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Show a native OK/Cancel confirmation dialog and return `true` only if the user
+/// confirms.
+///
+/// The frontend has no dialog package and `window.confirm` is unreliable in the
+/// WebView, so the replace-source / discard-unsaved-work prompts go through the
+/// core. The `pick_audio_file` pattern is reused (a blocking dialog on the async
+/// runtime, never on the main thread).
+#[tauri::command]
+pub async fn confirm(app: AppHandle, message: String, title: String) -> bool {
+    app.dialog()
+        .message(message)
+        .title(title)
+        .buttons(MessageDialogButtons::OkCancel)
+        .blocking_show()
+}
+
+/// Force-close the window that invoked this command.
+///
+/// The frontend's `onCloseRequested` guard always prevents the native close (the JS
+/// helper would otherwise `destroy()` the window itself, which needs a window
+/// permission this app does not grant) and routes the real close through here.
+/// `destroy` (rather than `close`) does not re-emit the close-requested event, so the
+/// guard cannot loop.
+#[tauri::command]
+pub async fn close_window(window: tauri::WebviewWindow) {
+    let _ = window.destroy();
 }
 
 /// Drop the core-owned source PCM and silence preview (the timeline is changing).

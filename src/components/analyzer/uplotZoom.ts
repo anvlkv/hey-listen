@@ -22,6 +22,8 @@ export interface UplotZoom {
   fit: () => void;
   /** The visible x-range, kept in sync with every scale change. */
   range: () => [number, number] | null;
+  /** The live uPlot instance, or `null` before `onReady` — e.g. for `posToVal`. */
+  instance: () => UplotInstance | null;
 }
 
 export function createUplotZoom(): UplotZoom {
@@ -87,5 +89,6 @@ export function createUplotZoom(): UplotZoom {
       apply(xs[0], xs[xs.length - 1]);
     },
     range,
+    instance,
   };
 }

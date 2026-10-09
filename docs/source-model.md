@@ -2,7 +2,9 @@
 
 Every project is built around **one audio source**. Changing the source replaces
 the entire timeline (and thus the project's contents). Each window hosts one
-project.
+project. An audio file can also be opened by **dragging it onto the window**.
+Replacing an existing source is **confirmed first**, and unsaved work is tracked
+(a `*` in the project name/title) with a prompt on close / New / Open.
 
 ## Source kinds
 

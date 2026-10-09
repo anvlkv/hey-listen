@@ -39,33 +39,36 @@ scrolling); shrinking the row below the panel's content makes the panel scroll.
   **View** (fullscreen), **Window** (minimize/maximize), and **Help** / About. On
   macOS the standard application menu (About / Services / Hide / Quit) precedes
   them. File actions are emitted to the frontend via `app:menu`; the rest are
-  native. There is no **Edit** menu — the app has no document editing and no
-  history (undo/redo is deferred, see roadmap → Backlog). See
-  `src-tauri/src/menu.rs`. The **Toolbar shows only the current project name** — the
-  file actions live in the File menu, not in the Toolbar.
+  native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
+  (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
+  [`roadmap.md`](roadmap.md) → Backlog). See `src-tauri/src/menu.rs`. The
+  **Toolbar shows the current project name** — the file actions live in the File
+  menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
-  status only. No hero/header like a website. In M3 it gained the app-level audio
-  controls: the **filter bypass toggle** and the preview **output gain + device**
-  (which drive the core player, ADR-9). M7 polish adds a preview **output meter**
-  next to gain/device and removes the temporary **`Rust backend:`** status — the M0
-  IPC-ping scaffold, which is obsolete once the core is proven.
+  status only. No hero/header like a website. It carries the app-level audio
+  controls (the **filter bypass toggle** and the preview **output gain + device**,
+  which drive the core, ADR-9), the **Analysis params** popover (the shared, synced
+  analysis params — see [`analysis-tools.md`](analysis-tools.md)), and a **View**
+  popover for the UI scale and theme. The temporary **`Rust backend:`** status (the
+  M0 IPC-ping scaffold) has been removed; M7 still adds a preview **output meter**
+  next to gain/device.
 - **Numeric inputs** gain **drag-to-adjust** (drag up/down to change the value, a
   visual affordance rather than a slider) in addition to typing — M7.
-- A user-adjustable **font size / UI zoom** scales the whole interface — M4+
-  polish.
+- A user-adjustable **font size / UI zoom** (0.8–1.4×) scales the whole interface;
+  it lives in the toolbar **View** popover and is persisted.
 
 ## Theming
 
-The app ships a **light / dark / auto** theme (M4+ polish). It drives the UI via
-CSS custom properties **and** the charts: the uPlot series/axis colours, the
-spectrogram canvas background and colormap, and the dockview theme all follow the
-active theme. Today the shell is dark-only with chart colours hardcoded.
+The app ships an **auto / dark / light** theme, chosen in the toolbar **View**
+popover and persisted. It drives the UI via CSS custom properties (`data-theme` on
+the root) **and** the charts: the uPlot series/axis colours, the spectrogram canvas
+background and colormap, and the dockview theme all follow the active theme.
 
 ## Fixed regions
 
 | Region | Role | Notes |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **planned:** overlay the filtered signal when a filter is active |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **overlays the filtered signal** when a filter is active (with an on/bypassed badge) |
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
@@ -92,8 +95,8 @@ None of these are closable, draggable, or tabbed.
 - Analyzer charts **zoom on scroll** and carry an on-chart **zoom control**
   (zoom in / out / fit with a range readout); the spectrogram also **pans by
   dragging** (wheel zooms time, Shift+wheel zooms frequency).
-- Axis labels stay **un-truncated** — sized margins and formatted ticks/units
-  (M4+ polish).
+- Axis labels stay **un-truncated** — sized margins and formatted ticks/units (the
+  charts and the Timeline ruler).
 - **Zoom and cursor are synced across analyzer tabs** (where relevant): every
   uPlot chart shares one `createPluginBus` (`state/chartSync.ts`), so the hovered
   cursor is mirrored onto the others and x-zoom is shared within a group (time
@@ -105,9 +108,10 @@ None of these are closable, draggable, or tabbed.
 Lists every available analyzer tool (see
 [`analysis-tools.md`](analysis-tools.md)) and, below them, the two graph editors —
 **analyzers come first**, grouped by domain (time / spectral / pitch / rhythm /
-loudness). A **search box** at the top filters the analyzer list by title,
-description, and keywords; the graph editors are always shown. Clicking an entry
-opens its tab in the Workbench (no-op if already open; selects the existing tab).
+**loudness). A **sticky search box** at the top filters the analyzer list by
+title, description, and keywords; the graph editors are always shown. Clicking an
+entry opens its tab in the Workbench (no-op if already open; selects the existing
+tab).
 
 ## Source picker
 

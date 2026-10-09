@@ -1,21 +1,23 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
+import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
+import { TIME_AXIS_SPACE, timeAxisValues, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import { analyzerBus } from "../../state/chartSync";
+import { chartTheme, resolvedTheme } from "../../state/settings";
 import { createAnalysis, type WaveformResult } from "../../state/analyzer";
 
-const AXIS = {
-  stroke: "#8a8a8a",
-  grid: { stroke: "#2b2b2b" },
-  ticks: { stroke: "#2b2b2b" },
-  font: "11px Inter, sans-serif",
-};
+/** uPlot axis styling for the active theme (read on each chart (re)mount). */
+function axisStyle() {
+  const t = chartTheme();
+  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
+}
 
 const Tooltip = (props: TooltipProps) => (
   <ChartTooltip
@@ -34,6 +36,7 @@ const Tooltip = (props: TooltipProps) => (
 export default function WaveformTab() {
   const analysis = createAnalysis<WaveformResult>("waveform");
   const zoom = createUplotZoom();
+  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   const data = () => {
     const result = analysis.result();
@@ -48,6 +51,16 @@ export default function WaveformTab() {
   const zoomLabel = () => {
     const range = zoom.range();
     return range ? `${range[0].toFixed(3)} – ${range[1].toFixed(3)} s` : "";
+  };
+
+  /** Right-click: reframe the timeline window from the time under the pointer. */
+  const openMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    const u = zoom.instance();
+    if (!u || !u.over) return;
+    const rect = u.over.getBoundingClientRect();
+    const time = u.posToVal(event.clientX - rect.left, "x");
+    setMenu({ x: event.clientX, y: event.clientY, time });
   };
 
   return (
@@ -69,7 +82,7 @@ export default function WaveformTab() {
               <Readout label="Duration" value={`${result().duration.toFixed(3)} s`} />
               <Readout label="Rate" value={`${result().sampleRate} Hz`} />
             </div>
-            <div class="analyzer-plot" onWheel={zoom.wheel}>
+            <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
               <Show
                 when={data()[0].length >= 2}
                 fallback={
@@ -84,23 +97,35 @@ export default function WaveformTab() {
                   onFit={zoom.fit}
                   label={zoomLabel()}
                 />
-                <SolidUplot
-                  autoResize
-                  pluginBus={analyzerBus}
-                  plugins={[cursor(), tooltip(Tooltip), mirrorCursor("time"), syncView("time")]}
-                  onCreate={zoom.onReady}
-                  data={data()}
-                  series={[
-                    {},
-                    { label: "Max", stroke: "#6ea8ff", width: 1 },
-                    { label: "Min", stroke: "#6ea8ff", width: 1 },
-                  ]}
-                  bands={[{ series: [1, 2], fill: "rgba(110, 168, 255, 0.22)" }]}
-                  scales={{ x: { time: false } }}
-                  axes={[{ ...AXIS, label: "time (s)" }, { ...AXIS, label: "amplitude" }]}
-                />
+                <Show when={resolvedTheme()} keyed>
+                  <SolidUplot
+                    autoResize
+                    pluginBus={analyzerBus}
+                    plugins={[cursor(), tooltip(Tooltip), mirrorCursor("time"), syncView("time")]}
+                    onCreate={zoom.onReady}
+                    data={data()}
+                    series={[
+                      {},
+                      { label: "Max", stroke: chartTheme().series, width: 1 },
+                      { label: "Min", stroke: chartTheme().series, width: 1 },
+                    ]}
+                    bands={[{ series: [1, 2], fill: chartTheme().waveFill }]}
+                    scales={{ x: { time: false } }}
+                    axes={[
+                      {
+                        ...axisStyle(),
+                        label: "time (s)",
+                        size: X_AXIS_SIZE,
+                        space: TIME_AXIS_SPACE,
+                        values: timeAxisValues,
+                      },
+                      { ...axisStyle(), label: "amplitude", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
+                    ]}
+                  />
+                </Show>
               </Show>
             </div>
+            <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
           </div>
         )}
       </Show>

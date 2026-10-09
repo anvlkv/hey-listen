@@ -120,6 +120,15 @@ export function finalizeSource(opts: {
  * Replaces any existing source (the whole timeline changes).
  */
 export async function openPath(path: string) {
+  // Replacing an existing source discards the timeline (and its analysis window).
+  if (source() != null) {
+    const ok = await invoke<boolean>("confirm", {
+      message: "Replacing the current source discards the existing audio.",
+      title: "Replace source?",
+    });
+    if (!ok) return;
+  }
+
   const token = ++openToken;
   void invoke("clear_audio_source");
   setSource(null);

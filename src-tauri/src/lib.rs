@@ -17,6 +17,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             // One capture session per window (one window = one project = one source).
             app.manage(commands::capture::CaptureState::default());
@@ -38,8 +39,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::ping,
             commands::source::pick_audio_file,
+            commands::source::confirm,
+            commands::source::close_window,
             commands::source::clear_audio_source,
             commands::source::begin_capture_source,
             commands::source::end_capture_source,
@@ -54,6 +56,7 @@ pub fn run() {
             commands::capture::set_capture_gain,
             commands::graph::set_filter_graph,
             commands::graph::render_synth,
+            commands::graph::render_filtered,
             commands::playback::list_output_devices,
             commands::playback::preview_region,
             commands::playback::stop_preview,

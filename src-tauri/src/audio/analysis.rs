@@ -179,6 +179,10 @@ pub struct SpectrumResult {
     pub freqs: Vec<f32>,
     /// Mean magnitude per bin, in dBFS.
     pub mag_db: Vec<f32>,
+    /// Minimum magnitude per bin across frames, in dBFS.
+    pub min_db: Vec<f32>,
+    /// Maximum magnitude per bin across frames, in dBFS.
+    pub max_db: Vec<f32>,
     /// Frequency (Hz) and level (dBFS) of the strongest bin.
     pub peak_hz: f32,
     pub peak_db: f32,
@@ -483,6 +487,8 @@ pub fn spectrum(
 
     let mut freqs = Vec::new();
     let mut mag_db = Vec::new();
+    let mut min_db = Vec::new();
+    let mut max_db = Vec::new();
     let mut peak_hz = 0.0f32;
     let mut peak_db = DB_FLOOR;
     for k in 0..bins {
@@ -490,10 +496,20 @@ pub fn spectrum(
         if freq < min_hz || freq > max_hz {
             continue;
         }
-        let mean = if frames > 0 {
-            mags.iter().map(|frame| frame[k]).sum::<f32>() / frames as f32
+        // Mean / min / max of the linear magnitude across the window's frames.
+        let (mean, min, max) = if frames > 0 {
+            let mut sum = 0.0f32;
+            let mut min = f32::INFINITY;
+            let mut max = f32::NEG_INFINITY;
+            for frame in &mags {
+                let value = frame[k];
+                sum += value;
+                min = min.min(value);
+                max = max.max(value);
+            }
+            (sum / frames as f32, min, max)
         } else {
-            0.0
+            (0.0, 0.0, 0.0)
         };
         let db = db_or_floor(20.0 * mean.max(1e-10).log10());
         if db > peak_db {
@@ -502,6 +518,8 @@ pub fn spectrum(
         }
         freqs.push(freq as f32);
         mag_db.push(db);
+        min_db.push(db_or_floor(20.0 * min.max(1e-10).log10()));
+        max_db.push(db_or_floor(20.0 * max.max(1e-10).log10()));
     }
 
     Ok(SpectrumResult {
@@ -511,6 +529,8 @@ pub fn spectrum(
         frames,
         freqs,
         mag_db,
+        min_db,
+        max_db,
         peak_hz,
         peak_db,
     })
@@ -1255,6 +1275,19 @@ mod tests {
             "peak_db = {}",
             result.peak_db
         );
+        // The per-bin min / max layers bracket the mean, one entry per bin.
+        assert_eq!(result.min_db.len(), result.freqs.len());
+        assert_eq!(result.max_db.len(), result.freqs.len());
+        for k in 0..result.freqs.len() {
+            assert!(
+                result.min_db[k] <= result.mag_db[k] + 1e-3
+                    && result.mag_db[k] <= result.max_db[k] + 1e-3,
+                "bin {k}: min {} mean {} max {}",
+                result.min_db[k],
+                result.mag_db[k],
+                result.max_db[k]
+            );
+        }
     }
 
     #[test]

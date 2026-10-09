@@ -48,7 +48,7 @@ src-tauri/src/
 │   ├── pcm.rs       # channel mixdown + linear resample        ✅
 │   ├── playback.rs  # cpal output stream + ring buffer         ✅
 │   └── analysis.rs  # oxiaudio wrappers                         ✅
-├── menu.rs          # native menu (File/View/Window/Help)      ✅ (M6: File → frontend)
+├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── state.rs         # core-owned source PCM + filter + player  ✅
 └── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
@@ -56,6 +56,10 @@ src-tauri/src/
 
 Commands are registered once in `generate_handler![...]`; shared state is
 managed via `app.manage(...)`.
+
+**Plugins.** `tauri-plugin-dialog` (native open/save/confirm dialogs) and
+`tauri-plugin-window-state` (remembers window size/position/maximized across
+launches) are registered in the builder.
 
 ## IPC surface (planned)
 
@@ -71,9 +75,11 @@ managed via `app.manage(...)`.
 | Decode | `stream_file` | `Channel` of PCM chunks for the timeline |
 | Synth | `render_synth` | build a fundsp graph, render to PCM ✅ |
 | Filter | `set_filter_graph` | install the project filter graph (applied before preview/analysis) ✅ |
+| Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths` |
+| Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 
 > **Implemented so far (M4):** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.

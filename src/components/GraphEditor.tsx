@@ -1,5 +1,5 @@
 import "@dschz/solid-flow/styles";
-import { For, Show, type JSX } from "solid-js";
+import { createSignal, For, Show, type JSX } from "solid-js";
 import {
   Background,
   Controls,
@@ -16,15 +16,40 @@ import {
   clearGraphWarning,
   graphFor,
   hasKind,
+  isAnchorKind,
   setNodesPosition,
   warnGraph,
+  type GraphNodeData,
 } from "../state/graph";
+import { resolvedTheme } from "../state/settings";
 import GraphNode from "./GraphNode";
+import ScrollArea from "./ScrollArea";
 
 const nodeTypes = { graph: GraphNode } as unknown as NodeTypes;
 
-/** Dark theme for the flow, matched to the app palette (belt-and-braces with `colorMode`). */
-const FLOW_STYLE = {
+/** Inline styling for the palette search box, matched to the active theme. */
+const SEARCH_STYLE_DARK: JSX.CSSProperties = {
+  width: "100%",
+  "box-sizing": "border-box",
+  height: "24px",
+  padding: "0 6px",
+  font: "inherit",
+  "font-size": "11px",
+  color: "#e6e6e6",
+  background: "#1f1f1f",
+  border: "1px solid #3c3c3c",
+  "border-radius": "4px",
+};
+
+const SEARCH_STYLE_LIGHT: JSX.CSSProperties = {
+  ...SEARCH_STYLE_DARK,
+  color: "#1f2328",
+  background: "#ffffff",
+  border: "1px solid #d8dce2",
+};
+
+/** Flow canvas theme matched to the app palette (belt-and-braces with `colorMode`). */
+const FLOW_STYLE_DARK = {
   "--xy-background-color": "#1f1f1f",
   "--xy-background-pattern-dots-color": "#3a3a3a",
   "--xy-edge-stroke": "#5898ff",
@@ -45,6 +70,34 @@ const FLOW_STYLE = {
   "--xy-edge-label-background-color": "#2b2b2b",
   "--xy-edge-label-color": "#e6e6e6",
 } as JSX.CSSProperties;
+
+/** Light variant of [`FLOW_STYLE_DARK`]: same variables, light values. */
+const FLOW_STYLE_LIGHT = {
+  "--xy-background-color": "#ffffff",
+  "--xy-background-pattern-dots-color": "#d0d4da",
+  "--xy-edge-stroke": "#2f6fd0",
+  "--xy-edge-stroke-width": "1.5",
+  "--xy-edge-stroke-selected": "#1b4fa0",
+  "--xy-handle-background-color": "#2f6fd0",
+  "--xy-handle-border-color": "#ffffff",
+  "--xy-connectionline-stroke": "#2f6fd0",
+  "--xy-connectionline-stroke-width": "1.5",
+  "--xy-controls-button-background-color": "#ffffff",
+  "--xy-controls-button-background-color-hover": "#eef0f4",
+  "--xy-controls-button-color": "#1f2328",
+  "--xy-controls-button-color-hover": "#000000",
+  "--xy-controls-button-border-color": "#d8dce2",
+  "--xy-minimap-background-color": "#f0f1f4",
+  "--xy-minimap-mask-background-color": "rgba(160, 168, 178, 0.35)",
+  "--xy-minimap-mask-stroke-color": "#2f6fd0",
+  "--xy-edge-label-background-color": "#ffffff",
+  "--xy-edge-label-color": "#1f2328",
+} as JSX.CSSProperties;
+
+/** The flow canvas inline theme for the active [`resolvedTheme`] (reactive). */
+const flowStyle = () => (resolvedTheme() === "light" ? FLOW_STYLE_LIGHT : FLOW_STYLE_DARK);
+/** The palette search-box inline theme for the active [`resolvedTheme`] (reactive). */
+const searchStyle = () => (resolvedTheme() === "light" ? SEARCH_STYLE_LIGHT : SEARCH_STYLE_DARK);
 
 /** Whether `to` is reachable from `from` following existing edges. */
 function reaches(graph: GraphKind, from: string, to: string): boolean {
@@ -124,9 +177,28 @@ function onConnected(
  */
 export default function GraphEditor(props: { graph: GraphKind; children?: JSX.Element }) {
   const handle = () => graphFor(props.graph);
+  const [query, setQuery] = createSignal("");
+  const [collapsed, setCollapsed] = createSignal(false);
 
   const canAdd = (def: NodeKindDef) =>
     def.kind !== "input" && def.kind !== "output" ? true : !hasKind(props.graph, def.kind);
+
+  /** The palette, filtered by the search box (matches label or kind name). */
+  const groups = () => {
+    const needle = query().trim().toLowerCase();
+    return paletteFor(props.graph)
+      .map((group) => ({
+        ...group,
+        kinds: needle
+          ? group.kinds.filter(
+              (def) =>
+                def.label.toLowerCase().includes(needle) ||
+                def.kind.toLowerCase().includes(needle),
+            )
+          : group.kinds,
+      }))
+      .filter((group) => group.kinds.length > 0);
+  };
 
   return (
     <div class="graph-editor">
@@ -137,8 +209,8 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
           nodes={handle().nodes as unknown as Node[]}
           edges={handle().edges as unknown as Edge[]}
           nodeTypes={nodeTypes}
-          colorMode="dark"
-          style={FLOW_STYLE}
+          colorMode={resolvedTheme()}
+          style={flowStyle()}
           fitView
           minZoom={0.3}
           maxZoom={1.5}
@@ -168,12 +240,18 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
           }
           onDelete={({ nodes, edges }) => {
             // Mirror deletions (idempotent — the library may already have done it).
+            // Input/Output anchors are undeletable (`deletable: false`); skip them
+            // anyway so a stray event can never remove an anchor.
             if (edges.length) {
               const ids = new Set(edges.map((edge) => edge.id));
               handle().setEdges((current) => current.filter((edge) => !ids.has(edge.id)));
             }
             if (nodes.length) {
-              const ids = new Set(nodes.map((node) => node.id));
+              const ids = new Set(
+                nodes
+                  .filter((node) => !isAnchorKind((node.data as GraphNodeData).kind))
+                  .map((node) => node.id),
+              );
               handle().setNodes((current) => current.filter((node) => !ids.has(node.id)));
             }
           }}
@@ -181,8 +259,34 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
             if (targetNode) setNodesPosition(props.graph, targetNode.id, { ...targetNode.position });
           }}
         >
-          <Panel position="top-left" class="graph-palette">
-            <For each={paletteFor(props.graph)}>
+          <Panel
+            position="top-left"
+            class="graph-palette"
+            style={{ "max-height": "calc(100% - 16px)", "overflow": "hidden" }}
+          >
+            <div class="graph-palette-head">
+              <button
+                type="button"
+                class="graph-palette-toggle"
+                aria-expanded={!collapsed()}
+                title={collapsed() ? "Expand node palette" : "Collapse node palette"}
+                onClick={() => setCollapsed(!collapsed())}
+              >
+                {collapsed() ? "▸" : "▾"} Nodes
+              </button>
+            </div>
+            <Show when={!collapsed()}>
+            <ScrollArea class="graph-palette-scroll">
+            <input
+              type="text"
+              class="graph-palette-search nodrag nopan"
+              placeholder="Search nodes…"
+              aria-label="Search nodes"
+              value={query()}
+              onInput={(event) => setQuery(event.currentTarget.value)}
+              style={searchStyle()}
+            />
+            <For each={groups()}>
               {(group) => (
                 <div class="graph-palette-group">
                   <div class="graph-palette-title">{group.category}</div>
@@ -193,7 +297,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
                           <button
                             type="button"
                             class="graph-palette-btn"
-                            title={`Add ${def.label}`}
+                            title={def.hint ? `${def.label} — ${def.hint}` : `Add ${def.label}`}
                             onClick={() => addNode(props.graph, def)}
                           >
                             + {def.label}
@@ -205,12 +309,15 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
                 </div>
               )}
             </For>
+            <Show when={groups().length === 0}>
+              <div class="graph-palette-title">No matching nodes</div>
+            </Show>
+            </ScrollArea>
+            </Show>
           </Panel>
           <Background variant="dots" />
-          <Controls />
-          <Show when={props.graph === "synth"}>
-            <MiniMap />
-          </Show>
+          <Controls position="top-right" />
+          <MiniMap />
         </SolidFlow>
       </div>
     </div>

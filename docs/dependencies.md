@@ -5,6 +5,8 @@
 | Crate | Version | Purpose | License |
 | --- | --- | --- | --- |
 | `tauri` / `tauri-build` | 2 | desktop shell + build | MIT / Apache-2.0 |
+| `tauri-plugin-dialog` | 2 | native open/save/confirm dialogs | MIT / Apache-2.0 |
+| `tauri-plugin-window-state` | 2 | remember window size/position across launches | MIT / Apache-2.0 |
 | `flexaudio` | 0.3 | capture (mic/system/process/mix) | see crates.io |
 | `symphonia` | 0.6 (`all`) | file decode / demux | MPL-2.0 |
 | `fundsp` | 0.23 | filtering + synthesis nets | see crates.io |

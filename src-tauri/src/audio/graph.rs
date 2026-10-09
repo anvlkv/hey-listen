@@ -19,7 +19,12 @@
 //!   Both are the *only* graph-level anchors — there is no implicit summing, so what
 //!   is wired to `output` is exactly what the graph produces.
 //! - `mix` sums two inputs into one (add more `mix` nodes to combine more sources).
-//! - Every other node is a plain 1-in/1-out processor or a 0-in/1-out generator.
+//! - `split`/`join` bridge the mono pipeline to stereo (1->2 / 2->1); `pan`, `panner`,
+//!   `rotate`, the stereo reverbs and `limiter_stereo` are 1->2 or 2->2 nodes. The net
+//!   itself stays mono, so such nodes must `join` back to mono before `output`.
+//! - Every other node is a 1-in/1-out processor, a 0-in/1-out generator, or a
+//!   control-input filter/node whose extra inputs are cutoff/Q/gain signals (their
+//!   arities match [`kind_arity`]).
 
 use std::collections::{HashMap, HashSet};
 
@@ -108,9 +113,26 @@ pub fn kind_arity(kind: &str) -> Option<(usize, usize)> {
     Some(match kind {
         "input" | "output" => (1, 1),
         "mix" => (2, 1),
-        "gain" | "lowpass" | "highpass" | "bandpass" | "notch" | "peak" | "moog" | "butterpass"
-        | "dcblock" | "delay" | "limiter" => (1, 1),
-        "dc" | "sine_lfo" | "white" | "pink" | "sine" | "saw" | "square" | "triangle" => (0, 1),
+        // Stereo / routing (the net's global I/O stays mono — `join` back to mono
+        // before `output`). `1->2`: split/pan; `2->1`: join; `2->2`: stereo processors.
+        "join" => (2, 1),
+        "split" | "pan" => (1, 2),
+        "panner" | "rotate" | "reverb_stereo" | "reverb2_stereo" | "reverb3_stereo"
+        | "reverb4_stereo" | "limiter_stereo" => (2, 2),
+        // Fixed-parameter filters and other 1-in/1-out processors.
+        "gain" | "lowpass" | "highpass" | "bandpass" | "notch" | "peak" | "allpass" | "bell"
+        | "lowshelf" | "highshelf" | "moog" | "butterpass" | "lowpole" | "highpole" | "lowrez"
+        | "bandrez" | "resonator" | "morph" | "pinkpass" | "allpole_delay" | "biquad"
+        | "dcblock" | "delay" | "limiter" | "compressor" | "gate" | "chorus" | "flanger"
+        | "phaser" | "schroeder" => (1, 1),
+        // Control-input filter variants. Input 0 is audio; later inputs are signals.
+        "butterpass_cv" | "lowpole_cv" | "highpole_cv" | "allpole_cv" | "schroeder_cv" => (2, 1),
+        "lowpass_cv" | "highpass_cv" | "bandpass_cv" | "notch_cv" | "peak_cv" | "allpass_cv"
+        | "moog_cv" | "lowrez_cv" | "bandrez_cv" | "resonator_cv" => (3, 1),
+        "bell_cv" | "lowshelf_cv" | "highshelf_cv" | "morph_cv" => (4, 1),
+        "dc" | "sine_lfo" | "white" | "pink" | "brown" | "mls" | "sine" | "saw" | "square"
+        | "triangle" | "organ" | "hammond" | "soft_saw" | "pulse" | "poly_saw" | "poly_square"
+        | "poly_pulse" | "dsf_saw" | "dsf_square" | "pluck" => (0, 1),
         _ => return None,
     })
 }
@@ -169,15 +191,178 @@ fn finite(value: f32, fallback: f32) -> f32 {
     }
 }
 
+/// The gain law of a [`DynamicsUnit`].
+#[derive(Clone, Copy)]
+enum GainLaw {
+    /// Reduce gain above the threshold (compressor).
+    Compress,
+    /// Mute the signal below the threshold (noise gate).
+    Gate,
+}
+
+/// A mono feed-forward dynamics processor (compressor / noise gate).
+///
+/// fundsp ships neither unit, so this is a small control circuit: an attack/release
+/// envelope follower on `|x|` sets a gain applied back to `x`.
+/// (See also `SumUnit` for the same `AudioUnit` shape.)
+#[derive(Clone)]
+struct DynamicsUnit {
+    law: GainLaw,
+    threshold: f32,
+    ratio: f32,
+    attack: f32,
+    release: f32,
+    sample_rate: f32,
+    env: f32,
+}
+
+impl DynamicsUnit {
+    fn new(law: GainLaw, threshold: f32, ratio: f32, attack: f32, release: f32) -> Self {
+        Self {
+            law,
+            threshold: threshold.max(1e-6),
+            ratio: ratio.max(1.0),
+            attack: attack.max(0.0),
+            release: release.max(0.0),
+            sample_rate: 44_100.0,
+            env: 0.0,
+        }
+    }
+
+    /// One-pole coefficient for a time constant in seconds.
+    fn coefficient(&self, time: f32) -> f32 {
+        if time <= 0.0 {
+            1.0
+        } else {
+            1.0 - (-1.0 / (time * self.sample_rate)).exp()
+        }
+    }
+
+    /// The current linear gain for the followed envelope.
+    fn gain(&self) -> f32 {
+        let env = self.env.max(1e-9);
+        match self.law {
+            GainLaw::Compress => {
+                if env <= self.threshold {
+                    1.0
+                } else {
+                    (env / self.threshold).powf(1.0 / self.ratio - 1.0)
+                }
+            }
+            GainLaw::Gate => {
+                if env >= self.threshold {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+        }
+    }
+
+    fn process_sample(&mut self, x: f32) -> f32 {
+        let level = x.abs();
+        let coefficient = if level > self.env {
+            self.coefficient(self.attack)
+        } else {
+            self.coefficient(self.release)
+        };
+        self.env += coefficient * (level - self.env);
+        x * self.gain()
+    }
+}
+
+impl AudioUnit for DynamicsUnit {
+    fn inputs(&self) -> usize {
+        1
+    }
+
+    fn outputs(&self) -> usize {
+        1
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate as f32;
+    }
+
+    fn reset(&mut self) {
+        self.env = 0.0;
+    }
+
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        output[0] = self.process_sample(input[0]);
+    }
+
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        for i in 0..size {
+            let y = self.process_sample(input.at_f32(0, i));
+            output.set_f32(0, i, y);
+        }
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        SignalFrame::new(self.outputs())
+    }
+
+    fn get_id(&self) -> u64 {
+        0x6865_796c_6973_6564
+    }
+
+    fn footprint(&self) -> usize {
+        core::mem::size_of::<Self>()
+    }
+}
+
+/// Halfway response time (seconds) of the one-pole smoother applied to a node's
+/// **control-rate** inputs, so live knob moves glide instead of stepping.
+///
+/// Limitation: this smooths control signals *within* one compiled net. A full net
+/// rebuild (e.g. `set_filter_graph` after an edit) still applies the new params as a
+/// step — click-free smoothing across rebuilds is out of scope for this item.
+const CONTROL_SMOOTH: f32 = 0.01;
+
 /// Build the fundsp unit for one graph node.
 fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
     let p = |index: usize, default: f32| {
         finite(node.params.get(index).copied().unwrap_or(default), default)
     };
+    // One-pole parameter smoother for control inputs (a fresh node per use).
+    let smooth = || follow(CONTROL_SMOOTH);
     let unit: Box<dyn AudioUnit> = match node.kind.as_str() {
         // Anchors are pass-throughs bridged to the net's global input/output.
         "input" | "output" => Box::new(pass()),
         "mix" => Box::new(SumUnit { inputs: 2 }),
+
+        // --- Stereo / routing ---
+        // `split`/`join` bridge between the mono pipeline and 2-channel nodes;
+        // `pan`/`panner` place a mono signal in the stereo field. `panner`'s pan
+        // control input is smoothed (signal passes through untouched).
+        "split" => Box::new(split::<U2>()),
+        "join" => Box::new(join::<U2>()),
+        "pan" => Box::new(pan(p(0, 0.0).clamp(-1.0, 1.0))),
+        "panner" => Box::new((pass() | smooth()) >> panner()),
+        "rotate" => Box::new(rotate(p(0, 0.0), p(1, 1.0).max(0.0))),
+        "limiter_stereo" => Box::new(limiter_stereo(p(0, 0.005).max(0.0), p(1, 0.1).max(0.0))),
+
+        // --- Stereo reverbs (2 in / 2 out) ---
+        "reverb_stereo" => Box::new(reverb_stereo(
+            p(0, 10.0).max(10.0),
+            p(1, 2.0).max(0.0),
+            p(2, 0.5).clamp(0.0, 1.0),
+        )),
+        "reverb2_stereo" => Box::new(reverb2_stereo(
+            p(0, 10.0).max(10.0),
+            p(1, 2.0).max(0.0),
+            p(2, 0.5).clamp(0.0, 1.0),
+            p(3, 1.0).max(0.0),
+            lowpole_hz(p(4, 8_000.0).max(20.0)),
+        )),
+        "reverb3_stereo" => Box::new(reverb3_stereo(
+            p(0, 2.0).max(0.0),
+            p(1, 0.5).clamp(0.0, 1.0),
+            lowpole_hz(p(2, 8_000.0).max(20.0)),
+        )),
+        "reverb4_stereo" => Box::new(reverb4_stereo(p(0, 15.0).max(15.0), p(1, 2.0).max(0.0))),
+
         "gain" => Box::new(pass() * p(0, 1.0).max(0.0)),
         "lowpass" => Box::new(lowpass_hz(p(0, 1_000.0), p(1, 1.0))),
         "highpass" => Box::new(highpass_hz(p(0, 1_000.0), p(1, 1.0))),
@@ -202,6 +387,114 @@ fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
         "saw" => Box::new(saw_hz(p(0, 440.0))),
         "square" => Box::new(square_hz(p(0, 440.0))),
         "triangle" => Box::new(triangle_hz(p(0, 440.0))),
+
+        // --- Filter families with fixed parameters (`*_hz` constructors) ---
+        "allpass" => Box::new(allpass_hz(p(0, 1_000.0), p(1, 1.0))),
+        "bell" => Box::new(bell_hz(p(0, 1_000.0), p(1, 1.0), p(2, 1.0))),
+        "lowshelf" => Box::new(lowshelf_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.5))),
+        "highshelf" => Box::new(highshelf_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.5))),
+        "lowpole" => Box::new(lowpole_hz(p(0, 1_000.0))),
+        "highpole" => Box::new(highpole_hz(p(0, 1_000.0))),
+        "lowrez" => Box::new(lowrez_hz(p(0, 1_000.0), p(1, 1.0))),
+        "bandrez" => Box::new(bandrez_hz(p(0, 1_000.0), p(1, 1.0))),
+        "resonator" => Box::new(resonator_hz(p(0, 1_000.0), p(1, 110.0))),
+        "morph" => Box::new(morph_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.0))),
+        "pinkpass" => Box::new(pinkpass()),
+        "allpole_delay" => Box::new(allpole_delay(p(0, 1.0))),
+        "biquad" => Box::new(biquad(
+            p(0, 0.0),
+            p(1, 0.0),
+            p(2, 1.0),
+            p(3, 0.0),
+            p(4, 0.0),
+        )),
+
+        // --- Control-input filter variants ---
+        // The extra inputs are control signals (feed them from `dc`/`sine_lfo`):
+        // lowpass/highpass/bandpass/notch/peak/allpass (audio, cutoff, Q),
+        // bell/lowshelf/highshelf (audio, cutoff, Q, gain), morph (audio, cutoff, Q, morph),
+        // moog/lowrez/bandrez (audio, cutoff, Q), resonator (audio, center, bandwidth),
+        // butterpass/lowpole/highpole (audio, cutoff), allpole (audio, delay in samples).
+        //
+        // Each control input is routed through a one-pole `follow` smoother (input 0,
+        // the audio, passes through untouched) so control-rate moves glide.
+        "lowpass_cv" => Box::new((pass() | smooth() | smooth()) >> lowpass()),
+        "highpass_cv" => Box::new((pass() | smooth() | smooth()) >> highpass()),
+        "bandpass_cv" => Box::new((pass() | smooth() | smooth()) >> bandpass()),
+        "notch_cv" => Box::new((pass() | smooth() | smooth()) >> notch()),
+        "peak_cv" => Box::new((pass() | smooth() | smooth()) >> peak()),
+        "allpass_cv" => Box::new((pass() | smooth() | smooth()) >> allpass()),
+        "bell_cv" => Box::new((pass() | smooth() | smooth() | smooth()) >> bell()),
+        "lowshelf_cv" => Box::new((pass() | smooth() | smooth() | smooth()) >> lowshelf()),
+        "highshelf_cv" => Box::new((pass() | smooth() | smooth() | smooth()) >> highshelf()),
+        "moog_cv" => Box::new((pass() | smooth() | smooth()) >> moog()),
+        "lowrez_cv" => Box::new((pass() | smooth() | smooth()) >> lowrez()),
+        "bandrez_cv" => Box::new((pass() | smooth() | smooth()) >> bandrez()),
+        "resonator_cv" => Box::new((pass() | smooth() | smooth()) >> resonator()),
+        "morph_cv" => Box::new((pass() | smooth() | smooth() | smooth()) >> morph()),
+        "butterpass_cv" => Box::new((pass() | smooth()) >> butterpass()),
+        "lowpole_cv" => Box::new((pass() | smooth()) >> lowpole()),
+        "highpole_cv" => Box::new((pass() | smooth()) >> highpole()),
+        "allpole_cv" => Box::new((pass() | smooth()) >> allpole()),
+
+        // --- Dynamics ---
+        // fundsp ships neither a compressor nor a gate, so both use a small custom
+        // envelope-follower unit (see `DynamicsUnit`).
+        "compressor" => Box::new(DynamicsUnit::new(
+            GainLaw::Compress,
+            db_amp(p(0, -18.0)),
+            p(1, 4.0),
+            p(2, 0.01),
+            p(3, 0.1),
+        )),
+        "gate" => Box::new(DynamicsUnit::new(
+            GainLaw::Gate,
+            db_amp(p(0, -40.0)),
+            1.0,
+            p(1, 0.002),
+            p(2, 0.05),
+        )),
+
+        // --- Modulation ---
+        "chorus" => Box::new(chorus(0, p(0, 0.015), p(1, 0.005), p(2, 0.5))),
+        "flanger" => {
+            let feedback = p(0, 0.5).clamp(-0.95, 0.95);
+            let min_delay = p(1, 0.005).max(0.0);
+            let max_delay = p(2, 0.01).max(min_delay);
+            let rate = p(3, 0.1).max(0.0);
+            Box::new(flanger(feedback, min_delay, max_delay, move |t: f32| {
+                lerp11(min_delay, max_delay, sin_hz(rate, t))
+            }))
+        }
+        "phaser" => {
+            let feedback = p(0, 0.5).clamp(-0.95, 0.95);
+            let rate = p(1, 0.1).max(0.0);
+            Box::new(phaser(feedback, move |t: f32| sin_hz(rate, t) * 0.5 + 0.5))
+        }
+
+        // --- Reverb (mono element) ---
+        // fundsp's full reverbs are all stereo-only (`reverb*_stereo`, 2 in / 2 out) and
+        // cannot compile under the mono net, so only its mono all-pass diffusion element
+        // is offered here (stack several to approximate a reverb).
+        "schroeder" => Box::new(allnest_c(p(0, 0.5), delay(p(1, 0.01).max(0.0)))),
+        "schroeder_cv" => Box::new((pass() | smooth()) >> allnest(delay(p(0, 0.01).max(0.0)))),
+
+        // --- Additional generators ---
+        "organ" => Box::new(organ_hz(p(0, 440.0))),
+        "hammond" => Box::new(hammond_hz(p(0, 440.0))),
+        "soft_saw" => Box::new(soft_saw_hz(p(0, 440.0))),
+        "pulse" => Box::new(dc((p(0, 440.0), p(1, 0.5).clamp(0.0, 1.0))) >> pulse()),
+        "poly_saw" => Box::new(poly_saw_hz(p(0, 440.0))),
+        "poly_square" => Box::new(poly_square_hz(p(0, 440.0))),
+        "poly_pulse" => Box::new(poly_pulse_hz(p(0, 440.0), p(1, 0.5).clamp(0.0, 1.0))),
+        "dsf_saw" => Box::new(dc(p(0, 440.0)) >> dsf_saw_r(p(1, 0.5).clamp(0.0, 1.0))),
+        "dsf_square" => Box::new(dc(p(0, 440.0)) >> dsf_square_r(p(1, 0.5).clamp(0.0, 1.0))),
+        "pluck" => {
+            Box::new(zero() >> pluck(p(0, 440.0), p(1, 1.0).max(0.0), p(2, 0.5).clamp(0.0, 1.0)))
+        }
+        "brown" => Box::new(brown()),
+        "mls" => Box::new(mls()),
+
         other => return Err(GraphError::UnknownKind(other.to_string())),
     };
     Ok(unit)
@@ -401,6 +694,49 @@ mod tests {
     }
 
     #[test]
+    fn control_input_lowpass_passes_dc() {
+        // `lowpass_cv` takes (audio, cutoff, Q): a control-driven low-pass.
+        let spec = GraphSpec {
+            nodes: vec![
+                node("in", "input", &[]),
+                node("cut", "dc", &[1_000.0]),
+                node("q", "dc", &[0.707]),
+                node("lp", "lowpass_cv", &[]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                edge_to("in", 0, "lp", 0),
+                edge_to("cut", 0, "lp", 1),
+                edge_to("q", 0, "lp", 2),
+                edge("lp", "out"),
+            ],
+        };
+        let out = apply_mono(&spec, &vec![1.0f32; 4_000], 48_000).unwrap();
+        assert!(
+            (out[out.len() - 1] - 1.0).abs() < 0.05,
+            "dc = {}",
+            out[out.len() - 1]
+        );
+    }
+
+    #[test]
+    fn compressor_reduces_a_loud_signal() {
+        let spec = GraphSpec {
+            nodes: vec![
+                node("in", "input", &[]),
+                node("comp", "compressor", &[-18.0, 4.0, 0.001, 0.05]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![edge("in", "comp"), edge("comp", "out")],
+        };
+        let out = apply_mono(&spec, &vec![0.9f32; 4_000], 48_000).unwrap();
+        // Skip the attack transient; the compressed steady state should be well below 1.
+        let tail = &out[out.len() - 200..];
+        let peak = tail.iter().fold(0f32, |acc, s| acc.max(s.abs()));
+        assert!(peak < 0.5, "compressor did not reduce the level: {peak}");
+    }
+
+    #[test]
     fn unwired_filter_is_not_applied() {
         // The low-pass is not wired to the output, so the output is just the input.
         let spec = GraphSpec {
@@ -512,5 +848,84 @@ mod tests {
             edges: vec![edge("a", "b"), edge("b", "a"), edge("a", "out")],
         };
         assert!(matches!(build(&spec, 0, 48_000), Err(GraphError::Cycle)));
+    }
+
+    #[test]
+    fn split_then_join_is_identity() {
+        // `input` -> `split` (1->2) -> `join` (2->1) -> `output`: the two copies of
+        // the mono signal average straight back to the input.
+        let spec = GraphSpec {
+            nodes: vec![
+                node("in", "input", &[]),
+                node("sp", "split", &[]),
+                node("jo", "join", &[]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                edge_to("in", 0, "sp", 0),
+                edge_to("sp", 0, "jo", 0),
+                edge_to("sp", 1, "jo", 1),
+                edge("jo", "out"),
+            ],
+        };
+        let out = apply_mono(&spec, &vec![0.5f32; 256], 48_000).expect("apply");
+        assert_eq!(out.len(), 256);
+        for value in out {
+            assert!((value - 0.5).abs() < 1e-6, "got {value}");
+        }
+    }
+
+    #[test]
+    fn stereo_reverb_graph_compiles_and_runs() {
+        // A stereo node (2 in / 2 out) inside the mono pipeline: the `split`/`join`
+        // pair bridges the mono net to the reverb and back.
+        let spec = GraphSpec {
+            nodes: vec![
+                node("osc", "sine", &[220.0]),
+                node("sp", "split", &[]),
+                node("rv", "reverb_stereo", &[10.0, 2.0, 0.5]),
+                node("jo", "join", &[]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                edge_to("osc", 0, "sp", 0),
+                edge_to("sp", 0, "rv", 0),
+                edge_to("sp", 1, "rv", 1),
+                edge_to("rv", 0, "jo", 0),
+                edge_to("rv", 1, "jo", 1),
+                edge("jo", "out"),
+            ],
+        };
+        let out = render_mono(&spec, 0.1, 48_000).expect("render");
+        assert_eq!(out.len(), 4_800);
+        assert!(
+            out.iter().all(|s| s.is_finite()),
+            "non-finite reverb output"
+        );
+        let energy: f32 = out.iter().map(|s| s.abs()).sum();
+        assert!(energy > 0.0, "reverb produced silence");
+    }
+
+    #[test]
+    fn centered_pan_then_join_uses_equal_power() {
+        // `pan` widens mono to stereo; `join` averages it back. Center pan is
+        // equal-power, so the mono result is ~0.707 of the input.
+        let spec = GraphSpec {
+            nodes: vec![
+                node("in", "input", &[]),
+                node("p", "pan", &[0.0]),
+                node("jo", "join", &[]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                edge_to("in", 0, "p", 0),
+                edge_to("p", 0, "jo", 0),
+                edge_to("p", 1, "jo", 1),
+                edge("jo", "out"),
+            ],
+        };
+        let out = apply_mono(&spec, &vec![1.0f32; 256], 48_000).expect("apply");
+        let last = out[out.len() - 1];
+        assert!((last - 0.707).abs() < 0.05, "centered pan = {last}");
     }
 }

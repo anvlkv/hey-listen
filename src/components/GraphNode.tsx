@@ -32,7 +32,9 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
         )}
       </For>
 
-      <div class="graph-node-title">{def()?.label ?? props.data.kind}</div>
+      <div class="graph-node-title" title={def()?.hint}>
+        {def()?.label ?? props.data.kind}
+      </div>
 
       <Show when={!isAnchor() && (def()?.params.length ?? 0) > 0}>
         <div class="graph-node-params">

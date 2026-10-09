@@ -1,8 +1,11 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import Readout from "./Readout";
+import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { clamp01, spectroColormap } from "./colormap";
+import { formatTimeTick } from "./axisFormat";
 import { analyzerBus } from "../../state/chartSync";
+import { chartTheme, resolvedTheme } from "../../state/settings";
 import {
   analyzerById,
   formatHz,
@@ -13,7 +16,7 @@ import {
   type MatrixView as MatrixViewConfig,
 } from "../../state/analyzer";
 
-const MARGIN = { left: 60, right: 8, top: 8, bottom: 18 };
+const MARGIN = { left: 66, right: 8, top: 8, bottom: 22 };
 
 /** The visible time range (seconds). */
 interface View {
@@ -62,6 +65,7 @@ export default function MatrixView(props: {
   const [size, setSize] = createSignal({ width: 0, height: 0 });
   const [hover, setHover] = createSignal<Hover | null>(null);
   const [view, setView] = createSignal<View | null>(null);
+  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   let wrap!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
@@ -148,7 +152,7 @@ export default function MatrixView(props: {
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#1f1f1f";
+    ctx.fillStyle = chartTheme().spectroBackground;
     ctx.fillRect(0, 0, width, height);
 
     const value = result();
@@ -178,7 +182,7 @@ export default function MatrixView(props: {
   ) {
     if (value.bins === 0) return;
     ctx.font = "10px Inter, sans-serif";
-    ctx.fillStyle = "#8f8f8f";
+    ctx.fillStyle = chartTheme().axis;
     ctx.textBaseline = "middle";
     ctx.textAlign = "right";
     for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
@@ -196,13 +200,18 @@ export default function MatrixView(props: {
   ) {
     const span = v.t1 - v.t0;
     ctx.font = "10px Inter, sans-serif";
-    ctx.fillStyle = "#8f8f8f";
-    ctx.textAlign = "center";
+    ctx.fillStyle = chartTheme().axis;
     ctx.textBaseline = "top";
-    for (const frac of [0, 0.5, 1]) {
+    // Keep the edge labels inside the canvas: left/right align the end stops.
+    for (const [frac, align] of [
+      [0, "left"],
+      [0.5, "center"],
+      [1, "right"],
+    ] as const) {
       const time = v.t0 + frac * span;
+      ctx.textAlign = align;
       ctx.fillText(
-        `${time.toFixed(span < 2 ? 3 : 2)}s`,
+        `${formatTimeTick(time, span)}s`,
         box.x + frac * box.width,
         box.y + box.height + 4,
       );
@@ -216,7 +225,7 @@ export default function MatrixView(props: {
   ) {
     const h = hover();
     if (!h) return;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.strokeStyle = chartTheme().hover;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(box.x, h.y + 0.5);
@@ -239,7 +248,7 @@ export default function MatrixView(props: {
     const x = box.x + ((msg.x - v.t0) / span) * box.width;
     if (x < box.x || x > box.x + box.width) return;
     ctx.save();
-    ctx.strokeStyle = "rgba(120, 170, 255, 0.55)";
+    ctx.strokeStyle = chartTheme().mirror;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -280,6 +289,8 @@ export default function MatrixView(props: {
   // --- interaction -------------------------------------------------------
 
   function onPointerDown(event: PointerEvent) {
+    // Pan with the primary button only, so right-click can open the reframe menu.
+    if (event.button !== 0) return;
     const v = view();
     if (!v) return;
     pan = { x: event.clientX, view: v };
@@ -325,6 +336,19 @@ export default function MatrixView(props: {
     if (value) applyView(fullView(value), true);
   }
 
+  /** Right-click: reframe the timeline window from the time under the pointer. */
+  function onContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    const value = result();
+    const v = view();
+    if (!value || !v) return;
+    const rect = canvas.getBoundingClientRect();
+    const box = plot();
+    const x = event.clientX - rect.left;
+    const time = v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
+    setMenu({ x: event.clientX, y: event.clientY, time });
+  }
+
   // --- lifecycle ---------------------------------------------------------
 
   function syncSize() {
@@ -347,7 +371,8 @@ export default function MatrixView(props: {
   });
 
   createEffect(() => {
-    // Track everything the canvas draws.
+    // Track everything the canvas draws (theme included, so a theme switch redraws).
+    resolvedTheme();
     image();
     size();
     hover();
@@ -400,6 +425,7 @@ export default function MatrixView(props: {
           onPointerLeave={() => {
             if (!pan) setHover(null);
           }}
+          onContextMenu={onContextMenu}
         />
         <Show
           when={result()}
@@ -426,6 +452,7 @@ export default function MatrixView(props: {
           </Show>
         </Show>
       </div>
+      <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
     </div>
   );
 }

@@ -36,14 +36,31 @@ export interface GraphHandle {
 }
 
 let nextId = 1;
+
+/** Default x positions for freshly-seeded Input / Output anchors. */
+export const ANCHOR_LEFT_X = 40;
+export const ANCHOR_RIGHT_X = 760;
+const ANCHOR_Y = 150;
+
+/** Whether a kind is a graph anchor (Input / Output): undeletable and pinned. */
+export function isAnchorKind(kind: string): boolean {
+  return kind === "input" || kind === "output";
+}
+
 function makeNode(kind: string, graph: GraphKind, x: number, y: number): GraphNode {
   const def = nodeKind(kind);
-  return {
+  const node: GraphNode = {
     id: `${kind}-${nextId++}`,
     type: "graph",
     position: { x, y },
     data: { kind, params: def ? defaultParams(def) : {}, graph },
   };
+  if (isAnchorKind(kind)) {
+    // Anchors cannot be deleted (there must always be one input/output), but they
+    // stay draggable so the user can place them freely.
+    node.deletable = false;
+  }
+  return node;
 }
 
 function link(source: string, target: string, targetPort = 0): GraphEdge {
@@ -62,13 +79,19 @@ function link(source: string, target: string, targetPort = 0): GraphEdge {
  */
 function seed(graph: GraphKind): { nodes: GraphNode[]; edges: GraphEdge[] } {
   if (graph === "filter") {
-    const input = makeNode("input", graph, 40, 150);
-    const output = makeNode("output", graph, 360, 150);
+    const input = makeNode("input", graph, ANCHOR_LEFT_X, ANCHOR_Y);
+    const output = makeNode("output", graph, ANCHOR_RIGHT_X, ANCHOR_Y);
     return { nodes: [input, output], edges: [link(input.id, output.id)] };
   }
-  const osc = makeNode("sine", graph, 40, 150);
-  const output = makeNode("output", graph, 360, 150);
+  const osc = makeNode("sine", graph, ANCHOR_LEFT_X, ANCHOR_Y);
+  const output = makeNode("output", graph, ANCHOR_RIGHT_X, ANCHOR_Y);
   return { nodes: [osc, output], edges: [link(osc.id, output.id)] };
+}
+
+/** Ensure an anchor stays undeletable (its position is the user's to drag). */
+function guardAnchor(node: GraphNode): GraphNode {
+  if (!isAnchorKind(node.data.kind)) return node;
+  return { ...node, deletable: false };
 }
 
 const filterSeed = seed("filter");
@@ -143,7 +166,7 @@ export function loadGraph(graph: GraphKind, state: Partial<GraphLayout> | undefi
   }
   const handle = graphFor(graph);
   handle.setEdges(state.edges ?? []);
-  handle.setNodes(state.nodes);
+  handle.setNodes(state.nodes.map(guardAnchor));
   bumpNextId([...state.nodes, ...(state.edges ?? [])]);
 }
 

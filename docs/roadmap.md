@@ -144,28 +144,50 @@
 > Reuses the Rust core (`audio/*`, `commands/*`); UI following rides the Tauri IPC
 > boundary so the agent and the user share one project per window.
 
-## Backlog
+## Backlog ✅ (delivered)
 
-- **Undo / redo.** The app keeps no edit history (there is no Edit menu). Adding
-  undo/redo means an app-level history (graph edits, layout/tab changes, shared
-  params, tool options, timeline window) plus its menu items (`CmdOrCtrl+Z` /
-  `Shift+CmdOrCtrl+Z`).
-- **Full fundsp node coverage.** The graph-editor palette is a focused subset today; expand it to all of fundsp — every filter family and their control-input variants, dynamics, panning/stereo, modulation, reverbs, the sequencer, and custom nodes — with per-node inspectors/presets. See [`graph-editor.md`](graph-editor.md) → Planned. Add search box for filtering available nodes. Make input/output nodes undeletable, automove them to left and right edges of the flowchart. Add hints describing what each filter/node does (search the web for precise description, not fundsp specific).
-- **Timeline filtered overlay.** Draw the filtered signal over the raw waveform so the filter's effect is visible (and mark when the filter is active/bypassed). See [`ui-layout.md`](ui-layout.md).
-- **Stereo graphs** (the compiled net is mono today) and parameter smoothing for live edits.
-- **Timeline window drag.** Move the whole analysis window (keeping its width) via
-  a handle at its top, alongside the existing start/end handles.
-- **Axis label readability.** Un-truncate chart axis labels (and the Timeline
-  ruler): wider margins, smarter tick formatting / units, or rotation.
-- **UI font scale.** A user-adjustable font size / UI zoom for the whole interface.
-- **Light / dark theme.** An **auto / dark / light** setting that themes the UI
-  *and* the charts (uPlot strokes/axes, the spectrogram background + colormap, and
-  the dockview theme).
-- **Explanatory tooltips** on choices — when to use which window function,
-  hop/overlap, FFT size, and which analyzer tool.
-- **Spectrum layers.** Add **min / max / mean** magnitude layers to the spectrum
-  chart (toggle each), instead of only the averaged spectrum.
-- **Drag&Drop file** Add input file by dragging into window.
-- **Prevent work loss** When one source exists prompt the user before replacing. Inform the user about unsaved work (title `*`, prompt)
-- **Reframing from charts** let the user select new timeline start/end on charts, right mouse button menu. disable default menus
-- **Shared params** move the shared params to the main toolbar
+Implemented after M6 as one batch. Where the delivered behaviour is narrower than
+originally scoped, a note follows the item.
+
+- **Undo / redo ✅.** App-level snapshot history (`src/state/history.ts`) over graph
+  edits, layout/tab changes, shared params, tool options, and the timeline window,
+  with native **Edit** menu items (`CmdOrCtrl+Z` / `Shift+CmdOrCtrl+Z`). Continuous
+  edits coalesce into one step; history resets on New / Open. *(Menu items stay
+  enabled; the handlers no-op on an empty stack.)*
+- **Full fundsp node coverage ✅.** The palette covers every filter family and their
+  control-input variants, dynamics, modulation, reverbs, and panning/stereo nodes —
+  see [`graph-editor.md`](graph-editor.md). The palette has a **search box** and is
+  **collapsible**; `input`/`output` are undeletable (and now draggable); every node
+  carries a **hint**. *(The `Sequencer` and an expander remain deferred.)*
+- **Timeline filtered overlay ✅.** The filtered signal is drawn over the raw
+  waveform, with an on/bypassed badge (`render_filtered` streams the conditioned
+  mono signal). See [`ui-layout.md`](ui-layout.md).
+- **Stereo graphs ✅ + parameter smoothing ✅.** *(Delivered as graph-level stereo —
+  option B: the net's global I/O stays mono, but internal stereo/panning/`2→2` nodes
+  are supported. Smoothing applies `follow` to control-rate parameters **within** a
+  compiled net; click-free smoothing across a full rebuild and a fully stereo
+  preview/analysis chain remain deferred.)*
+- **Timeline window drag ✅.** Move the whole analysis window (keeping its width) via
+  a top handle.
+- **Axis label readability ✅.** Wider margins and tick formatters/units for the
+  charts and the Timeline ruler.
+- **UI font scale ✅.** A user-adjustable 0.8–1.4× scale for the whole interface,
+  persisted; lives in the toolbar **View** popover.
+- **Light / dark theme ✅.** An **auto / dark / light** setting that themes the UI
+  (CSS custom properties), the charts (uPlot strokes/axes, the spectrogram
+  background + colormap), and the dockview theme. Lives in the toolbar **View**
+  popover.
+- **Explanatory tooltips ✅.** On the shared-param choices and the analyzer entries.
+- **Spectrum layers ✅.** Toggleable **min / max / mean** magnitude layers in the
+  spectrum chart (per-tool params).
+- **Drag & drop file ✅.** Drop an audio file onto the window to open it.
+- **Prevent work loss ✅.** Prompts before replacing an existing source; a dirty `*`
+  in the project name/title and a prompt on close / New / Open.
+- **Reframing from charts ✅.** Right-click a time-domain chart to set the window
+  start/end (the default context menu is suppressed).
+- **Shared params ✅.** Moved to the main toolbar (an **Analysis params** popover).
+
+Also shipped alongside: the preview **filtered overlay**, a collapsible palette,
+sticky search boxes, similar custom scrollbars, and
+**`tauri-plugin-window-state`** (remembers window size/position across launches).
+The temporary **`Rust backend:`** toolbar status was removed.

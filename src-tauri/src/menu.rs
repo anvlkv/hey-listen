@@ -1,11 +1,11 @@
-//! Native application menu (File / View / Window / Help).
+//! Native application menu (File / Edit / View / Window / Help).
 //!
-//! The File actions are emitted to the frontend on the [`MENU_EVENT`] channel — the
-//! frontend owns the project state (`state/project.ts` reacts to them). View and
+//! The File and Edit actions are emitted to the frontend on the [`MENU_EVENT`]
+//! channel — the frontend owns the project state (`state/project.ts` reacts to the
+//! File actions; `state/menu.ts` routes undo/redo to `state/history.ts`). View and
 //! Window use **predefined** items (fullscreen / minimize / maximize), so they work
-//! without a round-trip. There is no Edit menu (no document editing / history). On
-//! macOS the first submenu is the application menu (About / Services / Hide / Quit);
-//! elsewhere About lives under Help.
+//! without a round-trip. On macOS the first submenu is the application menu
+//! (About / Services / Hide / Quit); elsewhere About lives under Help.
 //!
 //! **File → Open Recent** is rebuilt from [`crate::recent`] whenever the list changes
 //! ([`rebuild`]); choosing an entry re-emits it as an open request.
@@ -20,11 +20,14 @@ use tauri::{AppHandle, Emitter, Runtime};
 use crate::commands::project::OPEN_EVENT;
 use crate::recent::{self, RecentProject};
 
-/// Event carrying a File-menu action id to the frontend.
+/// Event carrying a menu action id (File / Edit) to the frontend.
 pub const MENU_EVENT: &str = "app:menu";
 
 /// The File actions the frontend handles (ids match `state/project.ts`).
 const FILE_ACTIONS: [&str; 4] = ["new", "open", "save", "saveAs"];
+
+/// The Edit actions the frontend handles (ids match `state/menu.ts` → `state/history.ts`).
+const EDIT_ACTIONS: [&str; 2] = ["undo", "redo"];
 
 /// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
 const RECENT_PREFIX: &str = "recent:";
@@ -61,6 +64,11 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             &trailing,
         ],
     )?;
+
+    // Edit → Undo / Redo emit to the frontend (the app-level history lives there).
+    let undo = MenuItem::with_id(app, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?;
+    let redo = MenuItem::with_id(app, "redo", "Redo", true, Some("Shift+CmdOrCtrl+Z"))?;
+    let edit = Submenu::with_items(app, "Edit", true, &[&undo, &redo])?;
 
     let view = Submenu::with_items(
         app,
@@ -113,9 +121,9 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     )?;
 
     #[cfg(target_os = "macos")]
-    let menu = Menu::with_items(app, &[&app_menu, &file, &view, &window, &help])?;
+    let menu = Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window, &help])?;
     #[cfg(not(target_os = "macos"))]
-    let menu = Menu::with_items(app, &[&file, &view, &window, &help])?;
+    let menu = Menu::with_items(app, &[&file, &edit, &view, &window, &help])?;
 
     Ok(menu)
 }
@@ -127,7 +135,7 @@ pub fn rebuild<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Emit a File-menu action to the frontend; other items are handled natively.
+/// Emit a File/Edit action to the frontend; other items are handled natively.
 pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
     let id = event.id().as_ref();
 
@@ -149,7 +157,7 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
         return;
     }
 
-    if FILE_ACTIONS.contains(&id) {
+    if FILE_ACTIONS.contains(&id) || EDIT_ACTIONS.contains(&id) {
         let _ = app.emit(MENU_EVENT, id);
     }
 }

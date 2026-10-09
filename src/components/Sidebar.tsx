@@ -16,11 +16,16 @@ import {
  * `docs/analysis-tools.md`.
  */
 
-const toTool = (def: AnalyzerDef): ToolDef => ({
+/** A sidebar entry: the workbench tool plus the hover-tooltip copy. */
+type SidebarTool = ToolDef & { tooltip: string };
+
+// Analyzers carry an `about` string (when/how to use); surface it on hover.
+const toTool = (def: AnalyzerDef): SidebarTool => ({
   id: def.id,
   title: def.title,
   description: def.description,
   group: "analyzer",
+  tooltip: def.about,
 });
 
 export default function Sidebar() {
@@ -28,13 +33,14 @@ export default function Sidebar() {
 
   const matches = (def: AnalyzerDef) => matchesQuery(def, query());
 
-  const Tools = (props: { tools: ToolDef[] }) => (
+  const Tools = (props: { tools: SidebarTool[] }) => (
     <div class="sidebar-tools">
       <For each={props.tools}>
         {(tool) => (
           <button
             type="button"
             class="sidebar-tool"
+            title={tool.tooltip}
             classList={{ "sidebar-tool-open": openTools().includes(tool.id) }}
             onClick={() => openTool(tool.id)}
           >
@@ -54,7 +60,6 @@ export default function Sidebar() {
 
   return (
     <aside class="app-sidebar">
-      <ScrollArea class="sidebar-scroll">
       <input
         class="sidebar-search"
         type="search"
@@ -64,6 +69,7 @@ export default function Sidebar() {
         onInput={(event) => setQuery(event.currentTarget.value)}
       />
 
+      <ScrollArea class="sidebar-scroll">
       <div class="sidebar-section-title">Analyzers</div>
       <Show
         when={anyMatches()}
@@ -85,7 +91,9 @@ export default function Sidebar() {
       </Show>
 
       <div class="sidebar-section-title sidebar-section-gap">Graphs</div>
-      <Tools tools={toolsInGroup("graph")} />
+      <Tools
+        tools={toolsInGroup("graph").map((tool) => ({ ...tool, tooltip: tool.description }))}
+      />
       </ScrollArea>
     </aside>
   );

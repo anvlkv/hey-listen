@@ -3,9 +3,12 @@ import AnalyzerTab from "./AnalyzerTab";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
 import ZoomControls from "./ZoomControls";
+import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import { createAnalysis, type SpectrogramResult } from "../../state/analyzer";
 import { analyzerBus } from "../../state/chartSync";
+import { chartTheme, resolvedTheme } from "../../state/settings";
 import { clamp01, spectroColormap } from "./colormap";
+import { formatTimeTick } from "./axisFormat";
 
 /** Stable sync id for this canvas chart (there are no duplicate tabs). */
 const SPECTROGRAM_ID = "spectrogram";
@@ -16,7 +19,7 @@ const DB_RANGES = [40, 60, 80, 100, 120].map((value) => ({
   label: `${value} dB`,
 }));
 
-const MARGIN = { left: 48, right: 8, top: 8, bottom: 18 };
+const MARGIN = { left: 66, right: 8, top: 8, bottom: 22 };
 
 /** The visible window: time (s) and frequency (Hz) bounds. */
 interface View {
@@ -82,6 +85,7 @@ export default function SpectrogramTab() {
   const [size, setSize] = createSignal({ width: 0, height: 0 });
   const [hover, setHover] = createSignal<Hover | null>(null);
   const [view, setView] = createSignal<View | null>(null);
+  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   let wrap!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
@@ -192,7 +196,7 @@ export default function SpectrogramTab() {
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#1f1f1f";
+    ctx.fillStyle = chartTheme().spectroBackground;
     ctx.fillRect(0, 0, width, height);
 
     const result = analysis.result();
@@ -230,7 +234,7 @@ export default function SpectrogramTab() {
     box: { x: number; y: number; width: number; height: number },
   ) {
     ctx.font = "10px Inter, sans-serif";
-    ctx.fillStyle = "#8f8f8f";
+    ctx.fillStyle = chartTheme().axis;
     ctx.textBaseline = "middle";
     ctx.textAlign = "right";
     for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
@@ -240,11 +244,20 @@ export default function SpectrogramTab() {
     }
 
     const span = v.t1 - v.t0;
-    ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    for (const frac of [0, 0.5, 1]) {
+    // Keep the edge labels inside the canvas: left/right align the end stops.
+    for (const [frac, align] of [
+      [0, "left"],
+      [0.5, "center"],
+      [1, "right"],
+    ] as const) {
       const time = v.t0 + frac * span;
-      ctx.fillText(`${time.toFixed(span < 2 ? 3 : 2)}s`, box.x + frac * box.width, box.y + box.height + 4);
+      ctx.textAlign = align;
+      ctx.fillText(
+        `${formatTimeTick(time, span)}s`,
+        box.x + frac * box.width,
+        box.y + box.height + 4,
+      );
     }
     ctx.textAlign = "left";
   }
@@ -255,7 +268,7 @@ export default function SpectrogramTab() {
   ) {
     const h = hover();
     if (!h) return;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.strokeStyle = chartTheme().hover;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(box.x, h.y + 0.5);
@@ -278,7 +291,7 @@ export default function SpectrogramTab() {
     const x = box.x + ((msg.x - v.t0) / span) * box.width;
     if (x < box.x || x > box.x + box.width) return;
     ctx.save();
-    ctx.strokeStyle = "rgba(120, 170, 255, 0.55)";
+    ctx.strokeStyle = chartTheme().mirror;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -322,6 +335,8 @@ export default function SpectrogramTab() {
   // --- interaction -------------------------------------------------------
 
   function onPointerDown(event: PointerEvent) {
+    // Pan with the primary button only, so right-click can open the reframe menu.
+    if (event.button !== 0) return;
     const v = view();
     if (!v) return;
     pan = { x: event.clientX, y: event.clientY, view: v };
@@ -381,6 +396,19 @@ export default function SpectrogramTab() {
     applyView({ ...v, t0: center - half, t1: center + half }, true);
   }
 
+  /** Right-click: reframe the timeline window from the time under the pointer. */
+  function onContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    const result = analysis.result();
+    const v = view();
+    if (!result || !v) return;
+    const rect = canvas.getBoundingClientRect();
+    const box = plot();
+    const x = event.clientX - rect.left;
+    const time = v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
+    setMenu({ x: event.clientX, y: event.clientY, time });
+  }
+
   function fit() {
     const result = analysis.result();
     if (result) applyView(fullView(result), true);
@@ -409,7 +437,8 @@ export default function SpectrogramTab() {
   });
 
   createEffect(() => {
-    // Track everything the canvas draws.
+    // Track everything the canvas draws (theme included, so a theme switch redraws).
+    resolvedTheme();
     image();
     size();
     hover();
@@ -476,6 +505,7 @@ export default function SpectrogramTab() {
             onPointerLeave={() => {
               if (!pan) setHover(null);
             }}
+            onContextMenu={onContextMenu}
           />
           <Show
             when={analysis.result()}
@@ -498,6 +528,7 @@ export default function SpectrogramTab() {
             </Show>
           </Show>
         </div>
+        <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
       </div>
     </AnalyzerTab>
   );

@@ -2,7 +2,10 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from
 import { playhead, previewRegion, stop as stopPreview } from "../audio/preview";
 import { columnExtent, computePeaks, type Peaks } from "../lib/waveform";
 import { channelFor } from "../state/analysis";
+import { filterEnabled } from "../state/graph";
+import { filteredSamples } from "../state/filtered";
 import { stopFollowing } from "../state/capture";
+import { chartTheme } from "../state/settings";
 import { source, status } from "../state/source";
 import Button from "./Button";
 import ChannelSelect from "./ChannelSelect";
@@ -16,8 +19,14 @@ import {
   windowStart,
 } from "../state/timeline";
 
-const RULER_H = 20;
+const RULER_H = 22;
 const HANDLE_HIT = 9;
+/** Horizontal gap (px) kept between consecutive ruler labels so they never collide. */
+const LABEL_GAP = 8;
+/** Vertical hit zone (px) at the top of the waveform for the window move handle. */
+const MOVE_HIT = 10;
+/** Height (px) of the drawn window move handle bar. */
+const MOVE_HANDLE_H = 8;
 /** Horizontal gutter so the start/end handles never sit on the very edge. */
 const PLOT_PAD = 12;
 /** Click-drag preview restart throttle, in ms. */
@@ -39,6 +48,31 @@ function formatTime(seconds: number): string {
   return `${sign}${minutes}:${secs.toFixed(2).padStart(5, "0")}`;
 }
 
+/**
+ * Compact ruler label. The granularity follows the visible span so consecutive
+ * ticks stay short enough not to collide: `h:mm:ss` for long spans, whole-second
+ * `m:ss` from a minute up, and `ss.s` / finer for short spans.
+ */
+function formatRulerTime(seconds: number, visibleSpan: number): string {
+  if (!Number.isFinite(seconds)) return "–:––";
+  const sign = seconds < 0 ? "-" : "";
+  const abs = Math.abs(seconds);
+  const hours = Math.floor(abs / 3600);
+  const minutes = Math.floor((abs % 3600) / 60);
+  const secs = Math.floor(abs % 60);
+  if (hours > 0 || visibleSpan >= 3600) {
+    return `${sign}${hours}:${minutes.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  }
+  if (visibleSpan >= 60) {
+    return `${sign}${minutes}:${secs.toString().padStart(2, "0")}`;
+  }
+  if (visibleSpan >= 1) return `${sign}${abs.toFixed(1)}`;
+  if (visibleSpan >= 0.1) return `${sign}${abs.toFixed(2)}`;
+  return `${sign}${abs.toFixed(3)}`;
+}
+
 function niceStep(span: number, width: number): number {
   const target = Math.max(1, width / 90);
   for (const step of TICK_STEPS) {
@@ -47,7 +81,7 @@ function niceStep(span: number, width: number): number {
   return TICK_STEPS[TICK_STEPS.length - 1];
 }
 
-type DragKind = "start" | "end" | "pan";
+type DragKind = "start" | "end" | "move" | "pan";
 
 /**
  * Timeline (fixed region): waveform of the whole source plus the draggable
@@ -57,6 +91,8 @@ type DragKind = "start" | "end" | "pan";
  *   zoom-to-window.
  * - Dragging a `start`/`end` handle previews an excerpt at that edge; short
  *   windows auto-zoom on release (see `docs/source-model.md`).
+ * - Dragging the grab bar along the top of the window moves the whole window,
+ *   keeping its width (no preview, no auto-zoom).
  */
 export default function Timeline() {
   let canvas!: HTMLCanvasElement;
@@ -83,6 +119,13 @@ export default function Timeline() {
     // Live captures maintain their peaks incrementally; files compute them lazily.
     if (s.peaks && s.peaksChannel === want) return s.peaks;
     return computePeaks(s.samples, s.frames, s.channels, want);
+  });
+
+  /** Envelope of the filtered mono overlay (source rate; see `state/filtered.ts`). */
+  const filteredPeaks = createMemo<Peaks | null>(() => {
+    const f = filteredSamples();
+    if (!f || f.length === 0) return null;
+    return computePeaks(f, f.length, 1, "mix");
   });
 
   const t2x = (t: number) => PLOT_PAD + ((t - viewStart()) / span()) * plotW();
@@ -175,10 +218,11 @@ export default function Timeline() {
 
     const waveTop = RULER_H;
     const waveH = h - RULER_H;
+    const t = chartTheme();
 
-    ctx.fillStyle = "#171717";
+    ctx.fillStyle = t.background;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#1f1f1f";
+    ctx.fillStyle = t.surface;
     ctx.fillRect(0, waveTop, w, waveH);
 
     const s = source();
@@ -187,7 +231,7 @@ export default function Timeline() {
 
     // Analysis window shading.
     if (s) {
-      ctx.fillStyle = "rgba(88, 152, 255, 0.16)";
+      ctx.fillStyle = t.waveFill;
       ctx.fillRect(ws, waveTop, we - ws, waveH);
     }
 
@@ -198,7 +242,7 @@ export default function Timeline() {
       const p = peaks();
       const x0 = PLOT_PAD;
       const x1 = w - PLOT_PAD;
-      ctx.strokeStyle = "#6ea8ff";
+      ctx.strokeStyle = t.series;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let x = x0; x < x1; x++) {
@@ -212,24 +256,46 @@ export default function Timeline() {
       }
       ctx.stroke();
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.strokeStyle = t.midline;
       ctx.beginPath();
       ctx.moveTo(x0, mid + 0.5);
       ctx.lineTo(x1, mid + 0.5);
       ctx.stroke();
+
+      // Filtered overlay: the same envelope, drawn over the raw waveform in a
+      // warm colour so the filter's effect is visible. Mono, at the source rate.
+      const fp = filteredPeaks();
+      const fsamp = filteredSamples();
+      if (filterEnabled() && fp && fsamp && fsamp.length > 0) {
+        ctx.strokeStyle = t.filtered;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = x0; x < x1; x++) {
+          const f0 = x2t(x) * s.sampleRate;
+          const f1 = x2t(x + 1) * s.sampleRate;
+          const [flo, fhi] = columnExtent(fp, fsamp, fsamp.length, 1, f0, f1, "mix");
+          const fyHi = mid - fhi * half;
+          const fyLo = mid - flo * half;
+          ctx.moveTo(x + 0.5, Math.min(fyHi, fyLo));
+          ctx.lineTo(x + 0.5, Math.max(fyHi, fyLo) + 0.5);
+        }
+        ctx.stroke();
+      }
     }
 
     drawRuler(ctx, w);
 
     if (s) {
-      drawHandle(ctx, ws, waveTop, waveH, "#5898ff");
-      drawHandle(ctx, we, waveTop, waveH, "#5898ff");
+      // Whole-window move handle (edge handles drawn after so their grab tabs win).
+      drawMoveHandle(ctx, ws, we, waveTop);
+      drawHandle(ctx, ws, waveTop, waveH, t.series);
+      drawHandle(ctx, we, waveTop, waveH, t.series);
     }
 
     const ph = playSec();
     if (ph != null) {
       const x = t2x(ph);
-      ctx.strokeStyle = "#ffd166";
+      ctx.strokeStyle = t.playhead;
       ctx.beginPath();
       ctx.moveTo(x + 0.5, waveTop);
       ctx.lineTo(x + 0.5, h);
@@ -238,27 +304,42 @@ export default function Timeline() {
   }
 
   function drawRuler(ctx: CanvasRenderingContext2D, w: number) {
-    ctx.fillStyle = "#141414";
+    const theme = chartTheme();
+    ctx.fillStyle = theme.ruler;
     ctx.fillRect(0, 0, w, RULER_H);
-    ctx.strokeStyle = "#3a3a3a";
+    ctx.strokeStyle = theme.grid;
     ctx.beginPath();
     ctx.moveTo(0, RULER_H - 0.5);
     ctx.lineTo(w, RULER_H - 0.5);
     ctx.stroke();
 
-    const step = niceStep(span(), plotW());
+    const s = span();
+    const step = niceStep(s, plotW());
     const first = Math.ceil(viewStart() / step) * step;
-    ctx.fillStyle = "#8f8f8f";
+    ctx.fillStyle = theme.axis;
     ctx.font = "10px Inter, sans-serif";
+    ctx.textAlign = "left";
     ctx.textBaseline = "middle";
+
+    // Track the right edge of the last drawn label so neighbouring labels never
+    // collide; a label that would overlap is skipped (its tick is still drawn).
+    let lastRight = -Infinity;
     for (let t = first; t <= viewEnd() + 1e-9; t += step) {
       const x = t2x(t);
-      ctx.strokeStyle = "#333";
+      ctx.strokeStyle = theme.rulerTick;
       ctx.beginPath();
       ctx.moveTo(x + 0.5, RULER_H - 6);
       ctx.lineTo(x + 0.5, RULER_H);
       ctx.stroke();
-      ctx.fillText(formatTime(t), x + 4, RULER_H / 2);
+
+      const label = formatRulerTime(t, s);
+      const width = ctx.measureText(label).width;
+      // Prefer the label to the right of its tick; flip it left near the edge.
+      let lx = x + 4;
+      if (lx + width > w) lx = x - 4 - width;
+      if (lx < lastRight + LABEL_GAP) continue;
+      ctx.fillText(label, lx, RULER_H / 2);
+      lastRight = lx + width;
     }
   }
 
@@ -281,6 +362,30 @@ export default function Timeline() {
     ctx.fillRect(x - 4, top, 8, 12);
   }
 
+  /** Grab bar spanning the window along the top of the waveform (move handle). */
+  function drawMoveHandle(
+    ctx: CanvasRenderingContext2D,
+    x0: number,
+    x1: number,
+    top: number,
+  ) {
+    const w = x1 - x0;
+    if (w <= 2) return;
+    ctx.fillStyle = chartTheme().handleFill;
+    ctx.fillRect(x0, top, w, MOVE_HANDLE_H);
+    // Grip ridges so the bar reads as a draggable handle.
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const cx = Math.round((x0 + x1) / 2) + 0.5;
+    for (let i = -1; i <= 1; i++) {
+      const gx = cx + i * 4;
+      ctx.moveTo(gx, top + 2);
+      ctx.lineTo(gx, top + MOVE_HANDLE_H - 2);
+    }
+    ctx.stroke();
+  }
+
   // --- interaction -------------------------------------------------------
 
   let drag: {
@@ -288,12 +393,19 @@ export default function Timeline() {
     pointerX: number;
     origViewStart: number;
     origViewEnd: number;
+    origWindowStart: number;
+    origWindowEnd: number;
   } | null = null;
   let lastPreview = 0;
 
   function pointerX(e: { clientX: number }): number {
     const rect = canvas.getBoundingClientRect();
     return e.clientX - rect.left;
+  }
+
+  function pointerY(e: { clientY: number }): number {
+    const rect = canvas.getBoundingClientRect();
+    return e.clientY - rect.top;
   }
 
   function minWindow(): number {
@@ -305,17 +417,27 @@ export default function Timeline() {
     if (!active() || !source()) return;
     stopFollowing();
     const x = pointerX(e);
+    const y = pointerY(e);
     const ws = t2x(windowStart());
     const we = t2x(windowEnd());
 
     let kind: DragKind = "pan";
+    // Edge handles win at their x positions; the top bar covers the interior.
     if (Math.abs(x - ws) <= HANDLE_HIT) kind = "start";
     else if (Math.abs(x - we) <= HANDLE_HIT) kind = "end";
+    else if (x > ws && x < we && y >= RULER_H && y <= RULER_H + MOVE_HIT) kind = "move";
 
-    drag = { kind, pointerX: x, origViewStart: viewStart(), origViewEnd: viewEnd() };
+    drag = {
+      kind,
+      pointerX: x,
+      origViewStart: viewStart(),
+      origViewEnd: viewEnd(),
+      origWindowStart: windowStart(),
+      origWindowEnd: windowEnd(),
+    };
     canvas.setPointerCapture(e.pointerId);
 
-    if (kind !== "pan") {
+    if (kind === "start" || kind === "end") {
       lastPreview = 0;
       previewEdge(kind);
     }
@@ -333,6 +455,19 @@ export default function Timeline() {
 
     const s = source();
     if (!s) return;
+
+    if (drag.kind === "move") {
+      // Slide the whole window by the pointer delta, preserving its width and
+      // keeping it inside [0, duration]. The viewport is left untouched.
+      const dur = duration();
+      const wLen = drag.origWindowEnd - drag.origWindowStart;
+      const dt = x2t(x) - x2t(drag.pointerX);
+      const start = Math.max(0, Math.min(dur - wLen, drag.origWindowStart + dt));
+      setWindowStart(start);
+      setWindowEnd(start + wLen);
+      return;
+    }
+
     const t = Math.max(0, Math.min(duration(), x2t(x)));
     const gap = minWindow();
     if (drag.kind === "start") {
@@ -351,10 +486,11 @@ export default function Timeline() {
 
   function onPointerUp(e: PointerEvent) {
     if (!drag) return;
-    const wasHandle = drag.kind !== "pan";
+    // Only the edge handles preview + auto-zoom on release; move/pan do not.
+    const wasEdge = drag.kind === "start" || drag.kind === "end";
     drag = null;
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-    if (wasHandle) {
+    if (wasEdge) {
       endPreview();
       maybeAutoZoom();
     }
@@ -436,6 +572,8 @@ export default function Timeline() {
     windowStart();
     windowEnd();
     playSec();
+    filteredSamples();
+    filterEnabled();
     draw();
   });
 
@@ -451,6 +589,25 @@ export default function Timeline() {
           </span>
           <span class="timeline-dim">Δ {formatTime(windowDuration())}</span>
         </div>
+        <span
+          class="timeline-filter"
+          title={
+            filterEnabled()
+              ? "The filter graph is applied to the signal"
+              : "The filter graph is bypassed"
+          }
+          style={{
+            "font-size": "11px",
+            "padding": "1px 6px",
+            "border-radius": "4px",
+            "white-space": "nowrap",
+            color: filterEnabled() ? "#ffb454" : "#8a8a8a",
+            border: `1px solid ${filterEnabled() ? "#6b4a1f" : "#3a3a3a"}`,
+            background: filterEnabled() ? "rgba(255, 180, 84, 0.12)" : "transparent",
+          }}
+        >
+          {filterEnabled() ? "Filter on" : "Filter off"}
+        </span>
         <Show when={(source()?.channels ?? 1) > 1}>
           <ChannelSelect />
         </Show>

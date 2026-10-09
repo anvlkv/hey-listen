@@ -170,6 +170,11 @@ const MEL_BANDS = [16, 24, 32, 48, 64, 96, 128].map((value) => ({
 }));
 const MFCC_COEFFS = [8, 13, 20, 26].map((value) => ({ value, label: `${value}` }));
 const CONTRAST_BANDS = [4, 5, 6, 7, 8].map((value) => ({ value, label: `${value}` }));
+/** On/off switch rendered as a two-option select (per-tool params are numbers). */
+const ON_OFF = [
+  { value: 1, label: "On" },
+  { value: 0, label: "Off" },
+];
 
 // --- registry --------------------------------------------------------------
 
@@ -210,10 +215,16 @@ export const ANALYZERS: AnalyzerDef[] = [
       "Averaged magnitude spectrum (STFT magnitudes averaged across the window's " +
       "frames), so steady tones stand out as peaks. Uses the shared FFT size, hop, " +
       "window function, channel, and frequency range. Drag-select to zoom; the " +
-      "cursor readout gives the frequency and level under the pointer.",
+      "cursor readout gives the frequency and level under the pointer. The per-tool " +
+      "switches overlay the per-frame min / max magnitude around the mean.",
     keywords: ["spectrum", "fft", "frequency", "magnitude", "welch", "harmonic"],
     section: "spectral",
     view: { kind: "spectrum" },
+    params: [
+      { key: "showMean", label: "Mean layer", kind: "select", value: 1, options: ON_OFF },
+      { key: "showMin", label: "Min layer", kind: "select", value: 1, options: ON_OFF },
+      { key: "showMax", label: "Max layer", kind: "select", value: 1, options: ON_OFF },
+    ],
   },
   {
     id: "spectrogram",
@@ -245,7 +256,16 @@ export const ANALYZERS: AnalyzerDef[] = [
       formatBand: (band) => `mel ${band + 1}`,
       formatValue: (value) => value.toFixed(1),
     },
-    params: [{ key: "nMels", label: "Mel bands", kind: "select", value: 64, options: MEL_BANDS }],
+    params: [
+      {
+        key: "nMels",
+        label: "Mel bands",
+        kind: "select",
+        value: 64,
+        options: MEL_BANDS,
+        title: "Number of mel bands. More bands give finer frequency detail; 64 is a common default.",
+      },
+    ],
   },
   {
     id: "mfcc",
@@ -265,8 +285,22 @@ export const ANALYZERS: AnalyzerDef[] = [
       formatValue: (value) => value.toFixed(2),
     },
     params: [
-      { key: "nMfcc", label: "Coefficients", kind: "select", value: 13, options: MFCC_COEFFS },
-      { key: "nMels", label: "Mel bands", kind: "select", value: 64, options: MEL_BANDS },
+      {
+        key: "nMfcc",
+        label: "Coefficients",
+        kind: "select",
+        value: 13,
+        options: MFCC_COEFFS,
+        title: "Cepstral coefficients (rows). ~13 captures the spectral envelope (timbre); more add finer detail.",
+      },
+      {
+        key: "nMels",
+        label: "Mel bands",
+        kind: "select",
+        value: 64,
+        options: MEL_BANDS,
+        title: "Mel bands fed to the cepstral transform. More bands give finer frequency detail before the DCT.",
+      },
     ],
   },
   {
@@ -332,6 +366,7 @@ export const ANALYZERS: AnalyzerDef[] = [
           { value: 0.95, label: "95%" },
           { value: 0.99, label: "99%" },
         ],
+        title: "Share of spectral energy below the rolloff frequency. 85% is the usual default; 95–99% reaches further into the high-frequency tail.",
       },
     ],
   },
@@ -364,7 +399,16 @@ export const ANALYZERS: AnalyzerDef[] = [
       formatBand: (band) => `band ${band + 1}`,
       formatValue: fmtDb,
     },
-    params: [{ key: "nBands", label: "Bands", kind: "select", value: 6, options: CONTRAST_BANDS }],
+    params: [
+      {
+        key: "nBands",
+        label: "Bands",
+        kind: "select",
+        value: 6,
+        options: CONTRAST_BANDS,
+        title: "Number of octave-spaced bands compared (peak-to-valley each). More bands span a wider range.",
+      },
+    ],
   },
   {
     id: "spectralBandwidth",
@@ -413,8 +457,28 @@ export const ANALYZERS: AnalyzerDef[] = [
     section: "spectral",
     view: series("harmonic ratio", fmtRatio),
     params: [
-      { key: "minF0Hz", label: "Min f0", kind: "number", value: 60, min: 20, max: 2000, step: 5, suffix: "Hz" },
-      { key: "maxF0Hz", label: "Max f0", kind: "number", value: 1200, min: 40, max: 5000, step: 50, suffix: "Hz" },
+      {
+        key: "minF0Hz",
+        label: "Min f0",
+        kind: "number",
+        value: 60,
+        min: 20,
+        max: 2000,
+        step: 5,
+        suffix: "Hz",
+        title: "Lowest expected fundamental — the bottom of the autocorrelation search range.",
+      },
+      {
+        key: "maxF0Hz",
+        label: "Max f0",
+        kind: "number",
+        value: 1200,
+        min: 40,
+        max: 5000,
+        step: 50,
+        suffix: "Hz",
+        title: "Highest expected fundamental — the top of the autocorrelation search range.",
+      },
     ],
   },
   {
@@ -455,7 +519,16 @@ export const ANALYZERS: AnalyzerDef[] = [
     section: "pitch",
     view: series("pitch (Hz)", formatHz, true),
     params: [
-      { key: "yinThreshold", label: "YIN threshold", kind: "number", value: 0.12, min: 0.01, max: 0.9, step: 0.01 },
+      {
+        key: "yinThreshold",
+        label: "YIN threshold",
+        kind: "number",
+        value: 0.12,
+        min: 0.01,
+        max: 0.9,
+        step: 0.01,
+        title: "Voiced/unvoiced threshold for YIN. Lower is stricter (fewer frames voiced); ~0.10–0.15 is typical.",
+      },
     ],
   },
   {
@@ -470,8 +543,28 @@ export const ANALYZERS: AnalyzerDef[] = [
     section: "pitch",
     view: series("pitch (Hz)", formatHz, true),
     params: [
-      { key: "minF0Hz", label: "Min f0", kind: "number", value: 60, min: 20, max: 2000, step: 5, suffix: "Hz" },
-      { key: "maxF0Hz", label: "Max f0", kind: "number", value: 1200, min: 40, max: 5000, step: 50, suffix: "Hz" },
+      {
+        key: "minF0Hz",
+        label: "Min f0",
+        kind: "number",
+        value: 60,
+        min: 20,
+        max: 2000,
+        step: 5,
+        suffix: "Hz",
+        title: "Lowest expected fundamental — the bottom of the autocorrelation search range.",
+      },
+      {
+        key: "maxF0Hz",
+        label: "Max f0",
+        kind: "number",
+        value: 1200,
+        min: 40,
+        max: 5000,
+        step: 50,
+        suffix: "Hz",
+        title: "Highest expected fundamental — the top of the autocorrelation search range.",
+      },
     ],
   },
 
@@ -518,6 +611,7 @@ export const ANALYZERS: AnalyzerDef[] = [
         kind: "select",
         value: 4,
         options: [2, 3, 4, 5, 6, 7].map((value) => ({ value, label: `${value}` })),
+        title: "Beats per bar — the time-signature numerator (4 for 4/4, 3 for 3/4).",
       },
     ],
   },
@@ -559,6 +653,7 @@ export const ANALYZERS: AnalyzerDef[] = [
           { value: 500, label: "500 ms" },
           { value: 1000, label: "1000 ms" },
         ],
+        title: "Analysis block length. EBU R128 uses 400 ms blocks with a 100 ms hop; custom windows use non-overlapping blocks.",
       },
     ],
   },
@@ -621,6 +716,8 @@ export interface SpectrumResult {
   frames: number;
   freqs: number[];
   magDb: number[];
+  minDb: number[];
+  maxDb: number[];
   peakHz: number;
   peakDb: number;
 }
