@@ -29,6 +29,7 @@ import {
   type ThemePreference,
 } from "../state/settings";
 import { error, status } from "../state/source";
+import { meterDbLabel, meterPercent } from "../lib/format";
 
 const STATUS_LABEL: Record<string, string> = {
   probing: "reading metadata…",
@@ -66,19 +67,6 @@ export default function Toolbar() {
   });
   // Poll the preview output level for the meter; stop when the toolbar unmounts.
   onCleanup(initOutputMeter());
-
-  /** Preview output level as a −60..0 dBFS percentage, for the meter fill. */
-  const meterPercent = () => {
-    const value = outputLevel();
-    if (value <= 0) return 0;
-    const db = 20 * Math.log10(value);
-    return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
-  };
-
-  const meterLabel = () => {
-    const value = outputLevel();
-    return value > 0 ? `${(20 * Math.log10(value)).toFixed(0)} dB` : "—";
-  };
 
   const deviceOptions = () =>
     outputDevices().map((device) => ({
@@ -148,17 +136,17 @@ export default function Toolbar() {
           <span class="toolbar-label">Level</span>
           <Meter
             class="toolbar-meter"
-            value={meterPercent()}
+            value={meterPercent(outputLevel())}
             minValue={0}
             maxValue={100}
-            getValueLabel={meterLabel}
+            getValueLabel={() => meterDbLabel(outputLevel())}
             aria-label="Preview output level"
           >
             <Meter.Track class="toolbar-meter-track">
               <Meter.Fill class="toolbar-meter-fill" />
             </Meter.Track>
           </Meter>
-          <span class="toolbar-readout toolbar-meter-readout">{meterLabel()}</span>
+          <span class="toolbar-readout toolbar-meter-readout">{meterDbLabel(outputLevel())}</span>
         </div>
 
         <div class="toolbar-field">

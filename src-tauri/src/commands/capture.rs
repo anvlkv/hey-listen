@@ -12,6 +12,7 @@ use crate::audio::capture::{
     self, CaptureConfig, CaptureError, CaptureHandle, CaptureKind, CaptureMessage, DeviceDto,
     ProcessDto,
 };
+use crate::commands::stream;
 use crate::state::{window_state, WindowState};
 
 /// Event name for capture status changes (device lost, permission, stall, …).
@@ -30,8 +31,9 @@ pub fn list_processes() -> Result<Vec<ProcessDto>, CaptureError> {
 }
 
 /// Arguments for [`start_capture`] (camelCase keys from the frontend).
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct StartCaptureArgs {
     /// `mic` | `system` | `process` | `mix`.
     pub kind: String,
@@ -48,8 +50,9 @@ fn default_gain() -> f32 {
 }
 
 /// Capture format returned once a session starts.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CaptureInfo {
     pub sample_rate: u32,
     pub channels: u16,
@@ -90,11 +93,7 @@ pub fn start_capture(
         CaptureMessage::Chunk(samples) => {
             // Keep the core's copy in sync so preview playback can use it (ADR-9).
             recording_sink.append(&samples);
-            let mut bytes = Vec::with_capacity(samples.len() * 4);
-            for sample in &samples {
-                bytes.extend_from_slice(&sample.to_le_bytes());
-            }
-            let _ = on_chunk.send(InvokeResponseBody::Raw(bytes));
+            let _ = stream::send_f32_chunk(&on_chunk, &samples);
         }
         CaptureMessage::Event(event) => {
             let _ = status_window.emit(SOURCE_STATUS, event);

@@ -4,6 +4,7 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::WebviewWindow;
 
 use crate::audio::decode::{self, DecodeError, ProbeInfo, StreamSummary};
+use crate::commands::stream;
 use crate::state::{window_state, SourcePcm};
 
 /// Inspect a file's container/codec metadata (codec, sample rate, channels,
@@ -33,13 +34,7 @@ pub async fn stream_file(
         let mut samples: Vec<f32> = Vec::new();
         let summary = decode::decode_file(&path, |decoded| {
             samples.extend_from_slice(decoded);
-            let mut bytes = Vec::with_capacity(std::mem::size_of_val(decoded));
-            for sample in decoded {
-                bytes.extend_from_slice(&sample.to_le_bytes());
-            }
-            on_chunk
-                .send(InvokeResponseBody::Raw(bytes))
-                .map_err(|err| DecodeError::Decode(err.to_string()))
+            stream::send_f32_chunk(&on_chunk, decoded).map_err(DecodeError::Decode)
         })?;
         Ok::<_, DecodeError>((summary, samples))
     })
@@ -52,9 +47,7 @@ pub async fn stream_file(
         channels: summary.channels,
     }));
 
-    sentinel
-        .send(InvokeResponseBody::Raw(Vec::new()))
-        .map_err(|err| DecodeError::Decode(err.to_string()))?;
+    stream::send_end_sentinel(&sentinel).map_err(DecodeError::Decode)?;
 
     Ok(summary)
 }

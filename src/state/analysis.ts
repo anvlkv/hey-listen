@@ -1,5 +1,7 @@
 import { createSignal } from "solid-js";
 import type { ChannelPick } from "../lib/waveform";
+import type { SharedParams } from "../bindings/SharedParams";
+import type { WindowKind } from "../bindings/WindowKind";
 
 /**
  * Shared analysis params (ADR-6): one frontend store the Timeline and every
@@ -20,6 +22,11 @@ export const [channel, setChannel] = createSignal<ChannelPick>("mix");
 export function channelFor(channels: number): ChannelPick {
   const pick = channel();
   return typeof pick === "number" && pick >= 0 && pick < channels ? pick : "mix";
+}
+
+/** A channel pick as it crosses the IPC boundary: a 0-based index, or `null` to downmix. */
+export function channelArg(pick: ChannelPick): number | null {
+  return typeof pick === "number" ? pick : null;
 }
 
 export interface ChannelOption {
@@ -84,8 +91,8 @@ export const [hop, setHop] = createSignal<number>(0.25);
 /** Optional overlap randomization (break the fixed frame grid). */
 export const [randomizedOverlap, setRandomizedOverlap] = createSignal(false);
 
-/** Window function for spectral/pitch tools. `help` explains when to pick each. */
-export type WindowFn = "hann" | "hamming" | "blackman" | "rectangular";
+/** Window function for spectral/pitch tools (ts-rs binding). `help` explains when to pick each. */
+export type WindowFn = WindowKind;
 export const WINDOW_FNS: { value: WindowFn; label: string; help: string }[] = [
   {
     value: "hann",
@@ -139,18 +146,8 @@ export const [resampleTo, setResampleTo] = createSignal<number | null>(null);
 export const [freqMinHz, setFreqMinHz] = createSignal(0);
 export const [freqMaxHz, setFreqMaxHz] = createSignal(0);
 
-/** The shared params as they cross the IPC boundary (camelCase, `docs/data-model.md`). */
-export interface SharedParamsDto {
-  fftSize: number;
-  hop: number;
-  randomizedOverlap: boolean;
-  windowFn: WindowFn;
-  /** 0-based channel index, or `null` to downmix. */
-  channel: number | null;
-  resampleTo: number | null;
-  freqMinHz: number;
-  freqMaxHz: number;
-}
+/** The shared params as they cross the IPC boundary (ts-rs binding, `docs/data-model.md`). */
+export type SharedParamsDto = SharedParams;
 
 /** Snapshot the shared params for a `run_analysis` call. */
 export function sharedParams(): SharedParamsDto {
@@ -160,7 +157,7 @@ export function sharedParams(): SharedParamsDto {
     hop: hop(),
     randomizedOverlap: randomizedOverlap(),
     windowFn: windowFn(),
-    channel: typeof pick === "number" ? pick : null,
+    channel: channelArg(pick),
     resampleTo: resampleTo(),
     freqMinHz: freqMinHz(),
     freqMaxHz: freqMaxHz(),

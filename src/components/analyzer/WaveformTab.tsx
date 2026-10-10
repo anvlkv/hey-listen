@@ -1,33 +1,25 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import { createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
-import EmptyState from "../EmptyState";
-import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { TIME_AXIS_SPACE, timeAxisValues, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
+import {
+  chartAxisStyle,
+  createUplotReframeHandler,
+  NoAudioState,
+  timeRangeLabel,
+  timeTooltip,
+} from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/settings";
 import { createAnalysis, type WaveformResult } from "../../state/analyzer";
 
-/** uPlot axis styling for the active theme (read on each chart (re)mount). */
-function axisStyle() {
-  const t = chartTheme();
-  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
-}
-
-const Tooltip = (props: TooltipProps) => (
-  <ChartTooltip
-    {...props}
-    xLabel="t"
-    formatX={(value) => `${value.toFixed(3)} s`}
-    formatY={(value) => value.toFixed(3)}
-  />
-);
+const Tooltip = timeTooltip((value) => value.toFixed(3));
 
 /**
  * Waveform tool: the min/max envelope of the **conditioned** signal over the
@@ -49,20 +41,8 @@ export default function WaveformTab() {
     return [times, result.max, result.min];
   };
 
-  const zoomLabel = () => {
-    const range = zoom.range();
-    return range ? `${range[0].toFixed(3)} – ${range[1].toFixed(3)} s` : "";
-  };
-
   /** Right-click: reframe the timeline window from the time under the pointer. */
-  const openMenu = (event: MouseEvent) => {
-    event.preventDefault();
-    const u = zoom.instance();
-    if (!u || !u.over) return;
-    const rect = u.over.getBoundingClientRect();
-    const time = u.posToVal(event.clientX - rect.left, "x");
-    setMenu({ x: event.clientX, y: event.clientY, time });
-  };
+  const openMenu = createUplotReframeHandler(zoom, setMenu);
 
   return (
     <AnalyzerTab
@@ -73,7 +53,7 @@ export default function WaveformTab() {
     >
       <Show
         when={analysis.result()}
-        fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel — the analysis appears here." />}
+        fallback={<NoAudioState />}
       >
         {(result) => (
           <div class="analyzer-chart">
@@ -96,7 +76,7 @@ export default function WaveformTab() {
                   onZoomIn={zoom.zoomIn}
                   onZoomOut={zoom.zoomOut}
                   onFit={zoom.fit}
-                  label={zoomLabel()}
+                  label={timeRangeLabel(zoom.range())}
                 />
                 <Show when={resolvedTheme()} keyed>
                   <SolidUplot
@@ -114,13 +94,13 @@ export default function WaveformTab() {
                     scales={{ x: { time: false } }}
                     axes={[
                       {
-                        ...axisStyle(),
+                        ...chartAxisStyle(),
                         label: "time (s)",
                         size: X_AXIS_SIZE,
                         space: TIME_AXIS_SPACE,
                         values: timeAxisValues,
                       },
-                      { ...axisStyle(), label: "amplitude", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
+                      { ...chartAxisStyle(), label: "amplitude", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
                     ]}
                   />
                 </Show>

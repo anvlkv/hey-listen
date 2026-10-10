@@ -11,29 +11,29 @@ use std::io::BufWriter;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::audio::STREAM_CHUNK_SAMPLES;
+use crate::commands::{focused_label, stream};
 use crate::project::{
     read_project, write_project, AnalysisSetup, Meta, ProjectError, SaveProject, SourceDescriptor,
     StoredResult,
 };
 use crate::state::window_state;
 
-/// Interleaved samples per streamed chunk when loading a project (~256 KiB).
-const STREAM_CHUNK: usize = 64 * 1024;
-
-/// The project's file extension (magic `HEYL`).
+/// The project's file extension (magic `HEYL`, and `bundle.fileAssociations` in
+/// `tauri.conf.json`).
 const PROJECT_EXTENSION: &str = "heyl";
 
 /// The frontend-supplied project data for [`save_project`]; the core adds `META`
 /// (timestamps/version) and the `DATA` section (owned source PCM).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SaveProjectArgs {
     pub name: String,
     /// Preserve the creation time when re-saving a loaded project; `None` = now.
@@ -47,8 +47,9 @@ pub struct SaveProjectArgs {
 /// What [`load_project`] returns. The `DATA` samples stream separately over the
 /// command's `on_chunk` channel; the flat `sample_rate`/`channels`/`frames` let the
 /// frontend rebuild its `AudioSource` without a second round-trip.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LoadedProjectDto {
     pub meta: Meta,
     pub source: Option<SourceDescriptor>,
@@ -59,13 +60,6 @@ pub struct LoadedProjectDto {
     pub sample_rate: u32,
     pub channels: u16,
     pub frames: u64,
-}
-
-fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_millis() as u64)
-        .unwrap_or(0)
 }
 
 /// Write the current project to `path`: the frontend's setup/layout plus the
@@ -91,7 +85,7 @@ pub async fn save_project(
             pcm: guard.as_ref(),
         };
         let file = File::create(&path)?;
-        write_project(BufWriter::new(file), &save, now_ms())
+        write_project(BufWriter::new(file), &save, crate::recent::now_ms())
     })
     .await
     .map_err(join_error)?
@@ -135,14 +129,9 @@ pub async fn load_project(
     };
 
     if let Some(pcm) = pcm {
-        for chunk in pcm.samples.chunks(STREAM_CHUNK) {
-            let mut bytes = Vec::with_capacity(chunk.len() * 4);
-            for sample in chunk {
-                bytes.extend_from_slice(&sample.to_le_bytes());
-            }
-            on_chunk
-                .send(InvokeResponseBody::Raw(bytes))
-                .map_err(|err| ProjectError::Io(std::io::Error::other(err.to_string())))?;
+        for chunk in pcm.samples.chunks(STREAM_CHUNK_SAMPLES) {
+            stream::send_f32_chunk(&on_chunk, chunk)
+                .map_err(|err| ProjectError::Io(std::io::Error::other(err)))?;
         }
         window_state(&window).audio.set_source(Some(pcm));
     } else {
@@ -150,9 +139,8 @@ pub async fn load_project(
     }
 
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
-    on_chunk
-        .send(InvokeResponseBody::Raw(Vec::new()))
-        .map_err(|err| ProjectError::Io(std::io::Error::other(err.to_string())))?;
+    stream::send_end_sentinel(&on_chunk)
+        .map_err(|err| ProjectError::Io(std::io::Error::other(err)))?;
 
     Ok(LoadedProjectDto {
         meta,
@@ -199,9 +187,6 @@ fn join_error(err: impl std::fmt::Display) -> ProjectError {
 
 /// Event carrying opened `.heyl` paths to a running frontend (file association).
 pub const OPEN_EVENT: &str = "app:open-project";
-
-/// The project file extension (matches `bundle.fileAssociations` in `tauri.conf.json`).
-const PROJECT_EXTENSION_STR: &str = "heyl";
 
 /// `.heyl` paths requested before the frontend was ready (command line / macOS
 /// `open`). Drained by [`take_pending_open_paths`] — once, by the first window.
@@ -270,17 +255,6 @@ pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Ve
     }
 }
 
-/// The label of the focused window, else `main`, else any window.
-fn focused_label<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
-    let windows = app.webview_windows();
-    windows
-        .iter()
-        .find(|(_, window)| window.is_focused().unwrap_or(false))
-        .map(|(label, _)| label.clone())
-        .or_else(|| windows.contains_key("main").then(|| "main".to_string()))
-        .or_else(|| windows.keys().next().cloned())
-}
-
 /// `.heyl` paths among command-line arguments (Windows/Linux file association).
 pub fn opened_paths_from_args(args: impl Iterator<Item = String>) -> Vec<String> {
     args.skip(1).filter(|arg| is_project_path(arg)).collect()
@@ -300,6 +274,6 @@ fn is_project_path(path: &str) -> bool {
     Path::new(path)
         .extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| ext.eq_ignore_ascii_case(PROJECT_EXTENSION_STR))
+        .map(|ext| ext.eq_ignore_ascii_case(PROJECT_EXTENSION))
         .unwrap_or(false)
 }

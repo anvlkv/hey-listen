@@ -1,13 +1,12 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import { createEffect, createRoot, Show } from "solid-js";
-import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
-import EmptyState from "../EmptyState";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { paddedYRange } from "./range";
+import { chartAxisStyle, NoAudioState, timeRangeLabel, timeTooltip } from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/settings";
 import {
@@ -25,11 +24,6 @@ interface MarkerSet {
   times: number[];
   color: string;
   width: number;
-}
-
-function axisStyle() {
-  const t = chartTheme();
-  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
 }
 
 const MARKER_STYLE: Record<MarkerKind, { dark: string; light: string; width: number }> = {
@@ -115,19 +109,7 @@ export default function RhythmView(props: {
     return [r.times, r.onsetStrength];
   };
 
-  const Tooltip = (tooltipProps: TooltipProps) => (
-    <ChartTooltip
-      {...tooltipProps}
-      xLabel="t"
-      formatX={(value) => `${value.toFixed(3)} s`}
-      formatY={(value) => value.toFixed(4)}
-    />
-  );
-
-  const zoomLabel = () => {
-    const range = zoom.range();
-    return range ? `${range[0].toFixed(3)} – ${range[1].toFixed(3)} s` : "";
-  };
+  const Tooltip = timeTooltip((value) => value.toFixed(4));
 
   return (
     <div class="analyzer-chart">
@@ -155,13 +137,7 @@ export default function RhythmView(props: {
       <div class="analyzer-plot" onWheel={zoom.wheel}>
         <Show
           when={result()}
-          fallback={
-            <EmptyState
-              icon="∿"
-              title="No audio to analyse"
-              hint="Open a file, record, or render a synth from the Source panel — the analysis appears here."
-            />
-          }
+          fallback={<NoAudioState />}
         >
           <Show
             when={data()[0].length >= 2}
@@ -175,7 +151,7 @@ export default function RhythmView(props: {
               onZoomIn={zoom.zoomIn}
               onZoomOut={zoom.zoomOut}
               onFit={zoom.fit}
-              label={zoomLabel()}
+              label={timeRangeLabel(zoom.range())}
             />
             <Show when={resolvedTheme()} keyed>
               <SolidUplot
@@ -200,7 +176,7 @@ export default function RhythmView(props: {
                   },
                 ]}
                 scales={{ x: { time: false }, y: { range: paddedYRange } }}
-                axes={[{ ...axisStyle(), label: "time (s)" }, { ...axisStyle(), label: "onset strength" }]}
+                axes={[{ ...chartAxisStyle(), label: "time (s)" }, { ...chartAxisStyle(), label: "onset strength" }]}
               />
             </Show>
           </Show>

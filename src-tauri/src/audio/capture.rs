@@ -36,11 +36,7 @@ pub enum CaptureError {
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
-impl Serialize for CaptureError {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+serialize_error_as_string!(CaptureError);
 
 /// Which live source to capture (mirrors [`flexaudio::SourceKind`] plus the string ids
 /// the frontend uses).
@@ -98,8 +94,9 @@ pub enum CaptureMessage {
 }
 
 /// A capture stream event, ready to be emitted to the frontend.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CaptureEvent {
     /// Stable id: `dropped` | `stalled` | `recovered` | `permission` | `device-lost` | `error`.
     pub kind: String,
@@ -107,8 +104,9 @@ pub struct CaptureEvent {
 }
 
 /// A device that can back a mic or system source.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct DeviceDto {
     pub id: String,
     pub name: String,
@@ -122,8 +120,9 @@ pub struct DeviceDto {
 }
 
 /// A process that can back a per-process source.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ProcessDto {
     pub pid: u32,
     pub name: String,

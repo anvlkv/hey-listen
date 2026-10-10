@@ -32,7 +32,8 @@ use fundsp::prelude64::*;
 use serde::{Deserialize, Serialize};
 
 /// A serializable fundsp graph, as built by the solid-flow editor.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
 pub struct GraphSpec {
     #[serde(default)]
     pub nodes: Vec<GraphNode>,
@@ -47,7 +48,8 @@ impl GraphSpec {
 }
 
 /// One node: a `kind` (see [`kind_arity`]) plus positional `params`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
 pub struct GraphNode {
     pub id: String,
     pub kind: String,
@@ -56,8 +58,9 @@ pub struct GraphNode {
 }
 
 /// One directed connection between two nodes' ports.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct GraphEdge {
     pub from: String,
     #[serde(default)]
@@ -93,11 +96,7 @@ pub enum GraphError {
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
-impl Serialize for GraphError {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+serialize_error_as_string!(GraphError);
 
 /// Whether a kind is the filter graph's entry point.
 pub fn is_input_kind(kind: &str) -> bool {

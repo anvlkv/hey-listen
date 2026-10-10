@@ -11,3 +11,8 @@ pub mod decode;
 pub mod graph;
 pub mod pcm;
 pub mod playback;
+
+/// Interleaved samples per streamed chunk (256 KiB at 4 bytes/sample), shared by
+/// the decode/render engines and the IPC streaming commands. Chosen to keep
+/// `Channel` messages amortized while bounding per-message latency.
+pub(crate) const STREAM_CHUNK_SAMPLES: usize = 64 * 1024;

@@ -15,6 +15,15 @@ import {
 import { filterRevision } from "./graph";
 import { source, status } from "./source";
 import { windowEnd, windowStart } from "./timeline";
+import type { WaveformResult as WaveformPayload } from "../bindings/WaveformResult";
+import type { SpectrumResult as SpectrumPayload } from "../bindings/SpectrumResult";
+import type { SpectrogramResult as SpectrogramPayload } from "../bindings/SpectrogramResult";
+import type { LevelsResult as LevelsPayload } from "../bindings/LevelsResult";
+import type { SeriesResult as SeriesPayload } from "../bindings/SeriesResult";
+import type { MatrixResult as MatrixPayload } from "../bindings/MatrixResult";
+import type { RhythmResult as RhythmPayload } from "../bindings/RhythmResult";
+import type { LufsResult as LufsPayload } from "../bindings/LufsResult";
+import type { LraResult as LraPayload } from "../bindings/LraResult";
 
 /**
  * Analyzer tools (M4+, all oxiaudio tools in M5): the registry the Sidebar lists
@@ -690,108 +699,48 @@ export function matchesQuery(def: AnalyzerDef, query: string): boolean {
 
 // --- results (mirrors `audio/analysis.rs`) ---------------------------------
 
-export interface WaveformResult {
+/**
+ * Result payloads are generated from the Rust `AnalysisResult` variants via ts-rs
+ * (`src/bindings/`) — only the `tool` discriminant that tags each analysis result is
+ * declared here, so a Rust field change flows through automatically.
+ */
+export interface WaveformResult extends WaveformPayload {
   tool: "waveform";
-  sampleRate: number;
-  frames: number;
-  duration: number;
-  peak: number;
-  rms: number;
-  peakDb: number;
-  rmsDb: number;
-  min: number[];
-  max: number[];
 }
 
-export interface SpectrumResult {
+export interface SpectrumResult extends SpectrumPayload {
   tool: "spectrum";
-  sampleRate: number;
-  fftSize: number;
-  hopSize: number;
-  frames: number;
-  freqs: number[];
-  magDb: number[];
-  minDb: number[];
-  maxDb: number[];
-  peakHz: number;
-  peakDb: number;
 }
 
-export interface SpectrogramResult {
+export interface SpectrogramResult extends SpectrogramPayload {
   tool: "spectrogram";
-  sampleRate: number;
-  fftSize: number;
-  hopSize: number;
-  duration: number;
-  frames: number;
-  bins: number;
-  freqs: number[];
-  magDb: number[];
-  minDb: number;
-  maxDb: number;
+}
+
+export interface LevelsResult extends LevelsPayload {
+  tool: "levels";
 }
 
 /** One scalar value per frame, over time; `null` entries are gaps. */
-export interface SeriesResult {
+export interface SeriesResult extends SeriesPayload {
   tool: AnalyzerId;
-  sampleRate: number;
-  hopSize: number;
-  frames: number;
-  times: number[];
-  values: (number | null)[];
-  minValue: number;
-  maxValue: number;
 }
 
 /** A frame × band matrix, frame-major in `values`. */
-export interface MatrixResult {
+export interface MatrixResult extends MatrixPayload {
   tool: AnalyzerId;
-  sampleRate: number;
-  hopSize: number;
-  frames: number;
-  bins: number;
-  duration: number;
-  times: number[];
-  bands: number[];
-  values: number[];
-  minValue: number;
-  maxValue: number;
-}
-
-export interface LevelsResult {
-  tool: "levels";
-  sampleRate: number;
-  frames: number;
-  duration: number;
-  peak: number;
-  rms: number;
-  peakDb: number;
-  rmsDb: number;
 }
 
 /** Tempo / onset / downbeat analysis: an onset-strength envelope plus events. */
-export interface RhythmResult {
+export interface RhythmResult extends RhythmPayload {
   tool: "tempo" | "onsets" | "downbeats";
-  bpm: number;
-  confidence: number;
-  hopSize: number;
-  /** Frame times (seconds) of `onsetStrength`. */
-  times: number[];
-  /** Onset-strength envelope (one value per frame). */
-  onsetStrength: number[];
-  onsetTimes: number[];
-  beatTimes: number[];
-  downbeatTimes: number[];
 }
 
-export interface LufsResult {
+export interface LufsResult extends LufsPayload {
   tool: "loudnessIntegrated";
-  lufs: number;
 }
 
-export interface LraResult {
+export interface LraResult extends LraPayload {
   tool: "loudnessRange";
-  lra: number;
 }
 
 /** Any analyzer result returned over IPC. */

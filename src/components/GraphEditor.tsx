@@ -6,8 +6,6 @@ import {
   MiniMap,
   Panel,
   SolidFlow,
-  type Edge,
-  type Node,
   type NodeTypes,
 } from "@dschz/solid-flow";
 import { handlePort, paletteFor, type GraphKind, type NodeKindDef } from "../lib/graph";
@@ -19,13 +17,12 @@ import {
   isAnchorKind,
   setNodesPosition,
   warnGraph,
-  type GraphNodeData,
 } from "../state/graph";
 import { resolvedTheme } from "../state/settings";
 import GraphNode from "./GraphNode";
 import ScrollArea from "./ScrollArea";
 
-const nodeTypes = { graph: GraphNode } as unknown as NodeTypes;
+const nodeTypes = { graph: GraphNode } satisfies NodeTypes;
 
 /** Inline styling for the palette search box, matched to the active theme. */
 const SEARCH_STYLE_DARK: JSX.CSSProperties = {
@@ -206,8 +203,8 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
       <div class="graph-canvas">
         <SolidFlow
           id={`graph-${props.graph}`}
-          nodes={handle().nodes as unknown as Node[]}
-          edges={handle().edges as unknown as Edge[]}
+          nodes={handle().nodes}
+          edges={handle().edges}
           nodeTypes={nodeTypes}
           colorMode={resolvedTheme()}
           style={flowStyle()}
@@ -249,7 +246,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
             if (nodes.length) {
               const ids = new Set(
                 nodes
-                  .filter((node) => !isAnchorKind((node.data as GraphNodeData).kind))
+                  .filter((node) => !isAnchorKind(node.data.kind))
                   .map((node) => node.id),
               );
               handle().setNodes((current) => current.filter((node) => !ids.has(node.id)));

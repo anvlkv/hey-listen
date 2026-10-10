@@ -12,8 +12,9 @@ use crate::audio::analysis::SharedParams;
 use crate::audio::graph::GraphSpec;
 
 /// `META` section: the project's identity and provenance.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct Meta {
     /// Human-readable project name (defaults to the source's name).
     pub name: String,
@@ -34,8 +35,9 @@ pub struct Meta {
 ///
 /// A `kind`-tagged struct (rather than a Serde enum) keeps the payload compatible
 /// with `postcard`, which cannot encode internally-tagged enums.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SourceDescriptor {
     /// `file` | `mic` | `system` | `process` | `mix` | `synth`.
     pub kind: String,
@@ -62,8 +64,9 @@ pub struct SourceDescriptor {
 }
 
 /// `SETUP` section: open tools, per-tool options, shared params, and the windows.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct AnalysisSetup {
     /// The shared analysis params (ADR-6).
     pub shared: SharedParams,
@@ -100,8 +103,9 @@ impl Default for AnalysisSetup {
 }
 
 /// A `start..end` span in source seconds.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct AnalysisWindow {
     pub start_secs: f64,
     pub end_secs: f64,
@@ -112,8 +116,9 @@ pub struct AnalysisWindow {
 /// Result caching is not wired up yet — the frontend re-derives results from the
 /// embedded audio on load — so the section is written empty. The type is defined
 /// now so the format stays forward-compatible when the cache lands.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct StoredResult {
     /// The tool id that produced the result.
     pub tool: String,

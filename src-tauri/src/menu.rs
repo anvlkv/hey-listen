@@ -15,9 +15,9 @@
 use tauri::menu::{
     AboutMetadata, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu,
 };
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 
-use crate::commands::project::OPEN_EVENT;
+use crate::commands::{focused_label, project::OPEN_EVENT};
 use crate::recent::{self, RecentProject};
 
 /// Event carrying a menu action id (File / Edit) to the frontend.
@@ -172,17 +172,6 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
             let _ = app.emit_to(label, MENU_EVENT, id);
         }
     }
-}
-
-/// The label of the focused window, else `main`, else any window.
-fn focused_label<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
-    let windows = app.webview_windows();
-    windows
-        .iter()
-        .find(|(_, window)| window.is_focused().unwrap_or(false))
-        .map(|(label, _)| label.clone())
-        .or_else(|| windows.contains_key("main").then(|| "main".to_string()))
-        .or_else(|| windows.keys().next().cloned())
 }
 
 /// The "Open Recent" submenu: one item per existing file, then Clear Menu.

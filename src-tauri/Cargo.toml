@@ -26,6 +26,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 postcard = { version = "1", features = ["use-std"] }
+# Generate the TypeScript bindings for the IPC boundary types from the Rust
+# definitions (`docs/architecture.md`), so the two sides share one source of truth.
+ts-rs = { version = "12", features = ["serde-json-impl"] }
 
 # Audio I/O and processing
 flexaudio = "0.3"                                    # capture: mic / system / process / mix

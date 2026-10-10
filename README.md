@@ -5,9 +5,9 @@ inputs (mic / system / per-process / mix), and fundsp synthesis — then save th
 source, analysis setup (including layout), and results into a single binary
 project file.
 
-> **Status:** M0–M4 — file source, live capture, fundsp filter/synth graphs, core
-> preview playback, and the first analysis tools (waveform, spectrum, spectrogram)
-> as Workbench tabs. See [`docs/roadmap.md`](docs/roadmap.md).
+> **Status:** M0–M7 delivered (plus the post-M6 backlog) — file/live/synth sources,
+> fundsp filter/synth graphs, core preview playback, the full analysis tool set, the
+> binary project file, and multi-window popouts. See [`docs/roadmap.md`](docs/roadmap.md).
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
 > coding agents. AI-generated code and documentation should be reviewed before
@@ -29,8 +29,8 @@ project file.
 
 ## Layout rule (read this first)
 
-`Timeline`, `Sidebar`, and `Workbench` are **fixed regions** — they are **not**
-tabs. The **only** tabs are the **Workbench tabs** — the graph editors (filter /
+`Timeline`, `Sidebar`, `Workbench`, and `Source` are **fixed regions** — they are
+**not** tabs. The **only** tabs are the **Workbench tabs** — the graph editors (filter /
 synth) and the analyzer tools — and they live **inside the Workbench** (managed by
 `dockview`). See [`docs/ui-layout.md`](docs/ui-layout.md).
 

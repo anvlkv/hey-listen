@@ -4,6 +4,20 @@
 // store, and the IPC boundary exposed to the SolidJS frontend. See `docs/` for
 // the architecture and the planned command/event surface.
 
+/// Implement `serde::Serialize` for a core error enum by serializing its `Display`
+/// text — the shape `tauri` commands require. Every command error enum uses this so
+/// the IPC error format (a plain message string) stays identical across modules.
+#[macro_export]
+macro_rules! serialize_error_as_string {
+    ($t:ty) => {
+        impl ::serde::Serialize for $t {
+            fn serialize<S: ::serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serializer.serialize_str(&self.to_string())
+            }
+        }
+    };
+}
+
 mod audio;
 mod commands;
 mod menu;

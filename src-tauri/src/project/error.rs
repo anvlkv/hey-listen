@@ -1,7 +1,5 @@
 //! Project file errors, serializable for the Tauri IPC boundary.
 
-use serde::Serialize;
-
 /// Errors produced while reading or writing a project file.
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectError {
@@ -18,8 +16,4 @@ pub enum ProjectError {
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
-impl Serialize for ProjectError {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+serialize_error_as_string!(ProjectError);

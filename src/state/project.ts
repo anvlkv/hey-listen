@@ -1,8 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createEffect, createMemo, createRoot, createSignal } from "solid-js";
-import { toSpec, type GraphSpec } from "../lib/graph";
+import { toSpec } from "../lib/graph";
+import { deepClone } from "../lib/clone";
+import type { AnalysisSetup } from "../bindings/AnalysisSetup";
+import type { AnalysisWindow } from "../bindings/AnalysisWindow";
+import type { Meta } from "../bindings/Meta";
+import type { SourceDescriptor } from "../bindings/SourceDescriptor";
+import type { StoredResult } from "../bindings/StoredResult";
 import { pcmStream } from "../lib/pcmStream";
-import { applySharedParams, resetAnalysisParams, sharedParams, type SharedParamsDto } from "./analysis";
+import { applySharedParams, resetAnalysisParams, sharedParams } from "./analysis";
 import { resetToolOptions, setToolOptions, toolOptions } from "./analyzer";
 import {
   choice,
@@ -60,35 +66,20 @@ import { isPopoutWindow } from "../lib/windowRole";
  * so the analyzers re-derive their results from the embedded audio.
  */
 
-// --- IPC DTOs (mirror `src-tauri/src/project`) -------------------------------
+// --- IPC DTOs (generated from `src-tauri` via ts-rs; see `src/bindings/`) -----
+//
+// The `SOURCE`/`SETUP`/`META`/`RESULTS` shapes come from the Rust types; only
+// `LAYOUT` is frontend-owned (it is the JSON the frontend writes into the core's
+// opaque `layout` value).
 
-/** `SOURCE` section: what the project's single source was (camelCase keys). */
-export interface SourceDescriptorDto {
-  /** `file` | `mic` | `system` | `process` | `mix` | `synth`. */
-  kind: string;
-  path?: string | null;
-  deviceId?: string | null;
-  mixMicDeviceId?: string | null;
-  mixSystemDeviceId?: string | null;
-  targetPid?: number | null;
-  gain?: number;
-  graph?: GraphSpec | null;
-}
-
-export interface AnalysisWindowDto {
-  startSecs: number;
-  endSecs: number;
-}
-
-/** `SETUP` section. */
-export interface AnalysisSetupDto {
-  shared: SharedParamsDto;
-  toolOptions: Record<string, Record<string, number>>;
-  openTools: string[];
-  window: AnalysisWindowDto;
-  view: AnalysisWindowDto;
-  filterEnabled: boolean;
-}
+/** `SOURCE` section: what the project's single source was. */
+export type SourceDescriptorDto = SourceDescriptor;
+/** A `start..end` span in source seconds. */
+export type AnalysisWindowDto = AnalysisWindow;
+/** `SETUP` section: shared params, per-tool options, open tools, and the windows. */
+export type AnalysisSetupDto = AnalysisSetup;
+/** `META` section: the project's identity and provenance. */
+export type ProjectMetaDto = Meta;
 
 /** `LAYOUT` section: the dockview snapshot plus both graph editors' state. */
 export interface LayoutDto {
@@ -98,14 +89,7 @@ export interface LayoutDto {
   popouts?: string[];
 }
 
-export interface ProjectMetaDto {
-  name: string;
-  createdMs: number;
-  modifiedMs: number;
-  appVersion: string;
-  formatVersion: number;
-}
-
+/** The frontend-supplied project data for `save_project`; the core adds `META` + `DATA`. */
 interface SaveProjectArgs {
   name: string;
   createdMs?: number;
@@ -114,12 +98,13 @@ interface SaveProjectArgs {
   layout: LayoutDto;
 }
 
+/** What `load_project` returns (the `DATA` samples stream separately). */
 interface LoadedProjectDto {
   meta: ProjectMetaDto;
   source: SourceDescriptorDto | null;
   setup: AnalysisSetupDto;
   layout: LayoutDto;
-  results: unknown[];
+  results: StoredResult[];
   sampleRate: number;
   channels: number;
   frames: number;
@@ -198,29 +183,45 @@ function sourceDetail(descriptor: SourceDescriptorDto | null): string {
   }
 }
 
+/** Fill a `SOURCE` descriptor's unused fields with null (the core defaults them too). */
+function descriptor(
+  fields: Partial<SourceDescriptor> & Pick<SourceDescriptor, "kind">,
+): SourceDescriptor {
+  return {
+    path: null,
+    deviceId: null,
+    mixMicDeviceId: null,
+    mixSystemDeviceId: null,
+    targetPid: null,
+    gain: 1,
+    graph: null,
+    ...fields,
+  };
+}
+
 /** The project's current source descriptor, derived from the source + picker. */
 function currentDescriptor(): SourceDescriptorDto | null {
   const current = source();
   if (!current) return null;
   const pick = choice();
-  if (pick === "file") return { kind: "file", path: current.probe?.path ?? null };
+  if (pick === "file") return descriptor({ kind: "file", path: current.probe?.path ?? null });
   if (pick === "synth") {
-    return { kind: "synth", graph: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges) };
+    return descriptor({ kind: "synth", graph: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges) });
   }
-  return {
+  return descriptor({
     kind: pick,
     deviceId: pick === "mic" || pick === "system" ? deviceId() : null,
     mixMicDeviceId: pick === "mix" ? mixMicDeviceId() : null,
     mixSystemDeviceId: pick === "mix" ? mixSystemDeviceId() : null,
     targetPid: pick === "process" ? targetPid() : null,
     gain: gain(),
-  };
+  });
 }
 
 function currentSetup(): AnalysisSetupDto {
   return {
     shared: sharedParams(),
-    toolOptions: JSON.parse(JSON.stringify(toolOptions)) as Record<string, Record<string, number>>,
+    toolOptions: deepClone(toolOptions),
     openTools: openTools(),
     window: { startSecs: windowStart(), endSecs: windowEnd() },
     view: { startSecs: viewStart(), endSecs: viewEnd() },
@@ -385,7 +386,7 @@ function applyDescriptor(descriptor: SourceDescriptorDto | null) {
   setMixMicDeviceId(descriptor.mixMicDeviceId ?? null);
   setMixSystemDeviceId(descriptor.mixSystemDeviceId ?? null);
   setTargetPid(descriptor.targetPid ?? null);
-  if (descriptor.gain != null) setGainLevel(descriptor.gain);
+  setGainLevel(descriptor.gain);
 }
 
 /** Restore every store from a loaded project (the PCM already streamed in). */

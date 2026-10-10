@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import { readoutsFor, type ReadoutResult } from "./readouts";
-import EmptyState from "../EmptyState";
+import { NoAudioState } from "./chartCommon";
 import type { AnalysisHandle, AnyAnalysisResult } from "../../state/analyzer";
 
 /**
@@ -15,7 +15,7 @@ export default function ReadoutsView(props: {
   return (
     <Show
       when={result()}
-      fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel — the analysis appears here." />}
+      fallback={<NoAudioState />}
     >
       {(value) => (
         <div class="analyzer-chart">

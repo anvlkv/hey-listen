@@ -17,9 +17,7 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::default::{get_codecs, get_probe};
 
-/// Number of interleaved samples per streamed chunk (256 KiB at 4 bytes/sample).
-/// Chosen to keep `Channel` messages amortized while bounding per-message latency.
-const CHUNK_SAMPLES: usize = 64 * 1024;
+use super::STREAM_CHUNK_SAMPLES;
 
 /// Errors produced while probing or decoding a file source.
 #[derive(Debug, thiserror::Error)]
@@ -39,15 +37,12 @@ pub enum DecodeError {
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
-impl Serialize for DecodeError {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+serialize_error_as_string!(DecodeError);
 
 /// Metadata for a probed file source.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ProbeInfo {
     /// Absolute or user-supplied path the file was opened from.
     pub path: String,
@@ -65,8 +60,9 @@ pub struct ProbeInfo {
 }
 
 /// Summary returned once a file has been fully decoded.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct StreamSummary {
     pub sample_rate: u32,
     pub channels: u16,
@@ -169,7 +165,7 @@ pub fn decode_file(
     // Reused per-packet scratch buffer for the decoded interleaved samples.
     let mut interleaved: Vec<f32> = Vec::new();
     // Accumulates samples until a full chunk is ready to hand off.
-    let mut pending: Vec<f32> = Vec::with_capacity(CHUNK_SAMPLES * 2);
+    let mut pending: Vec<f32> = Vec::with_capacity(STREAM_CHUNK_SAMPLES * 2);
     let mut frames_total: u64 = 0;
 
     loop {
@@ -197,9 +193,9 @@ pub fn decode_file(
                 frames_total += audio_buf.frames() as u64;
 
                 pending.extend_from_slice(&interleaved);
-                while pending.len() >= CHUNK_SAMPLES {
-                    on_chunk(&pending[..CHUNK_SAMPLES])?;
-                    pending.drain(..CHUNK_SAMPLES);
+                while pending.len() >= STREAM_CHUNK_SAMPLES {
+                    on_chunk(&pending[..STREAM_CHUNK_SAMPLES])?;
+                    pending.drain(..STREAM_CHUNK_SAMPLES);
                 }
             }
             Err(SymphoniaError::DecodeError(_)) | Err(SymphoniaError::IoError(_)) => continue,

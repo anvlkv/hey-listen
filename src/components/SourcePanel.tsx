@@ -6,6 +6,9 @@ import { createEffect, on, onCleanup, Show } from "solid-js";
 import Button from "./Button";
 import Combobox from "./Combobox";
 import { createNumberDrag, type NumberDrag } from "../lib/dragNumber";
+import { formatClock, meterDbLabel, meterPercent } from "../lib/format";
+import { unwrapSingle } from "../lib/kobalte";
+import { createPopupMount } from "../lib/popupMount";
 import { openFileDialog, source } from "../state/source";
 import { openTool } from "../state/workbench";
 import {
@@ -84,13 +87,6 @@ const systemDevices = () => devices().filter((d) => d.sourceKind === "system" ||
 
 const toOptions = (list: DeviceLike[]) => list.map((device) => ({ value: device.id, label: device.name }));
 
-function formatTime(seconds: number): string {
-  const total = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(total / 60);
-  const secs = total % 60;
-  return `${minutes}:${secs.toString().padStart(2, "0")}`;
-}
-
 function positive(value: string, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
@@ -110,30 +106,18 @@ function processOptions() {
 function readout() {
   const target = targetDuration();
   return target > 0
-    ? `${formatTime(elapsed())} / ${formatTime(target)}`
-    : formatTime(elapsed());
-}
-
-// Meter fill uses a −60..0 dBFS scale so quiet signal is still visible.
-function meterPercent() {
-  const value = level();
-  if (value <= 0) return 0;
-  const db = 20 * Math.log10(value);
-  return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
-}
-
-function meterLabel() {
-  const value = level();
-  return value > 0 ? `${(20 * Math.log10(value)).toFixed(0)} dB` : "—";
+    ? `${formatClock(elapsed())} / ${formatClock(target)}`
+    : formatClock(elapsed());
 }
 
 /** The source-kind picker, shared by the hero and the replace controls. */
 function SourceKindSelect() {
+  const portal = createPopupMount();
   return (
     <Select<SourceChoiceOption>
       value={SOURCE_CHOICES.find((item) => item.value === choice())}
       onChange={(value) => {
-        const option = Array.isArray(value) ? value[0] : value;
+        const option = unwrapSingle(value);
         if (!option) return;
         setChoice(option.value);
         // Selections are per-kind: a mic device id is not valid for system, etc.
@@ -144,6 +128,9 @@ function SourceKindSelect() {
       optionValue="value"
       optionTextValue="label"
       disabled={recording()}
+      onOpenChange={(isOpen) => {
+        if (isOpen) portal.refresh();
+      }}
       sameWidth
       itemComponent={(item) => (
         <Select.Item item={item.item} class="pop-item">
@@ -152,13 +139,13 @@ function SourceKindSelect() {
         </Select.Item>
       )}
     >
-      <Select.Trigger class="select-trigger">
+      <Select.Trigger ref={portal.ref} class="select-trigger">
         <Select.Value<SourceChoiceOption> class="select-value">
           {(state) => state.selectedOption()?.label ?? "Audio file"}
         </Select.Value>
         <Select.Icon class="select-icon">▾</Select.Icon>
       </Select.Trigger>
-      <Select.Portal>
+      <Select.Portal mount={portal.mount()}>
         <Select.Content class="pop-content">
           <Select.Listbox class="pop-listbox" />
         </Select.Content>
@@ -251,17 +238,17 @@ function LiveControls(props: { startDrag: NumberDrag; stopDrag: NumberDrag }) {
 
       <Meter
         class="src-field"
-        value={meterPercent()}
+        value={meterPercent(level())}
         minValue={0}
         maxValue={100}
-        getValueLabel={() => meterLabel()}
+        getValueLabel={() => meterDbLabel(level())}
         title={monitoring() ? "Input level — live" : "Input level"}
       >
         <Meter.Label class="src-label">Level</Meter.Label>
         <Meter.Track class="src-meter">
           <Meter.Fill class="src-meter-fill" />
         </Meter.Track>
-        <span class="src-readout">{meterLabel()}</span>
+        <span class="src-readout">{meterDbLabel(level())}</span>
       </Meter>
 
       <Show when={!recording()}>

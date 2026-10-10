@@ -47,8 +47,9 @@ const MAX_RHYTHM_FRAMES: usize = 4096;
 const DEFAULT_BAR_LENGTH: usize = 4;
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export)]
 pub enum WindowKind {
     #[default]
     Hann,
@@ -72,8 +73,9 @@ impl WindowKind {
 /// with every `run_analysis` call. See `docs/data-model.md` → `SharedParams`.
 ///
 /// Also `Serialize`/`Default` so the project file can persist the analysis setup.
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SharedParams {
     /// FFT window size in samples (the UI offers 512…8192).
     pub fft_size: usize,
@@ -141,17 +143,14 @@ pub enum AnalysisError {
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
-impl Serialize for AnalysisError {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+serialize_error_as_string!(AnalysisError);
 
 // --- results -------------------------------------------------------------
 
 /// Time-domain waveform over the window plus its level readouts.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct WaveformResult {
     pub sample_rate: u32,
     pub frames: usize,
@@ -167,8 +166,9 @@ pub struct WaveformResult {
 }
 
 /// Averaged magnitude spectrum over the window.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SpectrumResult {
     pub sample_rate: u32,
     pub fft_size: usize,
@@ -189,8 +189,9 @@ pub struct SpectrumResult {
 }
 
 /// STFT magnitude heatmap over the window.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SpectrogramResult {
     pub sample_rate: u32,
     pub fft_size: usize,
@@ -208,8 +209,9 @@ pub struct SpectrogramResult {
 }
 
 /// Time-domain level readouts (peak / RMS), without the waveform envelope.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LevelsResult {
     pub sample_rate: u32,
     pub frames: usize,
@@ -222,8 +224,9 @@ pub struct LevelsResult {
 
 /// One scalar value per analysis frame, plotted against time. `values` may contain
 /// gaps (`None`) — e.g. unvoiced pitch frames or silent loudness blocks.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SeriesResult {
     pub sample_rate: u32,
     pub hop_size: usize,
@@ -236,8 +239,9 @@ pub struct SeriesResult {
 }
 
 /// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct MatrixResult {
     pub sample_rate: u32,
     pub hop_size: usize,
@@ -257,8 +261,9 @@ pub struct MatrixResult {
 /// Tempo / onset / downbeat analysis over one window: the onset-strength envelope
 /// (one value per frame) plus the detected beat grid and event times. The rhythm
 /// charts draw the envelope and mark the relevant events on it.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct RhythmResult {
     pub bpm: f32,
     pub confidence: f32,
@@ -276,23 +281,26 @@ pub struct RhythmResult {
 }
 
 /// Integrated loudness (EBU R128).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LufsResult {
     pub lufs: f32,
 }
 
 /// Loudness range (LRA), in LU.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct LraResult {
     pub lra: f32,
 }
 
 /// Per-tool options (not shared across tools). Absent fields fall back to the tool
 /// defaults; see `docs/analysis-tools.md`.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ToolOptions {
     #[serde(default)]
     pub n_mels: Option<usize>,
@@ -371,8 +379,9 @@ impl ToolOptions {
 }
 
 /// A tool's result, tagged by the tool id that produced it.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(tag = "tool", rename_all = "camelCase")]
+#[ts(export)]
 pub enum AnalysisResult {
     Waveform(WaveformResult),
     Spectrum(SpectrumResult),

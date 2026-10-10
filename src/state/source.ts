@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { pcmStream } from "../lib/pcmStream";
+import type { ProbeInfo } from "../bindings/ProbeInfo";
+import type { StreamSummary } from "../bindings/StreamSummary";
 import type { ChannelPick, Peaks } from "../lib/waveform";
 import { resetTimeline } from "./timeline";
 
@@ -16,24 +18,9 @@ export async function setWindowTitle(name?: string) {
   }
 }
 
-/** Metadata returned by the backend's `probe_file` command. */
-export interface ProbeInfo {
-  path: string;
-  name: string;
-  codec: string;
-  sampleRate: number;
-  channels: number;
-  bitsPerSample: number | null;
-  numFrames: number | null;
-  durationSecs: number | null;
-}
-
-/** Summary returned once the backend finished streaming a decoded file. */
-interface StreamSummary {
-  sampleRate: number;
-  channels: number;
-  frames: number;
-}
+/** Metadata returned by the backend's `probe_file` command (ts-rs binding). */
+/** Summary returned once the backend finished streaming a decoded file (ts-rs binding). */
+export type { ProbeInfo, StreamSummary };
 
 /**
  * The current project's audio source: PCM backing the timeline. Static for files,

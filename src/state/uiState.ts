@@ -13,6 +13,7 @@ import {
   windowStart,
 } from "./timeline";
 import { initUiSync, pushUiState, registerUiState } from "./uiSync";
+import { deepClone } from "../lib/clone";
 import { isPopoutWindow } from "../lib/windowRole";
 
 /**
@@ -34,19 +35,6 @@ interface ProjectState {
 
 /** A marker sourceId so a remote view applies to every chart in its group. */
 const REMOTE_VIEW = "__remote__";
-
-/** Deep-read a store so the effect tracks every leaf, returning a plain object. */
-function snapshot<T>(value: T): T {
-  if (Array.isArray(value)) return value.map((item) => snapshot(item)) as unknown as T;
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const key of Object.keys(value as object)) {
-      out[key] = snapshot((value as Record<string, unknown>)[key]);
-    }
-    return out as T;
-  }
-  return value;
-}
 
 registerUiState("timeline", (value) => {
   const v = value as TimelineState;
@@ -88,7 +76,7 @@ export async function initUiState(): Promise<void> {
       } satisfies TimelineState),
     );
     createEffect(() => pushUiState("params", sharedParams()));
-    createEffect(() => pushUiState("toolOptions", snapshot(toolOptions)));
+    createEffect(() => pushUiState("toolOptions", deepClone(toolOptions)));
     // The project name is owned by the project window (a popout's source is only a
     // stub, so it must not push its derived name back).
     if (!isPopoutWindow) {

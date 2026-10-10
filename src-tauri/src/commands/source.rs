@@ -80,8 +80,9 @@ pub fn end_capture_source(window: WebviewWindow) {
 
 /// The shared source's shape, for a popout window to render a tool against the
 /// parent's project without loading the PCM into the frontend.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SharedSourceInfo {
     pub sample_rate: u32,
     pub channels: u16,
@@ -89,17 +90,25 @@ pub struct SharedSourceInfo {
     pub duration: f64,
 }
 
+/// Errors produced while resolving a window's shared source.
+#[derive(Debug, thiserror::Error)]
+pub enum SourceError {
+    #[error("no source loaded")]
+    NoSource,
+}
+
+// `tauri` command errors must be `Serialize`; surface the human-readable message.
+serialize_error_as_string!(SourceError);
+
 #[tauri::command]
-pub fn load_shared_source(window: WebviewWindow) -> Result<SharedSourceInfo, String> {
+pub fn load_shared_source(window: WebviewWindow) -> Result<SharedSourceInfo, SourceError> {
     let state = window_state(&window);
     let guard = state
         .audio
         .source
         .lock()
         .unwrap_or_else(|poison| poison.into_inner());
-    let source = guard
-        .as_ref()
-        .ok_or_else(|| "no source loaded".to_string())?;
+    let source = guard.as_ref().ok_or(SourceError::NoSource)?;
     let channels = source.channels.max(1) as usize;
     let frames = source.samples.len() / channels;
     let sample_rate = source.sample_rate.max(1);

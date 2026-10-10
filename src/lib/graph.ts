@@ -5,29 +5,20 @@
  * connected (each input takes exactly one source), and the graph's result is read
  * from the single **Output** node. The filter graph also has an **Input** node.
  *
+ /**
  * The palette here must stay in sync with the Rust compiler
  * (`src-tauri/src/audio/graph.rs` → `make_unit` / `kind_arity`); the compiler rejects
  * unknown kinds and impossible wiring, so drift surfaces as a `graph-error`.
  */
 
-/** A graph as it crosses IPC to the Rust core (camelCase keys). */
-export interface GraphSpec {
-  nodes: SpecNode[];
-  edges: SpecEdge[];
-}
+import type { GraphSpec } from "../bindings/GraphSpec";
 
-export interface SpecNode {
-  id: string;
-  kind: string;
-  params: number[];
-}
-
-export interface SpecEdge {
-  from: string;
-  fromPort: number;
-  to: string;
-  toPort: number;
-}
+/**
+ * A graph as it crosses IPC to the Rust core. The shape is generated from the Rust
+ * `GraphSpec`/`GraphNode`/`GraphEdge` via ts-rs (`src/bindings/`), so the editor and
+ * the core share one definition.
+ */
+export type { GraphSpec };
 
 /** The two graph editors (each its own Workbench tab). */
 export type GraphKind = "filter" | "synth";

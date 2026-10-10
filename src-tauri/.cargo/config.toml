@@ -1,0 +1,8 @@
+# ts-rs: generate the TypeScript bindings for the IPC boundary types into the
+# frontend source tree (`cargo test`), so the two sides share one source of truth.
+# `relative = true` resolves the path relative to this config's directory (src-tauri/).
+# `TS_RS_LARGE_INT = "number"` maps Rust's 64-bit ints (u64/i64) to `number` — the
+# frontend treats frame counts / timestamps as JS numbers, not `bigint`.
+[env]
+TS_RS_EXPORT_DIR = { value = "../src/bindings", relative = true }
+TS_RS_LARGE_INT = "number"

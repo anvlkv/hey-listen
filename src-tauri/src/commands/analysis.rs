@@ -14,8 +14,9 @@ use crate::state::window_state;
 
 /// One `run_analysis` request: the tool id, the analysis window (source seconds),
 /// the shared params, and any per-tool options (`docs/data-model.md`).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct AnalysisRequest {
     pub tool: String,
     pub start: f64,
