@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
-import { channel } from "../state/analysis";
+import { channel, channelArg } from "../state/analysis";
 import { filterRevision } from "../state/graph";
 import { outputDeviceId } from "../state/output";
 
@@ -24,18 +24,12 @@ let startedAt = 0;
 /** Whether a preview region is currently loaded/playing (drives the output meter). */
 export const [previewPlaying, setPreviewPlaying] = createSignal(false);
 
-/** The shared channel pick as an IPC value: a 0-based index, or `null` to downmix. */
-function channelArg(): number | null {
-  const pick = channel();
-  return typeof pick === "number" ? pick : null;
-}
-
 function issue(start: number, end: number, loop: boolean) {
   void invoke("preview_region", {
     start,
     end,
     loopRegion: loop,
-    channel: channelArg(),
+    channel: channelArg(channel()),
     device: outputDeviceId(),
   }).catch((err) => {
     console.error("preview failed", err);

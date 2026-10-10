@@ -1,4 +1,5 @@
 import { Select } from "@kobalte/core/select";
+import { unwrapSingle } from "../lib/kobalte";
 import { createPopupMount } from "../lib/popupMount";
 
 /**
@@ -34,7 +35,7 @@ export default function SelectField<T>(props: {
       value={current()}
       disabled={props.disabled}
       onChange={(value) => {
-        const option = Array.isArray(value) ? value[0] : value;
+        const option = unwrapSingle(value);
         if (option) props.onChange(option.value);
       }}
       onOpenChange={(isOpen) => {

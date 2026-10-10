@@ -54,6 +54,10 @@ pub const SECTION_RESULTS: u8 = 0x06;
 
 /// Interleaved samples per `DATA` chunk (~256 KiB at `f32`). Bounds per-chunk memory
 /// and keeps the chunk index small.
+///
+/// Deliberately distinct from `crate::audio::STREAM_CHUNK_SAMPLES`: this is part of
+/// the on-disk format (the reader/writer and the `DATA` header record it), so it must
+/// not drift with the in-memory IPC streaming chunk size.
 pub const DATA_CHUNK_SAMPLES: usize = 64 * 1024;
 
 // `DATA` section sub-layout: a self-describing header, the chunks, a trailing

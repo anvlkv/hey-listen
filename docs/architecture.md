@@ -93,7 +93,15 @@ Logging writes to the app's log directory — on macOS
 every launch** (`FileOpenStrategy::Rotate`) and rotating once it exceeds 2 MB
 (`max_file_size`, `RotationStrategy::KeepSome(3)`).
 
-## IPC surface (planned)
+## IPC surface
+
+The commands and channels below are all implemented; milestone notes record the details.
+
+> **Type exchange (ts-rs).** The structured types crossing IPC (shared params,
+> analysis results, device/process DTOs, project sections) are defined once in Rust
+> with `#[derive(ts_rs::TS)]`; `cargo test` exports their TypeScript definitions to
+> `src/bindings/`, and the frontend imports them instead of hand-mirroring the
+> shapes. See [`dependencies.md`](dependencies.md) → Tooling notes.
 
 **Commands** (`invoke`):
 
@@ -118,15 +126,15 @@ every launch** (`FileOpenStrategy::Rotate`) and rotating once it exceeds 2 MB
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 
-> **Implemented so far (M4):** file source uses `pick_audio_file` → `probe_file` →
+> **Implemented:** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
 > Live capture uses `list_devices` / `list_processes` and
 > `start_capture` / `stop_capture` / `pause_capture` / `resume_capture` /
 > `set_capture_gain`. The core owns the source PCM: `stream_file` and
 > `render_synth` set it, `begin_capture_source` / `end_capture_source` gate
-> capture appends, and `clear_audio_source` drops it. Analysis uses the single
-> `run_analysis` command (tool id + window + shared params → typed result); the
-> first tools are waveform, spectrum, and spectrogram.
+> capture appends, and `clear_audio_source` drops it. Every analysis tool (M5) is
+> dispatched through the single `run_analysis` command (tool id + window + shared
+> params → typed result).
 > `open_source`/`close_source` remain the planned unification of the source kinds.
 
 > **Implemented (M6):** `save_project(path, { name, createdMs, source, setup, layout })`
@@ -167,7 +175,9 @@ every launch** (`FileOpenStrategy::Rotate`) and rotating once it exceeds 2 MB
 
 1. **Open a source** — file (symphonia), input (flexaudio), or synth (fundsp).
 2. **Timeline** — the frontend receives PCM (full decode for file/synth, growing
-   stream for inputs) and renders the waveform + window range.
+   stream for inputs) and renders the waveform + window range. It is a **view only**
+   for the waveform: the **core owns the source PCM** (ADR-9); the frontend keeps a
+   transitional duplicate just for the Timeline (see `decisions.md`).
 3. **Filter (optional)** — the user edits a fundsp graph in the **Filter graph**
    Workbench tab (`solid-flow`); the Rust backend (`audio/graph.rs`) compiles it to
    a fundsp `Net` applied before preview and analysis.
@@ -218,7 +228,9 @@ Both windows drive the same core state:
   `Arc<Mutex<…>>`. The callback also tracks the output block's peak for the
   `output_level` meter.
 - The frontend is single-threaded (SolidJS); heavy PCM is streamed, not posted
-  as one giant JSON blob.
+  as one giant JSON blob. The **core owns the source PCM** (ADR-9) and each
+  project's **shared UI state** (ADR-11); the frontend keeps only the transitional
+  waveform copy and drives the UI.
 
 ## Analysis execution model
 

@@ -1,10 +1,10 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import Readout from "./Readout";
-import EmptyState from "../EmptyState";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
+import { createReframeHandler, NoAudioState, timeRangeLabel } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/settings";
 import {
@@ -338,17 +338,15 @@ export default function MatrixView(props: {
   }
 
   /** Right-click: reframe the timeline window from the time under the pointer. */
-  function onContextMenu(event: MouseEvent) {
-    event.preventDefault();
+  const onContextMenu = createReframeHandler((event) => {
     const value = result();
     const v = view();
-    if (!value || !v) return;
+    if (!value || !v) return null;
     const rect = canvas.getBoundingClientRect();
     const box = plot();
     const x = event.clientX - rect.left;
-    const time = v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
-    setMenu({ x: event.clientX, y: event.clientY, time });
-  }
+    return v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
+  }, setMenu);
 
   // --- lifecycle ---------------------------------------------------------
 
@@ -381,10 +379,7 @@ export default function MatrixView(props: {
     draw();
   });
 
-  const zoomLabel = () => {
-    const v = view();
-    return v ? `${v.t0.toFixed(3)} – ${v.t1.toFixed(3)} s` : "";
-  };
+  const zoomLabel = () => timeRangeLabel(view());
 
   const hasGrid = () => {
     const r = result();
@@ -434,12 +429,7 @@ export default function MatrixView(props: {
         <Show
           when={result()}
           fallback={
-            <EmptyState
-              icon="∿"
-              title="No audio to analyse"
-              hint="Open a file, record, or render a synth from the Source panel."
-              overlay
-            />
+            <NoAudioState overlay />
           }
         >
           <Show

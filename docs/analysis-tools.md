@@ -26,7 +26,7 @@ uses it. Each `run_analysis` call carries them.
 | Hop / overlap | all frame-based tools | fraction of window or explicit frames |
 | Randomized overlap | all frame-based tools | optional; synced too |
 | Window function | spectral, pitch | Hann / Hamming / Blackman / rectangular |
-| Channel selection | all tools | mono-mix / L / R / mid / side |
+| Channel selection | all tools | downmix (mono) / Left / Right / Channel N (0-based) |
 | Analysis sample rate | all tools | optional resample before analysis |
 | Frequency range (min/max Hz) | spectral, pitch | band-limit before spectral/pitch |
 

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createSignal } from "solid-js";
 import { previewPlaying } from "../audio/preview";
+import type { OutputDeviceDto } from "../bindings/OutputDeviceDto";
 
 /**
  * Output/preview settings: the cpal output device and the preview gain.
@@ -10,11 +11,8 @@ import { previewPlaying } from "../audio/preview";
  * next preview (the core rebuilds its output stream when the device changes).
  */
 
-export interface OutputDevice {
-  id: string;
-  name: string;
-  isDefault: boolean;
-}
+/** An audio output device (ts-rs binding), for the preview device picker. */
+export type OutputDevice = OutputDeviceDto;
 
 export const [outputDevices, setOutputDevices] = createSignal<OutputDevice[]>([]);
 /** Selected device id, or `null` for the system default. */

@@ -5,17 +5,12 @@ import { pcmStream } from "../lib/pcmStream";
 import { recording, stopCapture } from "./capture";
 import { SYNTH_GRAPH } from "./graph";
 import { finalizeSource, setError, setStatus, source } from "./source";
+import type { StreamSummary } from "../bindings/StreamSummary";
 
 /**
  * Synth rendering: build the fundsp net in the core, stream the rendered PCM back,
  * and adopt it as the project source (replacing the timeline).
  */
-
-interface StreamSummary {
-  sampleRate: number;
-  channels: number;
-  frames: number;
-}
 
 export const [rendering, setRendering] = createSignal(false);
 export const [synthError, setSynthError] = createSignal<string | null>(null);

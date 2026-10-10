@@ -17,6 +17,7 @@
 | `serde` / `serde_json` | 1 | serialization | MIT / Apache-2.0 |
 | `postcard` | 1 | binary codec for the project file | MIT / Apache-2.0 |
 | `thiserror` | 2 | error types | MIT / Apache-2.0 |
+| `ts-rs` | 12 | generate the TypeScript bindings for the IPC boundary types (via `cargo test`) | MIT |
 
 ## Frontend (`package.json`)
 
@@ -59,3 +60,8 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); the `flexaudio-vad
   `cargo install tauri-cli --version 2.12.1`.
 - **Release / packaging (M7):** bundle with `npm run tauri build`; add GitHub
   release workflows and a build matrix covering the supported platforms.
+- **Type exchange (ts-rs):** the structured IPC types are defined once in Rust with
+  `#[derive(ts_rs::TS)]` + `#[ts(export)]`. `cargo test` regenerates their TypeScript
+  definitions into `src/bindings/` (configured by `src-tauri/.cargo/config.toml`,
+  `TS_RS_LARGE_INT = "number"`), and the frontend imports them — so the two sides
+  cannot drift. Run `cargo test` after changing a boundary type.

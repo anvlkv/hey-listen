@@ -1,5 +1,6 @@
 import { createEffect, createRoot, createSignal } from "solid-js";
 import type { SerializedDockview } from "dockview";
+import { deepClone } from "../lib/clone";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
 import {
@@ -51,14 +52,9 @@ const DEBOUNCE_MS = 350;
 /** Bound the history so a long session cannot grow without limit. */
 const MAX_HISTORY = 100;
 
-/** Deep-clone to detach store proxies / graphs into plain snapshots. */
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
 /** Read the whole editable project as a detached, serializable snapshot. */
 function capture(): Snapshot {
-  return clone({
+  return deepClone({
     filter: graphLayout("filter"),
     synth: graphLayout("synth"),
     filterEnabled: filterEnabled(),
@@ -75,7 +71,7 @@ function capture(): Snapshot {
 function apply(snapshot: Snapshot) {
   // Apply a copy: `setToolOptions` / `loadGraph` adopt the objects they are handed,
   // so a later edit would otherwise mutate the snapshot stored for redo.
-  const snap = clone(snapshot);
+  const snap = deepClone(snapshot);
   loadGraph("filter", snap.filter);
   loadGraph("synth", snap.synth);
   setFilterEnabled(snap.filterEnabled);

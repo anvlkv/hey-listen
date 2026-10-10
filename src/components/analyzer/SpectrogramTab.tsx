@@ -1,15 +1,15 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
-import EmptyState from "../EmptyState";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
 import ZoomControls from "./ZoomControls";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import { createAnalysis, type SpectrogramResult } from "../../state/analyzer";
+import { createAnalysis, formatHz, type SpectrogramResult } from "../../state/analyzer";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/settings";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
+import { NoAudioState, timeRangeLabel } from "./chartCommon";
 
 /** Stable sync id for this canvas chart (there are no duplicate tabs). */
 const SPECTROGRAM_ID = "spectrogram";
@@ -447,10 +447,7 @@ export default function SpectrogramTab() {
     draw();
   });
 
-  const zoomLabel = () => {
-    const v = view();
-    return v ? `${v.t0.toFixed(3)} – ${v.t1.toFixed(3)} s` : "";
-  };
+  const zoomLabel = () => timeRangeLabel(view());
 
   const hasGrid = () => {
     const result = analysis.result();
@@ -520,7 +517,7 @@ export default function SpectrogramTab() {
           />
           <Show
             when={analysis.result()}
-            fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel." overlay />}
+            fallback={<NoAudioState overlay />}
           >
             <Show
               when={hasGrid()}
@@ -543,8 +540,4 @@ export default function SpectrogramTab() {
       </div>
     </AnalyzerTab>
   );
-}
-
-function formatHz(hz: number): string {
-  return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${hz.toFixed(0)} Hz`;
 }

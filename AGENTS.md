@@ -60,8 +60,8 @@ Load the matching skill (via the `skill` tool) before working in that area:
 
 ## Hard rules (from the spec — do not violate)
 
-- **Timeline, Sidebar, and Workbench are fixed regions, not tabs.** The only tabs
-  are Workbench tabs — the **graph editors** (`filter` / `synth`, see ADR-10) and
+- **Timeline, Sidebar, Workbench, and Source are fixed regions, not tabs.** The only
+  tabs are Workbench tabs — the **graph editors** (`filter` / `synth`, see ADR-10) and
   the **analyzer tabs** — and they live inside the Workbench (managed by `dockview`).
 - **One window = one project = one source.** Changing the source replaces the
   whole timeline.

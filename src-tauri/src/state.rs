@@ -219,14 +219,7 @@ impl WindowRegistry {
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        let mut current = label.to_string();
-        let mut seen = std::collections::HashSet::new();
-        while let Some(parent) = inner.aliases.get(&current) {
-            if !seen.insert(current.clone()) {
-                break;
-            }
-            current = parent.clone();
-        }
+        let current = resolve_root(&inner.aliases, label);
         inner
             .states
             .entry(current)

@@ -7,15 +7,8 @@ import { setError, setSource, setStatus, source } from "./state/source";
 import { resetTimeline, windowEnd, windowStart } from "./state/timeline";
 import { initUiState } from "./state/uiState";
 import { toolById, type ToolId } from "./state/workbench";
+import type { SharedSourceInfo } from "./bindings/SharedSourceInfo";
 import "./App.css";
-
-/** The source's shape, enough to drive a tool against the shared core PCM. */
-interface SharedSourceInfo {
-  sampleRate: number;
-  channels: number;
-  frames: number;
-  duration: number;
-}
 
 /**
  * A popped-out Workbench tab: a full app instance that renders a **single tool**

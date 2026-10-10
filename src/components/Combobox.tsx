@@ -1,5 +1,6 @@
 import { Combobox as KCombobox } from "@kobalte/core/combobox";
 import { createMemo } from "solid-js";
+import { unwrapSingle } from "../lib/kobalte";
 import { createPopupMount } from "../lib/popupMount";
 
 export interface ComboOption {
@@ -34,12 +35,6 @@ export default function Combobox(props: {
 
   const selected = createMemo(() => all().find((option) => option.value === (props.value ?? "")));
 
-  // Kobalte deals in option objects; keep `multiple` off so it is always a single option.
-  const pick = (value: ComboOption | ComboOption[] | null): ComboOption | undefined => {
-    if (value == null) return undefined;
-    return Array.isArray(value) ? value[0] : value;
-  };
-
   return (
     <KCombobox<ComboOption>
       class="combo"
@@ -50,7 +45,7 @@ export default function Combobox(props: {
       optionDisabled={() => false}
       value={selected()}
       onChange={(value) => {
-        const option = pick(value);
+        const option = unwrapSingle(value);
         props.onChange(!option || option.value === "" ? null : option.value);
       }}
       placeholder={props.placeholder}

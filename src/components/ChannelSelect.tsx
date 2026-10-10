@@ -2,6 +2,7 @@ import { Select } from "@kobalte/core/select";
 import { createEffect, on } from "solid-js";
 import { channel, channelOptions, setChannel, type ChannelOption } from "../state/analysis";
 import { source } from "../state/source";
+import { unwrapSingle } from "../lib/kobalte";
 import { createPopupMount } from "../lib/popupMount";
 
 /**
@@ -35,7 +36,7 @@ export default function ChannelSelect() {
       optionTextValue="label"
       value={current()}
       onChange={(value) => {
-        const option = Array.isArray(value) ? value[0] : value;
+        const option = unwrapSingle(value);
         if (option) setChannel(option.value);
       }}
       onOpenChange={(isOpen) => {

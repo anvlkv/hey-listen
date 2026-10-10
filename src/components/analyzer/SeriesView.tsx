@@ -1,8 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import { createSignal, For, Show } from "solid-js";
-import ChartTooltip from "./ChartTooltip";
-import EmptyState from "../EmptyState";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -18,6 +16,13 @@ import {
   Y_AXIS_SIZE,
   Y_AXIS_SPACE,
 } from "./axisFormat";
+import {
+  chartAxisStyle,
+  createUplotReframeHandler,
+  NoAudioState,
+  timeRangeLabel,
+  timeTooltip,
+} from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/settings";
 import {
@@ -28,12 +33,6 @@ import {
   type SeriesResult,
   type SeriesView as SeriesViewConfig,
 } from "../../state/analyzer";
-
-/** uPlot axis styling for the active theme (read on each chart (re)mount). */
-function axisStyle() {
-  const t = chartTheme();
-  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
-}
 
 const isPitch = (id: AnalyzerId) => id.startsWith("pitch");
 
@@ -53,14 +52,7 @@ export default function SeriesView(props: {
   const zoom = createUplotZoom();
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
-  const Tooltip = (tooltipProps: TooltipProps) => (
-    <ChartTooltip
-      {...tooltipProps}
-      xLabel="t"
-      formatX={(value) => `${value.toFixed(3)} s`}
-      formatY={view().formatY}
-    />
-  );
+  const Tooltip = timeTooltip(view().formatY);
 
   const data = (): [number[], (number | null)[]] => {
     const r = result();
@@ -74,25 +66,13 @@ export default function SeriesView(props: {
     return !!r && r.times.length >= 2 && r.values.some((value) => value != null);
   };
 
-  const zoomLabel = () => {
-    const range = zoom.range();
-    return range ? `${range[0].toFixed(3)} – ${range[1].toFixed(3)} s` : "";
-  };
-
   /** Right-click: reframe the timeline window from the time under the pointer. */
-  const openMenu = (event: MouseEvent) => {
-    event.preventDefault();
-    const u = zoom.instance();
-    if (!u || !u.over) return;
-    const rect = u.over.getBoundingClientRect();
-    const time = u.posToVal(event.clientX - rect.left, "x");
-    setMenu({ x: event.clientX, y: event.clientY, time });
-  };
+  const openMenu = createUplotReframeHandler(zoom, setMenu);
 
   return (
     <Show
       when={result()}
-      fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel — the analysis appears here." />}
+      fallback={<NoAudioState />}
     >
       {(r) => (
         <div class="analyzer-chart">
@@ -123,7 +103,7 @@ export default function SeriesView(props: {
                 onZoomIn={zoom.zoomIn}
                 onZoomOut={zoom.zoomOut}
                 onFit={zoom.fit}
-                label={zoomLabel()}
+                label={timeRangeLabel(zoom.range())}
               />
               <Show when={resolvedTheme()} keyed>
                 <SolidUplot
@@ -144,14 +124,14 @@ export default function SeriesView(props: {
                   scales={{ x: { time: false }, y: { range: paddedYRange } }}
                   axes={[
                     {
-                      ...axisStyle(),
+                      ...chartAxisStyle(),
                       label: "time (s)",
                       size: X_AXIS_SIZE,
                       space: TIME_AXIS_SPACE,
                       values: timeAxisValues,
                     },
                     {
-                      ...axisStyle(),
+                      ...chartAxisStyle(),
                       label: view().yLabel,
                       size: Y_AXIS_SIZE,
                       space: Y_AXIS_SPACE,

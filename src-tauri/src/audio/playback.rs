@@ -32,15 +32,12 @@ pub enum PlaybackError {
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
-impl Serialize for PlaybackError {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+serialize_error_as_string!(PlaybackError);
 
 /// An output device the user can preview through.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct OutputDeviceDto {
     pub id: String,
     pub name: String,
@@ -82,7 +79,12 @@ impl Default for PlayState {
 }
 
 enum Control {
-    Rebuild(Option<String>),
+    /// Switch output device. `ready` carries back the sample rate of whichever
+    /// stream is live after the attempt (the new one, or the retained old one).
+    Rebuild {
+        device: Option<String>,
+        ready: Sender<u32>,
+    },
     Shutdown,
 }
 
@@ -117,7 +119,27 @@ impl Playback {
             .unwrap_or_else(|poison| poison.into_inner());
         if let Some(worker) = worker.as_mut() {
             if worker.device != device {
-                let _ = worker.control.send(Control::Rebuild(device.clone()));
+                // Ask the worker to rebuild and wait for the new stream's true rate.
+                // A switch to a device with a different sample rate must be reflected
+                // in what we return (callers like `preview_region` resample to it).
+                //
+                // Blocking here is safe: the worker never locks `self.worker`, and the
+                // `!Send` `cpal::Stream` stays on the worker thread, so there is no
+                // deadlock and no stream on a command-side lock. If the rebuild fails
+                // the worker keeps the previous stream and reports its (unchanged) rate.
+                let (ready_tx, ready_rx) = mpsc::channel::<u32>();
+                if worker
+                    .control
+                    .send(Control::Rebuild {
+                        device: device.clone(),
+                        ready: ready_tx,
+                    })
+                    .is_ok()
+                {
+                    if let Ok(rate) = ready_rx.recv() {
+                        worker.device_rate = rate;
+                    }
+                }
                 worker.device = device;
             }
             return Ok(worker.device_rate);
@@ -283,10 +305,10 @@ fn worker_loop(
     ready: Sender<Result<u32, PlaybackError>>,
     initial: Option<String>,
 ) {
-    let mut stream = match build_stream(initial.as_deref(), shared.clone()) {
+    let (mut stream, mut rate) = match build_stream(initial.as_deref(), shared.clone()) {
         Ok((stream, rate)) => {
             let _ = ready.send(Ok(rate));
-            stream
+            (stream, rate)
         }
         Err(err) => {
             let _ = ready.send(Err(err));
@@ -297,11 +319,14 @@ fn worker_loop(
     while let Ok(command) = commands.recv() {
         match command {
             Control::Shutdown => break,
-            Control::Rebuild(device) => {
-                // Keep the previous stream if the new device cannot be opened.
-                if let Ok((next, _rate)) = build_stream(device.as_deref(), shared.clone()) {
+            Control::Rebuild { device, ready } => {
+                // Keep the previous stream (and its rate) if the new device cannot be
+                // opened, and always report the rate now in effect.
+                if let Ok((next, next_rate)) = build_stream(device.as_deref(), shared.clone()) {
                     stream = next;
+                    rate = next_rate;
                 }
+                let _ = ready.send(rate);
             }
         }
     }

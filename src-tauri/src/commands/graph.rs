@@ -8,10 +8,9 @@ use tauri::WebviewWindow;
 
 use crate::audio::decode::StreamSummary;
 use crate::audio::graph::{self, GraphError, GraphSpec};
+use crate::audio::STREAM_CHUNK_SAMPLES;
+use crate::commands::stream;
 use crate::state::{window_state, SourcePcm};
-
-/// Interleaved samples per streamed chunk from a rendered synth (256 KiB).
-const RENDER_CHUNK: usize = 64 * 1024;
 
 /// Install (or clear) the project's filter graph. Validated as a filter (one
 /// global input); an invalid graph clears the filter and surfaces the error.
@@ -56,20 +55,12 @@ pub async fn render_synth(
             .await
             .map_err(|err| GraphError::Stream(err.to_string()))??;
 
-    for chunk in pcm.chunks(RENDER_CHUNK) {
-        let mut bytes = Vec::with_capacity(chunk.len() * 4);
-        for sample in chunk {
-            bytes.extend_from_slice(&sample.to_le_bytes());
-        }
-        on_chunk
-            .send(InvokeResponseBody::Raw(bytes))
-            .map_err(|err| GraphError::Stream(err.to_string()))?;
+    for chunk in pcm.chunks(STREAM_CHUNK_SAMPLES) {
+        stream::send_f32_chunk(&on_chunk, chunk).map_err(GraphError::Stream)?;
     }
 
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
-    on_chunk
-        .send(InvokeResponseBody::Raw(Vec::new()))
-        .map_err(|err| GraphError::Stream(err.to_string()))?;
+    stream::send_end_sentinel(&on_chunk).map_err(GraphError::Stream)?;
 
     let frames = pcm.len() as u64;
     window_state(&window).audio.set_source(Some(SourcePcm {
@@ -139,20 +130,12 @@ pub async fn render_filtered(
     .await
     .map_err(|err| GraphError::Stream(err.to_string()))??;
 
-    for chunk in mono.chunks(RENDER_CHUNK) {
-        let mut bytes = Vec::with_capacity(chunk.len() * 4);
-        for sample in chunk {
-            bytes.extend_from_slice(&sample.to_le_bytes());
-        }
-        on_chunk
-            .send(InvokeResponseBody::Raw(bytes))
-            .map_err(|err| GraphError::Stream(err.to_string()))?;
+    for chunk in mono.chunks(STREAM_CHUNK_SAMPLES) {
+        stream::send_f32_chunk(&on_chunk, chunk).map_err(GraphError::Stream)?;
     }
 
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
-    on_chunk
-        .send(InvokeResponseBody::Raw(Vec::new()))
-        .map_err(|err| GraphError::Stream(err.to_string()))?;
+    stream::send_end_sentinel(&on_chunk).map_err(GraphError::Stream)?;
 
     Ok(StreamSummary {
         sample_rate,

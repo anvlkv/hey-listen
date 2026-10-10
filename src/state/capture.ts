@@ -2,6 +2,10 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { PeakAccumulator } from "../lib/waveform";
+import type { DeviceDto } from "../bindings/DeviceDto";
+import type { ProcessDto } from "../bindings/ProcessDto";
+import type { CaptureInfo } from "../bindings/CaptureInfo";
+import type { CaptureEvent } from "../bindings/CaptureEvent";
 import { channel, channelFor } from "./analysis";
 import { closeSource, setError, setSource, setStatus, source } from "./source";
 import { resetTimeline, setView, setWindowEnd, setWindowStart } from "./timeline";
@@ -28,34 +32,15 @@ export const KIND_LABEL: Record<CaptureKind, string> = {
   mix: "Mic + system",
 };
 
-export interface DeviceInfo {
-  id: string;
-  name: string;
-  sourceKind: string;
-  isLoopback: boolean;
-  isDefault: boolean;
-  sampleRate: number;
-  channels: number;
-}
+/** Enumerated capture devices / processes (ts-rs bindings). */
+export type DeviceInfo = DeviceDto;
+export type ProcessInfo = ProcessDto;
 
-export interface ProcessInfo {
-  pid: number;
-  name: string;
-  executable: string | null;
-  bundleId: string | null;
-  isOutputActive: boolean | null;
-}
+/** Capture format returned once a session starts (ts-rs binding). */
+export type { CaptureInfo };
 
-interface CaptureInfo {
-  sampleRate: number;
-  channels: number;
-}
-
-/** Payload of the `source_status` event. */
-interface CaptureStatusEvent {
-  kind: string;
-  message: string | null;
-}
+/** Payload of the `source_status` event (ts-rs binding). */
+type CaptureStatusEvent = CaptureEvent;
 
 const STATUS_TEXT: Record<string, string> = {
   permission: "capture permission denied",

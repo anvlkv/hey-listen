@@ -3,7 +3,6 @@ import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
-import EmptyState from "../EmptyState";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ZoomControls from "./ZoomControls";
@@ -16,15 +15,10 @@ import {
   Y_AXIS_SIZE,
   Y_AXIS_SPACE,
 } from "./axisFormat";
+import { chartAxisStyle, frequencyRangeLabel, NoAudioState } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/settings";
-import { createAnalysis, toolOptions, type SpectrumResult } from "../../state/analyzer";
-
-/** uPlot axis styling for the active theme (read on each chart (re)mount). */
-function axisStyle() {
-  const t = chartTheme();
-  return { stroke: t.axis, grid: { stroke: t.grid }, ticks: { stroke: t.ticks }, font: t.font };
-}
+import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
 
 const Tooltip = (props: TooltipProps) => (
   <ChartTooltip
@@ -34,10 +28,6 @@ const Tooltip = (props: TooltipProps) => (
     formatY={(value) => `${value.toFixed(1)} dB`}
   />
 );
-
-function formatHz(hz: number): string {
-  return hz >= 1000 ? `${(hz / 1000).toFixed(2)} kHz` : `${hz.toFixed(0)} Hz`;
-}
 
 /** Per-tool switch (a 0/1 `select`) that shows one magnitude layer. */
 type LayerKey = "showMin" | "showMax" | "showMean";
@@ -99,10 +89,7 @@ export default function SpectrumTab() {
     return !!result && result.freqs.length >= 2 && LAYERS.some((l) => layerReady(l, result));
   };
 
-  const zoomLabel = () => {
-    const range = zoom.range();
-    return range ? `${formatHz(range[0])} – ${formatHz(range[1])}` : "";
-  };
+  const zoomLabel = () => frequencyRangeLabel(zoom.range());
 
   return (
     <AnalyzerTab
@@ -114,7 +101,7 @@ export default function SpectrumTab() {
     >
       <Show
         when={analysis.result()}
-        fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel — the analysis appears here." />}
+        fallback={<NoAudioState />}
       >
         {(result) => (
           <div class="analyzer-chart">
@@ -170,13 +157,13 @@ export default function SpectrumTab() {
                     }}
                     axes={[
                       {
-                        ...axisStyle(),
+                        ...chartAxisStyle(),
                         label: "frequency (Hz)",
                         size: X_AXIS_SIZE,
                         space: FREQ_AXIS_SPACE,
                         values: frequencyAxisValues,
                       },
-                      { ...axisStyle(), label: "level (dB)", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
+                      { ...chartAxisStyle(), label: "level (dB)", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
                     ]}
                   />
                 </Show>

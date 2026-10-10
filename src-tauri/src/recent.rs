@@ -132,7 +132,9 @@ fn write_store<R: Runtime>(app: &AppHandle<R>, items: &[RecentProject]) {
     }
 }
 
-fn now_ms() -> u64 {
+/// Current Unix time in milliseconds (shared by the recent list and the project
+/// file store, so both stamp `opened_ms` / `modified_ms` the same way).
+pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| elapsed.as_millis() as u64)

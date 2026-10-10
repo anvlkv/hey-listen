@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { pcmStream } from "../lib/pcmStream";
-import { channel, channelFor } from "./analysis";
+import { channel, channelArg, channelFor } from "./analysis";
 import { filterEnabled, filterRevision } from "./graph";
 import { source } from "./source";
+import type { StreamSummary } from "../bindings/StreamSummary";
 
 /**
  * The filtered (conditioned) mono PCM for the current source, streamed from the
@@ -19,13 +20,6 @@ const [filteredSamples, setFilteredSamples] = createSignal<Float32Array | null>(
 const [filteredRate, setFilteredRate] = createSignal(0);
 
 export { filteredSamples, filteredRate };
-
-/** Summary returned by `render_filtered` (see `audio/decode::StreamSummary`). */
-interface StreamSummary {
-  sampleRate: number;
-  channels: number;
-  frames: number;
-}
 
 /** Debounce like the filter push, so a burst of edits triggers one render. */
 const DEBOUNCE_MS = 250;
@@ -46,7 +40,7 @@ async function fetchFiltered() {
   const stream = pcmStream();
   try {
     const summary = await invoke<StreamSummary>("render_filtered", {
-      channel: pick === "mix" ? null : pick,
+      channel: channelArg(pick),
       onChunk: stream.channel,
     });
     await stream.done;
