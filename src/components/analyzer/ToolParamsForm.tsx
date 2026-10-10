@@ -1,7 +1,15 @@
 import { NumberField } from "@kobalte/core/number-field";
-import { For, Show } from "solid-js";
+import { Switch as KSwitch } from "@kobalte/core/switch";
+import { For, Match, Show, Switch } from "solid-js";
 import SelectField from "../SelectField";
-import { analyzerById, setToolOption, toolOptions, type AnalyzerId } from "../../state/analyzer";
+import { createNumberDrag } from "../../lib/dragNumber";
+import {
+  analyzerById,
+  setToolOption,
+  toolOptions,
+  type AnalyzerId,
+  type ToolParamField,
+} from "../../state/analyzer";
 
 /**
  * Per-tool params (not shared), rendered in the analyzer's params popover below the
@@ -21,42 +29,22 @@ export default function ToolParamsForm(props: { id: AnalyzerId }) {
         </div>
         <For each={fields()}>
           {(field) => (
-            <Show
-              when={field.kind === "select"}
-              fallback={
-                <label class="params-field params-field-num" title={field.title}>
+            <Switch fallback={<NumericParam id={props.id} field={field} />}>
+              <Match when={field.kind === "select"}>
+                <label class="params-field" title={field.title}>
                   <span class="params-label">{field.label}</span>
-                  <div class="params-range-inputs">
-                    <NumberField
-                      class="params-num"
-                      value={toolOptions[props.id][field.key]}
-                      onChange={(value) =>
-                        setToolOption(props.id, field.key, clampNumber(value, field.value, field))
-                      }
-                      minValue={field.min}
-                      maxValue={field.max}
-                      step={field.step}
-                      format={false}
-                    >
-                      <NumberField.Input class="src-num" aria-label={field.label} />
-                    </NumberField>
-                    <Show when={field.suffix}>
-                      <span class="params-dim">{field.suffix}</span>
-                    </Show>
-                  </div>
+                  <SelectField
+                    options={field.options ?? []}
+                    value={toolOptions[props.id][field.key]}
+                    onChange={(value) => setToolOption(props.id, field.key, value)}
+                    label={field.label}
+                  />
                 </label>
-              }
-            >
-              <label class="params-field" title={field.title}>
-                <span class="params-label">{field.label}</span>
-                <SelectField
-                  options={field.options ?? []}
-                  value={toolOptions[props.id][field.key]}
-                  onChange={(value) => setToolOption(props.id, field.key, value)}
-                  label={field.label}
-                />
-              </label>
-            </Show>
+              </Match>
+              <Match when={field.kind === "toggle"}>
+                <ToggleParam id={props.id} field={field} />
+              </Match>
+            </Switch>
           )}
         </For>
       </div>
@@ -64,8 +52,68 @@ export default function ToolParamsForm(props: { id: AnalyzerId }) {
   );
 }
 
+/** An on/off tool param, rendered as a switch (0/1 crossing IPC unchanged). */
+function ToggleParam(props: { id: AnalyzerId; field: ToolParamField }) {
+  const on = () => toolOptions[props.id][props.field.key] !== 0;
+  return (
+    <label class="params-field" title={props.field.title}>
+      <span class="params-label">{props.field.label}</span>
+      <KSwitch
+        class="params-switch"
+        checked={on()}
+        onChange={(checked) => setToolOption(props.id, props.field.key, checked ? 1 : 0)}
+      >
+        <KSwitch.Input class="params-switch-input" />
+        <KSwitch.Control class="params-switch-control">
+          <KSwitch.Thumb class="params-switch-thumb" />
+        </KSwitch.Control>
+      </KSwitch>
+    </label>
+  );
+}
+
+/** A numeric tool param, draggable up/down as well as typed (M7). */
+function NumericParam(props: { id: AnalyzerId; field: ToolParamField }) {
+  const drag = createNumberDrag({
+    value: () => toolOptions[props.id][props.field.key],
+    onInput: (value) =>
+      setToolOption(props.id, props.field.key, clampNumber(value, props.field.value, props.field)),
+    step: props.field.step ?? 1,
+    min: props.field.min,
+    max: props.field.max,
+  });
+
+  return (
+    <label class="params-field params-field-num" title={props.field.title}>
+      <span class="params-label">{props.field.label}</span>
+      <div class="params-range-inputs">
+        <NumberField
+          class="params-num"
+          value={toolOptions[props.id][props.field.key]}
+          onChange={(value) =>
+            setToolOption(props.id, props.field.key, clampNumber(value, props.field.value, props.field))
+          }
+          minValue={props.field.min}
+          maxValue={props.field.max}
+          step={props.field.step}
+          format={false}
+        >
+          <NumberField.Input
+            class={`src-num num-drag${drag.dragging() ? " num-dragging" : ""}`}
+            aria-label={props.field.label}
+            {...drag.handlers}
+          />
+        </NumberField>
+        <Show when={props.field.suffix}>
+          <span class="params-dim">{props.field.suffix}</span>
+        </Show>
+      </div>
+    </label>
+  );
+}
+
 function clampNumber(
-  raw: string,
+  raw: string | number,
   fallback: number,
   field: { min?: number; max?: number },
 ): number {

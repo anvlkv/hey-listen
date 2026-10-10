@@ -35,8 +35,17 @@ be versioned carefully (see
 
 **Decision:** each Tauri window hosts one independent project; no shared state.
 
-> A **popout** (M7) is not a second project window: it moves one Workbench *tab*
-> into a dockview popout window for the *same* project (see `ui-layout.md`).
+> A **popout** (M7) is not a second project window: it is a second *view* of one
+> Workbench tab for the *same* project (see ADR-11 and `ui-layout.md`).
+>
+> **Implemented (M7):** the app runs **N independent project windows** — File →
+> **New Window** (`open_project_window`) opens one. Each is a separate webview: its
+> own frontend, and its own core state (`state::WindowRegistry`, keyed by window
+> label). The core's per-project state (source PCM, filter graph, preview player,
+> capture session, **shared UI state**) moved from a single app-managed value to that
+> registry, resolved per command via `state::window_state(&window)`. App-wide stores
+> (recent projects, pending open files) stay shared, and the File/Edit menu actions
+> are emitted to the **focused** window.
 
 ## ADR-4 — PCM over `tauri::ipc::Channel`, not events
 
@@ -101,8 +110,11 @@ The vendor libraries push the bundle past Vite's 500 kB warning, so
 `vite.config.ts` splits them into their own chunks (`dockview`, `kobalte`) with
 `build.rolldownOptions.output.codeSplitting`; the app chunk itself stays small.
 
-> **Planned (M7):** pure numeric inputs (the `NumberField`s and graph-node params)
-> gain **drag-to-adjust** — drag up/down to change the value — alongside typing.
+> **Implemented (M7):** pure numeric inputs (the Kobalte `NumberField`s, the graph
+> nodes' inline params, and the synth length) gained **drag-to-adjust** — drag up to
+> increase, down to decrease, Shift for fine control — alongside typing, via
+> `src/lib/dragNumber.ts`. There is no slider; an `ns-resize` cursor is the only
+> affordance (see `ui-layout.md`).
 
 ## ADR-9 — Move preview playback into the Rust core (cpal)
 
@@ -170,3 +182,37 @@ the UI **and** the core). Explicit `input` / `output` anchor nodes bridge the
 graph to the net's global input/output; a `mix` node sums two signals. What is
 wired to `output` is exactly the graph's result — there is no implicit summing of
 "terminal" nodes.
+
+## ADR-11 — Project UI state lives in the core; windows are views
+
+**Context:** a Workbench tab can be **popped out** into its own window (M7). Keeping
+the project's UI state (timeline window/viewport, shared analysis params, per-tool
+options and chart views, project name) in each window's JS made the popout a
+*diverging copy*: zooming one chart, or moving the analysis window, did not reach the
+other window, and the title was derived from a per-window source stub. The first cut
+leaned on workarounds (a stub source, a one-way `load_shared_source`) instead of the
+Tauri data-flow rules.
+
+**Decision:** the project's **UI state lives in the Rust core** (`WindowState::ui`, a
+key → JSON map; the frontend owns the shape). `get_ui_state` hands a window the whole
+snapshot on load, `set_ui_state` stores a patch and **emits `ui-state` to the
+project's other windows** (`WindowRegistry::project_windows`), and the frontend
+bridge (`src/state/uiSync.ts` + `uiState.ts`) pulls on load, pushes local edits, and
+applies remote patches. A popout is a **real Tauri window** whose label is
+`WindowRegistry`-aliased to its parent, so every command resolves to the same
+project state.
+
+**Consequence:** windows are views of one state — timeline window, params, chart
+zoom, and project name stay in sync automatically, and a popout reuses the parent's
+source without copying PCM. Popouts are created only by Tauri/wry
+(`open_popout_window`), never by `window.open`; the frontend just renders. A popped
+tool is recorded in the project's `LAYOUT` and its window re-created on load, and a
+project window closes its popouts when it closes. Because a popout is a view, not a
+second tab, selecting a popped-out tool **raises** its window (`focus_popout`) rather
+than opening a duplicate tab.
+
+> The first popout attempt used dockview's `addPopoutGroup` (`window.open`). On macOS
+> that popup must load `tauri://localhost/…` through the custom URL-scheme handler,
+> which crashes (`WebURLSchemeHandlerCocoa::platformStartTask` → null mutex) because
+> the popup webview is not a full wry webview. Only a native Tauri window sets the
+> scheme handler up correctly — hence ADR-11.

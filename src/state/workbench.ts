@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
 import type { DockviewApi, SerializedDockview } from "dockview";
 import { ANALYZERS, type AnalyzerId } from "./analyzer";
 
@@ -59,7 +60,7 @@ export const [dockApi, setDockApi] = createSignal<DockviewApi | null>(null);
 export const [openTools, setOpenTools] = createSignal<ToolId[]>([]);
 
 /** Open a tool's tab, or focus it if it is already open (no duplicate tabs). */
-export function openTool(id: ToolId) {
+export async function openTool(id: ToolId) {
   const api = dockApi();
   if (!api) return;
   const existing = api.getPanel(id);
@@ -67,7 +68,53 @@ export function openTool(id: ToolId) {
     existing.api.setActive();
     return;
   }
-  api.addPanel({ id, component: id, title: toolById(id).title });
+  // A popped-out tool lives in its own window: selecting it must raise that window
+  // instead of opening a duplicate tab here (no duplicate analyzer tabs).
+  const raised = await invoke<boolean>("focus_popout", { toolId: id }).catch(
+    () => false,
+  );
+  if (raised) return;
+  // New tools always open in the **main** window, even when a popout is focused.
+  addToMainGrid(api, id, toolById(id).title);
+}
+
+/** Add a tool to the main window's grid — never into a popped-out group. */
+function addToMainGrid(api: DockviewApi, id: ToolId, title: string) {
+  const grid = api.groups.find((group) => group.api.location.type === "grid");
+  if (grid) {
+    api.addPanel({
+      id,
+      component: id,
+      title,
+      position: { referenceGroup: grid, direction: "within" },
+    });
+  } else {
+    // Every group is popped out (or the grid is empty): create a fresh one.
+    const group = api.addGroup();
+    api.addPanel({
+      id,
+      component: id,
+      title,
+      position: { referenceGroup: group, direction: "within" },
+    });
+  }
+}
+
+/**
+ * Pop a tool out into its own window (M7).
+ *
+ * Only Tauri/wry manage windows — the UI just renders data — so this asks the core
+ * to open a native window that shows the single tool, then removes the tab from
+ * the main grid. The popout window's label is aliased to this window's project
+ * state, so it analyses the same source.
+ */
+export async function popoutTool(id: ToolId) {
+  try {
+    await invoke("open_popout_window", { toolId: id });
+    dockApi()?.getPanel(id)?.api.close();
+  } catch (err) {
+    console.error("could not pop out tool", err);
+  }
 }
 
 /** The open Workbench tab ids, in dockview order. */

@@ -2,21 +2,17 @@
 //!
 //! Thin adapters over [`crate::audio::capture`]: they own the IPC boundary
 //! (argument/return types, `Channel`, `State`) but keep the audio work in the
-//! engine. One window = one project = one source, so a single session is held.
-
-use std::sync::Mutex;
+//! engine. One window = one project = one source, so each window holds its own
+//! session in its [`crate::state::WindowState`].
 
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{Emitter, WebviewWindow};
 
 use crate::audio::capture::{
     self, CaptureConfig, CaptureError, CaptureHandle, CaptureKind, CaptureMessage, DeviceDto,
     ProcessDto,
 };
-use crate::state::AudioState;
-
-/// Shared capture session (at most one running capture at a time).
-pub type CaptureState = Mutex<Option<CaptureHandle>>;
+use crate::state::{window_state, WindowState};
 
 /// Event name for capture status changes (device lost, permission, stall, …).
 const SOURCE_STATUS: &str = "source_status";
@@ -63,13 +59,14 @@ pub struct CaptureInfo {
 /// existing capture (the whole timeline changes when the source changes).
 #[tauri::command]
 pub fn start_capture(
+    window: WebviewWindow,
     args: StartCaptureArgs,
     on_chunk: Channel<InvokeResponseBody>,
-    app: AppHandle,
-    state: State<'_, CaptureState>,
 ) -> Result<CaptureInfo, CaptureError> {
+    let state = window_state(&window);
     // Drop any previous session before starting the new one.
     if let Some(mut previous) = state
+        .capture
         .lock()
         .map_err(|err| CaptureError::Control(err.to_string()))?
         .take()
@@ -86,8 +83,9 @@ pub fn start_capture(
         gain: args.gain,
     };
 
-    let status_app = app.clone();
-    let recording_sink = app.state::<AudioState>().recording_sink();
+    // Route status events back to the window that owns the capture.
+    let status_window = window.clone();
+    let recording_sink = state.audio.recording_sink();
     let sink = move |message: CaptureMessage| match message {
         CaptureMessage::Chunk(samples) => {
             // Keep the core's copy in sync so preview playback can use it (ADR-9).
@@ -99,7 +97,7 @@ pub fn start_capture(
             let _ = on_chunk.send(InvokeResponseBody::Raw(bytes));
         }
         CaptureMessage::Event(event) => {
-            let _ = status_app.emit(SOURCE_STATUS, event);
+            let _ = status_window.emit(SOURCE_STATUS, event);
         }
     };
 
@@ -109,6 +107,7 @@ pub fn start_capture(
         channels: handle.channels,
     };
     *state
+        .capture
         .lock()
         .map_err(|err| CaptureError::Control(err.to_string()))? = Some(handle);
     Ok(info)
@@ -116,8 +115,10 @@ pub fn start_capture(
 
 /// Stop the running capture (no-op if none).
 #[tauri::command]
-pub fn stop_capture(state: State<'_, CaptureState>) -> Result<(), CaptureError> {
+pub fn stop_capture(window: WebviewWindow) -> Result<(), CaptureError> {
+    let state = window_state(&window);
     if let Some(mut handle) = state
+        .capture
         .lock()
         .map_err(|err| CaptureError::Control(err.to_string()))?
         .take()
@@ -129,27 +130,28 @@ pub fn stop_capture(state: State<'_, CaptureState>) -> Result<(), CaptureError> 
 
 /// Pause chunk delivery (capture keeps running for a fast resume).
 #[tauri::command]
-pub fn pause_capture(state: State<'_, CaptureState>) -> Result<(), CaptureError> {
-    with_session(&state, CaptureHandle::pause)
+pub fn pause_capture(window: WebviewWindow) -> Result<(), CaptureError> {
+    with_session(&window_state(&window), CaptureHandle::pause)
 }
 
 /// Resume chunk delivery after a pause.
 #[tauri::command]
-pub fn resume_capture(state: State<'_, CaptureState>) -> Result<(), CaptureError> {
-    with_session(&state, CaptureHandle::resume)
+pub fn resume_capture(window: WebviewWindow) -> Result<(), CaptureError> {
+    with_session(&window_state(&window), CaptureHandle::resume)
 }
 
 /// Set the live input gain (linear, finite and ≥ 0).
 #[tauri::command]
-pub fn set_capture_gain(gain: f32, state: State<'_, CaptureState>) -> Result<(), CaptureError> {
-    with_session(&state, |handle| handle.set_gain(gain))
+pub fn set_capture_gain(window: WebviewWindow, gain: f32) -> Result<(), CaptureError> {
+    with_session(&window_state(&window), |handle| handle.set_gain(gain))
 }
 
 fn with_session(
-    state: &State<'_, CaptureState>,
+    state: &WindowState,
     action: impl FnOnce(&CaptureHandle) -> Result<(), CaptureError>,
 ) -> Result<(), CaptureError> {
     let guard = state
+        .capture
         .lock()
         .map_err(|err| CaptureError::Control(err.to_string()))?;
     match guard.as_ref() {

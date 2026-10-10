@@ -1,10 +1,10 @@
 //! Source management commands.
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, WebviewWindow};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::audio::capture::{CAPTURE_CHANNELS, CAPTURE_RATE};
-use crate::state::AudioState;
+use crate::state::window_state;
 
 /// File extensions we advertise in the open dialog (all decodable via
 /// symphonia's `all` feature set).
@@ -59,20 +59,54 @@ pub async fn close_window(window: tauri::WebviewWindow) {
 
 /// Drop the core-owned source PCM and silence preview (the timeline is changing).
 #[tauri::command]
-pub fn clear_audio_source(app: AppHandle) {
-    app.state::<AudioState>().clear();
+pub fn clear_audio_source(window: WebviewWindow) {
+    window_state(&window).audio.clear();
 }
 
 /// Start a fresh core recording buffer at Record; only the audio after this point
 /// is kept (the frontend does the same with its own copy).
 #[tauri::command]
-pub fn begin_capture_source(app: AppHandle) {
-    app.state::<AudioState>()
+pub fn begin_capture_source(window: WebviewWindow) {
+    window_state(&window)
+        .audio
         .begin_recording(CAPTURE_RATE, CAPTURE_CHANNELS);
 }
 
 /// Stop appending capture chunks; the recorded audio stays in the core.
 #[tauri::command]
-pub fn end_capture_source(app: AppHandle) {
-    app.state::<AudioState>().end_recording();
+pub fn end_capture_source(window: WebviewWindow) {
+    window_state(&window).audio.end_recording();
+}
+
+/// The shared source's shape, for a popout window to render a tool against the
+/// parent's project without loading the PCM into the frontend.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedSourceInfo {
+    pub sample_rate: u32,
+    pub channels: u16,
+    pub frames: usize,
+    pub duration: f64,
+}
+
+#[tauri::command]
+pub fn load_shared_source(window: WebviewWindow) -> Result<SharedSourceInfo, String> {
+    let state = window_state(&window);
+    let guard = state
+        .audio
+        .source
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+    let source = guard
+        .as_ref()
+        .ok_or_else(|| "no source loaded".to_string())?;
+    let channels = source.channels.max(1) as usize;
+    let frames = source.samples.len() / channels;
+    let sample_rate = source.sample_rate.max(1);
+    Ok(SharedSourceInfo {
+        sample_rate,
+        channels: source.channels.max(1),
+        frames,
+        duration: frames as f64 / f64::from(sample_rate),
+    })
 }

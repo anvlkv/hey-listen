@@ -1,16 +1,11 @@
-import { DockviewComponent, themeDark, themeLight } from "dockview";
+import { DockviewComponent, themeDark, themeLight, type ContextMenuItem } from "dockview";
 import "dockview/dist/styles/dockview.css";
-import { createEffect, onCleanup, onMount, type Component } from "solid-js";
+import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
-import FilterGraphTab from "./FilterGraphTab";
-import SynthGraphTab from "./SynthGraphTab";
-import AnalyzerView from "./analyzer/AnalyzerView";
-import SpectrogramTab from "./analyzer/SpectrogramTab";
-import SpectrumTab from "./analyzer/SpectrumTab";
-import WaveformTab from "./analyzer/WaveformTab";
-import { ANALYZERS, type AnalyzerId } from "../state/analyzer";
+import ToolContent from "./ToolContent";
+import { source } from "../state/source";
 import { resolvedTheme } from "../state/settings";
-import { setDockApi, setOpenTools, type ToolId } from "../state/workbench";
+import { setDockApi, setOpenTools, popoutTool, type ToolId } from "../state/workbench";
 
 /**
  * Workbench (fixed region): hosts the Workbench tabs, and is the **only** tabbed
@@ -22,24 +17,23 @@ import { setDockApi, setOpenTools, type ToolId } from "../state/workbench";
  * results are re-derived, so closing a tab is safe).
  */
 
-/** Analyzers that keep a bespoke chart; the rest use the generic [`AnalyzerView`]. */
-const SPECIAL_ANALYZER_VIEWS: Partial<Record<AnalyzerId, Component>> = {
-  waveform: WaveformTab,
-  spectrum: SpectrumTab,
-  spectrogram: SpectrogramTab,
-};
-
-function analyzerRenderer(id: AnalyzerId): (host: HTMLElement) => () => void {
-  const Special = SPECIAL_ANALYZER_VIEWS[id];
-  if (Special) return (host) => render(() => <Special />, host);
-  return (host) => render(() => <AnalyzerView id={id} />, host);
+/** The watermark (no Workbench tabs open) — it guides toward the next step. */
+function WatermarkHint() {
+  const hasSource = () => source() != null;
+  return (
+    <>
+      <span class="empty-state-icon" aria-hidden="true">
+        {hasSource() ? "◧" : "∿"}
+      </span>
+      <span class="empty-state-title">{hasSource() ? "No views open" : "Start with audio"}</span>
+      <span class="empty-state-hint">
+        {hasSource()
+          ? "Pick a graph or analyzer from the Sidebar on the left."
+          : "Add a file, recording, or synth in the Source panel below, then open a graph or analyzer here."}
+      </span>
+    </>
+  );
 }
-
-const RENDERERS: Record<string, (host: HTMLElement) => () => void> = {
-  filter: (host) => render(() => <FilterGraphTab />, host),
-  synth: (host) => render(() => <SynthGraphTab />, host),
-  ...Object.fromEntries(ANALYZERS.map((def) => [def.id, analyzerRenderer(def.id)])),
-};
 
 export default function Workbench() {
   let host!: HTMLDivElement;
@@ -54,6 +48,19 @@ export default function Workbench() {
       // Tabs are dragged by pointer, not HTML5 DnD: the WebView does not drive
       // HTML5 drag reliably, which left split/join (edge drops) inoperative.
       dndStrategy: "pointer",
+      // Our own tab context menu (dockview shows none unless asked). Analyzers can
+      // be popped out into a native window; graph editors stay in the workbench.
+      getTabContextMenuItems: ({ panel }): ContextMenuItem[] => {
+        const id = panel.id as ToolId;
+        if (id === "filter" || id === "synth") {
+          return [{ label: "Close tab", action: () => panel.api.close() }];
+        }
+        return [
+          { label: "Pop out to window", action: () => void popoutTool(id) },
+          "separator",
+          { label: "Close tab", action: () => panel.api.close() },
+        ];
+      },
       createComponent: (options) => {
         const element = document.createElement("div");
         element.className = "workbench-panel";
@@ -61,8 +68,7 @@ export default function Workbench() {
         return {
           element,
           init: () => {
-            const make = RENDERERS[options.name];
-            if (make) dispose = make(element);
+            dispose = render(() => <ToolContent id={options.name as ToolId} />, element);
           },
           dispose: () => dispose?.(),
         };
@@ -70,8 +76,14 @@ export default function Workbench() {
       createWatermarkComponent: () => {
         const element = document.createElement("div");
         element.className = "workbench-watermark";
-        element.textContent = "Open a graph or analyzer from the Sidebar";
-        return { element, init: () => {} };
+        let dispose: (() => void) | undefined;
+        return {
+          element,
+          init: () => {
+            dispose = render(() => <WatermarkHint />, element);
+          },
+          dispose: () => dispose?.(),
+        };
       },
     });
 

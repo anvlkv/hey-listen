@@ -44,13 +44,15 @@ export default function AnalyzerTab(props: {
         </Show>
 
         <div class="analyzer-actions">
-          <Popover label="Params" title="Tool parameters">
-            {props.params}
-            <div class="params-note">
-              Shared params (FFT size, hop/overlap, window, channel, analysis rate,
-              frequency range) are in the toolbar.
-            </div>
-          </Popover>
+          <Show when={props.params != null}>
+            <Popover label="Params" title="Tool parameters">
+              {props.params}
+              <div class="params-note">
+                Shared params (FFT size, hop/overlap, window, channel, analysis rate,
+                frequency range) are in the toolbar.
+              </div>
+            </Popover>
+          </Show>
           <Popover label="About" title={`About ${def().title}`} panelClass="pop-panel-about">
             <div class="about-title">{def().title}</div>
             <p class="about-body">{def().about}</p>

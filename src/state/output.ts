@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createSignal } from "solid-js";
+import { previewPlaying } from "../audio/preview";
 
 /**
  * Output/preview settings: the cpal output device and the preview gain.
@@ -37,4 +38,29 @@ export async function refreshOutputDevices() {
 export function applyOutputGain(value: number) {
   setOutputGain(value);
   void invoke("set_output_gain", { gain: value });
+}
+
+// ---------------------------------------------------------------------------
+// Preview output meter
+// ---------------------------------------------------------------------------
+
+/** Peak magnitude (0..) of the current preview output, for the toolbar meter. */
+export const [outputLevel, setOutputLevel] = createSignal(0);
+
+/**
+ * Poll the core's preview output level while a preview is playing, so the toolbar
+ * meter tracks the output and falls to silence when nothing is playing. Returns a
+ * disposer.
+ */
+export function initOutputMeter(): () => void {
+  const timer = window.setInterval(() => {
+    if (!previewPlaying()) {
+      setOutputLevel(0);
+      return;
+    }
+    void invoke<number>("output_level")
+      .then((level) => setOutputLevel(Number.isFinite(level) ? level : 0))
+      .catch(() => setOutputLevel(0));
+  }, 60);
+  return () => window.clearInterval(timer);
 }

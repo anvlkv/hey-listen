@@ -174,7 +174,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | H1 | Save/load | `save_project` → `load_project`; source + setup + results round-trip | Scenario |
-| H2 | Popout | Pop a tab into its own window; title = tab + source; focus in main raises it | Scenario |
+| H2 | Popout | Right-click a tab → **Pop out to window**; a native window shows just that tool, titled `<tool> — <project>`; selecting it in the Sidebar raises the popout (no duplicate tab); timeline/params/zoom sync; it closes with its parent and reopens on project load | Scenario |
 
 ### I. Errors & warnings
 

@@ -78,8 +78,9 @@ commands in `src-tauri/src/commands/project.rs` bridge it to the frontend, with
   internally-tagged enums. `kind` is `file` / `mic` / `system` / `process` / `mix` /
   `synth`; the kind-specific fields (`path`, `deviceId`, `targetPid`, `gain`,
   `graph`, …) are optional.
-- **`LAYOUT`** carries the dockview `toJSON()` snapshot and both graph editors'
-  nodes/edges (with positions) as `serde_json`.
+- **`LAYOUT`** carries the dockview `toJSON()` snapshot, both graph editors'
+  nodes/edges (with positions), and the list of **popped-out tools** (`popouts`) as
+  `serde_json`. On load the popped tools' windows are re-created (ADR-11).
 - **`RESULTS`** is a `postcard` `Vec<StoredResult>`; it is written **empty** today
   (result caching is deferred — see below). The type is defined now so the format
   stays forward-compatible.

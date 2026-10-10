@@ -14,12 +14,17 @@ boundary (commands, events, channels), gated by capabilities.
 │  symphonia  file decoder     │◄─────► │  dockview (Workbench tabs)      │
 │  fundsp     filter/synth     │  IPC   │  solid-flow (graph editor)     │
 │  oxiaudio   analysis         │        │  solid-uplot (charts)          │
-│  project store (binary)      │        │  app state (Solid stores)      │
+│  project store (binary)      │        │  UI state (Solid stores,      │
+│  project UI state (per win)  │        │   views of the core)          │
 └──────────────────────────────┘        └────────────────────────────────┘
 ```
 
-- The Rust core owns all audio I/O, decoding, analysis, and the project file.
-- The frontend owns layout, tool/tab management, graph editing, and charts.
+- The Rust core owns all audio I/O, decoding, analysis, and the project file — and
+  the project's shared **UI state** (timeline window, analysis params, per-tool
+  options and chart views, project name), which it syncs across a project's windows
+  (ADR-11).
+- The frontend owns layout, tool/tab management, graph editing, and charts; its
+  Solid stores are **views** of the core's UI state, not the source of truth.
 - Audio PCM crosses the boundary **only** through ordered `tauri::ipc::Channel`
   streams (not events); results and commands are JSON over `invoke`.
 
@@ -33,13 +38,15 @@ src-tauri/src/
 ├── lib.rs           # Builder setup, state, handler registration ✅
 ├── commands/        # #[tauri::command] surface, grouped by domain
 │   ├── mod.rs       # ✅
-│   ├── source.rs    # enumerate devices/processes, open/close sources ✅ (pick_audio_file, clear/begin/end capture source)
+│   ├── source.rs    # enumerate devices/processes, open/close sources ✅ (pick_audio_file, clear/begin/end capture source, load_shared_source)
 │   ├── decode.rs    # open file, decode range / stream          ✅ (probe_file, stream_file)
 │   ├── capture.rs   # start/stop/gain/pause recording           ✅
 │   ├── graph.rs     # filter/synth graph commands               ✅ (set_filter_graph, render_synth)
 │   ├── playback.rs  # preview playback (cpal)                   ✅
 │   ├── analysis.rs  # run analysis over a window                ✅ (run_analysis)
-│   └── project.rs   # save/load binary project file               ✅ (M6: save/load_project, pick_project_*_path)
+│   ├── project.rs   # save/load binary project file               ✅ (M6: save/load_project, pick_project_*_path)
+│   ├── ui.rs        # project UI-state sync                      ✅ (M7: get_ui_state, set_ui_state)
+│   └── window.rs    # window management                           ✅ (M7: open_project_window, open_popout_window, popout_tool(s))
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
 │   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
@@ -48,18 +55,43 @@ src-tauri/src/
 │   ├── pcm.rs       # channel mixdown + linear resample        ✅
 │   ├── playback.rs  # cpal output stream + ring buffer         ✅
 │   └── analysis.rs  # oxiaudio wrappers                         ✅
-├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo)
+├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
-├── state.rs         # core-owned source PCM + filter + player  ✅
+├── state.rs         # per-window core state registry            ✅ (M7: WindowRegistry; audio PCM + filter + player + capture + shared UI state)
 └── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
 ```
 
 Commands are registered once in `generate_handler![...]`; shared state is
 managed via `app.manage(...)`.
 
-**Plugins.** `tauri-plugin-dialog` (native open/save/confirm dialogs) and
+**Per-window state (M7).** With N project windows (ADR-3), the core's project state
+— the source PCM, filter graph, preview player, capture session, and the project's
+**shared UI state** — is resolved from a `state::WindowRegistry` keyed by window
+label: every command takes a `WebviewWindow` and calls `state::window_state(&window)`.
+The registry entry is dropped when the window is destroyed (which also shuts its
+preview player down). App-wide stores (recent projects, pending open files) stay
+shared.
+
+**Windows are views (ADR-11).** A project's **UI state** — the timeline window and
+viewport, the shared analysis params, the per-tool options and chart views, and the
+project name — lives in the **core**, in `WindowState::ui` (a key → JSON map; the
+frontend owns the shape). `get_ui_state` hands a freshly opened window the whole
+snapshot, `set_ui_state` stores a patch and **emits `ui-state` to the project's
+other windows**, and the frontend bridge (`src/state/uiSync.ts` + `uiState.ts`) pulls,
+pushes, and mirrors it. So the main window and its popouts are views of **one** state
+instead of diverging JS copies. A **popout** window is aliased to its parent (its
+`WindowRegistry` entry resolves to the parent's `WindowState`), so it shares the
+source, the filter, and the UI state while still being a real Tauri window.
+
+**Plugins.** `tauri-plugin-dialog` (native open/save/confirm dialogs),
 `tauri-plugin-window-state` (remembers window size/position/maximized across
-launches) are registered in the builder.
+launches), and `tauri-plugin-log` (file + stdout logging) are registered in the
+builder; the frontend wires the same sink up with `@tauri-apps/plugin-log`'s
+`attachConsole()` (`src/index.tsx`) so `console.*` and JS errors land in the log too.
+Logging writes to the app's log directory — on macOS
+`~/Library/Logs/com.anvlkv.heylisten/hey-listen.log` — starting a **fresh file on
+every launch** (`FileOpenStrategy::Rotate`) and rotating once it exceeds 2 MB
+(`max_file_size`, `RotationStrategy::KeepSome(3)`).
 
 ## IPC surface (planned)
 
@@ -70,16 +102,21 @@ launches) are registered in the builder.
 | Source | `list_devices`, `list_processes` | flexaudio `devices()` / `processes()` |
 | Source | `pick_audio_file` | native open dialog → path (file I/O stays in Rust) |
 | Source | `open_source`, `close_source` | file / input / synth; switching source replaces the timeline |
+| Source | `load_shared_source` | the shared source's shape (rate/channels/frames/duration) — a popout renders a tool without the PCM ✅ |
 | Capture | `start_capture`, `stop_capture`, `set_capture_gain`, `pause_capture`, `resume_capture` | flexaudio `Stream` |
 | Decode | `probe_file` | symphonia metadata (codec, channels, rate, duration) |
 | Decode | `stream_file` | `Channel` of PCM chunks for the timeline |
 | Synth | `render_synth` | build a fundsp graph, render to PCM ✅ |
 | Filter | `set_filter_graph` | install the project filter graph (applied before preview/analysis) ✅ |
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
-| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
+| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths` |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
+| Window | `open_project_window` | open a new, independent project window (M7) ✅ |
+| Window | `open_popout_window`, `popout_tool`, `popout_tools` | open/query a popout window for a tool (M7) ✅ |
+| Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
+| UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 
 > **Implemented so far (M4):** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
@@ -107,12 +144,16 @@ launches) are registered in the builder.
   `start_capture` as `onChunk`).
 - `source_status` — device lost, stall, permission, etc. (flexaudio `Event`).
 - `analysis_progress` — long-running analysis updates.
-- `app:menu` — a File-menu action id (`new` / `open` / `save` / `saveAs`) from the
-  native menu (M6); the frontend runs the matching project action. Choosing an
-  **Open Recent** entry is re-emitted as `app:open-project`.
-- `app:open-project` — opened `.heyl` paths (file association) for a running app;
-  a request that arrives before the frontend listens is drained by the
-  `take_pending_open_paths` command (M6).
+- `app:menu` — a File-menu action id (`new` / `newWindow` / `open` / `save` /
+  `saveAs`) or an Edit action (`undo` / `redo`) from the native menu (M6, M7); the
+  frontend runs the matching project action. Emitted to the **focused window**
+  (multiple windows, M7); choosing an **Open Recent** entry is re-emitted as
+  `app:open-project`.
+- `app:open-project` — opened `.heyl` paths (file association); routed to the focused
+  window, or queued once for the first frontend if none is listening yet (M6, M7).
+- `ui-state` — one UI-state patch (`{ key, value, source }`) emitted to the project's
+  **other** windows when `set_ui_state` changes a value (M7, ADR-11); the sender is
+  skipped, and each receiver applies the patch to its stores.
 
 > **Channel ordering:** Tauri routes a `Channel` message above a size threshold
 > through an async `fetch` round-trip and re-orders by index, so the command's
@@ -136,16 +177,46 @@ launches) are registered in the builder.
 5. **Persist** — `save_project` writes source data, setup/layout, and results to
    the binary project file.
 
+### Multiple windows, one project
+
+A **popout** is a second *view* of the same project (ADR-11), not a second project.
+Both windows drive the same core state:
+
+```
+            ┌───────────────────────────────┐
+            │ Rust core                      │
+            │  WindowRegistry {              │
+            │    main    → WindowState        │
+            │      audio  (source/filter/…)   │
+            │      ui     (timeline/params/…) │
+            │    popout-N  ⇒ aliased to main  │
+            │  }                              │
+            └────────────▲─────────┬──────────┘
+       get_ui_state /      │         │  ui-state (event)
+       run_analysis …      │         ▼
+                 ┌─────────┴──┐   ┌──────────────┐
+                 │ main window │   │ popout-N      │
+                 └─────────────┘   └──────────────┘
+```
+
+- Commands from either window resolve to the **same** `WindowState` (the popout's
+  label is aliased to its parent), so analysis reads one source.
+- A UI edit in either window calls `set_ui_state`, which stores the value and emits
+  `ui-state` to the other windows, which apply it — so the timeline window, params,
+  chart zoom, and project name stay in lockstep.
+
 ## Threading
 
 - Capture: flexaudio `Stream::poll_chunk` runs on a dedicated thread; chunks go
   into a ring buffer and are forwarded to the frontend via a `Channel`.
 - Analysis/decode: async commands run on `tauri::async_runtime` (never block the
   main thread); fundsp audio callbacks never allocate.
-- Playback (ADR-9): one `cpal` output stream per app, opened lazily and kept open,
-  fed from a shared mono buffer loaded per preview region (mixdown → filter →
-  resample). The stream is `!Send` on macOS, so it lives on a dedicated worker
-  thread; the audio callback and the command side share an `Arc<Mutex<…>>`.
+- Playback (ADR-9): one `cpal` output stream per **window** (M7), opened lazily and
+  kept open, fed from a shared mono buffer loaded per preview region (mixdown →
+  filter → resample). Each stream is `!Send` on macOS, so it lives on a dedicated
+  worker thread; the audio callback and the command side share an
+  `Arc<Mutex<…>>`. The callback also tracks the output block's peak for the
+  `output_level` meter.
 - The frontend is single-threaded (SolidJS); heavy PCM is streamed, not posted
   as one giant JSON blob.
 
@@ -185,8 +256,12 @@ thread); analysis runs in Rust.
 
 ## Security
 
-- The window capability currently grants only `core:default`; every future
-  command is registered and, if needed, gated by `allow-<command>` permissions
-  in `capabilities/*.json`.
+- The window capability grants `core:default`, `core:window:allow-set-title`, and
+  `log:default` to the app's windows (`windows: ["main", "project-*", "popout-*"]` —
+  the label globs match every project window, every window opened via New Window, and
+  every **popout**). Every future command is registered and, if needed, gated by
+  `allow-<command>` permissions in `capabilities/*.json`. A popout is a real Tauri
+  window (not a `window.open` popup), so it has its own capability and runs its own
+  frontend — see `ui-layout.md`.
 - `csp` is `null` for the shell; tighten before shipping remote content (none
   planned — all content is local).

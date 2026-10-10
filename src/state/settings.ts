@@ -88,6 +88,18 @@ export function resetFontScale() {
 export { fontScale };
 
 // ---------------------------------------------------------------------------
+// Bottom row: Source panel visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether the Source panel is force-shown while a source already exists, so the
+ * user can replace it. The panel is shown automatically when there is no source
+ * or while recording (see `App.tsx`), so this is only the "reveal it anyway"
+ * override — transient, not persisted.
+ */
+export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
+
+// ---------------------------------------------------------------------------
 // Theme (auto / dark / light)
 // ---------------------------------------------------------------------------
 

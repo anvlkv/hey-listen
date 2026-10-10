@@ -14,6 +14,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Hey Listen",
         "width": 1280,
         "height": 800,
@@ -28,6 +29,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Music",
+    "shortDescription": "Audio analysis workbench: capture, filter, and analyze audio.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

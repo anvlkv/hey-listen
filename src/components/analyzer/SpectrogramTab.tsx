@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
+import EmptyState from "../EmptyState";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
 import ZoomControls from "./ZoomControls";
@@ -476,24 +477,34 @@ export default function SpectrogramTab() {
     >
       <div class="analyzer-chart">
         <div class="analyzer-readouts">
-          <Show when={hover()} fallback={<Readout label="Hover" value="—" />}>
-            {(h) => (
-              <>
-                <Readout label="Time" value={`${h().time.toFixed(3)} s`} />
-                <Readout label="Freq" value={formatHz(h().freq)} />
-                <Readout label="Level" value={`${h().db.toFixed(1)} dB`} />
-              </>
-            )}
-          </Show>
-          <Show when={analysis.result()}>
-            {(result) => (
-              <>
-                <Readout label="Peak" value={`${result().maxDb.toFixed(1)} dB`} />
-                <Readout label="FFT" value={`${result().fftSize} · hop ${result().hopSize}`} />
-                <Readout label="Grid" value={`${result().frames} × ${result().bins}`} />
-              </>
-            )}
-          </Show>
+          {/* Every entry is rendered upfront (with a placeholder) so the bar has a
+              stable, reserved height instead of changing as the cursor moves. */}
+          <Readout
+            label="Time"
+            value={hover() ? `${hover()!.time.toFixed(3)} s` : "—"}
+          />
+          <Readout label="Freq" value={hover() ? formatHz(hover()!.freq) : "—"} />
+          <Readout label="Level" value={hover() ? `${hover()!.db.toFixed(1)} dB` : "—"} />
+          <Readout
+            label="Peak"
+            value={analysis.result() ? `${analysis.result()!.maxDb.toFixed(1)} dB` : "—"}
+          />
+          <Readout
+            label="FFT"
+            value={
+              analysis.result()
+                ? `${analysis.result()!.fftSize} · hop ${analysis.result()!.hopSize}`
+                : "—"
+            }
+          />
+          <Readout
+            label="Grid"
+            value={
+              analysis.result()
+                ? `${analysis.result()!.frames} × ${analysis.result()!.bins}`
+                : "—"
+            }
+          />
         </div>
         <div class="spectrogram-canvas" ref={wrap}>
           <canvas
@@ -509,7 +520,7 @@ export default function SpectrogramTab() {
           />
           <Show
             when={analysis.result()}
-            fallback={<div class="analyzer-empty analyzer-empty-overlay">Open a source and set the analysis window.</div>}
+            fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel." overlay />}
           >
             <Show
               when={hasGrid()}

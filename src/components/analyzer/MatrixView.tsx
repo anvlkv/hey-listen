@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import Readout from "./Readout";
+import EmptyState from "../EmptyState";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { clamp01, spectroColormap } from "./colormap";
@@ -393,27 +394,30 @@ export default function MatrixView(props: {
   return (
     <div class="analyzer-chart">
       <div class="analyzer-readouts">
-        <Show when={hover()} fallback={<Readout label="Hover" value="—" />}>
-          {(h) => (
-            <>
-              <Readout label="Time" value={`${h().time.toFixed(3)} s`} />
-              <Readout label={config().yLabel} value={config().formatBand(h().band)} />
-              <Readout label="Value" value={config().formatValue(h().value)} />
-            </>
-          )}
-        </Show>
-        <Show when={result()}>
-          {(r) => (
-            <>
-              <Readout label="Grid" value={`${r().frames} × ${r().bins}`} />
-              <Readout
-                label="Range"
-                value={`${config().formatValue(r().minValue)} … ${config().formatValue(r().maxValue)}`}
-              />
-              <Readout label="Rate" value={formatHz(r().sampleRate)} />
-            </>
-          )}
-        </Show>
+        {/* Every entry is rendered upfront (with a placeholder) so the bar has a
+            stable, reserved height instead of changing as the cursor moves. */}
+        <Readout label="Time" value={hover() ? `${hover()!.time.toFixed(3)} s` : "—"} />
+        <Readout
+          label={config().yLabel}
+          value={hover() ? config().formatBand(hover()!.band) : "—"}
+        />
+        <Readout
+          label="Value"
+          value={hover() ? config().formatValue(hover()!.value) : "—"}
+        />
+        <Readout
+          label="Grid"
+          value={result() ? `${result()!.frames} × ${result()!.bins}` : "—"}
+        />
+        <Readout
+          label="Range"
+          value={
+            result()
+              ? `${config().formatValue(result()!.minValue)} … ${config().formatValue(result()!.maxValue)}`
+              : "—"
+          }
+        />
+        <Readout label="Rate" value={result() ? formatHz(result()!.sampleRate) : "—"} />
       </div>
       <div class="spectrogram-canvas" ref={wrap}>
         <canvas
@@ -430,9 +434,12 @@ export default function MatrixView(props: {
         <Show
           when={result()}
           fallback={
-            <div class="analyzer-empty analyzer-empty-overlay">
-              Open a source and set the analysis window.
-            </div>
+            <EmptyState
+              icon="∿"
+              title="No audio to analyse"
+              hint="Open a file, record, or render a synth from the Source panel."
+              overlay
+            />
           }
         >
           <Show

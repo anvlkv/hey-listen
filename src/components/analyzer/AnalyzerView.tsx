@@ -29,7 +29,7 @@ export default function AnalyzerView(props: { id: AnalyzerId }) {
       loading={analysis.loading()}
       error={analysis.error()}
       hasResult={analysis.result() != null}
-      params={<ToolParamsForm id={props.id} />}
+      params={def().params?.length ? <ToolParamsForm id={props.id} /> : undefined}
     >
       <Switch>
         <Match when={def().view.kind === "series"}>

@@ -1,6 +1,7 @@
 import { Switch } from "@kobalte/core/switch";
 import { Slider } from "@kobalte/core/slider";
-import { For, onMount, Show } from "solid-js";
+import { Meter } from "@kobalte/core/meter";
+import { For, onCleanup, onMount, Show } from "solid-js";
 import Button from "./Button";
 import Combobox from "./Combobox";
 import Popover from "./Popover";
@@ -8,9 +9,11 @@ import SharedParamsForm from "./analyzer/SharedParamsForm";
 import { filterEnabled, setFilterEnabled } from "../state/graph";
 import {
   applyOutputGain,
+  initOutputMeter,
   outputDeviceId,
   outputDevices,
   outputGain,
+  outputLevel,
   refreshOutputDevices,
   setOutputDeviceId,
 } from "../state/output";
@@ -61,6 +64,21 @@ export default function Toolbar() {
   onMount(() => {
     void refreshOutputDevices();
   });
+  // Poll the preview output level for the meter; stop when the toolbar unmounts.
+  onCleanup(initOutputMeter());
+
+  /** Preview output level as a −60..0 dBFS percentage, for the meter fill. */
+  const meterPercent = () => {
+    const value = outputLevel();
+    if (value <= 0) return 0;
+    const db = 20 * Math.log10(value);
+    return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+  };
+
+  const meterLabel = () => {
+    const value = outputLevel();
+    return value > 0 ? `${(20 * Math.log10(value)).toFixed(0)} dB` : "—";
+  };
 
   const deviceOptions = () =>
     outputDevices().map((device) => ({
@@ -124,6 +142,23 @@ export default function Toolbar() {
             </Slider.Track>
           </Slider>
           <span class="toolbar-readout">{Math.round(outputGain() * 100)}%</span>
+        </div>
+
+        <div class="toolbar-group" title="Preview output level">
+          <span class="toolbar-label">Level</span>
+          <Meter
+            class="toolbar-meter"
+            value={meterPercent()}
+            minValue={0}
+            maxValue={100}
+            getValueLabel={meterLabel}
+            aria-label="Preview output level"
+          >
+            <Meter.Track class="toolbar-meter-track">
+              <Meter.Fill class="toolbar-meter-fill" />
+            </Meter.Track>
+          </Meter>
+          <span class="toolbar-readout toolbar-meter-readout">{meterLabel()}</span>
         </div>
 
         <div class="toolbar-field">

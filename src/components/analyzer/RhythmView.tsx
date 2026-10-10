@@ -3,6 +3,7 @@ import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { createEffect, createRoot, Show } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
+import EmptyState from "../EmptyState";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
@@ -155,7 +156,11 @@ export default function RhythmView(props: {
         <Show
           when={result()}
           fallback={
-            <div class="analyzer-empty">Open a source and set the analysis window.</div>
+            <EmptyState
+              icon="∿"
+              title="No audio to analyse"
+              hint="Open a file, record, or render a synth from the Source panel — the analysis appears here."
+            />
           }
         >
           <Show

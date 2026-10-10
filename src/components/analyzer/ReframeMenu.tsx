@@ -21,9 +21,8 @@ function clampToSource(time: number): number {
 /**
  * Shared right-click context menu for the time-domain analyzer charts (M5+): from
  * the time under the pointer, set the **timeline** analysis-window start or end.
- * Rendered in a portal at the pointer; closes on selection, an outside click, or
- * `Escape`. The charts own the open state (a [`ReframeTarget`] signal). See
- * `docs/ui-layout.md`.
+ * A vertical callout marks the exact time on the chart; the menu closes on
+ * selection, an outside click, or `Escape`. See `docs/ui-layout.md`.
  */
 export default function ReframeMenu(props: {
   target: ReframeTarget | null;
@@ -62,19 +61,22 @@ export default function ReframeMenu(props: {
     <Show when={props.target}>
       {(target) => (
         <Portal>
+          {/* Callout line marking the exact time on the chart. */}
+          <div class="reframe-callout" style={{ left: `${target().x}px` }} aria-hidden="true" />
           <div
             ref={menu}
-            class="pop-content reframe-menu"
+            class="reframe-menu"
             role="menu"
             aria-label="Set analysis window"
             onContextMenu={(event) => event.preventDefault()}
             style={{ position: "fixed", left: `${target().x}px`, top: `${target().y}px` }}
           >
+            <div class="reframe-menu-title">Set window at {target().time.toFixed(3)} s</div>
             <button
               type="button"
               role="menuitem"
-              class="pop-item"
-              style={{ background: hover() === "start" ? "var(--control-2)" : undefined }}
+              class="reframe-btn"
+              data-hover={hover() === "start" || undefined}
               onPointerEnter={() => setHover("start")}
               onPointerLeave={() => setHover(null)}
               onClick={() => apply("start")}
@@ -84,8 +86,8 @@ export default function ReframeMenu(props: {
             <button
               type="button"
               role="menuitem"
-              class="pop-item"
-              style={{ background: hover() === "end" ? "var(--control-2)" : undefined }}
+              class="reframe-btn"
+              data-hover={hover() === "end" || undefined}
               onPointerEnter={() => setHover("end")}
               onPointerLeave={() => setHover(null)}
               onClick={() => apply("end")}

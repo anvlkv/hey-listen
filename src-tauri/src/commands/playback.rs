@@ -4,12 +4,12 @@
 //! commands and asks for the position while scrubbing. The filter graph (if any)
 //! is applied here, so the preview matches what analysis will see from M4.
 
-use tauri::{AppHandle, Manager};
+use tauri::WebviewWindow;
 
 use crate::audio::graph;
 use crate::audio::pcm;
 use crate::audio::playback::{self, OutputDeviceDto, PlaybackError};
-use crate::state::AudioState;
+use crate::state::window_state;
 
 /// List the audio output devices to preview through.
 #[tauri::command]
@@ -24,7 +24,7 @@ pub fn list_output_devices() -> Vec<OutputDeviceDto> {
 /// device rate, and looped by the core.
 #[tauri::command]
 pub async fn preview_region(
-    app: AppHandle,
+    window: WebviewWindow,
     start: f64,
     end: f64,
     loop_region: bool,
@@ -32,10 +32,11 @@ pub async fn preview_region(
     device: Option<String>,
 ) -> Result<(), PlaybackError> {
     let (region, rate, channels, filter, device_rate) = {
-        let state = app.state::<AudioState>();
-        let device_rate = state.playback.ensure_started(device)?;
+        let state = window_state(&window);
+        let device_rate = state.audio.playback.ensure_started(device)?;
 
         let guard = state
+            .audio
             .source
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
@@ -51,6 +52,7 @@ pub async fn preview_region(
         let region = source.samples[first * channels..last * channels].to_vec();
 
         let filter = state
+            .audio
             .filter
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())
@@ -66,7 +68,7 @@ pub async fn preview_region(
                 Ok(filtered) => filtered,
                 Err(err) => {
                     // Should not happen: the graph is validated when installed.
-                    eprintln!("hey-listen: filter graph failed to apply, previewing raw: {err}");
+                    log::error!("filter graph failed to apply, previewing raw: {err}");
                     mono
                 }
             },
@@ -82,7 +84,8 @@ pub async fn preview_region(
     } else {
         0.0
     };
-    app.state::<AudioState>()
+    window_state(&window)
+        .audio
         .playback
         .load(mono, device_rate, 0.0, seconds, loop_region);
     Ok(())
@@ -90,18 +93,24 @@ pub async fn preview_region(
 
 /// Stop any in-flight preview.
 #[tauri::command]
-pub fn stop_preview(app: AppHandle) {
-    app.state::<AudioState>().playback.stop();
+pub fn stop_preview(window: WebviewWindow) {
+    window_state(&window).audio.playback.stop();
 }
 
 /// Set the preview output gain (linear, finite and ≥ 0).
 #[tauri::command]
-pub fn set_output_gain(app: AppHandle, gain: f32) {
-    app.state::<AudioState>().playback.set_gain(gain);
+pub fn set_output_gain(window: WebviewWindow, gain: f32) {
+    window_state(&window).audio.playback.set_gain(gain);
 }
 
 /// Current preview position in source seconds, or `None` when not playing.
 #[tauri::command]
-pub fn preview_position(app: AppHandle) -> Option<f64> {
-    app.state::<AudioState>().playback.position()
+pub fn preview_position(window: WebviewWindow) -> Option<f64> {
+    window_state(&window).audio.playback.position()
+}
+
+/// Peak magnitude (0..) of the current preview output, for the output meter.
+#[tauri::command]
+pub fn output_level(window: WebviewWindow) -> f32 {
+    window_state(&window).audio.playback.level()
 }

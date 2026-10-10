@@ -11,3 +11,5 @@ pub mod graph;
 pub mod playback;
 pub mod project;
 pub mod source;
+pub mod ui;
+pub mod window;

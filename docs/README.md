@@ -1,7 +1,7 @@
 # Hey Listen — Planning Docs
 
 Index of the design/planning documentation. These docs are the source of truth for
-design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M6 and the
+design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M7 and the
 post-M6 backlog are done).
 
 | Doc | What it covers |
@@ -14,6 +14,7 @@ post-M6 backlog are done).
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
+| [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
 | [decisions.md](decisions.md) | Architecture decision records (ADRs) |
 | [roadmap.md](roadmap.md) | Phased milestones |
 | [testing.md](testing.md) | E2E test plan + test matrix |

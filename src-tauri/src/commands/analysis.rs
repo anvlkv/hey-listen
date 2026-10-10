@@ -7,10 +7,10 @@
 //! model").
 
 use serde::Deserialize;
-use tauri::{AppHandle, Manager};
+use tauri::WebviewWindow;
 
 use crate::audio::analysis::{self, AnalysisError, AnalysisResult, SharedParams, ToolOptions};
-use crate::state::AudioState;
+use crate::state::window_state;
 
 /// One `run_analysis` request: the tool id, the analysis window (source seconds),
 /// the shared params, and any per-tool options (`docs/data-model.md`).
@@ -28,7 +28,7 @@ pub struct AnalysisRequest {
 /// Run an analysis tool over `start..end` and return its result.
 #[tauri::command]
 pub async fn run_analysis(
-    app: AppHandle,
+    window: WebviewWindow,
     request: AnalysisRequest,
 ) -> Result<AnalysisResult, AnalysisError> {
     let AnalysisRequest {
@@ -42,8 +42,9 @@ pub async fn run_analysis(
     // Slice the windowed region (a copy) and read the active filter under the lock,
     // then release it before the CPU-bound work runs (the guard is not `Send`).
     let (region, channels, sample_rate, filter) = {
-        let state = app.state::<AudioState>();
+        let state = window_state(&window);
         let guard = state
+            .audio
             .source
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
@@ -63,6 +64,7 @@ pub async fn run_analysis(
         let region = source.samples[first * channels..last * channels].to_vec();
 
         let filter = state
+            .audio
             .filter
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())
