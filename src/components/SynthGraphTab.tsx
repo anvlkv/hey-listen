@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import Button from "./Button";
 import GraphEditor from "./GraphEditor";
+import { createNumberDrag } from "../lib/dragNumber";
 import { graphWarning, outputConnected, resetGraph, SYNTH_GRAPH } from "../state/graph";
 import { renderSynth, rendering, synthError } from "../state/synth";
 
@@ -12,6 +13,15 @@ import { renderSynth, rendering, synthError } from "../state/synth";
 export default function SynthGraphTab() {
   const [seconds, setSeconds] = createSignal(4);
   const nodes = () => SYNTH_GRAPH.nodes.length;
+
+  // The length field is draggable as well as typed (M7).
+  const lengthDrag = createNumberDrag({
+    value: seconds,
+    onInput: (value) => setSeconds(Math.min(60, Math.max(0.1, value))),
+    step: 0.5,
+    min: 0.1,
+    max: 60,
+  });
 
   return (
     <GraphEditor graph="synth">
@@ -32,13 +42,14 @@ export default function SynthGraphTab() {
       <label class="graph-field" title="Rendered length, in seconds">
         <span>Length</span>
         <input
-          class="graph-number nodrag"
+          class={`graph-number nodrag num-drag${lengthDrag.dragging() ? " num-dragging" : ""}`}
           type="number"
           min={0.1}
           max={60}
           step={0.5}
           value={seconds()}
           onInput={(event) => setSeconds(Number(event.currentTarget.value))}
+          {...lengthDrag.handlers}
         />
         <span>s</span>
       </label>
@@ -57,7 +68,7 @@ export default function SynthGraphTab() {
         )}
       </Show>
       <Button class="graph-btn" onClick={() => resetGraph("synth")}>
-        Clear
+        Clear graph
       </Button>
     </GraphEditor>
   );

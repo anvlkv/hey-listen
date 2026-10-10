@@ -1,10 +1,10 @@
 //! Decode/file-source commands.
 
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Manager};
+use tauri::WebviewWindow;
 
 use crate::audio::decode::{self, DecodeError, ProbeInfo, StreamSummary};
-use crate::state::{AudioState, SourcePcm};
+use crate::state::{window_state, SourcePcm};
 
 /// Inspect a file's container/codec metadata (codec, sample rate, channels,
 /// duration) without decoding it.
@@ -22,7 +22,7 @@ pub fn probe_file(path: String) -> Result<ProbeInfo, DecodeError> {
 /// capture/decode, per `docs/architecture.md` → "Threading".
 #[tauri::command]
 pub async fn stream_file(
-    app: AppHandle,
+    window: WebviewWindow,
     path: String,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<StreamSummary, DecodeError> {
@@ -46,7 +46,7 @@ pub async fn stream_file(
     .await
     .map_err(|err| DecodeError::Decode(err.to_string()))??;
 
-    app.state::<AudioState>().set_source(Some(SourcePcm {
+    window_state(&window).audio.set_source(Some(SourcePcm {
         samples,
         sample_rate: summary.sample_rate,
         channels: summary.channels,

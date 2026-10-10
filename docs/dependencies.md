@@ -7,6 +7,8 @@
 | `tauri` / `tauri-build` | 2 | desktop shell + build | MIT / Apache-2.0 |
 | `tauri-plugin-dialog` | 2 | native open/save/confirm dialogs | MIT / Apache-2.0 |
 | `tauri-plugin-window-state` | 2 | remember window size/position across launches | MIT / Apache-2.0 |
+| `tauri-plugin-log` | 2 | file + stdout logging (rotated per session / size) | MIT / Apache-2.0 |
+| `log` | 0.4 | log facade (Rust `log::info!` etc.) | MIT / Apache-2.0 |
 | `flexaudio` | 0.3 | capture (mic/system/process/mix) | see crates.io |
 | `symphonia` | 0.6 (`all`) | file decode / demux | MPL-2.0 |
 | `fundsp` | 0.23 | filtering + synthesis nets | see crates.io |
@@ -23,6 +25,7 @@
 | `solid-js` | ^1.9 | UI | MIT |
 | `@kobalte/core` | ^0.13 | accessible UI primitives (combobox, select, …) | MIT |
 | `@tauri-apps/api` / `@tauri-apps/cli` | ^2 | IPC / CLI | MIT / Apache-2.0 |
+| `@tauri-apps/plugin-log` | ^2 | forward frontend `console.*` to the core log (`attachConsole`) | MIT / Apache-2.0 |
 | `dockview` | ^8 | Workbench docking (tabs) | MIT |
 | `@dschz/solid-flow` | ^0.2 | fundsp graph editor | MIT |
 | `@dschz/solid-uplot` | ^0.5 | charts | MIT |

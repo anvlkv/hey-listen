@@ -2,6 +2,7 @@ import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
 import ChannelSelect from "../ChannelSelect";
 import SelectField from "../SelectField";
+import { createNumberDrag } from "../../lib/dragNumber";
 import {
   ANALYSIS_RATES,
   FFT_SIZE_HELP,
@@ -41,6 +42,20 @@ export default function SharedParamsForm() {
   const hopHelp = () => HOP_OPTIONS.find((option) => option.value === hop())?.help;
   const windowHelp = () => WINDOW_FNS.find((option) => option.value === windowFn())?.help;
   const rateHelp = () => ANALYSIS_RATES.find((option) => option.value === resampleTo())?.help;
+
+  // The frequency-range fields also accept drag-to-adjust (M7).
+  const freqMinDrag = createNumberDrag({
+    value: freqMinHz,
+    onInput: (value) => setFreqMinHz(Math.max(0, Math.round(value))),
+    step: 50,
+    min: 0,
+  });
+  const freqMaxDrag = createNumberDrag({
+    value: freqMaxHz,
+    onInput: (value) => setFreqMaxHz(Math.max(0, Math.round(value))),
+    step: 50,
+    min: 0,
+  });
 
   return (
     <div class="params-form">
@@ -115,7 +130,11 @@ export default function SharedParamsForm() {
             step={50}
             format={false}
           >
-            <NumberField.Input class="src-num" aria-label="Minimum frequency (Hz)" />
+            <NumberField.Input
+              class={`src-num num-drag${freqMinDrag.dragging() ? " num-dragging" : ""}`}
+              aria-label="Minimum frequency (Hz)"
+              {...freqMinDrag.handlers}
+            />
           </NumberField>
           <span class="params-dim">–</span>
           <NumberField
@@ -127,9 +146,10 @@ export default function SharedParamsForm() {
             format={false}
           >
             <NumberField.Input
-              class="src-num"
+              class={`src-num num-drag${freqMaxDrag.dragging() ? " num-dragging" : ""}`}
               placeholder="Nyquist"
               aria-label="Maximum frequency (Hz)"
+              {...freqMaxDrag.handlers}
             />
           </NumberField>
           <span class="params-dim">Hz</span>

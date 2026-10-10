@@ -48,7 +48,7 @@ export default function FilterGraphTab() {
         )}
       </Show>
       <Button class="graph-btn" onClick={() => resetGraph("filter")}>
-        Clear
+        Clear graph
       </Button>
     </GraphEditor>
   );

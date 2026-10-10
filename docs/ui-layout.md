@@ -22,6 +22,19 @@ synth) and, from M4, the **analyzer tabs**.
 
 (The native window title bar sits above the Toolbar; it is not shown here.)
 
+## Windows
+
+**One window = one project = one source** (ADR-3). The app can run **N independent
+project windows**; **File → New Window** (or `→ New Window` on the app menu) opens a
+fresh, empty one. Each window is a separate webview with its own core state
+(`state::WindowRegistry`, keyed by window label) — so windows never share audio, and
+the File/Edit menu actions act on the **focused** window.
+
+A third kind of window, the **popout** (a Workbench tab moved to its own window), is
+*not* an independent project: it is a real Tauri window whose label is aliased to the
+originating window's project state, so it is one project seen through two windows
+(ADR-11). See [Workbench tabs](#workbench-tabs).
+
 ## Row sizing
 
 The Source + Timeline row has a **fixed, user-adjustable height** — both are the
@@ -29,6 +42,25 @@ same height by construction. The splitter above the row is dragged with the
 pointer; the height is clamped so the Workbench keeps a usable minimum. The
 default is compact (the Source panel's controls are sized to fit it without
 scrolling); shrinking the row below the panel's content makes the panel scroll.
+
+The row's two panels **swap in place** by context (they are not reordered):
+
+- **No source yet** — the Source panel takes the *whole* row as a compact, **fixed-height
+  horizontal strip** ("Add audio": the heading + hint on the left, the picker and its
+  controls on the right, laid out inline and wrapping) and the Timeline is hidden
+  (there is nothing to draw). The strip's controls are the *same* as the Source
+  panel's — including gain, meter, and the start/stop timers.
+- **Recording** — the Source controls sit beside the growing Timeline, so the meter
+  and record controls are reachable.
+- **A source exists and it is not recording** — the Timeline takes the whole row;
+  the Source panel is hidden, since it is no longer needed. The Timeline's
+  **Replace…** button reveals it again (it stays until dismissed), so the source can
+  still be changed.
+
+The row (and the Sidebar) keeps its own **draggable splitter**: the height is clamped
+so the Workbench keeps a usable minimum, and the sidebar width is clamped to
+160–520 px. The splitter above the row is only shown **when the Timeline is** (the
+compact "Add audio" state has a fixed height).
 
 ## Desktop-app conventions
 
@@ -46,16 +78,28 @@ scrolling); shrinking the row below the panel's content makes the panel scroll.
   menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
   status only. No hero/header like a website. It carries the app-level audio
-  controls (the **filter bypass toggle** and the preview **output gain + device**,
-  which drive the core, ADR-9), the **Analysis params** popover (the shared, synced
-  analysis params — see [`analysis-tools.md`](analysis-tools.md)), and a **View**
-  popover for the UI scale and theme. The temporary **`Rust backend:`** status (the
-  M0 IPC-ping scaffold) has been removed; M7 still adds a preview **output meter**
-  next to gain/device.
-- **Numeric inputs** gain **drag-to-adjust** (drag up/down to change the value, a
-  visual affordance rather than a slider) in addition to typing — M7.
+  controls (the **filter bypass toggle**, the preview **output gain + device**, and
+  the preview **output meter** which reads the core's playback level via
+  `output_level`, all driving the core, ADR-9), the **Analysis params** popover (the
+  shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), and
+  a **View** popover for the UI scale, theme, and the bottom-row layout. The
+  temporary **`Rust backend:`** status (the M0 IPC-ping scaffold) is gone.
+- **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
+  decrease (Shift for fine control) — in addition to typing. There is no slider; an
+  `ns-resize` cursor is the only affordance. This covers the Kobalte `NumberField`s
+  (timers, frequency range, per-tool params), the graph nodes' inline params, and the
+  synth length (`src/lib/dragNumber.ts`).
 - A user-adjustable **font size / UI zoom** (0.8–1.4×) scales the whole interface;
   it lives in the toolbar **View** popover and is persisted.
+
+## Scrolling
+
+Lists (the Sidebar tool list, the graph palette) use a custom `ScrollArea`
+(`src/components/ScrollArea.tsx`). macOS WKWebView shows an overlay scrollbar that
+ignores `::-webkit-scrollbar` / `scrollbar-width`, so the viewport is
+`overflow: hidden` and the content is **translated** by `scrollTop` ourselves —
+wheel/trackpad and the draggable thumb drive the same signal, giving a consistent
+bar on every platform with no native scrollbar.
 
 ## Theming
 
@@ -84,9 +128,20 @@ None of these are closable, draggable, or tabbed.
 - Tabs are dragged to reorder / **split / join** groups. The drag runs on
   dockview's **pointer** strategy (`dndStrategy: "pointer"`): the system WebView
   does not drive HTML5 drag-and-drop reliably, which left edge drops inoperative.
-- Any Workbench tab can be **popped out** into its own window (M7); the popout
-  title shows the tab name + source, and focusing the tab in the main window
-  raises the popout.
+- Any Workbench tab can be **popped out** into its own window (M7): right-click the
+  tab → **Pop out to window**. On macOS a `window.open` popup crashes loading
+  `tauri://…` (the custom URL-scheme handler is only wired for a full wry webview), so
+  the popout is a **real Tauri window** created by `open_popout_window` — the frontend
+  only renders (ADR-11). It shows just that tool (no tab strip), is a *view* of the
+  same project, and its title is `<tool> — <project>`. Selecting that tool in the
+  Sidebar **raises** the popout (`focus_popout`) rather than opening a duplicate tab,
+  and a *new* tool always opens in the main window.
+- **Analyzer popouts** are offered (graph editors stay in the Workbench: their state
+  is frontend-only). A popout pulls the project's shared state
+  (`timeline`/`params`/`toolOptions`/`views`/`project`) on load and pushes its own
+  edits back, so the analysis window, chart zoom, and params stay in sync **across
+  windows**; a project window closes its popouts when it closes, and popouts are
+  re-created on project load.
 - Each analyzer tab has a **params popover** and an **about popover**.
 - A **busy indicator** shows progress without blocking: the **first** computation
   (nothing to show yet) spins in the **centre** of the tab; a **recompute** (params
@@ -101,11 +156,15 @@ None of these are closable, draggable, or tabbed.
   uPlot chart shares one `createPluginBus` (`state/chartSync.ts`), so the hovered
   cursor is mirrored onto the others and x-zoom is shared within a group (time
   charts follow each other; the spectrum group follows frequency). The canvas
-  spectrogram / matrix views join the time group too.
+  spectrogram / matrix views join the time group too. Zooming **cannot** go beyond
+  the data's x extent (the range is clamped). Cross-tab **and cross-window** zoom is
+  synced: a chart's view is pushed to the core as `view:time` / `view:freq` and
+  applied in the project's other windows (ADR-11).
 
 ## Sidebar
 
-Lists every available analyzer tool (see
+The Sidebar's **width is draggable** (a splitter between it and the Workbench,
+clamped to 160–520 px). It lists every available analyzer tool (see
 [`analysis-tools.md`](analysis-tools.md)) and, below them, the two graph editors —
 **analyzers come first**, grouped by domain (time / spectral / pitch / rhythm /
 **loudness). A **sticky search box** at the top filters the analyzer list by
@@ -125,7 +184,10 @@ The region picks the source kind (file / mic / system / process / mix) and, for
 live kinds, holds that kind's controls: device or process selection (comboboxes),
 gain, a start-timer delay, a target duration, record/pause/stop, and an input
 meter. The picking side is fixed (not a tab); recorded audio becomes the
-timeline's source like any other.
+timeline's source like any other. With **no source yet** the same controls render
+as a compact horizontal strip across the whole row (see [Row sizing](#row-sizing));
+while **recording**, the ones that cannot be changed mid-capture (the kind picker,
+device/process selection, and the timers) are hidden.
 
 Selecting a live kind opens a capture session right away so the **input meter is
 live even while idle** (monitoring); Record reuses that session and starts

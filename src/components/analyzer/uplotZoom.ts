@@ -37,9 +37,23 @@ export function createUplotZoom(): UplotZoom {
     }
   };
 
+  /** The data's x extent (first → last point), or `null` when there is no data. */
+  const dataExtent = (): [number, number] | null => {
+    const xs = instance()?.data[0];
+    if (!xs || xs.length < 2) return null;
+    return [xs[0], xs[xs.length - 1]];
+  };
+
   const apply = (min: number, max: number) => {
     const u = instance();
     if (!u || !(max > min)) return;
+    // Never zoom out beyond the data: clamp the view to the x extent.
+    const extent = dataExtent();
+    if (extent) {
+      min = Math.max(min, extent[0]);
+      max = Math.min(max, extent[1]);
+      if (!(max > min)) return;
+    }
     u.setScale("x", { min, max });
   };
 

@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show, type JSX } from "solid-js";
 import ScrollArea from "./ScrollArea";
 import { openTool, openTools, toolsInGroup, type ToolDef } from "../state/workbench";
 import {
@@ -28,7 +28,7 @@ const toTool = (def: AnalyzerDef): SidebarTool => ({
   tooltip: def.about,
 });
 
-export default function Sidebar() {
+export default function Sidebar(props: { style?: JSX.CSSProperties }) {
   const [query, setQuery] = createSignal("");
 
   const matches = (def: AnalyzerDef) => matchesQuery(def, query());
@@ -59,7 +59,7 @@ export default function Sidebar() {
   );
 
   return (
-    <aside class="app-sidebar">
+    <aside class="app-sidebar" style={props.style}>
       <input
         class="sidebar-search"
         type="search"

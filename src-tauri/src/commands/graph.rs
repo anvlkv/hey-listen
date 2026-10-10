@@ -4,11 +4,11 @@
 //! types, `Channel`, state) but keep the fundsp work in the engine.
 
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Manager};
+use tauri::WebviewWindow;
 
 use crate::audio::decode::StreamSummary;
 use crate::audio::graph::{self, GraphError, GraphSpec};
-use crate::state::{AudioState, SourcePcm};
+use crate::state::{window_state, SourcePcm};
 
 /// Interleaved samples per streamed chunk from a rendered synth (256 KiB).
 const RENDER_CHUNK: usize = 64 * 1024;
@@ -16,23 +16,23 @@ const RENDER_CHUNK: usize = 64 * 1024;
 /// Install (or clear) the project's filter graph. Validated as a filter (one
 /// global input); an invalid graph clears the filter and surfaces the error.
 #[tauri::command]
-pub fn set_filter_graph(app: AppHandle, spec: Option<GraphSpec>) -> Result<(), GraphError> {
-    let state = app.state::<AudioState>();
+pub fn set_filter_graph(window: WebviewWindow, spec: Option<GraphSpec>) -> Result<(), GraphError> {
+    let state = window_state(&window);
     match spec {
         None => {
-            state.set_filter(None);
+            state.audio.set_filter(None);
             Ok(())
         }
         Some(spec) if spec.is_empty() => {
-            state.set_filter(None);
+            state.audio.set_filter(None);
             Ok(())
         }
         Some(spec) => {
             if let Err(err) = graph::build(&spec, 1, 48_000) {
-                state.set_filter(None);
+                state.audio.set_filter(None);
                 return Err(err);
             }
-            state.set_filter(Some(spec));
+            state.audio.set_filter(Some(spec));
             Ok(())
         }
     }
@@ -42,7 +42,7 @@ pub fn set_filter_graph(app: AppHandle, spec: Option<GraphSpec>) -> Result<(), G
 /// and adopt it as the project source.
 #[tauri::command]
 pub async fn render_synth(
-    app: AppHandle,
+    window: WebviewWindow,
     spec: GraphSpec,
     seconds: f64,
     sample_rate: u32,
@@ -72,7 +72,7 @@ pub async fn render_synth(
         .map_err(|err| GraphError::Stream(err.to_string()))?;
 
     let frames = pcm.len() as u64;
-    app.state::<AudioState>().set_source(Some(SourcePcm {
+    window_state(&window).audio.set_source(Some(SourcePcm {
         samples: pcm,
         sample_rate: rate,
         channels: 1,
@@ -91,7 +91,7 @@ pub async fn render_synth(
 /// (so frames align 1:1 with the raw waveform) and does not mutate the source.
 #[tauri::command]
 pub async fn render_filtered(
-    app: AppHandle,
+    window: WebviewWindow,
     channel: Option<usize>,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<StreamSummary, GraphError> {
@@ -99,8 +99,9 @@ pub async fn render_filtered(
     // before the CPU-bound conditioning runs on the blocking pool (the guard is not
     // `Send`). The source is left untouched — this only reads it.
     let (samples, channels, sample_rate, filter) = {
-        let state = app.state::<AudioState>();
+        let state = window_state(&window);
         let guard = state
+            .audio
             .source
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
@@ -109,6 +110,7 @@ pub async fn render_filtered(
             .ok_or_else(|| GraphError::Stream("no source".into()))?;
 
         let filter = state
+            .audio
             .filter
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())

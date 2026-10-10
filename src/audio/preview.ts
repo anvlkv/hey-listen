@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createEffect, createRoot, on } from "solid-js";
+import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { channel } from "../state/analysis";
 import { filterRevision } from "../state/graph";
 import { outputDeviceId } from "../state/output";
@@ -20,7 +20,9 @@ let regionStart = 0;
 let regionEnd = 0;
 let loopRegion = true;
 let startedAt = 0;
-let playing = false;
+
+/** Whether a preview region is currently loaded/playing (drives the output meter). */
+export const [previewPlaying, setPreviewPlaying] = createSignal(false);
 
 /** The shared channel pick as an IPC value: a 0-based index, or `null` to downmix. */
 function channelArg(): number | null {
@@ -37,7 +39,7 @@ function issue(start: number, end: number, loop: boolean) {
     device: outputDeviceId(),
   }).catch((err) => {
     console.error("preview failed", err);
-    playing = false;
+    setPreviewPlaying(false);
   });
 }
 
@@ -50,13 +52,13 @@ export function previewRegion(startSec: number, endSec: number, loop = true) {
   regionEnd = endSec;
   loopRegion = loop;
   startedAt = performance.now();
-  playing = true;
+  setPreviewPlaying(true);
   issue(startSec, endSec, loop);
 }
 
 /** Stop any in-flight preview. */
 export function stop() {
-  playing = false;
+  setPreviewPlaying(false);
   void invoke("stop_preview");
 }
 
@@ -67,7 +69,7 @@ export function setOutputGain(gain: number) {
 
 /** Current position within the looped region (seconds), while playing. */
 export function playhead(): number | null {
-  if (!playing) return null;
+  if (!previewPlaying()) return null;
   const length = regionEnd - regionStart;
   if (length <= 0) return null;
   return regionStart + (((performance.now() - startedAt) / 1000) % length);
@@ -75,7 +77,7 @@ export function playhead(): number | null {
 
 /** Re-load the current region so the core re-reads the filter/channel/device. */
 function refreshPreview() {
-  if (!playing) return;
+  if (!previewPlaying()) return;
   startedAt = performance.now();
   issue(regionStart, regionEnd, loopRegion);
 }

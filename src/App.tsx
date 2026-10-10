@@ -5,14 +5,24 @@ import SourcePanel from "./components/SourcePanel";
 import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
 import Workbench from "./components/Workbench";
-import { disposeCapture, initCapture } from "./state/capture";
+import { disposeCapture, initCapture, recording } from "./state/capture";
 import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu } from "./state/menu";
+import { sourcePanelPinned } from "./state/settings";
+import { source } from "./state/source";
+import { initUiState } from "./state/uiState";
 
 /** Bottom row (Source + Timeline): default height and drag limits, in px. */
 const BOTTOM_DEFAULT = 220;
 const BOTTOM_MIN = 140;
 const TOP_MIN = 180;
+/** Fixed height for the compact "Add audio" strip (no timeline yet). */
+const BOTTOM_EMPTY = 96;
+
+/** Sidebar column: default width and drag limits, in px. */
+const SIDEBAR_DEFAULT = 240;
+const SIDEBAR_MIN = 160;
+const SIDEBAR_MAX = 520;
 
 /**
  * Hey Listen shell.
@@ -22,18 +32,27 @@ const TOP_MIN = 180;
  * so `dockview` is mounted only there.
  *
  * The Source picker sits in the bottom-left corner, at the intersection of the
- * Sidebar column and the Timeline row. See `docs/ui-layout.md`.
+ * Sidebar column and the Timeline row. The bottom row is **contextual**: with no
+ * source the Source panel takes the whole row; while recording the Source controls
+ * sit beside the Timeline; once a source exists (and it is not recording) the
+ * Timeline takes the whole row and the Source panel is hidden (reveal it from the
+ * Timeline's *Replace…* button). See `docs/ui-layout.md`.
  */
 export default function App() {
   const [bottomHeight, setBottomHeight] = createSignal(BOTTOM_DEFAULT);
+  const [sidebarWidth, setSidebarWidth] = createSignal(SIDEBAR_DEFAULT);
   let main!: HTMLDivElement;
   let drag: { y: number; height: number } | null = null;
+  let sidebarDrag: { x: number; width: number } | null = null;
   let disposeDragDrop: (() => void) | undefined;
 
   const clamp = (height: number) => {
     const max = Math.max(BOTTOM_MIN, (main?.clientHeight ?? 0) - TOP_MIN);
     return Math.round(Math.min(max, Math.max(BOTTOM_MIN, height)));
   };
+
+  const clampSidebar = (width: number) =>
+    Math.round(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, width)));
 
   function onSplitterDown(event: PointerEvent) {
     const el = event.currentTarget as HTMLElement;
@@ -53,9 +72,34 @@ export default function App() {
     if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
   }
 
+  function onSidebarDown(event: PointerEvent) {
+    const el = event.currentTarget as HTMLElement;
+    sidebarDrag = { x: event.clientX, width: sidebarWidth() };
+    el.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function onSidebarMove(event: PointerEvent) {
+    if (!sidebarDrag) return;
+    setSidebarWidth(clampSidebar(sidebarDrag.width + (event.clientX - sidebarDrag.x)));
+  }
+
+  function onSidebarUp(event: PointerEvent) {
+    sidebarDrag = null;
+    const el = event.currentTarget as HTMLElement;
+    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+  }
+
   const handleResize = () => setBottomHeight((height) => clamp(height));
 
+  // The bottom row swaps the Source panel and the Timeline *in place* by context:
+  // the Source panel is shown when there is nothing on the timeline yet, while
+  // recording, or when the user asks to replace the source.
+  const showSource = () => source() == null || recording() || sourcePanelPinned();
+  const showTimeline = () => source() != null || recording();
+
   onMount(() => {
+    void initUiState();
     void initCapture();
     void initMenu();
     disposeDragDrop = initDragDrop();
@@ -72,23 +116,49 @@ export default function App() {
       <Toolbar />
       <div class="app-main" ref={main}>
         <div class="app-top">
-          <Sidebar />
+          <Sidebar
+            style={{
+              flex: `0 0 ${sidebarWidth()}px`,
+              width: `${sidebarWidth()}px`,
+            }}
+          />
+          <div
+            class="app-vsplitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize the sidebar"
+            title="Drag to resize"
+            onPointerDown={onSidebarDown}
+            onPointerMove={onSidebarMove}
+            onPointerUp={onSidebarUp}
+            onPointerCancel={onSidebarUp}
+          />
           <Workbench />
         </div>
+        <Show when={showTimeline()}>
+          <div
+            class="app-splitter"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize the timeline"
+            title="Drag to resize"
+            onPointerDown={onSplitterDown}
+            onPointerMove={onSplitterMove}
+            onPointerUp={onSplitterUp}
+            onPointerCancel={onSplitterUp}
+          />
+        </Show>
         <div
-          class="app-splitter"
-          role="separator"
-          aria-orientation="horizontal"
-          aria-label="Resize the timeline"
-          title="Drag to resize"
-          onPointerDown={onSplitterDown}
-          onPointerMove={onSplitterMove}
-          onPointerUp={onSplitterUp}
-          onPointerCancel={onSplitterUp}
-        />
-        <div class="app-bottom" style={{ height: `${bottomHeight()}px` }}>
-          <SourcePanel />
-          <Timeline />
+          class="app-bottom"
+          classList={{ "app-bottom-solo": !showTimeline() }}
+          style={{ height: `${showTimeline() ? bottomHeight() : BOTTOM_EMPTY}px` }}
+        >
+          <Show when={showSource()}>
+            <SourcePanel />
+          </Show>
+          <Show when={showTimeline()}>
+            <Timeline />
+          </Show>
         </div>
       </div>
       <Show when={dragActive()}>

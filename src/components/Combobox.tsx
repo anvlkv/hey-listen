@@ -1,5 +1,6 @@
 import { Combobox as KCombobox } from "@kobalte/core/combobox";
 import { createMemo } from "solid-js";
+import { createPopupMount } from "../lib/popupMount";
 
 export interface ComboOption {
   value: string;
@@ -26,6 +27,7 @@ export default function Combobox(props: {
   label?: string;
   disabled?: boolean;
 }) {
+  const portal = createPopupMount();
   const all = createMemo<ComboOption[]>(() =>
     props.emptyLabel ? [{ value: "", label: props.emptyLabel }, ...props.options] : props.options,
   );
@@ -54,6 +56,9 @@ export default function Combobox(props: {
       placeholder={props.placeholder}
       disabled={props.disabled}
       triggerMode="focus"
+      onOpenChange={(isOpen) => {
+        if (isOpen) portal.refresh();
+      }}
       sameWidth
       itemComponent={(item) => (
         <KCombobox.Item item={item.item} class="pop-item">
@@ -65,12 +70,12 @@ export default function Combobox(props: {
       )}
     >
       <KCombobox.Control class="combo-control">
-        <KCombobox.Input class="combo-input" aria-label={props.label} />
+        <KCombobox.Input ref={portal.ref} class="combo-input" aria-label={props.label} />
         <KCombobox.Trigger class="combo-trigger">
           <KCombobox.Icon class="combo-icon">▾</KCombobox.Icon>
         </KCombobox.Trigger>
       </KCombobox.Control>
-      <KCombobox.Portal>
+      <KCombobox.Portal mount={portal.mount()}>
         <KCombobox.Content class="pop-content">
           <KCombobox.Listbox class="pop-listbox" />
         </KCombobox.Content>

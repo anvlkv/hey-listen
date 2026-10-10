@@ -189,6 +189,13 @@ textarea,
   height: 100%;
 }
 
+/* A popped-out tab: the whole window is just the one tool. */
+.popout-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 /* When the UI font scale is raised, single-line chrome must clip (ellipsis)
    instead of wrapping out of its fixed-height container. */
 .toolbar-btn,
@@ -343,10 +350,41 @@ textarea,
   text-align: right;
 }
 
+/* Reserve the level readout's width so a changing value (— → −23 dB) doesn't
+   reflow the toolbar controls. */
+.toolbar-meter-readout {
+  min-width: 3.25rem;
+}
+
 .toolbar-slider {
   display: flex;
   align-items: center;
   width: 88px;
+}
+
+/* Preview output meter (beside gain/device). */
+.toolbar-meter {
+  display: flex;
+  align-items: center;
+  width: 64px;
+}
+
+.toolbar-meter-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.toolbar-meter-fill {
+  width: var(--kb-meter-fill-width);
+  height: 100%;
+  background: linear-gradient(90deg, var(--success), var(--warn-2) 78%, var(--danger));
+  transition: width 60ms linear;
 }
 
 .toolbar-field {
@@ -433,11 +471,42 @@ textarea,
   background: var(--control);
 }
 
+/* Vertical splitter between the Sidebar and the Workbench (M7). */
+.app-vsplitter {
+  flex: none;
+  width: 6px;
+  cursor: col-resize;
+  background: var(--splitter);
+  border-right: 1px solid var(--border);
+}
+
+.app-vsplitter:hover {
+  background: var(--control);
+}
+
 /* Bottom row: Source picker (bottom-left) + Timeline; same, resizable height. */
 .app-bottom {
   flex: none;
   display: flex;
   min-height: 0;
+}
+
+/* Solo bottom row (no source yet): a compact, fixed-height "Add audio" strip.
+   The source panel lays out horizontally so it fits without scrolling. */
+.app-bottom-solo {
+  align-items: stretch;
+}
+
+.app-bottom-solo .app-source {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  border-right: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  overflow: hidden;
 }
 
 /* Fixed region — not a tab, not draggable/closable. */
@@ -449,10 +518,9 @@ textarea,
   min-height: 0;
   overflow: hidden;
   background: var(--panel-2);
-  border-right: 1px solid var(--border);
 }
 
-/* --- Custom scroll area (macOS ignores ::-webkit-scrollbar, so we draw our own) */
+/* --- Custom scroll area (we scroll ourselves; see `ScrollArea.tsx`) --- */
 
 .scroll-area {
   position: relative;
@@ -466,21 +534,17 @@ textarea,
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Hide the native scrollbar (all platforms); we draw the thumb ourselves. */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  /* No native scrollbar: the content is translated by `ScrollArea`. */
+  overflow: hidden;
 }
 
-.scroll-area-viewport::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+.scroll-area-content {
+  min-width: 100%;
+  will-change: transform;
 }
 
 /* Sidebar content inset (the bar sits in the outer gutter, not the padding). */
-.sidebar-scroll .scroll-area-viewport {
+.sidebar-scroll .scroll-area-content {
   padding: 12px;
 }
 
@@ -565,6 +629,7 @@ textarea,
   position: relative;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* Fixed region — not a tab, not draggable/closable. */
@@ -628,6 +693,53 @@ textarea,
   color: var(--fg-muted);
 }
 
+.src-heading {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* "Add audio" hero empty state: a horizontal strip (title/hint left, the
+   controls right) so it fits the compact bottom row without scrolling. */
+.src-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.src-hero-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.src-hero-hint {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  max-width: 30rem;
+}
+
+/* The picker + capture controls. Stacks vertically in the narrow corner panel;
+   the empty-state strip lays them inline and wraps. */
+.src-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-bottom-solo .src-controls {
+  flex: 1;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-width: 0;
+}
+
 .src-unit {
   flex: none;
   font-size: 0.6875rem;
@@ -644,6 +756,16 @@ textarea,
   background: var(--panel-3);
   border: 1px solid var(--border-strong);
   border-radius: 4px;
+}
+
+/* Drag-to-adjust numeric inputs (M7): drag up to increase, down to decrease. The
+   `ns-resize` cursor is the affordance; `num-dragging` is set only mid-drag. */
+.num-drag {
+  cursor: ns-resize;
+}
+
+.num-drag.num-dragging {
+  background: var(--control-hover);
 }
 
 .src-readout {
@@ -948,9 +1070,11 @@ textarea,
 }
 
 .source-meta {
-  flex: none;
+  flex: 0 1 auto;
   font-size: 0.6875rem;
   color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Fixed region — not a tab, not draggable/closable. */
@@ -1273,7 +1397,7 @@ textarea,
   background: var(--control-hover);
 }
 
-.graph-palette-scroll .scroll-area-viewport {
+.graph-palette-scroll .scroll-area-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1281,10 +1405,8 @@ textarea,
 }
 
 .graph-palette-search {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   flex: none;
+  margin-bottom: 8px;
 }
 
 .graph-palette-title {
@@ -1392,11 +1514,37 @@ textarea,
 
 .workbench-watermark {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   height: 100%;
   color: var(--fg-muted);
   font-size: 0.8125rem;
+}
+
+/* A popped-out tab is a single, tab-less chart: hide dockview's tab strip in the
+   popout window so only the tool's content is shown. */
+.dv-groupview-popout .dv-tabs-and-actions-container {
+  display: none;
+}
+
+/* dockview.css is a separate chunk loaded after this file, so these overrides
+   need !important to beat dockview's own scrollbar rules. Tabs still scroll via
+   wheel/drag and overflow into the tab menu. */
+.dv-tabs-container,
+.dv-tabs-overflow-container {
+  scrollbar-width: none !important;
+}
+.dv-tabs-container::-webkit-scrollbar,
+.dv-tabs-overflow-container::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* The dockview group content view defaults to `overflow: auto`; our panel content
+   fills and clips itself, so force it to clip instead of drawing scrollbars. */
+.dv-view {
+  overflow: hidden !important;
 }
 
 .analyzer-title {
@@ -1452,6 +1600,7 @@ textarea,
 .analyzer-body {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .analyzer-chart {
@@ -1459,6 +1608,7 @@ textarea,
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .analyzer-readouts {
@@ -1467,16 +1617,12 @@ textarea,
   align-items: center;
   gap: 4px 16px;
   flex: none;
+  /* Reserved height: the strip keeps the same height whatever the entries show. */
+  min-height: 1.75rem;
   padding: 6px 10px;
   font-size: 0.6875rem;
   border-bottom: 1px solid var(--border-soft);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-}
-
-.analyzer-readouts::-webkit-scrollbar {
-  display: none;
+  overflow: hidden;
 }
 
 .readout {
@@ -1485,6 +1631,8 @@ textarea,
   gap: 5px;
   flex: none;
   white-space: nowrap;
+  /* Reserve space per entry so a changing value never reflows the strip. */
+  min-width: 4.5rem;
 }
 
 .readout-label {
@@ -1505,11 +1653,33 @@ textarea,
 
 .analyzer-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  min-height: 100%;
+  box-sizing: border-box;
   padding: 24px;
   color: var(--fg-muted);
   font-size: 0.8125rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--fg-faint);
+}
+
+.empty-state-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.empty-state-hint {
+  max-width: 34rem;
+  color: var(--fg-muted);
 }
 
 .analyzer-empty-overlay {
@@ -1633,6 +1803,7 @@ textarea,
 
 .pop-panel {
   z-index: 1000;
+  max-width: 340px;
   padding: 12px;
   background: var(--panel-3);
   border: 1px solid var(--border-strong);
@@ -1646,7 +1817,15 @@ textarea,
 }
 
 .pop-panel-about {
+  width: 320px;
   max-width: 320px;
+}
+
+/* The params popover's trailing hint is a direct child (a sibling of the form),
+   so constrain it to the form width — otherwise its long sentence stretches the
+   panel wider than the controls above it. */
+.pop-panel > .params-note {
+  max-width: 264px;
 }
 
 .about-title {
@@ -1661,6 +1840,58 @@ textarea,
   font-size: 0.75rem;
   line-height: 1.5;
   color: var(--fg-2);
+}
+
+/* --- Reframe menu (right-click: set the timeline window) ---------------- */
+
+.reframe-menu {
+  min-width: 184px;
+  padding: 6px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px var(--shadow-strong);
+  z-index: 1000;
+}
+
+.reframe-menu-title {
+  padding: 4px 8px 6px;
+  margin-bottom: 4px;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.reframe-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.reframe-btn:hover,
+.reframe-btn[data-hover] {
+  background: var(--control-2);
+}
+
+/* Vertical line marking the exact time the menu will set, over the chart. */
+.reframe-callout {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  pointer-events: none;
+  background: var(--accent);
+  opacity: 0.35;
+  z-index: 999;
 }
 
 /* --- Shared / per-tool params form ------------------------------------- */

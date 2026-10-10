@@ -1,4 +1,5 @@
 import { Select } from "@kobalte/core/select";
+import { createPopupMount } from "../lib/popupMount";
 
 /**
  * SelectField — a labeled Kobalte `Select` over `{ value, label }` options, shared
@@ -20,6 +21,7 @@ export default function SelectField<T>(props: {
   ariaLabel?: string;
   disabled?: boolean;
 }) {
+  const portal = createPopupMount();
   const current = () =>
     props.options.find((option) => option.value === props.value) ?? props.options[0];
 
@@ -35,6 +37,9 @@ export default function SelectField<T>(props: {
         const option = Array.isArray(value) ? value[0] : value;
         if (option) props.onChange(option.value);
       }}
+      onOpenChange={(isOpen) => {
+        if (isOpen) portal.refresh();
+      }}
       sameWidth
       itemComponent={(item) => (
         <Select.Item item={item.item} class="pop-item">
@@ -43,13 +48,13 @@ export default function SelectField<T>(props: {
         </Select.Item>
       )}
     >
-      <Select.Trigger class="select-trigger" aria-label={props.ariaLabel ?? props.label}>
+      <Select.Trigger ref={portal.ref} class="select-trigger" aria-label={props.ariaLabel ?? props.label}>
         <Select.Value<SelectOption<T>> class="select-value">
           {(state) => state.selectedOption()?.label ?? ""}
         </Select.Value>
         <Select.Icon class="select-icon">▾</Select.Icon>
       </Select.Trigger>
-      <Select.Portal>
+      <Select.Portal mount={portal.mount()}>
         <Select.Content class="pop-content">
           <Select.Listbox class="pop-listbox" />
         </Select.Content>

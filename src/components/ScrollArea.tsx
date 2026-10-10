@@ -3,35 +3,39 @@ import { Show, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 /**
  * A scroll container with a **custom scrollbar**.
  *
- * macOS WKWebView (like Chromium on macOS) uses overlay scrollbars and ignores
- * `::-webkit-scrollbar`, so the scrollbar cannot be themed with CSS there. This
- * hides the native bar and draws a themed one instead — consistent on every
- * platform. Native scrolling (wheel, trackpad, keyboard) is untouched; the thumb
- * is draggable.
+ * macOS WKWebView shows an overlay scrollbar that ignores `::-webkit-scrollbar`
+ * and `scrollbar-width`, so the native bar cannot be hidden with CSS there. We
+ * therefore scroll **ourselves**: the viewport is `overflow: hidden` (no native
+ * bar) and the content is translated by `scrollTop`. Wheel / trackpad / keyboard
+ * scrolling is translated into the same signal, and the draggable thumb drives it
+ * too — consistent on every platform.
  */
 export default function ScrollArea(props: { class?: string; children: JSX.Element }) {
   let viewport!: HTMLDivElement;
+  let content!: HTMLDivElement;
   let bar!: HTMLDivElement;
+  const [scrollTop, setScrollTop] = createSignal(0);
   const [thumb, setThumb] = createSignal({ height: 0, top: 0 });
   const [overflowing, setOverflowing] = createSignal(false);
   const [active, setActive] = createSignal(false);
 
   const MIN_THUMB = 32;
 
-  /** Thumb geometry for the current scroll position. */
+  const scrollable = () => Math.max(0, content?.scrollHeight - viewport?.clientHeight);
+
   function metrics() {
     const view = viewport.clientHeight;
-    const content = viewport.scrollHeight;
+    const contentHeight = content.scrollHeight;
     const track = bar.clientHeight;
-    const height = Math.max(MIN_THUMB, Math.min(track, (view / content) * track));
+    const height = Math.max(MIN_THUMB, Math.min(track, (view / contentHeight) * track));
     const maxTop = track - height;
-    const scrollable = content - view;
-    const top = scrollable > 0 ? (viewport.scrollTop / scrollable) * maxTop : 0;
-    return { view, content, track, height, maxTop, scrollable, top };
+    const space = contentHeight - view;
+    const top = space > 0 ? (Math.min(scrollTop(), space) / space) * maxTop : 0;
+    return { height, top };
   }
 
   function update() {
-    if (viewport.scrollHeight <= viewport.clientHeight + 1 || bar.clientHeight <= 0) {
+    if (scrollable() <= 1 || bar.clientHeight <= 0) {
       setOverflowing(false);
       return;
     }
@@ -40,21 +44,36 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
     setThumb({ height: m.height, top: m.top });
   }
 
+  function scrollBy(delta: number) {
+    const next = Math.max(0, Math.min(scrollable(), scrollTop() + delta));
+    setScrollTop(next);
+    const m = metrics();
+    setThumb({ height: m.height, top: m.top });
+  }
+
+  function onWheel(event: WheelEvent) {
+    // Delta can be 0 for horizontal trackpads; ignore those.
+    if (event.deltaY !== 0) {
+      event.preventDefault();
+      scrollBy(event.deltaY);
+    }
+  }
+
   let drag: { y: number; start: number } | null = null;
 
   function onThumbDown(event: PointerEvent) {
     event.preventDefault();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    drag = { y: event.clientY, start: viewport.scrollTop };
+    drag = { y: event.clientY, start: scrollTop() };
     setActive(true);
   }
 
   function onThumbMove(event: PointerEvent) {
     if (!drag) return;
     const m = metrics();
-    if (m.maxTop <= 0) return;
-    const ratio = m.scrollable / m.maxTop;
-    viewport.scrollTop = drag.start + (event.clientY - drag.y) * ratio;
+    if (m.top < 0 || bar.clientHeight - m.height <= 0) return;
+    const ratio = scrollable() / (bar.clientHeight - m.height);
+    scrollBy((event.clientY - drag.y) * ratio - (scrollTop() - drag.start));
   }
 
   function onThumbUp(event: PointerEvent) {
@@ -67,9 +86,10 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
   onMount(() => {
     const observer = new ResizeObserver(() => update());
     observer.observe(viewport);
+    observer.observe(content);
     // The content grows/shrinks without resizing the viewport (list changes).
     const mutation = new MutationObserver(() => update());
-    mutation.observe(viewport, { childList: true, subtree: true });
+    mutation.observe(content, { childList: true, subtree: true });
     update();
     onCleanup(() => {
       observer.disconnect();
@@ -79,8 +99,14 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
 
   return (
     <div class={`scroll-area ${props.class ?? ""}`}>
-      <div class="scroll-area-viewport" ref={viewport} onScroll={update}>
-        {props.children}
+      <div class="scroll-area-viewport" ref={viewport} onWheel={onWheel}>
+        <div
+          class="scroll-area-content"
+          ref={content}
+          style={{ transform: `translateY(${-scrollTop()}px)` }}
+        >
+          {props.children}
+        </div>
       </div>
       <div class="scroll-area-bar" classList={{ "scroll-area-bar-hidden": !overflowing() }} ref={bar}>
         <Show when={overflowing()}>

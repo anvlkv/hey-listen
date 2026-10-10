@@ -60,6 +60,8 @@ struct PlayState {
     gain: f32,
     /// Source-time (seconds) of the region start, for position reporting.
     start_secs: f64,
+    /// Peak magnitude of the last output block, for the preview output meter.
+    level: f32,
 }
 
 impl Default for PlayState {
@@ -74,6 +76,7 @@ impl Default for PlayState {
             loop_region: false,
             gain: 1.0,
             start_secs: 0.0,
+            level: 0.0,
         }
     }
 }
@@ -178,6 +181,7 @@ impl Playback {
         state.pos = start;
         state.start_secs = start_secs.max(0.0);
         state.loop_region = loop_region;
+        state.level = 0.0;
     }
 
     pub fn stop(&self) {
@@ -186,6 +190,7 @@ impl Playback {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         state.playing = false;
+        state.level = 0.0;
     }
 
     pub fn set_gain(&self, gain: f32) {
@@ -207,6 +212,20 @@ impl Playback {
         }
         let elapsed = state.pos.saturating_sub(state.start_frame) as f64 / f64::from(state.rate);
         Some(state.start_secs + elapsed)
+    }
+
+    /// Peak magnitude (0..) of the most recent output block while playing, else `0`.
+    /// Drives the preview output meter in the toolbar.
+    pub fn level(&self) -> f32 {
+        let state = self
+            .shared
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if state.playing {
+            state.level
+        } else {
+            0.0
+        }
     }
 }
 
@@ -344,7 +363,7 @@ where
     T: SizedSample + FromSample<f32> + Send + 'static,
 {
     let channels = config.channels as usize;
-    let error_callback = |err| eprintln!("hey-listen playback stream error: {err}");
+    let error_callback = |err| log::error!("playback stream error: {err}");
     device
         .build_output_stream(
             config,
@@ -358,14 +377,23 @@ where
         .map_err(|err| PlaybackError::Device(err.to_string()))
 }
 
-/// Fill an output buffer by duplicating the mono signal across every channel.
+/// Fill an output buffer by duplicating the mono signal across every channel, and
+/// track the block's peak magnitude for the output meter.
 fn fill<T: Sample + FromSample<f32>>(state: &mut PlayState, data: &mut [T], channels: usize) {
+    let mut peak = 0.0f32;
     for frame in data.chunks_mut(channels.max(1)) {
-        let value = T::from_sample(next_sample(state));
+        let sample = next_sample(state);
+        let magnitude = sample.abs();
+        if magnitude > peak {
+            peak = magnitude;
+        }
+        let value = T::from_sample(sample);
         for slot in frame.iter_mut() {
             *slot = value;
         }
     }
+    // Hold the block peak, then decay so the meter still falls back between blocks.
+    state.level = peak.max(state.level * 0.85);
 }
 
 fn next_sample(state: &mut PlayState) -> f32 {

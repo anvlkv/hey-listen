@@ -15,7 +15,7 @@
 use tauri::menu::{
     AboutMetadata, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu,
 };
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::commands::project::OPEN_EVENT;
 use crate::recent::{self, RecentProject};
@@ -23,8 +23,8 @@ use crate::recent::{self, RecentProject};
 /// Event carrying a menu action id (File / Edit) to the frontend.
 pub const MENU_EVENT: &str = "app:menu";
 
-/// The File actions the frontend handles (ids match `state/project.ts`).
-const FILE_ACTIONS: [&str; 4] = ["new", "open", "save", "saveAs"];
+/// The File actions the frontend handles (ids match `state/project.ts` / `state/menu.ts`).
+const FILE_ACTIONS: [&str; 5] = ["new", "newWindow", "open", "save", "saveAs"];
 
 /// The Edit actions the frontend handles (ids match `state/menu.ts` → `state/history.ts`).
 const EDIT_ACTIONS: [&str; 2] = ["undo", "redo"];
@@ -39,6 +39,13 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let recent = recent_submenu(app, &recent::existing(app))?;
 
     let new = MenuItem::with_id(app, "new", "New Project", true, Some("CmdOrCtrl+N"))?;
+    let new_window = MenuItem::with_id(
+        app,
+        "newWindow",
+        "New Window",
+        true,
+        Some("CmdOrCtrl+Shift+N"),
+    )?;
     let open = MenuItem::with_id(app, "open", "Open Project…", true, Some("CmdOrCtrl+O"))?;
     let save = MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?;
     let save_as = MenuItem::with_id(app, "saveAs", "Save As…", true, Some("CmdOrCtrl+Shift+S"))?;
@@ -55,6 +62,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         &[
             &new,
+            &new_window,
             &open,
             &recent,
             &sep_after_open,
@@ -158,8 +166,23 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
     }
 
     if FILE_ACTIONS.contains(&id) || EDIT_ACTIONS.contains(&id) {
-        let _ = app.emit(MENU_EVENT, id);
+        // Emit only to the focused window: with N project windows, a File/Edit action
+        // must apply to the project the user is looking at (M7), not broadcast.
+        if let Some(label) = focused_label(app) {
+            let _ = app.emit_to(label, MENU_EVENT, id);
+        }
     }
+}
+
+/// The label of the focused window, else `main`, else any window.
+fn focused_label<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
+    let windows = app.webview_windows();
+    windows
+        .iter()
+        .find(|(_, window)| window.is_focused().unwrap_or(false))
+        .map(|(label, _)| label.clone())
+        .or_else(|| windows.contains_key("main").then(|| "main".to_string()))
+        .or_else(|| windows.keys().next().cloned())
 }
 
 /// The "Open Recent" submenu: one item per existing file, then Clear Menu.

@@ -5,7 +5,7 @@ import { channelFor } from "../state/analysis";
 import { filterEnabled } from "../state/graph";
 import { filteredSamples } from "../state/filtered";
 import { stopFollowing } from "../state/capture";
-import { chartTheme } from "../state/settings";
+import { chartTheme, setSourcePanelPinned, sourcePanelPinned } from "../state/settings";
 import { source, status } from "../state/source";
 import Button from "./Button";
 import ChannelSelect from "./ChannelSelect";
@@ -612,6 +612,16 @@ export default function Timeline() {
           <ChannelSelect />
         </Show>
         <div class="timeline-actions">
+          <Show when={source()}>
+            <Button
+              class="timeline-btn"
+              aria-pressed={sourcePanelPinned()}
+              title="Show the source controls to replace the source"
+              onClick={() => setSourcePanelPinned(!sourcePanelPinned())}
+            >
+              Replace source…
+            </Button>
+          </Show>
           <Button
             class="timeline-btn"
             disabled={status() !== "ready"}
@@ -623,10 +633,10 @@ export default function Timeline() {
           <Button
             class="timeline-btn"
             disabled={!active()}
-            title="Zoom to the analysis window"
+            title="Zoom the view to the analysis window"
             onClick={zoomToWindow}
           >
-            Window
+            Zoom to window
           </Button>
           <Button
             class="timeline-btn"

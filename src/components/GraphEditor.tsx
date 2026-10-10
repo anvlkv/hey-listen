@@ -276,7 +276,6 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
               </button>
             </div>
             <Show when={!collapsed()}>
-            <ScrollArea class="graph-palette-scroll">
             <input
               type="text"
               class="graph-palette-search nodrag nopan"
@@ -286,6 +285,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
               onInput={(event) => setQuery(event.currentTarget.value)}
               style={searchStyle()}
             />
+            <ScrollArea class="graph-palette-scroll">
             <For each={groups()}>
               {(group) => (
                 <div class="graph-palette-group">

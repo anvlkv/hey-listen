@@ -2,6 +2,8 @@ import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
+import ToolParamsForm from "./ToolParamsForm";
+import EmptyState from "../EmptyState";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ZoomControls from "./ZoomControls";
@@ -108,10 +110,11 @@ export default function SpectrumTab() {
       loading={analysis.loading()}
       error={analysis.error()}
       hasResult={analysis.result() != null}
+      params={<ToolParamsForm id="spectrum" />}
     >
       <Show
         when={analysis.result()}
-        fallback={<div class="analyzer-empty">Open a source and set the analysis window.</div>}
+        fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel — the analysis appears here." />}
       >
         {(result) => (
           <div class="analyzer-chart">

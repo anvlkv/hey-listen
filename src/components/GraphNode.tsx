@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
-import { nodeKind } from "../lib/graph";
+import { createNumberDrag } from "../lib/dragNumber";
+import { nodeKind, type GraphKind, type ParamDef } from "../lib/graph";
 import { updateParam, type GraphNodeData } from "../state/graph";
 
 /** Vertical position of handle `index` of `count`, spread down the node side. */
@@ -40,28 +41,12 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
         <div class="graph-node-params">
           <For each={def()?.params ?? []}>
             {(param) => (
-              <label class="graph-param">
-                <span class="graph-param-label">{param.label}</span>
-                <input
-                  class="graph-param-input nodrag nopan"
-                  type="number"
-                  min={param.min}
-                  max={param.max}
-                  step={param.step}
-                  value={props.data.params[param.key] ?? param.default}
-                  onChange={(event) =>
-                    updateParam(
-                      props.data.graph,
-                      props.id,
-                      param.key,
-                      Number(event.currentTarget.value),
-                    )
-                  }
-                />
-                <Show when={param.unit}>
-                  <span class="graph-param-unit">{param.unit}</span>
-                </Show>
-              </label>
+              <ParamInput
+                graph={props.data.graph}
+                nodeId={props.id}
+                param={param}
+                value={props.data.params[param.key] ?? param.default}
+              />
             )}
           </For>
         </div>
@@ -78,5 +63,42 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
         )}
       </For>
     </div>
+  );
+}
+
+/** A node parameter: type it, or drag up/down to adjust (M7). */
+function ParamInput(props: {
+  graph: GraphKind;
+  nodeId: string;
+  param: ParamDef;
+  value: number;
+}) {
+  const drag = createNumberDrag({
+    value: () => props.value,
+    onInput: (value) => updateParam(props.graph, props.nodeId, props.param.key, value),
+    step: props.param.step,
+    min: props.param.min,
+    max: props.param.max,
+  });
+
+  return (
+    <label class="graph-param">
+      <span class="graph-param-label">{props.param.label}</span>
+      <input
+        class={`graph-param-input nodrag nopan num-drag${drag.dragging() ? " num-dragging" : ""}`}
+        type="number"
+        min={props.param.min}
+        max={props.param.max}
+        step={props.param.step}
+        value={props.value}
+        onChange={(event) =>
+          updateParam(props.graph, props.nodeId, props.param.key, Number(event.currentTarget.value))
+        }
+        {...drag.handlers}
+      />
+      <Show when={props.param.unit}>
+        <span class="graph-param-unit">{props.param.unit}</span>
+      </Show>
+    </label>
   );
 }

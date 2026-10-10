@@ -96,7 +96,7 @@
 > writes `format = 0`). See [`project-file-format.md`](project-file-format.md) →
 > Implemented / Deferred.
 
-## M7 — Multi-window + polish + packaging
+## M7 — Multi-window + polish + packaging ✅
 
 - N independent project windows; 
 - Popout any tab in a separate window. Title reflects the tab name and source. Selecting the tab in main window should focus the secondary window.
@@ -106,6 +106,42 @@
   scaffold) and add a preview **output meter** beside the output gain/device.
 - chart readout bar shouldn't change height. reserve enough space for each entry upfront
 - hide or better swap timeline and sources panel. add button to replace source.
+
+> Delivered: **N independent project windows** — the core's per-project state (source
+> PCM, filter graph, preview player, capture session, **shared UI state**) moved from
+> one app-wide value to a `state::WindowRegistry` keyed by window label, so each window
+> is independent (ADR-3); **File → New Window** (`open_project_window`) opens a fresh
+> one, and the File/Edit menu actions now route to the **focused** window instead of
+> broadcasting.
+> **Tab popout** is a **native Tauri window** (`open_popout_window`): a first cut rode
+> dockview's `addPopoutGroup` (`window.open`), but that popup crashes on macOS loading
+> `tauri://…` through the custom URL-scheme handler (the handler is only wired for a
+> full wry webview), so only Tauri/wry create the window now and the frontend just
+> renders. A popout is a *view* of the **same** project (its label is aliased to the
+> parent's `WindowState`), shows only its tool, is titled `<tool> — <project>`,
+> reopens on project load (recorded in `LAYOUT`), and is closed with its parent.
+> Selecting a popped-out tool in the Sidebar raises its window (`focus_popout`)
+> instead of opening a duplicate tab, while a new tool opens in the main window.
+> **Windows are views of one state (ADR-11).** The project's UI state — timeline
+> window/viewport, analysis params, per-tool options and chart views, project name —
+> lives in the core; `get_ui_state`/`set_ui_state` + the `ui-state` event keep the main
+> window and its popouts in lockstep (`src/state/uiSync.ts` + `uiState.ts`), so zoom,
+> the analysis window, and params sync **across windows**. **Packaging**:
+> `.github/workflows/ci.yml` + `release.yml` build the platform matrix via
+> `tauri-action`, documented in [`packaging.md`](packaging.md). **Numeric inputs**
+> (Kobalte `NumberField`s, graph node params, the synth length) gained drag-to-adjust
+> (`src/lib/dragNumber.ts`, an `ns-resize` cursor as the only affordance — no slider)
+> alongside typing. **Toolbar**: the preview **output meter** sits beside gain/device,
+> fed by the new `output_level` command (the cpal callback tracks the block peak); the
+> temporary `Rust backend:` status was already gone. The **chart readout bar** reserves
+> a stable height and per-entry width so it never reflows (and no longer draws a
+> scrollbar). The bottom row now **swaps in place** by context — no source ⇒ a compact
+> horizontal **Add audio** strip fills the row (the row is resizable only when the
+> Timeline is); recording ⇒ Source beside the Timeline; a source present and idle ⇒
+> Timeline only, with the Timeline's **Replace…** button. The **Sidebar width** is
+> draggable, lists use a custom transform-based `ScrollArea` (no native scrollbar on
+> macOS), chart zoom is clamped to the data extent, and **frontend logs**
+> (`attachConsole`) join the Rust ones in `hey-listen.log`.
 
 ## M8 — E2E test suite
 
@@ -120,7 +156,7 @@
   (one parametrized smoke test), **both graph editors**, **all source kinds**, and
   the cross-cutting scenarios (search, no-duplicate tabs, shared-param sync,
   zoom/cursor sync, filter bypass, error/warning surfacing, timeline window +
-  channel select, project save/load, tab popout). A handful of correctness
+  channel select, project save/load, popout window). A handful of correctness
   spot-checks on the known
   fixture is the only numeric coverage — no per-tool regression suites.
 - GitHub Actions CI on the platform matrix (macOS / Linux / Windows); capture is

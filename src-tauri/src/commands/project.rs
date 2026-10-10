@@ -9,19 +9,20 @@
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::project::{
     read_project, write_project, AnalysisSetup, Meta, ProjectError, SaveProject, SourceDescriptor,
     StoredResult,
 };
-use crate::state::AudioState;
+use crate::state::window_state;
 
 /// Interleaved samples per streamed chunk when loading a project (~256 KiB).
 const STREAM_CHUNK: usize = 64 * 1024;
@@ -71,12 +72,12 @@ fn now_ms() -> u64 {
 /// core-owned source PCM.
 #[tauri::command]
 pub async fn save_project(
-    app: AppHandle,
+    window: WebviewWindow,
     path: String,
     project: SaveProjectArgs,
 ) -> Result<(), ProjectError> {
-    // Clone the `Arc` so the blocking write can lock the PCM without borrowing the app.
-    let source = app.state::<AudioState>().source.clone();
+    // Clone the `Arc` so the blocking write can lock the PCM without borrowing the state.
+    let source = window_state(&window).audio.source.clone();
 
     tauri::async_runtime::spawn_blocking(move || {
         let guard = source.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -100,7 +101,7 @@ pub async fn save_project(
 /// the core's source (so preview and analysis work immediately).
 #[tauri::command]
 pub async fn load_project(
-    app: AppHandle,
+    window: WebviewWindow,
     path: String,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<LoadedProjectDto, ProjectError> {
@@ -143,9 +144,9 @@ pub async fn load_project(
                 .send(InvokeResponseBody::Raw(bytes))
                 .map_err(|err| ProjectError::Io(std::io::Error::other(err.to_string())))?;
         }
-        app.state::<AudioState>().set_source(Some(pcm));
+        window_state(&window).audio.set_source(Some(pcm));
     } else {
-        app.state::<AudioState>().set_source(None);
+        window_state(&window).audio.set_source(None);
     }
 
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
@@ -203,20 +204,36 @@ pub const OPEN_EVENT: &str = "app:open-project";
 const PROJECT_EXTENSION_STR: &str = "heyl";
 
 /// `.heyl` paths requested before the frontend was ready (command line / macOS
-/// `open`). Drained by [`take_pending_open_paths`].
+/// `open`). Drained by [`take_pending_open_paths`] — once, by the first window.
 #[derive(Default)]
-pub struct OpenedFiles(Mutex<Vec<String>>);
+pub struct OpenedFiles {
+    pending: Mutex<Vec<String>>,
+    /// Set once the first frontend has drained the queue, so later windows (a new
+    /// project window) don't re-open paths that were already handled.
+    drained: AtomicBool,
+}
 
 impl OpenedFiles {
     fn queue(&self, path: String) {
-        let mut guard = self.0.lock().unwrap_or_else(|poison| poison.into_inner());
+        let mut guard = self
+            .pending
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         if !guard.iter().any(|existing| existing == &path) {
             guard.push(path);
         }
     }
 
     fn take(&self) -> Vec<String> {
-        std::mem::take(&mut *self.0.lock().unwrap_or_else(|poison| poison.into_inner()))
+        if self.drained.swap(true, Ordering::SeqCst) {
+            return Vec::new();
+        }
+        std::mem::take(
+            &mut *self
+                .pending
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner()),
+        )
     }
 }
 
@@ -234,16 +251,34 @@ pub fn add_recent_project(app: AppHandle, path: String) {
 }
 
 /// Queue file-open requests and notify a running frontend. Paths are queued so a
-/// request that arrives before the frontend is listening is not lost.
+/// request that arrives before the frontend is listening is not lost; once windows
+/// exist, the request is routed to the focused one (multi-window, M7).
 pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Vec<String>) {
     if paths.is_empty() {
         return;
     }
-    let state = app.state::<OpenedFiles>();
-    for path in &paths {
-        state.queue(path.clone());
+    // Queue for the first frontend to drain (cold start / before any window listens).
+    {
+        let state = app.state::<OpenedFiles>();
+        for path in &paths {
+            state.queue(path.clone());
+        }
     }
-    let _ = app.emit(OPEN_EVENT, paths);
+    // If a window already exists, also route the request to the focused one.
+    if let Some(label) = focused_label(app) {
+        let _ = app.emit_to(label, OPEN_EVENT, paths);
+    }
+}
+
+/// The label of the focused window, else `main`, else any window.
+fn focused_label<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
+    let windows = app.webview_windows();
+    windows
+        .iter()
+        .find(|(_, window)| window.is_focused().unwrap_or(false))
+        .map(|(label, _)| label.clone())
+        .or_else(|| windows.contains_key("main").then(|| "main".to_string()))
+        .or_else(|| windows.keys().next().cloned())
 }
 
 /// `.heyl` paths among command-line arguments (Windows/Linux file association).

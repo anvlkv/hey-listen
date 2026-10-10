@@ -121,7 +121,7 @@ export interface ToolParamField {
   /** camelCase key as it crosses IPC (matches `audio/analysis.rs` → `ToolOptions`). */
   key: string;
   label: string;
-  kind: "number" | "select";
+  kind: "number" | "select" | "toggle";
   value: number;
   min?: number;
   max?: number;
@@ -170,11 +170,6 @@ const MEL_BANDS = [16, 24, 32, 48, 64, 96, 128].map((value) => ({
 }));
 const MFCC_COEFFS = [8, 13, 20, 26].map((value) => ({ value, label: `${value}` }));
 const CONTRAST_BANDS = [4, 5, 6, 7, 8].map((value) => ({ value, label: `${value}` }));
-/** On/off switch rendered as a two-option select (per-tool params are numbers). */
-const ON_OFF = [
-  { value: 1, label: "On" },
-  { value: 0, label: "Off" },
-];
 
 // --- registry --------------------------------------------------------------
 
@@ -221,9 +216,9 @@ export const ANALYZERS: AnalyzerDef[] = [
     section: "spectral",
     view: { kind: "spectrum" },
     params: [
-      { key: "showMean", label: "Mean layer", kind: "select", value: 1, options: ON_OFF },
-      { key: "showMin", label: "Min layer", kind: "select", value: 1, options: ON_OFF },
-      { key: "showMax", label: "Max layer", kind: "select", value: 1, options: ON_OFF },
+      { key: "showMean", label: "Mean layer", kind: "toggle", value: 1 },
+      { key: "showMin", label: "Min layer", kind: "toggle", value: 1 },
+      { key: "showMax", label: "Max layer", kind: "toggle", value: 1 },
     ],
   },
   {

@@ -2,6 +2,7 @@ import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { createSignal, For, Show } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
+import EmptyState from "../EmptyState";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -91,7 +92,7 @@ export default function SeriesView(props: {
   return (
     <Show
       when={result()}
-      fallback={<div class="analyzer-empty">Open a source and set the analysis window.</div>}
+      fallback={<EmptyState icon="∿" title="No audio to analyse" hint="Open a file, record, or render a synth from the Source panel — the analysis appears here." />}
     >
       {(r) => (
         <div class="analyzer-chart">

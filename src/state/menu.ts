@@ -59,6 +59,13 @@ export async function initMenu() {
         case "new":
           void guarded(newProject);
           break;
+        case "newWindow":
+          // A new window is an independent project (one window = one project); the
+          // current window is untouched, so no unsaved-work guard is needed.
+          void invoke("open_project_window").catch((err) =>
+            console.error("could not open a new window", err),
+          );
+          break;
         case "open":
           void guarded(openProject);
           break;

@@ -46,6 +46,7 @@ import {
 } from "./timeline";
 import { closeAllTools, layoutJson, openTools, restoreLayout } from "./workbench";
 import { resetHistory } from "./history";
+import { isPopoutWindow } from "../lib/windowRole";
 
 /**
  * Project file store (M6): save/load the binary project (see
@@ -93,6 +94,8 @@ export interface AnalysisSetupDto {
 export interface LayoutDto {
   dockview: unknown | null;
   graphs: { filter?: GraphLayout; synth?: GraphLayout };
+  /** Tools popped out into their own windows (recreated on load). */
+  popouts?: string[];
 }
 
 export interface ProjectMetaDto {
@@ -129,9 +132,15 @@ export const [projectPath, setProjectPath] = createSignal<string | null>(null);
 const [projectTitle, setProjectTitle] = createSignal<string | null>(null);
 /** Whether there are unsaved edits (drives the title `*` and the close/new/open prompts). */
 export const [dirty, setDirty] = createSignal(false);
+/** The project's clean display name (no unsaved marker); shared with popouts. */
+export const projectDisplayName = () =>
+  projectTitle() ?? source()?.name ?? "Untitled project";
 /** The project's display name: the explicit title, else the current source's name. */
-export const projectName = () =>
-  (projectTitle() ?? source()?.name ?? "Untitled project") + (dirty() ? " *" : "");
+export const projectName = () => projectDisplayName() + (dirty() ? " *" : "");
+/** Apply the project title (used when a remote window syncs its project name). */
+export function applyProjectTitle(name: string | null) {
+  setProjectTitle(name);
+}
 export const [projectStatus, setProjectStatus] = createSignal<"idle" | "saving" | "loading">("idle");
 export const [projectError, setProjectError] = createSignal<string | null>(null);
 /** Creation time of the loaded project, preserved across re-saves. */
@@ -219,10 +228,13 @@ function currentSetup(): AnalysisSetupDto {
   };
 }
 
-function currentLayout(): LayoutDto {
+async function currentLayout(): Promise<LayoutDto> {
+  // The core knows which tools are popped out of this project.
+  const popouts = await invoke<string[]>("popout_tools").catch(() => []);
   return {
     dockview: layoutJson(),
     graphs: { filter: graphLayout("filter"), synth: graphLayout("synth") },
+    popouts,
   };
 }
 
@@ -304,8 +316,10 @@ endBaseline();
 
 // Keep the native window title in sync with the project name — its `*` marks unsaved
 // edits (`setWindowTitle` lives in `state/source.ts`). The memo dedupes so a source's
-// per-frame updates don't re-set the title.
+// per-frame updates don't re-set the title. A popout window owns its own title
+// (`<tool> — <project>`, see `PopoutApp.tsx`).
 createRoot(() => {
+  if (isPopoutWindow) return;
   const title = createMemo(() => projectName());
   createEffect(() => void setWindowTitle(title()));
 });
@@ -321,7 +335,7 @@ async function write(path: string): Promise<boolean> {
       createdMs: createdMs() ?? undefined,
       source: currentDescriptor(),
       setup: currentSetup(),
-      layout: currentLayout(),
+      layout: await currentLayout(),
     };
     await invoke("save_project", { path, project: args });
     setProjectPath(path);
@@ -427,6 +441,16 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
 
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
   restoreLayout(loaded.layout?.dockview ?? null);
+
+  // 5b. Recreate the windows for tools that had been popped out. Deferred a tick so
+  // the restored state has been pushed to the core before the popouts pull it.
+  for (const tool of loaded.layout?.popouts ?? []) {
+    window.setTimeout(() => {
+      void invoke("open_popout_window", { toolId: tool }).catch((err) =>
+        console.error("could not restore the popout window", err),
+      );
+    }, 0);
+  }
 
   // 6. Start a fresh undo history for the loaded project (undo must not step
   //    back across the project boundary).
