@@ -28,11 +28,13 @@ export default function FilterGraphTab() {
         {filterEnabled() ? "applied before preview & analysis" : "bypassed"}
       </span>
       <Show when={!outputConnected("filter")}>
-        <span class="graph-warn">Output is not connected — the graph is silent</span>
+        <span class="graph-warn" data-testid="graph.warning">
+          Output is not connected — the graph is silent
+        </span>
       </Show>
       <Show when={graphWarning()}>
         {(message) => (
-          <span class="graph-warn" title={message()}>
+          <span class="graph-warn" data-testid="graph.connection.warning" title={message()}>
             {message()}
           </span>
         )}
@@ -42,12 +44,12 @@ export default function FilterGraphTab() {
       </Show>
       <Show when={filterError()}>
         {(message) => (
-          <span class="graph-error" title={message()}>
+          <span class="graph-error" data-testid="graph.error" title={message()}>
             {message()}
           </span>
         )}
       </Show>
-      <Button class="graph-btn" onClick={() => resetGraph("filter")}>
+      <Button class="graph-btn" data-testid="graph.clear" onClick={() => resetGraph("filter")}>
         Clear graph
       </Button>
     </GraphEditor>

@@ -6,6 +6,8 @@
   "permissions": [
     "core:default",
     "core:window:allow-set-title",
-    "log:default"
+    "log:default",
+    "wdio:default",
+    "wdio-webdriver:default"
   ]
 }

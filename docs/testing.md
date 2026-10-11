@@ -13,11 +13,49 @@ modules keep their own cheap, focused tests.
 | --- | --- | --- |
 | Runner | WebdriverIO + `@wdio/tauri-service` | The supported Tauri v2 stack; one suite on all three OSes. |
 | Driver provider | `embedded` (`tauri-plugin-wdio-webdriver`) | Zero external driver; the only macOS route that needs no CrabNebula API key. |
-| Frontend plugin | `@wdio/tauri-plugin` | `browser.tauri.execute()` for setup (e.g. rendering the synth) and IPC mocking where a UI path is missing. |
+| Frontend plugin | `@wdio/tauri-plugin` | `browser.tauri.execute()` for setup and IPC-affordance driving; the app's own `src/lib/ipc.ts` seam substitutes command results (see below). |
 | Capability | `browserName: 'wry'`, `tauri:options.application` | Points the service at the release binary. |
 
 The suite runs against the **release** binary (`npm run tauri build`);
 `appBinaryPath` → `src-tauri/target/release/hey-listen`.
+
+### Implemented (M8)
+
+Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
+`wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
+import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
+`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 9 spec files,
+**57 tests** — A shell (3), B sources (4), C graphs (4), D analyzers (26), E
+correctness (5), F cross-cutting (5), G timeline (3), I errors (5), J project +
+popout (2).
+
+**IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
+plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
+`__TAURI_INTERNALS__` as non-writable/non-configurable and the app calls it through
+the bundled `@tauri-apps/api`. So every command goes through `src/lib/ipc.ts`,
+which exposes a test-only override (`globalThis.__heylisten_test__`); the helpers in
+`e2e/support/helpers.ts` (`mockReturn` / `mockReject` / `restoreMocks`) install a
+small mock table on it. The override is never installed in production, and
+`restoreMocks` resets to the dialog defaults rather than to an empty table.
+
+**Native dialogs are always mocked.** WebDriver can't interact with native
+OS/Tauri modals — they block the webview and stall the run. So the helpers *always*
+seed mocks for the dialog commands (`confirm` → true; `pick_audio_file` /
+`pick_project_save_path` / `pick_project_open_path` → `null`), even before a spec
+sets its own. A real dialog must never appear; if one does, a helper mock is missing.
+
+**Artifacts.** `outputDir` is `e2e/artifacts` (gitignored): the service writes its
+log there, WDIO writes one JSON per spec, and `onComplete` merges them into
+`wdio-report.json`. CI uploads the directory as the `e2e-report-<os>` artifact.
+
+**One app instance per run.** WebdriverIO launches the app once, so spec files share
+it and carry state. Helpers account for that: `openFixture` is duration-aware (it
+skips a reload when the same fixture is already loaded), each spec's `before`
+`closeAllTabs()`, and the **popout spec runs last** (its window is a real Tauri
+window the suite can't close — see `j-project.spec.ts`).
+
+**Dockview unmounts hidden panels.** The default renderer keeps only the active
+tab mounted, so a test that reads a chart must activate its tab (`activateTab`).
 
 ## Deliverables (this milestone)
 
@@ -25,20 +63,23 @@ The suite runs against the **release** binary (`npm run tauri build`);
    it in `src-tauri/src/lib.rs` (`tauri::Builder::default().plugin(tauri_plugin_wdio_webdriver::init())`).
 2. Add dev deps `@wdio/tauri-service` and `@wdio/tauri-plugin`.
 3. `wdio.conf.ts` at the repo root with the `embedded` provider + `'wry'` capability.
-4. `e2e/` directory — `fixtures/` (generated, deterministic audio), `specs/`,
-   `support/` (selectors + helpers).
+4. `e2e/` directory — `.fixtures/` (generated, gitignored audio), `specs/`,
+   `support/` (selectors + helpers), `artifacts/` (gitignored report + logs).
 5. `npm run test:e2e` script.
 6. GitHub Actions job that builds the app and runs the suite on the platform matrix.
 
 ## Fixtures
 
 Deterministic, generated on the fly (no audio blobs committed) so every run is
-reproducible:
+reproducible. `wdio.conf.ts`'s `onPrepare` writes them to the gitignored
+`e2e/.fixtures/` before the app launches:
 
 | Fixture | Content | Exercises |
 | --- | --- | --- |
 | `sine440` | 2 s, 48 kHz mono, 440 Hz at −12 dBFS, short fade in/out | waveform, spectrum peak, pitch ≈ 440, level meters, loudness |
 | `chirp_noise` | 3 s, 20 Hz→8 kHz log sweep + noise burst at 1.5 s | spectrogram, mel, MFCC, chroma, spectral-shape tools, onsets, tempo, downbeats |
+| `stereo` | 2.5 s, 48 kHz stereo, 440 Hz left / 880 Hz right | the channel-select scenario (G3) |
+| `corrupt` | a RIFF header followed by garbage | the real `probe_file` error path (I1) |
 | synth graph | deterministic `sine(440) → output`, rendered via `render_synth` | the synth source path |
 
 `sine440` gives the correctness spot-checks a known, assertable value; `chirp_noise`
@@ -49,11 +90,14 @@ gives every spectral/rhythm tool a real, non-flat signal.
 Tests select by stable `data-testid` plus the existing ARIA labels (the search box
 already carries `aria-label="Search analyzers"`). This milestone adds `data-testid`
 hooks only where a test needs one — a thin, test-only attribute, not a refactor.
-Convention: `data-testid="toolbar.filter"`, `data-testid="sidebar.search"`,
-`data-testid="sidebar.tool.<id>"`, `data-testid="analyzer.tab.<id>"`. The
-error/warning indicators get the same treatment — `data-testid="toolbar.error"`,
-`data-testid="analyzer.error"`, `data-testid="graph.error"`,
-`data-testid="graph.warning"` — so a test asserts the message text, not the CSS.
+Convention: `data-testid="region.toolbar|sidebar|workbench|timeline|source|bottom"`
+(regions), `toolbar.filter`, `toolbar.error`, `sidebar.search`,
+`sidebar.tool.<id>`, `tab.<id>` (stamped on the dockview tab), `analyzer.<id>`,
+`analyzer.error`, `analyzer.params.<id>` / `analyzer.about.<id>`, `graph.error`,
+`graph.warning` (the persistent **Output is not connected** banner),
+`graph.connection.warning` (the transient rejected-connection banner), `graph.render`,
+`graph.clear`, `source.openFile`, `source.kind`, `source.error`, `timeline.canvas`,
+`timeline.replace`. All live in `e2e/support/selectors.ts`.
 
 ## Test matrix
 
@@ -195,7 +239,11 @@ capture error (B4) and the graph connection warning (C4) complete the picture.
 ```sh
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
+npm run typecheck:e2e        # type-check the suite (no app needed)
 ```
+
+Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
+service log).
 
 Platform environment:
 
@@ -205,10 +253,10 @@ Platform environment:
 
 ## CI
 
-One GitHub Actions job builds the release binary and runs the default matrix
-(macOS / Linux / Windows) on every PR. Capture is covered by the automated
-error-path test (B4); the granted happy path (B5) is a manual smoke against a
-signed bundle, not part of CI.
+One GitHub Actions job (`e2e`) builds the release binary (`tauri build --no-bundle`)
+and runs the suite on the default matrix (macOS / Linux / Windows) on every PR.
+Capture is covered by the automated error-path test (B4); the granted happy path
+(B5) is a manual smoke against a signed bundle, not part of CI.
 
 ## Deliberately out of scope (anti-overtesting)
 

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { createEffect, createSignal, on, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 import {

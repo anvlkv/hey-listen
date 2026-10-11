@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { createEffect, createMemo, createRoot, createSignal } from "solid-js";
 import { toSpec } from "../lib/graph";
 import { deepClone } from "../lib/clone";

@@ -112,7 +112,7 @@ export default function App() {
   });
 
   return (
-    <div class="app-shell">
+    <div class="app-shell" data-testid="app">
       <Toolbar />
       <div class="app-main" ref={main}>
         <div class="app-top">
@@ -124,6 +124,7 @@ export default function App() {
           />
           <div
             class="app-vsplitter"
+            data-testid="splitter.sidebar"
             role="separator"
             aria-orientation="vertical"
             aria-label="Resize the sidebar"
@@ -138,6 +139,7 @@ export default function App() {
         <Show when={showTimeline()}>
           <div
             class="app-splitter"
+            data-testid="splitter.timeline"
             role="separator"
             aria-orientation="horizontal"
             aria-label="Resize the timeline"
@@ -150,6 +152,7 @@ export default function App() {
         </Show>
         <div
           class="app-bottom"
+          data-testid="region.bottom"
           classList={{ "app-bottom-solo": !showTimeline() }}
           style={{ height: `${showTimeline() ? bottomHeight() : BOTTOM_EMPTY}px` }}
         >

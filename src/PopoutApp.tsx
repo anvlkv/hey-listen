@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./lib/ipc";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, onMount } from "solid-js";
 import ToolContent from "./components/ToolContent";
@@ -57,7 +57,7 @@ export default function PopoutApp(props: { toolId: string }) {
   });
 
   return (
-    <div class="popout-shell">
+    <div class="popout-shell" data-testid="region.popout">
       <ToolContent id={props.toolId as ToolId} />
     </div>
   );

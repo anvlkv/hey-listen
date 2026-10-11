@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
 import type { Edge, Node } from "@dschz/solid-flow";

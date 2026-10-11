@@ -40,6 +40,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
           <button
             type="button"
             class="sidebar-tool"
+            data-testid={`sidebar.tool.${tool.id}`}
             title={tool.tooltip}
             classList={{ "sidebar-tool-open": openTools().includes(tool.id) }}
             onClick={() => openTool(tool.id)}
@@ -59,9 +60,10 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
   );
 
   return (
-    <aside class="app-sidebar" style={props.style}>
+    <aside class="app-sidebar" data-testid="region.sidebar" style={props.style}>
       <input
         class="sidebar-search"
+        data-testid="sidebar.search"
         type="search"
         placeholder="Search analyzers…"
         aria-label="Search analyzers"
@@ -73,7 +75,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
       <div class="sidebar-section-title">Analyzers</div>
       <Show
         when={anyMatches()}
-        fallback={<div class="sidebar-empty">No analyzers match “{query()}”.</div>}
+        fallback={<div class="sidebar-empty" data-testid="sidebar.empty">No analyzers match “{query()}”.</div>}
       >
         <For each={ANALYZER_SECTIONS}>
           {(section) => {

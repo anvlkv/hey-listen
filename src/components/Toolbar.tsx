@@ -75,7 +75,7 @@ export default function Toolbar() {
     }));
 
   return (
-    <header class="app-toolbar">
+    <header class="app-toolbar" data-testid="region.toolbar">
       <span
         class="toolbar-name"
         data-testid="toolbar.project.name"
@@ -94,7 +94,11 @@ export default function Toolbar() {
       <div class="toolbar-spacer" />
 
       <div class="toolbar-controls">
-        <Popover label="Analysis params" title="Shared analysis parameters (synced across tools)">
+        <Popover
+          label="Analysis params"
+          title="Shared analysis parameters (synced across tools)"
+          testid="toolbar.params"
+        >
           <SharedParamsForm />
         </Popover>
 
@@ -105,7 +109,7 @@ export default function Toolbar() {
           title="Apply the filter graph to preview (and analysis)"
         >
           <Switch.Label class="toolbar-label">Filter</Switch.Label>
-          <Switch.Input class="toolbar-switch-input" />
+          <Switch.Input class="toolbar-switch-input" data-testid="toolbar.filter" />
           <Switch.Control class="toolbar-switch-control">
             <Switch.Thumb class="toolbar-switch-thumb" />
           </Switch.Control>
@@ -125,7 +129,7 @@ export default function Toolbar() {
             <Slider.Track class="gain-track">
               <Slider.Fill class="gain-fill" />
               <Slider.Thumb class="gain-thumb">
-                <Slider.Input class="gain-input" />
+                <Slider.Input class="gain-input" data-testid="toolbar.output.gain" />
               </Slider.Thumb>
             </Slider.Track>
           </Slider>
@@ -136,6 +140,7 @@ export default function Toolbar() {
           <span class="toolbar-label">Level</span>
           <Meter
             class="toolbar-meter"
+            data-testid="toolbar.output.meter"
             value={meterPercent(outputLevel())}
             minValue={0}
             maxValue={100}
@@ -159,7 +164,7 @@ export default function Toolbar() {
           />
         </div>
 
-        <Popover label="View" title="UI scale and theme">
+        <Popover label="View" title="UI scale and theme" testid="toolbar.view">
           <div class="params-form">
             <div class="params-heading">
               UI scale <span class="params-dim">{Math.round(fontScale() * 100)}%</span>
@@ -212,7 +217,11 @@ export default function Toolbar() {
       </div>
 
       <Show when={error()}>
-        <span class="app-status app-status-error" title={error() ?? undefined}>
+        <span
+          class="app-status app-status-error"
+          data-testid="toolbar.error"
+          title={error() ?? undefined}
+        >
           {error()}
         </span>
       </Show>
