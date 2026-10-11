@@ -55,6 +55,13 @@ export const SEL = {
   graphCanvas: '[data-testid="graph.canvas"]',
   graphRender: '[data-testid="graph.render"]',
   graphClear: '[data-testid="graph.clear"]',
+  // Graph toolbar hint (node/link counts + applied/bypassed state).
+  graphHint: '[data-testid="graph.hint"]',
+  // Graph interaction hooks (C5–C8): a node (also carries `data-kind`), a port
+  // label, and a palette button.
+  graphNode: '[data-testid="graph.node"]',
+  graphPort: '[data-testid="graph.port"]',
+  graphPaletteBtn: '[data-testid="graph.palette.btn"]',
 
   // Analyzer shell.
   analyzerError: '[data-testid="analyzer.error"]',
@@ -67,6 +74,9 @@ export const SEL = {
 
 /** A Sidebar tool entry (`filter`, `synth`, or an analyzer id). */
 export const sidebarTool = (id: string) => `[data-testid="sidebar.tool.${id}"]`;
+
+/** A graph node of a given kind (each node carries `data-kind`). */
+export const graphNode = (kind: string) => `[data-testid="graph.node"][data-kind="${kind}"]`;
 
 /** A Workbench (dockview) tab for a tool id. */
 export const tab = (id: string) => `[data-testid="tab.${id}"]`;

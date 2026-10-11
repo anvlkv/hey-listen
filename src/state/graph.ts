@@ -127,6 +127,46 @@ export function addNode(graph: GraphKind, def: NodeKindDef) {
   handle.setNodes((nodes) => [...nodes, node]);
 }
 
+/**
+ * Append a new node of `def` at a specific flow position (top-left), used when a
+ * palette node is dropped onto the canvas. Returns the created node.
+ */
+export function addNodeAt(
+  graph: GraphKind,
+  def: NodeKindDef,
+  position: { x: number; y: number },
+): GraphNode {
+  const node = makeNode(def.kind, graph, position.x, position.y);
+  graphFor(graph).setNodes((nodes) => [...nodes, node]);
+  return node;
+}
+
+/**
+ * Split `edge` around `nodeId`: remove `source → target` and wire
+ * `source → node` (input 0) + `node → target` (output 0), keeping the original
+ * ports. The caller is responsible for confirming the node fits (has an input and
+ * an output, both free) and that no cycle results.
+ */
+export function spliceEdge(graph: GraphKind, edge: GraphEdge, nodeId: string): void {
+  graphFor(graph).setEdges((edges) => [
+    ...edges.filter((current) => current.id !== edge.id),
+    {
+      id: `edge-${nextId++}`,
+      source: edge.source,
+      sourceHandle: edge.sourceHandle ?? "0",
+      target: nodeId,
+      targetHandle: "0",
+    },
+    {
+      id: `edge-${nextId++}`,
+      source: nodeId,
+      sourceHandle: "0",
+      target: edge.target,
+      targetHandle: edge.targetHandle ?? "0",
+    },
+  ]);
+}
+
 /** Update one parameter of a node in place. */
 export function updateParam(graph: GraphKind, id: string, key: string, value: number) {
   graphFor(graph).setNodes((node) => node.id === id, "data", "params", key, value);

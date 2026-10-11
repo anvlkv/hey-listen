@@ -112,6 +112,9 @@ pub fn kind_arity(kind: &str) -> Option<(usize, usize)> {
     Some(match kind {
         "input" | "output" => (1, 1),
         "mix" => (2, 1),
+        // Math: binary signal operators (A op B), plus `abs`/`invert` (1 in / 1 out).
+        "add" | "subtract" | "multiply" | "divide" | "min" | "max" => (2, 1),
+        "abs" | "invert" => (1, 1),
         // Stereo / routing (the net's global I/O stays mono — `join` back to mono
         // before `output`). `1->2`: split/pan; `2->1`: join; `2->2`: stereo processors.
         "join" => (2, 1),
@@ -187,6 +190,133 @@ fn finite(value: f32, fallback: f32) -> f32 {
         value
     } else {
         fallback
+    }
+}
+
+/// A binary signal operator (2 in / 1 out) used by the **Math** nodes.
+#[derive(Clone, Copy)]
+enum MathOp {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Min,
+    Max,
+}
+
+impl MathOp {
+    fn apply(self, a: f32, b: f32) -> f32 {
+        match self {
+            MathOp::Add => a + b,
+            MathOp::Subtract => a - b,
+            MathOp::Multiply => a * b,
+            // Guard against divide-by-zero: one non-finite sample would poison
+            // everything downstream, so a near-zero divisor yields silence.
+            MathOp::Divide => {
+                if b.abs() < 1.0e-9 {
+                    0.0
+                } else {
+                    a / b
+                }
+            }
+            MathOp::Min => a.min(b),
+            MathOp::Max => a.max(b),
+        }
+    }
+}
+
+/// Combines two mono signals (`add`/`subtract`/`multiply`/`divide`/`min`/`max`).
+/// fundsp exposes these as combinators, not fixed-arity units, so the net needs this.
+#[derive(Clone)]
+struct MathUnit {
+    op: MathOp,
+}
+
+impl AudioUnit for MathUnit {
+    fn inputs(&self) -> usize {
+        2
+    }
+
+    fn outputs(&self) -> usize {
+        1
+    }
+
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        output[0] = finite(self.op.apply(input[0], input[1]), 0.0);
+    }
+
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        for i in 0..size {
+            let a = input.at_f32(0, i);
+            let b = input.at_f32(1, i);
+            output.set_f32(0, i, finite(self.op.apply(a, b), 0.0));
+        }
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        SignalFrame::new(self.outputs())
+    }
+
+    fn get_id(&self) -> u64 {
+        0x6865_796c_6d61_7468
+    }
+
+    fn footprint(&self) -> usize {
+        core::mem::size_of::<Self>()
+    }
+}
+
+/// A unary signal operator (1 in / 1 out) used by the Math nodes (`abs`/`invert`).
+#[derive(Clone, Copy)]
+enum UnaryOp {
+    Abs,
+    Negate,
+}
+
+impl UnaryOp {
+    fn apply(self, x: f32) -> f32 {
+        match self {
+            UnaryOp::Abs => x.abs(),
+            UnaryOp::Negate => -x,
+        }
+    }
+}
+
+/// Rectifies or flips one mono signal.
+#[derive(Clone)]
+struct UnaryUnit {
+    op: UnaryOp,
+}
+
+impl AudioUnit for UnaryUnit {
+    fn inputs(&self) -> usize {
+        1
+    }
+
+    fn outputs(&self) -> usize {
+        1
+    }
+
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        output[0] = finite(self.op.apply(input[0]), 0.0);
+    }
+
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        for i in 0..size {
+            output.set_f32(0, i, finite(self.op.apply(input.at_f32(0, i)), 0.0));
+        }
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        SignalFrame::new(self.outputs())
+    }
+
+    fn get_id(&self) -> u64 {
+        0x6865_796c_756e_6172
+    }
+
+    fn footprint(&self) -> usize {
+        core::mem::size_of::<Self>()
     }
 }
 
@@ -330,6 +460,22 @@ fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
         // Anchors are pass-throughs bridged to the net's global input/output.
         "input" | "output" => Box::new(pass()),
         "mix" => Box::new(SumUnit { inputs: 2 }),
+
+        // --- Math (signal arithmetic) ---
+        "add" => Box::new(MathUnit { op: MathOp::Add }),
+        "subtract" => Box::new(MathUnit {
+            op: MathOp::Subtract,
+        }),
+        "multiply" => Box::new(MathUnit {
+            op: MathOp::Multiply,
+        }),
+        "divide" => Box::new(MathUnit { op: MathOp::Divide }),
+        "min" => Box::new(MathUnit { op: MathOp::Min }),
+        "max" => Box::new(MathUnit { op: MathOp::Max }),
+        "abs" => Box::new(UnaryUnit { op: UnaryOp::Abs }),
+        "invert" => Box::new(UnaryUnit {
+            op: UnaryOp::Negate,
+        }),
 
         // --- Stereo / routing ---
         // `split`/`join` bridge between the mono pipeline and 2-channel nodes;
@@ -803,6 +949,47 @@ mod tests {
         for value in render_mono(&spec, 0.001, 48_000).unwrap() {
             assert!((value - 0.75).abs() < 1e-6, "got {value}");
         }
+    }
+
+    #[test]
+    fn math_nodes_apply_their_operations() {
+        // A binary math node fed by the constants 2 and 3 (A and B).
+        let binary = |kind: &str| GraphSpec {
+            nodes: vec![
+                node("a", "dc", &[2.0]),
+                node("b", "dc", &[3.0]),
+                node("m", kind, &[]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                edge_to("a", 0, "m", 0),
+                edge_to("b", 0, "m", 1),
+                edge("m", "out"),
+            ],
+        };
+        let last = |spec: &GraphSpec| {
+            let out = render_mono(spec, 0.001, 48_000).expect("render");
+            out[out.len() - 1]
+        };
+        let close = |value: f32, expected: f32| assert!((value - expected).abs() < 1e-4, "{value}");
+        close(last(&binary("add")), 5.0);
+        close(last(&binary("subtract")), -1.0);
+        close(last(&binary("multiply")), 6.0);
+        close(last(&binary("divide")), 2.0 / 3.0);
+        close(last(&binary("min")), 2.0);
+        close(last(&binary("max")), 3.0);
+
+        // Unary nodes: abs(-2) = 2, invert(-2) = 2.
+        let unary = |kind: &str| GraphSpec {
+            nodes: vec![
+                node("a", "dc", &[-2.0]),
+                node("u", kind, &[]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![edge("a", "u"), edge("u", "out")],
+        };
+        close(last(&unary("abs")), 2.0);
+        close(last(&unary("invert")), 2.0);
     }
 
     #[test]
