@@ -29,7 +29,7 @@ export default function AnalyzerTab(props: {
   const def = () => analyzerById(props.id);
 
   return (
-    <div class="analyzer">
+    <div class="analyzer" data-testid={`analyzer.${props.id}`}>
       <div class="analyzer-toolbar">
         <span class="analyzer-title">{def().title}</span>
         <Show when={props.loading}>
@@ -37,7 +37,7 @@ export default function AnalyzerTab(props: {
         </Show>
         <Show when={props.error}>
           {(message) => (
-            <span class="analyzer-error" title={message()}>
+            <span class="analyzer-error" data-testid="analyzer.error" title={message()}>
               {message()}
             </span>
           )}
@@ -45,7 +45,7 @@ export default function AnalyzerTab(props: {
 
         <div class="analyzer-actions">
           <Show when={props.params != null}>
-            <Popover label="Params" title="Tool parameters">
+            <Popover label="Params" title="Tool parameters" testid={`analyzer.params.${props.id}`}>
               {props.params}
               <div class="params-note">
                 Shared params (FFT size, hop/overlap, window, channel, analysis rate,
@@ -53,21 +53,36 @@ export default function AnalyzerTab(props: {
               </div>
             </Popover>
           </Show>
-          <Popover label="About" title={`About ${def().title}`} panelClass="pop-panel-about">
+          <Popover
+            label="About"
+            title={`About ${def().title}`}
+            panelClass="pop-panel-about"
+            testid={`analyzer.about.${props.id}`}
+          >
             <div class="about-title">{def().title}</div>
             <p class="about-body">{def().about}</p>
           </Popover>
         </div>
       </div>
-      <div class="analyzer-body">{props.children}</div>
+      <div class="analyzer-body" data-testid="analyzer.body">{props.children}</div>
 
       <Show when={props.loading && !props.hasResult}>
-        <div class="analyzer-busy analyzer-busy-center" role="status" aria-label="Computing">
+        <div
+          class="analyzer-busy analyzer-busy-center"
+          data-testid="analyzer.busy"
+          role="status"
+          aria-label="Computing"
+        >
           <span class="spinner" />
         </div>
       </Show>
       <Show when={props.loading && props.hasResult}>
-        <div class="analyzer-busy analyzer-busy-corner" role="status" aria-label="Recomputing">
+        <div
+          class="analyzer-busy analyzer-busy-corner"
+          data-testid="analyzer.busy"
+          role="status"
+          aria-label="Recomputing"
+        >
           <span class="spinner spinner-sm" />
         </div>
       </Show>

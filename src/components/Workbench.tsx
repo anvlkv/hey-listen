@@ -1,4 +1,4 @@
-import { DockviewComponent, themeDark, themeLight, type ContextMenuItem } from "dockview";
+import { DockviewComponent, themeDark, themeLight, type ContextMenuItem, type DockviewApi } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
@@ -33,6 +33,28 @@ function WatermarkHint() {
       </span>
     </>
   );
+}
+
+/**
+ * Stamp `data-testid="tab.<panelId>"` on each dockview tab so a test can address
+ * an individual Workbench tab (`selectors.ts` → `tab(id)`). Dockview gives tabs no
+ * stable hook of their own, so we match each `.dv-tab` to its panel by title.
+ */
+function stampTabIds(api: DockviewApi) {
+  const tabs = document.querySelectorAll<HTMLElement>(".dv-tabs-container .dv-tab");
+  for (const panel of api.panels) {
+    const title = panel.title ?? panel.id;
+    for (const el of tabs) {
+      const content = el.querySelector(".dv-default-tab-content");
+      const label = (content?.textContent ?? el.textContent ?? "")
+        .replace(/[\s\u00d7]+$/, "")
+        .trim();
+      if (label === title) {
+        el.dataset.testid = `tab.${panel.id}`;
+        break;
+      }
+    }
+  }
 }
 
 export default function Workbench() {
@@ -76,6 +98,7 @@ export default function Workbench() {
       createWatermarkComponent: () => {
         const element = document.createElement("div");
         element.className = "workbench-watermark";
+        element.dataset.testid = "workbench.watermark";
         let dispose: (() => void) | undefined;
         return {
           element,
@@ -89,7 +112,11 @@ export default function Workbench() {
 
     const api = dockview.api;
     setDockApi(api);
-    const sync = () => setOpenTools(api.panels.map((panel) => panel.id as ToolId));
+    // Defer a frame so the tab DOM exists before we stamp its test id.
+    const sync = () => {
+      setOpenTools(api.panels.map((panel) => panel.id as ToolId));
+      requestAnimationFrame(() => stampTabIds(api));
+    };
     api.onDidAddPanel(sync);
     api.onDidRemovePanel(sync);
     sync();
@@ -104,5 +131,5 @@ export default function Workbench() {
     dockview?.dispose();
   });
 
-  return <section class="app-workbench" ref={host} />;
+  return <section class="app-workbench" data-testid="region.workbench" ref={host} />;
 }

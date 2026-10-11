@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { channel, channelArg } from "../state/analysis";
 import { filterRevision } from "../state/graph";

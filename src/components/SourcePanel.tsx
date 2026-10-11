@@ -139,7 +139,7 @@ function SourceKindSelect() {
         </Select.Item>
       )}
     >
-      <Select.Trigger ref={portal.ref} class="select-trigger">
+      <Select.Trigger ref={portal.ref} class="select-trigger" data-testid="source.kind">
         <Select.Value<SourceChoiceOption> class="select-value">
           {(state) => state.selectedOption()?.label ?? "Audio file"}
         </Select.Value>
@@ -301,15 +301,15 @@ function LiveControls(props: { startDrag: NumberDrag; stopDrag: NumberDrag }) {
           </Button>
         </Show>
         <Show when={countdown() == null && !recording()}>
-          <Button class="src-button src-record" onClick={() => void startCapture()}>
+          <Button class="src-button src-record" data-testid="source.record" onClick={() => void startCapture()}>
             ● Record
           </Button>
         </Show>
         <Show when={recording()}>
-          <Button class="src-button" onClick={() => void togglePause()}>
+          <Button class="src-button" data-testid="source.pause" onClick={() => void togglePause()}>
             {paused() ? "▶ Resume" : "⏸ Pause"}
           </Button>
-          <Button class="src-button src-stop" onClick={() => void stopCapture()}>
+          <Button class="src-button src-stop" data-testid="source.stop" onClick={() => void stopCapture()}>
             ■ Stop
           </Button>
           <span class="src-readout">{readout()}</span>
@@ -370,7 +370,7 @@ export default function SourcePanel() {
   const isEmpty = () => source() == null && !recording();
 
   return (
-    <aside class="app-source" classList={{ "app-source-hero": isEmpty() }}>
+    <aside class="app-source" data-testid="region.source" classList={{ "app-source-hero": isEmpty() }}>
       <Show
         when={isEmpty()}
         fallback={<div class="src-heading">{source() ? "Replace source" : "Add audio"}</div>}
@@ -389,7 +389,7 @@ export default function SourcePanel() {
           <SourceKindSelect />
 
           <Show when={choice() === "file"}>
-            <Button class="src-button" disabled={recording()} onClick={() => void openFileDialog()}>
+            <Button class="src-button" disabled={recording()} data-testid="source.openFile" onClick={() => void openFileDialog()}>
               Open audio file…
             </Button>
           </Show>
@@ -413,7 +413,7 @@ export default function SourcePanel() {
         fallback={
           <Show when={source()}>
             {(s) => (
-              <div class="source-summary" title={s().probe?.path ?? s().name}>
+              <div class="source-summary" data-testid="source.summary" title={s().probe?.path ?? s().name}>
                 <span class="source-name">
                   {s().name}
                   {s().live ? " ●" : ""}
@@ -427,7 +427,7 @@ export default function SourcePanel() {
         }
       >
         {(message) => (
-          <div class="src-error" title={message()}>
+          <div class="src-error" data-testid="source.error" title={message()}>
             {message()}
           </div>
         )}

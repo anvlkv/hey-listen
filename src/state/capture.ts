@@ -1,4 +1,5 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { Channel } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { PeakAccumulator } from "../lib/waveform";

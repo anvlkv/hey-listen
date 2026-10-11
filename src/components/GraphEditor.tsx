@@ -200,7 +200,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
   return (
     <div class="graph-editor">
       <div class="graph-toolbar">{props.children}</div>
-      <div class="graph-canvas">
+      <div class="graph-canvas" data-testid="graph.canvas">
         <SolidFlow
           id={`graph-${props.graph}`}
           nodes={handle().nodes}

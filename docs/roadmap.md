@@ -143,7 +143,7 @@
 > macOS), chart zoom is clamped to the data extent, and **frontend logs**
 > (`attachConsole`) join the Rust ones in `hey-listen.log`.
 
-## M8 — E2E test suite
+## M8 — E2E test suite ✅
 
 - WebdriverIO + `@wdio/tauri-service` driving the built app through the system
   WebView, with the **embedded** driver (`tauri-plugin-wdio-webdriver`) — the only
@@ -165,6 +165,32 @@
 
 > Depends on M6 (project save/load) and M7 (popout) for the persistence and
 > multi-window scenarios; everything else can be exercised from M5.
+
+> **Delivered:** WebdriverIO + `@wdio/tauri-service` driving the **release** binary
+> through the system WebView with the **embedded** driver
+> (`tauri-plugin-wdio-webdriver`, registered in `lib.rs`) and `tauri-plugin-wdio`
+> for `browser.tauri.execute()`. `wdio.conf.ts` + `e2e/` (generated `.fixtures`,
+> `support` helpers, 9 spec files, gitignored `artifacts`) deliver **57 tests**:
+> the shell/layout, all source kinds, both graph editors, a **parametrized smoke
+> test over all 26 analyzers**, five correctness spot-checks, the cross-cutting
+> scenarios (search / no-duplicate / shared-param / zoom-sync / popovers), the
+> timeline, project save/load + popout, the five error/warning surfaces, and the
+> native-dialog-safe IPC mocking described below.
+> Deterministic fixtures (440 Hz, chirp+noise, stereo, corrupt, a `sine→output`
+> synth graph) are generated in `onPrepare` into the gitignored `e2e/.fixtures/`.
+>
+> **Native dialogs are always mocked.** WebDriver can't drive native OS/Tauri
+> modals (they block the webview), so `setMock`/`restoreMocks` always seed the dialog
+> commands (`confirm` → true; the file pickers → `null`).
+>
+> **IPC mocking deviation:** `@wdio/tauri-plugin`'s `mock()` patches
+> `window.__TAURI__.core.invoke`, but Tauri injects `__TAURI_INTERNALS__` as
+> non-writable/non-configurable and the app goes through the bundled
+> `@tauri-apps/api`, so it can't intercept app calls. The app therefore routes every
+> command through `src/lib/ipc.ts`, a small façade with a documented test override
+> (`__heylisten_test__`); `wdio.conf.ts` never sets it, so production is unchanged.
+> See [`testing.md`](testing.md) → IPC mocking. The suite drives **one** app instance
+> for the whole run, so fixtures are duration-aware and the popout spec runs last.
 
 ## M9 — MCP server (agent access + UI following)
 

@@ -48,6 +48,11 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        // E2E testing (M8): the embedded WebDriver server + the execute/mocking
+        // plugin. Inert unless a WebDriver session drives the app (the server only
+        // binds when `TAURI_WEBDRIVER_PORT` is set). See `docs/testing.md`.
+        .plugin(tauri_plugin_wdio::init())
+        .plugin(tauri_plugin_wdio_webdriver::init())
         .setup(|app| {
             log::info!("hey-listen {} starting", env!("CARGO_PKG_VERSION"));
             // Per-window project state (one window = one project = one source,

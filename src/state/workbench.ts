@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import type { DockviewApi, SerializedDockview } from "dockview";
 import { ANALYZERS, type AnalyzerId } from "./analyzer";
 

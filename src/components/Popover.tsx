@@ -16,6 +16,8 @@ export default function Popover(props: {
   title?: string;
   class?: string;
   panelClass?: string;
+  /** Optional `data-testid` on the trigger button (for the E2E suite). */
+  testid?: string;
   children: JSX.Element;
 }) {
   const portal = createPopupMount();
@@ -32,6 +34,7 @@ export default function Popover(props: {
         ref={portal.ref}
         class={`pop-trigger ${props.class ?? ""}`}
         title={props.title}
+        data-testid={props.testid}
       >
         {props.label}
       </KPopover.Trigger>

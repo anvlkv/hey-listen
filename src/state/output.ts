@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { createSignal } from "solid-js";
 import { previewPlaying } from "../audio/preview";
 import type { OutputDeviceDto } from "../bindings/OutputDeviceDto";

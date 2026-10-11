@@ -1,6 +1,10 @@
 /* @refresh reload */
+// E2E scaffolding (M8): the WebdriverIO Tauri plugin installs `window.wdioTauri`
+// and the `invoke` interception the suite's IPC mocks ride on. It is inert in a
+// normal run (nothing calls it), so it ships with the app the E2E suite drives.
+import "@wdio/tauri-plugin";
 import { render } from "solid-js/web";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./lib/ipc";
 import { attachConsole } from "@tauri-apps/plugin-log";
 import App from "./App";
 import PopoutApp from "./PopoutApp";

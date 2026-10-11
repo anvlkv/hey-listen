@@ -2,3 +2,8 @@ node_modules
 dist
 .npm-cache
 *.tsbuildinfo
+
+# E2E (M8): generated fixtures and run artifacts (report + logs)
+/e2e/.fixtures/
+/e2e/artifacts/
+logs/

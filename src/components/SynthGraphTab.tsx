@@ -30,11 +30,13 @@ export default function SynthGraphTab() {
         {nodes()} node{nodes() === 1 ? "" : "s"}
       </span>
       <Show when={!outputConnected("synth")}>
-        <span class="graph-warn">Output is not connected — the render is silent</span>
+        <span class="graph-warn" data-testid="graph.warning">
+          Output is not connected — the render is silent
+        </span>
       </Show>
       <Show when={graphWarning()}>
         {(message) => (
-          <span class="graph-warn" title={message()}>
+          <span class="graph-warn" data-testid="graph.connection.warning" title={message()}>
             {message()}
           </span>
         )}
@@ -55,6 +57,7 @@ export default function SynthGraphTab() {
       </label>
       <Button
         class="graph-btn graph-btn-primary"
+        data-testid="graph.render"
         disabled={rendering()}
         onClick={() => void renderSynth(seconds())}
       >
@@ -62,12 +65,12 @@ export default function SynthGraphTab() {
       </Button>
       <Show when={synthError()}>
         {(message) => (
-          <span class="graph-error" title={message()}>
+          <span class="graph-error" data-testid="graph.error" title={message()}>
             {message()}
           </span>
         )}
       </Show>
-      <Button class="graph-btn" onClick={() => resetGraph("synth")}>
+      <Button class="graph-btn" data-testid="graph.clear" onClick={() => resetGraph("synth")}>
         Clear graph
       </Button>
     </GraphEditor>

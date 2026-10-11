@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { pcmStream } from "../lib/pcmStream";
 import { channel, channelArg, channelFor } from "./analysis";

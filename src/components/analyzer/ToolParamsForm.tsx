@@ -31,7 +31,11 @@ export default function ToolParamsForm(props: { id: AnalyzerId }) {
           {(field) => (
             <Switch fallback={<NumericParam id={props.id} field={field} />}>
               <Match when={field.kind === "select"}>
-                <label class="params-field" title={field.title}>
+                <label
+                  class="params-field"
+                  data-testid={`toolparam.${props.id}.${field.key}`}
+                  title={field.title}
+                >
                   <span class="params-label">{field.label}</span>
                   <SelectField
                     options={field.options ?? []}
@@ -56,7 +60,11 @@ export default function ToolParamsForm(props: { id: AnalyzerId }) {
 function ToggleParam(props: { id: AnalyzerId; field: ToolParamField }) {
   const on = () => toolOptions[props.id][props.field.key] !== 0;
   return (
-    <label class="params-field" title={props.field.title}>
+    <label
+      class="params-field"
+      data-testid={`toolparam.${props.id}.${props.field.key}`}
+      title={props.field.title}
+    >
       <span class="params-label">{props.field.label}</span>
       <KSwitch
         class="params-switch"
@@ -84,7 +92,11 @@ function NumericParam(props: { id: AnalyzerId; field: ToolParamField }) {
   });
 
   return (
-    <label class="params-field params-field-num" title={props.field.title}>
+    <label
+      class="params-field params-field-num"
+      data-testid={`toolparam.${props.id}.${props.field.key}`}
+      title={props.field.title}
+    >
       <span class="params-label">{props.field.label}</span>
       <div class="params-range-inputs">
         <NumberField

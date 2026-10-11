@@ -580,7 +580,7 @@ export default function Timeline() {
   const windowDuration = () => windowEnd() - windowStart();
 
   return (
-    <section class="app-timeline">
+    <section class="app-timeline" data-testid="region.timeline">
       <div class="timeline-toolbar">
         <div class="timeline-readout">
           <span>
@@ -615,6 +615,7 @@ export default function Timeline() {
           <Show when={source()}>
             <Button
               class="timeline-btn"
+              data-testid="timeline.replace"
               aria-pressed={sourcePanelPinned()}
               title="Show the source controls to replace the source"
               onClick={() => setSourcePanelPinned(!sourcePanelPinned())}
@@ -668,6 +669,7 @@ export default function Timeline() {
       <div class="timeline-canvas" ref={wrap}>
         <canvas
           ref={canvas}
+          data-testid="timeline.canvas"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
