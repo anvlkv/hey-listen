@@ -1442,6 +1442,7 @@ textarea,
 
 /* Custom graph node. */
 .graph-node {
+  position: relative;
   min-width: 140px;
   min-height: 54px;
   display: flex;
@@ -1453,6 +1454,32 @@ textarea,
   background: var(--panel-3);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
+}
+
+/* Tiny port label sitting just outside each handle (never intercepts the pointer). */
+.graph-port {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  transform: translateY(-50%);
+  padding: 0 3px;
+  font-size: 0.5rem;
+  line-height: 1;
+  color: var(--fg-dim);
+  background: var(--panel-3);
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.graph-port-in {
+  right: 100%;
+  margin-right: 3px;
+}
+
+.graph-port-out {
+  left: 100%;
+  margin-left: 3px;
 }
 
 .graph-node-anchor {

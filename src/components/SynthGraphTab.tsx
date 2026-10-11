@@ -26,7 +26,7 @@ export default function SynthGraphTab() {
   return (
     <GraphEditor graph="synth">
       <span class="graph-toolbar-title">Synth graph</span>
-      <span class="graph-toolbar-hint">
+      <span class="graph-toolbar-hint" data-testid="graph.hint">
         {nodes()} node{nodes() === 1 ? "" : "s"}
       </span>
       <Show when={!outputConnected("synth")}>

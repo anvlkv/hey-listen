@@ -1,28 +1,41 @@
 import "@dschz/solid-flow/styles";
-import { createSignal, For, Show, type JSX } from "solid-js";
+import { createSignal, For, onMount, Show, type JSX } from "solid-js";
 import {
   Background,
   Controls,
   MiniMap,
   Panel,
   SolidFlow,
+  useSolidFlow,
   type NodeTypes,
 } from "@dschz/solid-flow";
-import { handlePort, paletteFor, type GraphKind, type NodeKindDef } from "../lib/graph";
+import { handlePort, nodeKind, paletteFor, type GraphKind, type NodeKindDef } from "../lib/graph";
+import { bezierPoints, distanceToPolyline, type Point } from "../lib/graphEdges";
 import {
   addNode,
+  addNodeAt,
   clearGraphWarning,
   graphFor,
   hasKind,
   isAnchorKind,
   setNodesPosition,
+  spliceEdge,
   warnGraph,
+  type GraphEdge,
 } from "../state/graph";
 import { resolvedTheme } from "../state/settings";
 import GraphNode from "./GraphNode";
 import ScrollArea from "./ScrollArea";
 
 const nodeTypes = { graph: GraphNode } satisfies NodeTypes;
+
+/** Palette drag payload MIME type (an HTML5 drag-and-drop data flavour). */
+const NODE_DRAG_MIME = "application/x-heylisten-node";
+/** Half a node's nominal size, so a dropped node is centred on the cursor. */
+const NODE_HALF_WIDTH = 70;
+const NODE_HALF_HEIGHT = 27;
+/** How close (in flow units) a drop must land to a connector to splice in. */
+const SPLICE_RADIUS = 26;
 
 /** Inline styling for the palette search box, matched to the active theme. */
 const SEARCH_STYLE_DARK: JSX.CSSProperties = {
@@ -95,6 +108,20 @@ const FLOW_STYLE_LIGHT = {
 const flowStyle = () => (resolvedTheme() === "light" ? FLOW_STYLE_LIGHT : FLOW_STYLE_DARK);
 /** The palette search-box inline theme for the active [`resolvedTheme`] (reactive). */
 const searchStyle = () => (resolvedTheme() === "light" ? SEARCH_STYLE_LIGHT : SEARCH_STYLE_DARK);
+
+/** The `solid-flow` instance API, as read from inside the flow's context. */
+type FlowApi = ReturnType<typeof useSolidFlow>;
+
+/**
+ * Captures the flow instance from *inside* `<SolidFlow>` (the only place the flow
+ * context exists) and hands it to the editor body. Needed for `screenToFlowPosition`
+ * and handle geometry in the drop-to-insert gesture. Renders nothing.
+ */
+function FlowBridge(props: { ready: (api: FlowApi) => void }) {
+  const api = useSolidFlow();
+  onMount(() => props.ready(api));
+  return null;
+}
 
 /** Whether `to` is reachable from `from` following existing edges. */
 function reaches(graph: GraphKind, from: string, to: string): boolean {
@@ -173,9 +200,15 @@ function onConnected(
  * closing the tab does not lose the graph.
  */
 export default function GraphEditor(props: { graph: GraphKind; children?: JSX.Element }) {
+  // The flow instance, captured via `FlowBridge` on mount (user gestures only fire
+  // after that), so nothing reactive is lost by keeping it in a plain variable.
+  let flow: FlowApi | undefined;
+
   const handle = () => graphFor(props.graph);
   const [query, setQuery] = createSignal("");
   const [collapsed, setCollapsed] = createSignal(false);
+  /** The kind currently being dragged from the palette (`null` when idle). */
+  const [dragging, setDragging] = createSignal<string | null>(null);
 
   const canAdd = (def: NodeKindDef) =>
     def.kind !== "input" && def.kind !== "output" ? true : !hasKind(props.graph, def.kind);
@@ -197,10 +230,100 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
       .filter((group) => group.kinds.length > 0);
   };
 
+  /** The flow-coordinate centre of a handle, or null if the node isn't measured yet. */
+  function handleCentre(
+    nodeId: string,
+    type: "source" | "target",
+    handleId: string | null | undefined,
+  ): Point | null {
+    const internal = flow?.getInternalNode(nodeId);
+    if (!internal) return null;
+    const bounds =
+      type === "source"
+        ? internal.internals.handleBounds?.source
+        : internal.internals.handleBounds?.target;
+    const wanted = handleId ?? "0";
+    const found = bounds?.find((candidate) => (candidate.id ?? "0") === wanted) ?? bounds?.[0];
+    if (!found) return null;
+    return {
+      x: internal.internals.positionAbsolute.x + found.x + found.width / 2,
+      y: internal.internals.positionAbsolute.y + found.y + found.height / 2,
+    };
+  }
+
+  /** The connector nearest `point` (within [`SPLICE_RADIUS`]), or null. */
+  function edgeNear(point: Point): GraphEdge | null {
+    let best: GraphEdge | null = null;
+    let bestDistance = SPLICE_RADIUS;
+    for (const edge of handle().edges) {
+      const source = handleCentre(edge.source, "source", edge.sourceHandle);
+      const target = handleCentre(edge.target, "target", edge.targetHandle);
+      if (!source || !target) continue;
+      const distance = distanceToPolyline(point, bezierPoints(source, target));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = edge;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Whether `nodeId` can be spliced into `edge` — it must have both an input and an
+   * output, neither port 0 may be taken, and the new `source → node → target` path
+   * must not create a cycle.
+   */
+  function canSplice(def: NodeKindDef, nodeId: string, edge: GraphEdge): boolean {
+    if (def.inputs < 1 || def.outputs < 1) return false;
+    if (edge.source === nodeId || edge.target === nodeId) return false;
+    const edges = handle().edges;
+    const inletFree = !edges.some((e) => e.target === nodeId && handlePort(e.targetHandle) === 0);
+    const outletFree = !edges.some((e) => e.source === nodeId && handlePort(e.sourceHandle) === 0);
+    if (!inletFree || !outletFree) return false;
+    if (reaches(props.graph, nodeId, edge.source)) return false;
+    if (reaches(props.graph, edge.target, nodeId)) return false;
+    return true;
+  }
+
+  /** Add `def` centred on `point`, splicing it into the nearest connector if any. */
+  function placeNode(def: NodeKindDef, point: Point) {
+    const node = addNodeAt(props.graph, def, {
+      x: point.x - NODE_HALF_WIDTH,
+      y: point.y - NODE_HALF_HEIGHT,
+    });
+    const edge = edgeNear(point);
+    if (edge && canSplice(def, node.id, edge)) spliceEdge(props.graph, edge, node.id);
+  }
+
+  /** Whether the event is over the palette (a drop there is treated as a cancel). */
+  const overPalette = (event: DragEvent) => !!(event.target as Element | null)?.closest?.(".graph-palette");
+
+  function handleDragOver(event: DragEvent) {
+    if (!dragging() || overPalette(event)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDrop(event: DragEvent) {
+    const kind = dragging();
+    setDragging(null);
+    if (!kind || overPalette(event) || !flow) return;
+    event.preventDefault();
+    const def = nodeKind(kind);
+    if (!def || !canAdd(def)) return;
+    clearGraphWarning();
+    placeNode(def, flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
+  }
+
   return (
     <div class="graph-editor">
       <div class="graph-toolbar">{props.children}</div>
-      <div class="graph-canvas" data-testid="graph.canvas">
+      <div
+        class="graph-canvas"
+        data-testid="graph.canvas"
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
         <SolidFlow
           id={`graph-${props.graph}`}
           nodes={handle().nodes}
@@ -253,9 +376,24 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
             }
           }}
           onNodeDragStop={({ targetNode }) => {
-            if (targetNode) setNodesPosition(props.graph, targetNode.id, { ...targetNode.position });
+            if (!targetNode) return;
+            setNodesPosition(props.graph, targetNode.id, { ...targetNode.position });
+            // Dropping an existing node onto a connector splices it in (splitting the
+            // edge), matching the palette drag-and-drop behaviour.
+            const def = nodeKind(targetNode.data.kind);
+            if (!def) return;
+            const measured = flow?.getInternalNode(targetNode.id)?.measured;
+            const centre = {
+              x: targetNode.position.x + (measured?.width ?? 0) / 2,
+              y: targetNode.position.y + (measured?.height ?? 0) / 2,
+            };
+            const edge = edgeNear(centre);
+            if (edge && canSplice(def, targetNode.id, edge)) {
+              spliceEdge(props.graph, edge, targetNode.id);
+            }
           }}
         >
+          <FlowBridge ready={(api) => (flow = api)} />
           <Panel
             position="top-left"
             class="graph-palette"
@@ -294,8 +432,21 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
                           <button
                             type="button"
                             class="graph-palette-btn"
-                            title={def.hint ? `${def.label} — ${def.hint}` : `Add ${def.label}`}
+                            data-testid="graph.palette.btn"
+                            draggable={true}
+                            title={
+                              def.hint
+                                ? `${def.label} — ${def.hint}\nClick to add, or drag onto the canvas (drop on a connector to insert).`
+                                : `Add ${def.label}`
+                            }
                             onClick={() => addNode(props.graph, def)}
+                            onDragStart={(event) => {
+                              setDragging(def.kind);
+                              event.dataTransfer?.setData(NODE_DRAG_MIME, def.kind);
+                              event.dataTransfer?.setData("text/plain", def.kind);
+                              if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
+                            }}
+                            onDragEnd={() => setDragging(null)}
                           >
                             + {def.label}
                           </button>

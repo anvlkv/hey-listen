@@ -25,7 +25,7 @@ Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 `wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
 `npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 9 spec files,
-**57 tests** — A shell (3), B sources (4), C graphs (4), D analyzers (26), E
+**61 tests** — A shell (3), B sources (4), C graphs (8), D analyzers (26), E
 correctness (5), F cross-cutting (5), G timeline (3), I errors (5), J project +
 popout (2).
 
@@ -56,6 +56,12 @@ window the suite can't close — see `j-project.spec.ts`).
 
 **Dockview unmounts hidden panels.** The default renderer keeps only the active
 tab mounted, so a test that reads a chart must activate its tab (`activateTab`).
+
+**Synthesized pointer/drag events.** The system WebView doesn't produce W3C pointer
+actions (or native HTML5 drag-and-drop) under WebDriver, so `pointerDrag` (timeline
+handles, splitter) and `dragPaletteNode` (graph palette) dispatch the app's **real**
+`pointer*` / `dragstart`·`dragover`·`drop` handlers directly — the same UI path, just
+driven by events the harness can emit.
 
 ## Deliverables (this milestone)
 
@@ -96,8 +102,16 @@ Convention: `data-testid="region.toolbar|sidebar|workbench|timeline|source|botto
 `analyzer.error`, `analyzer.params.<id>` / `analyzer.about.<id>`, `graph.error`,
 `graph.warning` (the persistent **Output is not connected** banner),
 `graph.connection.warning` (the transient rejected-connection banner), `graph.render`,
-`graph.clear`, `source.openFile`, `source.kind`, `source.error`, `timeline.canvas`,
-`timeline.replace`. All live in `e2e/support/selectors.ts`.
+`graph.clear`, `graph.hint` (the node/link toolbar hint), `graph.node` (a node, also
+carrying `data-kind`) / `graphNode(kind)`, `graph.port` (a port label),
+`graph.palette.btn` (a palette button), `source.openFile`, `source.kind`,
+`source.error`, `timeline.canvas`, `timeline.replace`. All live in
+`e2e/support/selectors.ts`.
+
+The graph *interaction* tests (C5–C8) use those hooks — `graph.node` + `data-kind` to
+find a node by kind, `graph.port` for port labels, `graph.palette.btn` for the palette,
+and `graph.hint`'s counts to assert node/link changes (edges are never queried from the
+SVG DOM).
 
 ## Test matrix
 
@@ -142,6 +156,10 @@ whole workflow), **Manual** (documented steps, run by a human, not in CI).
 | C2 | Filter bypass | Toggle the Toolbar **Filter** switch; preview/analysis reflect on/off | Scenario |
 | C3 | Synth graph | `sine → output`, render; PCM lands on the timeline (B2) | Scenario |
 | C4 | Graph rules | A second edge into an occupied input / a cycle is rejected with a warning, no crash | Smoke |
+| C5 | Math nodes | The **Math** group (`add`/`subtract`/`multiply`/`divide`/`min`/`max`/`abs`/`invert`) is offered in the palette; a `multiply` graph compiles in the core | Smoke |
+| C6 | Port labels | Nodes render tiny input/output labels (`in`/`out`; `A`/`B` on a binary node; `L`/`R`, `audio`/`cut`/`Q`… on multi-port kinds) | Smoke |
+| C7 | Palette drag | Dragging a palette node onto empty canvas lands it centred where released, without touching any edge | Scenario |
+| C8 | Drop to splice | Dropping a node onto a connector splits `source → target` into `source → node → target` and compiles | Scenario |
 
 ### D. Analyzer tools — every tool
 

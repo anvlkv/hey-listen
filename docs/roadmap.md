@@ -217,10 +217,15 @@ originally scoped, a note follows the item.
   edits coalesce into one step; history resets on New / Open. *(Menu items stay
   enabled; the handlers no-op on an empty stack.)*
 - **Full fundsp node coverage ✅.** The palette covers every filter family and their
-  control-input variants, dynamics, modulation, reverbs, and panning/stereo nodes —
-  see [`graph-editor.md`](graph-editor.md). The palette has a **search box** and is
-  **collapsible**; `input`/`output` are undeletable (and now draggable); every node
-  carries a **hint**. *(The `Sequencer` and an expander remain deferred.)*
+  control-input variants, dynamics, modulation, reverbs, **math**
+  (`add`/`subtract`/`multiply`/`divide`/`min`/`max`/`abs`/`invert`), and
+  panning/stereo nodes — see [`graph-editor.md`](graph-editor.md). The palette has a
+  **search box** and is **collapsible**; nodes can be **clicked or dragged** onto the
+  canvas, and a node dropped **onto a connector** is spliced in, splitting the edge;
+  every port carries a **tiny label** and every node a **hint**; `input`/`output` are
+  undeletable (and draggable). *(The `Sequencer`, an expander, and the remaining
+  fundsp nodes listed under "Remaining fundsp nodes" in `graph-editor.md` stay
+  deferred.)*
 - **Timeline filtered overlay ✅.** The filtered signal is drawn over the raw
   waveform, with an on/bypassed badge (`render_filtered` streams the conditioned
   mono signal). See [`ui-layout.md`](ui-layout.md).

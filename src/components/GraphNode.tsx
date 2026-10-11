@@ -1,7 +1,7 @@
 import { For, Show } from "solid-js";
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
 import { createNumberDrag } from "../lib/dragNumber";
-import { nodeKind, type GraphKind, type ParamDef } from "../lib/graph";
+import { nodeKind, portLabel, type GraphKind, type ParamDef } from "../lib/graph";
 import { updateParam, type GraphNodeData } from "../state/graph";
 
 /** Vertical position of handle `index` of `count`, spread down the node side. */
@@ -10,9 +10,9 @@ function handleTop(index: number, count: number): string {
 }
 
 /**
- * A fundsp graph node: a title, its inline numeric parameters, and one connection
- * handle per declared port. Input handle ids are `"0"`, `"1"`, … so edges carry the
- * port index (see `lib/graph.ts` `handlePort`).
+ * A fundsp graph node: a title, its inline numeric parameters, one connection handle
+ * per declared port, and a **tiny label** beside each handle. Input handle ids are
+ * `"0"`, `"1"`, … so edges carry the port index (see `lib/graph.ts` `handlePort`).
  */
 export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
   const def = () => nodeKind(props.data.kind);
@@ -21,15 +21,30 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
   const isAnchor = () => props.data.kind === "input" || props.data.kind === "output";
 
   return (
-    <div class="graph-node" classList={{ "graph-node-selected": props.selected, "graph-node-anchor": isAnchor() }}>
+    <div
+      class="graph-node"
+      classList={{ "graph-node-selected": props.selected, "graph-node-anchor": isAnchor() }}
+      data-testid="graph.node"
+      data-kind={props.data.kind}
+      data-node-id={props.id}
+    >
       <For each={Array.from({ length: inputs() })}>
         {(_, index) => (
-          <Handle
-            type="target"
-            position={Position.Left}
-            id={String(index())}
-            style={{ top: handleTop(index(), inputs()) }}
-          />
+          <>
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={String(index())}
+              style={{ top: handleTop(index(), inputs()) }}
+            />
+            <span
+              class="graph-port graph-port-in"
+              data-testid="graph.port"
+              style={{ top: handleTop(index(), inputs()) }}
+            >
+              {portLabel(props.data.kind, "in", index(), inputs())}
+            </span>
+          </>
         )}
       </For>
 
@@ -54,12 +69,21 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
 
       <For each={Array.from({ length: outputs() })}>
         {(_, index) => (
-          <Handle
-            type="source"
-            position={Position.Right}
-            id={String(index())}
-            style={{ top: handleTop(index(), outputs()) }}
-          />
+          <>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id={String(index())}
+              style={{ top: handleTop(index(), outputs()) }}
+            />
+            <span
+              class="graph-port graph-port-out"
+              data-testid="graph.port"
+              style={{ top: handleTop(index(), outputs()) }}
+            >
+              {portLabel(props.data.kind, "out", index(), outputs())}
+            </span>
+          </>
         )}
       </For>
     </div>

@@ -38,6 +38,7 @@ export interface ParamDef {
 export type NodeCategory =
   | "io"
   | "mixer"
+  | "math"
   | "processor"
   | "filtercv"
   | "dynamics"
@@ -139,6 +140,79 @@ export const NODE_KINDS: NodeKindDef[] = [
     outputs: 1,
     params: [],
     hint: "Averages two channels back into one — use after stereo processing.",
+  },
+  // Math: combine or reshape signals (A op B for the binary nodes).
+  {
+    kind: "add",
+    label: "Add",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Adds two signals (A + B).",
+  },
+  {
+    kind: "subtract",
+    label: "Subtract",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Subtracts B from A (A − B).",
+  },
+  {
+    kind: "multiply",
+    label: "Multiply",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Multiplies two signals (A × B) — ring-mod, or a VCA with a control input.",
+  },
+  {
+    kind: "divide",
+    label: "Divide",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Divides A by B (A ÷ B).",
+  },
+  {
+    kind: "min",
+    label: "Minimum",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "The lower of two signals, sample by sample.",
+  },
+  {
+    kind: "max",
+    label: "Maximum",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "The higher of two signals, sample by sample.",
+  },
+  {
+    kind: "abs",
+    label: "Absolute",
+    category: "math",
+    inputs: 1,
+    outputs: 1,
+    params: [],
+    hint: "Rectifies the signal (|A|).",
+  },
+  {
+    kind: "invert",
+    label: "Invert",
+    category: "math",
+    inputs: 1,
+    outputs: 1,
+    params: [],
+    hint: "Flips the signal's polarity (−A).",
   },
   // Processors — filters and utilities (fixed parameters via the `*_hz` constructors).
   {
@@ -953,6 +1027,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   io: "Graph",
   generator: "Generators",
   mixer: "Routing",
+  math: "Math",
   processor: "Filters",
   filtercv: "Filters (control)",
   dynamics: "Dynamics",
@@ -963,7 +1038,18 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 /** The palette for a graph kind, grouped for display. */
 export function paletteFor(graph: GraphKind): { category: string; kinds: NodeKindDef[] }[] {
-  const order = ["io", "generator", "mixer", "processor", "filtercv", "dynamics", "modulation", "reverb", "control"];
+  const order = [
+    "io",
+    "generator",
+    "mixer",
+    "math",
+    "processor",
+    "filtercv",
+    "dynamics",
+    "modulation",
+    "reverb",
+    "control",
+  ];
   return order
     .map((category) => ({
       category: CATEGORY_LABELS[category],
@@ -979,6 +1065,66 @@ export function paletteFor(graph: GraphKind): { category: string; kinds: NodeKin
 /** Default parameter values for a kind, keyed by param name. */
 export function defaultParams(def: NodeKindDef): Record<string, number> {
   return Object.fromEntries(def.params.map((param) => [param.key, param.default]));
+}
+
+/**
+ * Per-kind port labels for multi-port nodes, indexed by port. Input 0 of a `*_cv`
+ * filter is always the audio; the rest are control signals. A missing entry falls
+ * back to `in`/`out` (single port) or `in1`/`out1`… (multiple ports).
+ */
+const PORT_LABELS: Record<string, { in?: string[]; out?: string[] }> = {
+  mix: { in: ["A", "B"] },
+  split: { out: ["L", "R"] },
+  join: { in: ["L", "R"] },
+  // Math: binary nodes take A and B.
+  add: { in: ["A", "B"] },
+  subtract: { in: ["A", "B"] },
+  multiply: { in: ["A", "B"] },
+  divide: { in: ["A", "B"] },
+  min: { in: ["A", "B"] },
+  max: { in: ["A", "B"] },
+  // Stereo set (L/R).
+  pan: { out: ["L", "R"] },
+  panner: { in: ["audio", "pan"], out: ["L", "R"] },
+  rotate: { in: ["L", "R"], out: ["L", "R"] },
+  limiter_stereo: { in: ["L", "R"], out: ["L", "R"] },
+  reverb_stereo: { in: ["L", "R"], out: ["L", "R"] },
+  reverb2_stereo: { in: ["L", "R"], out: ["L", "R"] },
+  reverb3_stereo: { in: ["L", "R"], out: ["L", "R"] },
+  reverb4_stereo: { in: ["L", "R"], out: ["L", "R"] },
+  schroeder_cv: { in: ["audio", "coef"] },
+  // Control-input filters (audio, cutoff[, Q[, gain/morph]]).
+  lowpass_cv: { in: ["audio", "cut", "Q"] },
+  highpass_cv: { in: ["audio", "cut", "Q"] },
+  bandpass_cv: { in: ["audio", "cut", "Q"] },
+  notch_cv: { in: ["audio", "cut", "Q"] },
+  peak_cv: { in: ["audio", "cut", "Q"] },
+  allpass_cv: { in: ["audio", "cut", "Q"] },
+  moog_cv: { in: ["audio", "cut", "Q"] },
+  lowrez_cv: { in: ["audio", "cut", "Q"] },
+  bandrez_cv: { in: ["audio", "cut", "Q"] },
+  resonator_cv: { in: ["audio", "center", "bw"] },
+  bell_cv: { in: ["audio", "cut", "Q", "gain"] },
+  lowshelf_cv: { in: ["audio", "cut", "Q", "gain"] },
+  highshelf_cv: { in: ["audio", "cut", "Q", "gain"] },
+  morph_cv: { in: ["audio", "cut", "Q", "morph"] },
+  butterpass_cv: { in: ["audio", "cut"] },
+  lowpole_cv: { in: ["audio", "cut"] },
+  highpole_cv: { in: ["audio", "cut"] },
+  allpole_cv: { in: ["audio", "delay"] },
+};
+
+/** The tiny label for port `index` of `count` on one side of a node kind. */
+export function portLabel(
+  kind: string | undefined,
+  side: "in" | "out",
+  index: number,
+  count: number,
+): string {
+  const labels = kind ? PORT_LABELS[kind]?.[side] : undefined;
+  if (labels?.[index]) return labels[index];
+  if (count > 1) return side === "in" ? `in${index + 1}` : `out${index + 1}`;
+  return side === "in" ? "in" : "out";
 }
 
 /**

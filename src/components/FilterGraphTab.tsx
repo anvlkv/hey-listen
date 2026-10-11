@@ -23,7 +23,7 @@ export default function FilterGraphTab() {
   return (
     <GraphEditor graph="filter">
       <span class="graph-toolbar-title">Filter graph</span>
-      <span class="graph-toolbar-hint">
+      <span class="graph-toolbar-hint" data-testid="graph.hint">
         {nodes()} node{nodes() === 1 ? "" : "s"} · {links()} link{links() === 1 ? "" : "s"} ·{" "}
         {filterEnabled() ? "applied before preview & analysis" : "bypassed"}
       </span>
