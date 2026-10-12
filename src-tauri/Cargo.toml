@@ -3,6 +3,9 @@ name = "hey-listen"
 version = "0.2.0"
 description = "Hey Listen — audio analysis workbench: capture, filter, and analyze audio."
 edition = "2021"
+# The crate has two binaries (`hey-listen`, the GUI, and `heylisten-mcp`, the
+# stdio MCP entry). Tauri must know which one is the app binary to bundle.
+default-run = "hey-listen"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -46,6 +49,13 @@ symphonia = { version = "0.6", features = ["all"] }  # decode audio files (demux
 fundsp = "0.23"                                      # audio nets: filtering and synthesis
 oxiaudio = { version = "0.2", features = ["serde"] } # analysis
 cpal = "0.16"                                        # preview playback (Output; flexaudio already pulls it in)
+
+# macOS: declare the process user-initiated so App Nap cannot throttle it while the MCP
+# server or live capture runs in the background (see `src/app_activity.rs`). Both crates
+# are already in the tree via Tauri; this only turns on the `NSProcessInfo` API.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSProcessInfo", "NSString"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

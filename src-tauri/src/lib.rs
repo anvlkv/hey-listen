@@ -18,6 +18,7 @@ macro_rules! serialize_error_as_string {
     };
 }
 
+mod app_activity;
 mod audio;
 mod cli;
 mod commands;
@@ -89,6 +90,12 @@ pub fn run() {
                 }
                 std::process::exit(0);
             }
+
+            // Keep the process responsive while it is in the background: the MCP server
+            // answers an agent in another window, and capture keeps running when the user
+            // switches away — both would be throttled by macOS App Nap.
+            // See `app_activity`.
+            app_activity::prevent();
 
             // Per-window project state (one window = one project = one source,
             // ADR-3): the source PCM, filter graph, preview player, and capture

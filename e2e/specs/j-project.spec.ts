@@ -66,6 +66,20 @@ async function rightClick(selector: string): Promise<void> {
 }
 
 /**
+ * Close the window the test is currently focused on.
+ *
+ * Fire-and-forget: it runs the app's own `close_window` command (`window.destroy()`),
+ * which tears the caller down before the IPC reply can be delivered — awaiting it
+ * would hang. The frontend's `onCloseRequested` guard prevents a *native* close and
+ * routes it through this command, so going through it is the supported path.
+ */
+async function closeCurrentWindow(): Promise<void> {
+  await browser.tauri.execute((tauri) => {
+    void tauri.core.invoke("close_window").catch(() => {});
+  });
+}
+
+/**
  * The labels of every open Tauri window. `listWindows()` shape is not relied upon:
  * handles may be plain strings or objects carrying a `label`/`handle`.
  */
@@ -90,6 +104,22 @@ describe("H. Project file & multi-window", () => {
   afterEach(async () => {
     await restoreMocks();
     await mockReturn("confirm", true);
+  });
+
+  // Leave a single-window app behind: the specs that follow (K, L) assume the project
+  // window, and H2 pops a tab out into a real `popout-*` window. Close it here — the
+  // spec that opens a secondary window is the one that should close it.
+  after(async () => {
+    for (const label of await windowLabels()) {
+      if (!/^popout-\d+$/.test(label)) continue;
+      await browser.tauri.switchWindow(label).catch(() => {});
+      await closeCurrentWindow().catch(() => {});
+      await waitFor(
+        async () => !(await windowLabels()).includes(label),
+        `the popout ${label} did not close`,
+      ).catch(() => {});
+    }
+    await browser.tauri.switchWindow("main").catch(() => {});
   });
 
   it("H1 — a saved project reloads its source and setup", async () => {
@@ -182,8 +212,8 @@ describe("H. Project file & multi-window", () => {
     );
 
     // Back on main, selecting the tool in the Sidebar must raise the popout, not open
-    // a duplicate tab. The popout cannot be closed cleanly by the test, so these
-    // assertions stay structural (see `docs/testing.md` → H2).
+    // a duplicate tab. (The popout is closed in the suite's `after` hook, so the
+    // following specs start from a single window.)
     await browser.tauri.switchWindow("main");
     const before = await openTabTitles();
     const entry = await $(sidebarTool("spectrum"));

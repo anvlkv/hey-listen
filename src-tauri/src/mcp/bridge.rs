@@ -1,6 +1,6 @@
 //! The stdio ⇄ localhost bridge (`heylisten-mcp`, or `hey-listen --mcp`).
 //!
-//! Zed and other MCP clients launch a local server as a `command` + `args` and
+//! MCP clients launch a local server as a `command` + `args` and
 //! speak MCP over its stdio. The actual server lives in the running Hey Listen
 //! process (so agent calls drive the user's window), so this bridge is a dumb byte
 //! pump: it reads the advertised endpoint from [`INFO_FILE`], connects, sends the
@@ -177,7 +177,9 @@ fn data_dir() -> Option<PathBuf> {
     {
         let base = std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+            })?;
         Some(base.join(identifier))
     }
 }

@@ -6,6 +6,7 @@ import {
   DEFAULT_MCP_PORT,
   copyText,
   mcpBusy,
+  mcpEffectivePort,
   mcpEndpoint,
   mcpSnippet,
   mcpStatus,
@@ -19,7 +20,7 @@ import {
  * The Toolbar **MCP** popover: the in-app control surface for the MCP server.
  *
  * Toggle it on/off (default off), pick the loopback port, watch a live status line,
- * and copy a ready-to-paste Zed `context_servers` snippet. The core owns the state
+ * and copy a ready-to-paste config snippet for an MCP client. The core owns the state
  * (see `src/state/mcpSettings.ts`); this is just a view. See `docs/mcp.md`.
  */
 export default function McpPopover() {
@@ -32,7 +33,12 @@ export default function McpPopover() {
   let portInput!: HTMLInputElement;
 
   const status = () => mcpStatus();
-  const port = () => status()?.port ?? DEFAULT_MCP_PORT;
+  // The port in effect, so the field agrees with the status line: while listening
+  // that is the *bound* port (the configured one may be 0/auto or have fallen back).
+  const port = () => {
+    const current = status();
+    return current ? mcpEffectivePort(current) : DEFAULT_MCP_PORT;
+  };
   const endpoint = () => {
     const current = status();
     return current ? mcpEndpoint(current) : null;
@@ -40,8 +46,9 @@ export default function McpPopover() {
 
   // Keep the port field in step with the core unless the user is editing it.
   createEffect(() => {
-    const current = status()?.port;
-    if (current != null && document.activeElement !== portInput) setPortDraft(String(current));
+    const current = status();
+    if (!current) return;
+    if (document.activeElement !== portInput) setPortDraft(String(mcpEffectivePort(current)));
   });
 
   function open() {
@@ -139,7 +146,7 @@ export default function McpPopover() {
           </div>
         </Show>
 
-        <div class="params-heading">Zed config</div>
+        <div class="params-heading">Client config</div>
         <Show when={status()?.bridgeBinary}>
           <div class="mcp-entry">
             <Button
@@ -170,10 +177,9 @@ export default function McpPopover() {
           {copied() ? "Copied" : "Copy"}
         </Button>
         <p class="params-note">
-          Paste this under <code>context_servers</code> in Zed's settings file. The app
-          entry needs Hey Listen running (it drives the live project); the{" "}
-          <code>heylisten-mcp</code> entry works standalone (headless when no app is
-          running).
+          Add this to your MCP client's settings file. The app entry needs Hey Listen
+          running (it drives the live project); the <code>heylisten-mcp</code> entry
+          works standalone (headless when no app is running).
         </p>
       </div>
     </Popover>

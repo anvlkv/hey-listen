@@ -8,9 +8,9 @@ import type { McpStatus } from "../bindings/McpStatus";
  *
  * The Rust core owns the MCP server, its port, and the persisted settings; this
  * module is a thin view over the `get_mcp_status` / `set_mcp_config` commands (which
- * are the only writer), plus a `writeText` helper for the copyable Zed snippet. The
- * plugin store has no cross-instance sync, so keeping the core authoritative — and
- * the popover a view — avoids diverging copies. See `docs/mcp.md`.
+ * are the only writer), plus a `writeText` helper for the copyable config snippet.
+ * The plugin store has no cross-instance sync, so keeping the core authoritative —
+ * and the popover a view — avoids diverging copies. See `docs/mcp.md`.
  */
 
 /** The default port shown when nothing is configured (mirrors `mcp::DEFAULT_PORT`). */
@@ -60,17 +60,25 @@ export async function copyText(text: string): Promise<void> {
 
 /** The endpoint shown in the status line, or `null` when not listening. */
 export function mcpEndpoint(status: McpStatus): string | null {
-  const port = status.boundPort ?? status.port;
+  const port = mcpEffectivePort(status);
   return status.listening && port ? `127.0.0.1:${port}` : null;
 }
 
-/** A Zed `context_servers` snippet for one of the two entry points. */
+/**
+ * The port actually in effect: the **bound** port while listening (which can differ
+ * from the configured one after a free-port fallback, or when the configured port is
+ * `0`/auto), else the configured port, else the default.
+ *
+ * Both the status line and the port field read this, so the field never disagrees
+ * with what is listening (e.g. configured `0` but bound `51640`).
+ */
+export function mcpEffectivePort(status: McpStatus): number {
+  return status.boundPort ?? (status.port || DEFAULT_MCP_PORT);
+}
+
+/** A ready-to-paste MCP-client config snippet for one of the two entry points. */
 export function mcpSnippet(status: McpStatus, entry: McpEntry): string {
   const command = (entry === "bridge" ? status.bridgeBinary : status.appBinary) ?? "";
   const args = entry === "bridge" ? [] : ["--mcp"];
-  return JSON.stringify(
-    { context_servers: { "hey-listen": { command, args } } },
-    null,
-    2,
-  );
+  return JSON.stringify({ mcpServers: { "hey-listen": { command, args } } }, null, 2);
 }

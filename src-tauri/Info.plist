@@ -9,5 +9,12 @@
     <string>Hey Listen records microphone audio so you can analyse it.</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Hey Listen records system and per-application audio so you can analyse it.</string>
+    <!-- Opt out of App Nap (see docs/mcp.md). An agent drives the MCP server from
+         another window and capture keeps running in the background, but macOS
+         coalesces a background app's timers and can suspend it. `app_activity.rs`
+         asserts the same thing at runtime, which also covers dev builds and bare
+         binaries (this file only applies to the bundle). -->
+    <key>NSAppSleepDisabled</key>
+    <true/>
 </dict>
 </plist>

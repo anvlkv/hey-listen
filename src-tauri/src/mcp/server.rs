@@ -20,7 +20,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::Arc;
-use std::time::Duration;
 
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
@@ -29,49 +28,62 @@ use crate::state::WindowRegistry;
 
 use super::{protocol, Pending, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
 
-/// How long the accept loop sleeps between polls (it is non-blocking, so a stop
-/// request is honoured within this bound).
-const ACCEPT_POLL: Duration = Duration::from_millis(50);
-
 /// Serve the endpoint until `shutdown` is set.
 ///
-/// The listener is polled in **non-blocking** mode: a blocking `accept()` cannot be
-/// interrupted by dropping the listener alone, so a shutdown flag is checked every
-/// [`ACCEPT_POLL`]. Each accepted connection gets its own thread (an agent holds one
-/// session); those threads are detached and end when their socket closes.
+/// The listener is **blocking**: the thread parks in `accept()` and the kernel wakes it
+/// as soon as a connection is queued. That matters because the app is usually *in the
+/// background* while it serves (the agent drives it from another window) — macOS
+/// coalesces the timers of a background app, so a poll-and-sleep loop can leave
+/// connections sitting unaccepted in the backlog for seconds, which looks exactly like a
+/// hung server. [`super::settings::McpController::stop`] interrupts the parked call with
+/// a loopback connection.
+///
+/// Each accepted connection gets its own thread (an agent holds one session); those
+/// threads are detached and end when their socket closes.
 pub fn accept_loop<R: Runtime>(
     app: AppHandle<R>,
     listener: TcpListener,
     token: String,
     shutdown: Arc<AtomicBool>,
 ) {
-    let _ = listener.set_nonblocking(true);
-    while !shutdown.load(Ordering::Relaxed) {
-        match listener.accept() {
-            Ok((stream, _)) => {
-                let app = app.clone();
-                let token = token.clone();
-                let _ = std::thread::Builder::new()
-                    .name("mcp-conn".into())
-                    .spawn(move || {
-                        if let Err(err) = serve(app, stream, token) {
-                            log::debug!("MCP connection ended: {err}");
-                        }
-                    });
-            }
-            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::sleep(ACCEPT_POLL);
-            }
+    // Guard the assumption below: a non-blocking listener would turn this into a spin.
+    if let Err(err) = listener.set_nonblocking(false) {
+        log::warn!("MCP server unavailable (could not go blocking): {err}");
+        return;
+    }
+    loop {
+        let stream = match listener.accept() {
+            Ok((stream, _)) => stream,
+            // A signal can interrupt the parked call; retry instead of tearing down.
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(err) => {
                 log::warn!("MCP accept failed: {err}");
                 break;
             }
+        };
+        // `stop()` sets the flag and *then* wakes us with a loopback connection, which
+        // arrives here carrying nothing: drop it and exit rather than spawn a session.
+        if shutdown.load(Ordering::SeqCst) {
+            break;
         }
+        log::info!("MCP connection accepted");
+        let app = app.clone();
+        let token = token.clone();
+        let _ = std::thread::Builder::new()
+            .name("mcp-conn".into())
+            .spawn(move || {
+                if let Err(err) = serve(app, stream, token) {
+                    log::debug!("MCP connection ended: {err}");
+                }
+            });
     }
 }
 
 /// Serve one MCP session: validate the token, then handle newline-delimited messages.
 fn serve<R: Runtime>(app: AppHandle<R>, stream: TcpStream, token: String) -> std::io::Result<()> {
+    // The listener is blocking, so this normally already holds — say it explicitly so a
+    // future change to the listener's mode cannot turn `read_line` into `WouldBlock`.
+    stream.set_nonblocking(false)?;
     stream.set_nodelay(true)?;
     let reader_stream = stream.try_clone()?;
     let mut reader = BufReader::new(reader_stream);
@@ -83,7 +95,7 @@ fn serve<R: Runtime>(app: AppHandle<R>, stream: TcpStream, token: String) -> std
         return Ok(());
     }
     if hello.trim() != token {
-        log::debug!("MCP connection rejected: bad token");
+        log::warn!("MCP connection rejected: bad token (stale mcp.json?)");
         return Ok(());
     }
 

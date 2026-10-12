@@ -18,8 +18,16 @@ import { FIXTURES } from "./fixtures.ts";
 
 // --- app lifecycle ---------------------------------------------------------
 
-/** Wait until the shell has rendered (the fixed regions are present). */
+/**
+ * Wait until the shell has rendered (the fixed regions are present).
+ *
+ * The app instance is launched **once for the whole run** and reused across spec
+ * files, so a spec that leaves a popout window focused (J2) would otherwise leave the
+ * *next* session pointed at that popout — which renders no Workbench. Switch to the
+ * `main` window first so every spec starts on the project window.
+ */
 export async function waitForApp(): Promise<void> {
+  await selectMainWindow();
   await browser.waitUntil(async () => (await count(SEL.workbench)) > 0, {
     timeoutMsg: "the app shell did not render",
   });

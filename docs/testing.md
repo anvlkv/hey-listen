@@ -249,6 +249,12 @@ The remaining tools are trusted through the parametrized smoke test.
 | H1 | Save/load | `save_project` → `load_project`; source + setup + results round-trip | Scenario |
 | H2 | Popout | Right-click a tab → **Pop out to window**; a native window shows just that tool, titled `<tool> — <project>`; selecting it in the Sidebar raises the popout (no duplicate tab); timeline/params/zoom sync; it closes with its parent and reopens on project load | Scenario |
 
+> **H2 leaves one window behind.** One app instance is reused across spec files, so a
+> `popout-*` window that survives makes the *next* spec's `execute/sync` calls time out
+> (it looks like a wedged app — this cost K a 30 s script timeout per call). H2 therefore
+> closes the popout it opens in the spec's `after` hook, through the app's own
+> `close_window` command (the frontend's `onCloseRequested` guard blocks a native close).
+
 ### I. Errors & warnings
 
 One case per UI surface: force the condition, assert the message appears in the
@@ -284,7 +290,7 @@ the resulting server state.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
-| L1 | Popover content | The popover renders the toggle, port, and a `context_servers` snippet | Smoke |
+| L1 | Popover content | The popover renders the toggle, port, and an `mcpServers` snippet | Smoke |
 | L2 | Toggle + status | Turning MCP off reads "off"; turning it on shows `listening on 127.0.0.1:` | Scenario |
 | L3 | Port input | Committing a port moves the endpoint to `127.0.0.1:<port>` | Scenario |
 | L4 | Busy port | A port held by the test process falls back to a free one with an inline note | Scenario |
@@ -306,9 +312,18 @@ npm run typecheck:e2e        # type-check the suite (no app needed)
 Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
 service log).
 
+Before it launches the app, the suite **kills any stale Hey Listen instance** (whatever
+holds the embedded driver's port `4445`, plus any leftover `hey-listen` process) and
+waits for the port to be released. The embedded driver binds a **fixed** port, so a
+survivor from a crashed or manual run would otherwise be silently reused — driving an
+old window — and its advertised `mcp.json` would race the new instance's.
+
 Platform environment:
 
-- **macOS** — `embedded` provider; no API key needed.
+- **macOS** — `embedded` provider; no API key needed. The bundle opts out of **App
+  Nap** (`src-tauri/Info.plist` → `NSAppSleepDisabled`): a background app's timers are
+  throttled, which starves the MCP accept loop — and the suite drives the app from
+  behind the terminal, so K would time out without it.
 - **Linux** — `export WEBKIT_DISABLE_DMABUF_RENDERER=1`; with no display server,
   prefix the run with `xvfb-run -a` (e.g. `xvfb-run -a npm run test:e2e`).
 - **Windows** — WebView2; the service keeps the Edge driver in sync for you.

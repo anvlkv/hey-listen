@@ -12,7 +12,7 @@
 //! ## Shape
 //!
 //! ```text
-//!  agent (Zed)               heylisten-mcp            Hey Listen (core + webview)
+//!  agent (MCP client)       heylisten-mcp            Hey Listen (core + webview)
 //!  ┌──────────┐  stdio MCP  ┌──────────────┐  TCP   ┌──────────────────────────┐
 //!  │  client  │ ──────────► │    bridge    │ ─────► │ mcp::server (localhost)  │
 //!  └──────────┘ ◄────────── └──────────────┘ ◄───── └───────────┬──────────────┘

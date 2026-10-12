@@ -2221,6 +2221,9 @@ textarea,
   gap: 6px;
   font-size: 0.6875rem;
   color: var(--fg-dim);
+  /* The endpoint is worth copying, so it opts out of the app-wide no-select. */
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .mcp-dot {
@@ -2265,6 +2268,9 @@ textarea,
   background: var(--panel-3);
   border: 1px solid var(--border-2);
   border-radius: 4px;
+  /* Config to copy by hand: selectable despite the app-wide no-select. */
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .mcp-panel code {
