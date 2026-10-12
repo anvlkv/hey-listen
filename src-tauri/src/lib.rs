@@ -83,7 +83,7 @@ pub fn run() {
             if args.mcp {
                 // No dock icon for the CLI entry (macOS).
                 #[cfg(target_os = "macos")]
-                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
                 if let Err(err) = mcp::run(args.headless) {
                     eprintln!("hey-listen --mcp: {err}");
                     std::process::exit(1);
