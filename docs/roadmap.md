@@ -208,7 +208,7 @@
 >
 > **Delivered:** `src-tauri/src/mcp/` (`mod` / `protocol` / `tools` / `server` /
 > `bridge`) hosts a **Model Context Protocol** server **in the app**, on a loopback
-> TCP endpoint advertised (with a token) in `mcp.json` under the app config dir; the
+> TCP endpoint advertised (with a token) in `mcp.json` under the app data dir; the
 > `heylisten-mcp` binary (and `hey-listen --mcp`) is a stdio ⇄ socket **bridge**, so
 > an MCP client reaches the *running* app. Every `tools/call` is forwarded to the
 > focused project window's frontend (`mcp:request`) and answered through the
@@ -252,18 +252,19 @@ control surface and the pieces that make the agent genuinely standalone:
 > [`mcp.md`](mcp.md) (ADR-13).
 
 > **Delivered:** `src-tauri/src/mcp/settings.rs` (the `McpController`: persisted
-> `{ enabled, port }`, non-blocking accept loop, start/stop/rebind),
+> `{ enabled, port }`, a blocking accept loop (woken by a loopback connection on
+> stop), start/stop/rebind),
 > `mcp/dispatch.rs` (the headless session + engine subset), `mcp/headless.rs` (the
 > stdio loop), `cli.rs` (the `tauri-plugin-cli` flags), `src/state/mcpSettings.ts` +
 > `src/components/McpPopover.tsx` (the popover), the `get_mcp_status` /
 > `set_mcp_config` commands, and `list_projects` + `target` routing in
 > `mcp/server.rs`. `mcp.json` now lives in the app **data** dir (next to the
 > `mcp-settings.json` store file). Tests: `e2e/specs/l-mcp-ui.spec.ts` and the
-> `src-tauri/tests/headless_mcp.rs` CLI integration test. On macOS the bundle opts out
-> of **App Nap** (`src-tauri/Info.plist` → `NSAppSleepDisabled`): an app in the
-> background has its timers throttled, which starved the accept loop's poll, so MCP
-> requests timed out whenever the app was not frontmost — exactly the situation an
-> agent creates (it drives the app from another window). See [`mcp.md`](mcp.md).
+> `src-tauri/tests/headless_mcp.rs` CLI integration test. On macOS the app opts out
+> of **App Nap** — the bundle sets `NSAppSleepDisabled` (`src-tauri/Info.plist`) and
+> the process asserts a user-initiated activity at startup (`src-tauri/src/app_activity.rs`),
+> because a background app has its timers throttled and can be suspended, and an agent
+> drives the app from another window by definition. See [`mcp.md`](mcp.md).
 
 ## Backlog ✅ (delivered)
 

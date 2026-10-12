@@ -65,7 +65,6 @@ const THEME_LABEL: Record<ThemePreference, string> = {
  */
 export default function Toolbar() {
   onMount(() => {
-    void refreshOutputDevices();
     void refreshMcpStatus();
   });
   // Poll the preview output level for the meter; stop when the toolbar unmounts.
@@ -164,6 +163,11 @@ export default function Toolbar() {
             onChange={setOutputDeviceId}
             emptyLabel="System default"
             label="Output device"
+            // Not enumerated at launch: cpal's device listing creates a HAL AudioUnit
+            // per device, which makes macOS ask for microphone/audio-capture access.
+            // The list is only needed once the user picks a device. See
+            // `docs/source-model.md` → OS permissions.
+            onOpen={() => void refreshOutputDevices()}
           />
         </div>
 

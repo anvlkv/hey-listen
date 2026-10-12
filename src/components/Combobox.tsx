@@ -27,6 +27,13 @@ export default function Combobox(props: {
   /** Accessible name for the input. */
   label?: string;
   disabled?: boolean;
+  /**
+   * Called when the option list is opened — the hook for loading options lazily.
+   * Walking the OS audio stack can ask the OS for permission (see
+   * `docs/source-model.md` → OS permissions), so callers that list devices must not
+   * do it at mount.
+   */
+  onOpen?: () => void;
 }) {
   const portal = createPopupMount();
   const all = createMemo<ComboOption[]>(() =>
@@ -52,7 +59,10 @@ export default function Combobox(props: {
       disabled={props.disabled}
       triggerMode="focus"
       onOpenChange={(isOpen) => {
-        if (isOpen) portal.refresh();
+        if (isOpen) {
+          portal.refresh();
+          props.onOpen?.();
+        }
       }}
       sameWidth
       itemComponent={(item) => (

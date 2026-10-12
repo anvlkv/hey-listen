@@ -227,7 +227,7 @@ stdio process cannot reach the app's live state or its webview.
 
 **Decision:** the MCP **server runs inside the app process**. It binds an ephemeral
 `127.0.0.1` port, advertises it (with a random token) in `mcp.json` under the app
-config dir, and serves newline-delimited JSON-RPC. Each `tools/call` is forwarded to
+data dir, and serves newline-delimited JSON-RPC. Each `tools/call` is forwarded to
 the focused project window's frontend as the `mcp:request` event; the frontend runs
 the tool against the same stores and `invoke` commands the UI uses and answers
 through the `mcp_respond` command, which completes the server's waiting channel. The
@@ -242,7 +242,7 @@ state is what the agent reads — UI following is automatic in both directions, 
 any future UI capability is one handler away from being agent-accessible. The core
 keeps the protocol/transport (unit-tested without Tauri); the frontend keeps the
 orchestration. Costs: the app must be running (the bridge waits, then errors), one
-instance per config dir (the advertised port is a single file), and file pickers /
+instance per data dir (the advertised port is a single file), and file pickers /
 project-loss prompts still belong to the UI (agent tools take a `replace` flag to
 skip the replace-source prompt). No new crates — the server is `std::net` + `serde_json`.
 See [`mcp.md`](mcp.md).

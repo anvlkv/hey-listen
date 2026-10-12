@@ -16,6 +16,7 @@
 | `symphonia` | 0.6 (`all`) | file decode / demux | MPL-2.0 |
 | `fundsp` | 0.23 | filtering + synthesis nets | see crates.io |
 | `cpal` | 0.16 | preview playback (output) | Apache-2.0 |
+| `objc2` / `objc2-foundation` | 0.6 / 0.3 (macOS only) | `NSProcessInfo` activity assertion — opts the process out of App Nap (`src/app_activity.rs`); already in the tree via Tauri | MIT |
 | `oxiaudio` | 0.2 (`serde`) | analysis | Apache-2.0 |
 | `serde` / `serde_json` | 1 | serialization | MIT / Apache-2.0 |
 | `postcard` | 1 | binary codec for the project file | MIT / Apache-2.0 |
@@ -74,4 +75,6 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli`
   binary's `--mcp` / `--headless` flags), `tauri-plugin-store` (the persisted MCP
   settings) and `tauri-plugin-clipboard-manager` (the popover's Copy). The
   `heylisten-mcp` binary is a second binary in the same crate — a plain console
-  program (no GUI), so it can run headless. See [`mcp.md`](mcp.md).
+  program (no GUI), so it can run headless. On macOS the follow-up also depends on
+  `objc2` / `objc2-foundation` (already in the tree via Tauri) for the App Nap
+  opt-out, both in the bundle's `Info.plist` and at runtime. See [`mcp.md`](mcp.md).

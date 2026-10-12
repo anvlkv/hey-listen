@@ -37,7 +37,7 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - Where the kind allows it, the user picks a **device** (mic / system) or
   **application** (process); a `Mix` picks a mic device and a system device. The
   device and application lists are enumerated **when the kind is picked**, not at
-  launch (see *OS permissions* below).
+  launch (see *OS permissions* below) — as is the preview **output** device list.
 - **Gain** applies live; **pause/resume** stop and restart chunk delivery without
   tearing down the stream.
 
@@ -63,14 +63,27 @@ must be tested against a packaged build.
 - `NSAudioCaptureUsageDescription` (+ TCC `kTCCServiceAudioCapture`) for system /
   process capture (process taps need macOS 14.4+).
 
-The prompt is raised **only when capture is actually used**, never at launch: no input
-device is touched while the app starts. `flexaudio`'s device enumeration scans cpal's
-*input* devices, which is itself a microphone access on macOS, so `initCapture()` does
-not enumerate — the Source panel requests the device list (`list_devices`) when the
-user picks a live kind (**Mic** / **System** / **Mix**), and the monitoring capture
-session opens at that same moment. A file or synth project therefore never asks for
-the microphone, and the **Application** kind lists processes on its own first
-selection — read-only, and (per `flexaudio`) not something that triggers a prompt.
+The prompt is raised **only when the audio stack is actually used**, never at launch.
+That turned out to need *two* deferrals, not one:
+
+- **Capture devices.** `flexaudio`'s enumeration scans cpal's *input* devices, which is
+  itself a microphone access on macOS, so `initCapture()` does not enumerate. The Source
+  panel requests the list (`list_devices`) when the user picks a live kind (**Mic** /
+  **System** / **Mix**), and the monitoring capture session opens at that same moment.
+  The **Application** kind lists processes on its own first selection — read-only, and
+  (per `flexaudio`) not something that triggers a prompt.
+- **Output devices.** Listing them is *also* an audio-stack access: cpal's
+  `output_devices()` filters with `supports_output()`, which calls
+  `supported_output_configs()` and therefore **instantiates a HAL AudioUnit per device**
+  to read its buffer-frame-size range. That makes `coreaudiod` preflight
+  `kTCCServiceAudioCapture` and then raise the **microphone** prompt (observed in the
+  `tccd` log a couple of seconds into launch). So the toolbar's output-device list is
+  fetched when its picker is **opened** (`Combobox.onOpen`), not in `onMount`.
+
+A file or synth project therefore never asks for the microphone, and an app launch
+never touches the audio stack at all. To verify a change here, watch `tccd` rather than
+the UI: `log stream --predicate 'process == "tccd"'` shows the `AUTHREQ_PROMPTING` line
+(and its `service=`), which is the ground truth for *what* was requested.
 
 Without the grant, flexaudio fails at `start`: microphone capture reports
 `device not found` (cpal maps the denial that way) and system/process capture
