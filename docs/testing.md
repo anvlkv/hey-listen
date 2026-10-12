@@ -24,10 +24,10 @@ The suite runs against the **release** binary (`npm run tauri build`);
 Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 `wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
-`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 9 spec files,
-**61 tests** — A shell (3), B sources (4), C graphs (8), D analyzers (26), E
+`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 10 spec files,
+**65 tests** — A shell (3), B sources (4), C graphs (8), D analyzers (26), E
 correctness (5), F cross-cutting (5), G timeline (3), I errors (5), J project +
-popout (2).
+popout (2), K MCP (4).
 
 **IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
 plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
@@ -262,6 +262,18 @@ capture error (B4) and the graph connection warning (C4) complete the picture.
 | I3 | Filter graph tab | Mock `set_filter_graph` to reject | Red `graph-error` shows the message; Filter bypass toggle still works | Scenario |
 | I4 | Synth graph tab | Mock `render_synth` to reject | Red `graph-error` shows the message; Render button re-enables | Scenario |
 | I5 | Graph tabs (warning) | Disconnect the `output` node | Persistent `graph-warn` "Output is not connected…" shows, then clears once rewired | Scenario |
+
+### K. MCP server (M9)
+
+Speaks MCP to the app's loopback endpoint directly from Node (no bridge), driving
+the **running** app. Exercises the protocol, real tool execution, and UI following.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| K1 | Handshake | `initialize` returns `serverInfo.name = hey-listen` and echoes the version; `tools/list` carries the catalog (`get_state`, `run_analysis`, …) | Smoke |
+| K2 | Open a source | `open_audio_file` puts the fixture on the **live timeline**; `get_state` reports its shape | Scenario |
+| K3 | Run analysis | `run_analysis` (spectrum) returns a result (~440 Hz peak) **and** opens the analyzer tab | Correctness |
+| K4 | UI following | `open_tool` opens a Workbench tab in the main window | Scenario |
 
 ## Running
 

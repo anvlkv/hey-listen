@@ -192,7 +192,7 @@
 > See [`testing.md`](testing.md) → IPC mocking. The suite drives **one** app instance
 > for the whole run, so fixtures are duration-aware and the popout spec runs last.
 
-## M9 — MCP server (agent access + UI following)
+## M9 — MCP server (agent access + UI following) ✅
 
 - A **Model Context Protocol (MCP)** server that exposes Hey Listen as tools an AI
   agent can drive: open a source, run every analysis tool, edit the filter/synth
@@ -205,6 +205,49 @@
 
 > Reuses the Rust core (`audio/*`, `commands/*`); UI following rides the Tauri IPC
 > boundary so the agent and the user share one project per window.
+>
+> **Delivered:** `src-tauri/src/mcp/` (`mod` / `protocol` / `tools` / `server` /
+> `bridge`) hosts a **Model Context Protocol** server **in the app**, on a loopback
+> TCP endpoint advertised (with a token) in `mcp.json` under the app config dir; the
+> `heylisten-mcp` binary (and `hey-listen --mcp`) is a stdio ⇄ socket **bridge**, so
+> an MCP client reaches the *running* app. Every `tools/call` is forwarded to the
+> focused project window's frontend (`mcp:request`) and answered through the
+> `mcp_respond` command, so the agent drives the **same** stores and commands the UI
+> does — `src/state/mcp.ts` implements the tools and `src-tauri/src/mcp/tools.rs`
+> carries the catalog (open a source, run every analyzer, edit the filter/synth
+> graphs, preview, capture, save/load projects). **UI following** is automatic in
+> both directions: agent calls open tabs / set the analysis window / replace the
+> timeline in the live window, and `get_state` reports the source, window, params,
+> open tabs, and project. See [`mcp.md`](mcp.md) (ADR-12).
+
+### M9 follow-up — control, headless CLI, multi-project (planned)
+
+The first cut ships the server + UI following. A scoped follow-up adds the
+user-facing control surface and the pieces that make the agent genuinely
+standalone:
+
+- **In-app MCP control** — a Toolbar **MCP** popover: an **on/off toggle (default
+  off)**, a **port input** (default `47100`, free-port fallback, inline "port in use"
+  error), a live status line, and a **copyable** Zed `context_servers` snippet
+  (rendered from `current_exe()` + `["--mcp"]`, and the `heylisten-mcp` sibling).
+  Persisted with `tauri-plugin-store`; copied via `tauri-plugin-clipboard-manager`.
+- **Headless MCP-only CLI** — `heylisten-mcp` **auto-detects**: when a running app
+  has MCP enabled it bridges to it (UI following, as today); otherwise it runs a
+  **core-native** dispatcher over stdio with no window. `--headless` forces headless.
+  The headless subset is the compute/audio surface (open file, run every analyzer,
+  filter/synth, preview, enumerate, capture); UI-only tools (`open_tool`/`close_tool`,
+  editor-layout graphs, save/load) return "requires the app".
+- **Multi-project targeting** — `list_projects` plus an optional `target` on every
+  tool, so one port reaches **any** of a process's project windows (main / `project-*`
+  / popouts) instead of only the focused one.
+
+> **Decisions (committed):** default **off**; port default **47100**; `heylisten-mcp`
+> auto-detects (bridge vs headless) with a `--headless` escape hatch; the headless
+> tools are the **engine-backed subset** (no second DSP path — the GUI commands and
+> the headless dispatcher call the same extracted core functions); multi-project is
+> in-scope via `list_projects` + `target`. Persistence = `tauri-plugin-store`;
+> clipboard = `tauri-plugin-clipboard-manager`; `port_check` is skipped (the bind is
+> the check). See [`mcp.md`](mcp.md) (ADR-13).
 
 ## Backlog ✅ (delivered)
 

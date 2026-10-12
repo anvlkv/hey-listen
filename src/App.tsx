@@ -8,6 +8,7 @@ import Workbench from "./components/Workbench";
 import { disposeCapture, initCapture, recording } from "./state/capture";
 import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu } from "./state/menu";
+import { initMcp } from "./state/mcp";
 import { sourcePanelPinned } from "./state/settings";
 import { source } from "./state/source";
 import { initUiState } from "./state/uiState";
@@ -102,6 +103,7 @@ export default function App() {
     void initUiState();
     void initCapture();
     void initMenu();
+    void initMcp();
     disposeDragDrop = initDragDrop();
     window.addEventListener("resize", handleResize);
   });

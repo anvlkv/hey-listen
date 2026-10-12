@@ -292,6 +292,15 @@ function scheduleFilterPush() {
   pushTimer = window.setTimeout(() => void pushFilterGraph(), DEBOUNCE_MS);
 }
 
+/** Apply the filter graph to the core right now, skipping the debounce (MCP). */
+export async function flushFilterGraph(): Promise<void> {
+  if (pushTimer != null) {
+    clearTimeout(pushTimer);
+    pushTimer = undefined;
+  }
+  await pushFilterGraph();
+}
+
 // Push whenever the graph (or the enable toggle) changes, and once on startup.
 createRoot(() => {
   createEffect(

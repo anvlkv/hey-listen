@@ -386,6 +386,11 @@ export async function saveProjectAs(): Promise<void> {
   if (path) await write(path);
 }
 
+/** Save to a specific path without a dialog (used by the MCP server). */
+export async function saveProjectTo(path: string): Promise<boolean> {
+  return write(path);
+}
+
 // --- load --------------------------------------------------------------------
 
 function applyDescriptor(descriptor: SourceDescriptorDto | null) {

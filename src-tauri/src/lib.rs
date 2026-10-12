@@ -20,12 +20,21 @@ macro_rules! serialize_error_as_string {
 
 mod audio;
 mod commands;
+mod mcp;
 mod menu;
 mod project;
 mod recent;
 mod state;
 
 use tauri::{Manager, WebviewWindowBuilder};
+
+/// Run the stdio ⇄ localhost MCP bridge (`heylisten-mcp`, or `hey-listen --mcp`).
+///
+/// The MCP *server* lives in the running app (so agents drive the user's window);
+/// this is the console entry point an MCP client launches. See [`mcp::bridge`].
+pub fn run_mcp() -> std::io::Result<()> {
+    mcp::bridge::run()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -63,6 +72,10 @@ pub fn run() {
             app.manage(recent::RecentProjects::load(app.handle()));
             // File-open requests from the command line / OS (drained by the frontend).
             app.manage(commands::project::OpenedFiles::default());
+            // MCP server (M9): in-flight tool calls forwarded to a window's frontend.
+            app.manage(mcp::Pending::default());
+            // Serve MCP over a local port the `heylisten-mcp` bridge connects to.
+            mcp::server::spawn(app.handle().clone());
 
             // Native menu; File actions go to the focused window, the rest are native.
             let menu = menu::build(app.handle())?;
@@ -142,21 +155,24 @@ pub fn run() {
             commands::window::popout_tool,
             commands::window::popout_tools,
             commands::window::focus_popout,
+            commands::mcp::mcp_respond,
+            commands::mcp::mcp_ready,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(handle_run_event);
 }
 
-/// Handle a macOS/`open`-with request (file association) for a running app.
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+/// Handle app-level run events: drop the MCP advertisement on exit, and open a
+/// `.heyl` project when the OS asks us to (macOS/`open`-with file association).
 fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
-    if let tauri::RunEvent::Opened { urls } = event {
-        let paths = commands::project::opened_paths_from_urls(urls);
-        commands::project::handle_open_paths(app, paths);
+    match event {
+        tauri::RunEvent::Exit => mcp::server::remove_info(app),
+        #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+        tauri::RunEvent::Opened { urls } => {
+            let paths = commands::project::opened_paths_from_urls(urls);
+            commands::project::handle_open_paths(app, paths);
+        }
+        _ => {}
     }
 }
-
-/// No-op on platforms without an `open`-with run event (files arrive via argv).
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
-fn handle_run_event<R: tauri::Runtime>(_app: &tauri::AppHandle<R>, _event: tauri::RunEvent) {}

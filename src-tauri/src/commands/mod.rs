@@ -8,6 +8,7 @@ pub mod analysis;
 pub mod capture;
 pub mod decode;
 pub mod graph;
+pub mod mcp;
 pub mod playback;
 pub mod project;
 pub mod source;

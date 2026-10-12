@@ -81,5 +81,5 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M7 is done). Deliver strictly one
+`docs/roadmap.md` tracks progress (M9 is done). Deliver strictly one
 milestone at a time; confirm current status from that file before starting.
