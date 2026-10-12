@@ -12,9 +12,14 @@ use crate::audio::playback::{self, OutputDeviceDto, PlaybackError};
 use crate::state::window_state;
 
 /// List the audio output devices to preview through.
+///
+/// Enumerating output devices queries the OS audio stack, so it runs on the blocking
+/// pool rather than the main thread (synchronous commands run on the main thread).
 #[tauri::command]
-pub fn list_output_devices() -> Vec<OutputDeviceDto> {
-    playback::list_output_devices()
+pub async fn list_output_devices() -> Vec<OutputDeviceDto> {
+    tauri::async_runtime::spawn_blocking(playback::list_output_devices)
+        .await
+        .unwrap_or_default()
 }
 
 /// Preview `start..end` (seconds, source time). `channel` is a 0-based channel or

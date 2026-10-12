@@ -60,8 +60,9 @@ tab mounted, so a test that reads a chart must activate its tab (`activateTab`).
 **Synthesized pointer/drag events.** The system WebView doesn't produce W3C pointer
 actions (or native HTML5 drag-and-drop) under WebDriver, so `pointerDrag` (timeline
 handles, splitter) and `dragPaletteNode` (graph palette) dispatch the app's **real**
-`pointer*` / `dragstart`·`dragover`·`drop` handlers directly — the same UI path, just
-driven by events the harness can emit.
+`pointer*` handlers directly — the same UI path, just driven by events the harness
+can emit. (The palette drag is pointer-based, not HTML5 drag-and-drop, because
+Tauri's native file-drop handler consumes HTML5 drags over the WebView.)
 
 ## Deliverables (this milestone)
 
@@ -107,6 +108,14 @@ carrying `data-kind`) / `graphNode(kind)`, `graph.port` (a port label),
 `graph.palette.btn` (a palette button), `source.openFile`, `source.kind`,
 `source.error`, `timeline.canvas`, `timeline.replace`. All live in
 `e2e/support/selectors.ts`.
+
+`tab.<id>` is **stamped by the app** (`Workbench.tsx` → `scheduleStampTabIds`):
+dockview gives tabs no stable hook of their own, so we match each `.dv-tab` to its
+panel by title. The stamping deliberately does **not** use `requestAnimationFrame` —
+WebKit throttles (and can pause) animation frames while the window is occluded, which
+is the norm on headless CI (macOS runners, Linux `xvfb`), and would leave every tab
+unstamped and every tab-addressing test failing. It retries on a short `setTimeout`
+instead, which still fires when occluded.
 
 The graph *interaction* tests (C5–C8) use those hooks — `graph.node` + `data-kind` to
 find a node by kind, `graph.port` for port labels, `graph.palette.btn` for the palette,
@@ -220,8 +229,9 @@ The remaining tools are trusted through the parametrized smoke test.
 | F1 | Search | Type in the Sidebar search box; list filters by title/keywords; graph editors stay visible | Scenario |
 | F2 | No duplicates | Open a tool twice; one tab, existing tab focused | Scenario |
 | F3 | Shared params | Change FFT size / channel / freq range; `run_analysis` re-fires, all open tools agree | Scenario |
-| F4 | Zoom/cursor sync | Hover/zoom one time chart; cursor + x-zoom mirror across the time-group tabs | Scenario |
+| F4 | Zoom/cursor sync | Zoom one time chart (the visible range actually narrows); x-zoom mirrors across the time-group tabs | Scenario |
 | F5 | Popovers | Params + about popovers render per-tool config/copy | Smoke |
+| F6 | Zoom persistence | Zoom a chart, then change the shared FFT size (an analysis re-run); the zoom survives (used to snap back to the full window) | Scenario |
 
 ### G. Timeline
 
@@ -235,6 +245,7 @@ The remaining tools are trusted through the parametrized smoke test.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
+| H0 | Open audio from the OS | Emit the file-association channel (`app:open-project`) with an audio path; it opens as a **fresh project** named after the file, with the audio on the timeline | Scenario |
 | H1 | Save/load | `save_project` → `load_project`; source + setup + results round-trip | Scenario |
 | H2 | Popout | Right-click a tab → **Pop out to window**; a native window shows just that tool, titled `<tool> — <project>`; selecting it in the Sidebar raises the popout (no duplicate tab); timeline/params/zoom sync; it closes with its parent and reopens on project load | Scenario |
 

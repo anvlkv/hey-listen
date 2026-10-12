@@ -2,8 +2,10 @@ import { invoke } from "../lib/ipc";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { redo, undo } from "./history";
+import { openPath } from "./source";
 import {
   dirty,
+  isProjectFile,
   loadProject,
   newProject,
   openProject,
@@ -16,9 +18,11 @@ import {
  * Native menu + OS file-open wiring (M6).
  *
  * The Rust menu (`src-tauri/src/menu.rs`) emits `app:menu` with a File action id;
- * file associations deliver `.heyl` paths through `app:open-project` (a running app)
- * or `take_pending_open_paths` (a request that arrived before the frontend listened,
- * e.g. launching by double-clicking a project). See `docs/ui-layout.md`.
+ * file associations deliver `.heyl` (and audio) paths through `app:open-project`
+ * (a running app) or `take_pending_open_paths` (a request that arrived before the
+ * frontend listened, e.g. launching by double-clicking a project). A `.heyl` path
+ * loads that project; any other supported audio path opens as a new project with
+ * the file as its source. See `docs/ui-layout.md`.
  */
 
 /** Paths already handled, so a launch request is not loaded twice. */
@@ -47,7 +51,13 @@ async function openPaths(paths: string[]) {
   if (!(await confirmDiscard())) return;
   for (const path of pending) {
     handled.add(path);
-    await loadProject(path);
+    if (isProjectFile(path)) {
+      await loadProject(path);
+    } else {
+      // A supported audio file opens as a fresh project with it as the source.
+      await newProject();
+      await openPath(path);
+    }
   }
 }
 

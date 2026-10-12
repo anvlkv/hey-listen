@@ -1,5 +1,5 @@
 import "@dschz/solid-flow/styles";
-import { createSignal, For, onMount, Show, type JSX } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 import {
   Background,
   Controls,
@@ -29,13 +29,13 @@ import ScrollArea from "./ScrollArea";
 
 const nodeTypes = { graph: GraphNode } satisfies NodeTypes;
 
-/** Palette drag payload MIME type (an HTML5 drag-and-drop data flavour). */
-const NODE_DRAG_MIME = "application/x-heylisten-node";
 /** Half a node's nominal size, so a dropped node is centred on the cursor. */
 const NODE_HALF_WIDTH = 70;
 const NODE_HALF_HEIGHT = 27;
 /** How close (in flow units) a drop must land to a connector to splice in. */
 const SPLICE_RADIUS = 26;
+/** How far (px) the pointer must move before a palette press becomes a drag. */
+const DRAG_THRESHOLD = 4;
 
 /** Inline styling for the palette search box, matched to the active theme. */
 const SEARCH_STYLE_DARK: JSX.CSSProperties = {
@@ -203,6 +203,11 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
   // The flow instance, captured via `FlowBridge` on mount (user gestures only fire
   // after that), so nothing reactive is lost by keeping it in a plain variable.
   let flow: FlowApi | undefined;
+  let canvasEl!: HTMLDivElement;
+  /** The in-progress palette drag (pointer-based), or `null` when idle. */
+  let paletteDrag: { kind: string; startX: number; startY: number; moved: boolean } | null = null;
+  /** Set after a drag so the originating palette button's `click` is ignored. */
+  let suppressClick = false;
 
   const handle = () => graphFor(props.graph);
   const [query, setQuery] = createSignal("");
@@ -295,34 +300,81 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
     if (edge && canSplice(def, node.id, edge)) spliceEdge(props.graph, edge, node.id);
   }
 
-  /** Whether the event is over the palette (a drop there is treated as a cancel). */
-  const overPalette = (event: DragEvent) => !!(event.target as Element | null)?.closest?.(".graph-palette");
-
-  function handleDragOver(event: DragEvent) {
-    if (!dragging() || overPalette(event)) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+  /**
+   * Palette drag-and-drop is **pointer-based**, not HTML5 drag-and-drop. Tauri's
+   * native file-drop handler consumes every drag over the webview on macOS (so an
+   * HTML5 `drop` never fires) and raises its file-drop overlay mid-drag — see
+   * `state/dragdrop.ts`. Driving the drag with pointer events keeps the two apart:
+   * files still drop through Tauri, palette nodes through these handlers.
+   *
+   * A press that moves past [`DRAG_THRESHOLD`] before release is a drag; a press
+   * released in place is a click (the button's `onClick` adds the node).
+   */
+  function onPalettePointerDown(def: NodeKindDef, event: PointerEvent) {
+    if (event.button !== 0) return;
+    suppressClick = false;
+    paletteDrag = { kind: def.kind, startX: event.clientX, startY: event.clientY, moved: false };
+    // Capture phase: solid-flow's pane also listens for pointer events, and a capture
+    // listener on `window` runs first regardless of what the canvas does with them.
+    window.addEventListener("pointermove", onPalettePointerMove, true);
+    window.addEventListener("pointerup", onPalettePointerUp, true);
+    window.addEventListener("pointercancel", onPalettePointerCancel, true);
   }
 
-  function handleDrop(event: DragEvent) {
-    const kind = dragging();
-    setDragging(null);
-    if (!kind || overPalette(event) || !flow) return;
+  function onPalettePointerMove(event: PointerEvent) {
+    const drag = paletteDrag;
+    if (!drag) return;
+    if (!drag.moved) {
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < DRAG_THRESHOLD)
+        return;
+      drag.moved = true;
+      setDragging(drag.kind);
+    }
     event.preventDefault();
-    const def = nodeKind(kind);
-    if (!def || !canAdd(def)) return;
+  }
+
+  function stopPaletteDrag() {
+    window.removeEventListener("pointermove", onPalettePointerMove, true);
+    window.removeEventListener("pointerup", onPalettePointerUp, true);
+    window.removeEventListener("pointercancel", onPalettePointerCancel, true);
+  }
+
+  function onPalettePointerUp(event: PointerEvent) {
+    const drag = paletteDrag;
+    paletteDrag = null;
+    stopPaletteDrag();
+    setDragging(null);
+    if (!drag || !drag.moved) return; // a click — the button's `onClick` adds it
+    suppressClick = true;
+    const def = nodeKind(drag.kind);
+    const rect = canvasEl?.getBoundingClientRect();
+    if (!def || !flow || !rect) return;
+    const overCanvas =
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom;
+    if (!overCanvas || !canAdd(def)) return;
     clearGraphWarning();
     placeNode(def, flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
   }
+
+  function onPalettePointerCancel() {
+    paletteDrag = null;
+    stopPaletteDrag();
+    setDragging(null);
+  }
+
+  onCleanup(stopPaletteDrag);
 
   return (
     <div class="graph-editor">
       <div class="graph-toolbar">{props.children}</div>
       <div
+        ref={canvasEl}
         class="graph-canvas"
+        classList={{ "graph-canvas-dragging": dragging() !== null }}
         data-testid="graph.canvas"
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
       >
         <SolidFlow
           id={`graph-${props.graph}`}
@@ -433,20 +485,22 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
                             type="button"
                             class="graph-palette-btn"
                             data-testid="graph.palette.btn"
-                            draggable={true}
                             title={
                               def.hint
                                 ? `${def.label} — ${def.hint}\nClick to add, or drag onto the canvas (drop on a connector to insert).`
                                 : `Add ${def.label}`
                             }
-                            onClick={() => addNode(props.graph, def)}
-                            onDragStart={(event) => {
-                              setDragging(def.kind);
-                              event.dataTransfer?.setData(NODE_DRAG_MIME, def.kind);
-                              event.dataTransfer?.setData("text/plain", def.kind);
-                              if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
+                            on:pointerdown={(event) => onPalettePointerDown(def, event)}
+                            onClick={(event) => {
+                              // A drag that ended over the canvas still fires a `click` on
+                              // the source button in some WebViews — ignore it.
+                              if (suppressClick) {
+                                suppressClick = false;
+                                event.preventDefault();
+                                return;
+                              }
+                              addNode(props.graph, def);
                             }}
-                            onDragEnd={() => setDragging(null)}
                           >
                             + {def.label}
                           </button>

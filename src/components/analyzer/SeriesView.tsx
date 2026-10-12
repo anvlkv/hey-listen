@@ -49,7 +49,7 @@ export default function SeriesView(props: {
 }) {
   const view = () => analyzerById(props.id).view as SeriesViewConfig;
   const result = () => props.analysis.result() as SeriesResult | null;
-  const zoom = createUplotZoom();
+  const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   const Tooltip = timeTooltip(view().formatY);

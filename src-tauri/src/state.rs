@@ -312,14 +312,20 @@ impl WindowRegistry {
 
     /// Drop a window's state and any aliases it owns or participates in.
     pub fn remove(&self, label: &str) {
-        let mut inner = self
-            .inner
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
-        inner.states.remove(label);
-        inner.aliases.remove(label);
-        inner.popout_tools.remove(label);
-        inner.aliases.retain(|_, parent| parent != label);
+        let removed = {
+            let mut inner = self
+                .inner
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner());
+            inner.aliases.remove(label);
+            inner.popout_tools.remove(label);
+            inner.aliases.retain(|_, parent| parent != label);
+            inner.states.remove(label)
+        };
+        // Drop the (possibly last) `Arc<WindowState>` **outside** the lock: dropping
+        // the last one shuts the window's preview player down (which joins its
+        // worker thread), and that must not run while holding the registry lock.
+        drop(removed);
     }
 }
 

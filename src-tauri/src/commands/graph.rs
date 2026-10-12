@@ -14,27 +14,40 @@ use crate::state::{window_state, SourcePcm};
 
 /// Install (or clear) the project's filter graph. Validated as a filter (one
 /// global input); an invalid graph clears the filter and surfaces the error.
+///
+/// Building the fundsp graph is CPU-bound, so it runs on the blocking pool rather
+/// than the main thread (synchronous commands run on the main thread).
 #[tauri::command]
-pub fn set_filter_graph(window: WebviewWindow, spec: Option<GraphSpec>) -> Result<(), GraphError> {
+pub async fn set_filter_graph(
+    window: WebviewWindow,
+    spec: Option<GraphSpec>,
+) -> Result<(), GraphError> {
     let state = window_state(&window);
-    match spec {
+    let spec = match spec {
         None => {
             state.audio.set_filter(None);
-            Ok(())
+            return Ok(());
         }
         Some(spec) if spec.is_empty() => {
             state.audio.set_filter(None);
-            Ok(())
+            return Ok(());
         }
-        Some(spec) => {
-            if let Err(err) = graph::build(&spec, 1, 48_000) {
-                state.audio.set_filter(None);
-                return Err(err);
-            }
-            state.audio.set_filter(Some(spec));
-            Ok(())
-        }
+        Some(spec) => spec,
+    };
+
+    let to_build = spec.clone();
+    let built = tauri::async_runtime::spawn_blocking(move || {
+        graph::build(&to_build, 1, 48_000).map(|_| ())
+    })
+    .await
+    .map_err(|err| GraphError::Stream(err.to_string()))?;
+
+    if let Err(err) = built {
+        state.audio.set_filter(None);
+        return Err(err);
     }
+    state.audio.set_filter(Some(spec));
+    Ok(())
 }
 
 /// Build a fundsp synth graph, render it to mono PCM, stream it to the frontend,

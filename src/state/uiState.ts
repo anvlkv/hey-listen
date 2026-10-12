@@ -57,7 +57,10 @@ registerUiState("project", (value) => {
 
 for (const group of ["time", "freq"] as const) {
   registerUiState(`view:${group}`, (value) => {
-    analyzerBus.setData("view", { sourceId: REMOTE_VIEW, group, x: value as [number, number] });
+    analyzerBus.setData(
+      "view",
+      value == null ? null : { sourceId: REMOTE_VIEW, group, x: value as [number, number] },
+    );
   });
 }
 
@@ -87,7 +90,13 @@ export async function initUiState(): Promise<void> {
     for (const group of ["time", "freq"] as const) {
       createEffect(() => {
         const view = analyzerBus.data.view;
-        if (view?.group === group && view.sourceId !== REMOTE_VIEW) {
+        // A cleared view (source replaced) propagates as `null` too, so the other
+        // windows fit the new timeline instead of keeping a stale zoom.
+        if (view == null) {
+          pushUiState(`view:${group}`, null);
+          return;
+        }
+        if (view.group === group && view.sourceId !== REMOTE_VIEW) {
           pushUiState(`view:${group}`, view.x);
         }
       });

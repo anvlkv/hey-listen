@@ -6,9 +6,9 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use crate::audio::capture::{CAPTURE_CHANNELS, CAPTURE_RATE};
 use crate::state::window_state;
 
-/// File extensions we advertise in the open dialog (all decodable via
-/// symphonia's `all` feature set).
-const AUDIO_EXTENSIONS: &[&str] = &[
+/// File extensions we advertise in the open dialog and accept as OS-open requests
+/// (all decodable via symphonia's `all` feature set).
+pub const AUDIO_EXTENSIONS: &[&str] = &[
     "wav", "wave", "flac", "mp3", "m4a", "mp4", "aac", "ogg", "oga", "opus", "aiff", "aif", "aifc",
     "caf", "alac", "mkv", "webm",
 ];

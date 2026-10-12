@@ -6,6 +6,12 @@ import { openPath } from "./source";
  * Drop-to-open wiring via Tauri's native window drag-and-drop events. The WebView
  * does not reliably expose local file paths through HTML5 `dataTransfer`, so we
  * use the window API and let symphonia (behind `probe_file`) decide real support.
+ *
+ * Note: Tauri's native handler consumes **every** drag over the WebView (its WRY
+ * listener always returns `true` and never defers to WebKit), so an in-page HTML5
+ * drag-and-drop would neither deliver its `drop` nor avoid this handler's overlay.
+ * The graph editor's palette drag is therefore **pointer-based** — see
+ * `components/GraphEditor.tsx`.
  */
 
 /** True while a file is dragged over the window — drives the drop overlay. */

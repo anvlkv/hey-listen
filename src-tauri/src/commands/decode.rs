@@ -9,9 +9,15 @@ use crate::state::{window_state, SourcePcm};
 
 /// Inspect a file's container/codec metadata (codec, sample rate, channels,
 /// duration) without decoding it.
+///
+/// Reading the header goes through symphonia (disk I/O + demux), so it runs on the
+/// blocking pool rather than the main thread (synchronous commands run on the main
+/// thread).
 #[tauri::command]
-pub fn probe_file(path: String) -> Result<ProbeInfo, DecodeError> {
-    decode::probe(&path)
+pub async fn probe_file(path: String) -> Result<ProbeInfo, DecodeError> {
+    tauri::async_runtime::spawn_blocking(move || decode::probe(&path))
+        .await
+        .map_err(|err| DecodeError::Decode(err.to_string()))?
 }
 
 /// Decode a file and stream interleaved `f32` PCM to the frontend as raw bytes

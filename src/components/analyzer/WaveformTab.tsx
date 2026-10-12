@@ -28,7 +28,7 @@ const Tooltip = timeTooltip((value) => value.toFixed(3));
  */
 export default function WaveformTab() {
   const analysis = createAnalysis<WaveformResult>("waveform");
-  const zoom = createUplotZoom();
+  const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   const data = () => {

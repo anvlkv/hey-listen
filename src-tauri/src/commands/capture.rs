@@ -19,15 +19,23 @@ use crate::state::{window_state, WindowState};
 const SOURCE_STATUS: &str = "source_status";
 
 /// Enumerate microphones and system-output (loopback) devices.
+///
+/// Device enumeration talks to the OS audio stack, so it runs on the blocking pool
+/// rather than the main thread (synchronous commands run on the main thread, which
+/// would freeze the UI on a slow/hotplugging device).
 #[tauri::command]
-pub fn list_devices() -> Result<Vec<DeviceDto>, CaptureError> {
-    capture::list_devices()
+pub async fn list_devices() -> Result<Vec<DeviceDto>, CaptureError> {
+    tauri::async_runtime::spawn_blocking(capture::list_devices)
+        .await
+        .map_err(|err| CaptureError::Control(err.to_string()))?
 }
 
 /// Enumerate processes that can be captured as a per-process source.
 #[tauri::command]
-pub fn list_processes() -> Result<Vec<ProcessDto>, CaptureError> {
-    capture::list_processes()
+pub async fn list_processes() -> Result<Vec<ProcessDto>, CaptureError> {
+    tauri::async_runtime::spawn_blocking(capture::list_processes)
+        .await
+        .map_err(|err| CaptureError::Control(err.to_string()))?
 }
 
 /// Arguments for [`start_capture`] (camelCase keys from the frontend).
@@ -60,22 +68,18 @@ pub struct CaptureInfo {
 
 /// Start a live capture, streaming 20 ms `f32` chunks over `on_chunk`. Replaces any
 /// existing capture (the whole timeline changes when the source changes).
+///
+/// Opening a capture session blocks (it talks to the OS backend and spawns the poll
+/// thread), and stopping one **joins** that thread, so both run on the blocking pool —
+/// never on the main thread, and never while holding the session lock. Synchronous
+/// commands run on the main thread, where a join would freeze the whole app.
 #[tauri::command]
-pub fn start_capture(
+pub async fn start_capture(
     window: WebviewWindow,
     args: StartCaptureArgs,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<CaptureInfo, CaptureError> {
     let state = window_state(&window);
-    // Drop any previous session before starting the new one.
-    if let Some(mut previous) = state
-        .capture
-        .lock()
-        .map_err(|err| CaptureError::Control(err.to_string()))?
-        .take()
-    {
-        previous.stop();
-    }
 
     let config = CaptureConfig {
         kind: CaptureKind::parse(&args.kind)?,
@@ -85,6 +89,17 @@ pub fn start_capture(
         target_pid: args.target_pid,
         gain: args.gain,
     };
+
+    // Drop any previous session before starting the new one: take it out under a
+    // short lock, then stop it (off the lock, off the main thread).
+    let previous = state
+        .capture
+        .lock()
+        .map_err(|err| CaptureError::Control(err.to_string()))?
+        .take();
+    if let Some(previous) = previous {
+        stop_session(previous).await?;
+    }
 
     // Route status events back to the window that owns the capture.
     let status_window = window.clone();
@@ -100,31 +115,49 @@ pub fn start_capture(
         }
     };
 
-    let handle = capture::start(config, sink)?;
+    let handle = tauri::async_runtime::spawn_blocking(move || capture::start(config, sink))
+        .await
+        .map_err(|err| CaptureError::Control(err.to_string()))??;
+
     let info = CaptureInfo {
         sample_rate: handle.sample_rate,
         channels: handle.channels,
     };
-    *state
+    // Install the new session; if one slipped in meanwhile, stop it off-lock.
+    let displaced = state
         .capture
         .lock()
-        .map_err(|err| CaptureError::Control(err.to_string()))? = Some(handle);
+        .map_err(|err| CaptureError::Control(err.to_string()))?
+        .replace(handle);
+    if let Some(displaced) = displaced {
+        stop_session(displaced).await?;
+    }
     Ok(info)
 }
 
 /// Stop the running capture (no-op if none).
 #[tauri::command]
-pub fn stop_capture(window: WebviewWindow) -> Result<(), CaptureError> {
+pub async fn stop_capture(window: WebviewWindow) -> Result<(), CaptureError> {
     let state = window_state(&window);
-    if let Some(mut handle) = state
+    let handle = state
         .capture
         .lock()
         .map_err(|err| CaptureError::Control(err.to_string()))?
-        .take()
-    {
-        handle.stop();
+        .take();
+    if let Some(handle) = handle {
+        stop_session(handle).await?;
     }
     Ok(())
+}
+
+/// Stop a capture session off the calling thread.
+///
+/// [`CaptureHandle::stop`] joins the poll thread (after flexaudio tears the backend
+/// down), so it must not run on the main thread or while the session lock is held.
+async fn stop_session(mut handle: CaptureHandle) -> Result<(), CaptureError> {
+    tauri::async_runtime::spawn_blocking(move || handle.stop())
+        .await
+        .map_err(|err| CaptureError::Control(err.to_string()))
 }
 
 /// Pause chunk delivery (capture keeps running for a fast resume).

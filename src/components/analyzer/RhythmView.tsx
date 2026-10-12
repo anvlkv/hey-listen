@@ -87,7 +87,7 @@ export default function RhythmView(props: {
 }) {
   const config = () => analyzerById(props.id).view as RhythmViewConfig;
   const result = () => props.analysis.result() as RhythmResult | null;
-  const zoom = createUplotZoom();
+  const zoom = createUplotZoom("time");
 
   const markers = (): MarkerSet[] => {
     const r = result();

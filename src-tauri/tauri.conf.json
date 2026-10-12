@@ -51,6 +51,31 @@
           "identifier": "com.anvlkv.heylisten.project",
           "conformsTo": ["public.data"]
         }
+      },
+      {
+        "ext": [
+          "wav",
+          "wave",
+          "flac",
+          "mp3",
+          "m4a",
+          "mp4",
+          "aac",
+          "ogg",
+          "oga",
+          "opus",
+          "aiff",
+          "aif",
+          "aifc",
+          "caf",
+          "alac",
+          "mkv",
+          "webm"
+        ],
+        "name": "Audio file",
+        "description": "Open an audio file in a new Hey Listen project",
+        "role": "Viewer",
+        "rank": "Alternate"
       }
     ]
   }

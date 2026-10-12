@@ -58,7 +58,7 @@ const LAYERS: [Layer, Layer, Layer] = [
  */
 export default function SpectrumTab() {
   const analysis = createAnalysis<SpectrumResult>("spectrum");
-  const zoom = createUplotZoom();
+  const zoom = createUplotZoom("freq");
 
   /** A layer switch is a 0/1 select; default on when unset (e.g. an older project). */
   const layerOn = (key: LayerKey) => (toolOptions.spectrum?.[key] ?? 1) !== 0;

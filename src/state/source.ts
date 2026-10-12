@@ -6,6 +6,7 @@ import type { ProbeInfo } from "../bindings/ProbeInfo";
 import type { StreamSummary } from "../bindings/StreamSummary";
 import type { ChannelPick, Peaks } from "../lib/waveform";
 import { resetTimeline } from "./timeline";
+import { resetChartViews } from "./chartSync";
 
 const BASE_TITLE = "Hey Listen";
 
@@ -69,6 +70,8 @@ export function closeSource() {
   setStatus("empty");
   setError(null);
   resetTimeline(0);
+  // The whole timeline changed, so any analyzer zoom no longer applies.
+  resetChartViews();
   void setWindowTitle();
 }
 
@@ -98,6 +101,8 @@ export function finalizeSource(opts: {
     probe: opts.probe,
   });
   resetTimeline(duration);
+  // A replaced source replaces the whole timeline, so drop the analyzer zoom.
+  resetChartViews();
   setStatus("ready");
   void setWindowTitle(opts.name);
 }

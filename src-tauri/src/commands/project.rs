@@ -18,6 +18,7 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::audio::STREAM_CHUNK_SAMPLES;
+use crate::commands::source::AUDIO_EXTENSIONS;
 use crate::commands::{focused_label, stream};
 use crate::project::{
     read_project, write_project, AnalysisSetup, Meta, ProjectError, SaveProject, SourceDescriptor,
@@ -229,8 +230,12 @@ pub fn take_pending_open_paths(state: State<'_, OpenedFiles>) -> Vec<String> {
 }
 
 /// Remember a project file as recently used and refresh the File → Open Recent menu.
+///
+/// Writes the recent list to disk and rebuilds the native menu; async so the file
+/// write runs on the async runtime rather than the main thread (the menu rebuild
+/// hops to the main thread itself).
 #[tauri::command]
-pub fn add_recent_project(app: AppHandle, path: String) {
+pub async fn add_recent_project(app: AppHandle, path: String) {
     crate::recent::record(&app, &path);
     let _ = crate::menu::rebuild(&app);
 }
@@ -255,25 +260,32 @@ pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Ve
     }
 }
 
-/// `.heyl` paths among command-line arguments (Windows/Linux file association).
+/// `.heyl` or supported audio paths among command-line arguments (Windows/Linux
+/// file association).
 pub fn opened_paths_from_args(args: impl Iterator<Item = String>) -> Vec<String> {
-    args.skip(1).filter(|arg| is_project_path(arg)).collect()
+    args.skip(1).filter(|arg| is_openable_path(arg)).collect()
 }
 
-/// `.heyl` paths among macOS `open` URLs.
+/// `.heyl` / audio paths among macOS `open` URLs.
 #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
 pub fn opened_paths_from_urls(urls: Vec<tauri::Url>) -> Vec<String> {
     urls.iter()
         .filter_map(|url| url.to_file_path().ok())
         .map(|path| path.to_string_lossy().into_owned())
-        .filter(|path| is_project_path(path))
+        .filter(|path| is_openable_path(path))
         .collect()
 }
 
-fn is_project_path(path: &str) -> bool {
+/// A path the OS can ask us to open: a `.heyl` project or a supported audio file
+/// (audio files open as a fresh project with that file as the source).
+fn is_openable_path(path: &str) -> bool {
+    has_extension(path, &[PROJECT_EXTENSION]) || has_extension(path, AUDIO_EXTENSIONS)
+}
+
+fn has_extension(path: &str, extensions: &[&str]) -> bool {
     Path::new(path)
         .extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| ext.eq_ignore_ascii_case(PROJECT_EXTENSION))
+        .map(|ext| extensions.iter().any(|want| ext.eq_ignore_ascii_case(want)))
         .unwrap_or(false)
 }
