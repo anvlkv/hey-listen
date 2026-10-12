@@ -95,6 +95,13 @@ or, on Windows/Linux, the command line — and the app loads it. A request that
 arrives before the frontend is listening is queued and drained by the
 `take_pending_open_paths` command (see `src-tauri/src/commands/project.rs`).
 
+The **supported audio formats** are listed too (role `Viewer`, rank `Alternate`),
+so the app can be chosen for an audio file — a Finder *Open With*, a dock drop, or
+a command-line path. An opened audio path is delivered alongside `.heyl` paths; the
+frontend (`src/state/menu.ts` → `openPaths`) loads a `.heyl` path as a project and
+opens any other supported audio path as **a fresh project with that file as its
+source**, so you can double-click an `.mp3` and analyse it straight away.
+
 Per-file-type **icons** are not configured: the association reuses the app icon
 (or a platform default). A distinct document icon needs platform packaging — a
 macOS `.icns` referenced from `Info.plist`, a Windows `DefaultIcon` registry

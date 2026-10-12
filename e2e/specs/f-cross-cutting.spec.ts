@@ -21,6 +21,7 @@ import {
   waitForAnalyzer,
   canvasHasInk,
   readoutValue,
+  textOf,
   openSelect,
   pickOption,
   openThenClosePopover,
@@ -33,6 +34,15 @@ import {
 const POP_PANEL = ".pop-panel";
 /** The Sidebar tools (analyzer entries + the two graph editors) share this prefix. */
 const SIDEBAR_TOOL = '[data-testid^="sidebar.tool."]';
+
+/** The zoom readout selector for a chart. */
+const zoomReadout = (id: string) => `${analyzerPanel(id)} .zoom-readout`;
+
+/** The span of a `"a – b s"` / `"a – b Hz"` zoom readout (0 when unparsable). */
+function rangeWidth(label: string): number {
+  const match = label.match(/([\d.]+)\s*[\u2013-]\s*([\d.]+)/);
+  return match ? Math.abs(Number(match[2]) - Number(match[1])) : 0;
+}
 
 describe("F. Cross-cutting analyzer behavior", () => {
   before(async () => {
@@ -107,25 +117,54 @@ describe("F. Cross-cutting analyzer behavior", () => {
     await waitForAnalyzer("waveform");
 
     // Drive the explicit "Zoom in" control: it calls uPlot's x `setScale`, which
-    // the `syncView("time")` plugin mirrors through the shared chart bus.
+    // the zoom controller mirrors through the shared chart bus.
+    const readout = zoomReadout("waveform");
+    const before = await textOf(readout);
     const zoomIn = await $(`${analyzerPanel("waveform")} .zoom-btn[title="Zoom in"]`);
     await zoomIn.waitForExist();
     await zoomIn.click();
-    const driverReadout = () => `${analyzerPanel("waveform")} .zoom-readout`;
-    await browser.waitUntil(
-      async () => ((await (await $(driverReadout())).getText()) ?? "") !== "",
-      { timeoutMsg: "the waveform zoom readout never appeared" },
-    );
-    const driver = await (await $(driverReadout())).getText();
+    await browser.waitUntil(async () => (await textOf(readout)) !== before, {
+      timeoutMsg: "the waveform zoom readout never changed",
+    });
+    const driver = await textOf(readout);
+    // The zoom actually narrowed the visible range (not just a re-render).
+    expect(rangeWidth(driver)).toBeLessThan(rangeWidth(before) * 0.9);
 
     // Dockview unmounts the hidden panel; opening the peer mounts it fresh, where it
     // reads the shared time view — so its visible range matches the driver's.
     await openTool("spectralCentroid");
     await waitForAnalyzer("spectralCentroid");
-    const peerReadout = await (
-      await $(`${analyzerPanel("spectralCentroid")} .zoom-readout`)
-    ).getText();
-    expect(peerReadout).toBe(driver);
+    const peer = await textOf(zoomReadout("spectralCentroid"));
+    expect(peer).toBe(driver);
+  });
+
+  it("F6 a chart keeps its zoom across an analysis re-run", async () => {
+    await openTool("spectralCentroid");
+    await waitForAnalyzer("spectralCentroid");
+
+    const readout = zoomReadout("spectralCentroid");
+    const full = await textOf(readout);
+    await (await $(`${analyzerPanel("spectralCentroid")} .zoom-btn[title="Zoom in"]`)).click();
+    await browser.waitUntil(async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9, {
+      timeoutMsg: "the spectral-centroid chart did not zoom in",
+    });
+
+    // Change the shared FFT size: `run_analysis` re-fires and the chart re-renders
+    // with new data. The zoom must survive — it used to snap back to the full window.
+    await (await $(SEL.toolbarParams)).click();
+    await browser.waitUntil(async () => (await $(POP_PANEL)).isExisting(), {
+      timeoutMsg: "the shared analysis-params popover did not open",
+    });
+    await openSelect('[aria-label="FFT size"]');
+    await pickOption("4096");
+    await dismissPopovers();
+
+    await activateTab("spectralCentroid");
+    await waitForAnalyzer("spectralCentroid");
+    await browser.waitUntil(async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9, {
+      timeoutMsg: "the analysis re-run reset the chart's zoom to the full window",
+    });
+    await closeTool("spectralCentroid");
   });
 
   it("F5 params and about popovers render for a tool", async () => {

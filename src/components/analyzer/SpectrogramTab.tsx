@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
@@ -92,28 +92,36 @@ export default function SpectrogramTab() {
   let canvas!: HTMLCanvasElement;
   let pan: { x: number; y: number; view: View } | null = null;
 
-  // Reset the view to the full window whenever the data changes.
+  // Keep the current zoom across a data refresh (a new analysis result must not
+  // reset it); only fit the full window when there is no view yet.
   createEffect(
     on(
       () => analysis.result(),
-      (result) => setView(result ? fullView(result) : null),
+      (result) => {
+        if (!result) {
+          setView(null);
+          return;
+        }
+        const current = untrack(view);
+        setView(current ? clampView(current, result) : fullView(result));
+      },
     ),
   );
 
-  // Follow the shared time range when another analyzer (uPlot or heatmap) zooms it.
+  // Follow the shared time range when another analyzer (uPlot or heatmap) zooms it,
+  // and reset to the full window when the shared view is cleared (the source changed).
+  // `view` is read untracked so writing it here cannot re-trigger this effect.
   createEffect(() => {
     const shared = analyzerBus.data.view;
     const result = analysis.result();
-    const current = view();
-    if (
-      !shared ||
-      shared.group !== "time" ||
-      shared.sourceId === SPECTROGRAM_ID ||
-      !result ||
-      !current
-    ) {
+    if (!result) return;
+    if (shared == null) {
+      setView(fullView(result));
       return;
     }
+    if (shared.group !== "time" || shared.sourceId === SPECTROGRAM_ID) return;
+    const current = untrack(view);
+    if (!current) return;
     setView(clampView({ ...current, t0: shared.x[0], t1: shared.x[1] }, result));
   });
 

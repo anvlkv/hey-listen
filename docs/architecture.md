@@ -217,6 +217,19 @@ Both windows drive the same core state:
 
 ## Threading
 
+- **Synchronous `#[tauri::command]`s run on the app's main thread** (the WebView's IPC
+  callback thread). A synchronous command that blocks — a thread join, OS audio
+  enumeration, disk I/O — therefore freezes the whole UI, and holding a `Mutex`
+  across it can stall every other thread that needs the same state. So any command
+  whose body can block is **`async`** (it runs on `tauri::async_runtime`) and puts the
+  blocking part on `spawn_blocking`. The blocking commands are the capture ones
+  (`start_capture` / `stop_capture` open/stop the OS backend and **join** the poll
+  thread; `list_devices` / `list_processes` enumerate), `list_output_devices`
+  (cpal enumeration), `probe_file` (symphonia header read), `set_filter_graph`
+  (fundsp graph build), and `add_recent_project` (recent-list write + menu rebuild).
+  No lock is ever held across one of those blocking calls (e.g. the capture session
+  is taken out of its `Mutex` before it is stopped, and a closed window's state is
+  dropped outside the window registry lock).
 - Capture: flexaudio `Stream::poll_chunk` runs on a dedicated thread; chunks go
   into a ring buffer and are forwarded to the frontend via a `Channel`.
 - Analysis/decode: async commands run on `tauri::async_runtime` (never block the

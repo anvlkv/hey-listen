@@ -29,9 +29,10 @@ export interface ViewMessage {
   x: [number, number];
 }
 
-/** Bus key used by the cross-tab zoom sync plugin. */
+/** Bus key used by the cross-tab zoom sync plugin. `null` means "no shared
+ * view" (each chart fits its own data) — set when the source is replaced. */
 export interface ViewMessageBus {
-  view?: ViewMessage;
+  view?: ViewMessage | null;
 }
 
 /** A published cursor x value (seconds / Hz), tagged with its group. */
@@ -56,3 +57,12 @@ export type AnalyzerBus = CursorPluginMessageBus &
 
 /** The one bus shared by every uPlot analyzer tab. */
 export const analyzerBus = createPluginBus<AnalyzerBus>();
+
+/**
+ * Drop the shared x-view for both groups so every chart fits its own data again.
+ * Called when the source is replaced: the previous zoom no longer applies to the
+ * new (whole-timeline) audio.
+ */
+export function resetChartViews() {
+  analyzerBus.setData("view", null);
+}

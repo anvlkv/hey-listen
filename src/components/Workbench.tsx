@@ -57,6 +57,28 @@ function stampTabIds(api: DockviewApi) {
   }
 }
 
+/**
+ * Stamp tab test ids once the tab DOM has settled, retrying briefly.
+ *
+ * This must **not** use `requestAnimationFrame`: WebKit throttles animation frames —
+ * and can pause them entirely — while the window is occluded, which is the norm under
+ * E2E/CI (a headless display: macOS runners and Linux `xvfb`). `requestAnimationFrame`
+ * would then never run, leaving every tab unstamped and every tab-addressing test
+ * failing. `setTimeout` still fires when occluded.
+ */
+function scheduleStampTabIds(api: DockviewApi) {
+  let attempts = 0;
+  const tick = () => {
+    stampTabIds(api);
+    attempts += 1;
+    const missing = api.panels.some(
+      (panel) => !document.querySelector(`[data-testid="tab.${panel.id}"]`),
+    );
+    if (missing && attempts < 40) window.setTimeout(tick, 25);
+  };
+  window.setTimeout(tick, 0);
+}
+
 export default function Workbench() {
   let host!: HTMLDivElement;
   let dockview: DockviewComponent | undefined;
@@ -112,10 +134,10 @@ export default function Workbench() {
 
     const api = dockview.api;
     setDockApi(api);
-    // Defer a frame so the tab DOM exists before we stamp its test id.
+    // Stamp the tab test ids once the tab DOM exists (see `scheduleStampTabIds`).
     const sync = () => {
       setOpenTools(api.panels.map((panel) => panel.id as ToolId));
-      requestAnimationFrame(() => stampTabIds(api));
+      scheduleStampTabIds(api);
     };
     api.onDidAddPanel(sync);
     api.onDidRemovePanel(sync);

@@ -99,10 +99,11 @@ async function paletteHasNode(search: string, buttonText: string): Promise<boole
 }
 
 /**
- * Drag a palette node onto the canvas at a **client** point. The system WebView's
- * native drag-and-drop can't be driven by WebDriver, so — as `pointerDrag` does for
- * pointers — the suite dispatches `dragstart`/`dragover`/`drop` MouseEvents; the
- * editor reads the drop point from `clientX`/`clientY` and runs its real handlers.
+ * Drag a palette node onto the canvas at a **client** point. The editor drives the
+ * drag with **pointer** events (not HTML5 drag-and-drop — Tauri's native file-drop
+ * handler consumes those), so — as `pointerDrag` does — the suite dispatches
+ * `pointerdown`/`pointermove`/`pointerup`; the editor reads the drop point from
+ * `clientX`/`clientY` and runs its real handlers.
  */
 async function dragPaletteNode(
   search: string,
@@ -117,21 +118,27 @@ async function dragPaletteNode(
         (b.textContent ?? "").includes(text),
       ) as HTMLElement | null;
       if (!button) throw new Error(`no palette button for ${text}`);
-      const canvas = document.querySelector('[data-testid="graph.canvas"]');
-      if (!canvas) throw new Error("the graph canvas is missing");
-      const fire = (el: EventTarget, type: string) =>
-        el.dispatchEvent(
-          new MouseEvent(type, {
+      const rect = button.getBoundingClientRect();
+      const startX = rect.left + rect.width / 2;
+      const startY = rect.top + rect.height / 2;
+      const fire = (type: string, cx: number, cy: number, buttons: number) =>
+        button.dispatchEvent(
+          new PointerEvent(type, {
             bubbles: true,
             cancelable: true,
             composed: true,
-            clientX: x,
-            clientY: y,
+            clientX: cx,
+            clientY: cy,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+            buttons,
           }),
         );
-      fire(button, "dragstart");
-      fire(canvas, "dragover");
-      fire(canvas, "drop");
+      fire("pointerdown", startX, startY, 1);
+      fire("pointermove", startX + 2, startY + 2, 1); // past the drag threshold
+      fire("pointermove", x, y, 1);
+      fire("pointerup", x, y, 0);
     },
     SEL.graphPaletteBtn,
     buttonText,

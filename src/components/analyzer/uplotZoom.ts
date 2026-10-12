@@ -1,15 +1,22 @@
 import { createSignal } from "solid-js";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
+import { analyzerBus, type SyncGroup } from "../../state/chartSync";
 
 /** The uPlot instance type, taken from the wrapper's plugin props (avoids a CJS default import). */
 type UplotInstance = TooltipProps["u"];
 
 /**
- * Zoom/pan controller for a 1-D solid-uplot chart (waveform, spectrum).
+ * Zoom/pan controller for a 1-D solid-uplot chart (waveform, spectrum, series).
  *
  * uPlot has no built-in wheel zoom, so we add it (around the pointer) here, plus
  * explicit zoom in/out and fit. Drag-select zoom stays uPlot's own. The visible
  * x-range is tracked so the controls can show it.
+ *
+ * Every action that moves the x-scale publishes the new range on the shared
+ * [`analyzerBus`](../../state/chartSync.ts) under its [`SyncGroup`], so the other
+ * charts in the group follow. Publishing lives here (not in the `syncView` plugin's
+ * `setScale` hook) so the shared view always reflects an explicit user action and
+ * never an implicit fit — see `syncPlugins.ts` for the restore-on-data-update side.
  */
 export interface UplotZoom {
   /** Attach to `SolidUplot`'s `onCreate`. */
@@ -26,7 +33,7 @@ export interface UplotZoom {
   instance: () => UplotInstance | null;
 }
 
-export function createUplotZoom(): UplotZoom {
+export function createUplotZoom(group: SyncGroup): UplotZoom {
   const [instance, setInstance] = createSignal<UplotInstance | null>(null);
   const [range, setRange] = createSignal<[number, number] | null>(null);
 
@@ -44,6 +51,13 @@ export function createUplotZoom(): UplotZoom {
     return [xs[0], xs[xs.length - 1]];
   };
 
+  /** Mirror the visible range to the other charts in this group. */
+  const publish = (min: number, max: number) => {
+    const u = instance();
+    if (!u) return;
+    analyzerBus.setData("view", { sourceId: u.root.id, group, x: [min, max] });
+  };
+
   const apply = (min: number, max: number) => {
     const u = instance();
     if (!u || !(max > min)) return;
@@ -55,6 +69,7 @@ export function createUplotZoom(): UplotZoom {
       if (!(max > min)) return;
     }
     u.setScale("x", { min, max });
+    publish(min, max);
   };
 
   const scaleX = (): [number, number] | null => {

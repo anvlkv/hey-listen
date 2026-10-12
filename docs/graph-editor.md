@@ -88,8 +88,11 @@ smoothing across a net *rebuild* is out of scope.)
 - **Search** — a search box at the top of the palette filters the nodes by label or
   kind name.
 - **Click or drag** — a palette button **click** drops the node onto a free spot on
-  the canvas; **dragging** it (HTML5 drag-and-drop) drops it *where you release*,
-  and onto a **connector** it splices the node in (see *Drop to insert* below).
+  the canvas; **dragging** it drops it *where you release*, and onto a **connector**
+  it splices the node in (see *Drop to insert* below). The drag is driven with
+  **pointer events**, not HTML5 drag-and-drop: Tauri's native file-drop handler
+  consumes every drag over the WebView on macOS (so an HTML5 `drop` never fires) and
+  shows its file-drop overlay mid-drag — see `src/state/dragdrop.ts`.
 - **Anchors are undeletable** — `input` / `output` cannot be deleted
   (`deletable: false`, and the editor's `onDelete` skips them). They seed at the
   left / right edges but are **freely draggable**.

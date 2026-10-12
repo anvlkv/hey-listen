@@ -144,6 +144,15 @@ function projectLabel(path: string): string {
   return name.replace(/\.[^.]+$/, "") || name;
 }
 
+/** The project file extension (mirrors the Rust `PROJECT_EXTENSION`). */
+export const PROJECT_EXTENSION = "heyl";
+
+/** True when `path` names a Hey Listen project file (`.heyl`). */
+export function isProjectFile(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return ext === PROJECT_EXTENSION;
+}
+
 function fileProbe(path: string, loaded: LoadedProjectDto): ProbeInfo {
   const channels = Math.max(1, loaded.channels);
   const frames = Math.floor(loaded.frames);

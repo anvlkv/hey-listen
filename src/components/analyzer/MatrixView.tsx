@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -75,15 +75,30 @@ export default function MatrixView(props: {
   createEffect(
     on(
       () => result(),
-      (value) => setView(value ? fullView(value) : null),
+      (value) => {
+        if (!value) {
+          setView(null);
+          return;
+        }
+        // Keep the current zoom across a data refresh (a new analysis result must
+        // not reset it); only fit the full window when there is no view yet.
+        const current = untrack(view);
+        setView(current ? clampView(current, value) : fullView(value));
+      },
     ),
   );
 
-  // Follow the shared time range when another chart (uPlot or matrix) zooms it.
+  // Follow the shared time range when another chart (uPlot or matrix) zooms it, and
+  // reset to the full window when the shared view is cleared (the source changed).
   createEffect(() => {
     const shared = analyzerBus.data.view;
     const current = result();
-    if (!shared || shared.group !== "time" || shared.sourceId === props.id || !current) return;
+    if (!current) return;
+    if (shared == null) {
+      setView(fullView(current));
+      return;
+    }
+    if (shared.group !== "time" || shared.sourceId === props.id) return;
     setView(clampView({ t0: shared.x[0], t1: shared.x[1] }, current));
   });
 

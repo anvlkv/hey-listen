@@ -1,7 +1,11 @@
 import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
+import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import type { AnalyzerBus, SyncGroup } from "../../state/chartSync";
 import { chartTheme } from "../../state/settings";
+
+/** The uPlot instance type, taken from the wrapper's plugin props. */
+type UplotInstance = TooltipProps["u"];
 
 /**
  * Cross-tab sync plugins (M5).
@@ -66,43 +70,49 @@ export const mirrorCursor = (group: SyncGroup): UplotPluginFactory<AnalyzerBus> 
 export const syncView = (group: SyncGroup): UplotPluginFactory<AnalyzerBus> => ({ bus }) => {
   if (!bus) return { hooks: {} };
   let dispose: (() => void) | undefined;
-  // Set while applying a remote range, so its own `setScale` does not republish.
-  let applying = false;
+  let destroyed = false;
+
+  /** Apply a shared x-range, clamped to this chart's own data extent. */
+  const applyShared = (u: UplotInstance, x: [number, number]) => {
+    const scale = u.scales.x;
+    if (typeof scale.min !== "number" || typeof scale.max !== "number") return;
+    const xs = u.data[0];
+    if (!xs || xs.length < 2) return;
+    const min = Math.max(Math.min(x[0], x[1]), xs[0]);
+    const max = Math.min(Math.max(x[0], x[1]), xs[xs.length - 1]);
+    if (!(max > min)) return;
+    if (Math.abs(scale.min - min) < 1e-9 && Math.abs(scale.max - max) < 1e-9) return;
+    u.setScale("x", { min, max });
+  };
+
   return {
     hooks: {
       ready: (u) => {
         dispose = createRoot((root) => {
           createEffect(() => {
             const view = bus.data.view;
-            if (!view || view.group !== group || view.sourceId === u.root.id) return;
-            const scale = u.scales.x;
-            const same =
-              typeof scale.min === "number" &&
-              typeof scale.max === "number" &&
-              Math.abs(scale.min - view.x[0]) < 1e-9 &&
-              Math.abs(scale.max - view.x[1]) < 1e-9;
-            if (same) return;
-            applying = true;
-            u.setScale("x", { min: view.x[0], max: view.x[1] });
-            applying = false;
+            if (!view || view.group !== group) return;
+            applyShared(u, view.x);
           });
           return root;
         });
       },
-      setScale: (u, key) => {
-        if (key !== "x" || applying) return;
-        const scale = u.scales.x;
-        const xs = u.data[0];
-        if (!xs || xs.length < 2) return;
-        if (typeof scale.min !== "number" || typeof scale.max !== "number") return;
-        // Only propagate real zooms, not a fit-to-data from a freshly opened chart
-        // (which would otherwise reset the peers' zoom when a tab is added).
-        const full = Number(xs[xs.length - 1]) - Number(xs[0]);
-        const span = scale.max - scale.min;
-        if (!(full > 0) || span >= full * 0.999) return;
-        bus.setData("view", { sourceId: u.root.id, group, x: [scale.min, scale.max] });
+      // uPlot resets the x-scale to fit on every `setData` (i.e. on every analysis
+      // result), which would discard the zoom. Re-apply the shared range — the
+      // last range a user action published — once the reset has settled, so a zoom
+      // survives an FFT / window / channel change.
+      setData: (u) => {
+        queueMicrotask(() => {
+          if (destroyed) return;
+          const view = bus.data.view;
+          if (!view || view.group !== group) return;
+          applyShared(u, view.x);
+        });
       },
-      destroy: () => dispose?.(),
+      destroy: () => {
+        destroyed = true;
+        dispose?.();
+      },
     },
   };
 };
