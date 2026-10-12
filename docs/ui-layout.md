@@ -81,9 +81,11 @@ compact "Add audio" state has a fixed height).
   controls (the **filter bypass toggle**, the preview **output gain + device**, and
   the preview **output meter** which reads the core's playback level via
   `output_level`, all driving the core, ADR-9), the **Analysis params** popover (the
-  shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), and
-  a **View** popover for the UI scale, theme, and the bottom-row layout. The
-  temporary **`Rust backend:`** status (the M0 IPC-ping scaffold) is gone.
+  shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), a
+  **View** popover for the UI scale, theme, and the bottom-row layout, and an **MCP**
+  popover (the Model Context Protocol server's on/off, port, live status, and a
+  copyable Zed snippet — see [`mcp.md`](mcp.md)). The temporary **`Rust backend:`**
+  status (the M0 IPC-ping scaffold) is gone.
 - **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
   decrease (Shift for fine control) — in addition to typing. There is no slider; an
   `ns-resize` cursor is the only affordance. This covers the Kobalte `NumberField`s

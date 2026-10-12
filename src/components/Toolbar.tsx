@@ -6,6 +6,7 @@ import Button from "./Button";
 import Combobox from "./Combobox";
 import Popover from "./Popover";
 import SharedParamsForm from "./analyzer/SharedParamsForm";
+import McpPopover from "./McpPopover";
 import { filterEnabled, setFilterEnabled } from "../state/graph";
 import {
   applyOutputGain,
@@ -29,6 +30,7 @@ import {
   type ThemePreference,
 } from "../state/settings";
 import { error, status } from "../state/source";
+import { refreshMcpStatus } from "../state/mcpSettings";
 import { meterDbLabel, meterPercent } from "../lib/format";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -64,6 +66,7 @@ const THEME_LABEL: Record<ThemePreference, string> = {
 export default function Toolbar() {
   onMount(() => {
     void refreshOutputDevices();
+    void refreshMcpStatus();
   });
   // Poll the preview output level for the meter; stop when the toolbar unmounts.
   onCleanup(initOutputMeter());
@@ -214,6 +217,8 @@ export default function Toolbar() {
             </div>
           </div>
         </Popover>
+
+        <McpPopover />
       </div>
 
       <Show when={error()}>

@@ -298,7 +298,7 @@ pub struct LraResult {
 
 /// Per-tool options (not shared across tools). Absent fields fall back to the tool
 /// defaults; see `docs/analysis-tools.md`.
-#[derive(Debug, Clone, Default, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ToolOptions {
@@ -412,6 +412,67 @@ pub enum AnalysisResult {
 }
 
 // --- signal conditioning -------------------------------------------------
+
+/// Run a tool over `start..end` of a project's source, synchronously.
+///
+/// Reads the source PCM and the active filter from `state`, slices the region, and
+/// conditions it exactly like preview (mixdown → filter → resample) before running
+/// the tool. The GUI `run_analysis` command wraps this in `spawn_blocking`; the
+/// headless MCP dispatcher calls it directly. Keeping the slice + conditioning in
+/// one place means the two paths cannot diverge.
+///
+/// `start`/`end` are source seconds; the region is clamped to the source.
+pub fn run_window(
+    state: &crate::state::WindowState,
+    tool: &str,
+    start: f64,
+    end: f64,
+    params: &SharedParams,
+    options: &ToolOptions,
+) -> Result<AnalysisResult, AnalysisError> {
+    // Slice the windowed region (a copy) and read the active filter under the lock,
+    // then release it before the CPU-bound work runs.
+    let (region, channels, sample_rate, filter) = {
+        let guard = state
+            .audio
+            .source
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let source = guard.as_ref().ok_or(AnalysisError::NoSource)?;
+
+        let channels = source.channels.max(1) as usize;
+        let frames = source.samples.len() / channels;
+        let sample_rate = source.sample_rate.max(1);
+
+        let first = ((start.max(0.0) * f64::from(sample_rate)).floor() as usize).min(frames);
+        let last = ((end.max(0.0) * f64::from(sample_rate)).ceil() as usize)
+            .min(frames)
+            .max(first);
+        if last <= first {
+            return Err(AnalysisError::EmptyWindow);
+        }
+        let region = source.samples[first * channels..last * channels].to_vec();
+
+        let filter = state
+            .audio
+            .filter
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clone();
+
+        (region, source.channels.max(1), sample_rate, filter)
+    };
+
+    let (mono, rate) = condition(
+        &region,
+        channels,
+        sample_rate,
+        filter.as_ref(),
+        params.channel,
+        params.resample_to,
+    )?;
+    run(tool, &mono, rate, params, options)
+}
 
 /// Reduce the windowed interleaved region to mono and condition it the same way
 /// preview does: mixdown → filter → resample. Returns `(mono, sample_rate)`.

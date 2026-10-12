@@ -2198,3 +2198,75 @@ textarea,
     transform: rotate(360deg);
   }
 }
+
+/* --- MCP popover (M9 follow-up) ----------------------------------------- */
+.mcp-panel {
+  width: 300px;
+}
+
+.mcp-port {
+  width: 84px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control-2);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+}
+
+.mcp-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  color: var(--fg-dim);
+}
+
+.mcp-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+
+.mcp-dot-on {
+  background: var(--accent-2);
+}
+
+.mcp-note {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--fg-dim);
+}
+
+.mcp-error {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--danger);
+}
+
+.mcp-entry {
+  display: flex;
+  gap: 6px;
+}
+
+.mcp-snippet {
+  margin: 0;
+  max-height: 168px;
+  overflow: auto;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  white-space: pre;
+  color: var(--fg-dim);
+  background: var(--panel-3);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+}
+
+.mcp-panel code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

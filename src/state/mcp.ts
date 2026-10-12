@@ -67,6 +67,8 @@ interface McpRequest {
   id: number;
   tool: string;
   arguments: unknown;
+  /** The resolved project window label the call is routed to (multi-project). */
+  target?: string;
 }
 
 type Args = Record<string, unknown>;
@@ -88,7 +90,7 @@ export async function initMcp(): Promise<void> {
 /** Run one tool call and answer the core (never throw: always answer). */
 async function handle(request: McpRequest): Promise<void> {
   try {
-    const result = await run(request.tool, asArgs(request.arguments));
+    const result = await run(request.tool, asArgs(request.arguments), request.target);
     await respond({ id: request.id, ok: true, result });
   } catch (err) {
     console.error(`MCP tool ${request.tool} failed`, err);
@@ -110,10 +112,10 @@ async function respond(payload: {
 }
 
 /** Dispatch one tool by name. Throws (bubbled to the agent) on failure. */
-async function run(tool: string, args: Args): Promise<unknown> {
+async function run(tool: string, args: Args, target?: string): Promise<unknown> {
   switch (tool) {
     case "get_state":
-      return getState();
+      return getState(target);
     case "list_analyzers":
       return ANALYZERS.map((def) => ({
         id: def.id,
@@ -253,12 +255,14 @@ async function run(tool: string, args: Args): Promise<unknown> {
 // --- tool implementations --------------------------------------------------
 
 /** The observable project state an agent reads to follow the user. */
-function getState() {
+function getState(target?: string) {
   return {
     project: {
       name: projectDisplayName(),
       path: projectPath(),
       dirty: dirty(),
+      // Which project window this call is looking at (multi-project addressing).
+      window: target ?? null,
     },
     source: sourceSummary(),
     window: { start: windowStart(), end: windowEnd() },

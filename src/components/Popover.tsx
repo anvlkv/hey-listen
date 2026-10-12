@@ -18,6 +18,8 @@ export default function Popover(props: {
   panelClass?: string;
   /** Optional `data-testid` on the trigger button (for the E2E suite). */
   testid?: string;
+  /** Called when the panel opens (e.g. to refresh the content's data). */
+  onOpen?: () => void;
   children: JSX.Element;
 }) {
   const portal = createPopupMount();
@@ -27,7 +29,10 @@ export default function Popover(props: {
       placement="bottom-end"
       gutter={6}
       onOpenChange={(isOpen) => {
-        if (isOpen) portal.refresh();
+        if (isOpen) {
+          portal.refresh();
+          props.onOpen?.();
+        }
       }}
     >
       <KPopover.Trigger

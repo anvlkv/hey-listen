@@ -25,6 +25,30 @@ struct Info {
     token: String,
 }
 
+/// Whether a running app has advertised its endpoint right now (no waiting).
+pub fn is_advertised() -> bool {
+    read_info().is_ok()
+}
+
+/// Wait up to `grace` for the app to advertise its endpoint.
+///
+/// The auto-detecting entry point uses this as a short probe: a running, MCP-enabled
+/// app writes `mcp.json` at startup, so if the file appears we bridge to it;
+/// otherwise we fall through to the headless server. Returns `true` when the file is
+/// readable when the deadline passes.
+pub fn wait_for_info(grace: Duration) -> bool {
+    let deadline = Instant::now() + grace;
+    loop {
+        if is_advertised() {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
 /// Run the bridge until stdin or the socket closes.
 pub fn run() -> std::io::Result<()> {
     let info = discover()?;
@@ -98,14 +122,14 @@ fn read_info() -> std::io::Result<Info> {
     let path = info_path().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            "could not resolve the app config directory",
+            "could not resolve the app data directory",
         )
     })?;
     let bytes = std::fs::read(&path).map_err(|err| {
         std::io::Error::new(
             err.kind(),
             format!(
-                "{} is not there yet (is Hey Listen running?)",
+                "MCP is off in Hey Listen, or the app isn't running ({}) ",
                 path.display()
             ),
         )
@@ -118,19 +142,22 @@ fn read_info() -> std::io::Result<Info> {
     })
 }
 
-/// The app's config directory + [`INFO_FILE`].
+/// The app's **data** directory + [`INFO_FILE`] (the server advertises there now, so
+/// the setting lives alongside the `tauri-plugin-store` file).
 ///
-/// The bridge is not a Tauri app, so it mirrors Tauri's `app_config_dir()` (the
-/// platform config dir joined with the bundle identifier). `HEYLISTEN_MCP_INFO`
-/// overrides the path (used by tests).
+/// The bridge is not a Tauri app, so it mirrors Tauri's `app_data_dir()` (the
+/// platform data dir joined with the bundle identifier) — which differs from the
+/// config dir on Linux (`~/.local/share` vs `~/.config`); on macOS and Windows the
+/// two resolve to the same path for this identifier. `HEYLISTEN_MCP_INFO` overrides
+/// the path (used by tests).
 fn info_path() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("HEYLISTEN_MCP_INFO") {
         return Some(PathBuf::from(path));
     }
-    Some(config_dir()?.join(INFO_FILE))
+    Some(data_dir()?.join(INFO_FILE))
 }
 
-fn config_dir() -> Option<PathBuf> {
+fn data_dir() -> Option<PathBuf> {
     let identifier = "com.anvlkv.heylisten";
     #[cfg(target_os = "macos")]
     {
@@ -148,9 +175,9 @@ fn config_dir() -> Option<PathBuf> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
+        let base = std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
         Some(base.join(identifier))
     }
 }

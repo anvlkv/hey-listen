@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(loaded.layout["dockview"]["grid"], serde_json::json!({}));
         assert_eq!(loaded.results.len(), 1);
         assert_eq!(loaded.results[0].result, vec![1, 2, 3]);
-        assert_eq!(loaded.meta.app_version, "0.1.0");
+        assert_eq!(loaded.meta.app_version, env!("CARGO_PKG_VERSION"));
         assert_eq!(loaded.source.expect("source").kind, "file");
 
         let pcm = loaded.pcm.expect("pcm");

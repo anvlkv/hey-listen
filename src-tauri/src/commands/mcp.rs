@@ -7,6 +7,7 @@
 use serde_json::Value;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
+use crate::mcp::settings::{McpConfig, McpController, McpStatus};
 use crate::mcp::Pending;
 
 /// Mark the calling window's frontend as ready to receive MCP tool calls.
@@ -36,4 +37,17 @@ pub fn mcp_respond(
         Err(error.unwrap_or_else(|| "the tool failed".to_string()))
     };
     app.state::<Pending>().resolve(id, outcome);
+}
+
+/// The MCP server status (enabled, port, listening, and the copyable endpoints).
+#[tauri::command]
+pub fn get_mcp_status(app: AppHandle) -> McpStatus {
+    app.state::<McpController>().status(&app)
+}
+
+/// Persist the MCP config (on/off + port) and apply it (start / stop / rebind),
+/// returning the resulting status.
+#[tauri::command]
+pub fn set_mcp_config(app: AppHandle, config: McpConfig) -> McpStatus {
+    app.state::<McpController>().set_config(&app, config)
 }

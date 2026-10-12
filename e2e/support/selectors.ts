@@ -32,6 +32,16 @@ export const SEL = {
   outputGain: '[data-testid="toolbar.output.gain"]',
   outputMeter: '[data-testid="toolbar.output.meter"]',
 
+  // MCP popover.
+  toolbarMcp: '[data-testid="toolbar.mcp"]',
+  mcpEnabled: '[data-testid="mcp.enabled"]',
+  mcpPort: '[data-testid="mcp.port"]',
+  mcpStatus: '[data-testid="mcp.status"]',
+  mcpWarning: '[data-testid="mcp.warning"]',
+  mcpError: '[data-testid="mcp.error"]',
+  mcpSnippet: '[data-testid="mcp.snippet"]',
+  mcpCopy: '[data-testid="mcp.copy"]',
+
   // Source panel.
   sourceOpenFile: '[data-testid="source.openFile"]',
   sourceRecord: '[data-testid="source.record"]',

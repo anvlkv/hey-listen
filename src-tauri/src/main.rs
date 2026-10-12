@@ -2,15 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // `--mcp` runs the stdio ⇄ localhost MCP bridge instead of the GUI, so an MCP
-    // client can point at this binary directly (see `docs/mcp.md`). On Windows
-    // release the app binary has no console, so use the `heylisten-mcp` binary.
-    if std::env::args().skip(1).any(|arg| arg == "--mcp") {
-        if let Err(err) = hey_listen_lib::run_mcp() {
-            eprintln!("hey-listen --mcp: {err}");
-            std::process::exit(1);
-        }
-        return;
-    }
+    // CLI flags (`--mcp`, `--headless`) are declared in `tauri.conf.json`
+    // (`plugins.cli`) and routed in the library's `setup` — see `src/cli.rs` and
+    // `src/lib.rs`. A `.heyl` path passed on the command line is handled there too.
     hey_listen_lib::run()
 }

@@ -279,3 +279,14 @@ functions — the "same surface" is the engine + the `WindowState::ui` mirror, n
 frontend stores. Costs: headless `save`/`load` and editor-layout graph editing remain
 GUI-only, and the headless subset is a second (thin) orchestration that must be kept
 in step with the GUI handlers for the tools it covers. See [`mcp.md`](mcp.md).
+
+**Status: implemented.** `McpController` (`mcp/settings.rs`) owns the persisted
+config and a non-blocking accept loop it can stop/rebind; the Toolbar `McpPopover` is
+a view over `get_mcp_status` / `set_mcp_config` (so the plugin store's lack of
+cross-instance sync is moot); `mcp::run` auto-detects bridge vs headless and
+`--headless` forces the latter; `list_projects` + `target` add multi-project
+addressing. `tauri-plugin-cli` (not a hand-rolled parse) declares the app binary's
+flags. One deferral stands: headless `preview`/`capture` are *not* wired (they are
+real device I/O with no UI to configure them), so they answer "requires the app" —
+the milestone's "filter/synth" headless scope is met by `run_analysis` over a file and
+`render_synth` with an explicit graph.
