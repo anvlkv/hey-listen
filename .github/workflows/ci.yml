@@ -119,11 +119,20 @@ jobs:
       - name: Build the app (release)
         run: npm run tauri build -- --no-bundle
 
-      - name: Run the E2E suite
-        run: npm run test:e2e
+      # The runners are headless, so GTK/WebKitGTK has no display server to
+      # connect to and the app aborts on startup (`panic = "abort"` in the release
+      # profile → SIGABRT before the embedded WebDriver server binds). Drive the
+      # suite under Xvfb; `-a` picks a free display number for us.
+      - name: Run the E2E suite (Xvfb)
+        if: matrix.os == 'ubuntu-latest'
+        run: xvfb-run -a npm run test:e2e
         env:
-          # WebKitGTK needs the DMABUF renderer off on Linux CI.
+          # WebKitGTK needs the DMABUF renderer off on Linux CI (no GPU).
           WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+
+      - name: Run the E2E suite
+        if: matrix.os != 'ubuntu-latest'
+        run: npm run test:e2e
 
       - name: Upload the E2E report and logs
         if: always()
