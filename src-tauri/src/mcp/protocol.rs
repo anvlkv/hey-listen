@@ -44,9 +44,7 @@ pub fn handle_message(
     };
 
     // A message without `method` is a response/notification we do not expect.
-    let Some(method) = object.get("method").and_then(Value::as_str) else {
-        return None;
-    };
+    let method = object.get("method").and_then(Value::as_str)?;
 
     // A message without `id` is a notification: handle silently, never answer.
     if !object.contains_key("id") {
