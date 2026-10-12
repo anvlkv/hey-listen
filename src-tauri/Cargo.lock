@@ -2148,6 +2148,8 @@ dependencies = [
  "flexaudio",
  "fundsp",
  "log",
+ "objc2",
+ "objc2-foundation",
  "oxiaudio",
  "postcard",
  "serde",

@@ -16,7 +16,7 @@ webview), and exposes a loopback TCP endpoint. The `heylisten-mcp` binary (or
 a local server as a `command` + `args` and speak MCP over its stdio.
 
 ```text
- agent (Zed)              heylisten-mcp            Hey Listen (core + webview)
+ agent (MCP)              heylisten-mcp            Hey Listen (core + webview)
  ┌──────────┐  stdio MCP  ┌──────────────┐  TCP   ┌────────────────────────────┐
  │  client  │ ──────────► │    bridge    │ ─────► │ mcp::server (127.0.0.1)    │
  └──────────┘ ◄────────── └──────────────┘ ◄───── └─────────────┬──────────────┘
@@ -41,6 +41,18 @@ a local server as a `command` + `args` and speak MCP over its stdio.
   server thread blocks on that reply, so a tool call is a normal request/response.
 - A focused **popout** resolves to the project window that owns it, so a call never
   lands in a single-tool popout.
+- The transport **blocks in `accept()`** rather than polling: the thread parks until the
+  kernel hands it a connection, and `McpController::stop` wakes it with a bare loopback
+  connection (which reads EOF, so it is never mistaken for a client). A poll-and-sleep
+  loop used to lose seconds per connection whenever macOS deferred its timer.
+- **The app is normally in the background** while it serves. An MCP client drives the
+  app from *another* application, so Hey Listen usually sits behind it — and macOS
+  **App Nap** coalesces a background app's timers, lowers its priority, and can suspend
+  it. Two layers opt out: the bundle's `Info.plist` sets `NSAppSleepDisabled`
+  (`src-tauri/Info.plist`, merged by Tauri) and the process asserts a **user-initiated
+  activity** at startup (`src-tauri/src/app_activity.rs` → `NSProcessInfo.beginActivity`),
+  which also covers dev builds and bare executables. The same applies to live capture,
+  which would otherwise stall in the background.
 
 Because the tool runs in the window, **UI following is automatic**: `open_tool`
 opens a Workbench tab, `run_analysis` opens the analyzer tab and sets the analysis
@@ -48,21 +60,21 @@ window, `open_audio_file` replaces the timeline — and `get_state` reports exac
 what the window shows. When **no app is running**, the same command line falls back
 to a **core-native headless** server instead (see *Headless CLI* below).
 
-## Configure it in Zed
+## Configure it in your MCP client
 
 1. **Turn MCP on** in the app: open the Toolbar **MCP** popover, switch it on, and
    pick a port (default `47100`; a busy port falls back to a free one with an inline
-   note). A live status line shows the endpoint — e.g. `127.0.0.1:47100`. The setting
-   is persisted (it comes back on the next launch).
+   note). A live status line shows the endpoint — e.g. `127.0.0.1:47100` — and the port
+   field shows the same (the port actually in effect). The setting is persisted (it
+   comes back on the next launch).
 2. **Copy the config** with the popover's **Copy** button — it renders a ready-to-paste
-   `context_servers` snippet from the app's own paths. Add it under Settings → AI →
-   MCP Servers (or edit the settings file directly). By default it points at the
-   **app binary with `--mcp`** — no extra file to ship, so this also works for a
-   bundled app:
+   snippet in the common `mcpServers` shape from the app's own paths; paste it into
+   your client's MCP server settings. By default it points at the **app binary with
+   `--mcp`** — no extra file to ship, so this also works for a bundled app:
 
    ```json
    {
-     "context_servers": {
+     "mcpServers": {
        "hey-listen": {
          "command": "/absolute/path/to/Hey Listen.app/Contents/MacOS/hey-listen",
          "args": ["--mcp"]
@@ -78,7 +90,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
    ```json
    {
-     "context_servers": {
+     "mcpServers": {
        "hey-listen": {
          "command": "/absolute/path/to/hey-listen/src-tauri/target/debug/heylisten-mcp",
          "args": []
@@ -172,10 +184,12 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    - **Port input**, default `47100`; a busy port falls back to a free port and the
      popover shows an inline note (no `port_check` crate — the bind itself is the
      check).
-   - A live status line (`127.0.0.1:PORT`) and a **copyable** Zed
-     `context_servers` snippet rendered from `current_exe()` + `["--mcp"]` (with a
-     toggle for the `heylisten-mcp` sibling when it exists), copied via
-     `tauri-plugin-clipboard-manager`.
+   - A live status line (`127.0.0.1:PORT`) and a **copyable** `mcpServers` snippet
+     rendered from `current_exe()` + `["--mcp"]` (with a toggle for the
+     `heylisten-mcp` sibling when it exists), copied via
+     `tauri-plugin-clipboard-manager`. The port field shows the **port in effect**
+     (the bound one), so it never disagrees with the status line when the configured
+     port is `0`/auto or has fallen back.
    - Persisted with `tauri-plugin-store` in `mcp-settings.json`, read in `setup` (so
      the server starts in the right state before any window) and written only through
      `get_mcp_status` / `set_mcp_config` (`McpController` is the single writer).
@@ -249,6 +263,8 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
 | `src-tauri/src/mcp/dispatch.rs` | the headless session: the engine subset (no window). |
 | `src-tauri/src/mcp/headless.rs` | the headless stdio loop. |
 | `src-tauri/src/cli.rs` | the `tauri-plugin-cli` flags (`--mcp` / `--headless`). |
+| `src-tauri/src/app_activity.rs` | the macOS user-initiated activity (opts out of App Nap). |
+| `src-tauri/Info.plist` | macOS bundle additions — `NSAppSleepDisabled` (opts out of App Nap). |
 | `src-tauri/src/audio/analyzers.rs` | the Rust analyzer catalog for headless `list_analyzers`. |
 | `src-tauri/src/commands/mcp.rs` | `mcp_respond` / `mcp_ready` and `get_mcp_status` / `set_mcp_config`. |
 | `src/state/mcp.ts` | the GUI tool handlers (run against the app's stores). |

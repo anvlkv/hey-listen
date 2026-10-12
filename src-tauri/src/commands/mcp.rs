@@ -47,7 +47,11 @@ pub fn get_mcp_status(app: AppHandle) -> McpStatus {
 
 /// Persist the MCP config (on/off + port) and apply it (start / stop / rebind),
 /// returning the resulting status.
+///
+/// Asynchronous on purpose: `McpController::stop` **joins** the accept-loop thread,
+/// and a synchronous command runs on the main thread — joining there can freeze the
+/// whole app (the same rule as capture start/stop; see `commands/capture.rs`).
 #[tauri::command]
-pub fn set_mcp_config(app: AppHandle, config: McpConfig) -> McpStatus {
+pub async fn set_mcp_config(app: AppHandle, config: McpConfig) -> McpStatus {
     app.state::<McpController>().set_config(&app, config)
 }

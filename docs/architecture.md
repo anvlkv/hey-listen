@@ -56,6 +56,7 @@ src-tauri/src/
 │   ├── pcm.rs       # channel mixdown + linear resample        ✅
 │   ├── playback.rs  # cpal output stream + ring buffer         ✅
 │   └── analysis.rs  # oxiaudio wrappers                         ✅
+├── app_activity.rs  # keep the process out of macOS App Nap        ✅ (M9 follow-up)
 ├── cli.rs           # command-line flags (tauri-plugin-cli)      ✅ (M9: --mcp / --headless)
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
@@ -85,6 +86,15 @@ pushes, and mirrors it. So the main window and its popouts are views of **one** 
 instead of diverging JS copies. A **popout** window is aliased to its parent (its
 `WindowRegistry` entry resolves to the parent's `WindowState`), so it shares the
 source, the filter, and the UI state while still being a real Tauri window.
+
+**The app must stay responsive in the background.** Both features that run without
+focus — the **MCP server** (an agent drives the app from another window) and **live
+capture** (recording continues while the user works elsewhere) — break under macOS
+**App Nap**, which coalesces a background app's timers, lowers its priority, and can
+suspend it. So the process declares itself **user-initiated** for its lifetime
+(`app_activity::prevent` → `NSProcessInfo.beginActivity`), and the bundle's
+`Info.plist` sets `NSAppSleepDisabled` (see [`mcp.md`](mcp.md)). Nothing in the app
+polls on a timer while the app is in the background.
 
 **Plugins.** `tauri-plugin-dialog` (native open/save/confirm dialogs),
 `tauri-plugin-window-state` (remembers window size/position/maximized across

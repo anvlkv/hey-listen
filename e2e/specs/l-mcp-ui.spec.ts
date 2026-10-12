@@ -2,9 +2,9 @@
  * L. MCP control surface (M9 follow-up) — the Toolbar **MCP** popover.
  *
  * The popover is a view over the core-owned MCP settings (`get_mcp_status` /
- * `set_mcp_config`): an on/off toggle, a port, a live status line, and a copyable Zed
- * snippet. These tests drive the real UI and assert the resulting state; the MCP
- * protocol itself is covered by `k-mcp.spec.ts`.
+ * `set_mcp_config`): an on/off toggle, a port, a live status line, and a copyable
+ * config snippet. These tests drive the real UI and assert the resulting state; the
+ * MCP protocol itself is covered by `k-mcp.spec.ts`.
  *
  * The clipboard *write* is exercised but not asserted beyond the button's own
  * confirmation (the OS clipboard is environment-dependent, especially headless CI).
@@ -58,13 +58,13 @@ describe("L. MCP control surface", () => {
     await invokeCore("set_mcp_config", { config: { enabled: true, port: 0 } });
   });
 
-  it("L1 — the popover renders the controls and a Zed snippet", async () => {
+  it("L1 — the popover renders the controls and a client snippet", async () => {
     await openMcp();
     await (await $(SEL.mcpEnabled)).waitForExist();
     await (await $(SEL.mcpPort)).waitForExist();
 
     const snippet = await textOf(SEL.mcpSnippet);
-    expect(snippet).toContain("context_servers");
+    expect(snippet).toContain("mcpServers");
     expect(snippet).toContain("hey-listen");
     expect(snippet).toContain("--mcp");
     expect(snippet).toContain("command");

@@ -1,4 +1,5 @@
 /// <reference types="@wdio/tauri-service" />
+import { execFileSync } from "node:child_process";
 import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -18,6 +19,53 @@ import { writeFixtures } from "./e2e/support/fixtures.ts";
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The embedded driver's fixed WebDriver port (`tauri-plugin-wdio-webdriver`).
+ *
+ * The app also advertises its MCP endpoint in `mcp.json` under the app data dir, and
+ * the suite reads that file — so a stale instance must not survive into a run.
+ */
+const WEBDRIVER_PORT = 4445;
+
+/** PIDs printed by `cmd` (one per line); empty when it matches nothing. */
+function pids(cmd: string, args: string[]): number[] {
+  try {
+    return execFileSync(cmd, args, { encoding: "utf8" })
+      .split("\n")
+      .map((line) => Number.parseInt(line.trim(), 10))
+      .filter((pid) => Number.isInteger(pid) && pid > 0);
+  } catch {
+    return []; // `lsof`/`pgrep` exit non-zero when there is no match
+  }
+}
+
+/**
+ * Kill any Hey Listen instance left over from a previous run (a crashed session, a
+ * manual launch, a stray bundle). The embedded driver binds a **fixed** port, so a
+ * survivor would keep that port busy and WDIO would silently attach to the **old**
+ * window instead of launching a fresh app — and the survivor's `mcp.json` would race
+ * the new one. Waits for the port to be released before returning.
+ */
+async function resetStaleApps(): Promise<void> {
+  const stale = new Set<number>([
+    ...pids("lsof", ["-ti", `tcp:${WEBDRIVER_PORT}`, "-sTCP:LISTEN"]),
+    ...pids("pgrep", ["-f", "target/release/hey-listen"]),
+    ...pids("pgrep", ["-f", "MacOS/hey-listen"]),
+  ]);
+  for (const pid of stale) {
+    if (pid === process.pid) continue;
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  }
+  for (let attempt = 0; attempt < 30; attempt++) {
+    if (pids("lsof", ["-ti", `tcp:${WEBDRIVER_PORT}`, "-sTCP:LISTEN"]).length === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
 
 /** All run artifacts (JSON report + service logs) land here (gitignored). */
 const ARTIFACTS_DIR = "./e2e/artifacts";
@@ -89,6 +137,8 @@ export const config: Options.Testrunner & {
 
   /** Generate the deterministic fixtures before the app launches. */
   async onPrepare() {
+    // Clear any app left over from a previous run *before* the service launches one.
+    await resetStaleApps();
     await mkdir(ARTIFACTS_DIR, { recursive: true });
     // Clear a previous run's JSON so the merge below only sees this run (the
     // service's own log file may already be open here, so leave non-JSON alone).

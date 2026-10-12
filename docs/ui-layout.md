@@ -84,7 +84,7 @@ compact "Add audio" state has a fixed height).
   shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), a
   **View** popover for the UI scale, theme, and the bottom-row layout, and an **MCP**
   popover (the Model Context Protocol server's on/off, port, live status, and a
-  copyable Zed snippet — see [`mcp.md`](mcp.md)). The temporary **`Rust backend:`**
+  copyable `mcpServers` snippet — see [`mcp.md`](mcp.md)). The temporary **`Rust backend:`**
   status (the M0 IPC-ping scaffold) is gone.
 - **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
   decrease (Shift for fine control) — in addition to typing. There is no slider; an

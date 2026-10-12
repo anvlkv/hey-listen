@@ -6,14 +6,16 @@
 //! writes it only through the `get_mcp_status` / `set_mcp_config` commands, so the
 //! two never disagree.
 //!
-//! The server itself is a non-blocking accept loop ([`super::server::accept_loop`])
-//! with a shutdown flag, so `set_config` can **stop and rebind** without leaving a
-//! stale listener behind.
+//! The server itself is a blocking accept loop ([`super::server::accept_loop`]) with a
+//! shutdown flag, so `set_config` can **stop and rebind** without leaving a stale
+//! listener behind: [`McpController::stop`] wakes the parked `accept()` with a loopback
+//! connection.
 
-use std::net::TcpListener;
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -26,6 +28,10 @@ use super::{server, DEFAULT_PORT};
 const STORE_FILE: &str = "mcp-settings.json";
 const KEY_ENABLED: &str = "enabled";
 const KEY_PORT: &str = "port";
+
+/// How long [`McpController::stop`] waits for the wake connection it uses to interrupt
+/// the accept loop's parked `accept()`.
+const WAKE_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// The persisted MCP configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -140,7 +146,14 @@ impl McpController {
     pub fn stop<R: Runtime>(&self, app: &AppHandle<R>) {
         let running = lock(&self.running).take();
         if let Some(mut running) = running {
-            running.shutdown.store(true, Ordering::Relaxed);
+            running.shutdown.store(true, Ordering::SeqCst);
+            // The accept thread is parked in a **blocking** `accept()`, which no flag can
+            // interrupt — so wake it with a bare loopback connection: while `thread` is
+            // `Some` the listener is bound, so this connect succeeds. It carries no
+            // token, so `serve` reads EOF and exits, and the loop re-checks the flag
+            // before spawning a session.
+            let address = SocketAddr::from(([127, 0, 0, 1], running.port));
+            let _ = TcpStream::connect_timeout(&address, WAKE_TIMEOUT);
             if let Some(thread) = running.thread.take() {
                 let _ = thread.join();
             }

@@ -68,6 +68,9 @@ class McpClient {
   private constructor(private readonly socket: Socket) {
     socket.setEncoding("utf8");
     socket.on("data", (chunk: string) => this.feed(chunk));
+    // A transport failure surfaces as a read timeout; swallow it here so Node's
+    // unhandled 'error' does not abort the whole run.
+    socket.on("error", () => {});
   }
 
   static async open(info: ServerInfo): Promise<McpClient> {
@@ -94,8 +97,16 @@ class McpClient {
   }
 
   private readLine(): Promise<string> {
-    return new Promise((resolve) => {
-      this.waiter = resolve;
+    // Fail fast instead of hanging forever if the app never answers.
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.waiter = null;
+        reject(new Error("no MCP response within 20s"));
+      }, 20_000);
+      this.waiter = (line) => {
+        clearTimeout(timer);
+        resolve(line);
+      };
     });
   }
 
@@ -129,7 +140,8 @@ describe("K. MCP server (agent access + UI following)", () => {
     // MCP is **off by default**: switch it on (on a free port, so a dev instance
     // cannot collide) before connecting to the advertised endpoint.
     await invokeCore("set_mcp_config", { config: { enabled: true, port: 0 } });
-    client = await McpClient.open(await readInfo());
+    const info = await readInfo();
+    client = await McpClient.open(info);
   });
 
   after(() => {

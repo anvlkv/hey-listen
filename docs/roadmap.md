@@ -227,7 +227,7 @@ control surface and the pieces that make the agent genuinely standalone:
 
 - **In-app MCP control** — a Toolbar **MCP** popover: an **on/off toggle (default
   off)**, a **port input** (default `47100`, free-port fallback, inline "port in use"
-  note), a live status line, and a **copyable** Zed `context_servers` snippet
+  note), a live status line, and a **copyable** `mcpServers` snippet
   (rendered from `current_exe()` + `["--mcp"]`, and the `heylisten-mcp` sibling).
   Persisted with `tauri-plugin-store`; copied via `tauri-plugin-clipboard-manager`.
 - **Headless MCP-only CLI** — `heylisten-mcp` **auto-detects**: when a running app
@@ -259,7 +259,11 @@ control surface and the pieces that make the agent genuinely standalone:
 > `set_mcp_config` commands, and `list_projects` + `target` routing in
 > `mcp/server.rs`. `mcp.json` now lives in the app **data** dir (next to the
 > `mcp-settings.json` store file). Tests: `e2e/specs/l-mcp-ui.spec.ts` and the
-> `src-tauri/tests/headless_mcp.rs` CLI integration test. See [`mcp.md`](mcp.md).
+> `src-tauri/tests/headless_mcp.rs` CLI integration test. On macOS the bundle opts out
+> of **App Nap** (`src-tauri/Info.plist` → `NSAppSleepDisabled`): an app in the
+> background has its timers throttled, which starved the accept loop's poll, so MCP
+> requests timed out whenever the app was not frontmost — exactly the situation an
+> agent creates (it drives the app from another window). See [`mcp.md`](mcp.md).
 
 ## Backlog ✅ (delivered)
 
