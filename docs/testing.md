@@ -277,15 +277,19 @@ service log).
 Platform environment:
 
 - **macOS** — `embedded` provider; no API key needed.
-- **Linux** — `export WEBKIT_DISABLE_DMABUF_RENDERER=1`; headless needs Xvfb/weston.
+- **Linux** — `export WEBKIT_DISABLE_DMABUF_RENDERER=1`; with no display server,
+  prefix the run with `xvfb-run -a` (e.g. `xvfb-run -a npm run test:e2e`).
 - **Windows** — WebView2; the service keeps the Edge driver in sync for you.
 
 ## CI
 
 One GitHub Actions job (`e2e`) builds the release binary (`tauri build --no-bundle`)
-and runs the suite on the default matrix (macOS / Linux / Windows) on every PR.
-Capture is covered by the automated error-path test (B4); the granted happy path
-(B5) is a manual smoke against a signed bundle, not part of CI.
+and runs the suite on the default matrix (macOS / Linux / Windows) on every PR. On
+Linux the runner is headless, so the suite runs under `xvfb-run -a` (with
+`WEBKIT_DISABLE_DMABUF_RENDERER=1`); without a display the app aborts on startup
+before the embedded WebDriver server binds. Capture is covered by the automated
+error-path test (B4); the granted happy path (B5) is a manual smoke against a signed
+bundle, not part of CI.
 
 ## Deliberately out of scope (anti-overtesting)
 
