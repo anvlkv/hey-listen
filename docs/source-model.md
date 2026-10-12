@@ -35,7 +35,9 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
   starts appending to the timeline (only the audio after Record is kept), and
   stopping a recording leaves the session open so the meter stays live.
 - Where the kind allows it, the user picks a **device** (mic / system) or
-  **application** (process); a `Mix` picks a mic device and a system device.
+  **application** (process); a `Mix` picks a mic device and a system device. The
+  device and application lists are enumerated **when the kind is picked**, not at
+  launch (see *OS permissions* below).
 - **Gain** applies live; **pause/resume** stop and restart chunk delivery without
   tearing down the stream.
 
@@ -60,6 +62,15 @@ must be tested against a packaged build.
 - `NSMicrophoneUsageDescription` for mic capture.
 - `NSAudioCaptureUsageDescription` (+ TCC `kTCCServiceAudioCapture`) for system /
   process capture (process taps need macOS 14.4+).
+
+The prompt is raised **only when capture is actually used**, never at launch: no input
+device is touched while the app starts. `flexaudio`'s device enumeration scans cpal's
+*input* devices, which is itself a microphone access on macOS, so `initCapture()` does
+not enumerate — the Source panel requests the device list (`list_devices`) when the
+user picks a live kind (**Mic** / **System** / **Mix**), and the monitoring capture
+session opens at that same moment. A file or synth project therefore never asks for
+the microphone, and the **Application** kind lists processes on its own first
+selection — read-only, and (per `flexaudio`) not something that triggers a prompt.
 
 Without the grant, flexaudio fails at `start`: microphone capture reports
 `device not found` (cpal maps the denial that way) and system/process capture

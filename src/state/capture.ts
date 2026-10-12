@@ -104,6 +104,15 @@ let unlisten: UnlistenFn | null = null;
 
 // --- enumeration commands ------------------------------------------------
 
+/**
+ * Enumerate capture devices (microphones + system output endpoints).
+ *
+ * Deliberately **not** called at startup: enumeration walks the OS audio stack, and
+ * on macOS cpal's input scan trips the **microphone** TCC prompt. Deferring it keeps
+ * a file / synth project from asking for the mic — call it only once the user is
+ * actually choosing a live source (the Source panel does). See
+ * `docs/source-model.md` → "OS permissions (macOS)".
+ */
 export async function refreshDevices() {
   try {
     setDevices(await invoke<DeviceInfo[]>("list_devices"));
@@ -124,7 +133,10 @@ export async function refreshProcesses() {
   }
 }
 
-/** Subscribe to capture status events and enumerate devices. */
+/**
+ * Subscribe to capture status events. Device enumeration is **not** done here — it
+ * is deferred until a live kind is selected (see [`refreshDevices`]).
+ */
 export async function initCapture() {
   try {
     unlisten = await listen<CaptureStatusEvent>("source_status", (event) => {
@@ -138,7 +150,6 @@ export async function initCapture() {
   } catch (err) {
     console.error("could not subscribe to source_status", err);
   }
-  await refreshDevices();
 }
 
 export function disposeCapture() {
