@@ -46,7 +46,8 @@ src-tauri/src/
 │   ├── analysis.rs  # run analysis over a window                ✅ (run_analysis)
 │   ├── project.rs   # save/load binary project file               ✅ (M6: save/load_project, pick_project_*_path)
 │   ├── ui.rs        # project UI-state sync                      ✅ (M7: get_ui_state, set_ui_state)
-│   └── window.rs    # window management                           ✅ (M7: open_project_window, open_popout_window, popout_tool(s))
+│   ├── window.rs    # window management                           ✅ (M7: open_project_window, open_popout_window, popout_tool(s))
+│   └── mcp.rs       # MCP tool-call replies                       ✅ (M9: mcp_respond, mcp_ready; planned: get_mcp_status, set_mcp_config)
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
 │   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
@@ -58,7 +59,8 @@ src-tauri/src/
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── state.rs         # per-window core state registry            ✅ (M7: WindowRegistry; audio PCM + filter + player + capture + shared UI state)
-└── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
+├── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
+└── mcp/             # MCP server (agent access + UI following)     ✅ (M9: mod/protocol/tools/server/bridge; planned: settings/dispatch/headless)
 ```
 
 Commands are registered once in `generate_handler![...]`; shared state is
@@ -125,6 +127,13 @@ The commands and channels below are all implemented; milestone notes record the 
 | Window | `open_popout_window`, `popout_tool`, `popout_tools` | open/query a popout window for a tool (M7) ✅ |
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
+| MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
+
+> **Planned (M9 follow-up, ADR-13):** `get_mcp_status` / `set_mcp_config` (in-app
+> on/off + port, persisted with `tauri-plugin-store`), a headless core-native MCP
+> dispatcher for `heylisten-mcp` (auto-detect bridge vs headless, `--headless`), and
+> `list_projects` + a `target` argument for multi-project addressing. See
+> [`mcp.md`](mcp.md) → Follow-up.
 
 > **Implemented:** file source uses `pick_audio_file` → `probe_file` →
 > `stream_file` (the frontend drives it) rather than `open_source`/`close_source`.
@@ -162,6 +171,9 @@ The commands and channels below are all implemented; milestone notes record the 
 - `ui-state` — one UI-state patch (`{ key, value, source }`) emitted to the project's
   **other** windows when `set_ui_state` changes a value (M7, ADR-11); the sender is
   skipped, and each receiver applies the patch to its stores.
+- `mcp:request` — one MCP tool call (`{ id, tool, arguments }`) forwarded to a
+  project window's frontend, which runs the tool and answers through the
+  `mcp_respond` command (M9). See [`mcp.md`](mcp.md).
 
 > **Channel ordering:** Tauri routes a `Channel` message above a size threshold
 > through an async `fetch` round-trip and re-orders by index, so the command's

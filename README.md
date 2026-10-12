@@ -5,9 +5,10 @@ inputs (mic / system / per-process / mix), and fundsp synthesis — then save th
 source, analysis setup (including layout), and results into a single binary
 project file.
 
-> **Status:** M0–M7 delivered (plus the post-M6 backlog) — file/live/synth sources,
+> **Status:** M0–M9 delivered (plus the post-M6 backlog) — file/live/synth sources,
 > fundsp filter/synth graphs, core preview playback, the full analysis tool set, the
-> binary project file, and multi-window popouts. See [`docs/roadmap.md`](docs/roadmap.md).
+> binary project file, multi-window popouts, an end-to-end test suite, and an **MCP
+> server** so AI agents can drive a project. See [`docs/roadmap.md`](docs/roadmap.md).
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
 > coding agents. AI-generated code and documentation should be reviewed before
@@ -51,6 +52,7 @@ Other scripts: `npm run dev` (Vite only), `npm run build`, `npm run typecheck`.
 - [Data model](docs/data-model.md)
 - [Project file format](docs/project-file-format.md)
 - [Analysis tools](docs/analysis-tools.md)
+- [MCP server](docs/mcp.md)
 - [Dependencies & licenses](docs/dependencies.md)
 - [Decisions (ADRs)](docs/decisions.md)
 - [Roadmap](docs/roadmap.md)

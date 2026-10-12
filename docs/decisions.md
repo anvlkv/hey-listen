@@ -216,3 +216,66 @@ than opening a duplicate tab.
 > which crashes (`WebURLSchemeHandlerCocoa::platformStartTask` → null mutex) because
 > the popup webview is not a full wry webview. Only a native Tauri window sets the
 > scheme handler up correctly — hence ADR-11.
+
+## ADR-12 — MCP server in the app; a stdio bridge reaches it
+
+**Context:** M9 exposes Hey Listen to AI agents over the Model Context Protocol. MCP
+clients (Zed, …) launch a *local* server as a `command` + `args` and speak MCP over
+its stdio. But the milestone requires **UI following**: the agent must drive — and
+observe — the *running* project window, not a headless second copy of the app. A pure
+stdio process cannot reach the app's live state or its webview.
+
+**Decision:** the MCP **server runs inside the app process**. It binds an ephemeral
+`127.0.0.1` port, advertises it (with a random token) in `mcp.json` under the app
+config dir, and serves newline-delimited JSON-RPC. Each `tools/call` is forwarded to
+the focused project window's frontend as the `mcp:request` event; the frontend runs
+the tool against the same stores and `invoke` commands the UI uses and answers
+through the `mcp_respond` command, which completes the server's waiting channel. The
+`heylisten-mcp` binary (`heylisten-mcp`, or `hey-listen --mcp`) is a dumb
+stdio ⇄ socket byte pump, so a standard MCP client still connects over stdio. The
+tool **catalog** is static in the core (`tools/list` always answers); the tool
+**handlers** live in the frontend (`src/state/mcp.ts`), so there is no second,
+parallel execution path.
+
+**Consequence:** an agent action is reflected in the live window and the window's
+state is what the agent reads — UI following is automatic in both directions, and
+any future UI capability is one handler away from being agent-accessible. The core
+keeps the protocol/transport (unit-tested without Tauri); the frontend keeps the
+orchestration. Costs: the app must be running (the bridge waits, then errors), one
+instance per config dir (the advertised port is a single file), and file pickers /
+project-loss prompts still belong to the UI (agent tools take a `replace` flag to
+skip the replace-source prompt). No new crates — the server is `std::net` + `serde_json`.
+See [`mcp.md`](mcp.md).
+
+## ADR-13 — MCP control surface, headless CLI, and multi-project targeting
+
+**Context:** ADR-12 made the agent drive the *running* window through a bridge, which
+requires the app to be open. Three follow-up needs surface: a user-friendly way to
+control the server from the UI (on/off, port, a copyable config), a way to use MCP
+with **no GUI at all** (`heylisten-mcp` alone), and a way for an agent to reach a
+*specific* project window rather than only the focused one. The goal is to serve all
+three without a second, parallel implementation of the tools.
+
+**Decision:**
+- **Control surface.** A Toolbar **MCP** popover (default **off**, port default
+  `47100`, free-port fallback, inline "port in use" error, live status, copyable
+  snippet). Settings persist in `tauri-plugin-store` (read by the core in `setup`, so
+  the server starts in the right state before any window), written only through
+  `get_mcp_status`/`set_mcp_config`; the snippet is copied via
+  `tauri-plugin-clipboard-manager`. `port_check` is not used — the bind is the check.
+- **Headless CLI.** `heylisten-mcp` auto-detects: a running, enabled app → bridge
+  (UI following); otherwise → a **core-native** MCP server over stdio (`--headless`
+  forces this). The headless dispatcher reuses the **engine** (the same extracted
+  functions the GUI commands call), so there is no second DSP path; UI-only tools
+  (`open_tool`/`close_tool`, editor-layout graphs, `save_project`/`open_project`)
+  answer "requires the app" in headless mode.
+- **Multi-project.** `list_projects` + an optional `target` on every tool, so one
+  port addresses any of a process's project windows (`main` / `project-*` / popouts);
+  the focused window remains the default.
+
+**Consequence:** the delivered frontend-executed path stays for the GUI (UI
+following), while the headless path is a thin core-side adapter over shared engine
+functions — the "same surface" is the engine + the `WindowState::ui` mirror, not the
+frontend stores. Costs: headless `save`/`load` and editor-layout graph editing remain
+GUI-only, and the headless subset is a second (thin) orchestration that must be kept
+in step with the GUI handlers for the tools it covers. See [`mcp.md`](mcp.md).

@@ -111,9 +111,10 @@ export function finalizeSource(opts: {
  * Open a file source: probe it, then stream + assemble the decoded PCM.
  * Replaces any existing source (the whole timeline changes).
  */
-export async function openPath(path: string) {
+export async function openPath(path: string, confirm = true) {
   // Replacing an existing source discards the timeline (and its analysis window).
-  if (source() != null) {
+  // The MCP server can pass `confirm = false` when the agent explicitly replaces.
+  if (confirm && source() != null) {
     const ok = await invoke<boolean>("confirm", {
       message: "Replacing the current source discards the existing audio.",
       title: "Replace source?",

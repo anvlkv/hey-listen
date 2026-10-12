@@ -227,6 +227,18 @@ impl WindowRegistry {
             .clone()
     }
 
+    /// Follow the popout alias chain to the owning (project) window label.
+    ///
+    /// Used by the MCP server to route a tool call to the *project* window rather
+    /// than a popout that happens to be focused.
+    pub fn root_label(&self, label: &str) -> String {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        resolve_root(&inner.aliases, label)
+    }
+
     /// Register `popout` as a view of `parent`'s project showing `tool`.
     pub fn add_popout(&self, popout: &str, parent: &str, tool: &str) {
         let mut inner = self

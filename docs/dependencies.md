@@ -65,3 +65,7 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); the `flexaudio-vad
   definitions into `src/bindings/` (configured by `src-tauri/.cargo/config.toml`,
   `TS_RS_LARGE_INT = "number"`), and the frontend imports them — so the two sides
   cannot drift. Run `cargo test` after changing a boundary type.
+- **MCP server (M9):** the loopback MCP server uses only `std::net` + `serde_json`
+  (already a dependency) plus the Tauri event/command surface — **no new crates**.
+  The `heylisten-mcp` bridge is a second binary in the same crate. See
+  [`mcp.md`](mcp.md).

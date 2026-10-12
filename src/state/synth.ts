@@ -16,11 +16,12 @@ export const [rendering, setRendering] = createSignal(false);
 export const [synthError, setSynthError] = createSignal<string | null>(null);
 
 /** Render the current synth graph for `seconds` and load it as the source. */
-export async function renderSynth(seconds: number) {
+export async function renderSynth(seconds: number, confirm = true) {
   if (rendering()) return;
 
   // Rendering replaces the whole timeline, so confirm before discarding a source.
-  if (source() != null) {
+  // The MCP server can pass `confirm = false` when the agent explicitly replaces.
+  if (confirm && source() != null) {
     const ok = await invoke<boolean>("confirm", {
       message: "Replacing the current source discards the existing audio.",
       title: "Replace source?",
