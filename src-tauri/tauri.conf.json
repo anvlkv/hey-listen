@@ -10,6 +10,22 @@
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
+  "plugins": {
+    "cli": {
+      "description": "Hey Listen — audio analysis workbench",
+      "args": [
+        {
+          "name": "mcp",
+          "short": "m",
+          "description": "Run the stdio MCP entry instead of the GUI: a running, MCP-enabled app serves the tools; with no app, run `--headless` for the core-native server"
+        },
+        {
+          "name": "headless",
+          "description": "Force the core-native headless MCP server (no window)"
+        }
+      ]
+    }
+  },
   "app": {
     "withGlobalTauri": true,
     "windows": [

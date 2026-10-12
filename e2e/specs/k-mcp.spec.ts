@@ -16,7 +16,7 @@ import path from "node:path";
 import process from "node:process";
 import { SEL } from "../support/selectors.ts";
 import { FIXTURES } from "../support/fixtures.ts";
-import { count, isToolOpen, selectMainWindow, waitForApp, waitForTab } from "../support/helpers.ts";
+import { count, invokeCore, isToolOpen, selectMainWindow, waitForApp, waitForTab } from "../support/helpers.ts";
 
 /** The endpoint the running app advertises (`src-tauri/src/mcp/server.rs`). */
 interface ServerInfo {
@@ -31,7 +31,7 @@ interface ToolResult {
   structuredContent?: Record<string, unknown>;
 }
 
-/** The app's `mcp.json` path (mirrors the bridge's `config_dir`). */
+/** The app's `mcp.json` path (mirrors the bridge's `data_dir`). */
 function infoPath(): string {
   const override = process.env.HEYLISTEN_MCP_INFO;
   if (override) return override;
@@ -42,7 +42,7 @@ function infoPath(): string {
   if (process.platform === "win32") {
     return path.join(process.env.APPDATA ?? homedir(), identifier, "mcp.json");
   }
-  const base = process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config");
+  const base = process.env.XDG_DATA_HOME ?? path.join(homedir(), ".local", "share");
   return path.join(base, identifier, "mcp.json");
 }
 
@@ -126,6 +126,9 @@ describe("K. MCP server (agent access + UI following)", () => {
   before(async () => {
     await waitForApp();
     await selectMainWindow();
+    // MCP is **off by default**: switch it on (on a free port, so a dev instance
+    // cannot collide) before connecting to the advertised endpoint.
+    await invokeCore("set_mcp_config", { config: { enabled: true, port: 0 } });
     client = await McpClient.open(await readInfo());
   });
 

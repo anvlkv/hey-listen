@@ -7,6 +7,9 @@
 | `tauri` / `tauri-build` | 2 | desktop shell + build | MIT / Apache-2.0 |
 | `tauri-plugin-dialog` | 2 | native open/save/confirm dialogs | MIT / Apache-2.0 |
 | `tauri-plugin-window-state` | 2 | remember window size/position across launches | MIT / Apache-2.0 |
+| `tauri-plugin-cli` | 2 | CLI flag definitions + parsing (`--mcp` / `--headless`, M9) | MIT / Apache-2.0 |
+| `tauri-plugin-store` | 2 | persistent key-value store (`mcp-settings.json`, M9) | MIT / Apache-2.0 |
+| `tauri-plugin-clipboard-manager` | 2 | write the copyable MCP config to the clipboard (M9) | MIT / Apache-2.0 |
 | `tauri-plugin-log` | 2 | file + stdout logging (rotated per session / size) | MIT / Apache-2.0 |
 | `log` | 0.4 | log facade (Rust `log::info!` etc.) | MIT / Apache-2.0 |
 | `flexaudio` | 0.3 | capture (mic/system/process/mix) | see crates.io |
@@ -27,6 +30,8 @@
 | `@kobalte/core` | ^0.13 | accessible UI primitives (combobox, select, …) | MIT |
 | `@tauri-apps/api` / `@tauri-apps/cli` | ^2 | IPC / CLI | MIT / Apache-2.0 |
 | `@tauri-apps/plugin-log` | ^2 | forward frontend `console.*` to the core log (`attachConsole`) | MIT / Apache-2.0 |
+| `@tauri-apps/plugin-store` | ^2 | (MCP) store bindings — the popover reads settings via commands, but the package keeps the plugin versions aligned | MIT / Apache-2.0 |
+| `@tauri-apps/plugin-clipboard-manager` | ^2 | the MCP popover's Copy button (`writeText`) | MIT / Apache-2.0 |
 | `dockview` | ^8 | Workbench docking (tabs) | MIT |
 | `@dschz/solid-flow` | ^0.2 | fundsp graph editor | MIT |
 | `@dschz/solid-uplot` | ^0.5 | charts | MIT |
@@ -45,9 +50,8 @@
 
 ## MSRV
 
-Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); the `flexaudio-vad` /
-`flexaudio-encode` add-ons (not yet used) require ≥ 1.91. Toolchain in use:
-1.99.
+Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli` and
+`tauri-plugin-clipboard-manager` require ≥ 1.90. Toolchain in use: 1.99.
 
 ## Tooling notes
 
@@ -65,7 +69,9 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); the `flexaudio-vad
   definitions into `src/bindings/` (configured by `src-tauri/.cargo/config.toml`,
   `TS_RS_LARGE_INT = "number"`), and the frontend imports them — so the two sides
   cannot drift. Run `cargo test` after changing a boundary type.
-- **MCP server (M9):** the loopback MCP server uses only `std::net` + `serde_json`
-  (already a dependency) plus the Tauri event/command surface — **no new crates**.
-  The `heylisten-mcp` bridge is a second binary in the same crate. See
-  [`mcp.md`](mcp.md).
+- **MCP server (M9):** the loopback MCP server uses only `std::net` + `serde_json` +
+  the Tauri event/command surface. The follow-up adds `tauri-plugin-cli` (the app
+  binary's `--mcp` / `--headless` flags), `tauri-plugin-store` (the persisted MCP
+  settings) and `tauri-plugin-clipboard-manager` (the popover's Copy). The
+  `heylisten-mcp` binary is a second binary in the same crate — a plain console
+  program (no GUI), so it can run headless. See [`mcp.md`](mcp.md).

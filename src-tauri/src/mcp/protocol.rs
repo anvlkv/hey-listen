@@ -99,7 +99,10 @@ fn initialize_result(params: &Value) -> Value {
         "instructions": "Drive the running Hey Listen project: open a source, run analysis \
                          tools, edit the filter/synth graphs, preview playback, and save/load \
                          projects. Call `get_state` first to see the current source, analysis \
-                         window, shared params, and open Workbench tabs.",
+                         window, shared params, and open Workbench tabs; call `list_projects` \
+                         to target a specific project window. When no app is running this \
+                         server runs headless and serves the compute tools (open a source, \
+                         run analyzers, render synth).",
     })
 }
 

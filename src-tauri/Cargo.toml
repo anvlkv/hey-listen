@@ -21,6 +21,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"     # native open/save dialogs (file source)
 tauri-plugin-window-state = "2" # remember window size/position across launches
 tauri-plugin-log = "2"         # file logging (rotated per session / size)
+tauri-plugin-store = "2"        # persistent key-value store (MCP settings)
+tauri-plugin-cli = "2"          # CLI flag definitions + parsing (--mcp / --headless)
+tauri-plugin-clipboard-manager = "2" # write the copyable MCP config to the clipboard
 # E2E testing (M8). `tauri-plugin-wdio-webdriver` embeds the W3C WebDriver server
 # (the `embedded` provider); `tauri-plugin-wdio` supplies `browser.tauri.execute()`
 # and IPC mocking. Both are inert in normal runs — the WebDriver server only starts

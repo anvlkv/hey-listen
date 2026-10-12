@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 
 /// The full tool list, in the shape `tools/list` returns.
 pub fn list() -> Vec<Value> {
-    vec![
+    let mut tools = vec![
         tool(
             "get_state",
             "Observe the current project: the source (name, rate, channels, duration), \
@@ -48,12 +48,17 @@ pub fn list() -> Vec<Value> {
         tool(
             "render_synth",
             "Render the Synth graph to audio and adopt it as the source. Pass `replace: true` \
-             to skip the confirmation the UI would show.",
+             to skip the confirmation the UI would show. In headless mode pass `graph` \
+             (there is no synth editor).",
             json!({
                 "type": "object",
                 "properties": {
                     "seconds": { "type": "number", "description": "Length to render (default 5)." },
                     "replace": { "type": "boolean" },
+                    "graph": {
+                        "type": "object",
+                        "description": "Headless only: the synth graph to render, as a `{ nodes, edges }` spec (nodes carry `kind` + positional `params`). Ignored by the app, which renders its synth editor graph.",
+                    },
                 },
                 "additionalProperties": false,
             }),
@@ -274,7 +279,40 @@ pub fn list() -> Vec<Value> {
             "Start a fresh project (drops the source, graphs, setup, and Workbench tabs).",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
-    ]
+        tool(
+            "list_projects",
+            "List every open project window (label, display name, focused) so you can pass a \
+             `target` to any other tool and address a specific project instead of the focused \
+             one. Answered by the server itself.",
+            json!({ "type": "object", "properties": {}, "additionalProperties": false }),
+        ),
+    ];
+
+    // Every tool takes an optional `target` (a label from `list_projects`); inject it
+    // uniformly rather than repeating it in each schema.
+    for entry in &mut tools {
+        add_target_property(entry);
+    }
+    tools
+}
+
+/// Add the shared `target` property to a tool's `inputSchema`.
+fn add_target_property(tool: &mut Value) {
+    let Some(properties) = tool
+        .get_mut("inputSchema")
+        .and_then(|schema| schema.get_mut("properties"))
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    properties.insert(
+        "target".to_string(),
+        json!({
+            "type": "string",
+            "description": "Which project window to drive (a label from list_projects). \
+                            Defaults to the focused window."
+        }),
+    );
 }
 
 fn tool(name: &str, description: &str, input_schema: Value) -> Value {

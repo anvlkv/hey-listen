@@ -6,6 +6,7 @@
 //! `docs/architecture.md`.
 
 pub mod analysis;
+pub mod analyzers;
 pub mod capture;
 pub mod decode;
 pub mod graph;

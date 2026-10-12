@@ -8,7 +8,8 @@ project file.
 > **Status:** M0–M9 delivered (plus the post-M6 backlog) — file/live/synth sources,
 > fundsp filter/synth graphs, core preview playback, the full analysis tool set, the
 > binary project file, multi-window popouts, an end-to-end test suite, and an **MCP
-> server** so AI agents can drive a project. See [`docs/roadmap.md`](docs/roadmap.md).
+> server** so AI agents can drive a project (with an in-app on/off popover and a
+> standalone headless CLI). See [`docs/roadmap.md`](docs/roadmap.md).
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
 > coding agents. AI-generated code and documentation should be reviewed before

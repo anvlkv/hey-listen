@@ -220,34 +220,46 @@
 > timeline in the live window, and `get_state` reports the source, window, params,
 > open tabs, and project. See [`mcp.md`](mcp.md) (ADR-12).
 
-### M9 follow-up — control, headless CLI, multi-project (planned)
+### M9 follow-up — control, headless CLI, multi-project ✅
 
-The first cut ships the server + UI following. A scoped follow-up adds the
-user-facing control surface and the pieces that make the agent genuinely
-standalone:
+The first cut ships the server + UI following. The follow-up adds the user-facing
+control surface and the pieces that make the agent genuinely standalone:
 
 - **In-app MCP control** — a Toolbar **MCP** popover: an **on/off toggle (default
   off)**, a **port input** (default `47100`, free-port fallback, inline "port in use"
-  error), a live status line, and a **copyable** Zed `context_servers` snippet
+  note), a live status line, and a **copyable** Zed `context_servers` snippet
   (rendered from `current_exe()` + `["--mcp"]`, and the `heylisten-mcp` sibling).
   Persisted with `tauri-plugin-store`; copied via `tauri-plugin-clipboard-manager`.
 - **Headless MCP-only CLI** — `heylisten-mcp` **auto-detects**: when a running app
-  has MCP enabled it bridges to it (UI following, as today); otherwise it runs a
+  has MCP enabled it bridges to it (UI following, as before); otherwise it runs a
   **core-native** dispatcher over stdio with no window. `--headless` forces headless.
-  The headless subset is the compute/audio surface (open file, run every analyzer,
-  filter/synth, preview, enumerate, capture); UI-only tools (`open_tool`/`close_tool`,
-  editor-layout graphs, save/load) return "requires the app".
+  The headless subset is the compute surface (open file, run every analyzer,
+  render synth, enumerate); UI-only tools (`open_tool`/`close_tool`, editor-layout
+  graphs, save/load, live preview/capture) return "requires the app".
 - **Multi-project targeting** — `list_projects` plus an optional `target` on every
   tool, so one port reaches **any** of a process's project windows (main / `project-*`
-  / popouts) instead of only the focused one.
+  / popouts) instead of only the focused one. `get_state` also reports the window a
+  call is looking at.
 
 > **Decisions (committed):** default **off**; port default **47100**; `heylisten-mcp`
 > auto-detects (bridge vs headless) with a `--headless` escape hatch; the headless
 > tools are the **engine-backed subset** (no second DSP path — the GUI commands and
-> the headless dispatcher call the same extracted core functions); multi-project is
-> in-scope via `list_projects` + `target`. Persistence = `tauri-plugin-store`;
-> clipboard = `tauri-plugin-clipboard-manager`; `port_check` is skipped (the bind is
-> the check). See [`mcp.md`](mcp.md) (ADR-13).
+> the headless dispatcher both call `analysis::run_window` and the other extracted
+> core functions); multi-project is in-scope via `list_projects` + `target`.
+> Persistence = `tauri-plugin-store`; clipboard = `tauri-plugin-clipboard-manager`;
+> `port_check` is skipped (the bind is the check). The app binary's `--mcp` /
+> `--headless` flags are declared and parsed with `tauri-plugin-cli`. See
+> [`mcp.md`](mcp.md) (ADR-13).
+
+> **Delivered:** `src-tauri/src/mcp/settings.rs` (the `McpController`: persisted
+> `{ enabled, port }`, non-blocking accept loop, start/stop/rebind),
+> `mcp/dispatch.rs` (the headless session + engine subset), `mcp/headless.rs` (the
+> stdio loop), `cli.rs` (the `tauri-plugin-cli` flags), `src/state/mcpSettings.ts` +
+> `src/components/McpPopover.tsx` (the popover), the `get_mcp_status` /
+> `set_mcp_config` commands, and `list_projects` + `target` routing in
+> `mcp/server.rs`. `mcp.json` now lives in the app **data** dir (next to the
+> `mcp-settings.json` store file). Tests: `e2e/specs/l-mcp-ui.spec.ts` and the
+> `src-tauri/tests/headless_mcp.rs` CLI integration test. See [`mcp.md`](mcp.md).
 
 ## Backlog ✅ (delivered)
 

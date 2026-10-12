@@ -31,21 +31,25 @@
 //! See [`docs/mcp.md`](../../../docs/mcp.md).
 
 pub mod bridge;
+pub mod dispatch;
+pub mod headless;
 pub mod protocol;
 pub mod server;
+pub mod settings;
 pub mod tools;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use serde_json::Value;
 
 /// Event the core emits to a project window's frontend to run one MCP tool.
 pub const REQUEST_EVENT: &str = "mcp:request";
 
-/// File (in the app config dir) advertising the local server's port + token.
+/// File (in the app **data** dir) advertising the local server's port + token.
 pub const INFO_FILE: &str = "mcp.json";
 
 /// Fallback protocol version when the client does not request one we recognise.
@@ -54,7 +58,28 @@ pub const INFO_FILE: &str = "mcp.json";
 pub const PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// How long a forwarded tool call waits for the window to answer.
-pub const RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// The default loopback port for the local MCP server (the popover shows / edits it).
+pub const DEFAULT_PORT: u16 = 47100;
+
+/// How long the stdio entry waits for a running app to advertise itself before
+/// falling back to the headless server. Kept short so `heylisten-mcp` used as a
+/// GUI-less CLI starts promptly; a running, MCP-enabled app writes `mcp.json` in
+/// `setup`, so it is present almost immediately.
+const DISCOVER_GRACE: Duration = Duration::from_millis(1200);
+
+/// The MCP **stdio entry** shared by `hey-listen --mcp` and `heylisten-mcp`.
+///
+/// Auto-detects: when a running, MCP-enabled app is advertising its endpoint, it
+/// **bridges** to it (UI following, as delivered); otherwise it runs the
+/// **core-native headless** server. `force_headless` (`--headless`) skips the probe.
+pub fn run(force_headless: bool) -> std::io::Result<()> {
+    if !force_headless && bridge::wait_for_info(DISCOVER_GRACE) {
+        return bridge::run();
+    }
+    headless::run()
+}
 
 /// In-flight tool calls forwarded to a window's frontend, awaiting its reply.
 ///

@@ -1,14 +1,18 @@
-//! `heylisten-mcp` — the stdio ⇄ localhost MCP bridge.
+//! `heylisten-mcp` — the standalone stdio MCP entry.
 //!
-//! Point an MCP client (e.g. Zed's `context_servers`) at this binary to drive the
-//! **running** Hey Listen app: tool calls are served by the app itself, so an agent
-//! steers the user's project window. See `docs/mcp.md`.
+//! A plain console binary (not the GUI), so it works with no window at all — on a
+//! headless host, in CI, and in the Windows release build where the app binary has
+//! no console. It **auto-detects**: a running, MCP-enabled app serves the tools
+//! (bridge + UI following); otherwise it runs the core-native **headless** server.
+//! Pass `--headless` to skip the bridge probe. See `docs/mcp.md`.
 //!
-//! A separate console binary (not the GUI) so stdio works on every platform,
-//! including Windows release where `hey-listen` has no console.
+//! Because this binary is not a Tauri app, it does not use the `cli` plugin for its
+//! one flag (that plugin needs an app context); the app binary's flags are defined in
+//! `tauri.conf.json` (`plugins.cli`).
 
 fn main() {
-    if let Err(err) = hey_listen_lib::run_mcp() {
+    let headless = std::env::args().skip(1).any(|arg| arg == "--headless");
+    if let Err(err) = hey_listen_lib::run_mcp(headless) {
         eprintln!("heylisten-mcp: {err}");
         std::process::exit(1);
     }

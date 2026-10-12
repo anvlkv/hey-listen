@@ -19,6 +19,7 @@ macro_rules! serialize_error_as_string {
 }
 
 mod audio;
+mod cli;
 mod commands;
 mod mcp;
 mod menu;
@@ -28,12 +29,15 @@ mod state;
 
 use tauri::{Manager, WebviewWindowBuilder};
 
-/// Run the stdio ⇄ localhost MCP bridge (`heylisten-mcp`, or `hey-listen --mcp`).
+/// Run the stdio MCP entry (`heylisten-mcp`, or `hey-listen --mcp`).
 ///
-/// The MCP *server* lives in the running app (so agents drive the user's window);
-/// this is the console entry point an MCP client launches. See [`mcp::bridge`].
-pub fn run_mcp() -> std::io::Result<()> {
-    mcp::bridge::run()
+/// Auto-detects: a running, MCP-enabled app serves the tools (**bridge**, with UI
+/// following); otherwise the **core-native headless** server runs. `headless`
+/// (`--headless`) forces the headless server. The standalone `heylisten-mcp` binary
+/// is a plain console program (no GUI), so this works on a headless host too.
+/// See [`mcp::run`].
+pub fn run_mcp(headless: bool) -> std::io::Result<()> {
+    mcp::run(headless)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -57,6 +61,12 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        // CLI flags are declared in `tauri.conf.json` (`plugins.cli`); the app reads
+        // the parsed matches in `setup` to route `--mcp` without opening a window.
+        .plugin(tauri_plugin_cli::init())
+        // MCP control persistence (`mcp-settings.json`) and the popover's Copy button.
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
         // E2E testing (M8): the embedded WebDriver server + the execute/mocking
         // plugin. Inert unless a WebDriver session drives the app (the server only
         // binds when `TAURI_WEBDRIVER_PORT` is set). See `docs/testing.md`.
@@ -64,6 +74,22 @@ pub fn run() {
         .plugin(tauri_plugin_wdio_webdriver::init())
         .setup(|app| {
             log::info!("hey-listen {} starting", env!("CARGO_PKG_VERSION"));
+
+            // `--mcp` runs the stdio MCP entry instead of the GUI. Do this before any
+            // window is built; the process lives as the MCP session (bridge or the
+            // headless server) and exits when it ends.
+            let args = cli::parse(app.handle());
+            if args.mcp {
+                // No dock icon for the CLI entry (macOS).
+                #[cfg(target_os = "macos")]
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                if let Err(err) = mcp::run(args.headless) {
+                    eprintln!("hey-listen --mcp: {err}");
+                    std::process::exit(1);
+                }
+                std::process::exit(0);
+            }
+
             // Per-window project state (one window = one project = one source,
             // ADR-3): the source PCM, filter graph, preview player, and capture
             // session are resolved per window label (see `state::WindowRegistry`).
@@ -74,8 +100,9 @@ pub fn run() {
             app.manage(commands::project::OpenedFiles::default());
             // MCP server (M9): in-flight tool calls forwarded to a window's frontend.
             app.manage(mcp::Pending::default());
-            // Serve MCP over a local port the `heylisten-mcp` bridge connects to.
-            mcp::server::spawn(app.handle().clone());
+            // MCP settings + server lifecycle: load the persisted config and, when it
+            // is enabled, start the loopback endpoint the bridge connects to.
+            app.manage(mcp::settings::McpController::load(app.handle()));
 
             // Native menu; File actions go to the focused window, the rest are native.
             let menu = menu::build(app.handle())?;
@@ -157,6 +184,8 @@ pub fn run() {
             commands::window::focus_popout,
             commands::mcp::mcp_respond,
             commands::mcp::mcp_ready,
+            commands::mcp::get_mcp_status,
+            commands::mcp::set_mcp_config,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -167,7 +196,8 @@ pub fn run() {
 /// `.heyl` project when the OS asks us to (macOS/`open`-with file association).
 fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
     match event {
-        tauri::RunEvent::Exit => mcp::server::remove_info(app),
+        // Stop the MCP server (and drop its advertisement) on exit.
+        tauri::RunEvent::Exit => app.state::<mcp::settings::McpController>().stop(app),
         #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
         tauri::RunEvent::Opened { urls } => {
             let paths = commands::project::opened_paths_from_urls(urls);

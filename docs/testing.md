@@ -24,10 +24,10 @@ The suite runs against the **release** binary (`npm run tauri build`);
 Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 `wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
-`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 10 spec files,
-**65 tests** — A shell (3), B sources (4), C graphs (8), D analyzers (26), E
+`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 11 spec files,
+**70 tests** — A shell (3), B sources (4), C graphs (8), D analyzers (26), E
 correctness (5), F cross-cutting (5), G timeline (3), I errors (5), J project +
-popout (2), K MCP (4).
+popout (2), K MCP (4), L MCP UI (5).
 
 **IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
 plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
@@ -274,6 +274,26 @@ the **running** app. Exercises the protocol, real tool execution, and UI followi
 | K2 | Open a source | `open_audio_file` puts the fixture on the **live timeline**; `get_state` reports its shape | Scenario |
 | K3 | Run analysis | `run_analysis` (spectrum) returns a result (~440 Hz peak) **and** opens the analyzer tab | Correctness |
 | K4 | UI following | `open_tool` opens a Workbench tab in the main window | Scenario |
+
+K enables MCP first (`set_mcp_config`, on a free port) — it is **off by default**.
+
+### L. MCP control surface (M9 follow-up)
+
+Drives the Toolbar **MCP** popover (a view over the core-owned settings) and asserts
+the resulting server state.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| L1 | Popover content | The popover renders the toggle, port, and a `context_servers` snippet | Smoke |
+| L2 | Toggle + status | Turning MCP off reads "off"; turning it on shows `listening on 127.0.0.1:` | Scenario |
+| L3 | Port input | Committing a port moves the endpoint to `127.0.0.1:<port>` | Scenario |
+| L4 | Busy port | A port held by the test process falls back to a free one with an inline note | Scenario |
+| L5 | Copy | The Copy button confirms (best-effort on headless CI) and the panel survives | Smoke |
+
+> **Headless CLI (Rust):** `src-tauri/tests/headless_mcp.rs` spawns the real
+> `heylisten-mcp --headless` binary and drives `initialize → tools/list →
+> open_audio_file → run_analysis → open_tool` over its stdio (run by `cargo test`).
+> It is not part of the wdio suite (no webview).
 
 ## Running
 
