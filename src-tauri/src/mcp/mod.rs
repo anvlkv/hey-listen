@@ -24,7 +24,7 @@
 //! ```
 //!
 //! The server binds an ephemeral `127.0.0.1` port and advertises it (with a random
-//! token) in `mcp.json` under the app config dir. The `heylisten-mcp` bridge is a
+//! token) in `mcp.json` under the app **data** dir. The `heylisten-mcp` bridge is a
 //! dumb byte pump between stdio and that socket, so the MCP protocol lives in one
 //! place (the app) and an agent always talks to the *running* project.
 //!
