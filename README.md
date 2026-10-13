@@ -54,6 +54,14 @@ projects — on the *running* window, through the same surface the UI uses, so
 agent actions show up live. Toggle it from the Toolbar **MCP** popover, or run it
 headless via the `heylisten-mcp` bridge.
 
+**Batch it from a shell.** `hey-listen analyze <FILE>…` runs the same engine over
+your files with **no window** and prints one JSON object per file/tool, so a script
+or CI job can bulk-analyze and pipe straight to `jq`. Shared params, per-tool
+options, a window, and an optional filter graph all work; `hey-listen analyzers`
+lists the catalog and `hey-listen synth <g.json>` renders a fundsp graph before
+analyzing it. It is the non-MCP sibling of the headless server — same engine, a
+friendlier calling convention.
+
 ## For developers
 
 The UI is a small, deliberate set of fixed regions, and the one rule worth
@@ -90,6 +98,7 @@ Start with the [architecture](docs/architecture.md) and
 - [Project file format](docs/project-file-format.md) — binary layout and streaming
 - [Analysis tools](docs/analysis-tools.md) — oxiaudio inventory, tool/tab model, shared params
 - [MCP server](docs/mcp.md) — agent access, the stdio bridge, UI following
+- [Batch CLI](docs/cli.md) — `hey-listen analyze`: bulk-analyze files from a shell, no window
 - [Dependencies & licenses](docs/dependencies.md)
 - [Packaging](docs/packaging.md) — release/CI process and the build matrix
 - [Testing](docs/testing.md) — E2E plan and test matrix

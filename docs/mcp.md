@@ -130,7 +130,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_tool_options` | Patch one analyzer's own options. |
 | `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). |
 | `get_graph` | Read a graph editor's `{ nodes, edges }`. |
-| `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). |
+| `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). In headless mode takes a `GraphSpec` directly. |
 | `set_synth_graph` | Replace the synth graph. |
 | `preview` / `stop_preview` | Preview playback. |
 | `set_output_gain` | Preview output gain. |
@@ -201,11 +201,12 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    - `--headless` forces the headless mode (skips the probe).
    - The headless subset is the **engine-backed compute surface**: `get_state`,
      `list_analyzers`, `open_audio_file`, `close_source`, `render_synth` (with an
-     explicit `graph`), `run_analysis`, `set_analysis_window`, `set_view`,
-     `set_shared_params`, `set_tool_options`, and the `list_*` enumerations.
-     UI-only tools — Workbench tabs, editor-layout graphs, project save/load, and
-     live preview/capture (real device I/O with no UI to configure it) — answer
-     "requires the app".
+     explicit `graph`), `set_filter_graph` (with an explicit `GraphSpec`),
+     `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`,
+     `set_tool_options`, and the `list_*` enumerations.
+     UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
+     `set_synth_graph`), project save/load, and live preview/capture (real device I/O
+     with no UI to configure it) — answer "requires the app".
    - One shared engine path: the GUI command and the headless dispatcher both call
      `analysis::run_window` (the slice + condition + run logic that used to live in
      `commands/analysis.rs`), and the other engines (`audio::decode`, `audio::graph`,
@@ -225,12 +226,13 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
   simultaneously running instances would race for it (last writer wins). The bridge
   connects to whoever last advertised.
 - **Headless is the compute subset.** `heylisten-mcp --headless` runs analyzers over
-  files and enumerates devices, but cannot open Workbench tabs, edit the (editor-layout)
-  graphs, save/load projects, or drive live preview/capture — those need the app. The
-  headless orchestration is a second (thin) dispatcher that must stay in step with the
-  GUI handlers for the tools it covers. For scripting without an MCP client at all, use
-  the batch CLI instead — [`cli.md`](cli.md) (`hey-listen analyze`), which drives the
-  same headless session from a shell and prints JSON.
+  files, enumerates devices, and can install a compute filter (`set_filter_graph` with a
+  `GraphSpec`), but cannot open Workbench tabs, edit the editor-layout graphs
+  (`get_graph` / `set_synth_graph`), save/load projects, or drive live preview/capture —
+  those need the app. The headless orchestration is a second (thin) dispatcher that must
+  stay in step with the GUI handlers for the tools it covers. For scripting without an
+  MCP client at all, use the batch CLI instead — [`cli.md`](cli.md) (`hey-listen
+  analyze`), which drives the same headless session from a shell and prints JSON.
 - **Result caching is still deferred** (`RESULTS` is written empty), so `run_analysis`
   always recomputes.
 - **Windows release:** use `heylisten-mcp` (the app binary has no console).
@@ -262,9 +264,10 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
 | `src-tauri/src/mcp/server.rs` | the loopback transport, `list_projects`, and the `target` routing. |
 | `src-tauri/src/mcp/settings.rs` | `McpConfig` / `McpStatus` + the `McpController` (persist + start/stop/rebind). |
 | `src-tauri/src/mcp/bridge.rs` | the stdio ⇄ socket bridge + the advertisement probe. |
-| `src-tauri/src/mcp/dispatch.rs` | the headless session: the engine subset (no window). |
+| `src-tauri/src/mcp/dispatch.rs` | the headless session: the engine subset (no window); the shared `set_filter_graph`. |
 | `src-tauri/src/mcp/headless.rs` | the headless stdio loop. |
-| `src-tauri/src/cli.rs` | the `tauri-plugin-cli` flags (`--mcp` / `--headless`). |
+| `src-tauri/src/cli/mod.rs` | the `tauri-plugin-cli` flags (`--mcp` / `--headless`) + the batch subcommand routing. |
+| `src-tauri/src/cli/batch.rs` | the batch CLI (`analyzers` / `analyze` / `synth`) over the headless session. |
 | `src-tauri/src/app_activity.rs` | the macOS user-initiated activity (opts out of App Nap). |
 | `src-tauri/Info.plist` | macOS bundle additions — `NSAppSleepDisabled` (opts out of App Nap). |
 | `src-tauri/src/audio/analyzers.rs` | the Rust analyzer catalog for headless `list_analyzers`. |

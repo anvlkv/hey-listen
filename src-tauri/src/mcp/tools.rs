@@ -166,12 +166,14 @@ pub fn list() -> Vec<Value> {
         ),
         tool(
             "set_filter_graph",
-            "Replace the filter graph (`filter` or `synth` editor layout) and/or toggle whether \
-             it is applied. A `null` graph resets it to the identity seed.",
+            "Replace the filter graph and/or toggle whether it is applied. The graph runs \
+             upstream of preview and every analyzer. In headless mode pass `graph` as a \
+             `{ nodes, edges }` spec directly (there is no filter editor); a null or empty \
+             graph clears it.",
             json!({
                 "type": "object",
                 "properties": {
-                    "graph": { "type": ["object", "null"], "description": "{ nodes, edges } editor layout, or null to reset." },
+                    "graph": { "type": ["object", "null"], "description": "{ nodes, edges } editor layout, or (headless) a GraphSpec taken directly; null/empty clears the filter." },
                     "enabled": { "type": "boolean", "description": "Whether the filter is applied to preview/analysis." },
                 },
                 "additionalProperties": false,

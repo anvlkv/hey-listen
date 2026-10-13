@@ -61,7 +61,7 @@ src-tauri/src/
 ├── app_activity.rs  # keep the process out of macOS App Nap        ✅ (M9 follow-up)
 ├── cli/             # command-line interfaces (tauri-plugin-cli)
 │   ├── mod.rs       # the plugin flags + the `setup` entry         ✅ (M9: --mcp / --headless; M10: subcommand routing)
-│   └── batch.rs     # the `analyze` / `analyzers` / `synth` logic  (M10)
+│   └── batch.rs     # the `analyze` / `analyzers` / `synth` logic  ✅ (M10)
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── state.rs         # per-window core state registry            ✅ (M7: WindowRegistry; audio PCM + filter + player + capture + shared UI state)

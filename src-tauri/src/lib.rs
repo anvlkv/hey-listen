@@ -28,6 +28,8 @@ mod project;
 mod recent;
 mod state;
 
+use std::io::Write as _;
+
 use tauri::{Manager, WebviewWindowBuilder};
 
 /// Run the stdio MCP entry (`heylisten-mcp`, or `hey-listen --mcp`).
@@ -76,19 +78,38 @@ pub fn run() {
         .setup(|app| {
             log::info!("hey-listen {} starting", env!("CARGO_PKG_VERSION"));
 
-            // `--mcp` runs the stdio MCP entry instead of the GUI. Do this before any
-            // window is built; the process lives as the MCP session (bridge or the
-            // headless server) and exits when it ends.
-            let args = cli::parse(app.handle());
-            if args.mcp {
-                // No dock icon for the CLI entry (macOS).
-                #[cfg(target_os = "macos")]
-                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-                if let Err(err) = mcp::run(args.headless) {
-                    eprintln!("hey-listen --mcp: {err}");
-                    std::process::exit(1);
+            // Resolve the CLI entry before any window is built. `--mcp` runs the stdio
+            // MCP session; a batch subcommand (`analyzers` / `analyze` / `synth`) runs
+            // windowless and exits; neither means the GUI. See `docs/cli.md`.
+            let entry = cli::parse(app.handle());
+            match entry {
+                cli::Entry::Mcp { headless } => {
+                    // No dock icon for the CLI entry (macOS).
+                    #[cfg(target_os = "macos")]
+                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    if let Err(err) = mcp::run(headless) {
+                        eprintln!("hey-listen --mcp: {err}");
+                        std::process::exit(1);
+                    }
+                    std::process::exit(0);
                 }
-                std::process::exit(0);
+                cli::Entry::Batch(request) => {
+                    // The batch CLI is windowless too: print, flush, and exit before the
+                    // GUI (or its webview) is ever created.
+                    #[cfg(target_os = "macos")]
+                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    let stdout = std::io::stdout();
+                    let mut out = std::io::BufWriter::new(stdout.lock());
+                    let code = cli::batch::run(&request, &mut out);
+                    let _ = out.flush();
+                    std::process::exit(code);
+                }
+                cli::Entry::Usage(message) => {
+                    // A genuine CLI usage error must not silently open the GUI.
+                    eprintln!("{message}");
+                    std::process::exit(2);
+                }
+                cli::Entry::Gui => {}
             }
 
             // Keep the process responsive while it is in the background: the MCP server

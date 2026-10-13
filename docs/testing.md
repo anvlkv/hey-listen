@@ -369,6 +369,11 @@ bundle, not part of CI.
 
 - No per-tool numeric regression suites — the five spot-checks (E) are the only
   value assertions; everything else is "renders + no error".
+- **The batch CLI is not in the wdio suite.** It is a windowless subcommand of the
+  app binary, so its engine work is covered by the crate's own unit tests
+  (`cli::batch` — see [`cli.md`](cli.md) → Testing); invoking the binary end to end
+  needs a display (the same platform event loop as `--mcp`), so that is a manual
+  smoke, not a wdio spec.
 - No IPC mocks for every command — `browser.tauri.execute()` is used only where a
   UI path can't be driven (the native file dialog, synth fixture setup) or to force
   an error path (I2–I4); never to skip a real, drivable UI path.
