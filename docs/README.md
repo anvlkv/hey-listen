@@ -2,7 +2,7 @@
 
 Index of the design/planning documentation. These docs are the source of truth for
 design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M9 and the
-post-M6 backlog are done).
+post-M6 backlog are done; M10 is planned).
 
 | Doc | What it covers |
 | --- | --- |
@@ -14,6 +14,7 @@ post-M6 backlog are done).
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
 | [mcp.md](mcp.md) | The MCP server: agent access, the stdio bridge, UI following, tool list |
+| [cli.md](cli.md) | The batch CLI (`heylisten-cli`): analyze files / render synth from a shell, no app |
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
 | [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
 | [decisions.md](decisions.md) | Architecture decision records (ADRs) |

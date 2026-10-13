@@ -290,3 +290,47 @@ flags. One deferral stands: headless `preview`/`capture` are *not* wired (they a
 real device I/O with no UI to configure them), so they answer "requires the app" —
 the milestone's "filter/synth" headless scope is met by `run_analysis` over a file and
 `render_synth` with an explicit graph.
+
+## ADR-14 — Batch CLI (`heylisten-cli`) is a plain console binary over the engine session
+
+**Context:** ADR-13 gave the app an MCP server and a headless stdio entry, but using
+them from a **shell** means speaking JSON-RPC by hand — `initialize`, one JSON message
+per call, `jq` — which is fine for an agent and tedious for a script (`docs/cli.md`).
+Bulk analysis ("run these tools over these files, print the numbers") wants a real
+command with flags. The question is where it lives: subcommands on the app binary
+(`tauri-plugin-cli`, as `--mcp` uses) or a separate program.
+
+**Decision:** a **third, plain console binary**, `heylisten-cli`, sibling of
+`heylisten-mcp`.
+
+- **Not the app binary.** `tauri-plugin-cli` needs a Tauri app context, so only the
+  app binary can declare its flags — and the app binary starts the Tauri runtime and,
+  in the Windows release, has **no console** to write to. A batch tool must print to
+  stdout and run with no GUI, on a headless host and in CI. That is the same reasoning
+  that already made `heylisten-mcp` a console binary. So the CLI parses its own
+  arguments with `clap` (already in the tree via `tauri-plugin-cli`; the app binary
+  keeps the plugin for `--mcp` / `--headless`).
+- **One engine session, shared with headless MCP.** The headless session
+  (`mcp/dispatch.rs::HeadlessSession`) is not MCP-specific — it is the engine facade
+  (source PCM + shared params + tool options + window + preview-free `run_analysis`) —
+  so it moves to a neutral `engine::Session` (`src/engine.rs`). Both the headless MCP
+  server and the CLI drive it, and both reach `analysis::run_window` / `audio::decode`
+  / `audio::graph`. The CLI is a thin `clap` front end that maps flags onto the same
+  session operations; there is no third DSP path.
+- **Compute subset only, and standalone.** The same subset as headless MCP (open a
+  file, run analyzers, render a synth graph, list the catalog) — no UI-only tools, no
+  device enumeration (which on macOS would touch the AudioUnit/permission path a batch
+  tool must never trigger). Unlike `heylisten-mcp`, the CLI **never bridges** to a
+  running app: a batch job must be deterministic and must not drive the user's window.
+- **Output is JSONL**, a self-describing object per `file`/`tool` (the `run_analysis`
+  shape plus `file`), compacted by default (`--full` for raw arrays), `--pretty` for a
+  single result; exit `0`/`1`/`2`.
+
+**Consequence:** bulk analysis and CI use a shell-native command over the exact engine
+the GUI uses, with no app, no MCP client, and no window; `heylisten-mcp` stays the
+agent path. Costs: a third binary to build and document, and one more thin front end
+that must stay in step with the engine's operations (shared with the headless MCP
+dispatcher, which mitigates it). `--filter` (a `GraphSpec` set before analysis) is the
+one place the CLI is ahead of the MCP subset. See [`cli.md`](cli.md).
+
+**Status: planned (M10).** Not yet implemented.

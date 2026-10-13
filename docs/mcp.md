@@ -228,7 +228,9 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
   files and enumerates devices, but cannot open Workbench tabs, edit the (editor-layout)
   graphs, save/load projects, or drive live preview/capture — those need the app. The
   headless orchestration is a second (thin) dispatcher that must stay in step with the
-  GUI handlers for the tools it covers.
+  GUI handlers for the tools it covers. For scripting without an MCP client at all, use
+  the batch CLI instead — [`cli.md`](cli.md) (`heylisten-cli`), which drives the same
+  `engine::Session` from `argv` and prints JSON.
 - **Result caching is still deferred** (`RESULTS` is written empty), so `run_analysis`
   always recomputes.
 - **Windows release:** use `heylisten-mcp` (the app binary has no console).
