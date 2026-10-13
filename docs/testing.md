@@ -312,6 +312,25 @@ npm run typecheck:e2e        # type-check the suite (no app needed)
 Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
 service log).
 
+### When the shell does not render
+
+A first paint that never happens is the hardest E2E failure to read: the app process and
+its WebDriver server can be perfectly healthy while the window is empty. Two things make
+it diagnosable instead of a bare timeout:
+
+- **The app reports its own startup failures.** `src/boot.ts` is the app's first import,
+  so it installs `error` / `unhandledrejection` handlers before any other module is
+  evaluated (a module that throws while *loading* can only be caught by a handler that is
+  already installed). Failures go to the webview console *and* to the Tauri log — the
+  frontend's `console.*` is **not** forwarded to the log file by itself: `attachConsole()`
+  mirrors *Rust* logs into the console, the opposite direction. First paint is also never
+  gated on a single command: `popout_tool` has a 2 s fallback that renders the project
+  window (and reports) rather than showing nothing.
+- **The suite says what it saw.** A failing `waitForApp` appends a `window:` dump
+  (`href`, `readyState`, `#root` child count, every `data-testid` currently in the DOM,
+  and the body's first 600 characters), which separates "nothing mounted" from "mounted
+  part-way".
+
 Before it launches the app, the suite **kills any stale Hey Listen instance** (whatever
 holds the embedded driver's port `4445`, plus any leftover `hey-listen` process) and
 waits for the port to be released. The embedded driver binds a **fixed** port, so a

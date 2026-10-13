@@ -28,9 +28,35 @@ import { FIXTURES } from "./fixtures.ts";
  */
 export async function waitForApp(): Promise<void> {
   await selectMainWindow();
-  await browser.waitUntil(async () => (await count(SEL.workbench)) > 0, {
-    timeoutMsg: "the app shell did not render",
-  });
+  try {
+    await browser.waitUntil(async () => (await count(SEL.workbench)) > 0, {
+      timeoutMsg: "the app shell did not render",
+    });
+  } catch (err) {
+    // A bare timeout says nothing about *why*: report what the window actually shows
+    // (a partially mounted app is a very different bug from an empty document), and
+    // let the app's own `[startup]` logs — which `src/boot.ts` sends to the log file
+    // and, under the suite, to this run's frontend log — carry the error itself.
+    throw new Error(`${(err as Error).message}\n${await describeWindow()}`);
+  }
+}
+
+/** What the window currently shows, for a failure message (best-effort). */
+async function describeWindow(): Promise<string> {
+  try {
+    const shown = await browser.execute(() => ({
+      href: location.href,
+      readyState: document.readyState,
+      rootChildren: document.getElementById("root")?.childElementCount ?? -1,
+      testIds: Array.from(document.querySelectorAll("[data-testid]")).map((el) =>
+        el.getAttribute("data-testid"),
+      ),
+      body: document.body?.innerHTML?.slice(0, 600) ?? "",
+    }));
+    return `window: ${JSON.stringify(shown, null, 2)}`;
+  } catch (err) {
+    return `window: unavailable (${String(err)})`;
+  }
 }
 
 /** The release binary launches a "main" window; make sure it is the active one. */
