@@ -30,11 +30,17 @@ import {
   type AnalysisHandle,
   type AnalyzerId,
   type AnyAnalysisResult,
+  type PitchResult,
   type SeriesResult,
   type SeriesView as SeriesViewConfig,
 } from "../../state/analyzer";
 
 const isPitch = (id: AnalyzerId) => id.startsWith("pitch");
+
+/** The voiced share of a pitch result (server-provided; falls back to the values). */
+function voicedShare(result: SeriesResult): number {
+  return (result as Partial<PitchResult>).voicedFraction ?? coverage(result.values);
+}
 
 /**
  * Generic time-series view (M5): plots a tool's one-value-per-frame result against
@@ -83,7 +89,7 @@ export default function SeriesView(props: {
             <Show when={isPitch(props.id)}>
               <Readout
                 label="Voiced"
-                value={`${(coverage(r().values) * 100).toFixed(0)}%`}
+                value={`${(voicedShare(r()) * 100).toFixed(0)}%`}
                 title="Share of analysed frames with a detected pitch"
               />
             </Show>

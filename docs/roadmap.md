@@ -266,6 +266,70 @@ control surface and the pieces that make the agent genuinely standalone:
 > because a background app has its timers throttled and can be suspended, and an agent
 > drives the app from another window by definition. See [`mcp.md`](mcp.md).
 
+### M9 follow-up 2 — analysis result fidelity + agent ergonomics ✅
+
+A dozen `run_analysis` calls to profile a single source is a realistic agent session,
+and it surfaced rough edges in **what `run_analysis` returns and what it changes** —
+not in the analyzers. This follow-up is about the result shape and side effects.
+
+- **Compute without display.** `run_analysis` always opens (and focuses) the analyzer
+  tab, so a sweep leaves a Workbench tab per tool (a 19-tool pass opened 19 tabs). Add
+  `display` (bool, default `true`); `display: false` returns the result without opening
+  or focusing a tab. Headless is already display-less, so it is a no-op there.
+- **Honest compaction.** `compact` is duplicated (`src/state/mcp.ts` `compact` and
+  `src-tauri/src/mcp/dispatch.rs` `compact`) and reduces a long **all-numeric** array to
+  `{ length, min, max }` — but a long array that contains `null`s (a pitch track's
+  unvoiced frames) collapses to a bare `{ length }`, hiding that it is almost empty.
+  Fix: numeric arrays become `{ length, min, max, argmin, argmax }` (locate the peak
+  without `includeData`), and arrays with gaps become
+  `{ length, nulls, min, max, argmin, argmax }` (min/max/argmin/argmax over the present
+  numbers, `nulls` counted), so "one voiced frame out of 511" is visible at a glance.
+- **Bounded `includeData`.** `includeData: true` returns *every* frame (a spectrogram,
+  a 511-point pitch track, a 1650-point flux track). Add `maxPoints` (decimate to ≤ N by
+  striding, keeping the first and last) so an agent can pull a representative series
+  without blowing its context.
+- **Echo what a call changed.** `run_analysis(params: {…})` overrides the **shared**
+  params globally and silently — the caller must re-read `get_state` and undo it. The
+  result should echo the **effective** `params` and `options` it ran with, and add
+  `transient` (bool, default `false`): when true, `start`/`end`/`params`/`options` apply
+  to this call only and are not written back to the project.
+- **Surface degenerate results.** A pitch tracker that finds almost no voiced frames
+  still returns a normal success (this is what looked like a constant `1108.7 Hz`). Add
+  `voicedFrames` / `voicedFraction` to the three pitch tools' summary so a near-empty
+  track is self-evident.
+- **Hygiene.** Drop the doubled `tool`/`window` echo (the envelope and the core result
+  both carry them); document or drop the opaque `detail: "0x1006"` in the source
+  summary; clarify `hop` in the schema — it is the hop as a **fraction of `fftSize`**
+  (`0.25` = 75% overlap), which the name does not convey.
+
+> **Decisions (committed):** the flags are `display`, `transient`, `maxPoints`; the
+> compacted-array shape is `{ length, min, max, argmin, argmax }` (numeric) /
+> `{ length, nulls, min, max, argmin, argmax }` (with gaps). Compaction is byte-for-byte
+> the same across the two implementations (`src/state/mcp.ts` and
+> `src-tauri/src/mcp/dispatch.rs`), covered by a Rust unit test beside
+> `compact_collapses_long_numeric_arrays`, and carries through the CLI's `--full` /
+> compacted default (M10). A **`summary`** verb is still **not** built (out of scope). See
+> [`mcp.md`](mcp.md).
+
+> **Delivered:** `run_analysis` gained `display` (default `true`), `transient`,
+> `maxPoints`, and echoes `params`/`options`; its envelope dropped the duplicated `tool`
+> (the result is tagged) and kept `window`. The result shaping (`compact` + `decimate`)
+> lives in both `src/state/mcp.ts` and `src-tauri/src/mcp/dispatch.rs`, kept identical,
+> with Rust unit tests beside `compact_collapses_long_numeric_arrays`; the batch CLI
+> carries the same compacted default / `--full` behavior automatically (it drives the
+> same headless session). The source summary dropped the opaque `detail`; the `hop`
+> schema now says it is a fraction of `fftSize`. The three pitch tools return a new
+> `PitchResult` carrying `voicedFrames`/`voicedFraction`. The pYIN spike stays **open**
+> (below): the detector is in the external `oxiaudio` crate, so it cannot be fixed here —
+> the voiced-frame summary surfaces the undercount meanwhile. See [`mcp.md`](mcp.md).
+
+**Spike — pYIN voiced-frame undercount.** On the Blue-capped Ifrit clip `pitchPyin`
+returned a single voiced frame (one non-null value in 511) while YIN and
+autocorrelation tracked normally. The detector itself lives in the external `oxiaudio`
+crate (`oxiaudio::dsp::detect_pitch_pyin`), so the fix is upstream, not in this
+repo — still **open**. The `voicedFrames`/`voicedFraction` summary (above) at least makes
+the undercount self-evident to an agent.
+
 ## M10 — Batch CLI (`hey-listen analyze`) ✅
 
 A **subcommand of the app binary** that runs the analysis engine over files from a

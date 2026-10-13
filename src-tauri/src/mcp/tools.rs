@@ -65,20 +65,27 @@ pub fn list() -> Vec<Value> {
         ),
         tool(
             "run_analysis",
-            "Open an analyzer tab and run it over the analysis window, returning its result. \
-             Optionally overrides the window (`start`/`end`, source seconds), shared params, or \
-             the tool's own options. The result is compacted (long arrays become min/max/length) \
-             unless `includeData` is true. This is the tool that makes the user's window show \
-             the analysis.",
+            "Run an analyzer over the analysis window and return its result. By default it \
+             also opens (and focuses) the analyzer tab so the user's window follows; pass \
+             `display: false` to compute without opening a tab (useful to sweep many tools). \
+             Optionally overrides the window (`start`/`end`, source seconds), the shared params, \
+             or the tool's own options — these are written back to the project unless \
+             `transient: true`, in which case they apply to this call only. The result echoes \
+             the effective `params`/`options` it ran with. It is compacted by default (long \
+             arrays become min/max/argmin/argmax, with `nulls` when they have gaps) unless \
+             `includeData` is true; `maxPoints` decimates the returned arrays.",
             json!({
                 "type": "object",
                 "properties": {
                     "tool": { "type": "string", "description": "An analyzer id from list_analyzers." },
                     "start": { "type": "number", "description": "Analysis window start (source seconds)." },
                     "end": { "type": "number", "description": "Analysis window end (source seconds)." },
-                    "params": { "type": "object", "description": "Partial shared params to apply first." },
-                    "options": { "type": "object", "description": "Per-tool option overrides." },
-                    "includeData": { "type": "boolean", "description": "Return the full result arrays (default false)." },
+                    "params": { "type": "object", "description": "Partial shared params to apply first (written back unless `transient`)." },
+                    "options": { "type": "object", "description": "Per-tool option overrides (written back unless `transient`)." },
+                    "display": { "type": "boolean", "description": "Open/focus the analyzer tab (default true). Set false to compute without touching the Workbench." },
+                    "transient": { "type": "boolean", "description": "Apply `start`/`end`/`params`/`options` to this call only, without writing them back to the project (default false)." },
+                    "includeData": { "type": "boolean", "description": "Return the full result arrays (default false, compacted)." },
+                    "maxPoints": { "type": "integer", "minimum": 2, "description": "With `includeData`, decimate each returned array to at most this many points (striding, keeping the first and last)." },
                 },
                 "required": ["tool"],
                 "additionalProperties": false,
@@ -113,10 +120,17 @@ pub fn list() -> Vec<Value> {
         tool(
             "set_shared_params",
             "Update the shared analysis params (fftSize, hop, randomizedOverlap, windowFn, \
-             channel, resampleTo, freqMinHz, freqMaxHz). Only the supplied keys change.",
+             channel, resampleTo, freqMinHz, freqMaxHz). Only the supplied keys change. \
+             `hop` is the hop as a fraction of `fftSize` (`0.25` = 75% overlap, `1` = no \
+             overlap), not a sample count.",
             json!({
                 "type": "object",
-                "properties": { "params": { "type": "object" } },
+                "properties": {
+                    "params": {
+                        "type": "object",
+                        "description": "Partial shared params; `hop` is a fraction of `fftSize` (0.25 = 75% overlap).",
+                    },
+                },
                 "required": ["params"],
                 "additionalProperties": false,
             }),

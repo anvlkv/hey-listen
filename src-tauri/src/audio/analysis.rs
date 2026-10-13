@@ -238,6 +238,28 @@ pub struct SeriesResult {
     pub max_value: f32,
 }
 
+/// A pitch track: the f0 series over time plus a voiced-frame summary, so a
+/// near-empty track (almost no voiced frames) is self-evident without scanning
+/// every `values` entry. Unvoiced frames are gaps (`null`).
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PitchResult {
+    pub sample_rate: u32,
+    pub hop_size: usize,
+    pub frames: usize,
+    /// Frame times in seconds.
+    pub times: Vec<f32>,
+    /// f0 in Hz per frame; unvoiced frames are gaps.
+    pub values: Vec<Option<f32>>,
+    pub min_value: f32,
+    pub max_value: f32,
+    /// Frames with a detected pitch (non-gap `values`).
+    pub voiced_frames: usize,
+    /// `voiced_frames / frames` (0…1; 0 when there are no frames).
+    pub voiced_fraction: f32,
+}
+
 /// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast).
 #[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
@@ -400,9 +422,9 @@ pub enum AnalysisResult {
     SpectralCrest(SeriesResult),
     HarmonicRatio(SeriesResult),
     ZeroCrossingRate(SeriesResult),
-    PitchPyin(SeriesResult),
-    PitchYin(SeriesResult),
-    PitchAutocorr(SeriesResult),
+    PitchPyin(PitchResult),
+    PitchYin(PitchResult),
+    PitchAutocorr(PitchResult),
     Tempo(RhythmResult),
     Onsets(RhythmResult),
     Downbeats(RhythmResult),
@@ -785,20 +807,44 @@ fn series_from_vec(values: Vec<f32>, hop: usize, sample_rate: u32) -> SeriesResu
     build_series(times, values, hop, sample_rate)
 }
 
-/// Wrap a pitch track: unvoiced frames become gaps, times come from the tracker.
-fn pitch_series(frames: Vec<PitchFrame>, hop: usize, sample_rate: u32) -> SeriesResult {
-    let times = frames
+/// Wrap a pitch track: unvoiced frames become gaps, times come from the tracker,
+/// plus the voiced-frame summary so a nearly-empty track is visible at a glance.
+fn pitch_series(frames: Vec<PitchFrame>, hop: usize, sample_rate: u32) -> PitchResult {
+    let times: Vec<f32> = frames
         .iter()
         .map(|frame| frame.time_seconds as f32)
         .collect();
-    let values = frames
+    let values: Vec<Option<f32>> = frames
         .iter()
         .map(|frame| {
             (frame.is_voiced && frame.frequency_hz.is_finite() && frame.frequency_hz > 0.0)
                 .then_some(frame.frequency_hz)
         })
         .collect();
-    build_series(times, values, hop, sample_rate)
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
+    let mut voiced_frames = 0usize;
+    for value in values.iter().flatten() {
+        min = min.min(*value);
+        max = max.max(*value);
+        voiced_frames += 1;
+    }
+    let frames_count = values.len();
+    PitchResult {
+        sample_rate,
+        hop_size: hop,
+        frames: frames_count,
+        times,
+        values,
+        min_value: if min.is_finite() { min } else { 0.0 },
+        max_value: if max.is_finite() { max } else { 0.0 },
+        voiced_frames,
+        voiced_fraction: if frames_count == 0 {
+            0.0
+        } else {
+            voiced_frames as f32 / frames_count as f32
+        },
+    }
 }
 
 /// Flatten a `frames × bands` matrix into a [`MatrixResult`].
@@ -1498,6 +1544,15 @@ mod tests {
         let voiced = result.values.iter().flatten().count();
         assert!(voiced > 0, "expected some voiced frames");
         assert!(voiced < result.frames, "expected some silent gaps");
+        // The voiced summary matches the values, so a near-empty track is visible
+        // without scanning the series.
+        assert_eq!(result.voiced_frames, voiced);
+        let expected = voiced as f32 / result.frames as f32;
+        assert!(
+            (result.voiced_fraction - expected).abs() < 1e-6,
+            "voiced_fraction = {}",
+            result.voiced_fraction
+        );
     }
 
     #[test]

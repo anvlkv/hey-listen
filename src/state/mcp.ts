@@ -281,7 +281,6 @@ function sourceSummary() {
   if (!current) return null;
   return {
     name: current.name,
-    detail: current.detail,
     sampleRate: current.sampleRate,
     channels: current.channels,
     frames: current.frames,
@@ -290,55 +289,111 @@ function sourceSummary() {
   };
 }
 
-/** Open an analyzer tab and run it, optionally applying window/params/options first. */
+/**
+ * Run an analyzer, optionally applying window/params/options first.
+ *
+ * `display: false` computes without opening (or focusing) the analyzer tab, so an
+ * agent can sweep many tools without leaving a Workbench tab per tool. `transient:
+ * true` applies `start`/`end`/`params`/`options` to this call only instead of writing
+ * them back to the shared stores. The result echoes the effective `params`/`options`.
+ *
+ * The result's `tool` tag is carried by the analysis result itself, so the envelope
+ * does not repeat it.
+ */
 async function runAnalysis(args: Args) {
   const tool = str(args, "tool");
   if (!isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
 
-  if ("params" in args) applySharedParams(asArgs(args.params) as Partial<SharedParamsDto>);
-  if ("options" in args) {
-    for (const [key, value] of Object.entries(asArgs(args.options))) {
-      if (typeof value === "number") setToolOption(tool, key, value);
+  const transient = optionalBool(args, "transient") ?? false;
+
+  // Effective params: a transient patch merges into a snapshot, otherwise it is
+  // written back to the shared store and re-read.
+  let params = sharedParams();
+  if ("params" in args) {
+    const patch = asArgs(args.params) as Partial<SharedParamsDto>;
+    if (transient) {
+      params = mergeParams(params, patch);
+    } else {
+      applySharedParams(patch);
+      params = sharedParams();
     }
   }
-  const start = optionalNum(args, "start");
-  const end = optionalNum(args, "end");
-  if (start != null || end != null) {
-    setAnalysisWindow(start ?? windowStart(), end ?? windowEnd());
+
+  // Effective per-tool options, likewise.
+  let options = { ...toolOptions[tool] };
+  if ("options" in args) {
+    const patch = numericOptions(args.options);
+    if (transient) {
+      options = { ...options, ...patch };
+    } else {
+      for (const [key, value] of Object.entries(patch)) setToolOption(tool, key, value);
+      options = { ...toolOptions[tool] };
+    }
   }
+
+  // Effective window (clamped to the source). An explicit start/end persists unless
+  // the call is transient.
+  const hasWindow = "start" in args || "end" in args;
+  const span = clampSpan(
+    optionalNum(args, "start") ?? windowStart(),
+    optionalNum(args, "end") ?? windowEnd(),
+  );
+  if (hasWindow && !transient) setAnalysisWindow(span.start, span.end);
+
   if (!source()) throw new Error("no source loaded — open a source first");
 
-  // UI following: the tab opens (and, if popped out, its window is raised).
-  await openTool(tool);
+  // UI following: the tab opens (and, if popped out, its window is raised) unless the
+  // caller asked to compute without display.
+  if (optionalBool(args, "display") ?? true) await openTool(tool);
 
-  const span = { start: windowStart(), end: windowEnd() };
   const result = await invoke<unknown>("run_analysis", {
-    request: {
-      tool,
-      start: span.start,
-      end: span.end,
-      params: sharedParams(),
-      options: { ...toolOptions[tool] },
-    },
+    request: { tool, start: span.start, end: span.end, params, options },
   });
 
-  return {
-    tool,
-    window: span,
-    result: optionalBool(args, "includeData") ? result : compact(result),
-  };
+  let payload = result;
+  if (optionalBool(args, "includeData") ?? false) {
+    const maxPoints = optionalNum(args, "maxPoints");
+    if (maxPoints != null && maxPoints >= 0) payload = decimate(result, maxPoints);
+  } else {
+    payload = compact(result);
+  }
+
+  return { window: span, params, options, result: payload };
+}
+
+/** Merge a shared-params patch over a base snapshot (mirrors `applySharedParams`). */
+function mergeParams(base: SharedParamsDto, patch: Partial<SharedParamsDto>): SharedParamsDto {
+  const out = { ...base };
+  if (patch.fftSize != null) out.fftSize = patch.fftSize;
+  if (patch.hop != null) out.hop = patch.hop;
+  if (patch.randomizedOverlap != null) out.randomizedOverlap = patch.randomizedOverlap;
+  if (patch.windowFn != null) out.windowFn = patch.windowFn;
+  if ("channel" in patch) out.channel = patch.channel ?? null;
+  if ("resampleTo" in patch) out.resampleTo = patch.resampleTo ?? null;
+  if (patch.freqMinHz != null) out.freqMinHz = patch.freqMinHz;
+  if (patch.freqMaxHz != null) out.freqMaxHz = patch.freqMaxHz;
+  return out;
+}
+
+/** Keep only the numeric entries of an options patch (non-numbers are ignored). */
+function numericOptions(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, item] of Object.entries(asArgs(value))) {
+    if (typeof item === "number") out[key] = item;
+  }
+  return out;
 }
 
 /** Clamp `start..end` to the source and set the analysis window. */
 function setAnalysisWindow(start: number, end: number) {
-  return clampSet(start, end, (a, b) => {
-    setWindowStart(a);
-    setWindowEnd(b);
-  });
+  const span = clampSpan(start, end);
+  setWindowStart(span.start);
+  setWindowEnd(span.end);
+  return span;
 }
 
-/** Clamp a span to the source duration (when there is one) and apply it. */
-function clampSet(start: number, end: number, apply: (a: number, b: number) => void) {
+/** Clamp a span to the source duration (when there is one) and order it. */
+function clampSpan(start: number, end: number) {
   const duration = source()?.duration ?? 0;
   let a = start;
   let b = end;
@@ -347,33 +402,99 @@ function clampSet(start: number, end: number, apply: (a: number, b: number) => v
     b = Math.min(Math.max(0, b), duration);
   }
   if (a > b) [a, b] = [b, a];
-  apply(a, b);
   return { start: a, end: b };
 }
 
+/** Clamp `start..end` to the source, then apply it to the store. */
+function clampSet(start: number, end: number, apply: (a: number, b: number) => void) {
+  const span = clampSpan(start, end);
+  apply(span.start, span.end);
+  return span;
+}
+
+// --- result shaping (mirrors `src-tauri/src/mcp/dispatch.rs`) ---------------
+
+/** Above this length a numeric / gapped array is summarized. */
+const COMPACT_ARRAY_MIN = 8;
+/** Above this length any array (numeric or not) is reduced to its length. */
+const COMPACT_LENGTH_MIN = 16;
+
 /**
- * Shrink a result for the agent: long numeric arrays become `{ length, min, max }`,
- * other long arrays just their length. Scalars pass through. `includeData: true`
- * returns the raw result instead.
+ * Shrink a result for the agent. A long numeric array becomes
+ * `{ length, min, max, argmin, argmax }`; a long array with gaps (`null`s, e.g. a pitch
+ * track's unvoiced frames) becomes `{ length, nulls, min, max, argmin, argmax }` over
+ * the present numbers; any other long array becomes `{ length }`. Objects recurse.
+ * `includeData: true` returns the raw result instead. Mirrors the Rust `compact`.
  */
 function compact(value: unknown): unknown {
   if (Array.isArray(value)) {
-    if (value.length > 8 && value.every((item) => typeof item === "number")) {
-      let min = Infinity;
-      let max = -Infinity;
-      for (const item of value as number[]) {
-        if (item < min) min = item;
-        if (item > max) max = item;
-      }
-      return { length: value.length, min, max };
-    }
-    if (value.length > 16) return { length: value.length };
+    if (value.length > COMPACT_ARRAY_MIN) return compactArray(value);
     return value.map(compact);
   }
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
       out[key] = compact(item);
+    }
+    return out;
+  }
+  return value;
+}
+
+function compactArray(items: unknown[]): unknown {
+  const length = items.length;
+  let min = Infinity;
+  let max = -Infinity;
+  let argmin = 0;
+  let argmax = 0;
+  let nulls = 0;
+  let present = 0;
+  for (let index = 0; index < length; index++) {
+    const item = items[index];
+    if (item === null) {
+      nulls++;
+      continue;
+    }
+    if (typeof item !== "number") {
+      return length > COMPACT_LENGTH_MIN ? { length } : items.map(compact);
+    }
+    present++;
+    if (item < min) {
+      min = item;
+      argmin = index;
+    }
+    if (item > max) {
+      max = item;
+      argmax = index;
+    }
+  }
+  if (present === 0) return { length, nulls };
+  if (nulls > 0) return { length, nulls, min, max, argmin, argmax };
+  return { length, min, max, argmin, argmax };
+}
+
+/**
+ * Decimate every array longer than `maxPoints` to at most `maxPoints` entries by
+ * striding (keeping the first and last), so a bounded `includeData` need not dump every
+ * frame. Objects recurse. Mirrors the Rust `decimate`.
+ */
+function decimate(value: unknown, maxPoints: number): unknown {
+  const n = Math.max(2, Math.floor(maxPoints));
+  if (Array.isArray(value)) {
+    if (value.length > n) {
+      const step = (value.length - 1) / (n - 1);
+      const out: unknown[] = [];
+      for (let index = 0; index < n; index++) {
+        out.push(decimate(value[Math.round(index * step)], n));
+      }
+      return out;
+    }
+    return value.map((item) => decimate(item, n));
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = decimate(item, n);
     }
     return out;
   }

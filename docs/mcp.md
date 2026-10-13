@@ -123,7 +123,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
-| `run_analysis` | Open an analyzer tab and run it; optional `start`/`end`/`params`/`options`; `includeData` returns full arrays (default: compacted). |
+| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options`; `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -139,9 +139,14 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `save_project` / `open_project` / `new_project` | Project file actions. |
 | `list_projects` | List the open project windows (label, name, focused) — answered by the server. |
 
-`run_analysis` **compacts** its result by default (long numeric arrays become
-`{ length, min, max }`, other long arrays their length) so a spectrogram does not
-blow the agent's context; pass `includeData: true` for the raw result.
+`run_analysis` **compacts** its result by default so a spectrogram does not blow the
+agent's context: a long numeric array becomes `{ length, min, max, argmin, argmax }`; a
+long array with gaps (`null`s, e.g. a pitch track's unvoiced frames) becomes
+`{ length, nulls, min, max, argmin, argmax }` over the present numbers, so a nearly-empty
+track is visible at a glance; and any other long array becomes `{ length }`. `argmin` /
+`argmax` locate the peak without pulling every frame. Pass `includeData: true` for the
+raw result, and `maxPoints: N` to decimate the returned arrays to ≤ N points (by striding,
+keeping the first and last).
 
 **`target`.** Every tool accepts an optional `target` (a label from `list_projects`)
 to address a specific project window instead of the focused one. `get_state` reports
@@ -219,6 +224,44 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    and routes the call; a popout label resolves to its owning project window;
    `get_state` reports the window a call is looking at (`project.window`). The default
    remains the focused window.
+
+## Follow-up: result fidelity + agent ergonomics
+
+Driving the server exploratorily — a dozen `run_analysis` calls to profile one source —
+exposed rough edges in **result shape and side effects**. Delivered as *M9 follow-up 2*
+(see [`roadmap.md`](roadmap.md)):
+
+1. **Compute without display.** `run_analysis` takes a `display` argument (default
+   `true`). `display: false` computes and returns the result **without opening or
+   focusing** the analyzer tab, so a sweep no longer leaves a Workbench tab per tool.
+   Headless is display-less already, so it is a no-op there.
+2. **Honest compaction.** A long numeric array → `{ length, min, max, argmin, argmax }`;
+   a long array with gaps → `{ length, nulls, min, max, argmin, argmax }` over the present
+   numbers. "One voiced frame out of 511" is now visible at a glance (`nulls: 510`). The
+   two implementations stay in step: `src/state/mcp.ts` (`compact`) and
+   `src-tauri/src/mcp/dispatch.rs` (`compact`), with a matching Rust unit test.
+3. **Bounded `includeData`.** A `maxPoints` argument decimates the returned arrays to ≤ N
+   points by striding (keeping the first and last), so `includeData` need not dump every
+   frame.
+4. **Echo + transient.** `run_analysis` echoes the **effective** `params` / `options` it
+   ran with, and a `transient` argument (default `false`) applies `start` / `end` /
+   `params` / `options` for that call only instead of writing them back to the project —
+   a `params` override no longer mutates the shared params silently.
+
+Plus **hygiene**: the envelope no longer repeats the `tool` tag (the analysis result
+carries it) and the source summary drops the opaque `detail` — for a file that was a
+symphonia codec id that could render as a bare `0x1006`, useless to an agent. The `hop`
+field's schema now states it is a **fraction of `fftSize`** (`0.25` = 75% overlap, not a
+sample count).
+
+**`voicedFrames` / `voicedFraction`.** The three pitch tools now return a `PitchResult`
+(the f0 series plus a voiced-frame summary), so a tracker that finds almost no voiced
+frames (a near-empty track) is self-evident rather than looking like a normal success.
+
+**pYIN spike (open).** `pitchPyin` returned a single voiced frame on the Blue-capped
+Ifrit clip while YIN and autocorrelation tracked normally. The detector itself lives in
+the external `oxiaudio` crate, so it cannot be fixed from here; the voiced-frame summary
+at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](roadmap.md).
 
 ## Limitations / deferred
 

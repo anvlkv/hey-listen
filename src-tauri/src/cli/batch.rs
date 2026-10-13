@@ -905,7 +905,8 @@ mod tests {
         let values = lines(&out);
         assert_eq!(values.len(), 1);
         assert_eq!(values[0]["file"], file);
-        assert_eq!(values[0]["tool"], "spectrum");
+        // The `tool` tag lives in the result, not duplicated on the envelope.
+        assert_eq!(values[0]["result"]["tool"], "spectrum");
         let peak = values[0]["result"]["peakHz"].as_f64().unwrap();
         assert!(
             (380.0..500.0).contains(&peak),
@@ -1008,7 +1009,7 @@ mod tests {
         let values = lines(&out);
         assert_eq!(values.len(), 1);
         assert_eq!(values[0]["file"], path);
-        assert_eq!(values[0]["tool"], "levels");
+        assert_eq!(values[0]["result"]["tool"], "levels");
         let _ = std::fs::remove_file(&path);
     }
 

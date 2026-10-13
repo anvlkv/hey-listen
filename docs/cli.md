@@ -135,14 +135,15 @@ given as a file.
 **JSONL by default** — one self-describing object per line, so `jq -c` streams it:
 
 ```json
-{"file":"a.wav","tool":"spectrum","window":{"start":0.0,"end":2.5},"result":{"peakHz":440.0,"...":0}}
+{"file":"a.wav","window":{"start":0.0,"end":2.5},"params":{"...":0},"options":{"...":0},"result":{"tool":"spectrum","peakHz":440.0,"...":0}}
 ```
 
-The object is exactly what MCP's `run_analysis` returns (`tool`, `window`, `result`)
-with the `file` added. Results are **compacted** by default (long numeric arrays →
-`{length,min,max}`; other long arrays → their length) so a spectrogram does not flood
-the terminal — this is the same compaction MCP applies; `--full` returns the raw
-arrays.
+The object is exactly what MCP's `run_analysis` returns (`window`, `params`, `options`,
+`result` — the `tool` tag rides on `result`) with the `file` added. Results are
+**compacted** by default: long numeric arrays → `{length,min,max,argmin,argmax}`, long
+arrays with gaps → `{length,nulls,min,max,argmin,argmax}`, other long arrays → their
+length. This is the same compaction MCP applies, so a spectrogram does not flood the
+terminal; `--full` returns the raw arrays.
 
 A failure is one line too, and does not abort the batch unless `--fail-fast`:
 
