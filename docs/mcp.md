@@ -138,6 +138,9 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
 | `save_project` / `open_project` / `new_project` | Project file actions. |
 | `list_projects` | List the open project windows (label, name, focused) — answered by the server. |
+| `list_themes` / `get_theme` / `set_theme` | Installed themes and the active theme (mode + dark/light slots); `import_theme` / `export_theme`. **(M11, planned)** |
+| `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON / CSV) or chart (PNG), or every open tool to a folder. `export_analysis` is headless-capable; `export_chart` needs the rendered canvas. **(M12, planned)** |
+| `list_templates` / `apply_template` / `save_template` / `export_template` / `import_template` | Installed analysis templates; apply to the current project or the headless session. **(M13, planned)** |
 
 `run_analysis` **compacts** its result by default so a spectrogram does not blow the
 agent's context: a long numeric array becomes `{ length, min, max, argmin, argmax }`; a
@@ -208,7 +211,9 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
      `list_analyzers`, `open_audio_file`, `close_source`, `render_synth` (with an
      explicit `graph`), `set_filter_graph` (with an explicit `GraphSpec`),
      `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`,
-     `set_tool_options`, and the `list_*` enumerations.
+     `set_tool_options`, and the `list_*` enumerations — plus the **data** halves of
+     the export / template tools (`export_analysis`, `list_templates`,
+     `apply_template`) once M12/M13 land.
      UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
      `set_synth_graph`), project save/load, and live preview/capture (real device I/O
      with no UI to configure it) — answer "requires the app".
@@ -317,6 +322,9 @@ at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](
 | `src-tauri/src/commands/mcp.rs` | `mcp_respond` / `mcp_ready` and `get_mcp_status` / `set_mcp_config`. |
 | `src/state/mcp.ts` | the GUI tool handlers (run against the app's stores). |
 | `src/state/mcpSettings.ts` | the popover's view over the MCP status + the snippet/copy helpers. |
+| `src-tauri/src/themes.rs`, `src-tauri/src/commands/themes.rs` | the theme-file store + commands (M11, planned). |
+| `src-tauri/src/templates.rs`, `src-tauri/src/commands/templates.rs` | the template store + commands (M13, planned). |
+| `src-tauri/src/commands/export.rs` | output plumbing (`pick_save_path` / `write_text` / `write_bytes`) (M12, planned). |
 | `src/components/McpPopover.tsx` | the Toolbar MCP popover. |
 | `e2e/specs/k-mcp.spec.ts` | end-to-end coverage over the real endpoint. |
 | `e2e/specs/l-mcp-ui.spec.ts` | the popover: toggle, status, port, busy-port note, copy. |

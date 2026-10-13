@@ -101,6 +101,9 @@ Decode each file and run one or more analyzers over a window.
 | `--full` | Include the raw result arrays (default: compacted — see below). |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
 | `--fail-fast` | Stop at the first failing file/tool (default: run the whole batch and report). |
+| `--format <json\|csv>` | Output format (default `json`, the JSONL shape below); `--csv` is shorthand. CSV is a **wide matrix** for the 2D tools (M12, planned). |
+| `--out <FILE\|DIR>` | Write to a file (a single result) or a directory (one file per result) instead of stdout (M12, planned). |
+| `--template <FILE.heyltemplate>` | Apply a template's shared params, per-tool options, filter graph, and window policy before running (M13, planned). |
 
 Analyzer ids are **not** enumerated in `plugins.cli` (that would duplicate the catalog
 in JSON); they are validated by the engine against `audio/analyzers.rs` when they run, so
@@ -208,6 +211,14 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
 
 - `analyzers`, `analyze`, `synth` — decode a file, run analyzers, render a synth
   graph, list the catalog, with shared params / per-tool options / a filter graph.
+
+Planned in the compute subset (M12/M13):
+
+- **Data export formats** — `--format csv` and `--out`, sharing the **same wide-matrix
+  renderer** the UI uses (so the CLI and the app emit byte-identical CSV), and
+  `--template` to apply a saved setup before analysis. The **chart-PNG** export is
+  GUI-only and is not offered here. See [`exports.md`](exports.md) and
+  [`templates.md`](templates.md).
 
 Deliberately out of scope:
 
