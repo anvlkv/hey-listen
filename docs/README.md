@@ -14,7 +14,7 @@ post-M6 backlog are done; M10 is planned).
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
 | [mcp.md](mcp.md) | The MCP server: agent access, the stdio bridge, UI following, tool list |
-| [cli.md](cli.md) | The batch CLI (`heylisten-cli`): analyze files / render synth from a shell, no app |
+| [cli.md](cli.md) | The batch CLI (`hey-listen analyze`): analyze files / render synth from a shell, no window |
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
 | [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
 | [decisions.md](decisions.md) | Architecture decision records (ADRs) |

@@ -291,32 +291,37 @@ real device I/O with no UI to configure them), so they answer "requires the app"
 the milestone's "filter/synth" headless scope is met by `run_analysis` over a file and
 `render_synth` with an explicit graph.
 
-## ADR-14 — Batch CLI (`heylisten-cli`) is a plain console binary over the engine session
+## ADR-14 — Batch CLI is the app binary, run windowless via `tauri-plugin-cli`
 
 **Context:** ADR-13 gave the app an MCP server and a headless stdio entry, but using
 them from a **shell** means speaking JSON-RPC by hand — `initialize`, one JSON message
 per call, `jq` — which is fine for an agent and tedious for a script (`docs/cli.md`).
 Bulk analysis ("run these tools over these files, print the numbers") wants a real
 command with flags. The question is where it lives: subcommands on the app binary
-(`tauri-plugin-cli`, as `--mcp` uses) or a separate program.
+(declared with `tauri-plugin-cli`, as `--mcp` already is) or a separate program.
 
-**Decision:** a **third, plain console binary**, `heylisten-cli`, sibling of
-`heylisten-mcp`.
+**Decision:** the CLI is a **subcommand of the app binary**, declared in
+`tauri.conf.json` → `plugins.cli` and parsed by `tauri-plugin-cli`. **No third binary,
+no hand-rolled parser.**
 
-- **Not the app binary.** `tauri-plugin-cli` needs a Tauri app context, so only the
-  app binary can declare its flags — and the app binary starts the Tauri runtime and,
-  in the Windows release, has **no console** to write to. A batch tool must print to
-  stdout and run with no GUI, on a headless host and in CI. That is the same reasoning
-  that already made `heylisten-mcp` a console binary. So the CLI parses its own
-  arguments with `clap` (already in the tree via `tauri-plugin-cli`; the app binary
-  keeps the plugin for `--mcp` / `--headless`).
-- **One engine session, shared with headless MCP.** The headless session
-  (`mcp/dispatch.rs::HeadlessSession`) is not MCP-specific — it is the engine facade
-  (source PCM + shared params + tool options + window + preview-free `run_analysis`) —
-  so it moves to a neutral `engine::Session` (`src/engine.rs`). Both the headless MCP
-  server and the CLI drive it, and both reach `analysis::run_window` / `audio::decode`
-  / `audio::graph`. The CLI is a thin `clap` front end that maps flags onto the same
-  session operations; there is no third DSP path.
+- **The plugin decides it.** `tauri-plugin-cli` reads its definition from the app
+  context (`app.cli().matches()` → `Cli`), and `Cli` cannot be constructed outside the
+  plugin, so only a process that builds a Tauri app can use it. That process is the app
+  binary — the same one that already takes `--mcp` / `--headless`. Using the plugin is
+  the project's single source of truth for the interface and keeps one vocabulary with
+  the existing flags.
+- **Windowless, like `--mcp`.** `setup` resolves the entry (`--mcp` → the MCP stdio
+  entry; a subcommand → the batch command; neither → the GUI). The batch command
+  prints JSON and exits **before any window is created**, so it never opens, shows, or
+  drives a window — no webview, no IPC, no UI following. The main window is
+  `"create": false`, so nothing exists on this path.
+- **One engine session, shared with headless MCP.** The batch command maps the matched
+  args onto the same operations the headless MCP server runs (`open_audio_file`,
+  `run_analysis`, `set_shared_params`, `set_tool_options`, `render_synth`,
+  `list_analyzers`) through the one shared headless session, and both reach
+  `analysis::run_window` / `audio::decode` / `audio::graph`. There is no third DSP path.
+  Analyzer ids are validated against `audio/analyzers.rs` rather than enumerated in the
+  config (which would duplicate the catalog in JSON).
 - **Compute subset only, and standalone.** The same subset as headless MCP (open a
   file, run analyzers, render a synth graph, list the catalog) — no UI-only tools, no
   device enumeration (which on macOS would touch the AudioUnit/permission path a batch
@@ -324,13 +329,18 @@ command with flags. The question is where it lives: subcommands on the app binar
   running app: a batch job must be deterministic and must not drive the user's window.
 - **Output is JSONL**, a self-describing object per `file`/`tool` (the `run_analysis`
   shape plus `file`), compacted by default (`--full` for raw arrays), `--pretty` for a
-  single result; exit `0`/`1`/`2`.
+  single result; exit `0`/`1`/`2`. Usage errors must print and exit `2` rather than fall
+  through to launching the GUI (the `.heyl` file-open path keeps the current
+  "unparseable → GUI" behaviour).
 
-**Consequence:** bulk analysis and CI use a shell-native command over the exact engine
-the GUI uses, with no app, no MCP client, and no window; `heylisten-mcp` stays the
-agent path. Costs: a third binary to build and document, and one more thin front end
-that must stay in step with the engine's operations (shared with the headless MCP
-dispatcher, which mitigates it). `--filter` (a `GraphSpec` set before analysis) is the
-one place the CLI is ahead of the MCP subset. See [`cli.md`](cli.md).
+**Consequence:** bulk analysis and CI get a shell-native command over the exact engine
+the GUI uses, with no window and no MCP client, and `heylisten-mcp` stays the agent path.
+Costs: the interface must live in `plugins.cli` (so the argument schema is JSON, not
+Rust), the CLI shares the app binary's platform requirements — on **Windows** the app
+binary has no console, and a **bare GUI-less host** cannot start a Tauri app at all
+(that case stays `heylisten-mcp --headless`) — and it is one more thin front end to keep
+in step with the engine (mitigated by sharing the headless session). `--filter` (a
+`GraphSpec` set before analysis) is the one place the CLI is ahead of the MCP subset.
+See [`cli.md`](cli.md).
 
 **Status: planned (M10).** Not yet implemented.

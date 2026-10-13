@@ -46,11 +46,10 @@ A manual `workflow_dispatch` run takes the tag as an input and republishes.
 Bundles are **unsigned**: macOS Gatekeeper and Windows SmartScreen warn on first
 launch. Code signing / notarization is out of scope until signing keys exist.
 
-> **Console binaries are not bundled.** The crate's two plain console binaries —
-> `heylisten-mcp` (M9) and `heylisten-cli` (M10, planned) — are built next to the app
-> (`target/{debug,release}/`) but are **not** shipped inside the `.app` / installer.
-> They are *client* tools (an MCP client spawns `heylisten-mcp`; a shell runs
-> `heylisten-cli`), not parts of the app, so bundling them as a sidecar (`externalBin`,
-> which is meant to be *spawned by the app* under `shell:allow-execute`) would be the
-> wrong tool. This matches the bridge decision in [`mcp.md`](mcp.md); the batch CLI
-> follows the same reasoning ([`cli.md`](cli.md)).
+> **The console binary is not bundled.** `heylisten-mcp` (M9) — a plain console binary
+> built next to the app (`target/{debug,release}/`) — is **not** shipped inside the
+> `.app` / installer. It is a *client* tool (an MCP client spawns it), not part of the
+> app, so bundling it as a sidecar (`externalBin`, which is meant to be *spawned by the
+> app* under `shell:allow-execute`) would be the wrong tool. See [`mcp.md`](mcp.md). The
+> batch CLI (M10) adds **no binary at all** — it is a subcommand of the app binary, so
+> it rides the normal bundle ([`cli.md`](cli.md)).

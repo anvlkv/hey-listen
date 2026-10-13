@@ -36,8 +36,7 @@ Existing modules are marked ✅; the rest are the target structure.
 src-tauri/src/
 ├── main.rs          # desktop entry (calls lib::run)            ✅
 ├── bin/
-│   ├── heylisten-mcp.rs  # stdio MCP entry (plain console)         ✅ (M9)
-│   └── heylisten-cli.rs  # batch CLI entry (plain console)         (M10)
+│   └── heylisten-mcp.rs  # stdio MCP entry (plain console)         ✅ (M9)
 ├── lib.rs           # Builder setup, state, handler registration ✅
 ├── commands/        # #[tauri::command] surface, grouped by domain
 │   ├── mod.rs       # ✅
@@ -60,25 +59,25 @@ src-tauri/src/
 │   ├── playback.rs  # cpal output stream + ring buffer         ✅
 │   └── analysis.rs  # oxiaudio wrappers                         ✅
 ├── app_activity.rs  # keep the process out of macOS App Nap        ✅ (M9 follow-up)
-├── engine.rs        # headless engine session: source + shared params + tool options + window (shared by mcp/headless and the batch CLI; from mcp/dispatch.rs)
-├── cli/             # command-line interfaces
-│   ├── app.rs       # the app binary's tauri-plugin-cli flags      ✅ (M9: --mcp / --headless)
-│   └── batch.rs     # the `heylisten-cli` clap front end           (M10)
+├── cli/             # command-line interfaces (tauri-plugin-cli)
+│   ├── mod.rs       # the plugin flags + the `setup` entry         ✅ (M9: --mcp / --headless; M10: subcommand routing)
+│   └── batch.rs     # the `analyze` / `analyzers` / `synth` logic  (M10)
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── state.rs         # per-window core state registry            ✅ (M7: WindowRegistry; audio PCM + filter + player + capture + shared UI state)
 ├── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
-└── mcp/             # MCP server (agent access + UI following)     ✅ (M9: mod/protocol/tools/server/bridge/settings/headless; its `dispatch` session moves to `engine.rs` in M10)
+└── mcp/             # MCP server (agent access + UI following)     ✅ (M9: mod/protocol/tools/server/bridge/settings/dispatch/headless; `dispatch` is the headless session the batch CLI reuses, M10)
 ```
 
 Commands are registered once in `generate_handler![...]`; shared state is
 managed via `app.manage(...)`.
 
-**Binaries.** Three: `hey-listen` (the GUI, the bundle's `default-run`), and two
-**plain console** binaries that link the lib but never start Tauri — `heylisten-mcp`
-(the stdio MCP entry, M9) and `heylisten-cli` (the batch CLI, M10). A console binary
-is required wherever there is no window to print from: the Windows release (the app
-binary has no console) and GUI-less hosts / CI. See [`cli.md`](cli.md).
+**Binaries.** Two: `hey-listen` (the GUI, the bundle's `default-run`) and
+`heylisten-mcp` — a **plain console** binary that links the lib but never starts Tauri
+(the stdio MCP entry, M9). The batch CLI (M10) is **not** a third binary: because
+`tauri-plugin-cli` needs an app context, it is a **subcommand of the app binary**,
+resolved in `setup` and run **before any window is created** (`--mcp`/`--headless`
+route the same way). See [`cli.md`](cli.md).
 
 **Per-window state (M7).** With N project windows (ADR-3), the core's project state
 — the source PCM, filter graph, preview player, capture session, and the project's
