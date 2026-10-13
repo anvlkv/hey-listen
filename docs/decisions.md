@@ -340,7 +340,9 @@ Rust), the CLI shares the app binary's platform requirements — on **Windows** 
 binary has no console, and a **bare GUI-less host** cannot start a Tauri app at all
 (that case stays `heylisten-mcp --headless`) — and it is one more thin front end to keep
 in step with the engine (mitigated by sharing the headless session). `--filter` (a
-`GraphSpec` set before analysis) is the one place the CLI is ahead of the MCP subset.
+`GraphSpec` set before analysis) is the same headless `set_filter_graph` tool the MCP
+server exposes — the CLI takes the graph directly, as does headless `render_synth`.
 See [`cli.md`](cli.md).
 
-**Status: planned (M10).** Not yet implemented.
+**Status: delivered (M10).** See [`cli.md`](cli.md); the batch logic lives in
+`src-tauri/src/cli/batch.rs`.

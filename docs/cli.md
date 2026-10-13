@@ -5,8 +5,9 @@ opening or driving a window — so a shell script or CI job can do bulk analysis
 read the results as JSON. It is the non-MCP sibling of the headless MCP server: the
 same engine, a friendlier calling convention.
 
-This is planned (**M10**), not yet built. See [`roadmap.md`](roadmap.md) → M10 and
-[`decisions.md`](decisions.md) → ADR-14.
+This is delivered (**M10**). The batch logic lives in `src-tauri/src/cli/batch.rs`;
+the interface is declared in `tauri.conf.json` → `plugins.cli`. See
+[`roadmap.md`](roadmap.md) → M10 and [`decisions.md`](decisions.md) → ADR-14.
 
 ## Why the app binary (and `tauri-plugin-cli`)
 
@@ -95,15 +96,18 @@ Decode each file and run one or more analyzers over a window.
 | `--start <SEC>` | Window start in seconds (default `0`). |
 | `--end <SEC>` | Window end in seconds (default: full duration). |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable), using the same keys MCP's `set_shared_params` takes: `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
-| `-o, --option <K=V>` | Patch a **per-tool** option for the preceding `--tool` (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `fMinHz`/`fMaxHz`). |
+| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `fMinHz`/`fMaxHz`). **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because the plugin's parsed matches do not preserve the order of flags on the command line. |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
 | `--full` | Include the raw result arrays (default: compacted — see below). |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
 | `--fail-fast` | Stop at the first failing file/tool (default: run the whole batch and report). |
 
 Analyzer ids are **not** enumerated in `plugins.cli` (that would duplicate the catalog
-in JSON); they are validated against `audio/analyzers.rs`, so an unknown id fails with
-the catalog's message.
+in JSON); they are validated by the engine against `audio/analyzers.rs` when they run, so
+an unknown id produces one `error` line and exit `1` (`{"file":…,"tool":…,"error":"unknown analyzer: …"}`).
+A malformed `K=V`, an unknown param/option key, a missing file or `-t`, a bad
+`--seconds`/`--start`/`--end` value, or a `--pretty` stream that is not a single result is
+a **usage error** (printed to stderr, exit `2`) — it never falls through to the GUI.
 
 ### `analyzers`
 
@@ -114,8 +118,8 @@ the catalog's message.
 ### `synth <GRAPH.json>`
 
 Render a synth graph to PCM (mono, `48 kHz`, `--seconds` default `5`), then behave
-exactly like `analyze` on the rendered source. With no `-t`, it prints the rendered
-source's summary (channels, sample rate, frames, duration).
+exactly like `analyze` on the rendered source. With no `-t` (and no `--all`), it prints
+the rendered source's summary as one line — `{"file": <GRAPH.json>, "source": { "sampleRate", "channels", "frames", "duration", … }}`.
 
 | Option | Meaning |
 | --- | --- |
@@ -146,7 +150,14 @@ A failure is one line too, and does not abort the batch unless `--fail-fast`:
 {"file":"a.wav","tool":"tempo","error":"empty analysis window"}
 ```
 
-`--pretty` prints a single (human-readable) JSON object — for one file / one tool.
+A whole file that cannot be opened fails without a `tool` (there is no tool yet):
+
+```json
+{"file":"a.wav","error":"…"}
+```
+
+`synth` uses the graph file path as its `file` label, so its lines are shaped the same
+way. `--pretty` prints a single (human-readable) JSON object — for one file / one tool.
 
 **Exit codes:**
 
@@ -157,11 +168,13 @@ A failure is one line too, and does not abort the batch unless `--fail-fast`:
 | `2` | Usage error (unknown subcommand/flag, bad `K=V`, missing `-t`). |
 
 > **Usage errors must not silently open the GUI.** `plugins.cli` parsing reports a
-> `DisplayHelp` / `DisplayVersion` as a `help` / `version` arg (handled as today), but a
-> genuine parse error comes back as `Err`. Today `cli::parse` treats any error as "no
-> flags" so a `.heyl` path still opens (the file-association path). The batch routing
-> keeps that for the plain-GUI case, but when the argv clearly targets a batch
-> subcommand it must print the error and exit `2` instead of launching the app.
+> `DisplayHelp` / `DisplayVersion` as a `help` / `version` arg (printed, exit `0`), but a
+> genuine parse error comes back as `Err`. `cli::parse` treats a parse error as "no
+> flags" so a `.heyl` path still opens (the file-association path) — *unless* the first
+> positional token names a batch subcommand (`subcommand_in_argv`), in which case the
+> error is printed to stderr and the process exits `2` instead of launching the app.
+> A `Mapping` error (bad `K=V`, missing `-t`, an unknown `-o` key) is likewise an
+> `Entry::Usage`: printed and exited `2`.
 
 ## Examples
 
@@ -169,11 +182,17 @@ A failure is one line too, and does not abort the batch unless `--fail-fast`:
 # One number per file, streamed as JSONL:
 hey-listen analyze *.wav -t loudnessIntegrated | jq -c '{file, lufs: .result.lufs}'
 
-# Every tool, raw arrays, pretty, to a file:
-hey-listen analyze mix.wav --all --full --pretty > mix.json
+# Every tool of one file, raw arrays, as JSONL to a file:
+hey-listen analyze mix.wav --all --full > mix.jsonl
+
+# One result, pretty-printed:
+hey-listen analyze mix.wav -t spectrum --full --pretty > spectrum.json
 
 # A 4 s window at 10 s with a big FFT, two tools, one file:
 hey-listen analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
+
+# Per-tool options are named: a 40-band mel spectrogram then MFCCs:
+hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o mfcc.nMfcc=13
 
 # Discover ids:
 hey-listen analyzers --json | jq -r '.[].id'
@@ -203,11 +222,12 @@ Deliberately out of scope:
 - **Live capture input** — file and synth sources only.
 - **Opening a window of any kind** — the command runs and exits before windows exist.
 
-> `--filter` is the one place the CLI is *ahead* of the headless MCP subset: the
-> engine already applies `state.audio.filter` in `run_window`, so a session
-> `set_filter(GraphSpec)` lets the CLI condition the signal before analysis — the same
-> "take the graph directly" idea as headless `render_synth`. Wiring that setter back
-> into the headless MCP `set_filter_graph` is a trivial follow-on, deferred.
+> `--filter` conditions the signal before analysis through the shared headless
+> `set_filter_graph` tool — the same one `heylisten-mcp --headless` now exposes. The
+> engine applies `state.audio.filter` in `run_window`, so both take the `GraphSpec`
+> directly (there is no graph editor headless), exactly like headless `render_synth`.
+> The CLI validates the graph (it must compile as a filter) when it maps the request,
+> so a bad `--filter` is a usage error (exit `2`).
 
 ## Files
 
@@ -216,20 +236,23 @@ Deliberately out of scope:
 | `src-tauri/tauri.conf.json` | the `plugins.cli` interface: the `analyzers` / `analyze` / `synth` subcommands + their args. |
 | `src-tauri/src/cli/mod.rs` | the plugin flags + the `setup` entry: `--mcp` → MCP, a subcommand → batch, else GUI. |
 | `src-tauri/src/cli/batch.rs` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests. |
-| `src-tauri/src/mcp/dispatch.rs` | the headless session, reused as-is (the shared engine facade). |
+| `src-tauri/src/mcp/dispatch.rs` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
 | `src-tauri/src/audio/{decode,analysis,analyzers,graph}.rs` | the engine functions the batch command calls. |
 
 ## Testing
 
-- **Batch logic (display-free).** The command's work is a plain function over a
-  crate-local request struct (command, files, tools, params, options, window,
-  `--full`/`--pretty`/`--fail-fast`), so `cargo test` exercises it with no Tauri app and
-  no display: run over a generated sine WAV and assert `spectrum`'s peak is near 440 Hz,
-  that two files print two lines, and that an unknown tool yields an `error` line + exit
-  `1`.
-- **Arg mapping.** The `Matches` → request adapter is unit-tested by feeding synthetic
-  `Matches` values (`Matches::default()` with fields set), so the `plugins.cli`
-  vocabulary is covered without building the app.
+- **Batch logic (display-free).** The command's work is a plain function
+  (`cli::batch::run`) over a crate-local `Request` (command, files, tools, params,
+  options, window, `--full`/`--pretty`/`--fail-fast`), so `cargo test` exercises it with
+  no Tauri app and no display: it runs over a generated sine WAV and asserts `spectrum`'s
+  peak is near 440 Hz, two files print two lines, an unknown tool yields an `error` line
+  + exit `1`, a missing file fails without a `tool`, `synth` renders and reports a
+  summary, and `analyzers` prints the catalog as JSON or a table.
+- **Arg mapping.** `cli::batch::build_request` is unit-tested by feeding synthetic
+  `Matches` values (`Matches::default()` with `args` set — the plugin's `ArgData` is
+  `#[non_exhaustive]`, so fields are set on a `Default` instance), so the `plugins.cli`
+  vocabulary (files, `-t`/`--all`, `-p`, `-o`, window, flags, the usage errors) is
+  covered without building the app.
 - **Binary invocation (manual / smoke).** `hey-listen analyze …` end to end needs the
   platform event loop (a display), exactly like the app and the `--mcp` path, so it is
   verified by hand on macOS (as `--mcp` is) rather than in `cargo test`. It is not part

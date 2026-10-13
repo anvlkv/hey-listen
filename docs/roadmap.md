@@ -266,7 +266,7 @@ control surface and the pieces that make the agent genuinely standalone:
 > because a background app has its timers throttled and can be suspended, and an agent
 > drives the app from another window by definition. See [`mcp.md`](mcp.md).
 
-## M10 — Batch CLI (`hey-listen analyze`) — planned
+## M10 — Batch CLI (`hey-listen analyze`) ✅
 
 A **subcommand of the app binary** that runs the analysis engine over files from a
 shell with no window — so a script or CI job can do **bulk analysis** and read the
@@ -306,6 +306,20 @@ calling convention).
 > **JSONL** (compacted by default, `--full` for raw); it is **standalone** (never
 > bridges); `--filter` takes a `GraphSpec` directly (the one place the CLI is a step
 > ahead of the MCP subset). See [`cli.md`](cli.md) (ADR-14).
+
+> **Delivered:** `src-tauri/src/cli/` (`mod.rs`: the plugin flags + the `setup` entry
+> — `--mcp` → MCP, a subcommand → batch, else GUI; `batch.rs`: `Matches` → a plain
+> `Request` → the headless session, JSONL output, unit tests). The three subcommands
+> are declared in `tauri.conf.json` → `plugins.cli` (`analyzers` / `analyze` / `synth`)
+> and parsed by `tauri-plugin-cli`; `cli::batch::run` writes JSONL to a `Write` (so
+> `cargo test` covers it with no app and no display) and the app exits with `0`/`1`,
+> while a batch usage error prints and exits `2` instead of opening the GUI. The shared
+> session's `set_filter_graph` tool (now also exposed headless, so the MCP server and the
+> CLI share it) backs `--filter`. Analyzer ids are validated by the
+> engine at run time (`audio/analyzers.rs`), so an unknown id is an `error` line + exit
+> `1`. Per-tool options are scoped with `-o <TOOL>.<KEY>=<VALUE>` (a bare `KEY=VALUE`
+> works when a single tool is given), because the plugin's matches do not preserve the
+> order of flags on the command line. See [`cli.md`](cli.md) (ADR-14).
 
 ## Backlog ✅ (delivered)
 

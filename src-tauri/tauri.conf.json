@@ -23,7 +23,150 @@
           "name": "headless",
           "description": "Force the core-native headless MCP server (no window)"
         }
-      ]
+      ],
+      "subcommands": {
+        "analyzers": {
+          "description": "List the analyzer catalog",
+          "args": [
+            {
+              "name": "json",
+              "description": "Emit the catalog as JSON (default: an id/section/title table)"
+            }
+          ]
+        },
+        "analyze": {
+          "description": "Decode file(s) and run analyzer(s) over a window",
+          "args": [
+            {
+              "name": "file",
+              "index": 1,
+              "multiple": true,
+              "takesValue": true,
+              "description": "Audio file(s) to decode and analyze"
+            },
+            {
+              "name": "tool",
+              "short": "t",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Analyzer id to run (repeatable); required unless --all"
+            },
+            {
+              "name": "all",
+              "description": "Run every analyzer in the catalog"
+            },
+            {
+              "name": "start",
+              "takesValue": true,
+              "description": "Window start in seconds (default 0)"
+            },
+            {
+              "name": "end",
+              "takesValue": true,
+              "description": "Window end in seconds (default: full duration)"
+            },
+            {
+              "name": "param",
+              "short": "p",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Shared param patch K=V (repeatable): fftSize, hop, windowFn, channel, resampleTo, freqMinHz, freqMaxHz, randomizedOverlap"
+            },
+            {
+              "name": "option",
+              "short": "o",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Per-tool option patch [TOOL.]K=V (repeatable)"
+            },
+            {
+              "name": "filter",
+              "takesValue": true,
+              "description": "Apply a filter GraphSpec (JSON file) before analysis"
+            },
+            {
+              "name": "full",
+              "description": "Include the raw result arrays (default: compacted)"
+            },
+            {
+              "name": "pretty",
+              "description": "Pretty-print a single result instead of one JSON line per result"
+            },
+            {
+              "name": "fail-fast",
+              "description": "Stop at the first failing file/tool"
+            }
+          ]
+        },
+        "synth": {
+          "description": "Render a synth graph and (optionally) analyze the result",
+          "args": [
+            {
+              "name": "graph",
+              "index": 1,
+              "takesValue": true,
+              "description": "Synth GraphSpec (JSON file) to render"
+            },
+            {
+              "name": "seconds",
+              "takesValue": true,
+              "description": "Rendered length in seconds (default 5)"
+            },
+            {
+              "name": "tool",
+              "short": "t",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Analyzer id to run (repeatable); omit to print the rendered source summary"
+            },
+            {
+              "name": "all",
+              "description": "Run every analyzer in the catalog"
+            },
+            {
+              "name": "start",
+              "takesValue": true,
+              "description": "Window start in seconds"
+            },
+            {
+              "name": "end",
+              "takesValue": true,
+              "description": "Window end in seconds"
+            },
+            {
+              "name": "param",
+              "short": "p",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Shared param patch K=V (repeatable)"
+            },
+            {
+              "name": "option",
+              "short": "o",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Per-tool option patch [TOOL.]K=V (repeatable)"
+            },
+            {
+              "name": "filter",
+              "takesValue": true,
+              "description": "Apply a filter GraphSpec (JSON file) before analysis"
+            },
+            {
+              "name": "full",
+              "description": "Include the raw result arrays"
+            },
+            {
+              "name": "pretty",
+              "description": "Pretty-print a single result"
+            },
+            {
+              "name": "fail-fast",
+              "description": "Stop at the first failing tool"
+            }
+          ]
+        }
+      }
     }
   },
   "app": {

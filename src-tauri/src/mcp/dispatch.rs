@@ -9,9 +9,10 @@
 //! is the engine, not the webview.
 //!
 //! UI-only tools — Workbench tabs (`open_tool` / `close_tool`), editor-layout graph
-//! editing (`get_graph` / `set_filter_graph` / `set_synth_graph`), project save/load,
+//! editing (`get_graph` / `set_synth_graph`), project save/load,
 //! and live preview/capture (real device I/O with no UI to configure it) — answer
-//! "requires the app". See `docs/mcp.md`.
+//! "requires the app". `set_filter_graph` is supported headless too, but takes a
+//! `GraphSpec` directly (there is no graph editor). See `docs/mcp.md`.
 
 use std::collections::HashMap;
 
@@ -86,6 +87,7 @@ impl HeadlessSession {
                 Ok(json!({ "source": null }))
             }
             "render_synth" => self.render_synth(&args),
+            "set_filter_graph" => self.set_filter_graph(&args),
             "run_analysis" => self.run_analysis(&args),
             "set_analysis_window" => {
                 let start = number(&args, "start")?;
@@ -146,6 +148,13 @@ impl HeadlessSession {
     /// The observable state an agent reads (mirrors the GUI's `get_state`, plus
     /// `headless: true`).
     fn get_state(&self) -> Value {
+        let filter_enabled = self
+            .state
+            .audio
+            .filter
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .is_some();
         json!({
             "headless": true,
             "project": {
@@ -159,9 +168,35 @@ impl HeadlessSession {
             "params": serde_json::to_value(&self.params).unwrap_or(Value::Null),
             "toolOptions": serde_json::to_value(&self.options).unwrap_or(Value::Null),
             "openTools": [],
-            "filter": { "enabled": false, "error": Value::Null },
+            "filter": { "enabled": filter_enabled, "error": Value::Null },
             "output": { "gain": 1.0, "device": Value::Null },
         })
+    }
+
+    /// Install (or clear) the filter applied before analysis. In headless mode there is
+    /// no graph editor, so `graph` is a `GraphSpec` taken directly (the same "take the
+    /// graph directly" idea as [`Self::render_synth`]); `enabled: false`, a null `graph`,
+    /// or an empty graph clears it.
+    fn set_filter_graph(&mut self, args: &Value) -> Result<Value, String> {
+        let enabled = args.get("enabled").and_then(Value::as_bool).unwrap_or(true);
+        let graph = args.get("graph").cloned().filter(|value| !value.is_null());
+        let spec = match graph {
+            Some(value) if enabled => {
+                let spec: GraphSpec = serde_json::from_value(value)
+                    .map_err(|err| format!("invalid filter graph: {err}"))?;
+                if spec.is_empty() {
+                    None
+                } else {
+                    // Validate it compiles as a filter (one global input) before installing.
+                    graph::build(&spec, 1, 48_000).map_err(|err| err.to_string())?;
+                    Some(spec)
+                }
+            }
+            _ => None,
+        };
+        let applied = spec.is_some();
+        self.state.audio.set_filter(spec);
+        Ok(json!({ "filter": { "enabled": applied } }))
     }
 
     fn source_summary(&self) -> Value {
@@ -475,10 +510,77 @@ mod tests {
     #[test]
     fn ui_only_tools_require_the_app() {
         let mut session = HeadlessSession::default();
-        for tool in ["open_tool", "set_filter_graph", "save_project", "preview"] {
+        for tool in [
+            "open_tool",
+            "get_graph",
+            "set_synth_graph",
+            "save_project",
+            "preview",
+        ] {
             let err = session.dispatch(tool, json!({})).unwrap_err();
             assert!(err.contains("requires the app"), "{tool}: {err}");
         }
+    }
+
+    #[test]
+    fn set_filter_graph_installs_and_clears_a_filter() {
+        let mut session = HeadlessSession::default();
+
+        // A filter with a global input compiles and is reported as enabled.
+        let gain = json!({
+            "nodes": [
+                { "id": "in", "kind": "input", "params": [] },
+                { "id": "g", "kind": "gain", "params": [0.5] },
+                { "id": "out", "kind": "output", "params": [] },
+            ],
+            "edges": [
+                { "from": "in", "from_port": 0, "to": "g", "to_port": 0 },
+                { "from": "g", "from_port": 0, "to": "out", "to_port": 0 },
+            ],
+        });
+        let installed = session
+            .dispatch(
+                "set_filter_graph",
+                json!({ "graph": gain, "enabled": true }),
+            )
+            .unwrap();
+        assert_eq!(installed["filter"]["enabled"], true);
+        assert_eq!(
+            session.dispatch("get_state", json!({})).unwrap()["filter"]["enabled"],
+            true
+        );
+
+        // `enabled: false` (or a null graph) bypasses it.
+        session
+            .dispatch("set_filter_graph", json!({ "enabled": false }))
+            .unwrap();
+        assert_eq!(
+            session.dispatch("get_state", json!({})).unwrap()["filter"]["enabled"],
+            false
+        );
+    }
+
+    #[test]
+    fn set_filter_graph_rejects_a_graph_without_an_input() {
+        let mut session = HeadlessSession::default();
+        // A synth-style graph (no `input` anchor) is not a valid filter.
+        let err = session
+            .dispatch(
+                "set_filter_graph",
+                json!({
+                    "graph": {
+                        "nodes": [
+                            { "id": "osc", "kind": "sine", "params": [440.0] },
+                            { "id": "out", "kind": "output", "params": [] },
+                        ],
+                        "edges": [
+                            { "from": "osc", "from_port": 0, "to": "out", "to_port": 0 },
+                        ],
+                    },
+                }),
+            )
+            .unwrap_err();
+        assert!(!err.is_empty());
     }
 
     #[test]
