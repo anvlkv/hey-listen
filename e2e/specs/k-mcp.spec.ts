@@ -196,15 +196,43 @@ describe("K. MCP server (agent access + UI following)", () => {
     expect(result.isError).toBe(false);
 
     const payload = result.structuredContent as {
-      tool: string;
-      result: { peakHz: number };
+      window: { start: number; end: number };
+      params: { fftSize: number };
+      result: { tool: string; peakHz: number };
     };
-    expect(payload.tool).toBe("spectrum");
+    // The `tool` tag rides on the result (the envelope no longer repeats it), and the
+    // effective window/params the call ran with are echoed.
+    expect(payload.result.tool).toBe("spectrum");
     expect(payload.result.peakHz).toBeGreaterThan(400);
     expect(payload.result.peakHz).toBeLessThan(480);
+    expect(payload.params.fftSize).toBeGreaterThan(0);
+    expect(payload.window.start).toBeCloseTo(0.2, 1);
 
     // UI following: the analyzer's tab is now open in the Workbench.
     await waitForTab("spectrum");
+  });
+
+  it("K5 — display:false computes without a tab; transient does not write back", async () => {
+    // A tool that is not open yet: `display: false` must not open its tab.
+    const before = await isToolOpen("spectralCentroid");
+    const computed = await client.tool(7, "run_analysis", {
+      tool: "spectralCentroid",
+      display: false,
+      transient: true,
+      params: { fftSize: 4096 },
+    });
+    expect(computed.isError).toBe(false);
+    const payload = computed.structuredContent as { params: { fftSize: number } };
+    // The result echoes the transient override…
+    expect(payload.params.fftSize).toBe(4096);
+    // …without opening a tab…
+    expect(await isToolOpen("spectralCentroid")).toBe(before);
+
+    // …and without writing the override back to the shared params.
+    const state = (await client.tool(8, "get_state")).structuredContent as {
+      params: { fftSize: number };
+    };
+    expect(state.params.fftSize).not.toBe(4096);
   });
 
   it("K4 — open_tool drives the Workbench", async () => {

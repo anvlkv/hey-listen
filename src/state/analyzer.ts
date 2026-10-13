@@ -20,6 +20,7 @@ import type { SpectrumResult as SpectrumPayload } from "../bindings/SpectrumResu
 import type { SpectrogramResult as SpectrogramPayload } from "../bindings/SpectrogramResult";
 import type { LevelsResult as LevelsPayload } from "../bindings/LevelsResult";
 import type { SeriesResult as SeriesPayload } from "../bindings/SeriesResult";
+import type { PitchResult as PitchPayload } from "../bindings/PitchResult";
 import type { MatrixResult as MatrixPayload } from "../bindings/MatrixResult";
 import type { RhythmResult as RhythmPayload } from "../bindings/RhythmResult";
 import type { LufsResult as LufsPayload } from "../bindings/LufsResult";
@@ -725,6 +726,11 @@ export interface SeriesResult extends SeriesPayload {
   tool: AnalyzerId;
 }
 
+/** A pitch track: the f0 series plus the voiced-frame summary. */
+export interface PitchResult extends PitchPayload {
+  tool: AnalyzerId;
+}
+
 /** A frame × band matrix, frame-major in `values`. */
 export interface MatrixResult extends MatrixPayload {
   tool: AnalyzerId;
@@ -749,6 +755,7 @@ export type AnyAnalysisResult =
   | SpectrumResult
   | SpectrogramResult
   | SeriesResult
+  | PitchResult
   | MatrixResult
   | LevelsResult
   | RhythmResult
@@ -773,9 +780,9 @@ export interface AnalysisResultMap {
   spectralCrest: SeriesResult;
   harmonicRatio: SeriesResult;
   zeroCrossingRate: SeriesResult;
-  pitchPyin: SeriesResult;
-  pitchYin: SeriesResult;
-  pitchAutocorr: SeriesResult;
+  pitchPyin: PitchResult;
+  pitchYin: PitchResult;
+  pitchAutocorr: PitchResult;
   tempo: RhythmResult;
   onsets: RhythmResult;
   downbeats: RhythmResult;

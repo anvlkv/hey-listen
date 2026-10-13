@@ -53,7 +53,6 @@ pub struct HeadlessSession {
     /// The last synth graph rendered (so a second `render_synth` can reuse it).
     synth: Option<GraphSpec>,
     name: String,
-    detail: String,
 }
 
 impl Default for HeadlessSession {
@@ -66,7 +65,6 @@ impl Default for HeadlessSession {
             view: (0.0, 0.0),
             synth: None,
             name: String::new(),
-            detail: String::new(),
         }
     }
 }
@@ -81,7 +79,6 @@ impl HeadlessSession {
             "close_source" => {
                 self.state.audio.clear();
                 self.name.clear();
-                self.detail.clear();
                 self.window = (0.0, 0.0);
                 self.view = (0.0, 0.0);
                 Ok(json!({ "source": null }))
@@ -105,7 +102,7 @@ impl HeadlessSession {
             }
             "set_shared_params" => {
                 let params = args.get("params").ok_or("`params` is required")?;
-                self.apply_params(params)?;
+                merge_params(&mut self.params, params)?;
                 Ok(json!({ "params": serde_json::to_value(&self.params).unwrap_or(Value::Null) }))
             }
             "set_tool_options" => {
@@ -117,7 +114,8 @@ impl HeadlessSession {
                     .get("options")
                     .and_then(Value::as_object)
                     .ok_or("`options` is required")?;
-                self.apply_options(tool, options)?;
+                let entry = self.options.entry(tool.to_string()).or_default();
+                merge_options(entry, tool, options)?;
                 Ok(json!({
                     "tool": tool,
                     "options": serde_json::to_value(self.options.get(tool)).unwrap_or(Value::Null),
@@ -214,7 +212,6 @@ impl HeadlessSession {
         let rate = source.sample_rate.max(1);
         json!({
             "name": self.name,
-            "detail": self.detail,
             "sampleRate": rate,
             "channels": source.channels.max(1),
             "frames": frames,
@@ -267,7 +264,6 @@ impl HeadlessSession {
             .and_then(|name| name.to_str())
             .unwrap_or(&path)
             .to_string();
-        self.detail = "audio file".to_string();
 
         let duration = self.duration();
         self.window = (0.0, duration);
@@ -306,7 +302,6 @@ impl HeadlessSession {
         }));
         self.synth = Some(spec);
         self.name = "Synth".to_string();
-        self.detail = "fundsp synth".to_string();
 
         let duration = self.duration();
         self.window = (0.0, duration);
@@ -324,14 +319,39 @@ impl HeadlessSession {
             return Err(format!("unknown analyzer: {tool}"));
         }
 
-        if let Some(params) = args.get("params").filter(|value| !value.is_null()) {
-            self.apply_params(params)?;
-        }
-        if let Some(options) = args.get("options").and_then(Value::as_object) {
-            self.apply_options(&tool, options)?;
+        // `transient` applies `start`/`end`/`params`/`options` to this call only; the
+        // default writes them back to the session (matching the GUI's stores).
+        let transient = args
+            .get("transient")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+        // The effective shared params: a transient patch merges into a local copy,
+        // otherwise it is applied to (and persisted in) the session.
+        let mut params = self.params.clone();
+        if let Some(patch) = args.get("params").filter(|value| !value.is_null()) {
+            if transient {
+                merge_params(&mut params, patch)?;
+            } else {
+                merge_params(&mut self.params, patch)?;
+                params = self.params.clone();
+            }
         }
 
-        // An explicit start/end persists, matching the GUI (which sets the window).
+        // The effective per-tool options, likewise.
+        let mut options = self.options.get(&tool).cloned().unwrap_or_default();
+        if let Some(patch) = args.get("options").and_then(Value::as_object) {
+            if transient {
+                merge_options(&mut options, &tool, patch)?;
+            } else {
+                let entry = self.options.entry(tool.clone()).or_default();
+                merge_options(entry, &tool, patch)?;
+                options = self.options.get(&tool).cloned().unwrap_or_default();
+            }
+        }
+
+        // The effective window (clamped to the source). An explicit start/end persists
+        // unless the call is transient.
         let has_window = args.get("start").is_some() || args.get("end").is_some();
         let start = args
             .get("start")
@@ -341,112 +361,123 @@ impl HeadlessSession {
             .get("end")
             .and_then(Value::as_f64)
             .unwrap_or(self.window.1);
-        if has_window {
+        let (start, end) = clamp_span(start, end, self.duration());
+        if has_window && !transient {
             self.window = (start, end);
         }
 
-        let options = self.options.get(&tool).cloned().unwrap_or_default();
-        let result = analysis::run_window(&self.state, &tool, start, end, &self.params, &options)
+        let result = analysis::run_window(&self.state, &tool, start, end, &params, &options)
             .map_err(|err| err.to_string())?;
         let value = serde_json::to_value(result).map_err(|err| err.to_string())?;
+
         let include_data = args
             .get("includeData")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let value = if include_data { value } else { compact(value) };
+        let value = if include_data {
+            match args.get("maxPoints").and_then(Value::as_u64) {
+                Some(points) => decimate(value, points as usize),
+                None => value,
+            }
+        } else {
+            compact(value)
+        };
 
+        // Echo the effective settings the call ran with. The result already carries the
+        // `tool` tag, so it is not repeated here; `display` is a UI-only concern (a
+        // no-op headless).
         Ok(json!({
-            "tool": tool,
             "window": { "start": start, "end": end },
+            "params": serde_json::to_value(&params).unwrap_or(Value::Null),
+            "options": serde_json::to_value(&options).unwrap_or(Value::Null),
             "result": value,
         }))
     }
+}
 
-    /// Merge a partial shared-params patch (camelCase keys), matching the frontend.
-    fn apply_params(&mut self, value: &Value) -> Result<(), String> {
-        let Some(map) = value.as_object() else {
-            return Err("`params` must be an object".to_string());
+/// Merge a partial shared-params patch (camelCase keys), matching the frontend.
+fn merge_params(params: &mut SharedParams, value: &Value) -> Result<(), String> {
+    let Some(map) = value.as_object() else {
+        return Err("`params` must be an object".to_string());
+    };
+    for (key, value) in map {
+        match key.as_str() {
+            "fftSize" => {
+                if let Some(size) = value.as_u64() {
+                    params.fft_size = size as usize;
+                }
+            }
+            "hop" => {
+                if let Some(hop) = value.as_f64() {
+                    params.hop = hop;
+                }
+            }
+            "randomizedOverlap" => {
+                if let Some(flag) = value.as_bool() {
+                    params.randomized_overlap = flag;
+                }
+            }
+            "windowFn" => {
+                params.window_fn = serde_json::from_value(value.clone())
+                    .map_err(|err| format!("invalid `windowFn`: {err}"))?;
+            }
+            "channel" => {
+                params.channel = if value.is_null() {
+                    None
+                } else {
+                    value.as_u64().map(|channel| channel as usize)
+                };
+            }
+            "resampleTo" => {
+                params.resample_to = if value.is_null() {
+                    None
+                } else {
+                    value.as_u64().map(|rate| rate as u32)
+                };
+            }
+            "freqMinHz" => {
+                if let Some(hz) = value.as_f64() {
+                    params.freq_min_hz = hz;
+                }
+            }
+            "freqMaxHz" => {
+                if let Some(hz) = value.as_f64() {
+                    params.freq_max_hz = hz;
+                }
+            }
+            other => return Err(format!("unknown shared param: {other}")),
+        }
+    }
+    Ok(())
+}
+
+/// Merge per-tool option overrides into `entry`. Only numbers are applied (the GUI
+/// ignores non-numeric option values).
+fn merge_options(
+    entry: &mut ToolOptions,
+    tool: &str,
+    options: &serde_json::Map<String, Value>,
+) -> Result<(), String> {
+    for (key, value) in options {
+        let Some(number) = value.as_f64() else {
+            continue;
         };
-        for (key, value) in map {
-            match key.as_str() {
-                "fftSize" => {
-                    if let Some(size) = value.as_u64() {
-                        self.params.fft_size = size as usize;
-                    }
-                }
-                "hop" => {
-                    if let Some(hop) = value.as_f64() {
-                        self.params.hop = hop;
-                    }
-                }
-                "randomizedOverlap" => {
-                    if let Some(flag) = value.as_bool() {
-                        self.params.randomized_overlap = flag;
-                    }
-                }
-                "windowFn" => {
-                    self.params.window_fn = serde_json::from_value(value.clone())
-                        .map_err(|err| format!("invalid `windowFn`: {err}"))?;
-                }
-                "channel" => {
-                    self.params.channel = if value.is_null() {
-                        None
-                    } else {
-                        value.as_u64().map(|channel| channel as usize)
-                    };
-                }
-                "resampleTo" => {
-                    self.params.resample_to = if value.is_null() {
-                        None
-                    } else {
-                        value.as_u64().map(|rate| rate as u32)
-                    };
-                }
-                "freqMinHz" => {
-                    if let Some(hz) = value.as_f64() {
-                        self.params.freq_min_hz = hz;
-                    }
-                }
-                "freqMaxHz" => {
-                    if let Some(hz) = value.as_f64() {
-                        self.params.freq_max_hz = hz;
-                    }
-                }
-                other => return Err(format!("unknown shared param: {other}")),
-            }
+        match key.as_str() {
+            "nMels" => entry.n_mels = Some(number as usize),
+            "nMfcc" => entry.n_mfcc = Some(number as usize),
+            "nBands" => entry.n_bands = Some(number as usize),
+            "rolloffPercent" => entry.rolloff_percent = Some(number as f32),
+            "yinThreshold" => entry.yin_threshold = Some(number as f32),
+            "minF0Hz" => entry.min_f0_hz = Some(number as f32),
+            "maxF0Hz" => entry.max_f0_hz = Some(number as f32),
+            "barLength" => entry.bar_length = Some(number as usize),
+            "windowMs" => entry.window_ms = Some(number as u32),
+            "fMinHz" => entry.f_min_hz = Some(number as f32),
+            "fMaxHz" => entry.f_max_hz = Some(number as f32),
+            other => return Err(format!("unknown option for {tool}: {other}")),
         }
-        Ok(())
     }
-
-    /// Merge per-tool option overrides. Only numbers are applied (the GUI ignores
-    /// non-numeric option values).
-    fn apply_options(
-        &mut self,
-        tool: &str,
-        options: &serde_json::Map<String, Value>,
-    ) -> Result<(), String> {
-        let entry = self.options.entry(tool.to_string()).or_default();
-        for (key, value) in options {
-            let Some(number) = value.as_f64() else {
-                continue;
-            };
-            match key.as_str() {
-                "nMels" => entry.n_mels = Some(number as usize),
-                "nMfcc" => entry.n_mfcc = Some(number as usize),
-                "nBands" => entry.n_bands = Some(number as usize),
-                "rolloffPercent" => entry.rolloff_percent = Some(number as f32),
-                "yinThreshold" => entry.yin_threshold = Some(number as f32),
-                "minF0Hz" => entry.min_f0_hz = Some(number as f32),
-                "maxF0Hz" => entry.max_f0_hz = Some(number as f32),
-                "barLength" => entry.bar_length = Some(number as usize),
-                "windowMs" => entry.window_ms = Some(number as u32),
-                "fMinHz" => entry.f_min_hz = Some(number as f32),
-                "fMaxHz" => entry.f_max_hz = Some(number as f32),
-                other => return Err(format!("unknown option for {tool}: {other}")),
-            }
-        }
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Read a required finite number from a tool's arguments.
@@ -470,35 +501,117 @@ fn clamp_span(start: f64, end: f64, duration: f64) -> (f64, f64) {
     (a, b)
 }
 
-/// Shrink a result for the agent — the same shape the GUI's `run_analysis` uses:
-/// long numeric arrays become `{ length, min, max }`, other long arrays just their
-/// length, objects recurse. `includeData: true` returns the raw result instead.
+/// Above this length a numeric / gapped array is summarized rather than listed.
+const COMPACT_ARRAY_MIN: usize = 8;
+/// Above this length any array (numeric or not) is reduced to its length.
+const COMPACT_LENGTH_MIN: usize = 16;
+
+/// Shrink a result for the agent — the same shape the GUI's `run_analysis` uses.
+///
+/// A long numeric array becomes `{ length, min, max, argmin, argmax }`; a long array
+/// with gaps (`null`s, e.g. a pitch track's unvoiced frames) becomes
+/// `{ length, nulls, min, max, argmin, argmax }` over the present numbers (so a
+/// nearly-empty track is visible at a glance, and the peak can be located without
+/// `includeData`); any other long array becomes `{ length }`. Objects recurse.
+/// `includeData: true` returns the raw result instead. Keep this in step with the
+/// frontend's `compact` in `src/state/mcp.ts`.
 fn compact(value: Value) -> Value {
     match value {
-        Value::Array(items) => {
-            if items.len() > 8 && items.iter().all(Value::is_number) {
-                let mut min = f64::INFINITY;
-                let mut max = f64::NEG_INFINITY;
-                for item in &items {
-                    if let Some(number) = item.as_f64() {
-                        if number < min {
-                            min = number;
-                        }
-                        if number > max {
-                            max = number;
-                        }
-                    }
-                }
-                json!({ "length": items.len(), "min": min, "max": max })
-            } else if items.len() > 16 {
-                json!({ "length": items.len() })
-            } else {
-                Value::Array(items.into_iter().map(compact).collect())
-            }
-        }
+        Value::Array(items) if items.len() > COMPACT_ARRAY_MIN => compact_array(items),
+        Value::Array(items) => Value::Array(items.into_iter().map(compact).collect()),
         Value::Object(map) => {
             Value::Object(map.into_iter().map(|(key, v)| (key, compact(v))).collect())
         }
+        other => other,
+    }
+}
+
+/// Summarize an array longer than [`COMPACT_ARRAY_MIN`]: numbers and `null`s become a
+/// stats object (with `nulls` when there are gaps); anything else long enough becomes
+/// just its length.
+fn compact_array(items: Vec<Value>) -> Value {
+    let length = items.len();
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    let mut argmin = 0usize;
+    let mut argmax = 0usize;
+    let mut nulls = 0usize;
+    let mut present = 0usize;
+    for (index, item) in items.iter().enumerate() {
+        let Some(number) = item.as_f64() else {
+            if item.is_null() {
+                nulls += 1;
+                continue;
+            }
+            // Not a numeric / gap array: fall back to the length (or recurse, if short).
+            return if length > COMPACT_LENGTH_MIN {
+                json!({ "length": length })
+            } else {
+                Value::Array(items.into_iter().map(compact).collect())
+            };
+        };
+        present += 1;
+        if number < min {
+            min = number;
+            argmin = index;
+        }
+        if number > max {
+            max = number;
+            argmax = index;
+        }
+    }
+    // All gaps: no numbers to summarize.
+    if present == 0 {
+        return json!({ "length": length, "nulls": nulls });
+    }
+    if nulls == 0 {
+        json!({
+            "length": length,
+            "min": min,
+            "max": max,
+            "argmin": argmin,
+            "argmax": argmax,
+        })
+    } else {
+        json!({
+            "length": length,
+            "nulls": nulls,
+            "min": min,
+            "max": max,
+            "argmin": argmin,
+            "argmax": argmax,
+        })
+    }
+}
+
+/// Decimate every array longer than `max_points` to at most `max_points` entries by
+/// striding (keeping the first and last), so a bounded `includeData` can return a
+/// representative series instead of every frame. Objects recurse. Keep this in step
+/// with the frontend's `decimate` in `src/state/mcp.ts`.
+fn decimate(value: Value, max_points: usize) -> Value {
+    let max_points = max_points.max(2);
+    match value {
+        Value::Array(items) if items.len() > max_points => {
+            let last = items.len() - 1;
+            let step = last as f64 / (max_points - 1) as f64;
+            let mut out = Vec::with_capacity(max_points);
+            for index in 0..max_points {
+                let source = (index as f64 * step).round() as usize;
+                out.push(decimate(items[source].clone(), max_points));
+            }
+            Value::Array(out)
+        }
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| decimate(item, max_points))
+                .collect(),
+        ),
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(key, value)| (key, decimate(value, max_points)))
+                .collect(),
+        ),
         other => other,
     }
 }
@@ -622,5 +735,99 @@ mod tests {
         assert_eq!(out["values"]["length"], 100);
         assert_eq!(out["values"]["min"], 0.0);
         assert_eq!(out["values"]["max"], 99.0);
+        assert_eq!(out["values"]["argmin"], 0);
+        assert_eq!(out["values"]["argmax"], 99);
+        assert!(out["values"].get("nulls").is_none());
+    }
+
+    #[test]
+    fn compact_surfaces_gaps_in_a_long_array() {
+        // A pitch track with one voiced frame out of 511 must be visible at a glance.
+        let mut values: Vec<Value> = vec![Value::Null; 511];
+        values[300] = json!(220.0);
+        let out = compact(json!({ "values": values }));
+        assert_eq!(out["values"]["length"], 511);
+        assert_eq!(out["values"]["nulls"], 510);
+        assert_eq!(out["values"]["min"], 220.0);
+        assert_eq!(out["values"]["max"], 220.0);
+        assert_eq!(out["values"]["argmin"], 300);
+        assert_eq!(out["values"]["argmax"], 300);
+    }
+
+    #[test]
+    fn compact_reduces_other_long_arrays_to_their_length() {
+        let values: Vec<Value> = (0..20).map(|n| json!(format!("f{n}"))).collect();
+        let out = compact(json!({ "labels": values }));
+        assert_eq!(out["labels"]["length"], 20);
+    }
+
+    #[test]
+    fn decimate_strides_keeping_first_and_last() {
+        let value = json!({ "values": (0..100).map(|n| n as f64).collect::<Vec<_>>() });
+        let out = decimate(value, 10);
+        let values = out["values"].as_array().unwrap();
+        assert_eq!(values.len(), 10);
+        assert_eq!(values[0], 0.0);
+        assert_eq!(values[9], 99.0);
+        // A uniform stride of 11: index 1 lands on round(11) = 11.
+        assert_eq!(values[1], 11.0);
+        // Short arrays pass through untouched.
+        let short = decimate(json!({ "values": [1.0, 2.0, 3.0] }), 10);
+        assert_eq!(short["values"].as_array().unwrap().len(), 3);
+    }
+
+    /// A synth graph that renders a 440 Hz sine (`sine -> output`).
+    fn sine_graph_value() -> Value {
+        json!({
+            "nodes": [
+                { "id": "osc", "kind": "sine", "params": [440.0] },
+                { "id": "out", "kind": "output", "params": [] },
+            ],
+            "edges": [ { "from": "osc", "from_port": 0, "to": "out", "to_port": 0 } ],
+        })
+    }
+
+    #[test]
+    fn run_analysis_echoes_settings_and_transient_does_not_write_back() {
+        let mut session = HeadlessSession::default();
+        session
+            .dispatch(
+                "render_synth",
+                json!({ "graph": sine_graph_value(), "seconds": 1.0 }),
+            )
+            .unwrap();
+
+        // Transient: params / window apply to this call only.
+        let result = session
+            .dispatch(
+                "run_analysis",
+                json!({
+                    "tool": "spectrum",
+                    "params": { "fftSize": 4096 },
+                    "transient": true,
+                    "start": 0.0,
+                    "end": 0.5,
+                }),
+            )
+            .unwrap();
+        // The envelope echoes the effective settings the call ran with…
+        assert_eq!(result["params"]["fftSize"], 4096);
+        assert_eq!(result["window"]["end"], 0.5);
+        // …but a transient call does not write them back to the session.
+        assert_eq!(session.params.fft_size, 2048);
+        assert_eq!(session.window, (0.0, 1.0));
+        // The `tool` tag lives in the result, not duplicated on the envelope.
+        assert_eq!(result["result"]["tool"], "spectrum");
+        assert!(result.get("tool").is_none());
+
+        // A non-transient call persists the override.
+        let result = session
+            .dispatch(
+                "run_analysis",
+                json!({ "tool": "spectrum", "params": { "fftSize": 4096 } }),
+            )
+            .unwrap();
+        assert_eq!(result["params"]["fftSize"], 4096);
+        assert_eq!(session.params.fft_size, 4096);
     }
 }
