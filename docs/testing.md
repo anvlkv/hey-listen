@@ -301,10 +301,13 @@ the resulting server state.
 > open_audio_file → run_analysis → open_tool` over its stdio (run by `cargo test`).
 > It is not part of the wdio suite (no webview).
 >
-> **Batch CLI (Rust, M10):** `src-tauri/tests/batch_cli.rs` spawns `heylisten-cli` and
-> asserts the JSONL output of `analyzers --json` and `analyze` over a generated WAV
-> (peak frequency, batch line count, exit codes) — `cargo test`, no webview. See
-> [`cli.md`](cli.md).
+> **Batch CLI (Rust, M10):** the command's work is a plain function over a request
+> struct, so `cargo test` covers it with no Tauri app and no display — the `spectrum`
+> peak over a generated WAV, the JSONL line count for a two-file batch, and the exit
+> code for an unknown tool; the `Matches` → request mapping is unit-tested with
+> synthetic `Matches`. The end-to-end `hey-listen analyze …` invocation needs the
+> platform event loop (a display), like the app and the `--mcp` path, so it is verified
+> by hand rather than in the wdio suite. See [`cli.md`](cli.md).
 
 ## Running
 

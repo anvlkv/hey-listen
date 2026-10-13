@@ -1,61 +1,76 @@
-# Batch CLI (`heylisten-cli`)
+# Batch CLI (`hey-listen analyze`)
 
-A **plain console binary** that runs the analysis engine over files with no window,
-no app, and no MCP client — so a shell script or CI job can do bulk analysis and read
-the results as JSON. It is the non-MCP sibling of the headless MCP server: the same
-engine, a friendlier calling convention.
+A **subcommand of the app binary** that runs the analysis engine over files without
+opening or driving a window — so a shell script or CI job can do bulk analysis and
+read the results as JSON. It is the non-MCP sibling of the headless MCP server: the
+same engine, a friendlier calling convention.
 
 This is planned (**M10**), not yet built. See [`roadmap.md`](roadmap.md) → M10 and
 [`decisions.md`](decisions.md) → ADR-14.
 
-## Why a separate binary (not the app binary / `tauri-plugin-cli`)
+## Why the app binary (and `tauri-plugin-cli`)
 
-The app binary's `--mcp` / `--headless` flags are declared with `tauri-plugin-cli`,
-and a `.heyl` path is handled in `setup`. That route is wrong for a batch tool:
+The CLI **must be declared with `tauri-plugin-cli`** (`plugins.cli` in
+`tauri.conf.json`) — the project's single source of truth for the interface, and the
+same mechanism the app already uses for `--mcp` / `--headless`. That decides where it
+lives: `tauri-plugin-cli` reads its definition from the app context
+(`app.cli().matches()` → `Cli`, which cannot be constructed outside the plugin), so
+only a process that builds a Tauri app can use it.
 
-- `app.cli().matches()` needs a Tauri **app context**, so only the app binary can use
-  it — and the app binary is heavy (it starts the Tauri runtime) and, in the Windows
-  release, has **no console** (a documented Tauri limitation), so it cannot write to
-  the calling shell.
-- A batch tool must print to stdout and run with no GUI, on a headless host, and in
-  CI. That is exactly the reasoning that already made `heylisten-mcp` a plain console
-  binary (`src/bin/heylisten-mcp.rs`), not a Tauri app.
+- The app binary is that process. It runs the batch command **in `setup`, before any
+  window is created**, then prints and exits — precisely how `--mcp` already runs
+  windowless. The main window is declared `"create": false`, and nothing creates it on
+  this path, so the CLI **never opens, shows, or drives a window** (no webview, no IPC,
+  no UI following).
+- Therefore there is **no third binary and no hand-rolled parser**: the interface lives
+  in `plugins.cli` and is parsed by the plugin (which uses `clap` under the hood, so
+  `--help` / `--version` and per-subcommand help come for free).
+- `heylisten-mcp` stays a **separate plain console binary**, unchanged: it is an MCP
+  stdio server, not a Tauri app, so it reads its one flag directly (it cannot use the
+  plugin — see its module docs).
 
-So `heylisten-cli` mirrors `heylisten-mcp`: a binary that links the lib but never
-builds a Tauri app or opens a window. It parses its own arguments with **`clap`**
-(already in the dependency tree via `tauri-plugin-cli`, so it adds no new build).
-The app binary keeps using `tauri-plugin-cli` for `--mcp` / `--headless`, unchanged.
+Known trade-offs (kept visible, not hidden):
+
+- **Windows release:** the app binary has no console, so `hey-listen analyze` cannot
+  write to the calling shell there (Tauri [#8305](https://github.com/tauri-apps/tauri/issues/8305)).
+- **No-display host:** a Tauri app needs a platform event loop, so the app binary does
+  not start on a bare GUI-less host. That is what **`heylisten-mcp --headless`** covers;
+  the batch CLI targets a shell on a desktop (macOS/Linux), where stdout works.
 
 > **Not to be confused with** `heylisten-mcp`: that is an MCP **stdio server** (a
-> client speaks JSON-RPC to it). `heylisten-cli` is a **command** you run in a shell
-> and read JSON from. They share the engine session (below) but are different
-> interfaces. The CLI is also *deliberately not* a bridge — unlike `heylisten-mcp`, it
-> never attaches to a running app: a batch job must be deterministic and must not
-> drive the user's live window.
+> client speaks JSON-RPC to it). This CLI is a **command** you run in a shell and read
+> JSON from. They share the engine session (below) but are different interfaces. The
+> CLI is *deliberately not* a bridge — unlike `heylisten-mcp`, it never attaches to a
+> running app: a batch job must be deterministic and must not drive the user's window.
 
 ## Shape
 
 ```text
-  shell / CI                    heylisten-cli                 engine session
-  ┌──────────┐  argv + files   ┌──────────────┐   same calls  ┌───────────────┐
-  │  bash    │ ──────────────► │  clap parse  │ ────────────► │  engine::     │
-  │  jq      │ ◄────────────── │  → dispatch  │ ◄──────────── │  Session      │
-  └──────────┘   JSONL stdout  └──────────────┘               └───────┬───────┘
-                                                                      │
-                                                  audio::decode / analysis::run_window
-                                                  audio::graph / audio::analyzers
+  shell / CI                       hey-listen (app binary)            engine session
+  ┌──────────┐  argv + files   ┌───────────────────────────┐  same calls ┌──────────────┐
+  │  bash    │ ──────────────► │ plugins.cli → matches()   │ ──────────► │  headless    │
+  │  jq      │ ◄────────────── │  setup: subcommand? → run │ ◄────────── │  session     │
+  └──────────┘   JSONL stdout  └───────────────────────────┘             └──────┬───────┘
+                                  (no window is ever created)                  │
+                                                      audio::decode / analysis::run_window
+                                                      audio::graph / audio::analyzers
 ```
 
-The CLI is a thin front end: it maps flags onto the **same** operations the headless
-MCP server runs (`open_audio_file`, `run_analysis`, `set_shared_params`,
-`set_tool_options`, `render_synth`, `list_analyzers`), through one shared
-`engine::Session`. So there is no third DSP path — the GUI command, the headless MCP
-server, and the CLI all reach `analysis::run_window` and the other engine functions.
+`setup` resolves the entry once (see [`architecture.md`](architecture.md)): `--mcp` →
+the MCP stdio entry; a **subcommand** → the batch command; neither → build the GUI.
+
+The batch command is a thin front end: it maps the matched args onto the **same**
+operations the headless MCP server runs (`open_audio_file`, `run_analysis`,
+`set_shared_params`, `set_tool_options`, `render_synth`, `list_analyzers`), through the
+one shared headless session. So there is no third DSP path — the GUI command, the
+headless MCP server, and the CLI all reach `analysis::run_window` and the other engine
+functions.
 
 ## Commands
 
 ```text
-heylisten-cli <COMMAND>
+hey-listen [OPTIONS] [FILE.heyl]
+hey-listen <COMMAND>
 
 Commands:
   analyzers   List the analyzer catalog
@@ -63,8 +78,10 @@ Commands:
   synth       Render a synth graph and (optionally) analyze the result
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -m, --mcp      Run the stdio MCP entry instead of the GUI
+      --headless (with --mcp) force the core-native headless MCP server
+  -h, --help
+  -V, --version
 ```
 
 ### `analyze <FILE>...`
@@ -83,6 +100,10 @@ Decode each file and run one or more analyzers over a window.
 | `--full` | Include the raw result arrays (default: compacted — see below). |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
 | `--fail-fast` | Stop at the first failing file/tool (default: run the whole batch and report). |
+
+Analyzer ids are **not** enumerated in `plugins.cli` (that would duplicate the catalog
+in JSON); they are validated against `audio/analyzers.rs`, so an unknown id fails with
+the catalog's message.
 
 ### `analyzers`
 
@@ -133,25 +154,32 @@ A failure is one line too, and does not abort the batch unless `--fail-fast`:
 | --- | --- |
 | `0` | Every file/tool succeeded. |
 | `1` | At least one file/tool failed (the failing lines carry `error`). |
-| `2` | Usage error (unknown flag, bad `K=V`, missing `-t`). |
+| `2` | Usage error (unknown subcommand/flag, bad `K=V`, missing `-t`). |
+
+> **Usage errors must not silently open the GUI.** `plugins.cli` parsing reports a
+> `DisplayHelp` / `DisplayVersion` as a `help` / `version` arg (handled as today), but a
+> genuine parse error comes back as `Err`. Today `cli::parse` treats any error as "no
+> flags" so a `.heyl` path still opens (the file-association path). The batch routing
+> keeps that for the plain-GUI case, but when the argv clearly targets a batch
+> subcommand it must print the error and exit `2` instead of launching the app.
 
 ## Examples
 
 ```bash
 # One number per file, streamed as JSONL:
-heylisten-cli analyze *.wav -t loudnessIntegrated | jq -c '{file, lufs: .result.lufs}'
+hey-listen analyze *.wav -t loudnessIntegrated | jq -c '{file, lufs: .result.lufs}'
 
 # Every tool, raw arrays, pretty, to a file:
-heylisten-cli analyze mix.wav --all --full --pretty > mix.json
+hey-listen analyze mix.wav --all --full --pretty > mix.json
 
 # A 4 s window at 10 s with a big FFT, two tools, one file:
-heylisten-cli analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
+hey-listen analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
 
 # Discover ids:
-heylisten-cli analyzers --json | jq -r '.[].id'
+hey-listen analyzers --json | jq -r '.[].id'
 
 # Filter, then analyze, over a whole folder:
-heylisten-cli analyze ./takes/*.wav -t levels --filter lp.json | jq -c '{file, peak:.result.peakDb}'
+hey-listen analyze ./takes/*.wav -t levels --filter lp.json | jq -c '{file, peak:.result.peakDb}'
 ```
 
 ## Scope and non-goals
@@ -164,8 +192,8 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
 Deliberately out of scope:
 
 - **UI-only tools** — Workbench tabs, editor-layout graph editing, project
-  save/load, and live preview/capture. These need the app (see
-  [`mcp.md`](mcp.md) → Limitations).
+  save/load, and live preview/capture. These need the app's windows
+  (see [`mcp.md`](mcp.md) → Limitations).
 - **Device/process enumeration** (`devices`) — deferred. On macOS enumerating
   outputs goes through the same `supports_output` → AudioUnit path that makes the
   GUI picker prompt for microphone/audio-capture permission; a batch CLI must never
@@ -173,36 +201,36 @@ Deliberately out of scope:
   fix the picker needs). It is not needed for bulk analysis anyway.
 - **Bridging to a running app** — always standalone (see above).
 - **Live capture input** — file and synth sources only.
+- **Opening a window of any kind** — the command runs and exits before windows exist.
 
 > `--filter` is the one place the CLI is *ahead* of the headless MCP subset: the
-> engine already applies `state.audio.filter` in `run_window`, so a
-> `Session::set_filter(GraphSpec)` setter lets the CLI condition the signal before
-> analysis — the same "take the graph directly" idea as headless `render_synth`.
-> Wiring that setter back into the headless MCP `set_filter_graph` is a trivial
-> follow-on, deferred.
+> engine already applies `state.audio.filter` in `run_window`, so a session
+> `set_filter(GraphSpec)` lets the CLI condition the signal before analysis — the same
+> "take the graph directly" idea as headless `render_synth`. Wiring that setter back
+> into the headless MCP `set_filter_graph` is a trivial follow-on, deferred.
 
 ## Files
 
 | Path | Role |
 | --- | --- |
-| `src-tauri/src/bin/heylisten-cli.rs` | the process entry (`main` → `hey_listen_lib::run_cli()`). |
-| `src-tauri/src/cli/mod.rs` | the `cli` module root (re-exports `app` + `batch`). |
-| `src-tauri/src/cli/app.rs` | the app binary's `tauri-plugin-cli` flags (`--mcp` / `--headless`) — moved, unchanged. |
-| `src-tauri/src/cli/batch.rs` | the `clap` definition + `run`: flags → engine `Session`. |
-| `src-tauri/src/engine.rs` | the headless engine session (moved from `mcp/dispatch.rs`; shared by the CLI and headless MCP). |
-| `src-tauri/src/mcp/headless.rs` | the stdio loop now drives `engine::Session`. |
-| `src-tauri/tests/batch_cli.rs` | the integration test (spawns the binary over a generated WAV). |
+| `src-tauri/tauri.conf.json` | the `plugins.cli` interface: the `analyzers` / `analyze` / `synth` subcommands + their args. |
+| `src-tauri/src/cli/mod.rs` | the plugin flags + the `setup` entry: `--mcp` → MCP, a subcommand → batch, else GUI. |
+| `src-tauri/src/cli/batch.rs` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests. |
+| `src-tauri/src/mcp/dispatch.rs` | the headless session, reused as-is (the shared engine facade). |
+| `src-tauri/src/audio/{decode,analysis,analyzers,graph}.rs` | the engine functions the batch command calls. |
 
 ## Testing
 
-`src-tauri/tests/batch_cli.rs` spawns the real `heylisten-cli` binary (via
-`CARGO_BIN_EXE_heylisten-cli`), writes a sine WAV to a temp dir, and asserts:
-
-- `analyzers --json` lists `spectrum` (and matches the catalog length);
-- `analyze <wav> -t spectrum --full` prints one JSONL line whose `result.peakHz` is
-  near 440 Hz;
-- a batch of two files prints two lines and exits `0`;
-- an unknown tool exits `1` with an `error` line.
-
-Run with `cargo test` in `src-tauri/` (no webview, so it is not part of the wdio
-suite — see [`testing.md`](testing.md)).
+- **Batch logic (display-free).** The command's work is a plain function over a
+  crate-local request struct (command, files, tools, params, options, window,
+  `--full`/`--pretty`/`--fail-fast`), so `cargo test` exercises it with no Tauri app and
+  no display: run over a generated sine WAV and assert `spectrum`'s peak is near 440 Hz,
+  that two files print two lines, and that an unknown tool yields an `error` line + exit
+  `1`.
+- **Arg mapping.** The `Matches` → request adapter is unit-tested by feeding synthetic
+  `Matches` values (`Matches::default()` with fields set), so the `plugins.cli`
+  vocabulary is covered without building the app.
+- **Binary invocation (manual / smoke).** `hey-listen analyze …` end to end needs the
+  platform event loop (a display), exactly like the app and the `--mcp` path, so it is
+  verified by hand on macOS (as `--mcp` is) rather than in `cargo test`. It is not part
+  of the wdio suite, which drives the GUI. See [`testing.md`](testing.md).

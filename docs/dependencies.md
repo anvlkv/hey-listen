@@ -7,8 +7,7 @@
 | `tauri` / `tauri-build` | 2 | desktop shell + build | MIT / Apache-2.0 |
 | `tauri-plugin-dialog` | 2 | native open/save/confirm dialogs | MIT / Apache-2.0 |
 | `tauri-plugin-window-state` | 2 | remember window size/position across launches | MIT / Apache-2.0 |
-| `tauri-plugin-cli` | 2 | CLI flag definitions + parsing (`--mcp` / `--headless`, M9) | MIT / Apache-2.0 |
-| `clap` | 4 | argument parsing for the batch CLI (`heylisten-cli`, M10); already in the tree via `tauri-plugin-cli`, so it adds no new build | MIT / Apache-2.0 |
+| `tauri-plugin-cli` | 2 | CLI flag definitions + parsing (`--mcp` / `--headless`, M9; the batch subcommands, M10) | MIT / Apache-2.0 |
 | `tauri-plugin-store` | 2 | persistent key-value store (`mcp-settings.json`, M9) | MIT / Apache-2.0 |
 | `tauri-plugin-clipboard-manager` | 2 | write the copyable MCP config to the clipboard (M9) | MIT / Apache-2.0 |
 | `tauri-plugin-log` | 2 | file + stdout logging (rotated per session / size) | MIT / Apache-2.0 |
@@ -79,9 +78,7 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli`
   program (no GUI), so it can run headless. On macOS the follow-up also depends on
   `objc2` / `objc2-foundation` (already in the tree via Tauri) for the App Nap
   opt-out, both in the bundle's `Info.plist` and at runtime. See [`mcp.md`](mcp.md).
-- **Batch CLI (M10):** `heylisten-cli` is a third, plain console binary in the same
-  crate. It parses `argv` with `clap` (already compiled via `tauri-plugin-cli`, so it
-  adds no new build) and drives the shared **engine session** (`engine.rs`, moved from
-  `mcp/dispatch.rs`) — no new audio/DSP crates. Like `heylisten-mcp`, it is a console
-  program so it runs with no window (and in the Windows release, which has no console
-  of its own). See [`cli.md`](cli.md).
+- **Batch CLI (M10):** a **subcommand of the app binary**, declared in the existing
+  `tauri-plugin-cli` (`plugins.cli`) — no new crate, no new binary. It reuses the
+  headless session (`mcp/dispatch.rs`) and the same engine functions, so it adds no
+  dependencies. See [`cli.md`](cli.md).
