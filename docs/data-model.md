@@ -30,6 +30,18 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   YIN threshold, f0 range, bar length, momentary window, …); they ride along with
   every `run_analysis` call and fall back to per-tool defaults when absent.
 - **LayoutState** — `dockview` `api.toJSON()` + solid-flow graph positions.
+- **ThemeFile** — an installable palette: a declared `base` (`dark` / `light`) plus
+  partial `ui` (CSS custom properties) / `chart` / `colormap` / `flow` overlays. The
+  built-ins (`builtin:dark` / `builtin:light`) are full themes; the preference is a
+  **mode + two slots**. Stored as JSON (`.heyltheme`) under the app config dir.
+- **AnalysisTemplate** — a named, **source-less** preset: an `AnalysisSetup` + optional
+  filter / synth `GraphSpec`s + an optional layout + a **window / view policy**
+  (`fractional` / `absolute` / `full` / `fixedLength`). Stored as JSON
+  (`.heyltemplate`), not the binary project container.
+
+> **Planned (M11–M13).** `ThemeFile` and `AnalysisTemplate` are new entities; the
+> export envelope is a view over an existing `AnalysisResult`. See [`theming.md`](theming.md),
+> [`exports.md`](exports.md), [`templates.md`](templates.md).
 
 ## Sketch (Rust)
 
@@ -85,6 +97,31 @@ struct Project {
     setup: AnalysisSetup,
     results: Vec<AnalysisResult>,
     // SourceData is stored separately in the binary file's DATA section
+}
+
+// A theme file (.heyltheme): a partial overlay on a built-in `base`.
+struct ThemeFile {
+    kind: String,               // "hey-listen.theme"
+    format_version: u32,
+    meta: ThemeMeta,            // id, name, description, base: "dark" | "light"
+    ui: BTreeMap<String, String>,       // CSS custom properties (partial)
+    chart: BTreeMap<String, serde_json::Value>, // partial ChartTheme
+    colormap: Option<ColormapStops>,
+    flow: BTreeMap<String, String>,     // optional --xy-* overrides
+}
+
+// A template file (.heyltemplate): a source-less preset.
+struct AnalysisTemplate {
+    kind: String,               // "hey-listen.template"
+    format_version: u32,
+    meta: TemplateMeta,         // id, name, description, created_ms, app_version
+    setup: AnalysisSetup,       // reused from the project file
+    window_policy: WindowPolicy,
+    window: AnalysisWindow,
+    view_policy: ViewPolicy,
+    filter_graph: Option<GraphSpec>,
+    synth_graph: Option<GraphSpec>,
+    layout: Option<serde_json::Value>,
 }
 ```
 

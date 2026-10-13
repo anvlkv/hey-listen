@@ -98,6 +98,21 @@ Toolbar **Filter** toggle.
 The node palette is a focused subset of fundsp today; covering the full node set is
 tracked in the [roadmap](roadmap.md) backlog.
 
+## Exporting results (M12, planned)
+
+Each analyzer tab can export its **data** — JSON (a provenance envelope around the typed
+`AnalysisResult`) or CSV (a **wide matrix** for the 2D tools) — and its **chart** (PNG),
+and can copy either to the clipboard; an *Export all open analyses…* action writes every
+open tab. Data exports are also available headless (MCP `export_analysis`, batch CLI
+`--format` / `--out`). See [`exports.md`](exports.md).
+
+## Analysis templates (M13, planned)
+
+A **template** is a named, source-less preset — the shared params, per-tool options,
+open tools, filter / synth graphs, optional Workbench layout, and a **window policy** —
+that can be applied to any source so the same analysis setup is reused across different
+audio (the window moves to fit the new source). See [`templates.md`](templates.md).
+
 ## Implementation status
 
 All tools above are implemented (M5) in `src-tauri/src/audio/analysis.rs` and

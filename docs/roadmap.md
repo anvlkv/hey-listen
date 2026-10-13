@@ -385,6 +385,83 @@ calling convention).
 > works when a single tool is given), because the plugin's matches do not preserve the
 > order of flags on the command line. See [`cli.md`](cli.md) (ADR-14).
 
+## M11 — Exchangeable themes (planned)
+
+Make the theme **data**: a theme is a loadable file that drives the whole UI, not just a
+dark/light switch. The built-in dark and light become the defaults; a theme is a partial
+overlay on one of them, and `auto` resolves through chosen dark/light **slots**.
+
+- **`ThemeFile` model** (`.heyltheme`, JSON): `meta.base` (`dark`/`light`) plus optional
+  `ui` (CSS custom properties), `chart` (`ChartTheme` fields), `colormap` (ramp stops),
+  and `flow` (`--xy-*`) overlays. Reuses the existing four palette sources as the base.
+- **Built-ins + slots.** `builtin:dark` / `builtin:light` are full themes in the
+  registry; the preference becomes a **mode + two slots** (`darkThemeId` / `lightThemeId`),
+  with `auto` following the OS to pick a slot.
+- **Apply pipeline.** Set `data-theme = base`, write the `ui` overlay as inline custom
+  properties on the root, merge `chart`, swap the colormap; `resolvedTheme()` becomes the
+  active base (dockview / `solid-flow` follow it).
+- **Storage + UI.** `<app config>/themes/`; Rust `list/read/write/delete/import/export`;
+  the Toolbar **View** popover becomes **Appearance** (mode + dark/light slots + import /
+  export / delete / reveal folder). Persisted app-level (localStorage), **not** in the
+  project file.
+- **Agent surface.** MCP `list_themes` / `get_theme` / `set_theme` (+ import/export).
+
+> **Decision (committed):** themes default to the existing dark/light and may be assigned
+to either slot; a theme is a **partial overlay** on its `base` (so it stays
+forward-compatible), and its base drives dockview / `solid-flow`. See
+[`theming.md`](theming.md) (ADR-15).
+
+## M12 — Analysis exports: chart image + data (planned)
+
+Save what an analyzer shows: the numbers (JSON / CSV) and the picture (PNG), built so
+the same surface is reachable from the UI, MCP, and the batch CLI.
+
+- **JSON** — the typed result wrapped in a **provenance envelope** (`kind`,
+  `formatVersion`, `tool`, `generatedAt`, `source`, `window`, `params`, `options`,
+  `result`), so a file is self-describing and reproducible.
+- **CSV** — data only, **wide matrix** for the 2D tools (rows = time frames, columns =
+  bins, header = frequencies / band indices); an optional `.meta.json` sidecar carries
+  the provenance.
+- **Chart PNG** — capture the **rendered** canvas (uPlot instance / the canvas views via
+  a registry), 2× DPR, so the image matches the theme and zoom. GUI-only.
+- **Where** — a per-tab **Export** popover (JSON / CSV / PNG + copy-to-clipboard),
+  **Export ▸** in the tab context menu, and **Export all open analyses…**.
+- **Shared plumbing** — `pick_save_path` / `write_text` / `write_bytes`; one Rust CSV
+  renderer shared by the UI, MCP (`export_analysis` / `export_chart` / `export_all`) and
+  the CLI (`--format` / `--out`).
+
+> **Decision (committed):** JSON is the full-fidelity, self-describing format; CSV is
+> **wide-matrix** for 2D data; the image is a capture of the rendered chart (no
+> DOM-screenshot dependency); data exports are headless-capable, the image is GUI-only.
+See [`exports.md`](exports.md) (ADR-16).
+
+## M13 — Analysis templates (planned)
+
+A **template** is a named, source-less analysis preset — the same settings, tools,
+graphs, and layout — reusable across sources, with the **window moved to fit** the new
+source rather than pinned.
+
+- **Payload** (`.heyltemplate`, JSON): `setup` (shared params, tool options, open tools,
+  filter flag), optional `filterGraph` / `synthGraph`, optional `layout` (dockview + node
+  positions), and a **window policy** — reusing the project's `AnalysisSetup` /
+  `GraphSpec` types (no new schema). No audio, no source descriptor.
+- **Window / view policies** — `fractional` (**default**), `absolute`, `full`,
+  `fixedLength`; applied against the new source's duration and clamped.
+- **Apply** — reuses `applySharedParams` / `loadGraph` / `restoreLayout` and the window
+  setters; keeps the **no duplicate tab** rule; confirms when the project is dirty.
+- **Storage + UI** — `<app config>/templates/`; Rust `list/read/write/delete/rename/
+  import/export`; a Toolbar **Templates** popover and **File ▸ Templates**; plus
+  **New project from template**.
+- **Agent surface** — MCP `list_templates` / `apply_template` / `save_template` /
+  `export_template` / `import_template`; CLI `--template` (the compute subset: shared
+  params, options, filter graph, window policy).
+
+> **Decision (committed):** templates are **source-agnostic JSON** (not the binary
+> `.heyl` container), include the **graphs** and an **optional layout**, and decode their
+> window with a policy so "same settings, different source" works. The compute subset is
+> usable headless; the layout part is GUI-only. See [`templates.md`](templates.md)
+> (ADR-17).
+
 ## Backlog ✅ (delivered)
 
 Implemented after M6 as one batch. Where the delivered behaviour is narrower than

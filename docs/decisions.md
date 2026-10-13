@@ -346,3 +346,96 @@ See [`cli.md`](cli.md).
 
 **Status: delivered (M10).** See [`cli.md`](cli.md); the batch logic lives in
 `src-tauri/src/cli/batch.rs`.
+
+## ADR-15 — Themes are data: a `ThemeFile` over a built-in base, resolved by slots
+
+**Context:** the app ships a fixed auto/dark/light theme, with the palette authored in
+**four** places (the `--*` custom properties in `App.css`, the `ChartTheme` in
+`state/settings.ts`, the heatmap ramps in `colormap.ts`, and the dockview / `solid-flow`
+themes). Shipping *exchangeable* themes means a theme must be able to drive all four,
+but restating ~70 CSS variables in every theme would duplicate the palette and break
+whenever a variable is added.
+
+**Decision:** a theme is a **`ThemeFile`** (`.heyltheme`, JSON) that **overlays a
+declared `base`** (`dark` or `light`). The built-in dark and light become two full
+`ThemeFile`s in the registry (`builtin:dark` / `builtin:light`, undeletable); a user
+theme carries only what it changes (`ui` CSS vars, `chart` fields, a `colormap` ramp,
+optional `flow` overrides). Applying sets `data-theme = base` (so `App.css`, dockview and
+`solid-flow` supply the baseline), then writes the `ui` overlay as **inline custom
+properties** on the root, merges `chart`, and swaps the colormap. The preference becomes
+a **mode + two slots** (`darkThemeId` / `lightThemeId`); `auto` follows the OS to pick a
+slot. Themes live in `<app config>/themes/`, mirroring `recent.rs`, with list / read /
+write / delete / import / export commands; parsing/validation is frontend-owned (Rust
+stores bytes), and an unknown key or newer version degrades gracefully instead of
+failing.
+
+**Consequence:** a theme is small, forward-compatible, and shareable; existing dark/
+light keep working as the defaults, and `auto` gains a chosen dark and light theme. The
+cost is a two-layer mental model (base + overlay) and a coarse fallback for dockview /
+`solid-flow`, whose themes are opaque dark/light objects — a custom theme inherits the
+base's chrome there unless it supplies `flow` overrides. Themes are app chrome, so they
+are **not** stored in the project file. See [`theming.md`](theming.md).
+
+**Status: planned (M11).**
+
+## ADR-16 — Exports are self-describing: JSON envelope, wide-matrix CSV, rendered PNG
+
+**Context:** every analyzer computes a typed result, but it can only be *shown* — there
+is no way to save the numbers or the picture, and a result on its own is not reproducible
+without the window / params / source it ran against. The batch CLI already serialises
+results to JSON (the MCP `run_analysis` shape) but the UI exports nothing.
+
+**Decision:** each analyzer can export its **data** and its **chart**.
+
+- **JSON** wraps the typed result in a **provenance envelope** (`kind`, `formatVersion`,
+  `tool`, `generatedAt`, `source`, `window`, `params`, `options`, `result`) so a file is
+  self-describing and reproducible from a source + a template.
+- **CSV is data only** and, for the 2D results, a **wide matrix** (rows = time frames,
+  columns = bins, header row = frequencies / band indices), matching what a
+  spreadsheet / `pandas` user expects; an optional `.meta.json` sidecar carries the
+  provenance.
+- **Chart images** capture the **rendered** canvas (uPlot instance / the canvas views via
+  a small registry) rather than re-rendering, at 2× DPR — so the PNG matches the user's
+  theme and zoom. A DOM-screenshot dependency is avoided.
+- The data exports are **headless-capable** (MCP `export_analysis`, CLI `--format` /
+  `--out`), sharing one CSV renderer in Rust so both paths are byte-identical; the image
+export needs the rendered canvas and is **GUI-only** (`export_chart` answers "requires the
+app").
+
+**Consequence:** results become portable and reproducible across the UI, MCP and the
+batch CLI, with one serialisation rule instead of three. Costs: the CSV renderer must be
+kept in step between the Rust (headless/CLI) and frontend (UI) paths, and very wide
+matrices (high FFT / bin counts) are the format's nature, not a quirk. See
+[`exports.md`](exports.md).
+
+**Status: planned (M12).**
+
+## ADR-17 — Templates are source-less JSON presets with a window policy
+
+**Context:** the project file already stores the whole analysis setup (`SETUP`) and the
+Workbench layout (`LAYOUT`) — but it also embeds the audio (`DATA`) and is a binary
+container, so it cannot be reused as a preset for a *different* source. The user wants
+"analyse different sources with the same settings, window and etc (window may move)".
+
+**Decision:** a **template** is a `.heyltemplate` (JSON) holding the setup, the filter /
+synth graphs, an **optional** Workbench layout, and a **window policy** — and **no audio
+and no source descriptor**. It reuses the existing `AnalysisSetup` / `GraphSpec` types
+(no new schema). Because it is source-agnostic, its window is interpreted against the
+new source's duration via a policy: `fractional` (**default** — same relative region),
+`absolute` (clamp), `full` (whole source), or `fixedLength` (keep length). Applying
+reuses the project's restore path (`applySharedParams`, `loadGraph`, `restoreLayout`, the
+window/view setters), keeps the no-duplicate-tab rule, and confirms when the project is
+dirty. Templates live in `<app config>/templates/` (mirroring `recent.rs`) with list /
+read / write / delete / import / export; the frontend assembles the payload and Rust
+stores bytes. The **compute subset** (shared params, options, filter graph, window
+policy) is exposed headless (MCP `*_template` tools, CLI `--template`); the layout part
+is GUI-only.
+
+**Consequence:** a setup is portable and diffable, reusable across sources, and
+reproducible headless from a shell or an agent — pairing naturally with the export
+envelope (a template + a source reproduces an exported result). Costs: window semantics
+must be chosen per template (a policy, not a frozen span), and a template apply is a
+destructive in-place edit of the current setup (guarded by a confirm). See
+[`templates.md`](templates.md).
+
+**Status: planned (M13).**

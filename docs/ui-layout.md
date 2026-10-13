@@ -67,7 +67,8 @@ compact "Add audio" state has a fixed height).
 - The **native window title bar** carries the app name ("Hey Listen").
 - A **native application menu** carries the document actions: **File** (New /
   Open… / Open Recent → up to 10 files + Clear Menu / Save / Save As… —
-  `CmdOrCtrl+N` / `O` / `S` / `Shift+S` — plus Close on macOS / Quit elsewhere),
+  `CmdOrCtrl+N` / `O` / `S` / `Shift+S` — plus **Templates ▸** (Apply / Save as
+  Template… / Import / Export, M13 planned) and Close on macOS / Quit elsewhere),
   **View** (fullscreen), **Window** (minimize/maximize), and **Help** / About. On
   macOS the standard application menu (About / Services / Hide / Quit) precedes
   them. File actions are emitted to the frontend via `app:menu`; the rest are
@@ -81,8 +82,11 @@ compact "Add audio" state has a fixed height).
   controls (the **filter bypass toggle**, the preview **output gain + device**, and
   the preview **output meter** which reads the core's playback level via
   `output_level`, all driving the core, ADR-9), the **Analysis params** popover (the
-  shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), a
-  **View** popover for the UI scale, theme, and the bottom-row layout, and an **MCP**
+  **Analysis params** popover (the
+  shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), an
+  **Appearance** popover (UI scale + theme — see [Theming](#theming)), a **Templates**
+  popover (save / apply / import / export analysis templates — see
+  [`templates.md`](templates.md)), and an **MCP**
   popover (the Model Context Protocol server's on/off, port, live status, and a
   copyable `mcpServers` snippet — see [`mcp.md`](mcp.md)). The temporary **`Rust backend:`**
   status (the M0 IPC-ping scaffold) is gone.
@@ -92,7 +96,8 @@ compact "Add audio" state has a fixed height).
   (timers, frequency range, per-tool params), the graph nodes' inline params, and the
   synth length (`src/lib/dragNumber.ts`).
 - A user-adjustable **font size / UI zoom** (0.8–1.4×) scales the whole interface;
-  it lives in the toolbar **View** popover and is persisted.
+  it lives in the toolbar **Appearance** popover (the former **View** popover, M11
+  planned) and is persisted.
 
 ## Scrolling
 
@@ -105,10 +110,15 @@ bar on every platform with no native scrollbar.
 
 ## Theming
 
-The app ships an **auto / dark / light** theme, chosen in the toolbar **View**
-popover and persisted. It drives the UI via CSS custom properties (`data-theme` on
+The app ships an **auto / dark / light** theme, chosen in the toolbar **Appearance**
+popover and persisted. The palette is driven by CSS custom properties (`data-theme` on
 the root) **and** the charts: the uPlot series/axis colours, the spectrogram canvas
 background and colormap, and the dockview theme all follow the active theme.
+
+> **Exchangeable theme files (M11, planned).** The built-in dark and light remain the
+defaults; an installed `.heyltheme` overlays one of them (partial `ui` / `chart` /
+`colormap` / `flow`), and `auto` resolves through chosen **dark / light slots**. Import /
+export / delete live in the same Appearance popover. See [`theming.md`](theming.md).
 
 ## Fixed regions
 
@@ -145,6 +155,10 @@ None of these are closable, draggable, or tabbed.
   windows**; a project window closes its popouts when it closes, and popouts are
   re-created on project load.
 - Each analyzer tab has a **params popover** and an **about popover**.
+- Each analyzer tab has an **Export** popover — **data** (JSON / CSV), **chart** (PNG),
+  and copy-to-clipboard — and the tab context menu carries **Export ▸** (M12, planned);
+  an *Export all open analyses…* action writes every open tab to a folder. See
+  [`exports.md`](exports.md).
 - A **busy indicator** shows progress without blocking: the **first** computation
   (nothing to show yet) spins in the **centre** of the tab; a **recompute** (params
   or window change while a result is on screen) spins in the **bottom-right corner**

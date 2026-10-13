@@ -113,6 +113,15 @@ most-recent first, with a **Clear Menu** item). The list is stored as
 entries whose file no longer exists are hidden. The native window **title** shows
 the project file name on open/save, and the Toolbar shows the project name.
 
+### Related JSON formats (M11–M13, planned)
+
+Themes (`.heyltheme`) and analysis templates (`.heyltemplate`) are deliberately **not**
+stored in this binary container: they carry no PCM and must be hand-editable and
+shareable, so they are JSON files under the app config dir (`themes/`, `templates/`) or
+user-chosen paths. A template reuses the `SETUP` / `LAYOUT` *payload types*
+(`AnalysisSetup`, `GraphSpec`) encoded with `serde_json` instead of the container's
+`postcard` / JSON sections. See [`theming.md`](theming.md) and [`templates.md`](templates.md).
+
 ### Deferred
 
 - **Result caching.** `RESULTS` is written empty and the analyzers re-derive their
