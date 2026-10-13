@@ -300,6 +300,11 @@ the resulting server state.
 > `heylisten-mcp --headless` binary and drives `initialize → tools/list →
 > open_audio_file → run_analysis → open_tool` over its stdio (run by `cargo test`).
 > It is not part of the wdio suite (no webview).
+>
+> **Batch CLI (Rust, M10):** `src-tauri/tests/batch_cli.rs` spawns `heylisten-cli` and
+> asserts the JSONL output of `analyzers --json` and `analyze` over a generated WAV
+> (peak frequency, batch line count, exit codes) — `cargo test`, no webview. See
+> [`cli.md`](cli.md).
 
 ## Running
 
