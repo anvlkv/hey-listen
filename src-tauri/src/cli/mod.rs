@@ -26,6 +26,7 @@ use tauri::{AppHandle, Runtime};
 use tauri_plugin_cli::{CliExt, Matches};
 
 /// What the app binary was asked to do, resolved from the parsed CLI matches.
+#[allow(clippy::large_enum_variant)]
 pub enum Entry {
     /// No CLI action: build the GUI.
     Gui,

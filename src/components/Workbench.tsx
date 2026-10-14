@@ -41,7 +41,7 @@ function WatermarkHint() {
  * stable hook of their own, so we match each `.dv-tab` to its panel by title.
  */
 function stampTabIds(api: DockviewApi) {
-  const tabs = document.querySelectorAll<HTMLElement>(".dv-tabs-container .dv-tab");
+  const tabs = Array.from(document.querySelectorAll<HTMLElement>(".dv-tabs-container .dv-tab"));
   for (const panel of api.panels) {
     const title = panel.title ?? panel.id;
     for (const el of tabs) {

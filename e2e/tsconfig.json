@@ -14,5 +14,5 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false
   },
-  "include": ["../wdio.conf.ts", "**/*.ts"]
+  "include": ["../wdio.conf.ts", "../screenshots.wdio.conf.ts", "**/*.ts"]
 }
