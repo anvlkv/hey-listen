@@ -2,25 +2,27 @@
 
 ## The one rule
 
-**Timeline, Sidebar, Workbench, and Source are fixed regions — not tabs.** The
+**Timeline, Sidebar, Workbench, Source, and Notes are fixed regions — not tabs.** The
 only tabs in the app are **Workbench tabs**: the **graph editors** (filter /
 synth) and, from M4, the **analyzer tabs**.
 
 ```
-┌──────────────┬───────────────────────────┐
-│              │  Workbench                │
-│   Sidebar    │  (dockview — Workbench    │
-│   (tool      │   tabs: graph editors +   │
-│   picker)    │   analyzers)              │
-│   picker)    │                           │
-├──────────────┼───────────────────────────┤  ← draggable splitter
-│ Source       │  Timeline (waveform +     │
-│ (file/mic/   │  window range)            │
-│  system/…)   │                           │
-└──────────────┴───────────────────────────┘
+┌──────────┬───────────────────────────┬────────┐
+│          │  Workbench                │ Notes  │
+│  Sidebar │  (dockview — Workbench    │ (right │
+│  (tool   │   tabs: graph editors +   │ rail;  │
+│  picker) │   analyzers)              │ collap-│
+│          │                           │ sible) │
+├──────────┼───────────────────────────┤        │  ← draggable splitters
+│ Source   │  Timeline (waveform +     │        │
+│ (file/   │  window range)            │        │
+│ mic/…)   │                           │        │
+└──────────┴───────────────────────────┴────────┘
 ```
 
-(The native window title bar sits above the Toolbar; it is not shown here.)
+(The native window title bar sits above the Toolbar; it is not shown here. The **Notes**
+rail runs the full height of the main area and **pushes** the Workbench — it does not
+overlay it; it is hidden by default.)
 
 ## Windows
 
@@ -86,11 +88,13 @@ compact "Add audio" state has a fixed height).
   shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), an
   **Appearance** popover (UI scale + theme — see [Theming](#theming)), a **Templates**
   popover (save / apply / import / export analysis templates — see
-  [`templates.md`](templates.md)), an **MCP** popover (the Model Context Protocol
-  server's on/off, port, live status, and a copyable `mcpServers` snippet — see
-  [`mcp.md`](mcp.md)), and an **About** button (app identity + attributions — see
-  [Icons, tooltips, and About](#icons-tooltips-and-about)). The popover triggers are
-  icons (`sliders` / `circle-half-stroke` / `plug` / `circle-question`) with tooltips.
+  [`templates.md`](templates.md)), a **Notes** toggle (an icon button that shows /
+  hides the right rail — see [Notes panel](#notes-panel)), an **MCP** popover (the Model
+  Context Protocol server's on/off, port, live status, and a copyable `mcpServers`
+  snippet — see [`mcp.md`](mcp.md)), and an **About** button (app identity +
+  attributions — see [Icons, tooltips, and About](#icons-tooltips-and-about)). The
+  popover triggers are icons (`sliders` / `circle-half-stroke` / `plug` /
+  `circle-question`) with tooltips; the **Notes** toggle is the `note-sticky` icon.
   The temporary **`Rust backend:`** status (the M0 IPC-ping scaffold) is gone.
 - **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
   decrease (Shift for fine control) — in addition to typing. There is no slider; an
@@ -162,6 +166,7 @@ popover. See [`theming.md`](theming.md).
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
+| **Notes** (right rail) | the project's annotations — a list of markdown notes anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14, planned) |
 
 None of these are closable, draggable, or tabbed.
 
@@ -221,6 +226,27 @@ clamped to 160–520 px). It lists every available analyzer tool (see
 title, description, and keywords; the graph editors are always shown. Clicking an
 entry opens its tab in the Workbench (no-op if already open; selects the existing
 tab).
+
+## Notes panel
+
+The **Notes** region is a **right rail** — a fixed region (not a tab), the mirror of the
+Sidebar and the home of the project's annotations (M14, planned; see
+[`notes.md`](notes.md)). It is **hidden by default** and toggled from the Toolbar
+(`note-sticky`) or its own header chevron; its width is draggable (clamped like the
+Sidebar, 160–520 px) and it **pushes** the Workbench rather than overlaying it. Open/
+closed state and width are **view settings** persisted app-level (like the font scale),
+not project state.
+
+Each row is one note, **sorted by time**: its title (or a body excerpt), its tool + time
+subtitle, and its frozen **values** line. Selecting a row **focuses** the note — it then
+appears on every time-based chart and its chart is opened/raised — and the row carries
+**Edit** / **Delete** / **Recompute** actions plus the link that opens the note's chart.
+The header has an **Add note** button (anchors at the current analysis window, using the
+focused analyzer as its chart).
+
+Notes are surfaced in three places: every note as a **pin** on the Timeline, a chart's
+**own** notes on that chart, and the **focused** note on **all time-based charts** (never
+the frequency-axis `spectrum`). See [`notes.md`](notes.md) → Surfacing.
 
 ## Source picker
 

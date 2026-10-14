@@ -2,8 +2,8 @@
 
 Index of the design/planning documentation. These docs are the source of truth for
 design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11 and the
-post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — see
-[`exports.md`](exports.md), [`templates.md`](templates.md).
+post-M6 backlog are done). M12–M14 (exports / templates / notes) are **planned** — see
+[`exports.md`](exports.md), [`templates.md`](templates.md), [`notes.md`](notes.md).
 
 | Doc | What it covers |
 | --- | --- |
@@ -17,6 +17,7 @@ post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — s
 | [theming.md](theming.md) | Exchangeable theme files: the `ThemeFile` model, built-ins + slots, the apply pipeline |
 | [exports.md](exports.md) | Analysis exports: the provenance envelope, JSON / CSV (wide matrix), chart-PNG capture |
 | [templates.md](templates.md) | Analysis templates: source-less JSON presets (setup + graphs + layout) and window policies |
+| [notes.md](notes.md) | Notes: markdown annotations anchored to a time + chart, the frozen values snapshot, the right rail |
 | [mcp.md](mcp.md) | The MCP server: agent access, the stdio bridge, UI following, tool list |
 | [cli.md](cli.md) | The batch CLI (`hey-listen analyze`): analyze files / render synth from a shell, no window |
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |

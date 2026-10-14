@@ -77,6 +77,7 @@ Commands:
   analyzers   List the analyzer catalog
   analyze     Decode file(s) and run analyzer(s) over them
   synth       Render a synth graph and (optionally) analyze the result
+  notes       List the notes in a project file (.heyl)
 
 Options:
   -m, --mcp      Run the stdio MCP entry instead of the GUI
@@ -117,6 +118,22 @@ a **usage error** (printed to stderr, exit `2`) — it never falls through to th
 | Option | Meaning |
 | --- | --- |
 | `--json` | Emit the analyzer catalog as JSON (the same array MCP's `list_analyzers` returns). Otherwise a plain `id  section  title` table. |
+
+### `notes <FILE.heyl>`
+
+List the **notes** stored in a project file, sorted by time (M14, planned; see
+[`notes.md`](notes.md)). Read-only — it decodes the container, reads the `NOTES` section,
+and never mutates the file.
+
+| Option | Meaning |
+| --- | --- |
+| `--json` | Emit each note as one JSON line (JSONL) instead of a table. |
+| `--full` | Include the full markdown body (default: a one-line excerpt). |
+
+A file with no `NOTES` section prints nothing and exits `0`; a missing / unreadable /
+non-project file is an `error` (exit `1`), and a bad flag is a usage error (exit `2`).
+The `analyze` / `synth` commands do **not** gain note flags — they run against files, not
+projects, so there is nowhere to store a note.
 
 ### `synth <GRAPH.json>`
 
@@ -168,7 +185,7 @@ way. `--pretty` prints a single (human-readable) JSON object — for one file / 
 | Code | Meaning |
 | --- | --- |
 | `0` | Every file/tool succeeded. |
-| `1` | At least one file/tool failed (the failing lines carry `error`). |
+| `1` | At least one file/tool failed, or `notes` could not read the project (the failing line carries `error`). |
 | `2` | Usage error (unknown subcommand/flag, bad `K=V`, missing `-t`). |
 
 > **Usage errors must not silently open the GUI.** `plugins.cli` parsing reports a
@@ -201,6 +218,9 @@ hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o
 # Discover ids:
 hey-listen analyzers --json | jq -r '.[].id'
 
+# Show the notes in a saved project (JSONL, full bodies):
+hey-listen notes mix.heyl --json --full | jq -c '{time: .timeSecs, tool, values: .values.text}'
+
 # Filter, then analyze, over a whole folder:
 hey-listen analyze ./takes/*.wav -t levels --filter lp.json | jq -c '{file, peak:.result.peakDb}'
 ```
@@ -211,6 +231,7 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
 
 - `analyzers`, `analyze`, `synth` — decode a file, run analyzers, render a synth
   graph, list the catalog, with shared params / per-tool options / a filter graph.
+- `notes` — read a saved project's notes (M14, planned; read-only).
 
 Planned in the compute subset (M12/M13):
 
@@ -247,7 +268,7 @@ Deliberately out of scope:
 | --- | --- |
 | `src-tauri/tauri.conf.json` | the `plugins.cli` interface: the `analyzers` / `analyze` / `synth` subcommands + their args. |
 | `src-tauri/src/cli/mod.rs` | the plugin flags + the `setup` entry: `--mcp` → MCP, a subcommand → batch, else GUI. |
-| `src-tauri/src/cli/batch.rs` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests. |
+| `src-tauri/src/cli/batch.rs` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `notes`). |
 | `src-tauri/src/mcp/dispatch.rs` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
 | `src-tauri/src/audio/{decode,analysis,analyzers,graph}.rs` | the engine functions the batch command calls. |
 

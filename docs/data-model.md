@@ -39,11 +39,16 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   filter / synth `GraphSpec`s + an optional layout + a **window / view policy**
   (`fractional` / `absolute` / `full` / `fixedLength`). Stored as JSON
   (`.heyltemplate`), not the binary project container.
+- **Note** — an annotation on the project: an audio **time** anchor (`timeSecs`) with an
+  optional `range`, an optional **analyzer tool id** it was taken from (absent = a
+  Timeline note), a markdown `body`, an optional plain-text `title`, and a **frozen**
+  `values` snapshot (the chart's readout at that time, with its `window` / `params` /
+  `options` provenance). Stored in the project file's `NOTES` section.
 
 > **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md));
-> `AnalysisTemplate` (M13) and the export envelope (M12) are still planned — the export
-> envelope is a view over an existing `AnalysisResult`. See [`exports.md`](exports.md),
-> [`templates.md`](templates.md).
+> `AnalysisTemplate` (M13), the export envelope (M12), and `Note` (M14) are still planned —
+> the export envelope is a view over an existing `AnalysisResult`. See
+> [`exports.md`](exports.md), [`templates.md`](templates.md), [`notes.md`](notes.md).
 
 ## Sketch (Rust)
 
@@ -98,7 +103,32 @@ struct Project {
     source: Source,
     setup: AnalysisSetup,
     results: Vec<AnalysisResult>,
+    notes: Vec<Note>,
     // SourceData is stored separately in the binary file's DATA section
+}
+
+// An annotation (M14): a time anchor (+ optional span) tied to an analyzer chart, with
+// a markdown body and a frozen snapshot of that chart's values at the note's time.
+struct Note {
+    id: String,                      // stable id (uuid)
+    created_ms: u64,
+    updated_ms: u64,
+    time_secs: f64,                  // the anchor instant (source seconds)
+    range: Option<AnalysisWindow>,   // optional span; None = a point
+    tool: Option<String>,            // analyzer id; None = a Timeline note
+    title: Option<String>,           // optional plain-text title
+    body: String,                    // markdown
+    values: Option<NoteValues>,      // frozen chart snapshot
+}
+
+struct NoteValues {
+    tool: String,
+    label: String,                   // e.g. "Spectrum @ 2.34 s"
+    text: String,                    // the compact values line (the subtitle)
+    window: AnalysisWindow,
+    params: SharedParams,
+    options: BTreeMap<String, f64>,
+    captured_ms: u64,
 }
 
 // A theme file (.heyltheme): a partial overlay on a built-in `base`.

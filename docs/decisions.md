@@ -442,3 +442,43 @@ destructive in-place edit of the current setup (guarded by a confirm). See
 [`templates.md`](templates.md).
 
 **Status: planned (M13).**
+
+## ADR-18 — Notes are project content: a time + chart anchor with a frozen values snapshot
+
+**Context:** the app can analyse audio from many angles but has no place to record an
+*observation* — "the third harmonic spikes here", "this is a room reflection". Such a
+remark is meaningful only next to the audio moment and the chart it was read off, and it
+must survive the window / params moving on. It is neither an analyzer (it produces no
+`AnalysisResult`) nor a Workbench tab (those are content, and the fixed-region rule keeps
+non-tab chrome out of `dockview`).
+
+**Decision:** add a **note** — a small serde payload anchored to an audio **time** (a
+point, optionally a `range`) and to an optional **analyzer tool id** (absent = a
+Timeline note), carrying a **markdown** body and a **frozen** `values` snapshot (the
+chart's readout at that time, with its `window` / `params` / `options` provenance,
+refreshed only by an explicit **Recompute**).
+
+- Notes are **data**: persisted in a new **`NOTES` section (`0x07`, postcard)** of the
+  `.heyl` container, owned by the frontend store and broadcast across a project's windows
+  as shared **UI state** (`uiState` keys `notes` + `focusedNoteId`, ADR-11); note edits
+  mark the project dirty and are one undo step.
+- The **panel is chrome**: a new **fixed region** (a right rail), not a tab, hidden by
+  default and toggled from the Toolbar, resizable, and view-persisted (open/closed +
+  width) — so the "only tabs are Workbench tabs" rule holds.
+- **Surfacing** is by group: every note a **Timeline** pin; a chart draws its **own**
+  notes; exactly one **focused** note draws on **every time-based chart** (the `time` sync
+  group), never on the frequency-axis `spectrum`. Focusing a note opens/raises its chart
+  and sets the window to the note's time.
+- The body is **markdown**, stored raw and rendered **sanitized**, with a
+  **preview-on-focus-loss** editor.
+- Reachable headless as **read-only** over a saved project (CLI `notes <file.heyl>`); the
+  MCP `*_note` tools are **app-only** (a note lives in a project).
+
+**Consequence:** the project gains a commentary layer that is portable, self-describing
+(a frozen snapshot, not a dangling number), and visible wherever the annotated moment is
+drawn — while staying out of the analyzer/tab model. Costs: a new container section and a
+markdown renderer dependency; the frozen snapshot can drift from the live analysis (hence
+the recompute + stale hint rather than a silent live value). See
+[`notes.md`](notes.md).
+
+**Status: planned (M14).**
