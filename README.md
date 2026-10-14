@@ -66,8 +66,9 @@ Start with the [architecture](docs/architecture.md) and
 
 ## Build and dependencies
 
-Requires Rust ≥ 1.90 and Node. Prefer the npm Tauri CLI over a `cargo`-installed
-one (they drift; see [`docs/dependencies.md`](docs/dependencies.md)).
+Requires Rust ≥ 1.90 and Node ≥ 22.19 (the E2E toolchain's `undici` uses
+`zlib.createZstdDecompress`, added in Node 22.19). Prefer the npm Tauri CLI over a
+`cargo`-installed one (they drift; see [`docs/dependencies.md`](docs/dependencies.md)).
 
 ```sh
 npm install
