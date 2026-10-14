@@ -24,7 +24,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/settings";
+import { chartTheme, resolvedTheme } from "../../state/themes";
 import {
   analyzerById,
   type AnalysisHandle,

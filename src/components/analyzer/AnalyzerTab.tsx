@@ -45,7 +45,12 @@ export default function AnalyzerTab(props: {
 
         <div class="analyzer-actions">
           <Show when={props.params != null}>
-            <Popover label="Params" title="Tool parameters" testid={`analyzer.params.${props.id}`}>
+            <Popover
+              label="Tool parameters"
+              title="Tool parameters"
+              icon="sliders"
+              testid={`analyzer.params.${props.id}`}
+            >
               {props.params}
               <div class="params-note">
                 Shared params (FFT size, hop/overlap, window, channel, analysis rate,
@@ -54,8 +59,9 @@ export default function AnalyzerTab(props: {
             </Popover>
           </Show>
           <Popover
-            label="About"
+            label={`About ${def().title}`}
             title={`About ${def().title}`}
+            icon="circle-question"
             panelClass="pop-panel-about"
             testid={`analyzer.about.${props.id}`}
           >

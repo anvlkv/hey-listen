@@ -4,7 +4,7 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
 import ToolContent from "./ToolContent";
 import { source } from "../state/source";
-import { resolvedTheme } from "../state/settings";
+import { resolvedTheme } from "../state/themes";
 import { setDockApi, setOpenTools, popoutTool, type ToolId } from "../state/workbench";
 
 /**

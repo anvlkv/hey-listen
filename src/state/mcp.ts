@@ -47,6 +47,18 @@ import {
   type SourceChoice,
 } from "./capture";
 import { previewRegion, stop as stopPreviewAudio } from "../audio/preview";
+import {
+  activeThemeId,
+  exportThemeFile,
+  importThemeFile,
+  isBuiltinTheme,
+  listThemeSummaries,
+  setThemePreference,
+  themeById,
+  themePreference,
+  type ThemeMode,
+  type ThemePreference,
+} from "./themes";
 
 /**
  * MCP tool dispatch (M9).
@@ -246,6 +258,45 @@ async function run(tool: string, args: Args, target?: string): Promise<unknown> 
     case "new_project":
       await newProject();
       return getState();
+
+    // --- themes (app chrome) ------------------------------------------------
+    case "list_themes":
+      return {
+        themes: listThemeSummaries(),
+        active: { ...themePreference(), activeId: activeThemeId() },
+      };
+    case "get_theme": {
+      const id = optionalStr(args, "id") ?? activeThemeId();
+      const theme = themeById(id);
+      if (!theme) throw new Error(`unknown theme: ${id}`);
+      return {
+        theme: deepClone(theme),
+        builtin: isBuiltinTheme(id),
+        active: { ...themePreference(), activeId: activeThemeId() },
+      };
+    }
+    case "set_theme": {
+      const patch: Partial<ThemePreference> = {};
+      if ("mode" in args) {
+        const mode = str(args, "mode");
+        if (!["auto", "dark", "light"].includes(mode)) {
+          throw new Error(`unknown theme mode: ${mode}`);
+        }
+        patch.mode = mode as ThemeMode;
+      }
+      if ("darkThemeId" in args) patch.darkThemeId = slotThemeId(args, "darkThemeId");
+      if ("lightThemeId" in args) patch.lightThemeId = slotThemeId(args, "lightThemeId");
+      setThemePreference(patch);
+      return { ...themePreference(), activeId: activeThemeId() };
+    }
+    case "import_theme":
+      return { theme: await importThemeFile(str(args, "path")) };
+    case "export_theme": {
+      const id = optionalStr(args, "id") ?? activeThemeId();
+      const path = str(args, "path");
+      await exportThemeFile(id, path);
+      return { id, path };
+    }
 
     default:
       throw new Error(`unknown tool: ${tool}`);
@@ -585,4 +636,11 @@ function graphKind(args: Args): "filter" | "synth" {
     throw new Error(`\`graph\` must be "filter" or "synth"`);
   }
   return graph;
+}
+
+/** Read a slot theme id, validating it names a registered theme. */
+function slotThemeId(args: Args, key: string): string {
+  const id = str(args, key);
+  if (!themeById(id)) throw new Error(`unknown theme: ${id} (see list_themes)`);
+  return id;
 }

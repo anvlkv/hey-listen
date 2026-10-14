@@ -12,9 +12,7 @@
 //!
 //! See `docs/ui-layout.md` and `docs/architecture.md`.
 
-use tauri::menu::{
-    AboutMetadata, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu,
-};
+use tauri::menu::{IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::commands::{focused_label, project::OPEN_EVENT};
@@ -28,6 +26,9 @@ const FILE_ACTIONS: [&str; 5] = ["new", "newWindow", "open", "save", "saveAs"];
 
 /// The Edit actions the frontend handles (ids match `state/menu.ts` → `state/history.ts`).
 const EDIT_ACTIONS: [&str; 2] = ["undo", "redo"];
+
+/// App-level actions the frontend handles (the in-app **About** dialog).
+const APP_ACTIONS: [&str; 1] = ["about"];
 
 /// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
 const RECENT_PREFIX: &str = "recent:";
@@ -95,20 +96,15 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         ],
     )?;
 
+    // About opens the in-app dialog (required attributions live there); it is a
+    // custom item rather than the predefined panel, so it is routed to the frontend.
+    let about = MenuItem::with_id(app, "about", "About Hey Listen", true, None::<&str>)?;
+
     // About lives in the macOS application menu; elsewhere it lives under Help.
     #[cfg(target_os = "macos")]
     let help = Submenu::with_items(app, "Help", true, &[] as &[&dyn IsMenuItem<R>])?;
     #[cfg(not(target_os = "macos"))]
-    let help = Submenu::with_items(
-        app,
-        "Help",
-        true,
-        &[&PredefinedMenuItem::about(
-            app,
-            Some("About Hey Listen"),
-            Some(about_metadata()),
-        )?],
-    )?;
+    let help = Submenu::with_items(app, "Help", true, &[&about])?;
 
     #[cfg(target_os = "macos")]
     let app_menu = Submenu::with_items(
@@ -116,7 +112,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         "Hey Listen",
         true,
         &[
-            &PredefinedMenuItem::about(app, None, Some(about_metadata()))?,
+            &about,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
@@ -165,7 +161,7 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
         return;
     }
 
-    if FILE_ACTIONS.contains(&id) || EDIT_ACTIONS.contains(&id) {
+    if FILE_ACTIONS.contains(&id) || EDIT_ACTIONS.contains(&id) || APP_ACTIONS.contains(&id) {
         // Emit only to the focused window: with N project windows, a File/Edit action
         // must apply to the project the user is looking at (M7), not broadcast.
         if let Some(label) = focused_label(app) {
@@ -210,13 +206,4 @@ fn recent_submenu<R: Runtime>(
     items.push(&separator);
     items.push(&clear);
     Submenu::with_items(app, "Open Recent", true, &items)
-}
-
-fn about_metadata() -> AboutMetadata<'static> {
-    AboutMetadata {
-        name: Some("Hey Listen".to_string()),
-        version: Some(env!("CARGO_PKG_VERSION").to_string()),
-        comments: Some("Audio analysis workbench".to_string()),
-        ..Default::default()
-    }
 }

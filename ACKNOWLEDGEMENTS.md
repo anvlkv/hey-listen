@@ -1,0 +1,484 @@
+# Acknowledgements
+
+I hereby express my sincere gratitude and appreciation for the code contributions made by other individuals to my direct dependencies. Without their tireless efforts, my work would not be possible, and I am deeply grateful for their contributions to the advancement of our collective knowledge.
+
+## Thank you 🙏
+
+- **[dtolnay](https://github.com/dtolnay)** for their conributions to: `json`, `log`, `postcard`, `serde`, `thiserror`
+- **[madsmtm](https://github.com/madsmtm)** for their conributions to: `cpal`, `plugins-workspace`, `tauri`
+- **[3lpsy](https://github.com/3lpsy)** for their conributions to: `plugins-workspace`, `tauri`
+- **[Beanow](https://github.com/Beanow)** for their conributions to: `plugins-workspace`, `tauri`
+- **[FabianLars](https://github.com/FabianLars)** for their conributions to: `plugins-workspace`, `tauri`
+- **[JonasKruckenberg](https://github.com/JonasKruckenberg)** for their conributions to: `plugins-workspace`, `tauri`
+- **[Legend-Master](https://github.com/Legend-Master)** for their conributions to: `plugins-workspace`, `tauri`
+- **[Manishearth](https://github.com/Manishearth)** for their conributions to: `postcard`, `serde`
+- **[Ralith](https://github.com/Ralith)** for their conributions to: `cpal`, `fundsp`
+- **[Thomasdezeeuw](https://github.com/Thomasdezeeuw)** for their conributions to: `log`, `serde`
+- **[ahqsoftwares](https://github.com/ahqsoftwares)** for their conributions to: `plugins-workspace`, `tauri`
+- **[alexcrichton](https://github.com/alexcrichton)** for their conributions to: `log`, `serde`
+- **[amrbashir](https://github.com/amrbashir)** for their conributions to: `plugins-workspace`, `tauri`
+- **[atouchet](https://github.com/atouchet)** for their conributions to: `log`, `serde`
+- **[betamos](https://github.com/betamos)** for their conributions to: `plugins-workspace`, `tauri`
+- **[cijiugechu](https://github.com/cijiugechu)** for their conributions to: `plugins-workspace`, `tauri`
+- **[dklassic](https://github.com/dklassic)** for their conributions to: `plugins-workspace`, `tauri`
+- **[erickt](https://github.com/erickt)** for their conributions to: `json`, `serde`
+- **[frewsxcv](https://github.com/frewsxcv)** for their conributions to: `json`, `log`
+- **[homu](https://github.com/homu)** for their conributions to: `json`, `serde`
+- **[i-c-b](https://github.com/i-c-b)** for their conributions to: `plugins-workspace`, `tauri`
+- **[jbolda](https://github.com/jbolda)** for their conributions to: `plugins-workspace`, `tauri`
+- **[jesnor](https://github.com/jesnor)** for their conributions to: `Symphonia`, `cpal`
+- **[jplatte](https://github.com/jplatte)** for their conributions to: `json`, `serde`
+- **[jwilm](https://github.com/jwilm)** for their conributions to: `json`, `serde`
+- **[kandrelczyk](https://github.com/kandrelczyk)** for their conributions to: `plugins-workspace`, `tauri`
+- **[killercup](https://github.com/killercup)** for their conributions to: `json`, `serde`
+- **[lucasfernog](https://github.com/lucasfernog)** for their conributions to: `plugins-workspace`, `tauri`
+- **[lucasfernog-crabnebula](https://github.com/lucasfernog-crabnebula)** for their conributions to: `plugins-workspace`, `tauri`
+- **[naman-crabnebula](https://github.com/naman-crabnebula)** for their conributions to: `plugins-workspace`, `tauri`
+- **[nox](https://github.com/nox)** for their conributions to: `json`, `serde`
+- **[nyurik](https://github.com/nyurik)** for their conributions to: `log`, `thiserror`
+- **[oli-obk](https://github.com/oli-obk)** for their conributions to: `json`, `serde`
+- **[olivierlemasle](https://github.com/olivierlemasle)** for their conributions to: `plugins-workspace`, `tauri`
+- **[osiewicz](https://github.com/osiewicz)** for their conributions to: `json`, `serde`
+- **[pewsheen](https://github.com/pewsheen)** for their conributions to: `plugins-workspace`, `tauri`
+- **[rex4539](https://github.com/rex4539)** for their conributions to: `cpal`, `tauri`
+- **[richard-uk1](https://github.com/richard-uk1)** for their conributions to: `cpal`, `serde`
+- **[sfackler](https://github.com/sfackler)** for their conributions to: `log`, `serde`
+- **[simonhyll](https://github.com/simonhyll)** for their conributions to: `plugins-workspace`, `tauri`
+- **[sugar700](https://github.com/sugar700)** for their conributions to: `postcard`, `serde`
+- **[thewh1teagle](https://github.com/thewh1teagle)** for their conributions to: `plugins-workspace`, `tauri`
+- **[tillmann-crabnebula](https://github.com/tillmann-crabnebula)** for their conributions to: `plugins-workspace`, `tauri`
+- **[tweidinger](https://github.com/tweidinger)** for their conributions to: `plugins-workspace`, `tauri`
+- **[vdang-crabnebula](https://github.com/vdang-crabnebula)** for their conributions to: `plugins-workspace`, `tauri`
+- **[0323pin](https://github.com/0323pin)** for their conributions to: `cpal`
+- **[0nkery](https://github.com/0nkery)** for their conributions to: `serde`
+- **[39zde](https://github.com/39zde)** for their conributions to: `tauri`
+- **[46bit](https://github.com/46bit)** for their conributions to: `serde`
+- **[A-kirami](https://github.com/A-kirami)** for their conributions to: `tauri`
+- **[AlexTMjugador](https://github.com/AlexTMjugador)** for their conributions to: `tauri`
+- **[Amanieu](https://github.com/Amanieu)** for their conributions to: `log`
+- **[Andreybest](https://github.com/Andreybest)** for their conributions to: `tauri`
+- **[AndyGauge](https://github.com/AndyGauge)** for their conributions to: `log`
+- **[AngelicosPhosphoros](https://github.com/AngelicosPhosphoros)** for their conributions to: `log`
+- **[ArtemGr](https://github.com/ArtemGr)** for their conributions to: `cpal`
+- **[Arzte](https://github.com/Arzte)** for their conributions to: `json`
+- **[AustinJ235](https://github.com/AustinJ235)** for their conributions to: `cpal`
+- **[Baptistemontan](https://github.com/Baptistemontan)** for their conributions to: `serde`
+- **[Be-ing](https://github.com/Be-ing)** for their conributions to: `Symphonia`
+- **[BenoitRanque](https://github.com/BenoitRanque)** for their conributions to: `tauri`
+- **[BillGoldenWater](https://github.com/BillGoldenWater)** for their conributions to: `tauri`
+- **[Binero](https://github.com/Binero)** for their conributions to: `serde`
+- **[BlackHoleFox](https://github.com/BlackHoleFox)** for their conributions to: `Symphonia`
+- **[Brendonovich](https://github.com/Brendonovich)** for their conributions to: `tauri`
+- **[BurntSushi](https://github.com/BurntSushi)** for their conributions to: `serde`
+- **[Byron](https://github.com/Byron)** for their conributions to: `serde`
+- **[CBJamo](https://github.com/CBJamo)** for their conributions to: `postcard`
+- **[Calsign](https://github.com/Calsign)** for their conributions to: `postcard`
+- **[ChocolateLoverRaj](https://github.com/ChocolateLoverRaj)** for their conributions to: `postcard`
+- **[CrabNejonas](https://github.com/CrabNejonas)** for their conributions to: `tauri`
+- **[DDAN-17](https://github.com/DDAN-17)** for their conributions to: `log`
+- **[DIvkov575](https://github.com/DIvkov575)** for their conributions to: `log`
+- **[Daedaluz](https://github.com/Daedaluz)** for their conributions to: `tauri`
+- **[DavidKorczynski](https://github.com/DavidKorczynski)** for their conributions to: `json`
+- **[Dicklessgreat](https://github.com/Dicklessgreat)** for their conributions to: `cpal`
+- **[Diggsey](https://github.com/Diggsey)** for their conributions to: `json`
+- **[DrSensor](https://github.com/DrSensor)** for their conributions to: `tauri`
+- **[Dreaming-Codes](https://github.com/Dreaming-Codes)** for their conributions to: `plugins-workspace`
+- **[EFanZh](https://github.com/EFanZh)** for their conributions to: `log`
+- **[Emilgardis](https://github.com/Emilgardis)** for their conributions to: `fundsp`
+- **[EriKWDev](https://github.com/EriKWDev)** for their conributions to: `log`
+- **[FelixMcFelix](https://github.com/FelixMcFelix)** for their conributions to: `Symphonia`
+- **[Flaise](https://github.com/Flaise)** for their conributions to: `serde`
+- **[Fractal-Tess](https://github.com/Fractal-Tess)** for their conributions to: `tauri`
+- **[Freax13](https://github.com/Freax13)** for their conributions to: `json`
+- **[GREsau](https://github.com/GREsau)** for their conributions to: `json`
+- **[Gankra](https://github.com/Gankra)** for their conributions to: `serde`
+- **[Geal](https://github.com/Geal)** for their conributions to: `cpal`
+- **[Gerharddc](https://github.com/Gerharddc)** for their conributions to: `postcard`
+- **[GnomedDev](https://github.com/GnomedDev)** for their conributions to: `Symphonia`
+- **[GuillaumeGomez](https://github.com/GuillaumeGomez)** for their conributions to: `log`
+- **[GyrosOfWar](https://github.com/GyrosOfWar)** for their conributions to: `json`
+- **[HEnquist](https://github.com/HEnquist)** for their conributions to: `cpal`
+- **[HalfVoxel](https://github.com/HalfVoxel)** for their conributions to: `ts-rs`
+- **[Heliozoa](https://github.com/Heliozoa)** for their conributions to: `ts-rs`
+- **[Herohtar](https://github.com/Herohtar)** for their conributions to: `Symphonia`
+- **[HybridEidolon](https://github.com/HybridEidolon)** for their conributions to: `cpal`
+- **[IsaacMarovitz](https://github.com/IsaacMarovitz)** for their conributions to: `fundsp`
+- **[Jake-Shadle](https://github.com/Jake-Shadle)** for their conributions to: `cpal`
+- **[JasonLG1979](https://github.com/JasonLG1979)** for their conributions to: `Symphonia`
+- **[JohnHeitmann](https://github.com/JohnHeitmann)** for their conributions to: `serde`
+- **[JohnTitor](https://github.com/JohnTitor)** for their conributions to: `log`
+- **[JonathanBrouwer](https://github.com/JonathanBrouwer)** for their conributions to: `json`
+- **[JoshuaBatty](https://github.com/JoshuaBatty)** for their conributions to: `cpal`
+- **[Kleinmarb](https://github.com/Kleinmarb)** for their conributions to: `log`
+- **[KodrAus](https://github.com/KodrAus)** for their conributions to: `log`
+- **[Kroisse](https://github.com/Kroisse)** for their conributions to: `json`
+- **[Krout0n](https://github.com/Krout0n)** for their conributions to: `json`
+- **[KushalMeghani1644](https://github.com/KushalMeghani1644)** for their conributions to: `tauri`
+- **[Laegel](https://github.com/Laegel)** for their conributions to: `tauri`
+- **[Lucretiel](https://github.com/Lucretiel)** for their conributions to: `json`
+- **[Lukazoid](https://github.com/Lukazoid)** for their conributions to: `log`
+- **[Luni-4](https://github.com/Luni-4)** for their conributions to: `cpal`
+- **[Lymia](https://github.com/Lymia)** for their conributions to: `serde`
+- **[MarkMcCaskey](https://github.com/MarkMcCaskey)** for their conributions to: `log`
+- **[Marwes](https://github.com/Marwes)** for their conributions to: `serde`
+- **[MathiasKoch](https://github.com/MathiasKoch)** for their conributions to: `serde`
+- **[Mehrbod2002](https://github.com/Mehrbod2002)** for their conributions to: `tauri`
+- **[MichaelHills](https://github.com/MichaelHills)** for their conributions to: `cpal`
+- **[Mingun](https://github.com/Mingun)** for their conributions to: `serde`
+- **[Niedzwiedzw](https://github.com/Niedzwiedzw)** for their conributions to: `ts-rs`
+- **[Norbiros](https://github.com/Norbiros)** for their conributions to: `tauri`
+- **[NyxCode](https://github.com/NyxCode)** for their conributions to: `ts-rs`
+- **[OccupyMars2025](https://github.com/OccupyMars2025)** for their conributions to: `log`
+- **[Osspial](https://github.com/Osspial)** for their conributions to: `serde`
+- **[Pierstoval](https://github.com/Pierstoval)** for their conributions to: `tauri`
+- **[Pratyush](https://github.com/Pratyush)** for their conributions to: `serde`
+- **[ProtectedMode](https://github.com/ProtectedMode)** for their conributions to: `serde`
+- **[Raphiiko](https://github.com/Raphiiko)** for their conributions to: `tauri`
+- **[RealDrPuc](https://github.com/RealDrPuc)** for their conributions to: `tauri`
+- **[Risto-Stevcev](https://github.com/Risto-Stevcev)** for their conributions to: `tauri`
+- **[Rodrigodd](https://github.com/Rodrigodd)** for their conributions to: `cpal`
+- **[Roguelazer](https://github.com/Roguelazer)** for their conributions to: `serde`
+- **[Roms1383](https://github.com/Roms1383)** for their conributions to: `ts-rs`
+- **[Rufflewind](https://github.com/Rufflewind)** for their conributions to: `json`
+- **[SamiPerttu](https://github.com/SamiPerttu)** for their conributions to: `fundsp`
+- **[Serdnad](https://github.com/Serdnad)** for their conributions to: `fundsp`
+- **[ShaunSHamilton](https://github.com/ShaunSHamilton)** for their conributions to: `tauri`
+- **[Simon-Laux](https://github.com/Simon-Laux)** for their conributions to: `tauri`
+- **[SimonSapin](https://github.com/SimonSapin)** for their conributions to: `serde`
+- **[Sky-walkerX](https://github.com/Sky-walkerX)** for their conributions to: `tauri`
+- **[Spartan2909](https://github.com/Spartan2909)** for their conributions to: `postcard`
+- **[SpikeHD](https://github.com/SpikeHD)** for their conributions to: `tauri`
+- **[SplittyDev](https://github.com/SplittyDev)** for their conributions to: `ts-rs`
+- **[SpriteOvO](https://github.com/SpriteOvO)** for their conributions to: `log`
+- **[TannerRogalsky](https://github.com/TannerRogalsky)** for their conributions to: `serde`
+- **[TedDriggs](https://github.com/TedDriggs)** for their conributions to: `serde`
+- **[TethysSvensson](https://github.com/TethysSvensson)** for their conributions to: `log`
+- **[Tunglies](https://github.com/Tunglies)** for their conributions to: `tauri`
+- **[UserAB1236872](https://github.com/UserAB1236872)** for their conributions to: `serde`
+- **[Veykril](https://github.com/Veykril)** for their conributions to: `postcard`
+- **[VincentJousse](https://github.com/VincentJousse)** for their conributions to: `cpal`
+- **[WSH032](https://github.com/WSH032)** for their conributions to: `tauri`
+- **[WaDelma](https://github.com/WaDelma)** for their conributions to: `log`
+- **[WiSaGaN](https://github.com/WiSaGaN)** for their conributions to: `serde`
+- **[WilliamVenner](https://github.com/WilliamVenner)** for their conributions to: `tauri`
+- **[WilsonGramer](https://github.com/WilsonGramer)** for their conributions to: `ts-rs`
+- **[WofWca](https://github.com/WofWca)** for their conributions to: `tauri`
+- **[Xaeroxe](https://github.com/Xaeroxe)** for their conributions to: `serde`
+- **[Xanewok](https://github.com/Xanewok)** for their conributions to: `json`
+- **[a1phyr](https://github.com/a1phyr)** for their conributions to: `Symphonia`
+- **[abique](https://github.com/abique)** for their conributions to: `cpal`
+- **[acieslewicz](https://github.com/acieslewicz)** for their conributions to: `Symphonia`
+- **[adamcrume](https://github.com/adamcrume)** for their conributions to: `serde`
+- **[adrieljss](https://github.com/adrieljss)** for their conributions to: `plugins-workspace`
+- **[aergonaut](https://github.com/aergonaut)** for their conributions to: `log`
+- **[ahkohd](https://github.com/ahkohd)** for their conributions to: `plugins-workspace`
+- **[ahl](https://github.com/ahl)** for their conributions to: `serde`
+- **[alexmoon](https://github.com/alexmoon)** for their conributions to: `cpal`
+- **[alistair23](https://github.com/alistair23)** for their conributions to: `log`
+- **[ameknite](https://github.com/ameknite)** for their conributions to: `cpal`
+- **[anatawa12](https://github.com/anatawa12)** for their conributions to: `tauri`
+- **[andrisak](https://github.com/andrisak)** for their conributions to: `json`
+- **[antrik](https://github.com/antrik)** for their conributions to: `serde`
+- **[arcnmx](https://github.com/arcnmx)** for their conributions to: `json`
+- **[arendjr](https://github.com/arendjr)** for their conributions to: `ts-rs`
+- **[aschey](https://github.com/aschey)** for their conributions to: `Symphonia`
+- **[asomethings](https://github.com/asomethings)** for their conributions to: `plugins-workspace`
+- **[astraw](https://github.com/astraw)** for their conributions to: `thiserror`
+- **[aumetra](https://github.com/aumetra)** for their conributions to: `ts-rs`
+- **[barafael](https://github.com/barafael)** for their conributions to: `postcard`
+- **[baylesj](https://github.com/baylesj)** for their conributions to: `Symphonia`
+- **[bbarker](https://github.com/bbarker)** for their conributions to: `cpal`
+- **[bebecue](https://github.com/bebecue)** for their conributions to: `serde`
+- **[benbrittain](https://github.com/benbrittain)** for their conributions to: `postcard`
+- **[bennofs](https://github.com/bennofs)** for their conributions to: `json`
+- **[bheylin](https://github.com/bheylin)** for their conributions to: `json`
+- **[blackbeam](https://github.com/blackbeam)** for their conributions to: `ts-rs`
+- **[borman](https://github.com/borman)** for their conributions to: `serde`
+- **[bouk](https://github.com/bouk)** for their conributions to: `json`
+- **[brian14708](https://github.com/brian14708)** for their conributions to: `tauri`
+- **[brson](https://github.com/brson)** for their conributions to: `log`
+- **[budziq](https://github.com/budziq)** for their conributions to: `log`
+- **[bugadani](https://github.com/bugadani)** for their conributions to: `postcard`
+- **[c410-f3r](https://github.com/c410-f3r)** for their conributions to: `serde`
+- **[caesar](https://github.com/caesar)** for their conributions to: `tauri`
+- **[carols10cents](https://github.com/carols10cents)** for their conributions to: `log`
+- **[catalinsh](https://github.com/catalinsh)** for their conributions to: `tauri`
+- **[chanced](https://github.com/chanced)** for their conributions to: `json`
+- **[chippers](https://github.com/chippers)** for their conributions to: `tauri`
+- **[christian-bromann](https://github.com/christian-bromann)** for their conributions to: `desktop-mobile`
+- **[chrox](https://github.com/chrox)** for their conributions to: `tauri`
+- **[clearlysid](https://github.com/clearlysid)** for their conributions to: `tauri`
+- **[conradludgate](https://github.com/conradludgate)** for their conributions to: `json`
+- **[cool-japan](https://github.com/cool-japan)** for their conributions to: `oxiaudio`
+- **[cowang4](https://github.com/cowang4)** for their conributions to: `log`
+- **[crapStone](https://github.com/crapStone)** for their conributions to: `tauri`
+- **[cuviper](https://github.com/cuviper)** for their conributions to: `json`
+- **[cymruu](https://github.com/cymruu)** for their conributions to: `tauri`
+- **[daboross](https://github.com/daboross)** for their conributions to: `serde`
+- **[darakshan](https://github.com/darakshan)** for their conributions to: `cpal`
+- **[dathinaios](https://github.com/dathinaios)** for their conributions to: `fundsp`
+- **[dawnlarsson](https://github.com/dawnlarsson)** for their conributions to: `tauri`
+- **[dbrgn](https://github.com/dbrgn)** for their conributions to: `log`
+- **[debris](https://github.com/debris)** for their conributions to: `serde`
+- **[dedobbin](https://github.com/dedobbin)** for their conributions to: `Symphonia`
+- **[deftsp](https://github.com/deftsp)** for their conributions to: `tauri`
+- **[deid84](https://github.com/deid84)** for their conributions to: `tauri`
+- **[dekellum](https://github.com/dekellum)** for their conributions to: `log`
+- **[dereckson](https://github.com/dereckson)** for their conributions to: `log`
+- **[derhaskell](https://github.com/derhaskell)** for their conributions to: `serde`
+- **[dflemstr](https://github.com/dflemstr)** for their conributions to: `json`
+- **[dheijl](https://github.com/dheijl)** for their conributions to: `cpal`
+- **[diit](https://github.com/diit)** for their conributions to: `tauri`
+- **[diondokter](https://github.com/diondokter)** for their conributions to: `log`
+- **[diwic](https://github.com/diwic)** for their conributions to: `cpal`
+- **[domiSchenk](https://github.com/domiSchenk)** for their conributions to: `tauri`
+- **[dr-bonez](https://github.com/dr-bonez)** for their conributions to: `ts-rs`
+- **[dreid](https://github.com/dreid)** for their conributions to: `serde`
+- **[druide](https://github.com/druide)** for their conributions to: `json`
+- **[dvdsk](https://github.com/dvdsk)** for their conributions to: `cpal`
+- **[edgex004](https://github.com/edgex004)** for their conributions to: `tauri`
+- **[elliottslaughter](https://github.com/elliottslaughter)** for their conributions to: `serde`
+- **[eltociear](https://github.com/eltociear)** for their conributions to: `tauri`
+- **[ely-uf](https://github.com/ely-uf)** for their conributions to: `cpal`
+- **[emberian](https://github.com/emberian)** for their conributions to: `serde`
+- **[endragor](https://github.com/endragor)** for their conributions to: `cpal`
+- **[enfipy](https://github.com/enfipy)** for their conributions to: `cpal`
+- **[escritorio-gustavo](https://github.com/escritorio-gustavo)** for their conributions to: `ts-rs`
+- **[est31](https://github.com/est31)** for their conributions to: `cpal`
+- **[euphbriggs](https://github.com/euphbriggs)** for their conributions to: `tauri`
+- **[eupn](https://github.com/eupn)** for their conributions to: `serde`
+- **[facklambda](https://github.com/facklambda)** for their conributions to: `tauri`
+- **[fitztrev](https://github.com/fitztrev)** for their conributions to: `plugins-workspace`
+- **[fmoor](https://github.com/fmoor)** for their conributions to: `json`
+- **[fornwall](https://github.com/fornwall)** for their conributions to: `cpal`
+- **[freesig](https://github.com/freesig)** for their conributions to: `cpal`
+- **[gabcoh](https://github.com/gabcoh)** for their conributions to: `tauri`
+- **[gardc](https://github.com/gardc)** for their conributions to: `tauri`
+- **[gbbosak](https://github.com/gbbosak)** for their conributions to: `log`
+- **[generalelectrix](https://github.com/generalelectrix)** for their conributions to: `cpal`
+- **[gentoid](https://github.com/gentoid)** for their conributions to: `cpal`
+- **[gjf2a](https://github.com/gjf2a)** for their conributions to: `fundsp`
+- **[goenning](https://github.com/goenning)** for their conributions to: `tauri`
+- **[golddranks](https://github.com/golddranks)** for their conributions to: `log`
+- **[goosewobbler](https://github.com/goosewobbler)** for their conributions to: `desktop-mobile`
+- **[gui1117](https://github.com/gui1117)** for their conributions to: `cpal`
+- **[gustavo-shigueo](https://github.com/gustavo-shigueo)** for their conributions to: `ts-rs`
+- **[hamirmahal](https://github.com/hamirmahal)** for their conributions to: `tauri`
+- **[hannobraun](https://github.com/hannobraun)** for their conributions to: `postcard`
+- **[harudagondi](https://github.com/harudagondi)** for their conributions to: `fundsp`
+- **[hcpl](https://github.com/hcpl)** for their conributions to: `serde`
+- **[heftig](https://github.com/heftig)** for their conributions to: `serde`
+- **[hellow554](https://github.com/hellow554)** for their conributions to: `log`
+- **[hugoduncan](https://github.com/hugoduncan)** for their conributions to: `serde`
+- **[huntc](https://github.com/huntc)** for their conributions to: `postcard`
+- **[huonw](https://github.com/huonw)** for their conributions to: `log`
+- **[ia0](https://github.com/ia0)** for their conributions to: `postcard`
+- **[imp](https://github.com/imp)** for their conributions to: `json`
+- **[ishitatsuyuki](https://github.com/ishitatsuyuki)** for their conributions to: `cpal`
+- **[jLynx](https://github.com/jLynx)** for their conributions to: `plugins-workspace`
+- **[james7132](https://github.com/james7132)** for their conributions to: `cpal`
+- **[jamesmunns](https://github.com/jamesmunns)** for their conributions to: `postcard`
+- **[jamwaffles](https://github.com/jamwaffles)** for their conributions to: `postcard`
+- **[jan-auer](https://github.com/jan-auer)** for their conributions to: `serde`
+- **[jansol](https://github.com/jansol)** for their conributions to: `cpal`
+- **[japaric](https://github.com/japaric)** for their conributions to: `json`
+- **[jbeich](https://github.com/jbeich)** for their conributions to: `cpal`
+- **[jbousquie](https://github.com/jbousquie)** for their conributions to: `plugins-workspace`
+- **[jehiggs](https://github.com/jehiggs)** for their conributions to: `log`
+- **[jerm-dro](https://github.com/jerm-dro)** for their conributions to: `ts-rs`
+- **[jetli](https://github.com/jetli)** for their conributions to: `tauri`
+- **[jhutchins](https://github.com/jhutchins)** for their conributions to: `tauri`
+- **[jmannanc](https://github.com/jmannanc)** for their conributions to: `tauri`
+- **[jojobyte](https://github.com/jojobyte)** for their conributions to: `plugins-workspace`
+- **[jonas-schievink](https://github.com/jonas-schievink)** for their conributions to: `log`
+- **[jonasbb](https://github.com/jonasbb)** for their conributions to: `serde`
+- **[jonhoo](https://github.com/jonhoo)** for their conributions to: `serde`
+- **[jordens](https://github.com/jordens)** for their conributions to: `thiserror`
+- **[josema03](https://github.com/josema03)** for their conributions to: `ts-rs`
+- **[jrobsonchase](https://github.com/jrobsonchase)** for their conributions to: `serde`
+- **[jwestfall69](https://github.com/jwestfall69)** for their conributions to: `cpal`
+- **[jwillbold](https://github.com/jwillbold)** for their conributions to: `serde`
+- **[jyn514](https://github.com/jyn514)** for their conributions to: `log`
+- **[kawogi](https://github.com/kawogi)** for their conributions to: `cpal`
+- **[keraf](https://github.com/keraf)** for their conributions to: `tauri`
+- **[kilavvy](https://github.com/kilavvy)** for their conributions to: `postcard`
+- **[kingsword09](https://github.com/kingsword09)** for their conributions to: `tauri`
+- **[kittuov](https://github.com/kittuov)** for their conributions to: `tauri`
+- **[kornelski](https://github.com/kornelski)** for their conributions to: `tauri`
+- **[koushiro](https://github.com/koushiro)** for their conributions to: `json`
+- **[kris-ava](https://github.com/kris-ava)** for their conributions to: `plugins-workspace`
+- **[krscott](https://github.com/krscott)** for their conributions to: `tauri`
+- **[kvnvelasco](https://github.com/kvnvelasco)** for their conributions to: `json`
+- **[lachlansneff](https://github.com/lachlansneff)** for their conributions to: `postcard`
+- **[lachlansneff-parallel](https://github.com/lachlansneff-parallel)** for their conributions to: `postcard`
+- **[laktak](https://github.com/laktak)** for their conributions to: `json`
+- **[laptou](https://github.com/laptou)** for their conributions to: `ts-rs`
+- **[lars-berger](https://github.com/lars-berger)** for their conributions to: `tauri`
+- **[ldm0](https://github.com/ldm0)** for their conributions to: `postcard`
+- **[lemarier](https://github.com/lemarier)** for their conributions to: `tauri`
+- **[leopardracer](https://github.com/leopardracer)** for their conributions to: `postcard`
+- **[little-arhat](https://github.com/little-arhat)** for their conributions to: `json`
+- **[lnicola](https://github.com/lnicola)** for their conributions to: `json`
+- **[lorenzolewis](https://github.com/lorenzolewis)** for their conributions to: `tauri`
+- **[lu-zero](https://github.com/lu-zero)** for their conributions to: `cpal`
+- **[lucacasonato](https://github.com/lucacasonato)** for their conributions to: `json`
+- **[luoffei](https://github.com/luoffei)** for their conributions to: `tauri`
+- **[m-ou-se](https://github.com/m-ou-se)** for their conributions to: `log`
+- **[marc2332](https://github.com/marc2332)** for their conributions to: `tauri`
+- **[mariotaku](https://github.com/mariotaku)** for their conributions to: `tauri`
+- **[marjakm](https://github.com/marjakm)** for their conributions to: `ts-rs`
+- **[martinfrances107](https://github.com/martinfrances107)** for their conributions to: `tauri`
+- **[mathstuf](https://github.com/mathstuf)** for their conributions to: `thiserror`
+- **[mattiloh](https://github.com/mattiloh)** for their conributions to: `plugins-workspace`
+- **[matwork](https://github.com/matwork)** for their conributions to: `cpal`
+- **[maurer](https://github.com/maurer)** for their conributions to: `log`
+- **[max-heller](https://github.com/max-heller)** for their conributions to: `postcard`
+- **[maxded](https://github.com/maxded)** for their conributions to: `cpal`
+- **[mbodmer](https://github.com/mbodmer)** for their conributions to: `cpal`
+- **[mbrubeck](https://github.com/mbrubeck)** for their conributions to: `log`
+- **[meowtec](https://github.com/meowtec)** for their conributions to: `tauri`
+- **[mikoto2000](https://github.com/mikoto2000)** for their conributions to: `plugins-workspace`
+- **[mina86](https://github.com/mina86)** for their conributions to: `thiserror`
+- **[mitchhentges](https://github.com/mitchhentges)** for their conributions to: `cpal`
+- **[mitchmindtree](https://github.com/mitchmindtree)** for their conributions to: `cpal`
+- **[mitsuhiko](https://github.com/mitsuhiko)** for their conributions to: `serde`
+- **[mizuki0629](https://github.com/mizuki0629)** for their conributions to: `cpal`
+- **[mmalecki](https://github.com/mmalecki)** for their conributions to: `ts-rs`
+- **[mockersf](https://github.com/mockersf)** for their conributions to: `cpal`
+- **[morajabi](https://github.com/morajabi)** for their conributions to: `plugins-workspace`
+- **[morrme](https://github.com/morrme)** for their conributions to: `log`
+- **[msiglreith](https://github.com/msiglreith)** for their conributions to: `cpal`
+- **[mtn](https://github.com/mtn)** for their conributions to: `json`
+- **[musicinmybrain](https://github.com/musicinmybrain)** for their conributions to: `postcard`
+- **[mvdnes](https://github.com/mvdnes)** for their conributions to: `cpal`
+- **[nchashch](https://github.com/nchashch)** for their conributions to: `cpal`
+- **[ndmitchell](https://github.com/ndmitchell)** for their conributions to: `json`
+- **[nebkor](https://github.com/nebkor)** for their conributions to: `log`
+- **[neriyaco](https://github.com/neriyaco)** for their conributions to: `tauri`
+- **[niklasad1](https://github.com/niklasad1)** for their conributions to: `serde`
+- **[ninevra](https://github.com/ninevra)** for their conributions to: `thiserror`
+- **[nivkner](https://github.com/nivkner)** for their conributions to: `log`
+- **[nklayman](https://github.com/nklayman)** for their conributions to: `tauri`
+- **[not-matthias](https://github.com/not-matthias)** for their conributions to: `tauri`
+- **[nothingismagick](https://github.com/nothingismagick)** for their conributions to: `tauri`
+- **[olegdovger](https://github.com/olegdovger)** for their conributions to: `tauri`
+- **[olegshilov](https://github.com/olegshilov)** for their conributions to: `tauri`
+- **[opilar](https://github.com/opilar)** for their conributions to: `log`
+- **[oscartbeaumont](https://github.com/oscartbeaumont)** for their conributions to: `tauri`
+- **[otamam818](https://github.com/otamam818)** for their conributions to: `plugins-workspace`
+- **[ottaviohartman](https://github.com/ottaviohartman)** for their conributions to: `log`
+- **[overdrivenpotato](https://github.com/overdrivenpotato)** for their conributions to: `json`
+- **[owjs3901](https://github.com/owjs3901)** for their conributions to: `tauri`
+- **[pashokitsme](https://github.com/pashokitsme)** for their conributions to: `plugins-workspace`
+- **[patrickelectric](https://github.com/patrickelectric)** for their conributions to: `ts-rs`
+- **[paul-hansen](https://github.com/paul-hansen)** for their conributions to: `cpal`
+- **[pcwalton](https://github.com/pcwalton)** for their conributions to: `serde`
+- **[pdeljanov](https://github.com/pdeljanov)** for their conributions to: `Symphonia`
+- **[peter-formlogic](https://github.com/peter-formlogic)** for their conributions to: `ts-rs`
+- **[phoneticsushi](https://github.com/phoneticsushi)** for their conributions to: `ts-rs`
+- **[piegamesde](https://github.com/piegamesde)** for their conributions to: `log`
+- **[plietar](https://github.com/plietar)** for their conributions to: `cpal`
+- **[probablykasper](https://github.com/probablykasper)** for their conributions to: `tauri`
+- **[psych0d0g](https://github.com/psych0d0g)** for their conributions to: `cpal`
+- **[ptosi](https://github.com/ptosi)** for their conributions to: `log`
+- **[purplesyringa](https://github.com/purplesyringa)** for their conributions to: `json`
+- **[qarmin](https://github.com/qarmin)** for their conributions to: `Symphonia`
+- **[quietlychris](https://github.com/quietlychris)** for their conributions to: `postcard`
+- **[rajivshah3](https://github.com/rajivshah3)** for their conributions to: `tauri`
+- **[rap2hpoutre](https://github.com/rap2hpoutre)** for their conributions to: `log`
+- **[rdlabo](https://github.com/rdlabo)** for their conributions to: `tauri`
+- **[regexident](https://github.com/regexident)** for their conributions to: `tauri`
+- **[renato-zannon](https://github.com/renato-zannon)** for their conributions to: `serde`
+- **[renovate-bot](https://github.com/renovate-bot)** for their conributions to: `plugins-workspace`
+- **[retep998](https://github.com/retep998)** for their conributions to: `cpal`
+- **[rfwatson](https://github.com/rfwatson)** for their conributions to: `cpal`
+- **[rhizoome](https://github.com/rhizoome)** for their conributions to: `fundsp`
+- **[roblabla](https://github.com/roblabla)** for their conributions to: `serde`
+- **[rocallahan](https://github.com/rocallahan)** for their conributions to: `serde`
+- **[rockerBOO](https://github.com/rockerBOO)** for their conributions to: `tauri`
+- **[roderickvd](https://github.com/roderickvd)** for their conributions to: `cpal`
+- **[rosslannen](https://github.com/rosslannen)** for their conributions to: `postcard`
+- **[rstoenescu](https://github.com/rstoenescu)** for their conributions to: `tauri`
+- **[ruuda](https://github.com/ruuda)** for their conributions to: `cpal`
+- **[rych-hysh](https://github.com/rych-hysh)** for their conributions to: `tauri`
+- **[s-panferov](https://github.com/s-panferov)** for their conributions to: `json`
+- **[saethlin](https://github.com/saethlin)** for their conributions to: `serde`
+- **[safarir](https://github.com/safarir)** for their conributions to: `serde`
+- **[sanket143](https://github.com/sanket143)** for their conributions to: `tauri`
+- **[sdoering01](https://github.com/sdoering01)** for their conributions to: `tauri`
+- **[sftse](https://github.com/sftse)** for their conributions to: `tauri`
+- **[sgrif](https://github.com/sgrif)** for their conributions to: `serde`
+- **[shepmaster](https://github.com/shepmaster)** for their conributions to: `serde`
+- **[shinglyu](https://github.com/shinglyu)** for their conributions to: `serde`
+- **[shockham](https://github.com/shockham)** for their conributions to: `cpal`
+- **[simlay](https://github.com/simlay)** for their conributions to: `cpal`
+- **[situ2001](https://github.com/situ2001)** for their conributions to: `tauri`
+- **[siyou](https://github.com/siyou)** for their conributions to: `tauri`
+- **[sommd](https://github.com/sommd)** for their conributions to: `postcard`
+- **[sosweetham](https://github.com/sosweetham)** for their conributions to: `plugins-workspace`
+- **[spacekookie](https://github.com/spacekookie)** for their conributions to: `postcard`
+- **[spinda](https://github.com/spinda)** for their conributions to: `serde`
+- **[srijs](https://github.com/srijs)** for their conributions to: `json`
+- **[sscobici](https://github.com/sscobici)** for their conributions to: `Symphonia`
+- **[stegaBOB](https://github.com/stegaBOB)** for their conributions to: `ts-rs`
+- **[steveklabnik](https://github.com/steveklabnik)** for their conributions to: `log`
+- **[sunfishcode](https://github.com/sunfishcode)** for their conributions to: `log`
+- **[swlynch99](https://github.com/swlynch99)** for their conributions to: `json`
+- **[swsnr](https://github.com/swsnr)** for their conributions to: `log`
+- **[tage64](https://github.com/tage64)** for their conributions to: `serde`
+- **[taiki-e](https://github.com/taiki-e)** for their conributions to: `serde`
+- **[tbu-](https://github.com/tbu-)** for their conributions to: `serde`
+- **[tensor-programming](https://github.com/tensor-programming)** for their conributions to: `tauri`
+- **[thadguidry](https://github.com/thadguidry)** for their conributions to: `tauri`
+- **[thealtofwar](https://github.com/thealtofwar)** for their conributions to: `postcard`
+- **[theduke](https://github.com/theduke)** for their conributions to: `ts-rs`
+- **[thep0y](https://github.com/thep0y)** for their conributions to: `tauri`
+- **[therealprof](https://github.com/therealprof)** for their conributions to: `postcard`
+- **[timephy](https://github.com/timephy)** for their conributions to: `ts-rs`
+- **[tisonkun](https://github.com/tisonkun)** for their conributions to: `log`
+- **[tjardoo](https://github.com/tjardoo)** for their conributions to: `log`
+- **[tmccombs](https://github.com/tmccombs)** for their conributions to: `log`
+- **[tomaka](https://github.com/tomaka)** for their conributions to: `cpal`
+- **[tomara-x](https://github.com/tomara-x)** for their conributions to: `fundsp`
+- **[tr3ysmith](https://github.com/tr3ysmith)** for their conributions to: `tauri`
+- **[tsubome](https://github.com/tsubome)** for their conributions to: `flexaudio`
+- **[tubome](https://github.com/tubome)** for their conributions to: `flexaudio`
+- **[twlite](https://github.com/twlite)** for their conributions to: `plugins-workspace`
+- **[tymmesyde](https://github.com/tymmesyde)** for their conributions to: `ts-rs`
+- **[typed-sigterm](https://github.com/typed-sigterm)** for their conributions to: `tauri`
+- **[tytrdev](https://github.com/tytrdev)** for their conributions to: `tauri`
+- **[udoprog](https://github.com/udoprog)** for their conributions to: `Symphonia`
+- **[unbeauvoyage](https://github.com/unbeauvoyage)** for their conributions to: `plugins-workspace`
+- **[unknovvn](https://github.com/unknovvn)** for their conributions to: `tauri`
+- **[vasfvitor](https://github.com/vasfvitor)** for their conributions to: `tauri`
+- **[vegai](https://github.com/vegai)** for their conributions to: `json`
+- **[velocitysystems](https://github.com/velocitysystems)** for their conributions to: `tauri`
+- **[vincascm](https://github.com/vincascm)** for their conributions to: `serde`
+- **[vlabo](https://github.com/vlabo)** for their conributions to: `tauri`
+- **[vonPB](https://github.com/vonPB)** for their conributions to: `tauri`
+- **[vorot93](https://github.com/vorot93)** for their conributions to: `serde`
+- **[washanhanzi](https://github.com/washanhanzi)** for their conributions to: `tauri`
+- **[webbertakken](https://github.com/webbertakken)** for their conributions to: `tauri`
+- **[wgibbs-rs](https://github.com/wgibbs-rs)** for their conributions to: `cpal`
+- **[whycanty](https://github.com/whycanty)** for their conributions to: `ts-rs`
+- **[woubuc](https://github.com/woubuc)** for their conributions to: `tauri`
+- **[wravery](https://github.com/wravery)** for their conributions to: `tauri`
+- **[wtetzner](https://github.com/wtetzner)** for their conributions to: `log`
+- **[wusyong](https://github.com/wusyong)** for their conributions to: `tauri`
+- **[xMAC94x](https://github.com/xMAC94x)** for their conributions to: `cpal`
+- **[xu-cheng](https://github.com/xu-cheng)** for their conributions to: `postcard`
+- **[xuchaoqian](https://github.com/xuchaoqian)** for their conributions to: `tauri`
+- **[yamadapc](https://github.com/yamadapc)** for their conributions to: `cpal`
+- **[yjh0502](https://github.com/yjh0502)** for their conributions to: `json`
+- **[yoshuawuyts](https://github.com/yoshuawuyts)** for their conributions to: `log`
+- **[yungkneez](https://github.com/yungkneez)** for their conributions to: `postcard`
+- **[yutotnh](https://github.com/yutotnh)** for their conributions to: `tauri`
+- **[yydcnjjw](https://github.com/yydcnjjw)** for their conributions to: `tauri`
+- **[zakpatterson](https://github.com/zakpatterson)** for their conributions to: `tauri`
+- **[zippy](https://github.com/zippy)** for their conributions to: `flexaudio`
+
+And 848 other cool humans for their contributions, who haven't made it to this list yet.
+
+---
+
+This file was generated using [`acknowldge` CLI](https://crates.io/crates/acknowledgements-rs). Thank you for acknowledging the contributors!

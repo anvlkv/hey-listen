@@ -1,6 +1,7 @@
 import { invoke } from "../lib/ipc";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { createSignal } from "solid-js";
 import { redo, undo } from "./history";
 import { openPath } from "./source";
 import {
@@ -27,6 +28,13 @@ import {
 
 /** Paths already handled, so a launch request is not loaded twice. */
 const handled = new Set<string>();
+
+/**
+ * Whether the in-app **About** dialog is open. Opened from the Toolbar's
+ * `circle-question` button and from the native Help → About menu item (which emits
+ * the `about` action on `app:menu`); rendered by `App`.
+ */
+export const [aboutOpen, setAboutOpen] = createSignal(false);
 
 /**
  * Confirm discarding unsaved work before replacing the project; `true` when it is
@@ -90,6 +98,9 @@ export async function initMenu() {
           break;
         case "redo":
           redo();
+          break;
+        case "about":
+          setAboutOpen(true);
           break;
       }
     });

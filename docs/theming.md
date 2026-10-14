@@ -1,6 +1,8 @@
 # Theming (exchangeable theme files)
 
-Today the app ships a fixed **auto / dark / light** theme. The palette is authored in
+Themes are **data** (M11): a `ThemeFile` that a user can install, export and share,
+applied on top of a built-in **base**. Before M11 the app shipped a fixed **auto /
+dark / light** theme; that palette is what a theme now overlays, and it is authored in
 **four places** and selected with a single `data-theme` attribute:
 
 - `src/App.css` — ~70 `--*` custom properties in `:root[data-theme="dark"]` /
@@ -18,9 +20,11 @@ and share, applied on top of a built-in base.
 ## Goal
 
 - Themes are **loadable files**, not just a dark/light switch.
-- The built-in dark and light remain the **defaults**; a theme file is a **partial
-  overlay** on one of them (so a theme can tweak a handful of colours without
-  restating the whole palette, and unknown/new variables degrade gracefully).
+- The built-in dark and light remain the **defaults** (a theme file is a **partial
+  overlay** on one of them), and the registry **bundles** a few full themes of its own
+  — **Retrowave Neon** (the shipped default), Nord, Solarized Dark / Light — authored
+  in TS, undeletable. A theme can tweak a handful of colours without restating the
+  whole palette, and unknown/new variables degrade gracefully.
 - The existing `auto` mode keeps working, resolved through **slots**: the user picks a
   dark-slot theme and a light-slot theme, and `auto` follows the OS to choose a slot.
 
@@ -46,7 +50,7 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
     "panel": "#073642",
     "--accent": "#268bd2"
   },
-  // Optional partial ChartTheme (fields from `ChartTheme` in state/settings.ts).
+  // Optional partial ChartTheme (fields from `ChartTheme` in lib/themeFile.ts).
   "chart": {
     "series": "#268bd2",
     "seriesMin": "#859900",
@@ -74,20 +78,34 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
 ## Built-ins and slots
 
 The built-in dark and light palettes become **full `ThemeFile`s** in the registry
-(authored in TS, not files) — they are just two more entries, marked undeletable:
+(authored in TS, not files) — they are just two more entries, marked undeletable —
+and the registry **bundles** several more palettes the same way:
 
 ```ts
 // state/themes.ts
-const BUILTIN_DARK: ThemeFile = { meta: { id: "builtin:dark", name: "Dark", base: "dark", ... }, ui: {...}, chart: DARK_CHART, colormap: {...}, flow: FLOW_DARK };
-const BUILTIN_LIGHT: ThemeFile = { ... base: "light" ... };
+const BUILTIN_THEMES: ThemeFile[] = [
+  { meta: { id: "builtin:dark", name: "Dark", base: "dark" }, chart: DARK_CHART },
+  { meta: { id: "builtin:light", name: "Light", base: "light" }, chart: LIGHT_CHART },
+  { meta: { id: "builtin:retrowave-neon", name: "Retrowave Neon", base: "dark" }, ui: {...}, chart: {...}, colormap: {...}, flow: {...} },
+  { meta: { id: "builtin:nord", name: "Nord", base: "dark" }, ... },
+  { meta: { id: "builtin:solarized-dark", name: "Solarized Dark", base: "dark" }, ... },
+  { meta: { id: "builtin:solarized-light", name: "Solarized Light", base: "light" }, ... },
+];
 ```
+
+The **shipped default preference** is `mode: "dark"` with **Retrowave Neon** in the
+dark slot, so a fresh install wears the retrowave palette; the light slot keeps
+`builtin:light` for `auto` / `light`. Bundled ids are `builtin:`-prefixed and
+undeletable. (The bundled ids/names/bases are mirrored in
+`src-tauri/src/themes.rs` → `BUILTIN_THEMES`, for the **headless** MCP surface, which
+has no webview to run the TS registry.)
 
 The preference becomes a **mode + two slots**:
 
 ```ts
 interface ThemePreference {
-  mode: "auto" | "dark" | "light";  // was ThemePreference
-  darkThemeId: string;              // default "builtin:dark"
+  mode: "auto" | "dark" | "light";
+  darkThemeId: string;              // default "builtin:retrowave-neon"
   lightThemeId: string;             // default "builtin:light"
 }
 ```
@@ -131,32 +149,37 @@ Themes live in the app **config** directory, mirroring `recent.rs`:
 <app config dir>/themes/<id>.heyltheme
 ```
 
-Rust module `src-tauri/src/themes.rs` (list / read / write / delete) plus
+Rust module `src-tauri/src/themes.rs` (list / write / delete / import / export) plus
 `src-tauri/src/commands/themes.rs`, registered in `lib.rs`:
 
 | Command | Purpose |
 | --- | --- |
-| `list_themes` | Built-ins + every installed theme's `meta` (for the picker). |
-| `read_theme(id)` | The full `ThemeFile` to apply. |
-| `write_theme(theme)` | Save/overwrite (used by Save and import). |
-| `delete_theme(id)` | Remove an installed theme. |
+| `list_themes` | Every installed theme as `{ id, content }` (raw JSON; the frontend parses it). |
+| `write_theme(id, content)` | Save/overwrite an installed theme (used by Save and import). |
+| `delete_theme(id)` | Remove an installed theme (bundled ids are refused). |
 | `theme_dir` | The themes directory (shown in the UI, so a user can drop files in). |
-| `import_theme_file(path)` / `export_theme_file(id, path)` | Copy a `.heyltheme` in/out via native dialogs (`tauri-plugin-dialog`). |
+| `import_theme_file(path)` / `export_theme_file(path, content)` | Read/write a `.heyltheme` file at an explicit path. |
+| `pick_theme_import_path` / `pick_theme_export_path` | Native dialogs (`tauri-plugin-dialog`) returning a path. |
+| `reveal_theme_dir` | Open the themes directory in the OS file manager. |
 
-The frontend owns the shape (as with the project's UI state); Rust only stores bytes.
+The frontend owns the shape (as with the project's UI state); Rust only stores bytes
+(and reports the **bundled** themes' identity for the headless MCP surface).
 Validation (kind, `formatVersion`, key types) happens in `themeFile.ts`, with an
-inline error rather than a hard failure — a bad theme leaves the current one applied.
+inline error rather than a hard failure — a bad theme leaves the current one applied
+(an unreadable installed file is skipped with a warning).
 
 ## UI
 
-The Toolbar **View** popover becomes **Appearance**:
+The Toolbar **View** popover is now **Appearance** (an icon-only `circle-half-stroke`
+trigger with a tooltip):
 
-- **UI scale** — unchanged (`A−` / `A+`).
-- **Mode** — `Auto` / `Dark` / `Light`.
+- **UI scale** — `minus` / `plus` icon buttons (tooltips).
+- **Mode** — `Auto` / `Dark` / `Light` icon buttons (`circle-half-stroke` / `moon` /
+  `sun`; each keeps an `aria-label`, e.g. `"Dark mode"`).
 - **Dark theme / Light theme** — two selectors (the slots), listing built-ins and
-  installed themes; disabled/irrelevant slot dimmed when `mode` is forced.
-- **Import theme file…**, **Export current theme…**, **Delete theme** (built-ins are
-  not deletable), **Reveal themes folder**.
+  installed themes; the irrelevant slot is dimmed when `mode` is forced.
+- **Import / Export / Delete / Reveal folder** — icon buttons (each with a tooltip);
+  Delete is disabled for a built-in theme.
 
 Persistence stays app-level (localStorage, like the font scale) — a theme is chrome,
 **not** part of the project file. A loaded project does not change the theme.
@@ -166,10 +189,13 @@ Persistence stays app-level (localStorage, like the font scale) — a theme is c
 Themes are chrome, but agents benefit from reproducibility, so expose a small surface
 over the same registry (see [`mcp.md`](mcp.md)):
 
-- MCP: `list_themes`, `get_theme`, `set_theme` (`mode` + slots). Headless lists the
-  **built-ins** and can read any installed theme file (it lives under the app config
-  dir); headless cannot preview the rendered UI. `import_theme` / `export_theme` are
-  file operations the app can also do headless.
+- MCP: `list_themes` (bundled + installed summaries, plus the active mode/slots),
+  `get_theme` (one theme, or the active one), `set_theme` (`mode` + slots),
+  `import_theme` / `export_theme` (file paths). With the app running the handlers run
+  in the webview against the same registry the UI drives. **Headless** reports the
+  bundled themes only (`list_themes` / `get_theme`), since it has no webview and
+  cannot resolve the app config dir; `set_theme` / `import_theme` / `export_theme`
+  return "requires the app".
 - CLI: no theme flag in the first pass (batch output is data, not chrome); note it as a
   possible later addition.
 
@@ -178,8 +204,9 @@ over the same registry (see [`mcp.md`](mcp.md)):
 | Path | Role |
 | --- | --- |
 | `src/lib/themeFile.ts` | The `ThemeFile` type + parse/validate/normalise. |
-| `src/state/themes.ts` | The registry (built-ins + installed), apply pipeline, slot resolution. |
-| `src/state/settings.ts` | Keeps `--ui-scale`; the theme signals move to `themes.ts`. |
+| `scripts/themeFile.test.ts` | Unit checks for the model (`npm run test:unit`). |
+| `src/state/themes.ts` | The registry (built-ins + installed), apply pipeline, slot resolution, and the base palettes. |
+| `src/state/settings.ts` | Keeps `--ui-scale`; the theme signals live in `themes.ts`. |
 | `src/App.css` | The baseline palette (unchanged; becomes the fallback a theme overlays). |
 | `src/components/analyzer/colormap.ts` | Reads the active theme's ramp (fallback: base). |
 | `src/components/Workbench.tsx`, `src/components/GraphEditor.tsx` | Baseline theme by `base`. |
@@ -188,11 +215,15 @@ over the same registry (see [`mcp.md`](mcp.md)):
 
 ## Testing
 
-- **`themeFile.ts` unit tests** — parse/validate (bad kind/version, unknown keys kept,
-  overlay normalisation `--` prefix).
-- **Apply pipeline** — a theme's `ui` overlay lands on `:root` and survives a mode
-  change; clearing restores the base; `chartTheme()`/colormap merge correctly.
-- **E2E (wdio)** — install a fixture theme, select it, assert a CSS variable changed on
-  the root and the toolbar reflects the selection; export it and re-import it.
+- **`themeFile.ts` unit checks** — parse/validate (bad kind/version/base, unknown keys
+  kept, overlay normalisation `--` prefix): `npm run test:unit`
+  (`scripts/themeFile.test.ts`).
+- **`themes.rs` unit tests** — id validation (no path traversal) and bundled-id
+  uniqueness: `cargo test` in `src-tauri/`.
+- **E2E (wdio)** — `e2e/specs/m-themes.spec.ts`: reset to the default, assert the
+  retrowave palette is applied, switch the mode and the dark slot (asserting the root
+  CSS variables + `data-theme`), and assert the preference persists to `localStorage`.
+  The apply pipeline itself (base + inline `ui` overlay) is exercised by those
+  assertions.
 
 See [`roadmap.md`](roadmap.md) → **M11** and [`decisions.md`](decisions.md) → **ADR-15**.

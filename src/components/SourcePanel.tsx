@@ -5,6 +5,8 @@ import { Slider } from "@kobalte/core/slider";
 import { createEffect, on, onCleanup, Show } from "solid-js";
 import Button from "./Button";
 import Combobox from "./Combobox";
+import Icon from "./Icon";
+import Tooltip from "./Tooltip";
 import { createNumberDrag, type NumberDrag } from "../lib/dragNumber";
 import { formatClock, meterDbLabel, meterPercent } from "../lib/format";
 import { unwrapSingle } from "../lib/kobalte";
@@ -166,7 +168,10 @@ function LiveSourceInputs(props: { compact?: boolean }) {
     <>
       <Show when={choice() === "mic" || choice() === "system"}>
         <div class="src-field">
-          <span class="src-label">Device</span>
+          <span class="src-label icon-label">
+            <Icon name="headphones" />
+            Device
+          </span>
           <Combobox
             options={deviceOptions()}
             value={deviceId()}
@@ -180,7 +185,10 @@ function LiveSourceInputs(props: { compact?: boolean }) {
 
       <Show when={choice() === "process"}>
         <div class={props.compact ? "src-field" : "src-stack"}>
-          <span class="src-label">Application</span>
+          <span class="src-label icon-label">
+            <Icon name="desktop" />
+            Application
+          </span>
           <Combobox
             options={processOptions()}
             value={targetPid() == null ? null : String(targetPid())}
@@ -189,9 +197,11 @@ function LiveSourceInputs(props: { compact?: boolean }) {
             label="Application"
             disabled={recording()}
           />
-          <Button class="src-mini" onClick={() => void refreshProcesses()}>
-            Refresh
-          </Button>
+          <Tooltip label="Refresh the application list">
+            <Button class="src-mini icon-btn" aria-label="Refresh applications" onClick={() => void refreshProcesses()}>
+              <Icon name="arrows-rotate" />
+            </Button>
+          </Tooltip>
         </div>
       </Show>
 
@@ -232,7 +242,10 @@ function LiveControls(props: { startDrag: NumberDrag; stopDrag: NumberDrag }) {
         step={0.05}
         aria-label="Input gain"
       >
-        <Slider.Label class="src-label">Gain</Slider.Label>
+        <Slider.Label class="src-label icon-label">
+          <Icon name="sliders" />
+          Gain
+        </Slider.Label>
         <Slider.Track class="gain-track">
           <Slider.Fill class="gain-fill" />
           <Slider.Thumb class="gain-thumb">
@@ -242,60 +255,62 @@ function LiveControls(props: { startDrag: NumberDrag; stopDrag: NumberDrag }) {
         <span class="src-readout">{Math.round(gain() * 100)}%</span>
       </Slider>
 
-      <Meter
-        class="src-field"
-        value={meterPercent(level())}
-        minValue={0}
-        maxValue={100}
-        getValueLabel={() => meterDbLabel(level())}
-        title={monitoring() ? "Input level — live" : "Input level"}
-      >
-        <Meter.Label class="src-label">Level</Meter.Label>
-        <Meter.Track class="src-meter">
-          <Meter.Fill class="src-meter-fill" />
-        </Meter.Track>
-        <span class="src-readout">{meterDbLabel(level())}</span>
-      </Meter>
+      <Tooltip label={monitoring() ? "Input level — live" : "Input level"}>
+        <Meter
+          class="src-field"
+          value={meterPercent(level())}
+          minValue={0}
+          maxValue={100}
+          getValueLabel={() => meterDbLabel(level())}
+        >
+          <Meter.Label class="src-label icon-label">
+            <Icon name="gauge-high" />
+            Level
+          </Meter.Label>
+          <Meter.Track class="src-meter">
+            <Meter.Fill class="src-meter-fill" />
+          </Meter.Track>
+          <span class="src-readout">{meterDbLabel(level())}</span>
+        </Meter>
+      </Tooltip>
 
       <Show when={!recording()}>
         <div class="src-field src-timing">
-          <NumberField
-            class="src-numfield"
-            value={startDelay()}
-            onChange={(value) => setStartDelay(positive(value, 0))}
-            minValue={0}
-            step={1}
-            format={false}
-          >
-            <NumberField.Label class="src-label" title="Delay before recording begins">
-              Start in
-            </NumberField.Label>
-            <NumberField.Input
-              class={`src-num num-drag${props.startDrag.dragging() ? " num-dragging" : ""}`}
-              title="Delay before recording begins, in seconds (drag up/down to change)"
-              {...props.startDrag.handlers}
-            />
-          </NumberField>
+          <Tooltip label="Delay before recording begins, in seconds (drag up/down to change)">
+            <NumberField
+              class="src-numfield"
+              value={startDelay()}
+              onChange={(value) => setStartDelay(positive(value, 0))}
+              minValue={0}
+              step={1}
+              format={false}
+            >
+              <NumberField.Label class="src-label">Start in</NumberField.Label>
+              <NumberField.Input
+                class={`src-num num-drag${props.startDrag.dragging() ? " num-dragging" : ""}`}
+                {...props.startDrag.handlers}
+              />
+            </NumberField>
+          </Tooltip>
           <span class="src-unit">s</span>
 
-          <NumberField
-            class="src-numfield"
-            value={targetDuration()}
-            onChange={(value) => setTargetDuration(positive(value, 0))}
-            minValue={0}
-            step={1}
-            format={false}
-          >
-            <NumberField.Label class="src-label" title="Stop automatically after this many seconds">
-              Stop after
-            </NumberField.Label>
-            <NumberField.Input
-              class={`src-num num-drag${props.stopDrag.dragging() ? " num-dragging" : ""}`}
-              placeholder="0"
-              title="Stop automatically after this many seconds (0 = until stopped); drag up/down to change"
-              {...props.stopDrag.handlers}
-            />
-          </NumberField>
+          <Tooltip label="Stop automatically after this many seconds (0 = until stopped); drag up/down to change">
+            <NumberField
+              class="src-numfield"
+              value={targetDuration()}
+              onChange={(value) => setTargetDuration(positive(value, 0))}
+              minValue={0}
+              step={1}
+              format={false}
+            >
+              <NumberField.Label class="src-label">Stop after</NumberField.Label>
+              <NumberField.Input
+                class={`src-num num-drag${props.stopDrag.dragging() ? " num-dragging" : ""}`}
+                placeholder="0"
+                {...props.stopDrag.handlers}
+              />
+            </NumberField>
+          </Tooltip>
           <span class="src-unit">s</span>
         </div>
       </Show>
@@ -307,16 +322,31 @@ function LiveControls(props: { startDrag: NumberDrag; stopDrag: NumberDrag }) {
           </Button>
         </Show>
         <Show when={countdown() == null && !recording()}>
-          <Button class="src-button src-record" data-testid="source.record" onClick={() => void startCapture()}>
-            ● Record
+          <Button
+            class="src-button src-record icon-label"
+            data-testid="source.record"
+            onClick={() => void startCapture()}
+          >
+            <Icon name="record-vinyl" />
+            Record
           </Button>
         </Show>
         <Show when={recording()}>
-          <Button class="src-button" data-testid="source.pause" onClick={() => void togglePause()}>
-            {paused() ? "▶ Resume" : "⏸ Pause"}
+          <Button
+            class="src-button icon-label"
+            data-testid="source.pause"
+            onClick={() => void togglePause()}
+          >
+            <Icon name={paused() ? "circle-play" : "circle-pause"} />
+            {paused() ? "Resume" : "Pause"}
           </Button>
-          <Button class="src-button src-stop" data-testid="source.stop" onClick={() => void stopCapture()}>
-            ■ Stop
+          <Button
+            class="src-button src-stop icon-label"
+            data-testid="source.stop"
+            onClick={() => void stopCapture()}
+          >
+            <Icon name="circle-stop" />
+            Stop
           </Button>
           <span class="src-readout">{readout()}</span>
         </Show>
@@ -407,13 +437,20 @@ export default function SourcePanel() {
           <SourceKindSelect />
 
           <Show when={choice() === "file"}>
-            <Button class="src-button" disabled={recording()} data-testid="source.openFile" onClick={() => void openFileDialog()}>
+            <Button
+              class="src-button icon-label"
+              disabled={recording()}
+              data-testid="source.openFile"
+              onClick={() => void openFileDialog()}
+            >
+              <Icon name="folder-open" />
               Open audio file…
             </Button>
           </Show>
 
           <Show when={choice() === "synth"}>
-            <Button class="src-button" onClick={() => openTool("synth")}>
+            <Button class="src-button icon-label" onClick={() => openTool("synth")}>
+              <Icon name="wand-magic-sparkles" />
               Open synth graph…
             </Button>
           </Show>

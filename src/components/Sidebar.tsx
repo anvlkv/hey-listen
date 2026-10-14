@@ -1,5 +1,8 @@
 import { createMemo, createSignal, For, Show, type JSX } from "solid-js";
+import Icon from "./Icon";
 import ScrollArea from "./ScrollArea";
+import Tooltip from "./Tooltip";
+import { GRAPH_ICONS, VIEW_ICONS, type IconName } from "../lib/icons";
 import { openTool, openTools, toolsInGroup, type ToolDef } from "../state/workbench";
 import {
   ANALYZER_SECTIONS,
@@ -14,10 +17,15 @@ import {
  * grouped by domain, then the two graph editors. Clicking an entry opens (or
  * focuses) its tab in the Workbench. See `docs/ui-layout.md` and
  * `docs/analysis-tools.md`.
+ *
+ * Each row carries the tool's **chart-type** icon in its bottom-right corner
+ * (`lib/icons.ts` → `VIEW_ICONS`, so two tools of the same chart type share an icon)
+ * and its hint as a [`Tooltip`](./Tooltip.tsx). Section titles and subtitles are plain
+ * text.
  */
 
-/** A sidebar entry: the workbench tool plus the hover-tooltip copy. */
-type SidebarTool = ToolDef & { tooltip: string };
+/** A sidebar entry: the workbench tool, its chart-type icon, and the hover copy. */
+type SidebarTool = ToolDef & { tooltip: string; icon: IconName };
 
 // Analyzers carry an `about` string (when/how to use); surface it on hover.
 const toTool = (def: AnalyzerDef): SidebarTool => ({
@@ -26,6 +34,7 @@ const toTool = (def: AnalyzerDef): SidebarTool => ({
   description: def.description,
   group: "analyzer",
   tooltip: def.about,
+  icon: VIEW_ICONS[def.view.kind],
 });
 
 export default function Sidebar(props: { style?: JSX.CSSProperties }) {
@@ -37,17 +46,19 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
     <div class="sidebar-tools">
       <For each={props.tools}>
         {(tool) => (
-          <button
-            type="button"
-            class="sidebar-tool"
-            data-testid={`sidebar.tool.${tool.id}`}
-            title={tool.tooltip}
-            classList={{ "sidebar-tool-open": openTools().includes(tool.id) }}
-            onClick={() => openTool(tool.id)}
-          >
-            <span class="sidebar-tool-name">{tool.title}</span>
-            <span class="sidebar-tool-desc">{tool.description}</span>
-          </button>
+          <Tooltip label={tool.tooltip} placement="right">
+            <button
+              type="button"
+              class="sidebar-tool"
+              data-testid={`sidebar.tool.${tool.id}`}
+              classList={{ "sidebar-tool-open": openTools().includes(tool.id) }}
+              onClick={() => openTool(tool.id)}
+            >
+              <span class="sidebar-tool-name">{tool.title}</span>
+              <span class="sidebar-tool-desc">{tool.description}</span>
+              <Icon name={tool.icon} class="sidebar-tool-icon" />
+            </button>
+          </Tooltip>
         )}
       </For>
     </div>
@@ -61,15 +72,18 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
 
   return (
     <aside class="app-sidebar" data-testid="region.sidebar" style={props.style}>
-      <input
-        class="sidebar-search"
-        data-testid="sidebar.search"
-        type="search"
-        placeholder="Search analyzers…"
-        aria-label="Search analyzers"
-        value={query()}
-        onInput={(event) => setQuery(event.currentTarget.value)}
-      />
+      <div class="sidebar-search-wrap">
+        <Icon name="magnifying-glass" class="sidebar-search-icon" />
+        <input
+          class="sidebar-search"
+          data-testid="sidebar.search"
+          type="search"
+          placeholder="Search analyzers…"
+          aria-label="Search analyzers"
+          value={query()}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+        />
+      </div>
 
       <ScrollArea class="sidebar-scroll">
       <div class="sidebar-section-title">Analyzers</div>
@@ -94,7 +108,11 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
 
       <div class="sidebar-section-title sidebar-section-gap">Graphs</div>
       <Tools
-        tools={toolsInGroup("graph").map((tool) => ({ ...tool, tooltip: tool.description }))}
+        tools={toolsInGroup("graph").map((tool) => ({
+          ...tool,
+          tooltip: tool.description,
+          icon: GRAPH_ICONS[tool.id as "filter" | "synth"],
+        }))}
       />
       </ScrollArea>
     </aside>

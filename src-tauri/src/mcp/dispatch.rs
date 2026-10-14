@@ -135,6 +135,23 @@ impl HeadlessSession {
                     crate::audio::capture::list_processes().map_err(|err| err.to_string())?;
                 Ok(serde_json::to_value(processes).unwrap_or(Value::Null))
             }
+            // Themes are chrome (app-level); headless has no webview to run the registry,
+            // so it reports the bundled themes from `crate::themes`. Reading/writing the
+            // active theme (and installed files) needs the app.
+            "list_themes" => Ok(json!({
+                "themes": crate::themes::builtin_summaries(),
+                "installed": false,
+                "active": Value::Null,
+                "note": "headless lists the bundled themes; installed themes and the active mode need the app",
+            })),
+            "get_theme" => match args.get("id").and_then(Value::as_str) {
+                Some(id) => crate::themes::builtin_summary(id)
+                    .map(|theme| json!({ "theme": theme }))
+                    .ok_or_else(|| format!("unknown bundled theme: {id}")),
+                None => Err(
+                    "reading the active theme needs the app — pass an explicit `id`".to_string(),
+                ),
+            },
             other => Err(format!(
                 "`{other}` requires the app — headless mode runs the compute tools only \
                  (open a source, run analyzers, render synth, enumerate devices). \
@@ -629,6 +646,9 @@ mod tests {
             "set_synth_graph",
             "save_project",
             "preview",
+            "set_theme",
+            "import_theme",
+            "export_theme",
         ] {
             let err = session.dispatch(tool, json!({})).unwrap_err();
             assert!(err.contains("requires the app"), "{tool}: {err}");

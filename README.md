@@ -39,7 +39,8 @@ join groups, or pop an analyzer out into its own window. Shared params (FFT size
 hop/overlap, window function, channel, frequency range) stay synced across every
 tool, and zoom and cursor follow you between tabs — and between a project's
 windows. Charts zoom on scroll, spectrograms pan by dragging, and numeric fields
-drag-to-adjust. It ships with an auto/dark/light theme, a UI zoom, and a native
+drag-to-adjust. It ships with exchangeable themes (dark, light, retrowave neon,
+nord, solarized — assign one per dark/light slot), a UI zoom, and a native
 menu with recent files.
 
 **Save it all.** The raw audio, plus the source, filter/synth graphs, analysis

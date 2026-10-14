@@ -5,6 +5,7 @@
 //! the engine modules. See `docs/architecture.md` for the planned inventory.
 
 pub mod analysis;
+pub mod app;
 pub mod capture;
 pub mod decode;
 pub mod graph;
@@ -13,6 +14,7 @@ pub mod playback;
 pub mod project;
 pub mod source;
 pub mod stream;
+pub mod themes;
 pub mod ui;
 pub mod window;
 

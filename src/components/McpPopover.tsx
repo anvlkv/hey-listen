@@ -1,7 +1,9 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import { Switch } from "@kobalte/core/switch";
 import Button from "./Button";
+import Icon from "./Icon";
 import Popover from "./Popover";
+import Tooltip from "./Tooltip";
 import {
   DEFAULT_MCP_PORT,
   copyText,
@@ -83,6 +85,7 @@ export default function McpPopover() {
     <Popover
       label="MCP"
       title="Model Context Protocol server (let an AI agent drive the app)"
+      icon="plug"
       testid="toolbar.mcp"
       onOpen={open}
     >
@@ -91,18 +94,19 @@ export default function McpPopover() {
 
         <div class="params-field">
           <span class="params-label">Enabled</span>
-          <Switch
-            class="toolbar-switch"
-            checked={status()?.enabled ?? false}
-            disabled={mcpBusy()}
-            onChange={(enabled) => void setMcpEnabled(enabled)}
-            title="Serve Hey Listen as MCP tools on a loopback port"
-          >
-            <Switch.Input class="toolbar-switch-input" data-testid="mcp.enabled" />
-            <Switch.Control class="toolbar-switch-control">
-              <Switch.Thumb class="toolbar-switch-thumb" />
-            </Switch.Control>
-          </Switch>
+          <Tooltip label="Serve Hey Listen as MCP tools on a loopback port">
+            <Switch
+              class="toolbar-switch"
+              checked={status()?.enabled ?? false}
+              disabled={mcpBusy()}
+              onChange={(enabled) => void setMcpEnabled(enabled)}
+            >
+              <Switch.Input class="toolbar-switch-input" data-testid="mcp.enabled" />
+              <Switch.Control class="toolbar-switch-control">
+                <Switch.Thumb class="toolbar-switch-thumb" />
+              </Switch.Control>
+            </Switch>
+          </Tooltip>
         </div>
 
         <div class="params-field">
@@ -169,11 +173,12 @@ export default function McpPopover() {
           {status() ? mcpSnippet(status()!, entry()) : ""}
         </pre>
         <Button
-          class="toolbar-btn"
+          class="toolbar-btn icon-label"
           disabled={!status()}
           onClick={() => void copy()}
           data-testid="mcp.copy"
         >
+          <Icon name={copied() ? "check" : "copy"} />
           {copied() ? "Copied" : "Copy"}
         </Button>
         <p class="params-note">

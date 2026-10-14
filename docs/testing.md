@@ -106,8 +106,15 @@ Convention: `data-testid="region.toolbar|sidebar|workbench|timeline|source|botto
 `graph.clear`, `graph.hint` (the node/link toolbar hint), `graph.node` (a node, also
 carrying `data-kind`) / `graphNode(kind)`, `graph.port` (a port label),
 `graph.palette.btn` (a palette button), `source.openFile`, `source.kind`,
-`source.error`, `timeline.canvas`, `timeline.replace`. All live in
+`source.error`, `timeline.canvas`, `timeline.replace`, `toolbar.about` (the About
+button), `about.dialog`. All live in
 `e2e/support/selectors.ts`.
+
+**Icon-only controls carry `aria-label`.** Most toolbar / timeline / graph / source
+buttons are now icon-only (with a tooltip); they keep their `data-testid`, and the
+ones without one are addressed by `aria-label` (e.g. `[aria-label="Dark mode"]`,
+`[aria-label="Output device"]`). The tooltip itself is a `Tooltip` component
+(`src/components/Tooltip.tsx`), not a native `title`, so it is not queried by tests.
 
 `tab.<id>` is **stamped by the app** (`Workbench.tsx` → `scheduleStampTabIds`):
 dockview gives tabs no stable hook of their own, so we match each `.dv-tab` to its
@@ -309,9 +316,29 @@ the resulting server state.
 > platform event loop (a display), like the app and the `--mcp` path, so it is verified
 > by hand rather than in the wdio suite. See [`cli.md`](cli.md).
 
+### M. Exchangeable themes (M11)
+
+Drives the Toolbar **Appearance** popover and asserts the resulting root palette +
+`data-theme`, plus the persisted preference. The theme preference persists across
+launches, so the spec resets to a known state first and restores the defaults after.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| M1 | Default look | After resetting, `data-theme = dark` and the retrowave `--bg` is applied | Scenario |
+| M2 | Mode switch | `Light` applies the light base (`data-theme = light`, light `--bg`); `Dark` restores the retrowave palette | Scenario |
+| M3 | Slot selection | Assigning Nord to the dark slot applies the nord `--bg`; restoring Retrowave Neon changes it back | Scenario |
+| M4 | Persistence | Switching the mode writes `hey-listen:theme` in `localStorage`; the dark slot persists | Scenario |
+
+> **Unit + store coverage (not wdio):** the `ThemeFile` parse/validate/normalise
+> contract is checked by `npm run test:unit` (`scripts/themeFile.test.ts`), and the
+> Rust store (`themes.rs`) is unit-tested by `cargo test` (id validation, bundled-id
+> uniqueness). Import/export use native dialogs (mocked in the suite), so the file
+> round-trip is exercised by hand rather than in the wdio suite.
+
 ## Running
 
 ```sh
+npm run test:unit             # theme-file model unit checks (no app needed)
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)

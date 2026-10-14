@@ -1,6 +1,8 @@
 import { createSignal, Show } from "solid-js";
 import Button from "./Button";
 import GraphEditor from "./GraphEditor";
+import Icon from "./Icon";
+import Tooltip from "./Tooltip";
 import { createNumberDrag } from "../lib/dragNumber";
 import { graphWarning, outputConnected, resetGraph, SYNTH_GRAPH } from "../state/graph";
 import { renderSynth, rendering, synthError } from "../state/synth";
@@ -41,27 +43,30 @@ export default function SynthGraphTab() {
           </span>
         )}
       </Show>
-      <label class="graph-field" title="Rendered length, in seconds">
-        <span>Length</span>
-        <input
-          class={`graph-number nodrag num-drag${lengthDrag.dragging() ? " num-dragging" : ""}`}
-          type="number"
-          min={0.1}
-          max={60}
-          step={0.5}
-          value={seconds()}
-          onInput={(event) => setSeconds(Number(event.currentTarget.value))}
-          {...lengthDrag.handlers}
-        />
-        <span>s</span>
-      </label>
+      <Tooltip label="Rendered length, in seconds (drag up/down to change)">
+        <label class="graph-field">
+          <span>Length</span>
+          <input
+            class={`graph-number nodrag num-drag${lengthDrag.dragging() ? " num-dragging" : ""}`}
+            type="number"
+            min={0.1}
+            max={60}
+            step={0.5}
+            value={seconds()}
+            onInput={(event) => setSeconds(Number(event.currentTarget.value))}
+            {...lengthDrag.handlers}
+          />
+          <span>s</span>
+        </label>
+      </Tooltip>
       <Button
-        class="graph-btn graph-btn-primary"
+        class="graph-btn graph-btn-primary icon-label"
         data-testid="graph.render"
         disabled={rendering()}
         onClick={() => void renderSynth(seconds())}
       >
-        {rendering() ? "Rendering…" : "Render to timeline"}
+        <Icon name="play" />
+        {rendering() ? "Rendering…" : "Render"}
       </Button>
       <Show when={synthError()}>
         {(message) => (
@@ -70,9 +75,16 @@ export default function SynthGraphTab() {
           </span>
         )}
       </Show>
-      <Button class="graph-btn" data-testid="graph.clear" onClick={() => resetGraph("synth")}>
-        Clear graph
-      </Button>
+      <Tooltip label="Remove every node and link from this graph">
+        <Button
+          class="graph-btn icon-btn"
+          data-testid="graph.clear"
+          aria-label="Clear graph"
+          onClick={() => resetGraph("synth")}
+        >
+          <Icon name="trash" />
+        </Button>
+      </Tooltip>
     </GraphEditor>
   );
 }

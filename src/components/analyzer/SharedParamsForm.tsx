@@ -2,6 +2,7 @@ import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
 import ChannelSelect from "../ChannelSelect";
 import SelectField from "../SelectField";
+import Tooltip from "../Tooltip";
 import { createNumberDrag } from "../../lib/dragNumber";
 import {
   ANALYSIS_RATES,
@@ -63,65 +64,71 @@ export default function SharedParamsForm() {
         Shared params <span class="params-dim">synced across tools</span>
       </div>
 
-      <label class="params-field" title={fftHelp()}>
-        <span class="params-label">FFT size</span>
-        <SelectField options={fftOptions} value={fftSize()} onChange={setFftSize} label="FFT size" />
-      </label>
+      <Tooltip label={fftHelp()}>
+        <label class="params-field">
+          <span class="params-label">FFT size</span>
+          <SelectField options={fftOptions} value={fftSize()} onChange={setFftSize} label="FFT size" />
+        </label>
+      </Tooltip>
 
-      <label class="params-field" title={hopHelp()}>
-        <span class="params-label">Hop / overlap</span>
-        <SelectField options={hopOptions} value={hop()} onChange={setHop} label="Hop / overlap" />
-      </label>
+      <Tooltip label={hopHelp()}>
+        <label class="params-field">
+          <span class="params-label">Hop / overlap</span>
+          <SelectField options={hopOptions} value={hop()} onChange={setHop} label="Hop / overlap" />
+        </label>
+      </Tooltip>
 
-      <label class="params-field" title={windowHelp()}>
-        <span class="params-label">Window</span>
-        <SelectField
-          options={WINDOW_FNS}
-          value={windowFn()}
-          onChange={setWindowFn}
-          label="Window function"
-        />
-      </label>
+      <Tooltip label={windowHelp()}>
+        <label class="params-field">
+          <span class="params-label">Window</span>
+          <SelectField
+            options={WINDOW_FNS}
+            value={windowFn()}
+            onChange={setWindowFn}
+            label="Window function"
+          />
+        </label>
+      </Tooltip>
 
-      <label
-        class="params-field"
-        title="Which channel to analyse. Downmix sums all channels to mono; Left/Right (or Channel N) picks one. Applies to every tool."
-      >
-        <span class="params-label">Channel</span>
-        <ChannelSelect />
-      </label>
+      <Tooltip label="Which channel to analyse. Downmix sums all channels to mono; Left/Right (or Channel N) picks one. Applies to every tool.">
+        <label class="params-field">
+          <span class="params-label">Channel</span>
+          <ChannelSelect />
+        </label>
+      </Tooltip>
 
-      <label class="params-field" title={rateHelp()}>
-        <span class="params-label">Analysis rate</span>
-        <SelectField
-          options={ANALYSIS_RATES}
-          value={resampleTo()}
-          onChange={setResampleTo}
-          label="Analysis sample rate"
-        />
-      </label>
+      <Tooltip label={rateHelp()}>
+        <label class="params-field">
+          <span class="params-label">Analysis rate</span>
+          <SelectField
+            options={ANALYSIS_RATES}
+            value={resampleTo()}
+            onChange={setResampleTo}
+            label="Analysis sample rate"
+          />
+        </label>
+      </Tooltip>
 
       <div class="params-field">
         <span class="params-label">Randomized overlap</span>
-        <Switch
-          class="params-switch"
-          checked={randomizedOverlap()}
-          onChange={setRandomizedOverlap}
-          title="Average a second STFT offset by half a hop (breaks the frame grid)"
-        >
-          <Switch.Input class="params-switch-input" />
-          <Switch.Control class="params-switch-control">
-            <Switch.Thumb class="params-switch-thumb" />
-          </Switch.Control>
-        </Switch>
+        <Tooltip label="Average a second STFT offset by half a hop (breaks the frame grid)">
+          <Switch
+            class="params-switch"
+            checked={randomizedOverlap()}
+            onChange={setRandomizedOverlap}
+          >
+            <Switch.Input class="params-switch-input" />
+            <Switch.Control class="params-switch-control">
+              <Switch.Thumb class="params-switch-thumb" />
+            </Switch.Control>
+          </Switch>
+        </Tooltip>
       </div>
 
-      <div
-        class="params-field params-range"
-        title="Band-limit spectral and pitch tools to this Hz range (0 Hz max means up to Nyquist)."
-      >
-        <span class="params-label">Frequency range</span>
-        <div class="params-range-inputs">
+      <Tooltip label="Band-limit spectral and pitch tools to this Hz range (0 Hz max means up to Nyquist).">
+        <div class="params-field params-range">
+          <span class="params-label">Frequency range</span>
+          <div class="params-range-inputs">
           <NumberField
             class="params-num"
             value={freqMinHz()}
@@ -154,7 +161,8 @@ export default function SharedParamsForm() {
           </NumberField>
           <span class="params-dim">Hz</span>
         </div>
-      </div>
+        </div>
+      </Tooltip>
 
       <div class="params-note">
         0 Hz max means up to Nyquist; the band limit applies to spectral tools.

@@ -29,6 +29,9 @@ export const SEL = {
   toolbarFilter: '[data-testid="toolbar.filter"]',
   toolbarParams: '[data-testid="toolbar.params"]',
   toolbarView: '[data-testid="toolbar.view"]',
+  toolbarAbout: '[data-testid="toolbar.about"]',
+  themeMessage: '[data-testid="toolbar.theme.message"]',
+  aboutDialog: '[data-testid="about.dialog"]',
   outputGain: '[data-testid="toolbar.output.gain"]',
   outputMeter: '[data-testid="toolbar.output.meter"]',
 

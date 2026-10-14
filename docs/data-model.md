@@ -32,16 +32,18 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 - **LayoutState** — `dockview` `api.toJSON()` + solid-flow graph positions.
 - **ThemeFile** — an installable palette: a declared `base` (`dark` / `light`) plus
   partial `ui` (CSS custom properties) / `chart` / `colormap` / `flow` overlays. The
-  built-ins (`builtin:dark` / `builtin:light`) are full themes; the preference is a
+  built-ins (`builtin:dark` / `builtin:light`, plus bundled **Retrowave Neon**,
+  **Nord**, **Solarized Dark / Light**) are full themes; the preference is a
   **mode + two slots**. Stored as JSON (`.heyltheme`) under the app config dir.
 - **AnalysisTemplate** — a named, **source-less** preset: an `AnalysisSetup` + optional
   filter / synth `GraphSpec`s + an optional layout + a **window / view policy**
   (`fractional` / `absolute` / `full` / `fixedLength`). Stored as JSON
   (`.heyltemplate`), not the binary project container.
 
-> **Planned (M11–M13).** `ThemeFile` and `AnalysisTemplate` are new entities; the
-> export envelope is a view over an existing `AnalysisResult`. See [`theming.md`](theming.md),
-> [`exports.md`](exports.md), [`templates.md`](templates.md).
+> **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md));
+> `AnalysisTemplate` (M13) and the export envelope (M12) are still planned — the export
+> envelope is a view over an existing `AnalysisResult`. See [`exports.md`](exports.md),
+> [`templates.md`](templates.md).
 
 ## Sketch (Rust)
 

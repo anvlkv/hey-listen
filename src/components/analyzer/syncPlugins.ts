@@ -2,7 +2,7 @@ import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import type { AnalyzerBus, SyncGroup } from "../../state/chartSync";
-import { chartTheme } from "../../state/settings";
+import { chartTheme } from "../../state/themes";
 
 /** The uPlot instance type, taken from the wrapper's plugin props. */
 type UplotInstance = TooltipProps["u"];

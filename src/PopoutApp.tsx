@@ -6,6 +6,7 @@ import { projectName } from "./state/project";
 import { setError, setSource, setStatus, source } from "./state/source";
 import { resetTimeline, windowEnd, windowStart } from "./state/timeline";
 import { initUiState } from "./state/uiState";
+import { refreshThemes } from "./state/themes";
 import { toolById, type ToolId } from "./state/workbench";
 import type { SharedSourceInfo } from "./bindings/SharedSourceInfo";
 import "./App.css";
@@ -21,6 +22,8 @@ export default function PopoutApp(props: { toolId: string }) {
   const tool = () => toolById(props.toolId as ToolId);
 
   onMount(() => {
+    // Installed themes live in the app config dir; a popout is a separate webview.
+    void refreshThemes();
     void (async () => {
       // Pull the shared project state first, then load the source's shape.
       await initUiState();

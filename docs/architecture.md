@@ -50,7 +50,7 @@ src-tauri/src/
 │   ├── ui.rs        # project UI-state sync                      ✅ (M7: get_ui_state, set_ui_state)
 │   ├── window.rs    # window management                           ✅ (M7: open_project_window, open_popout_window, popout_tool(s))
 │   ├── mcp.rs       # MCP tool-call replies + settings            ✅ (M9: mcp_respond, mcp_ready, get_mcp_status, set_mcp_config)
-│   ├── themes.rs    # theme file store (list/read/write/delete)   (M11, planned)
+│   ├── themes.rs    # theme file store (list/write/delete + import/export) ✅ (M11: list_themes, write_theme, delete_theme, theme_dir, import_theme_file, export_theme_file, pick_theme_*_path, reveal_theme_dir)
 │   ├── templates.rs # template store (list/read/write/import/…)   (M13, planned)
 │   └── export.rs    # output plumbing (pick_save_path, write_*)   (M12, planned)
 ├── audio/           # engines (not commands)
@@ -67,7 +67,7 @@ src-tauri/src/
 │   └── batch.rs     # the `analyze` / `analyzers` / `synth` logic  ✅ (M10)
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
-├── themes.rs        # installed theme files (app config dir)      (M11, planned)
+├── themes.rs        # installed theme files (app config dir)    ✅ (M11: byte store + bundled-theme metadata for headless)
 ├── templates.rs     # installed analysis templates (config dir)   (M13, planned)
 ├── state.rs         # per-window core state registry            ✅ (M7: WindowRegistry; audio PCM + filter + player + capture + shared UI state)
 ├── project/         # binary format: write/read, sections, streaming ✅ (M6: mod/error/sections/read/write)
@@ -159,7 +159,8 @@ The commands and channels below are all implemented; milestone notes record the 
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 | MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
 | MCP | `get_mcp_status`, `set_mcp_config` | the MCP server's status / config (on-off + port), owned by `mcp::settings::McpController` (M9) ✅ |
-| Theme | `list_themes`, `read_theme`, `write_theme`, `delete_theme`, `theme_dir`, `import_theme_file`, `export_theme_file` | installed theme files (M11, planned) |
+| Theme | `list_themes`, `write_theme`, `delete_theme`, `theme_dir`, `import_theme_file`, `export_theme_file`, `pick_theme_import_path`, `pick_theme_export_path`, `reveal_theme_dir` | installed theme files (M11) ✅ |
+| App | `open_external_url` | open an `http(s)` URL (the About dialog's license links) in the system browser ✅ |
 | Export | `pick_save_path`, `write_text`, `write_bytes`, `reveal_in_folder` | output plumbing shared by exports + templates (M12, planned) |
 | Template | `list_templates`, `read_template`, `save_template`, `delete_template`, `rename_template`, `templates_dir`, `import_template_file`, `export_template_file` | installed analysis templates (M13, planned) |
 

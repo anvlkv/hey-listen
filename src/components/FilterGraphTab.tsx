@@ -1,6 +1,8 @@
 import { Show } from "solid-js";
 import Button from "./Button";
 import GraphEditor from "./GraphEditor";
+import Icon from "./Icon";
+import Tooltip from "./Tooltip";
 import {
   FILTER_GRAPH,
   filterApplying,
@@ -49,9 +51,16 @@ export default function FilterGraphTab() {
           </span>
         )}
       </Show>
-      <Button class="graph-btn" data-testid="graph.clear" onClick={() => resetGraph("filter")}>
-        Clear graph
-      </Button>
+      <Tooltip label="Remove every node and link from this graph">
+        <Button
+          class="graph-btn icon-btn"
+          data-testid="graph.clear"
+          aria-label="Clear graph"
+          onClick={() => resetGraph("filter")}
+        >
+          <Icon name="trash" />
+        </Button>
+      </Tooltip>
     </GraphEditor>
   );
 }
