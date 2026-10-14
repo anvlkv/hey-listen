@@ -22,11 +22,14 @@ import {
   setOutputDeviceId,
 } from "../state/output";
 import { projectError, projectName, projectStatus } from "../state/project";
+import { notes } from "../state/notes";
 import {
   FONT_SCALE_MAX,
   FONT_SCALE_MIN,
   fontScale,
+  notesPanelOpen,
   nudgeFontScale,
+  toggleNotesPanel,
 } from "../state/settings";
 import {
   activeSlot,
@@ -412,6 +415,25 @@ export default function Toolbar() {
             onClick={() => setAboutOpen(true)}
           >
             <Icon name="circle-question" />
+          </Button>
+        </Tooltip>
+
+        {/* The Notes rail toggle sits apart at the right end of the toolbar. */}
+        <span class="toolbar-divider" aria-hidden="true" />
+        <Tooltip label="Notes panel">
+          <Button
+            class="toolbar-btn icon-btn toolbar-btn-notes"
+            data-testid="toolbar.notes"
+            aria-label="Toggle the notes panel"
+            aria-pressed={notesPanelOpen()}
+            onClick={toggleNotesPanel}
+          >
+            <Icon name="note-sticky" />
+            <Show when={!notesPanelOpen() && notes().length > 0}>
+              <span class="toolbar-badge" data-testid="toolbar.notes.badge">
+                {notes().length}
+              </span>
+            </Show>
           </Button>
         </Tooltip>
       </div>

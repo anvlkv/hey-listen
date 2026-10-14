@@ -151,7 +151,7 @@ The commands and channels below are all implemented; milestone notes record the 
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
 | Analysis | `run_analysis` | tool id + window + params → result |
-| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joins the payload in M14 (planned). |
+| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14 ✅. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 | Window | `open_project_window` | open a new, independent project window (M7) ✅ |
 | Window | `open_popout_window`, `popout_tool`, `popout_tools` | open/query a popout window for a tool (M7) ✅ |

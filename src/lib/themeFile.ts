@@ -60,6 +60,8 @@ export interface ChartTheme {
   playhead: string;
   /** Timeline mid-line colour. */
   midline: string;
+  /** Note annotation marker colour (Timeline pins + chart note markers). */
+  note: string;
   /** Timeline filtered-overlay stroke. */
   filtered: string;
   /** Timeline window move-handle fill (semi-transparent accent). */

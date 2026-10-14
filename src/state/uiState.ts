@@ -1,7 +1,9 @@
 import { createEffect, createRoot } from "solid-js";
+import type { Note } from "../bindings/Note";
 import { analyzerBus } from "./chartSync";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
+import { focusedNoteId, notes, replaceNotes, setFocusedNoteId } from "./notes";
 import { applyProjectTitle, projectDisplayName } from "./project";
 import {
   setView,
@@ -55,6 +57,17 @@ registerUiState("project", (value) => {
   applyProjectTitle((value as ProjectState).name);
 });
 
+// Notes ride the project's shared UI state so a project's windows stay in lockstep
+// (ADR-11/ADR-18). A remote focus is applied without the UI side effects (opening the
+// chart / moving the window) that a local `focusNote` performs.
+registerUiState("notes", (value) => {
+  replaceNotes((value as Note[]) ?? []);
+});
+
+registerUiState("focusedNoteId", (value) => {
+  setFocusedNoteId((value as string | null) ?? null);
+});
+
 for (const group of ["time", "freq"] as const) {
   registerUiState(`view:${group}`, (value) => {
     analyzerBus.setData(
@@ -80,6 +93,8 @@ export async function initUiState(): Promise<void> {
     );
     createEffect(() => pushUiState("params", sharedParams()));
     createEffect(() => pushUiState("toolOptions", deepClone(toolOptions)));
+    createEffect(() => pushUiState("notes", deepClone(notes())));
+    createEffect(() => pushUiState("focusedNoteId", focusedNoteId()));
     // The project name is owned by the project window (a popout's source is only a
     // stub, so it must not push its derived name back).
     if (!isPopoutWindow) {

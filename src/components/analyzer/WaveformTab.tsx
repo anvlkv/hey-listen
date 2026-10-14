@@ -9,6 +9,7 @@ import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { referenceLine } from "./seriesPlugins";
+import { noteMarkers } from "./notePlugins";
 import { TIME_AXIS_SPACE, timeAxisValues, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import {
   chartAxisStyle,
@@ -115,6 +116,7 @@ export default function WaveformTab() {
                       tooltip(Tooltip),
                       mirrorCursor("time"),
                       syncView("time"),
+                      noteMarkers("waveform"),
                       ...(dbMode() ? [referenceLine({ value: 0, label: "0 dBFS" })] : []),
                     ]}
                     onCreate={zoom.onReady}
@@ -162,7 +164,7 @@ export default function WaveformTab() {
                 </Show>
               </Show>
             </div>
-            <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
+            <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool="waveform" />
           </div>
         )}
       </Show>

@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  Developer preview page — NOT part of the app.
+
+  Renders the real UI in a plain browser (no Tauri, no Rust core) so layout / CSS /
+  component work can be iterated on and screenshotted without launching the app.
+
+  It stubs the minimal Tauri v2 internals the shell touches at startup
+  (`window.__TAURI_INTERNALS__`) so `index.tsx` boots instead of throwing — every
+  `invoke(...)` resolves to `null`. That means there is **no audio source or analysis
+  data**: the Timeline is empty and analyzers show their empty state. Set a fake source
+  from the console if a view needs one, e.g.:
+
+    const m = await import("/src/state/source.ts");
+    m.finalizeSource({ name: "preview", detail: "preview",
+      samples: new Float32Array(48000), sampleRate: 48000, channels: 1 });
+
+  Usage (dev server only):
+
+    npm run dev                     # then open http://localhost:1420/preview.html
+
+  `vite build` builds only `index.html`, so this file is never bundled or shipped.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hey Listen — UI preview</title>
+    <link rel="icon" type="image/svg+xml" href="/tauri.svg" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script>
+      // Minimal Tauri v2 internals stub: enough for `@tauri-apps/api` (invoke, event
+      // listen, window title) to resolve instead of throwing. Dev preview only.
+      window.__TAURI_INTERNALS__ = {
+        invoke: async () => null,
+        transformCallback: (cb) => {
+          const id = Math.floor(Math.random() * 1e9);
+          window[id] = cb;
+          return id;
+        },
+        unregisterCallback: (id) => {
+          delete window[id];
+        },
+        convertFileSrc: (path) => path,
+        metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } },
+      };
+    </script>
+    <script src="/src/index.tsx" type="module"></script>
+  </body>
+</html>

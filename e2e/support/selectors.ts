@@ -17,6 +17,7 @@ export const SEL = {
   source: '[data-testid="region.source"]',
   splitterTimeline: '[data-testid="splitter.timeline"]',
   splitterSidebar: '[data-testid="splitter.sidebar"]',
+  splitterNotes: '[data-testid="splitter.notes"]',
 
   // Sidebar.
   sidebarSearch: '[data-testid="sidebar.search"]',
@@ -34,6 +35,17 @@ export const SEL = {
   aboutDialog: '[data-testid="about.dialog"]',
   outputGain: '[data-testid="toolbar.output.gain"]',
   outputMeter: '[data-testid="toolbar.output.meter"]',
+  toolbarNotes: '[data-testid="toolbar.notes"]',
+
+  // Notes panel (M14).
+  notesRegion: '[data-testid="region.notes"]',
+  notesAdd: '[data-testid="notes.add"]',
+  notesRange: '[data-testid="notes.range"]',
+  notesCollapse: '[data-testid="notes.collapse"]',
+  notesEmpty: '[data-testid="notes.empty"]',
+  notesRows: '[data-testid="notes.rows"]',
+  notesCount: '[data-testid="notes.count"]',
+  timelineNoteHint: '[data-testid="timeline.note.hint"]',
 
   // MCP popover.
   toolbarMcp: '[data-testid="toolbar.mcp"]',
@@ -105,3 +117,13 @@ export const analyzerAbout = (id: string) => `[data-testid="analyzer.about.${id}
 
 /** A tool-specific params control, keyed by tool id and param key. */
 export const toolParam = (id: string, key: string) => `[data-testid="toolparam.${id}.${key}"]`;
+
+/** The first note row in the Notes panel (ids are uuid-based, so match the prefix). */
+export const firstNoteRow = '[data-testid^="note.row."]';
+
+/** A note row / its frozen values line / its delete button, by note id. */
+export const noteRow = (id: string) => `[data-testid="note.row.${id}"]`;
+export const noteValues = (id: string) => `[data-testid="note.values.${id}"]`;
+export const noteDelete = (id: string) => `[data-testid="note.delete.${id}"]`;
+export const noteEdit = (id: string) => `[data-testid="note.edit.${id}"]`;
+export const noteStale = (id: string) => `[data-testid="note.stale.${id}"]`;

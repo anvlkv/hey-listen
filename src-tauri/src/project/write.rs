@@ -7,11 +7,11 @@
 use std::io::{self, Write};
 
 use super::error::ProjectError;
-use super::sections::{AnalysisSetup, Meta, SourceDescriptor, StoredResult};
+use super::sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
 use super::{
     Crc32, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, FLAGS,
     HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_DATA, SECTION_LAYOUT, SECTION_META,
-    SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
+    SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
 };
 use crate::state::SourcePcm;
 
@@ -26,6 +26,8 @@ pub struct SaveProject<'a> {
     pub setup: AnalysisSetup,
     pub layout: serde_json::Value,
     pub results: Vec<StoredResult>,
+    /// The project's notes (M14).
+    pub notes: Vec<Note>,
     pub pcm: Option<&'a SourcePcm>,
 }
 
@@ -49,6 +51,7 @@ pub fn write_project<W: Write>(
     let setup_bytes = postcard::to_stdvec(&save.setup).map_err(encode)?;
     let layout_bytes = serde_json::to_vec(&save.layout).map_err(encode)?;
     let results_bytes = postcard::to_stdvec(&save.results).map_err(encode)?;
+    let notes_bytes = postcard::to_stdvec(&save.notes).map_err(encode)?;
 
     // The section plan, in id order. `DATA`'s length is analytic.
     let plan = [
@@ -58,6 +61,7 @@ pub fn write_project<W: Write>(
         (SECTION_SETUP, setup_bytes.len() as u64),
         (SECTION_LAYOUT, layout_bytes.len() as u64),
         (SECTION_RESULTS, results_bytes.len() as u64),
+        (SECTION_NOTES, notes_bytes.len() as u64),
     ];
     let count = plan.len() as u32;
 
@@ -92,6 +96,7 @@ pub fn write_project<W: Write>(
     hashing.write_all(&setup_bytes)?;
     hashing.write_all(&layout_bytes)?;
     hashing.write_all(&results_bytes)?;
+    hashing.write_all(&notes_bytes)?;
 
     // Trailing checksum, over everything written so far.
     let checksum = hashing.checksum();

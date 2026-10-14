@@ -514,7 +514,7 @@ source rather than pinned.
 > usable headless; the layout part is GUI-only. See [`templates.md`](templates.md)
 > (ADR-17).
 
-## M14 — Notes (planned)
+## M14 — Notes ✅
 
 An **annotation layer** on the project: a **markdown** note attached to an audio
 **time** (a point, optionally a span) and to the **analyzer chart** it was taken from,

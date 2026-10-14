@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { invoke } from "../lib/ipc";
 import type { DockviewApi, SerializedDockview } from "dockview";
-import { ANALYZERS, type AnalyzerId } from "./analyzer";
+import { ANALYZERS, isAnalyzerId, type AnalyzerId } from "./analyzer";
 
 /**
  * Workbench tab registry.
@@ -58,6 +58,18 @@ export function toolById(id: ToolId): ToolDef {
 
 export const [dockApi, setDockApi] = createSignal<DockviewApi | null>(null);
 export const [openTools, setOpenTools] = createSignal<ToolId[]>([]);
+
+/** The focused Workbench tool id, or `null` when nothing is focused. */
+export function focusedTool(): ToolId | null {
+  const id = dockApi()?.activePanel?.id;
+  return id ? (id as ToolId) : null;
+}
+
+/** The focused **analyzer** tab, or `null` (a graph tab, or nothing focused). */
+export function focusedAnalyzer(): AnalyzerId | null {
+  const tool = focusedTool();
+  return tool && isAnalyzerId(tool) ? tool : null;
+}
 
 /** Open a tool's tab, or focus it if it is already open (no duplicate tabs). */
 export async function openTool(id: ToolId) {

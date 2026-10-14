@@ -165,6 +165,25 @@
               "description": "Stop at the first failing tool"
             }
           ]
+        },
+        "notes": {
+          "description": "List the notes in a project file (.heyl)",
+          "args": [
+            {
+              "name": "file",
+              "index": 1,
+              "takesValue": true,
+              "description": "Project file (.heyl) to read the notes from"
+            },
+            {
+              "name": "json",
+              "description": "Emit each note as one JSON line (JSONL) instead of a table"
+            },
+            {
+              "name": "full",
+              "description": "Include the full markdown body (default: a one-line excerpt)"
+            }
+          ]
         }
       }
     }

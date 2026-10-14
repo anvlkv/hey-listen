@@ -8,6 +8,7 @@ import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { referenceLine, semitoneGrid } from "./seriesPlugins";
+import { noteMarkers } from "./notePlugins";
 import { paddedYRange } from "./range";
 import { coverage, seriesReadouts } from "./readouts";
 import {
@@ -161,6 +162,7 @@ export default function SeriesView(props: {
                     tooltip(Tooltip),
                     mirrorCursor("time"),
                     syncView("time"),
+                    noteMarkers(props.id),
                     ...(view().reference ? [referenceLine(view().reference!)] : []),
                     ...(view().semitoneGrid ? [semitoneGrid()] : []),
                   ]}
@@ -205,7 +207,7 @@ export default function SeriesView(props: {
               </Show>
             </Show>
           </div>
-          <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
+          <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
         </div>
       )}
     </Show>

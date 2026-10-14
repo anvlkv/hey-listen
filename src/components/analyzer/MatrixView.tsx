@@ -5,6 +5,8 @@ import ZoomControls from "./ZoomControls";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
 import { createReframeHandler, NoAudioState, timeRangeLabel } from "./chartCommon";
+import { drawNoteMarkers, noteGroups, noteNear } from "./notePlugins";
+import { dragNoteTo, refreshNoteValues } from "../../state/notes";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/themes";
 import {
@@ -71,6 +73,7 @@ export default function MatrixView(props: {
   let wrap!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
   let pan: { x: number; view: View } | null = null;
+  let noteDrag: { id: string } | null = null;
 
   createEffect(
     on(
@@ -190,6 +193,27 @@ export default function MatrixView(props: {
     drawTime(ctx, v, box);
     drawHover(ctx, box);
     drawMirror(ctx, v, box);
+    drawNotes(ctx, v, box);
+  }
+
+  /** This chart's own notes, other charts' notes (muted), and the focused note (M14). */
+  function drawNotes(
+    ctx: CanvasRenderingContext2D,
+    v: View,
+    box: { x: number; y: number; width: number; height: number },
+  ) {
+    const span = Math.max(v.t1 - v.t0, 1e-9);
+    drawNoteMarkers(
+      ctx,
+      {
+        xFor: (time) => box.x + ((time - v.t0) / span) * box.width,
+        top: box.y,
+        height: box.height,
+        left: box.x,
+        right: box.x + box.width,
+      },
+      noteGroups(props.id),
+    );
   }
 
   /** Pitch-class row rules (chromagram note grid). */
@@ -338,11 +362,39 @@ export default function MatrixView(props: {
     if (event.button !== 0) return;
     const v = view();
     if (!v) return;
+    // Grab a note on its tick (top band) to drag it along time.
+    const box = plot();
+    const rect = canvas.getBoundingClientRect();
+    const localY = event.clientY - rect.top;
+    if (localY >= box.y && localY <= box.y + 14) {
+      const span = Math.max(v.t1 - v.t0, 1e-9);
+      const note = noteNear(
+        noteGroups(props.id),
+        (t) => box.x + ((t - v.t0) / span) * box.width,
+        event.clientX - rect.left,
+      );
+      if (note) {
+        noteDrag = { id: note.id };
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
+    }
     pan = { x: event.clientX, view: v };
     canvas.setPointerCapture(event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (noteDrag) {
+      const v = view();
+      if (v) {
+        const box = plot();
+        const rect = canvas.getBoundingClientRect();
+        const span = Math.max(v.t1 - v.t0, 1e-9);
+        const time = v.t0 + ((event.clientX - rect.left - box.x) / box.width) * span;
+        dragNoteTo(noteDrag.id, time);
+      }
+      return;
+    }
     if (pan) {
       const box = plot();
       const dx = event.clientX - pan.x;
@@ -353,6 +405,10 @@ export default function MatrixView(props: {
   }
 
   function onPointerUp(event: PointerEvent) {
+    if (noteDrag) {
+      refreshNoteValues(noteDrag.id);
+      noteDrag = null;
+    }
     pan = null;
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   }
@@ -420,6 +476,7 @@ export default function MatrixView(props: {
     size();
     hover();
     view();
+    analyzerBus.data.notes;
     draw();
   });
 
@@ -493,7 +550,7 @@ export default function MatrixView(props: {
           </Show>
         </Show>
       </div>
-      <ReframeMenu target={menu()} onClose={() => setMenu(null)} />
+      <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
     </div>
   );
 }

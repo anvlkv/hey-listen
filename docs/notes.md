@@ -36,7 +36,7 @@ section and exported to TypeScript (`src/bindings/`). See
   "timeSecs": 2.34,                    // the anchor instant (source seconds)
   "range": { "startSecs": 2.34, "endSecs": 3.10 },  // optional span; absent = a point
   "tool": "spectrum",                  // the analyzer it was taken from; absent = a Timeline note
-  "title": "Third harmonic",           // optional plain-text title
+  "title": "Third harmonic",           // optional plain-text title (unused by the UI; the heading is the body's first line)
   "body": "Peak at **880 Hz** — the 2nd harmonic of the 440 Hz tone…",  // markdown
   // Frozen snapshot of the chart's values (see below). Absent for Timeline notes.
   "values": {
@@ -58,8 +58,9 @@ section and exported to TypeScript (`src/bindings/`). See
   *same* id `run_analysis` / the Sidebar use. Present = the note hangs off that
   chart. Absent = a **Timeline note** (taken directly on the timeline, with no
   chart).
-- **`body`** is the only rich field: **markdown**, stored raw. Everything else
-  (`title`, `values.label`, `values.text`) is plain text.
+- **`body`** is the only rich field: **markdown**, stored raw. The note's **heading
+  is the first line of the body** — there is no separate title field (`title` is
+  kept in the model for forward-compatibility but the UI neither sets nor shows it).
 - **`values`** is the note's **subtitle** — a frozen snapshot, described next.
 
 ## The values snapshot
@@ -78,10 +79,11 @@ the note's time*, captured when the note was written.
   project file). It carries its `window` / `params` / `options` provenance, so it
   lines up with an export envelope ([`exports.md`](exports.md)) or a template
   ([`templates.md`](templates.md)).
-- **Recompute** — a note offers a **Recompute** action that re-snapshots `values`
-  from the live chart (re-running the tool at the note's time if needed). Until
-  then, the UI shows a subtle **stale** hint when the current chart's values at
-  the note's time differ from the snapshot.
+- **Recompute** — there is **no Recompute button**. A row always shows the chart's
+  **current** readout at the note's time; when it differs from the frozen snapshot,
+  the snapshot is shown **struck through** beneath the current line. Editing the
+  note (or the end of a placement drag) refreshes the snapshot, so the struck-through
+  line clears. The MCP `update_note` still exposes `recomputeValues`.
 
 ## Markdown
 
@@ -103,17 +105,23 @@ Sidebar (see [`ui-layout.md`](ui-layout.md)). It is **not** a Workbench tab: the
 only tabs are Workbench tabs, and a note panel is chrome, not content.
 
 - **Collapsible**, **hidden by default**. A Toolbar icon button (`note-sticky`)
-  toggles it; the panel's own header has a chevron to collapse it, and an **Add
-  note** button.
+  toggles it, carrying a **count badge** while the rail is closed; the panel's own
+  header has a chevron to collapse it, an **Add note** button (anchors at the current
+  analysis window, using the focused analyzer as its chart, with a **range** toggle),
+  and the total count.
 - **Resizable** with a draggable splitter, clamped like the left Sidebar
   (160–520 px). The Workbench shrinks beside it (the panel pushes, it does not
   overlay).
 - Open/closed state and width are **view settings**, persisted app-level (like
   the font scale), **not** part of the project.
-- The list is **sorted by `timeSecs`**, one row per note: its title (or a body
-  excerpt), its tool + time subtitle, and its frozen values line. Selecting a row
-  **focuses** the note (below); a row can be edited or deleted inline, and
-  carries the **open the chart** link.
+- The list is **sorted by `timeSecs`**, one row per note. A row is a **title bar**
+  — the heading (the body's first line) plus the row actions (`open chart` when the
+  note has an analyzer, `edit`, `popout`, `delete`) — over its tool + time subtitle,
+  its **current** values line (with the frozen snapshot struck through when it
+  differs), and its **full rendered body** (clamped to a height, expandable with a
+  chevron). Selecting the heading **focuses** the note (below).
+- **Popout** — the `popout` action opens the note in a large, **edit-only** view (a
+  modal over the app), for a roomier markdown surface.
 
 ## Surfacing: Timeline and charts
 
@@ -121,9 +129,13 @@ Notes are drawn where the audio is drawn.
 
 - **Timeline** — every note is a **pin** at `timeSecs` (a **span** for a range
   note), rendered as a new overlay pass in the Timeline canvas (ADR-7). Hovering
-  a pin shows a hint (title + tool + values line); clicking it focuses the note.
+  a pin shows a hint (heading + tool + values line); clicking it focuses the note;
+  **dragging** it along the timeline moves the note's time (the snapshot refreshes
+  on release).
 - **A note's own chart** — the notes whose `tool` matches the chart are drawn on
-  it (small ticks), so a chart shows its annotations in place.
+  it (full-strength ticks); the notes from **other** charts are drawn **muted**, so
+  every annotation is visible where the audio is. A chart can be dragged the same
+  way by grabbing a note's tick in the top band.
 - **The focused note** — exactly **one** note is focused at a time. The focused
   note is drawn on **every time-based chart** (the `time` sync group: waveform,
   series-over-time, spectrogram, matrix, rhythm), via the shared chart bus
@@ -151,7 +163,7 @@ Two entry points, one model:
   alone; Timeline notes are added from the panel.)
 
 Creating captures the **values snapshot** at that moment (frozen), opens the
-panel if it is collapsed, and focuses the new note.
+panel if it is collapsed, **opens the new note's editor**, and focuses it.
 
 ## Persistence and cross-window
 
@@ -213,14 +225,18 @@ nowhere to store a note.
 | Path | Role |
 | --- | --- |
 | `src/state/notes.ts` | The `Note` type, the store, create/update/delete/focus, and the values capture. |
+| `src/lib/note.ts` | Pure note helpers (clamp, label, excerpt, snapshot compare) — unit-tested. |
+| `src/lib/markdown.ts` | Markdown → sanitized HTML (`marked` + `dompurify`). |
 | `src/components/NotesPanel.tsx` | The right rail: the list, the editor (markdown + preview-on-blur), Add / Recompute / Delete. |
 | `src/components/analyzer/notePlugins.ts` | The chart marker plugin (focused note on every time chart; a chart's own notes). |
+| `src/components/analyzer/ReframeMenu.tsx` | The chart right-click menu — carries **Add note here**. |
 | `src/components/Timeline.tsx` | The note pin/span overlay + hit-testing (ADR-7 canvas). |
 | `src/components/Toolbar.tsx` | The `note-sticky` toggle for the panel. |
 | `src-tauri/src/project/sections.rs` | The `Note` / `NoteValues` types (`#[derive(ts_rs::TS)]`) + the `NOTES` section id. |
 | `src-tauri/src/project/{write,read}.rs` | Write / read the `NOTES` section. |
 | `src/state/project.ts`, `src/state/history.ts` | Include notes in save/load, undo/redo, and the dirty signature. |
 | `src/state/uiState.ts`, `src/state/uiSync.ts` | Broadcast notes + focus across the project's windows. |
+| `src/state/settings.ts` | The Notes rail's view settings (open + width), persisted app-level. |
 | `src-tauri/src/cli/batch.rs` | The `notes` subcommand (read-only over a `.heyl`). |
 | `src/state/mcp.ts`, `src-tauri/src/mcp/tools.rs` | The `*_note` tools. |
 
@@ -230,10 +246,12 @@ nowhere to store a note.
   `save_project` → `load_project` (Rust unit tests over the `NOTES` section;
   frontend tests over the store).
 - **Values snapshot** — capture produces the per-frame readout at the note's time
-  for a time chart and the summary for a no-time-axis tool; recompute refreshes
-  it; the stale predicate flips when the window/params change.
-- **Anchoring** — `time` / `range` clamp to the source; a note with an unknown
-  `tool` is kept but draws no chart marker (and its link is inert).
+  for a time chart and the summary for a no-time-axis tool; a row shows the current
+  readout and strikes through the frozen snapshot when they differ; editing the note
+  (or a drag release) refreshes the snapshot.
+- **Anchoring + drag** — `time` / `range` clamp to the source; dragging a note's pin
+  (Timeline) or tick (a chart) moves it and refreshes the snapshot on release; a note
+  with an unknown `tool` is kept but draws no chart marker (and its link is inert).
 - **Surfacing** — the focused note is drawn on every time chart and **not** on
   `spectrum`; a chart draws only its own notes.
 - **CLI** — `notes <file.heyl>` prints the notes (table / `--json`); a file with

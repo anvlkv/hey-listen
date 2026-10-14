@@ -3,6 +3,7 @@ import type {
   CursorPluginMessageBus,
   FocusSeriesPluginMessageBus,
 } from "@dschz/solid-uplot/plugins";
+import type { Note } from "../bindings/Note";
 
 /**
  * Shared chart state for cross-tab sync (M5).
@@ -48,11 +49,28 @@ export interface CursorSyncMessageBus {
   cursorSync?: CursorSyncMessage;
 }
 
+/**
+ * The project's notes on the bus (M14): every note plus the focused note id, so a
+ * chart's note plugin can draw its own notes and the one focused note without each
+ * chart reaching into the store. Published by `state/notes.ts` whenever the notes or
+ * the focus change. See `docs/notes.md`.
+ */
+export interface NotesMessage {
+  notes: Note[];
+  focusedId: string | null;
+}
+
+/** Bus key used by the note marker plugin. */
+export interface NotesMessageBus {
+  notes?: NotesMessage;
+}
+
 /** The bus type shared by every analyzer chart. */
 export type AnalyzerBus = CursorPluginMessageBus &
   FocusSeriesPluginMessageBus &
   ViewMessageBus &
   CursorSyncMessageBus &
+  NotesMessageBus &
   Record<string, unknown>;
 
 /** The one bus shared by every uPlot analyzer tab. */

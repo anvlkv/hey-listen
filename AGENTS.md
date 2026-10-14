@@ -40,6 +40,11 @@ save source + setup + results to a binary project file.
    (the `.npm-cache/` dir is gitignored), or fix permanently with
    `sudo chown -R 501:20 ~/.npm`.
 
+7. **Iterating on the UI without the app.** `npm run dev`, then open
+   `http://localhost:1420/preview.html` to render the real shell in a plain browser
+   (it stubs the Tauri internals) — handy for layout/CSS work and screenshots. See
+   `docs/testing.md` → "Rendering the UI without the app".
+
 ## Skills
 
 Load the matching skill (via the `skill` tool) before working in that area:
@@ -81,5 +86,6 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11 is done). Deliver strictly one
-milestone at a time; confirm current status from that file before starting.
+`docs/roadmap.md` tracks progress (M11 and M14 are done; M12/M13 are planned).
+Deliver strictly one milestone at a time; confirm current status from that file
+before starting.

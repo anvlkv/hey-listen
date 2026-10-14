@@ -33,7 +33,7 @@ streaming for very large audio.
 | 0x06 | `RESULTS` | postcard | cached `AnalysisResult` list |
 | 0x07 | `NOTES` | postcard | the project's notes (`Note` list: anchor time + optional range, tool, markdown body, frozen values) |
 
-## Notes (M14, planned)
+## Notes (M14)
 
 The `NOTES` section (id `0x07`) carries the project's annotations as a `postcard`
 `Vec<Note>` — the same `Note` / `NoteValues` types the frontend and the MCP surface use
