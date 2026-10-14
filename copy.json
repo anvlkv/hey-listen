@@ -1,0 +1,43 @@
+{
+  "title": "Hey Listen - Follow a sound wherever it goes",
+  "description": "A free, open-source desktop app for exploring sound - open, shape, and visualize any audio on macOS, Windows, and Linux.",
+  "tagline": "Every sound has a story.",
+  "heroHeading": "Follow a sound wherever it goes.",
+  "heroSubheading": "Pick a song, a room, a voice. Shape it, watch it, and get to know it a little better.",
+  "features": [
+    {
+      "title": "Start anywhere",
+      "text": "A file, the mic, the system, one app, or a mix - plus a way to make up a sound of your own."
+    },
+    {
+      "title": "Shape the sound",
+      "text": "Build a little graph to change the tone, then switch it on and off to hear the difference it makes."
+    },
+    {
+      "title": "Explore the views",
+      "text": "Two dozen ways to see a sound - waveform, spectrum, spectrogram, pitch, tempo, loudness, and more. Arrange them however you like."
+    },
+    {
+      "title": "Keep the whole thing",
+      "text": "Everything - the audio, the source, the graphs, the layout - saved in one file, ready to reopen. Keep several projects side by side."
+    },
+    {
+      "title": "Let an agent drive",
+      "text": "Hand the running app to an AI assistant over MCP. It opens sources, runs tools, edits graphs, previews playback, and saves projects on the window you're watching."
+    },
+    {
+      "title": "Analyze in bulk",
+      "text": "hey-listen analyze runs with no window at all. Feed it a batch of files, get one JSON result per file, and pipe it straight into your scripts or CI."
+    }
+  ],
+  "downloadLabel": "Download Hey Listen",
+  "downloadNote": "Free and public domain - macOS, Windows, and Linux.",
+  "ossLine": "Proudly open source - released under the Unlicense, so it's yours to use, change, and share.",
+  "footerLine": "Hey Listen is in the public domain (Unlicense).",
+  "screenshotAlts": [
+    "The workbench, with a timeline waveform and a spectrum analyzer open together.",
+    "The filter graph editor, where the sound is shaped before playback.",
+    "A spectrogram, showing the sound across time and frequency.",
+    "Tempo markers lined up with the onset envelope, tracing the beats."
+  ]
+}
