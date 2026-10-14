@@ -381,8 +381,10 @@ img {
   border-bottom: 1px solid var(--border);
 }
 
-.prose code {
+.prose code,
+.feature code {
   padding: 0.08rem 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
   color: var(--accent);
   background: var(--bg-elev);

@@ -20,6 +20,14 @@
     {
       "title": "Keep the whole thing",
       "text": "Everything - the audio, the source, the graphs, the layout - saved in one file, ready to reopen. Keep several projects side by side."
+    },
+    {
+      "title": "Let an agent drive",
+      "text": "Hand the running app to an AI assistant over MCP. It opens sources, runs tools, edits graphs, previews playback, and saves projects on the window you're watching."
+    },
+    {
+      "title": "Analyze in bulk",
+      "text": "hey-listen analyze runs with no window at all. Feed it a batch of files, get one JSON result per file, and pipe it straight into your scripts or CI."
     }
   ],
   "downloadLabel": "Download Hey Listen",
