@@ -365,6 +365,14 @@ it diagnosable instead of a bare timeout:
   (`href`, `readyState`, `#root` child count, every `data-testid` currently in the DOM,
   and the body's first 600 characters), which separates "nothing mounted" from "mounted
   part-way".
+- **A `C` locale must not blank the shell.** Headless runners and minimal containers
+  default to a `C`/`C.UTF-8` locale, which makes the WebView report a non-BCP-47
+  `navigator.language` (e.g. `"C"`). uPlot builds an `Intl.NumberFormat` at **module
+  scope**, and `new Intl.NumberFormat("C")` throws a `RangeError`, which aborts the whole
+  bundle before the first paint — an empty `#root` that looks exactly like a slow one.
+  `boot.ts` (again, the app's first import) normalizes `language` to `en-US` when `Intl`
+  rejects it, so the Ubuntu CI job — which runs under the default `C` locale — exercises
+  this path.
 
 Before it launches the app, the suite **kills any stale Hey Listen instance** (whatever
 holds the embedded driver's port `4445`, plus any leftover `hey-listen` process) and

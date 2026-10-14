@@ -28,6 +28,43 @@ function describe(error: unknown): string {
   return String(error);
 }
 
+/**
+ * Make `navigator.language` a tag `Intl` accepts.
+ *
+ * A `C` / `C.UTF-8` locale — the default on headless CI runners and in minimal
+ * containers — makes the WebView report a non-BCP-47 `language` such as `"C"`.
+ * `new Intl.NumberFormat("C")` then throws a `RangeError`, and because a bundled
+ * dependency (uPlot) builds one at **module scope**, that throw aborts the whole
+ * bundle before the first paint: an empty `#root`, indistinguishable from a slow
+ * one. Normalizing it here — the app's first module, evaluated before the rest of
+ * the import graph — keeps the shell rendering. (Kobalte reads it too, and falls
+ * back to this same `"en-US"`.)
+ */
+function normalizeNavigatorLanguage(): void {
+  if (isIntlLocale(navigator.language)) return;
+  Object.defineProperty(navigator, "language", {
+    configurable: true,
+    get: () => "en-US",
+  });
+}
+
+/** Whether `Intl` accepts `tag` as a locale (a structurally valid BCP-47 tag). */
+function isIntlLocale(tag: string): boolean {
+  try {
+    // Structurally invalid tags (e.g. `C`, `en_US.UTF-8`) throw a `RangeError`;
+    // valid-but-unknown ones (e.g. `xx-XX`) just resolve to `[]`. Both are fine
+    // to hand to `Intl.NumberFormat`, so only the throw marks a real problem.
+    Intl.NumberFormat.supportedLocalesOf([tag]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Runs as part of this module's body, before any component module (and so before
+// uPlot's module-scope `Intl.NumberFormat`) is evaluated.
+normalizeNavigatorLanguage();
+
 window.addEventListener("error", (event) =>
   reportStartupFailure(`uncaught error at ${event.filename}:${event.lineno}`, event.error ?? event.message),
 );
