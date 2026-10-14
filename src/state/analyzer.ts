@@ -86,6 +86,16 @@ export interface SeriesView {
   formatY: (value: number) => string;
   /** Draw dots as well as the line (sparse tracks such as pitch). */
   points?: boolean;
+  /** Line/area rendering: a plain line, area fill, step, or impulse stems. */
+  style?: "line" | "area" | "stepped" | "stems";
+  /** y-axis scale — `log` is only valid for strictly positive series. */
+  yScale?: "linear" | "log";
+  /** Fixed y-range (e.g. `[0, 1]` for bounded ratios). */
+  yRange?: [number, number];
+  /** Horizontal reference line (a target or floor). */
+  reference?: { value: number; label: string };
+  /** Draw f0 gridlines at semitone frequencies (pitch tracks). */
+  semitoneGrid?: boolean;
 }
 
 /** A frame × band heatmap. */
@@ -95,6 +105,8 @@ export interface MatrixView {
   /** Label for a band row (bottom-up). */
   formatBand: (band: number) => string;
   formatValue: (value: number) => string;
+  /** Draw pitch-class row lines (chromagram). */
+  noteGrid?: boolean;
 }
 
 export interface WaveformView {
@@ -169,9 +181,9 @@ const CHROMA_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#"
 function series(
   yLabel: string,
   formatY: (value: number) => string,
-  points = false,
+  options: Partial<Omit<SeriesView, "kind" | "yLabel" | "formatY">> = {},
 ): SeriesView {
-  return { kind: "series", yLabel, formatY, points };
+  return { kind: "series", yLabel, formatY, ...options };
 }
 
 const MEL_BANDS = [16, 24, 32, 48, 64, 96, 128].map((value) => ({
@@ -197,6 +209,15 @@ export const ANALYZERS: AnalyzerDef[] = [
     keywords: ["waveform", "time", "envelope", "amplitude", "peak", "rms", "oscilloscope"],
     section: "time",
     view: { kind: "waveform" },
+    params: [
+      {
+        key: "dbScale",
+        label: "dB scale",
+        kind: "toggle",
+        value: 0,
+        title: "Plot the envelope in dBFS (0 dBFS at the top) instead of linear amplitude.",
+      },
+    ],
   },
   {
     id: "levels",
@@ -229,6 +250,13 @@ export const ANALYZERS: AnalyzerDef[] = [
       { key: "showMean", label: "Mean layer", kind: "toggle", value: 1 },
       { key: "showMin", label: "Min layer", kind: "toggle", value: 1 },
       { key: "showMax", label: "Max layer", kind: "toggle", value: 1 },
+      {
+        key: "logFreq",
+        label: "Log frequency",
+        kind: "toggle",
+        value: 1,
+        title: "Plot frequency on a logarithmic (octave) axis instead of linear.",
+      },
     ],
   },
   {
@@ -243,6 +271,22 @@ export const ANALYZERS: AnalyzerDef[] = [
     keywords: ["spectrogram", "stft", "heatmap", "time", "frequency", "waterfall"],
     section: "spectral",
     view: { kind: "spectrogram" },
+    params: [
+      {
+        key: "showCentroid",
+        label: "Centroid",
+        kind: "toggle",
+        value: 1,
+        title: "Overlay the spectral centroid (the spectrum's centre of mass) as a contour on the heatmap.",
+      },
+      {
+        key: "showRolloff",
+        label: "Rolloff",
+        kind: "toggle",
+        value: 1,
+        title: "Overlay the spectral rolloff frequency (85% of the energy lies below it) as a contour on the heatmap.",
+      },
+    ],
   },
   {
     id: "melSpectrogram",
@@ -323,6 +367,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       yLabel: "pitch class",
       formatBand: (band) => CHROMA_NOTES[band] ?? `#${band}`,
       formatValue: (value) => value.toFixed(3),
+      noteGrid: true,
     },
   },
   {
@@ -335,7 +380,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "fricatives) and falls for dark, low-frequency material.",
     keywords: ["centroid", "brightness", "timbre", "spectral", "center of mass"],
     section: "spectral",
-    view: series("centroid (Hz)", formatHz),
+    view: series("centroid (Hz)", formatHz, { style: "area", yScale: "log" }),
   },
   {
     id: "spectralFlux",
@@ -347,7 +392,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "the basis of the onset and tempo detectors.",
     keywords: ["flux", "onset", "transient", "novelty", "spectral change"],
     section: "spectral",
-    view: series("flux", fmtPlain),
+    view: series("flux", fmtPlain, { style: "stems" }),
   },
   {
     id: "spectralRolloff",
@@ -359,7 +404,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "tonal/bassy signals, high for noise or bright material.",
     keywords: ["rolloff", "roll-off", "brightness", "energy", "high frequency"],
     section: "spectral",
-    view: series("rolloff (Hz)", formatHz),
+    view: series("rolloff (Hz)", formatHz, { style: "area", yScale: "log" }),
     params: [
       {
         key: "rolloffPercent",
@@ -385,7 +430,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "from noisy content.",
     keywords: ["flatness", "wiener", "entropy", "tonal", "noise", "tonality"],
     section: "spectral",
-    view: series("flatness", fmtPlain),
+    view: series("flatness", fmtPlain, { style: "area", yRange: [0, 1] }),
   },
   {
     id: "spectralContrast",
@@ -425,7 +470,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "for a single tone.",
     keywords: ["bandwidth", "spread", "variance", "width", "spectral"],
     section: "spectral",
-    view: series("bandwidth (Hz)", formatHz),
+    view: series("bandwidth (Hz)", formatHz, { style: "area", yScale: "log" }),
   },
   {
     id: "spectralEntropy",
@@ -436,7 +481,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "tone (energy in few bins), high for noise (energy spread across bins).",
     keywords: ["entropy", "shannon", "disorder", "noise", "spectral"],
     section: "spectral",
-    view: series("entropy (bits)", fmtPlain),
+    view: series("entropy (bits)", fmtPlain, { style: "area" }),
   },
   {
     id: "spectralCrest",
@@ -448,7 +493,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "spectrum.",
     keywords: ["crest", "factor", "peak", "average", "tonal", "spectral"],
     section: "spectral",
-    view: series("crest factor", fmtPlain),
+    view: series("crest factor", fmtPlain, { style: "stepped" }),
   },
   {
     id: "harmonicRatio",
@@ -460,7 +505,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "and unvoiced speech. Set the expected fundamental range below.",
     keywords: ["harmonic", "ratio", "hnr", "periodicity", "autocorrelation", "noise"],
     section: "spectral",
-    view: series("harmonic ratio", fmtRatio),
+    view: series("harmonic ratio", fmtRatio, { style: "area", yRange: [0, 1] }),
     params: [
       {
         key: "minF0Hz",
@@ -496,7 +541,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "voiced/unvoiced and percussive/tonal cue.",
     keywords: ["zero crossing", "zcr", "sign", "voiced", "percussive", "rate"],
     section: "spectral",
-    view: series("zero-crossing rate", fmtRatio),
+    view: series("zero-crossing rate", fmtRatio, { style: "area", yRange: [0, 1] }),
   },
 
   // Pitch / melody
@@ -510,7 +555,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "Unvoiced frames are left blank. Good for monophonic melody and speech.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
-    view: series("pitch (Hz)", formatHz, true),
+    view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
   },
   {
     id: "pitchYin",
@@ -522,7 +567,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "prone to octave errors. Set the voiced/unvoiced threshold below.",
     keywords: ["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
     section: "pitch",
-    view: series("pitch (Hz)", formatHz, true),
+    view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
     params: [
       {
         key: "yinThreshold",
@@ -546,7 +591,7 @@ export const ANALYZERS: AnalyzerDef[] = [
       "Set the expected fundamental range below.",
     keywords: ["pitch", "autocorrelation", "acf", "f0", "fundamental", "period"],
     section: "pitch",
-    view: series("pitch (Hz)", formatHz, true),
+    view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
     params: [
       {
         key: "minF0Hz",
@@ -644,7 +689,10 @@ export const ANALYZERS: AnalyzerDef[] = [
       "non-overlapping blocks instead. Good for spotting level changes and dynamics.",
     keywords: ["loudness", "momentary", "short term", "lufs", "dynamics", "level"],
     section: "loudness",
-    view: series("loudness (LUFS)", (value) => `${value.toFixed(1)} LUFS`),
+    view: series("loudness (LUFS)", (value) => `${value.toFixed(1)} LUFS`, {
+      style: "area",
+      reference: { value: -14, label: "-14 LUFS" },
+    }),
     params: [
       {
         key: "windowMs",

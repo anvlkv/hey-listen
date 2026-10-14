@@ -50,6 +50,13 @@ const LAYERS: [Layer, Layer, Layer] = [
   { key: "showMean", label: "mean", stroke: "seriesMean", width: 1.5, db: (r) => r.magDb },
 ];
 
+/** Keep a log x-axis strictly positive (the band-limited data may start at 0 Hz). */
+function logXRange(_u: unknown, min: number, max: number): [number, number] {
+  const lo = min > 0 ? min : 1;
+  const hi = max > lo ? max : lo * 2;
+  return [lo, hi];
+}
+
 /**
  * Spectrum tool: the averaged FFT magnitude of the conditioned signal over the
  * window (STFT magnitudes averaged per bin), with optional per-bin min / max
@@ -62,6 +69,9 @@ export default function SpectrumTab() {
 
   /** A layer switch is a 0/1 select; default on when unset (e.g. an older project). */
   const layerOn = (key: LayerKey) => (toolOptions.spectrum?.[key] ?? 1) !== 0;
+
+  /** Log-frequency x-axis (per-tool toggle; default on). */
+  const logFreq = () => (toolOptions.spectrum?.logFreq ?? 1) !== 0;
 
   /** A layer is plottable when it is switched on and carries one value per bin. */
   const layerReady = (layer: Layer, result: SpectrumResult) =>
@@ -129,7 +139,9 @@ export default function SpectrumTab() {
                   onFit={zoom.fit}
                   label={zoomLabel()}
                 />
-                <Show when={resolvedTheme()} keyed>
+                {/* Remount when the axis mode changes: the wrapper fixes `scales`
+                    at mount, so a log↔linear switch must rebuild the chart. */}
+                <Show when={`${resolvedTheme()}|${logFreq() ? "log" : "lin"}`} keyed>
                   <SolidUplot
                     autoResize
                     pluginBus={analyzerBus}
@@ -146,7 +158,9 @@ export default function SpectrumTab() {
                       })),
                     ]}
                     scales={{
-                      x: { time: false },
+                      x: logFreq()
+                        ? { time: false, distr: 3, log: 10, range: logXRange }
+                        : { time: false },
                       y: {
                         // Keep roughly a 90 dB window in view, anchored on the peak.
                         range: (_u, min, max): [number, number] => {
