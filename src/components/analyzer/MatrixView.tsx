@@ -185,10 +185,39 @@ export default function MatrixView(props: {
     ctx.drawImage(off, sx, 0, sw, value.bins, box.x, box.y, box.width, box.height);
     ctx.imageSmoothingEnabled = true;
 
+    if (config().noteGrid) drawNoteGrid(ctx, value, box);
     drawBands(ctx, value, box);
     drawTime(ctx, v, box);
     drawHover(ctx, box);
     drawMirror(ctx, v, box);
+  }
+
+  /** Pitch-class row rules (chromagram note grid). */
+  function drawNoteGrid(
+    ctx: CanvasRenderingContext2D,
+    value: MatrixResult,
+    box: { x: number; y: number; width: number; height: number },
+  ) {
+    if (value.bins < 2) return;
+    ctx.save();
+    ctx.strokeStyle = chartTheme().grid;
+    ctx.lineWidth = 1;
+    for (let row = 1; row < value.bins; row++) {
+      const y = Math.round(box.y + box.height - (row / value.bins) * box.height) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(box.x, y);
+      ctx.lineTo(box.x + box.width, y);
+      ctx.stroke();
+    }
+    // Emphasise the octave boundary between pitch class C and C#.
+    const yc = Math.round(box.y + box.height - (1 / value.bins) * box.height) + 0.5;
+    ctx.strokeStyle = chartTheme().axis;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(box.x, yc);
+    ctx.lineTo(box.x + box.width, yc);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawBands(

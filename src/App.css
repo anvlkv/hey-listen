@@ -87,6 +87,13 @@
   --busy-veil: rgba(31, 31, 31, 0.35);
   --shadow: rgba(0, 0, 0, 0.5);
   --shadow-strong: rgba(0, 0, 0, 0.55);
+
+  /* Level meters (M11.A) — peak / RMS bars on the `levels` tool. */
+  --meter-low: #3ecf8e;
+  --meter-mid: #ffcf6b;
+  --meter-high: #ff7b72;
+  --meter-peak: #ffffff;
+  --meter-unlit: #1a1a1a;
 }
 
 :root[data-theme="light"] {
@@ -159,6 +166,13 @@
   --busy-veil: rgba(255, 255, 255, 0.45);
   --shadow: rgba(0, 0, 0, 0.16);
   --shadow-strong: rgba(0, 0, 0, 0.2);
+
+  /* Level meters (M11.A). */
+  --meter-low: #1f9d6a;
+  --meter-mid: #d99a00;
+  --meter-high: #d94a3a;
+  --meter-peak: #1b1b1b;
+  --meter-unlit: #d2d6dc;
 }
 
 * {
@@ -2186,6 +2200,105 @@ textarea,
   font-size: 1.25rem;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
+}
+
+/* --- Level meters (M11.A) ------------------------------------------------ */
+
+.meters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 12px 10px;
+}
+
+.meter-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 84px;
+  align-items: center;
+  gap: 10px;
+}
+
+.meter-label {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.meter-value {
+  font-size: 0.6875rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.meter-track {
+  position: relative;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(
+    to right,
+    var(--meter-low) 0%,
+    var(--meter-low) 62%,
+    var(--meter-mid) 78%,
+    var(--meter-high) 100%
+  );
+}
+
+/* Covers the unlit portion (from the value to the right edge) so the fill's
+   colours stay anchored to the dBFS scale instead of stretching. */
+.meter-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: var(--meter-unlit);
+}
+
+.meter-hold {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--meter-peak);
+}
+
+.meter-track-ruler {
+  height: 14px;
+  background: none;
+  overflow: visible;
+}
+
+.meter-tick {
+  position: absolute;
+  top: 2px;
+  font-size: 0.5625rem;
+  color: var(--fg-faint);
+  transform: translateX(-50%);
+}
+
+.meter-ruler .meter-label,
+.meter-ruler .meter-value {
+  visibility: hidden;
+}
+
+/* --- Tempogram panel (M11.A, tempo / downbeats) ------------------------- */
+
+.analyzer-tempogram {
+  position: relative;
+  flex: 0 0 32%;
+  min-height: 92px;
+  padding: 4px 0 0;
+}
+
+.analyzer-tempogram-label {
+  position: absolute;
+  top: 6px;
+  left: 74px;
+  z-index: 1;
+  font-size: 0.625rem;
+  color: var(--fg-faint);
+  pointer-events: none;
 }
 
 /* --- Event-list analyzer body (onsets / downbeats) ---------------------- */

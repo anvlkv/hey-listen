@@ -1,10 +1,11 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
+import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
 import ZoomControls from "./ZoomControls";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import { createAnalysis, formatHz, type SpectrogramResult } from "../../state/analyzer";
+import { createAnalysis, formatHz, toolOptions, type SpectrogramResult } from "../../state/analyzer";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/themes";
 import { clamp01, spectroColormap } from "./colormap";
@@ -83,6 +84,10 @@ function clampView(next: View, result: SpectrogramResult): View {
 export default function SpectrogramTab() {
   const analysis = createAnalysis<SpectrogramResult>("spectrogram");
   const [dbRange, setDbRange] = createSignal(80);
+
+  /** Per-tool contour overlays (default on). */
+  const showCentroid = () => (toolOptions.spectrogram?.showCentroid ?? 1) !== 0;
+  const showRolloff = () => (toolOptions.spectrogram?.showRolloff ?? 1) !== 0;
   const [size, setSize] = createSignal({ width: 0, height: 0 });
   const [hover, setHover] = createSignal<Hover | null>(null);
   const [view, setView] = createSignal<View | null>(null);
@@ -182,6 +187,46 @@ export default function SpectrogramTab() {
     return off;
   });
 
+  /**
+   * Per-frame spectral centroid (centre of mass) and rolloff (85% of the energy
+   * below it), in Hz. Derived from the displayed magnitudes so the contours align
+   * with the heatmap's frames; `NaN` marks an empty (all-silent) frame.
+   */
+  const overlays = createMemo(() => {
+    const result = analysis.result();
+    if (!result || result.frames === 0 || result.bins === 0) return null;
+    const { frames, bins, freqs, magDb } = result;
+    const centroid = new Float64Array(frames);
+    const rolloff = new Float64Array(frames);
+    const power = new Float64Array(bins);
+    for (let f = 0; f < frames; f++) {
+      const base = f * bins;
+      let total = 0;
+      for (let b = 0; b < bins; b++) {
+        const p = Math.pow(10, magDb[base + b] / 10);
+        power[b] = p;
+        total += p;
+      }
+      if (!(total > 0)) {
+        centroid[f] = NaN;
+        rolloff[f] = NaN;
+        continue;
+      }
+      let weighted = 0;
+      for (let b = 0; b < bins; b++) weighted += freqs[b] * power[b];
+      centroid[f] = weighted / total;
+      const target = 0.85 * total;
+      let acc = 0;
+      let b = 0;
+      for (; b < bins; b++) {
+        acc += power[b];
+        if (acc >= target) break;
+      }
+      rolloff[f] = freqs[Math.min(b, bins - 1)];
+    }
+    return { centroid, rolloff };
+  });
+
   /** Bin index whose centre frequency is closest to `freq`. */
   function binAt(result: SpectrogramResult, freq: number): number {
     const freqs = result.freqs;
@@ -232,9 +277,58 @@ export default function SpectrogramTab() {
     ctx.drawImage(off, sx, sy, sw, sh, box.x, box.y, box.width, box.height);
     ctx.imageSmoothingEnabled = true;
 
+    drawOverlays(ctx, v, box);
     drawAxes(ctx, v, box);
     drawHover(ctx, box);
     drawMirror(ctx, v, box);
+  }
+
+  /** Draw the spectral centroid / rolloff contours over the heatmap. */
+  function drawOverlays(
+    ctx: CanvasRenderingContext2D,
+    v: View,
+    box: { x: number; y: number; width: number; height: number },
+  ) {
+    const result = analysis.result();
+    const o = overlays();
+    if (!result || !o) return;
+    const duration = Math.max(result.duration, 1e-9);
+    const freqSpan = Math.max(v.f1 - v.f0, 1e-9);
+    const timeSpan = Math.max(v.t1 - v.t0, 1e-9);
+
+    const track = (values: Float64Array, color: string) => {
+      const count = values.length;
+      if (count < 2) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(box.x, box.y, box.width, box.height);
+      ctx.clip();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.25;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      let started = false;
+      for (let f = 0; f < count; f++) {
+        const freq = values[f];
+        if (!Number.isFinite(freq)) {
+          started = false;
+          continue;
+        }
+        const time = ((f + 0.5) / count) * duration;
+        const x = box.x + ((time - v.t0) / timeSpan) * box.width;
+        const y = box.y + box.height - ((freq - v.f0) / freqSpan) * box.height;
+        if (started) ctx.lineTo(x, y);
+        else {
+          ctx.moveTo(x, y);
+          started = true;
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    if (showCentroid()) track(o.centroid, chartTheme().overlayCentroid);
+    if (showRolloff()) track(o.rolloff, chartTheme().overlayRolloff);
   }
 
   function drawAxes(
@@ -449,6 +543,7 @@ export default function SpectrogramTab() {
     // Track everything the canvas draws (theme included, so a theme switch redraws).
     resolvedTheme();
     image();
+    overlays();
     size();
     hover();
     view();
@@ -469,15 +564,18 @@ export default function SpectrogramTab() {
       error={analysis.error()}
       hasResult={analysis.result() != null}
       params={
-        <label class="params-field">
-          <span class="params-label">Dynamic range</span>
-          <SelectField
-            options={DB_RANGES}
-            value={dbRange()}
-            onChange={setDbRange}
-            label="Displayed dynamic range"
-          />
-        </label>
+        <>
+          <ToolParamsForm id="spectrogram" />
+          <label class="params-field">
+            <span class="params-label">Dynamic range</span>
+            <SelectField
+              options={DB_RANGES}
+              value={dbRange()}
+              onChange={setDbRange}
+              label="Displayed dynamic range"
+            />
+          </label>
+        </>
       }
     >
       <div class="analyzer-chart">

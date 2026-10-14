@@ -34,8 +34,14 @@ export interface ChartTheme {
   seriesMax: string;
   /** Spectrum "mean" layer stroke. */
   seriesMean: string;
-  /** Waveform envelope band fill. */
+  /** Waveform envelope band fill / area fill for series. */
   waveFill: string;
+  /** Horizontal reference line on a chart (targets such as −14 LUFS, or 0 dBFS). */
+  reference: string;
+  /** Spectrogram spectral-centroid contour overlay. */
+  overlayCentroid: string;
+  /** Spectrogram spectral-rolloff contour overlay. */
+  overlayRolloff: string;
   /** Canvas background behind a spectrogram/heatmap. */
   spectroBackground: string;
   /** Hover crosshair colour (canvas charts). */

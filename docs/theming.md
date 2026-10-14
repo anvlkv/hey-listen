@@ -7,12 +7,13 @@ dark / light** theme; that palette is what a theme now overlays, and it is autho
 
 - `src/App.css` — ~70 `--*` custom properties in `:root[data-theme="dark"]` /
   `:root[data-theme="light"]` (the whole UI chrome).
-- `src/state/settings.ts` — the `ChartTheme` record (`DARK_CHART` / `LIGHT_CHART`),
-  read by every uPlot / canvas chart via `chartTheme()`.
-- `src/components/analyzer/colormap.ts` — the spectrogram / matrix heatmap ramps
-  (`DARK_STOPS` / `LIGHT_STOPS`).
-- `src/components/Workbench.tsx` (dockview `themeDark` / `themeLight`) and
-  `src/components/GraphEditor.tsx` (`FLOW_STYLE_*` for `solid-flow`).
+- `src/state/themes.ts` — the `ChartTheme` record (`DARK_CHART` / `LIGHT_CHART`) and
+  the heatmap ramps, read by every uPlot / canvas chart via `chartTheme()` and
+  `colormap.ts`.
+- `src/App.css` — the level-meter colours (`--meter-*`, M11.A) join the ~70 `--*`
+  custom properties above.
+- `src/components/Workbench.tsx` (dockview `themeDark` / `themeLight`) and the
+  `solid-flow` (`--xy-*`) styles in `src/state/themes.ts` (`BASE_FLOW`).
 
 This document makes the theme **data**: a `ThemeFile` that a user can install, export,
 and share, applied on top of a built-in base.
@@ -55,7 +56,10 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
     "series": "#268bd2",
     "seriesMin": "#859900",
     "seriesMax": "#b58900",
-    "waveFill": "rgba(38, 139, 210, 0.22)"
+    "waveFill": "rgba(38, 139, 210, 0.22)",
+    "reference": "rgba(181, 137, 0, 0.8)",  // chart reference line (targets / floors)
+    "overlayCentroid": "#2aa198",           // spectrogram centroid contour
+    "overlayRolloff": "#cb4b16"             // spectrogram rolloff contour
   },
   // Optional heatmap ramp: an ordered list of [position 0..1, [r, g, b]] stops.
   "colormap": {
@@ -72,6 +76,11 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
   fields, colormap, dockview theme, `solid-flow` styles). Everything the theme omits
   falls back to that base.
 - **`ui` keys** may be written with or without the leading `--`; the loader normalises.
+- **`chart`** is a partial `ChartTheme`. Beyond the fields shown, `reference` draws a
+  chart reference line (e.g. the −14 LUFS target, 0 dBFS), and `overlayCentroid` /
+  `overlayRolloff` colour the spectrogram contour overlays (M11.A).
+- **Meter colours** (the `levels` tool) are the `ui` variables `--meter-low` /
+  `--meter-mid` / `--meter-high` / `--meter-peak` / `--meter-unlit`.
 - **`meta.id`** is the stable key used for the slots and persistence. Built-ins are
   `builtin:dark` / `builtin:light`.
 

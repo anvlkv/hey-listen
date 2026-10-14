@@ -132,3 +132,24 @@ params popover holds only its non-shared options.
 > Long-window analysis is kept interactive by padding short windows (so the
 > library's frame-based features always yield a frame) and by bounding the
 > frame count of the O(frames × lags) pitch / harmonic-ratio tools.
+
+## Chart rendering (M11.A)
+
+Each view kind renders its data for its semantics, driven by the tool's registry
+entry — no per-tool chart component.
+
+- **series** — one scalar per frame over time. Declarative options pick a line /
+  area / step / impulse (**stems**) path; pitch tracks use a **log-frequency y-axis
+  with semitone gridlines**; bounded ratios fix `0…1`; momentary loudness adds a
+  **−14 LUFS reference line**.
+- **waveform** — the min/max envelope; the **dB scale** toggle collapses it to a
+  |peak| curve in dBFS with a 0 dBFS line.
+- **spectrum** — layered magnitudes; the **Log frequency** toggle (default on)
+  switches the axis between linear and octave spacing.
+- **spectrogram** — the magnitude heatmap; the **Centroid** / **Rolloff** toggles
+  (default on) overlay those tracks.
+- **matrix** — a frame × band heatmap; the chromagram adds a pitch-class note grid.
+- **rhythm** — the onset-strength envelope with beat / onset / downbeat markers, plus
+  a **tempo-salience** panel (the envelope's autocorrelation over BPM) on the tempo
+  and downbeat tools.
+- **readouts** — scalar cards; the `levels` tool draws **peak / RMS meter bars**.

@@ -69,13 +69,14 @@ function xSpan(self: AxisSelf): number {
   return Math.abs(max - min);
 }
 
-/** uPlot `values` formatter: compact time labels for a time x-axis. */
-export function timeAxisValues(self: AxisSelf, ticks: number[]): string[] {
+/** uPlot `values` formatter: compact time labels for a time x-axis. uPlot passes
+ *  `null` for unlabeled minor splits — hide those labels. */
+export function timeAxisValues(self: AxisSelf, ticks: (number | null)[]): string[] {
   const span = xSpan(self);
-  return ticks.map((t) => formatTimeTick(t, span));
+  return ticks.map((t) => (t == null ? "" : formatTimeTick(t, span)));
 }
 
 /** uPlot `values` formatter: `kHz`/`MHz` labels for a frequency x- or y-axis. */
-export function frequencyAxisValues(_self: AxisSelf, ticks: number[]): string[] {
-  return ticks.map((t) => formatFrequency(t));
+export function frequencyAxisValues(_self: AxisSelf, ticks: (number | null)[]): string[] {
+  return ticks.map((t) => (t == null ? "" : formatFrequency(t)));
 }

@@ -428,6 +428,41 @@ forward-compatible), and its base drives dockview / `solid-flow`. See
 > ids/names/bases are mirrored in `src-tauri/src/themes.rs` (`BUILTIN_THEMES`) for the
 > headless MCP surface.
 
+## M11.A — Chart polish ✅
+
+A follow-on pass over the analyzer charts: each **data type** gets a rendering chosen
+for its semantics, and controls that were numbers become what they depict. Registry-
+driven throughout — no per-tool chart components.
+
+- **Series families.** The generic `SeriesView` gained declarative fields (`style` /
+  `yScale` / `yRange` / `reference` / `semitoneGrid`) set per registry entry, so a
+  scalar-over-time tool draws as a **line**, **area**, **step**, or **impulse
+  (stems)**; pitch tracks use a **log-frequency y-axis with a semitone grid**; bounded
+  ratios fix `0…1`; momentary loudness carries a **−14 LUFS reference line**.
+- **Waveform dB scale.** A per-tool **dB scale** toggle collapses the min/max envelope
+  to a single |peak| curve in dBFS (0 dBFS at the top) with a 0 dBFS reference line.
+- **Spectrum log axis.** A per-tool **Log frequency** toggle (default on) switches the
+  frequency axis between linear and logarithmic (octave) spacing.
+- **Spectrogram contours.** Per-tool **Centroid** / **Rolloff** toggles (default on)
+  overlay the spectral centroid and rolloff tracks, derived from the displayed
+  magnitudes so they align with the heatmap's frames.
+- **Chromagram note grid.** The chromagram draws pitch-class row rules with an
+  emphasised octave (C) boundary.
+- **Tempogram.** The tempo / downbeats tabs add a **tempo-salience** panel — the
+  autocorrelation of the onset-strength envelope over the BPM range, with the chosen
+  tempo marked — derived in the frontend from the returned envelope (no new analysis).
+- **Level meters.** The `levels` tool draws **peak / RMS meter bars** (dBFS scale with
+  a peak-hold marker) above its numeric cards.
+
+> **Theme-aware.** Three new `ChartTheme` fields — `reference`, `overlayCentroid`,
+> `overlayRolloff` — default in the dark/light base palettes; the meter colours are the
+> CSS custom properties `--meter-low/mid/high/peak/unlit`. See [`theming.md`](theming.md).
+>
+> **Delivered:** `SeriesView` + `seriesPlugins.ts` (reference line, semitone grid);
+> `WaveformTab` (dB), `SpectrumTab` (log axis), `SpectrogramTab` (contours),
+> `MatrixView` (note grid), `RhythmView` (tempogram), `ReadoutsView` +
+> `LevelMeters.tsx`; the shared axis formatters now hide uPlot's `null` minor splits.
+
 ## M12 — Analysis exports: chart image + data (planned)
 
 Save what an analyzer shows: the numbers (JSON / CSV) and the picture (PNG), built so
