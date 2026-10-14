@@ -1,0 +1,498 @@
+/*
+ * Hey Listen marketing page — a single static stylesheet.
+ *
+ * Restrained dark canvas, generous whitespace, large system-stack type, one subtle
+ * neon accent (Retrowave Neon's magenta), soft rounded corners + shadow on the app
+ * screenshots, and a gentle scroll-reveal that is disabled under
+ * `prefers-reduced-motion`.
+ */
+
+:root {
+  --bg: #0a0b0f;
+  --bg-elev: #12131a;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #eceef4;
+  --body: #c3c7d1;
+  --muted: #9a9eab;
+  /* The single accent colour. */
+  --accent: #ff4fa3;
+  --accent-ink: #190310;
+  --accent-glow: rgba(255, 79, 163, 0.16);
+  --accent-shadow: rgba(255, 79, 163, 0.4);
+  --radius: 16px;
+  --maxw: 960px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+img {
+  max-width: 100%;
+}
+
+.container {
+  width: min(100% - 3rem, var(--maxw));
+  margin-inline: auto;
+}
+
+/* --- Header: icon + wordmark --------------------------------------------- */
+
+.site-header {
+  padding-block: 1.6rem;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.repo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.85rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.repo-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.repo-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.wordmark {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* --- Hero ----------------------------------------------------------------- */
+
+.hero {
+  position: relative;
+  padding-block: 2.5rem 1rem;
+}
+
+/* A faint radial glow behind the hero. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% 0 auto 0;
+  height: 640px;
+  background: radial-gradient(
+    50% 60% at 50% 30%,
+    var(--accent-glow),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+.hero-copy {
+  text-align: center;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.hero-heading {
+  margin: 0.75rem 0 0;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.hero-subheading {
+  margin: 1.1rem auto 0;
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+}
+
+.media {
+  margin-top: 3rem;
+}
+
+/* --- Screenshots ---------------------------------------------------------- */
+
+.shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.75);
+}
+
+/* --- Features ------------------------------------------------------------- */
+
+.features {
+  margin-top: 5rem;
+}
+
+.feature-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem 3rem;
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0.9rem;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+}
+
+.feature-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.feature h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.feature p {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* --- Detail screenshots --------------------------------------------------- */
+
+.details {
+  margin-top: 5rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.detail {
+  margin: 0;
+}
+
+.detail-wide {
+  margin-bottom: 1.5rem;
+}
+
+/* --- Download ------------------------------------------------------------- */
+
+.download {
+  margin-top: 5rem;
+  text-align: center;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.95rem 2.1rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 14px 32px -12px var(--accent-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 42px -12px var(--accent-shadow);
+  filter: brightness(1.06);
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.download-note {
+  margin: 1.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* --- Footer --------------------------------------------------------------- */
+
+.site-footer {
+  margin-top: 5rem;
+  border-top: 1px solid var(--border);
+  padding-block: 2.5rem 3rem;
+}
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.footer-nav a {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.footer-nav a:hover {
+  color: var(--accent);
+}
+
+.oss {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.footer-line {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.author {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.site-footer a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  transition: color 0.18s ease;
+}
+
+.site-footer a:hover {
+  color: var(--accent);
+}
+
+/* --- Documentation subpages (acknowledgements, roadmap) ------------------- */
+
+.doc {
+  padding-block: 3rem 0;
+}
+
+.doc-title {
+  margin: 0;
+  font-size: clamp(1.9rem, 4.5vw, 2.8rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.doc-lede {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.prose {
+  margin-top: 0.5rem;
+  max-width: 72ch;
+}
+
+.prose h2 {
+  margin: 2.5rem 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.prose p {
+  margin: 1rem 0;
+  color: var(--body);
+}
+
+.prose ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prose li {
+  padding: 0.4rem 0;
+  color: var(--body);
+  border-bottom: 1px solid var(--border);
+}
+
+.prose code {
+  padding: 0.08rem 0.35rem;
+  font-size: 0.85em;
+  color: var(--accent);
+  background: var(--bg-elev);
+  border-radius: 4px;
+}
+
+.prose a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+}
+
+.prose a:hover {
+  color: var(--accent);
+}
+
+/* Roadmap timeline */
+
+.timeline {
+  margin: 2rem 0 0;
+  padding: 0 0 0 1.25rem;
+  list-style: none;
+  border-left: 1px solid var(--border);
+}
+
+.milestone {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.75rem 0;
+}
+
+.milestone-mark {
+  position: absolute;
+  left: calc(-1.25rem - 0.5rem);
+  top: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.65rem;
+  line-height: 1;
+  color: var(--accent-ink);
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.milestone.is-done .milestone-mark {
+  background: var(--accent);
+}
+
+.milestone-title {
+  color: var(--text);
+}
+
+.milestone.is-pending .milestone-title {
+  color: var(--muted);
+}
+
+.milestone-status {
+  margin-left: auto;
+  padding-left: 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.milestone.is-done .milestone-status {
+  color: var(--accent);
+}
+
+/* --- Scroll reveal (progressive enhancement) ------------------------------ */
+
+.js .reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.js .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- Responsive ----------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .feature-list,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Reduced motion ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .button {
+    transition: none;
+  }
+
+  .button:hover {
+    transform: none;
+  }
+}

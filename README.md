@@ -1,89 +1,47 @@
 # Hey Listen
 
-Audio analysis workbench. Capture, filter, and analyze audio from files, live
-inputs (mic / system / per-process / mix), and fundsp synthesis — then save it all
-into a single binary project file.
+An audio analysis workbench: capture, filter, and analyze sound from files, live inputs, and synthesis.
 
 > **AI assistance:** This project was scaffolded and developed with the help of AI
 > coding agents. AI-generated code and documentation should be reviewed before
 > relying on it.
 
-## For users
+## What it does
 
 <img src="src-tauri/icons/icon.png" alt="Hey Listen app icon" width="160">
 
-Point Hey Listen at a sound and it tells you what's inside it. Open a file, or
-grab the mic, the system output, a single app, or a mix of them; the Timeline
-draws the waveform, and the Workbench gives you a full analysis bench on top of
-it.
-
-**Bring any source.** File decode, live capture (microphone, system loopback,
-per-process, or mic+system mix), or synthesized audio from a fundsp net. One
-window is one project is one source — swapping the source replaces the whole
-timeline.
-
-**Filter before you measure.** Build a filtering graph in the Filter tab and it
-runs upstream of playback *and* every analysis tool; a Toolbar toggle bypasses
-it when you want to hear the difference. A separate Synth tab renders fundsp
-synthesis into the timeline.
-
-**Analyze everything.** Around two dozen tools, all computed off the main thread
-so the UI stays live: waveform and level meters; spectrum, spectrogram, mel
-spectrogram, MFCC, chromagram, and the spectral descriptors (centroid, flux,
-rolloff, flatness, contrast, bandwidth, entropy, crest factor, harmonic ratio,
-zero-crossing rate); pitch by pYIN / YIN / autocorrelation; tempo, onsets, and
-downbeats; and EBU R128 loudness (integrated / momentary / range).
-
-**Move through it fast.** Open any tool as a Workbench tab, drag it to split or
-join groups, or pop an analyzer out into its own window. Shared params (FFT size,
-hop/overlap, window function, channel, frequency range) stay synced across every
-tool, and zoom and cursor follow you between tabs — and between a project's
-windows. Charts zoom on scroll, spectrograms pan by dragging, and numeric fields
-drag-to-adjust. It ships with exchangeable themes (dark, light, retrowave neon,
-nord, solarized — assign one per dark/light slot), a UI zoom, and a native
-menu with recent files.
-
-**Save it all.** The raw audio, plus the source, filter/synth graphs, analysis
-setup, and layout, go into one binary `.heyl` project file. Open N of them side
-by side; each is fully independent. Drop an audio file on the window to start a
-project from it, or double-click a `.heyl` to reopen one.
+- **Source.** Open an audio file, capture live (microphone, system loopback,
+  per-process, or mic+system mix), or synthesize with fundsp. One window = one
+  project = one source.
+- **Filter.** A Filter graph runs upstream of playback *and* every analyzer; a
+  Synth tab renders fundsp synthesis into the timeline.
+- **Analyze.** ~26 analyzers, computed off the main thread so the UI stays live:
+  waveform and levels; spectrum, spectrogram, mel spectrogram, MFCC, chromagram,
+  and the spectral descriptors; pitch (pYIN / YIN / autocorrelation); tempo,
+  onsets, and downbeats; and EBU R128 loudness. Shared params stay synced across
+  tools; dockable tabs, no duplicates.
+- **Save.** Raw audio plus source, graphs, setup, and layout go into one binary
+  `.heyl` project file.
 
 **Drive it from an agent.** A built-in
 [Model Context Protocol](https://modelcontextprotocol.io) server lets an AI agent
-open sources, run every tool, edit graphs, preview playback, and save/load
-projects — on the *running* window, through the same surface the UI uses, so
-agent actions show up live. Toggle it from the Toolbar **MCP** popover, or run it
-headless via the `heylisten-mcp` bridge.
+open sources, run every tool, edit graphs, preview, and save on the live window.
 
-**Batch it from a shell.** `hey-listen analyze <FILE>…` runs the same engine over
-your files with **no window** and prints one JSON object per file/tool, so a script
-or CI job can bulk-analyze and pipe straight to `jq`. Shared params, per-tool
-options, a window, and an optional filter graph all work; `hey-listen analyzers`
-lists the catalog and `hey-listen synth <g.json>` renders a fundsp graph before
-analyzing it. It is the non-MCP sibling of the headless server — same engine, a
-friendlier calling convention.
+**Batch it from a shell.** `hey-listen analyze <FILE>...` runs the same engine
+over files with no window, printing one JSON object per file/tool.
 
 ## For developers
 
-The UI is a small, deliberate set of fixed regions, and the one rule worth
-reading first: **Timeline, Sidebar, Workbench, and Source are fixed regions, not
-tabs.** The only tabs are the **Workbench tabs** — the graph editors (filter /
-synth) and the analyzer tools — and they live inside the Workbench (managed by
-`dockview`). See [`docs/ui-layout.md`](docs/ui-layout.md).
+The one rule worth reading first: **Timeline, Sidebar, Workbench, and Source are
+fixed regions, not tabs.** The only tabs are the Workbench tabs — the graph
+editors (filter / synth) and the analyzer tools — and they live inside the
+Workbench, managed by `dockview`.
 
-Two processes, one boundary: a Rust core (full OS access — all audio I/O,
-decode, analysis, the project file, and the cross-window UI state) and a SolidJS
-frontend in the system WebView (layout, tabs, graph editing, charts). They talk
-only over the Tauri IPC boundary; PCM crosses solely through ordered
-`tauri::ipc::Channel` streams, and the structured IPC types are generated from
-Rust with `ts-rs`, so the two sides can't drift. Analysis runs off the main
-thread (async command + `spawn_blocking`), with debounced auto-run. Adding an
-analysis tool is a registry entry plus its Rust function — no bespoke component.
-
-Other rules worth knowing: expensive tools get an optional explicit **Run**;
-there are **no duplicate analyzer tabs**; and shared analysis params are synced
-across tools. See [`docs/architecture.md`](docs/architecture.md) for the full
-picture.
+Two processes, one boundary: a Rust core (all audio I/O, decode, analysis, the
+project file, and cross-window UI state) and a SolidJS frontend (layout, tabs,
+graph editing, charts). They talk only over the Tauri IPC boundary; PCM crosses
+solely through ordered `tauri::ipc::Channel` streams. Analysis runs off the main
+thread with debounced auto-run.
 
 ## Documentation
 

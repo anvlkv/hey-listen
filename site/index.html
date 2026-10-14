@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hey Listen - Follow a sound wherever it goes</title>
+    <meta
+      name="description"
+      content="A free, open-source desktop app for exploring sound - open, shape, and visualize any audio on macOS, Windows, and Linux."
+    />
+    <meta name="theme-color" content="#0a0b0f" />
+    <link rel="icon" href="assets/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Gate the scroll-reveal on JS so the page reads fully when JS is unavailable. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="index.html">
+          <img class="mark" src="assets/icon.png" alt="" width="36" height="36" />
+          <span class="wordmark">Hey Listen</span>
+        </a>
+        <a class="repo-link" href="https://github.com/anvlkv/hey-listen" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-copy">
+          <p class="tagline reveal">Every sound has a story.</p>
+          <h1 class="hero-heading reveal">Follow a sound wherever it goes.</h1>
+          <p class="hero-subheading reveal">
+            Pick a song, a room, a voice. Shape it, watch it, and get to know it a
+            little better.
+          </p>
+        </div>
+
+        <div class="container media reveal">
+          <img
+            class="shot shot-hero"
+            src="assets/hero.png"
+            alt="The workbench, with a timeline waveform and a spectrum analyzer open together."
+            decoding="async"
+          />
+        </div>
+      </section>
+
+      <section class="features" aria-label="Features">
+        <div class="container">
+          <ul class="feature-list">
+            <li class="feature reveal">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 9v6M8 5v14M12 2v20M16 5v14M20 9v6" />
+                </svg>
+              </span>
+              <h2>Start anywhere</h2>
+              <p>
+                A file, the mic, the system, one app, or a mix - plus a way to make up
+                a sound of your own.
+              </p>
+            </li>
+            <li class="feature reveal">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 5h6M14 5h6M4 12h10M18 12h2M4 19h2M10 19h10" />
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="16" cy="12" r="2" />
+                  <circle cx="8" cy="19" r="2" />
+                </svg>
+              </span>
+              <h2>Shape the sound</h2>
+              <p>
+                Build a little graph to change the tone, then switch it on and off to
+                hear the difference it makes.
+              </p>
+            </li>
+            <li class="feature reveal">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </span>
+              <h2>Explore the views</h2>
+              <p>
+                Two dozen ways to see a sound - waveform, spectrum, spectrogram, pitch,
+                tempo, loudness, and more. Arrange them however you like.
+              </p>
+            </li>
+            <li class="feature reveal">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" />
+                  <path d="M3 8l9 5 9-5" />
+                  <path d="M12 13v8" />
+                </svg>
+              </span>
+              <h2>Keep the whole thing</h2>
+              <p>
+                Everything - the audio, the source, the graphs, the layout - saved in
+                one file, ready to reopen. Keep several projects side by side.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="details" aria-label="Screenshots">
+        <div class="container">
+          <figure class="detail detail-wide reveal">
+            <img
+              class="shot"
+              src="assets/filter.png"
+              alt="The filter graph editor, where the sound is shaped before playback."
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+          <div class="detail-grid">
+            <figure class="detail reveal">
+              <img
+                class="shot"
+                src="assets/spectrogram.png"
+                alt="A spectrogram, showing the sound across time and frequency."
+                loading="lazy"
+                decoding="async"
+              />
+            </figure>
+            <figure class="detail reveal">
+              <img
+                class="shot"
+                src="assets/tempo.png"
+                alt="Tempo markers lined up with the onset envelope, tracing the beats."
+                loading="lazy"
+                decoding="async"
+              />
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="download" aria-label="Download">
+        <div class="container">
+          <a class="button reveal" href="https://github.com/anvlkv/hey-listen/releases/latest">
+            Download Hey Listen
+          </a>
+          <p class="download-note reveal">Free and public domain - macOS, Windows, and Linux.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <nav class="footer-nav">
+          <a href="index.html">Home</a>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="acknowledgements.html">Acknowledgements</a>
+          <a href="https://github.com/anvlkv/hey-listen" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+        <p class="oss">
+          Proudly open source - released under the Unlicense, so it's yours to use,
+          change, and share.
+        </p>
+        <p class="footer-line">Hey Listen is in the public domain (Unlicense).</p>
+        <p class="author">
+          Made by <a href="https://github.com/anvlkv" target="_blank" rel="noopener">a.nvlkv</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="main.js" defer></script>
+  </body>
+</html>
