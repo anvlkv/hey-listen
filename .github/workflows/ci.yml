@@ -40,14 +40,22 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
+          # Keep this list in step with the other workflows (release.yml, the e2e
+          # job below): Tauri needs the GTK/WebKitGTK/AppIndicator dev headers and
+          # `pkg-config`, `glib` is pulled in explicitly (some runner images no
+          # longer ship it transitively), `patchelf` is used when bundling, and the
+          # audio backend (flexaudio) needs the ALSA + PipeWire/SPA headers.
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libgtk-3-dev \
+            libglib2.0-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
+            pkg-config \
             libasound2-dev \
             libpipewire-0.3-dev \
+            libspa-0.2-dev \
             libclang-dev
 
       - uses: actions/setup-node@v4
@@ -88,14 +96,19 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
+          # Same base as the `rust` job, plus the WebKitGTK WebDriver driver and
+          # Xvfb (the runner is headless).
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libgtk-3-dev \
+            libglib2.0-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
+            pkg-config \
             libasound2-dev \
             libpipewire-0.3-dev \
+            libspa-0.2-dev \
             libclang-dev \
             webkit2gtk-driver \
             xvfb
