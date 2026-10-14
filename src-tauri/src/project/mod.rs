@@ -21,12 +21,12 @@
 
 mod error;
 mod read;
-mod sections;
+pub(crate) mod sections;
 mod write;
 
 pub use error::ProjectError;
 pub use read::{read_project, LoadedProject};
-pub use sections::{AnalysisSetup, Meta, SourceDescriptor, StoredResult};
+pub use sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
 pub use write::{write_project, SaveProject};
 
 /// File magic at offset 0 (`"HEYL"`).
@@ -51,6 +51,7 @@ pub const SECTION_DATA: u8 = 0x03;
 pub const SECTION_SETUP: u8 = 0x04;
 pub const SECTION_LAYOUT: u8 = 0x05;
 pub const SECTION_RESULTS: u8 = 0x06;
+pub const SECTION_NOTES: u8 = 0x07;
 
 /// Interleaved samples per `DATA` chunk (~256 KiB at `f32`). Bounds per-chunk memory
 /// and keeps the chunk index small.
@@ -124,7 +125,7 @@ mod tests {
     use std::collections::BTreeMap;
     use std::io::Cursor;
 
-    use super::sections::{AnalysisWindow, StoredResult};
+    use super::sections::{AnalysisWindow, NoteValues, StoredResult};
     use super::*;
     use crate::state::SourcePcm;
 
@@ -157,6 +158,48 @@ mod tests {
         }
     }
 
+    fn note() -> Note {
+        Note {
+            id: "n1".to_string(),
+            created_ms: 10,
+            updated_ms: 20,
+            time_secs: 2.34,
+            range: None,
+            tool: Some("spectrum".to_string()),
+            title: Some("Third harmonic".to_string()),
+            body: "Peak at **880 Hz**".to_string(),
+            values: Some(NoteValues {
+                tool: "spectrum".to_string(),
+                label: "Spectrum @ 2.34 s".to_string(),
+                text: "peak 880.0 Hz, −12.4 dBFS".to_string(),
+                window: AnalysisWindow {
+                    start_secs: 0.0,
+                    end_secs: 4.0,
+                },
+                params: Default::default(),
+                options: BTreeMap::from([("showMean".to_string(), 1.0)]),
+                captured_ms: 11,
+            }),
+        }
+    }
+
+    fn range_note() -> Note {
+        Note {
+            id: "n2".to_string(),
+            created_ms: 30,
+            updated_ms: 30,
+            time_secs: 2.34,
+            range: Some(AnalysisWindow {
+                start_secs: 2.34,
+                end_secs: 3.10,
+            }),
+            tool: None,
+            title: None,
+            body: "from here to here".to_string(),
+            values: None,
+        }
+    }
+
     fn write(save: &SaveProject, now_ms: u64) -> Cursor<Vec<u8>> {
         let mut cursor = Cursor::new(Vec::new());
         write_project(&mut cursor, save, now_ms).expect("write");
@@ -184,6 +227,7 @@ mod tests {
                 options: BTreeMap::new(),
                 result: vec![1, 2, 3],
             }],
+            notes: vec![note(), range_note()],
             pcm: Some(&pcm),
         };
 
@@ -200,6 +244,21 @@ mod tests {
         assert_eq!(loaded.results[0].result, vec![1, 2, 3]);
         assert_eq!(loaded.meta.app_version, env!("CARGO_PKG_VERSION"));
         assert_eq!(loaded.source.expect("source").kind, "file");
+
+        // The `NOTES` section round-trips (a point note with values, a range note).
+        assert_eq!(loaded.notes.len(), 2);
+        let point = &loaded.notes[0];
+        assert_eq!(point.id, "n1");
+        assert_eq!(point.time_secs, 2.34);
+        assert!(point.range.is_none());
+        assert_eq!(point.tool.as_deref(), Some("spectrum"));
+        let values = point.values.as_ref().expect("values");
+        assert_eq!(values.tool, "spectrum");
+        assert_eq!(values.text, "peak 880.0 Hz, −12.4 dBFS");
+        assert_eq!(values.options.get("showMean"), Some(&1.0));
+        let range = loaded.notes[1].range.expect("range");
+        assert_eq!(range.start_secs, 2.34);
+        assert_eq!(range.end_secs, 3.10);
 
         let pcm = loaded.pcm.expect("pcm");
         assert_eq!(pcm.sample_rate, 48_000);
@@ -220,6 +279,7 @@ mod tests {
             setup: AnalysisSetup::default(),
             layout: serde_json::Value::Null,
             results: Vec::new(),
+            notes: Vec::new(),
             pcm: Some(&pcm),
         };
 
@@ -239,6 +299,7 @@ mod tests {
             setup: AnalysisSetup::default(),
             layout: serde_json::Value::Null,
             results: Vec::new(),
+            notes: Vec::new(),
             pcm: None,
         };
 
@@ -257,6 +318,7 @@ mod tests {
             setup: AnalysisSetup::default(),
             layout: serde_json::Value::Null,
             results: Vec::new(),
+            notes: Vec::new(),
             pcm: Some(&pcm),
         };
 

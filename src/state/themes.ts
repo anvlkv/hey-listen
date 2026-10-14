@@ -62,6 +62,7 @@ const DARK_CHART: ChartTheme = {
   rulerTick: "#333333",
   playhead: "#ffd166",
   midline: "rgba(255, 255, 255, 0.08)",
+  note: "#e879f9",
   filtered: "#ffb454",
   handleFill: "rgba(88, 152, 255, 0.6)",
 };
@@ -88,6 +89,7 @@ const LIGHT_CHART: ChartTheme = {
   rulerTick: "#cbd0d7",
   playhead: "#c77800",
   midline: "rgba(0, 0, 0, 0.08)",
+  note: "#a21caf",
   filtered: "#d9722f",
   handleFill: "rgba(47, 111, 208, 0.45)",
 };

@@ -649,6 +649,12 @@ mod tests {
             "set_theme",
             "import_theme",
             "export_theme",
+            "list_notes",
+            "get_note",
+            "create_note",
+            "update_note",
+            "delete_note",
+            "set_focused_note",
         ] {
             let err = session.dispatch(tool, json!({})).unwrap_err();
             assert!(err.contains("requires the app"), "{tool}: {err}");

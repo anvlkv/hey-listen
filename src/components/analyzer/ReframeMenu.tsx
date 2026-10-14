@@ -1,7 +1,9 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { source } from "../../state/source";
+import { createNote } from "../../state/notes";
 import { setWindowEnd, setWindowStart } from "../../state/timeline";
+import type { AnalyzerId } from "../../state/analyzer";
 
 /** Where to place the menu and the time it targets. */
 export interface ReframeTarget {
@@ -20,16 +22,19 @@ function clampToSource(time: number): number {
 
 /**
  * Shared right-click context menu for the time-domain analyzer charts (M5+): from
- * the time under the pointer, set the **timeline** analysis-window start or end.
- * A vertical callout marks the exact time on the chart; the menu closes on
- * selection, an outside click, or `Escape`. See `docs/ui-layout.md`.
+ * the time under the pointer, set the **timeline** analysis-window start or end, or
+ * add a **note** at that time (M14). A vertical callout marks the exact time on the
+ * chart; the menu closes on selection, an outside click, or `Escape`. See
+ * `docs/ui-layout.md` and `docs/notes.md`.
  */
 export default function ReframeMenu(props: {
   target: ReframeTarget | null;
   onClose: () => void;
+  /** The chart's analyzer id — the tool a note added here is attached to. */
+  tool?: AnalyzerId;
 }) {
   let menu!: HTMLDivElement;
-  const [hover, setHover] = createSignal<"start" | "end" | null>(null);
+  const [hover, setHover] = createSignal<"start" | "end" | "note" | null>(null);
 
   const apply = (which: "start" | "end") => {
     const active = props.target;
@@ -37,6 +42,13 @@ export default function ReframeMenu(props: {
     const time = clampToSource(active.time);
     if (which === "start") setWindowStart(time);
     else setWindowEnd(time);
+    props.onClose();
+  };
+
+  const addNote = () => {
+    const active = props.target;
+    if (!active) return;
+    createNote({ timeSecs: clampToSource(active.time), tool: props.tool ?? null });
     props.onClose();
   };
 
@@ -93,6 +105,17 @@ export default function ReframeMenu(props: {
               onClick={() => apply("end")}
             >
               Set window end here
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="reframe-btn"
+              data-hover={hover() === "note" || undefined}
+              onPointerEnter={() => setHover("note")}
+              onPointerLeave={() => setHover(null)}
+              onClick={addNote}
+            >
+              Add note here
             </button>
           </div>
         </Portal>

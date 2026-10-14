@@ -1,7 +1,15 @@
 import { invoke } from "../lib/ipc";
 import { listen } from "@tauri-apps/api/event";
 import { deepClone } from "../lib/clone";
-import { ANALYZERS, isAnalyzerId, setToolOption, toolOptions } from "./analyzer";
+import type { AnalysisWindow } from "../bindings/AnalysisWindow";
+import type { Note } from "../bindings/Note";
+import {
+  ANALYZERS,
+  isAnalyzerId,
+  setToolOption,
+  toolOptions,
+  type AnalyzerId,
+} from "./analyzer";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import {
   setView,
@@ -34,6 +42,16 @@ import {
   saveProjectTo,
 } from "./project";
 import { applyOutputGain, outputDeviceId, outputGain } from "./output";
+import {
+  createNote,
+  deleteNote,
+  focusedNoteId,
+  noteById,
+  notesSorted,
+  setFocusedNote,
+  updateNote,
+  type NotePatch,
+} from "./notes";
 import {
   applyGain,
   recording,
@@ -259,6 +277,56 @@ async function run(tool: string, args: Args, target?: string): Promise<unknown> 
       await newProject();
       return getState();
 
+    // --- notes (app-only; a note lives in a project) ------------------------
+    case "list_notes":
+      return { notes: notesSorted() };
+    case "get_note":
+      return { note: requireNote(str(args, "id")) };
+    case "create_note": {
+      const tool = optionalStr(args, "tool");
+      if (tool && !isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
+      const note = createNote({
+        timeSecs: num(args, "time"),
+        range: "range" in args ? rangeArg(args.range) : null,
+        tool: (tool as AnalyzerId | null) ?? null,
+        title: optionalStr(args, "title"),
+        body: typeof args.body === "string" ? args.body : "",
+        // The tool creates data, it does not steal the UI focus (use set_focused_note).
+        focus: false,
+      });
+      return { note };
+    }
+    case "update_note": {
+      const id = str(args, "id");
+      requireNote(id);
+      const patch: NotePatch = {};
+      if ("title" in args) patch.title = optionalStr(args, "title");
+      if ("body" in args) {
+        if (typeof args.body !== "string") throw new Error("`body` must be a string");
+        patch.body = args.body;
+      }
+      if ("time" in args) patch.timeSecs = num(args, "time");
+      if ("range" in args) patch.range = rangeArg(args.range);
+      if ("tool" in args) {
+        const tool = optionalStr(args, "tool");
+        if (tool && !isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
+        patch.tool = (tool as AnalyzerId | null) ?? null;
+      }
+      if (optionalBool(args, "recomputeValues")) patch.recomputeValues = true;
+      return { note: updateNote(id, patch) };
+    }
+    case "delete_note": {
+      const id = str(args, "id");
+      deleteNote(id);
+      return { id };
+    }
+    case "set_focused_note": {
+      const id = optionalStr(args, "id");
+      if (id && !noteById(id)) throw new Error(`unknown note: ${id}`);
+      setFocusedNote(id);
+      return { focusedNoteId: focusedNoteId() };
+    }
+
     // --- themes (app chrome) ------------------------------------------------
     case "list_themes":
       return {
@@ -323,6 +391,20 @@ function getState(target?: string) {
     openTools: openTools(),
     filter: { enabled: filterEnabled(), error: filterError() },
     output: { gain: outputGain(), device: outputDeviceId() },
+    notes: notesSorted().map(noteSummary),
+    focusedNoteId: focusedNoteId(),
+  };
+}
+
+/** A compact note summary for `get_state` (id/time/tool/title + the values line). */
+function noteSummary(note: Note) {
+  return {
+    id: note.id,
+    timeSecs: note.timeSecs,
+    range: note.range,
+    tool: note.tool,
+    title: note.title,
+    values: note.values?.text ?? null,
   };
 }
 
@@ -628,6 +710,20 @@ function toolId(id: string): ToolId {
     throw new Error(`unknown tool: ${id}`);
   }
   return id as ToolId;
+}
+
+/** One note by id, or a thrown error (the MCP tools fail loudly on a bad id). */
+function requireNote(id: string): Note {
+  const note = noteById(id);
+  if (!note) throw new Error(`unknown note: ${id}`);
+  return note;
+}
+
+/** Read a note range argument (`{ startSecs, endSecs }`) or `null`. */
+function rangeArg(value: unknown): AnalysisWindow | null {
+  if (value == null) return null;
+  const object = asArgs(value);
+  return { startSecs: num(object, "startSecs"), endSecs: num(object, "endSecs") };
 }
 
 function graphKind(args: Args): "filter" | "synth" {

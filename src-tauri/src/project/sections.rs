@@ -111,6 +111,63 @@ pub struct AnalysisWindow {
     pub end_secs: f64,
 }
 
+/// `NOTES` section entry: an annotation on the project (M14).
+///
+/// A note anchors to an audio **time** (a point, or an optional `range` span) and,
+/// optionally, to an **analyzer tool id** (absent = a Timeline note). Its `body` is
+/// markdown; the optional `values` is a **frozen** snapshot of the chart's readout at
+/// that time. See `docs/notes.md`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Note {
+    /// Stable id (uuid v4 string).
+    pub id: String,
+    /// Creation time, in Unix milliseconds.
+    pub created_ms: u64,
+    /// Last-edit time, in Unix milliseconds.
+    pub updated_ms: u64,
+    /// The anchor instant, in source seconds.
+    pub time_secs: f64,
+    /// Optional span; absent = a point anchor.
+    #[serde(default)]
+    pub range: Option<AnalysisWindow>,
+    /// The analyzer id the note was taken from; absent = a Timeline note.
+    #[serde(default)]
+    pub tool: Option<String>,
+    /// Optional plain-text title.
+    #[serde(default)]
+    pub title: Option<String>,
+    /// The markdown body (raw).
+    #[serde(default)]
+    pub body: String,
+    /// The frozen values snapshot (absent for Timeline notes).
+    #[serde(default)]
+    pub values: Option<NoteValues>,
+}
+
+/// The frozen chart readout a note carries as its subtitle (`docs/notes.md`).
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NoteValues {
+    /// The analyzer the snapshot was taken from.
+    pub tool: String,
+    /// Human-readable label (e.g. `Spectrum @ 2.34 s`).
+    pub label: String,
+    /// The compact values line (the note's subtitle).
+    pub text: String,
+    /// The analysis window the snapshot was captured with.
+    pub window: AnalysisWindow,
+    /// The shared params the chart ran with.
+    pub params: SharedParams,
+    /// The per-tool options the chart ran with.
+    #[serde(default)]
+    pub options: BTreeMap<String, f64>,
+    /// Capture time, in Unix milliseconds.
+    pub captured_ms: u64,
+}
+
 /// `RESULTS` section entry: a cached analysis result.
 ///
 /// Result caching is not wired up yet — the frontend re-derives results from the

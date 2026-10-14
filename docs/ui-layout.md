@@ -166,7 +166,7 @@ popover. See [`theming.md`](theming.md).
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
-| **Notes** (right rail) | the project's annotations — a list of markdown notes anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14, planned) |
+| **Notes** (right rail) | the project's annotations — a list of markdown notes anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
 
 None of these are closable, draggable, or tabbed.
 
@@ -230,23 +230,28 @@ tab).
 ## Notes panel
 
 The **Notes** region is a **right rail** — a fixed region (not a tab), the mirror of the
-Sidebar and the home of the project's annotations (M14, planned; see
+Sidebar and the home of the project's annotations (M14; see
 [`notes.md`](notes.md)). It is **hidden by default** and toggled from the Toolbar
 (`note-sticky`) or its own header chevron; its width is draggable (clamped like the
 Sidebar, 160–520 px) and it **pushes** the Workbench rather than overlaying it. Open/
 closed state and width are **view settings** persisted app-level (like the font scale),
 not project state.
 
-Each row is one note, **sorted by time**: its title (or a body excerpt), its tool + time
-subtitle, and its frozen **values** line. Selecting a row **focuses** the note — it then
-appears on every time-based chart and its chart is opened/raised — and the row carries
-**Edit** / **Delete** / **Recompute** actions plus the link that opens the note's chart.
-The header has an **Add note** button (anchors at the current analysis window, using the
-focused analyzer as its chart).
+Each row is one note, **sorted by time**. A row is a **title bar** — its heading (the
+body's first line) with the row actions (`open chart` when the note has an analyzer,
+`edit`, `popout`, `delete`) on the right — over its tool + time subtitle, its
+**current** values line (the frozen snapshot is shown struck through beneath when it
+differs), and its **full rendered body** (clamped to a height, expandable with a
+chevron). Selecting the heading **focuses** the note — it then appears on every
+time-based chart and its chart is opened/raised. The `popout` action opens the note in
+a large, edit-only view. The header has an **Add note** button (anchors at the current
+analysis window, using the focused analyzer as its chart) and a **range** toggle, and
+the Toolbar button carries a **count badge** while the rail is closed.
 
-Notes are surfaced in three places: every note as a **pin** on the Timeline, a chart's
-**own** notes on that chart, and the **focused** note on **all time-based charts** (never
-the frequency-axis `spectrum`). See [`notes.md`](notes.md) → Surfacing.
+Notes are surfaced in three places: every note as a **pin** on the Timeline (draggable
+to move it), a chart's **own** notes on that chart (with the notes from other charts
+drawn **muted**), and the **focused** note on **all time-based charts** (never the
+frequency-axis `spectrum`). See [`notes.md`](notes.md) → Surfacing.
 
 ## Source picker
 

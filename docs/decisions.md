@@ -481,4 +481,4 @@ markdown renderer dependency; the frozen snapshot can drift from the live analys
 the recompute + stale hint rather than a silent live value). See
 [`notes.md`](notes.md).
 
-**Status: planned (M14).**
+**Status: delivered (M14).**

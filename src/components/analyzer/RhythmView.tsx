@@ -6,6 +6,7 @@ import Readout from "./Readout";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
+import { noteMarkers } from "./notePlugins";
 import { paddedYRange } from "./range";
 import { X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import { chartAxisStyle, NoAudioState, timeRangeLabel, timeTooltip } from "./chartCommon";
@@ -257,6 +258,7 @@ export default function RhythmView(props: {
                   tooltip(Tooltip),
                   mirrorCursor("time"),
                   syncView("time"),
+                  noteMarkers(props.id),
                   rhythmMarkers(markers),
                 ]}
                 onCreate={zoom.onReady}

@@ -21,8 +21,8 @@ use crate::audio::STREAM_CHUNK_SAMPLES;
 use crate::commands::source::AUDIO_EXTENSIONS;
 use crate::commands::{focused_label, stream};
 use crate::project::{
-    read_project, write_project, AnalysisSetup, Meta, ProjectError, SaveProject, SourceDescriptor,
-    StoredResult,
+    read_project, write_project, AnalysisSetup, Meta, Note, ProjectError, SaveProject,
+    SourceDescriptor, StoredResult,
 };
 use crate::state::window_state;
 
@@ -43,6 +43,9 @@ pub struct SaveProjectArgs {
     pub source: Option<SourceDescriptor>,
     pub setup: AnalysisSetup,
     pub layout: serde_json::Value,
+    /// The project's notes (M14).
+    #[serde(default)]
+    pub notes: Vec<Note>,
 }
 
 /// What [`load_project`] returns. The `DATA` samples stream separately over the
@@ -58,6 +61,8 @@ pub struct LoadedProjectDto {
     pub layout: serde_json::Value,
     /// Cached results (empty until result caching lands; readers tolerate this).
     pub results: Vec<StoredResult>,
+    /// The project's notes (empty when the file has no `NOTES` section).
+    pub notes: Vec<Note>,
     pub sample_rate: u32,
     pub channels: u16,
     pub frames: u64,
@@ -83,6 +88,7 @@ pub async fn save_project(
             setup: project.setup,
             layout: project.layout,
             results: Vec::new(),
+            notes: project.notes,
             pcm: guard.as_ref(),
         };
         let file = File::create(&path)?;
@@ -113,6 +119,7 @@ pub async fn load_project(
         setup,
         layout,
         results,
+        notes,
         pcm,
         ..
     } = loaded;
@@ -149,6 +156,7 @@ pub async fn load_project(
         setup,
         layout,
         results,
+        notes,
         sample_rate,
         channels,
         frames,

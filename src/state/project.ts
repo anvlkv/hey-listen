@@ -5,6 +5,7 @@ import { deepClone } from "../lib/clone";
 import type { AnalysisSetup } from "../bindings/AnalysisSetup";
 import type { AnalysisWindow } from "../bindings/AnalysisWindow";
 import type { Meta } from "../bindings/Meta";
+import type { Note } from "../bindings/Note";
 import type { SourceDescriptor } from "../bindings/SourceDescriptor";
 import type { StoredResult } from "../bindings/StoredResult";
 import { pcmStream } from "../lib/pcmStream";
@@ -51,6 +52,7 @@ import {
   windowStart,
 } from "./timeline";
 import { closeAllTools, layoutJson, openTools, restoreLayout } from "./workbench";
+import { notes, replaceNotes, resetNotes } from "./notes";
 import { resetHistory } from "./history";
 import { isPopoutWindow } from "../lib/windowRole";
 
@@ -96,6 +98,7 @@ interface SaveProjectArgs {
   source: SourceDescriptorDto | null;
   setup: AnalysisSetupDto;
   layout: LayoutDto;
+  notes: Note[];
 }
 
 /** What `load_project` returns (the `DATA` samples stream separately). */
@@ -105,6 +108,7 @@ interface LoadedProjectDto {
   setup: AnalysisSetupDto;
   layout: LayoutDto;
   results: StoredResult[];
+  notes: Note[];
   sampleRate: number;
   channels: number;
   frames: number;
@@ -279,6 +283,7 @@ function projectSignature(): string {
     filterEnabled: filterEnabled(),
     openTools: openTools(),
     layout: layoutJson(),
+    notes: notes(),
   });
 }
 
@@ -346,6 +351,7 @@ async function write(path: string): Promise<boolean> {
       source: currentDescriptor(),
       setup: currentSetup(),
       layout: await currentLayout(),
+      notes: deepClone(notes()),
     };
     await invoke("save_project", { path, project: args });
     setProjectPath(path);
@@ -467,7 +473,11 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
     }, 0);
   }
 
-  // 6. Start a fresh undo history for the loaded project (undo must not step
+  // 6. The project's notes (M14): replace the store (this marks the project clean
+  //    again via the baseline below). Applied before the undo history is reset.
+  replaceNotes(loaded.notes ?? []);
+
+  // 7. Start a fresh undo history for the loaded project (undo must not step
   //    back across the project boundary).
   resetHistory();
 }
@@ -543,5 +553,9 @@ export async function newProject(): Promise<void> {
   setProjectPath(null);
   setProjectTitle(null);
   setCreatedMs(null);
+  resetNotes();
   resetHistory();
+  // Re-arm the dirty baseline once the resets have settled, so the fresh project is
+  // clean but a later edit flags it again (mirrors `loadProject`).
+  endBaseline();
 }

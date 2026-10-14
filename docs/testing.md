@@ -335,10 +335,28 @@ launches, so the spec resets to a known state first and restores the defaults af
 > uniqueness). Import/export use native dialogs (mocked in the suite), so the file
 > round-trip is exercised by hand rather than in the wdio suite.
 
+### N. Notes (M14)
+
+Drives the annotation layer end to end: add a note from the Notes rail (which captures
+the focused chart's frozen values), confirm the row + values, save the project, discard
+it, load it back and confirm the note survives, then delete it.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| N1 | Add from the rail | The rail opens from the Toolbar; `Add` creates a row whose frozen values line contains `peak` (from the focused spectrum chart); the count reads `1` | Scenario |
+| N2 | Persistence | The note survives `save_project` → `new_project` → `load_project` | Scenario |
+| N3 | Delete | The row's delete button removes the note (the empty state returns) | Scenario |
+
+> **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
+> excerpts, and the snapshot comparison behind the stale hint) are checked by
+> `npm run test:unit` (`scripts/notes.test.ts`), and the `NOTES` section is
+> round-trip tested by `cargo test` (the `project` module — a point note with values
+> and a range note) and the batch CLI's `notes` subcommand (`cli::batch`).
+
 ## Running
 
 ```sh
-npm run test:unit             # theme-file model unit checks (no app needed)
+npm run test:unit             # pure-helper unit checks (theme model + notes; no app needed)
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)
@@ -346,6 +364,28 @@ npm run typecheck:e2e        # type-check the suite (no app needed)
 
 Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
 service log).
+
+### Rendering the UI without the app
+
+For pure layout / CSS / component iteration, **`preview.html`** (repo root) renders the
+real shell in a plain browser — no Tauri, no Rust core — so it can be inspected and
+screenshotted without launching the app. It stubs the minimal Tauri internals
+(`window.__TAURI_INTERNALS__`) so `src/index.tsx` boots instead of throwing; every
+`invoke(...)` resolves to `null`, so there is no audio source or analysis data (the
+Timeline is empty and analyzers show their empty state). Set a fake source from the
+console if a view needs one:
+
+```js
+const m = await import("/src/state/source.ts");
+m.finalizeSource({ name: "preview", detail: "preview",
+  samples: new Float32Array(48000), sampleRate: 48000, channels: 1 });
+```
+
+```sh
+npm run dev      # then open http://localhost:1420/preview.html
+```
+
+`vite build` builds only `index.html`, so `preview.html` is never bundled or shipped.
 
 ### When the shell does not render
 

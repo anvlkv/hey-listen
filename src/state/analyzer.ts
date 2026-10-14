@@ -839,6 +839,35 @@ export interface AnalysisResultMap {
   loudnessRange: LraResult;
 }
 
+// --- latest results --------------------------------------------------------
+
+/**
+ * The latest result per analyzer tool, kept by the mounted tabs so a note can capture
+ * a **frozen values snapshot** from a live chart (`state/notes.ts`, M14). Not persisted
+ * — the analyzers re-derive results on load.
+ */
+const [latestResults, setLatestResults] = createSignal<Partial<Record<AnalyzerId, AnyAnalysisResult>>>(
+  {},
+);
+
+/** The most recent result for `tool`, or `null` (no tab has computed one yet). */
+export function latestResult(tool: AnalyzerId): AnyAnalysisResult | null {
+  return latestResults()[tool] ?? null;
+}
+
+/** Record (or clear) the latest result for a tool. */
+function setLatestResult(tool: AnalyzerId, result: AnyAnalysisResult | null) {
+  setLatestResults((prev) => {
+    if (result == null) {
+      if (!(tool in prev)) return prev;
+      const next = { ...prev };
+      delete next[tool];
+      return next;
+    }
+    return { ...prev, [tool]: result };
+  });
+}
+
 // --- per-tool options ------------------------------------------------------
 
 type ToolOptionsState = Record<string, Record<string, number>>;
@@ -904,6 +933,7 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
       setResult(null);
       setError(null);
       setLoading(false);
+      setLatestResult(tool, null);
       return;
     }
 
@@ -916,6 +946,7 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
       if (token !== generation) return;
       setResult(() => response);
       setError(null);
+      setLatestResult(tool, response as AnyAnalysisResult);
     } catch (err) {
       if (token !== generation) return;
       setError(String(err));

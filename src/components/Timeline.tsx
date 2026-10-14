@@ -1,11 +1,15 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { playhead, previewRegion, stop as stopPreview } from "../audio/preview";
 import { columnExtent, computePeaks, type Peaks } from "../lib/waveform";
+import { analyzerById, isAnalyzerId } from "../state/analyzer";
 import { channelFor } from "../state/analysis";
 import { filterEnabled } from "../state/graph";
 import { filteredSamples } from "../state/filtered";
 import { stopFollowing } from "../state/capture";
 import { setSourcePanelPinned, sourcePanelPinned } from "../state/settings";
+import { focusedNoteId, focusNote, dragNoteTo, notesSorted, refreshNoteValues, setFocusedNote } from "../state/notes";
+import { noteLabel, noteTimeText } from "../lib/note";
+import type { Note } from "../bindings/Note";
 import { chartTheme } from "../state/themes";
 import { source, status } from "../state/source";
 import Button from "./Button";
@@ -30,6 +34,10 @@ const LABEL_GAP = 8;
 const MOVE_HIT = 10;
 /** Height (px) of the drawn window move handle bar. */
 const MOVE_HANDLE_H = 8;
+/** Vertical band (px, from the ruler) where a note pin is clickable. */
+const NOTE_BAND = 16;
+/** Horizontal hit radius (px) around a note pin. */
+const NOTE_HIT = 8;
 /** Horizontal gutter so the start/end handles never sit on the very edge. */
 const PLOT_PAD = 12;
 /** Click-drag preview restart throttle, in ms. */
@@ -105,6 +113,7 @@ export default function Timeline() {
   const [cssH, setCssH] = createSignal(0);
   const [playSec, setPlaySec] = createSignal<number | null>(null);
   const [previewing, setPreviewing] = createSignal(false);
+  const [noteHint, setNoteHint] = createSignal<{ x: number; y: number; text: string } | null>(null);
 
   const duration = () => source()?.duration ?? 0;
   const span = () => Math.max(1e-9, viewEnd() - viewStart());
@@ -295,6 +304,8 @@ export default function Timeline() {
       drawHandle(ctx, we, waveTop, waveH, t.series);
     }
 
+    drawNotes(ctx, waveTop, waveH);
+
     const ph = playSec();
     if (ph != null) {
       const x = t2x(ph);
@@ -365,7 +376,7 @@ export default function Timeline() {
     ctx.fillRect(x - 4, top, 8, 12);
   }
 
-  /** Grab bar spanning the window along the top of the waveform (move handle). */
+  /** The grab bar spanning the window along the top of the waveform (move handle). */
   function drawMoveHandle(
     ctx: CanvasRenderingContext2D,
     x0: number,
@@ -389,6 +400,70 @@ export default function Timeline() {
     ctx.stroke();
   }
 
+  /**
+   * Note pins (M14): every note is a triangle at its time (a shaded span for a
+   * range); the focused note is emphasised with a full-height stem. Clicking a pin
+   * focuses the note; hovering shows a hint. See `docs/notes.md` → Surfacing.
+   */
+  function drawNotes(ctx: CanvasRenderingContext2D, waveTop: number, waveH: number) {
+    const list = notesSorted();
+    if (list.length === 0) return;
+    const theme = chartTheme();
+    const focusId = focusedNoteId();
+    const w = cssW();
+    for (const note of list) {
+      const x = t2x(note.timeSecs);
+      if (x < -12 || x > w + 12) continue;
+      const focused = note.id === focusId;
+      if (note.range) {
+        const x0 = t2x(note.range.startSecs);
+        const x1 = t2x(note.range.endSecs);
+        ctx.globalAlpha = focused ? 0.22 : 0.12;
+        ctx.fillStyle = theme.note;
+        ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
+        ctx.globalAlpha = 1;
+      }
+      const size = focused ? 6 : 4;
+      ctx.globalAlpha = focused ? 1 : 0.8;
+      ctx.fillStyle = theme.note;
+      ctx.beginPath();
+      ctx.moveTo(x - size, waveTop);
+      ctx.lineTo(x + size, waveTop);
+      ctx.lineTo(x, waveTop + size + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = theme.note;
+      ctx.lineWidth = focused ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x) + 0.5, waveTop);
+      ctx.lineTo(Math.round(x) + 0.5, waveTop + (focused ? waveH : 10));
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** The note pin under a pointer position, or `null`. */
+  function noteAt(x: number, y: number): Note | null {
+    if (y < RULER_H || y > RULER_H + NOTE_BAND) return null;
+    let best: Note | null = null;
+    let bestDistance = NOTE_HIT;
+    for (const note of notesSorted()) {
+      const distance = Math.abs(t2x(note.timeSecs) - x);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        best = note;
+      }
+    }
+    return best;
+  }
+
+  /** The hover hint text for a note (title · tool · time · values line). */
+  function noteHintText(note: Note): string {
+    const tool = note.tool && isAnalyzerId(note.tool) ? analyzerById(note.tool).title : "Timeline";
+    const values = note.values ? ` · ${note.values.text}` : "";
+    return `${noteLabel(note)} · ${tool} · ${noteTimeText(note)}${values}`;
+  }
+
   // --- interaction -------------------------------------------------------
 
   let drag: {
@@ -399,6 +474,8 @@ export default function Timeline() {
     origWindowStart: number;
     origWindowEnd: number;
   } | null = null;
+  /** Dragging a note pin along the timeline (M14). */
+  let noteDrag: { id: string; startX: number; moved: boolean } | null = null;
   let lastPreview = 0;
 
   function pointerX(e: { clientX: number }): number {
@@ -421,6 +498,16 @@ export default function Timeline() {
     stopFollowing();
     const x = pointerX(e);
     const y = pointerY(e);
+
+    // A note pin starts a drag (grab its tick, or click to focus + open its chart).
+    const note = noteAt(x, y);
+    if (note) {
+      noteDrag = { id: note.id, startX: x, moved: false };
+      setNoteHint(null);
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
     const ws = t2x(windowStart());
     const we = t2x(windowEnd());
 
@@ -447,7 +534,22 @@ export default function Timeline() {
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (!drag) return;
+    if (noteDrag) {
+      const x = pointerX(e);
+      if (Math.abs(x - noteDrag.startX) > 2) noteDrag.moved = true;
+      if (noteDrag.moved) {
+        const t = Math.max(0, Math.min(duration(), x2t(x)));
+        dragNoteTo(noteDrag.id, t);
+      }
+      return;
+    }
+    if (!drag) {
+      const hit = noteAt(pointerX(e), pointerY(e));
+      setNoteHint(
+        hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit) } : null,
+      );
+      return;
+    }
     const x = pointerX(e);
 
     if (drag.kind === "pan") {
@@ -488,6 +590,19 @@ export default function Timeline() {
   }
 
   function onPointerUp(e: PointerEvent) {
+    if (noteDrag) {
+      const { id, moved } = noteDrag;
+      noteDrag = null;
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      if (moved) {
+        // Re-snapshot the values at the new time, and show the note where it landed.
+        refreshNoteValues(id);
+        setFocusedNote(id);
+      } else {
+        focusNote(id);
+      }
+      return;
+    }
     if (!drag) return;
     // Only the edge handles preview + auto-zoom on release; move/pan do not.
     const wasEdge = drag.kind === "start" || drag.kind === "end";
@@ -577,6 +692,8 @@ export default function Timeline() {
     playSec();
     filteredSamples();
     filterEnabled();
+    notesSorted();
+    focusedNoteId();
     draw();
   });
 
@@ -689,6 +806,7 @@ export default function Timeline() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onPointerLeave={() => setNoteHint(null)}
         />
         <Show when={!active()}>
           <div class="timeline-overlay">
@@ -699,6 +817,17 @@ export default function Timeline() {
               <span class="timeline-error">Source failed — see the Source panel</span>
             </Show>
           </div>
+        </Show>
+        <Show when={noteHint()}>
+          {(hint) => (
+            <div
+              class="timeline-note-hint"
+              data-testid="timeline.note.hint"
+              style={{ left: `${hint().x + 10}px`, top: `${hint().y + 10}px` }}
+            >
+              {hint().text}
+            </div>
+          )}
         </Show>
       </div>
     </section>

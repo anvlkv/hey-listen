@@ -1,6 +1,7 @@
 import { createEffect, createRoot, createSignal } from "solid-js";
 import type { SerializedDockview } from "dockview";
 import { deepClone } from "../lib/clone";
+import type { Note } from "../bindings/Note";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
 import {
@@ -11,6 +12,7 @@ import {
   type GraphLayout,
 } from "./graph";
 import { setWindowEnd, setWindowStart, windowEnd, windowStart } from "./timeline";
+import { focusedNoteId, notes, replaceNotes, setFocusedNoteId } from "./notes";
 import { layoutJson, openTools, restoreLayout, type ToolId } from "./workbench";
 
 /**
@@ -45,6 +47,8 @@ interface Snapshot {
   windowEnd: number;
   layout: SerializedDockview | null;
   openTools: ToolId[];
+  notes: Note[];
+  focusedNoteId: string | null;
 }
 
 /** ~one gesture per step (matches the filter push's cooperative debounce). */
@@ -64,6 +68,8 @@ function capture(): Snapshot {
     windowEnd: windowEnd(),
     layout: layoutJson(),
     openTools: openTools(),
+    notes: notes(),
+    focusedNoteId: focusedNoteId(),
   });
 }
 
@@ -79,6 +85,8 @@ function apply(snapshot: Snapshot) {
   setToolOptions(snap.toolOptions);
   setWindowStart(snap.windowStart);
   setWindowEnd(snap.windowEnd);
+  replaceNotes(snap.notes);
+  setFocusedNoteId(snap.focusedNoteId);
   restoreLayout(snap.layout);
 }
 

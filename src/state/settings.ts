@@ -88,3 +88,77 @@ export { fontScale };
  * override — transient, not persisted.
  */
 export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
+
+/**
+ * The **Notes panel** (M14) — a right rail, the mirror of the Sidebar. It is UI
+ * chrome (not project content), so its open/closed state and width are persisted
+ * app-level in `localStorage`, exactly like the font scale; the notes themselves
+ * are project data (`state/notes.ts`). See `docs/notes.md` → The Notes panel.
+ */
+
+/** Default rail width, in px. */
+export const NOTES_DEFAULT_WIDTH = 280;
+/** Narrowest rail width, in px (mirrors the Sidebar's clamp). */
+export const NOTES_MIN_WIDTH = 160;
+/** Widest rail width, in px. */
+export const NOTES_MAX_WIDTH = 520;
+
+const NOTES_STORAGE_KEY = "hey-listen:notes-panel";
+
+interface NotesPanelPrefs {
+  open: boolean;
+  width: number;
+}
+
+/** Clamp a rail width to `[MIN, MAX]`. */
+export function clampNotesWidth(width: number): number {
+  const value = Number.isFinite(width) ? width : NOTES_DEFAULT_WIDTH;
+  return Math.round(Math.min(NOTES_MAX_WIDTH, Math.max(NOTES_MIN_WIDTH, value)));
+}
+
+function loadNotesPanel(): NotesPanelPrefs {
+  try {
+    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+    if (raw == null) return { open: false, width: NOTES_DEFAULT_WIDTH };
+    const parsed = JSON.parse(raw) as Partial<NotesPanelPrefs>;
+    return {
+      open: parsed.open === true,
+      width: clampNotesWidth(parsed.width ?? NOTES_DEFAULT_WIDTH),
+    };
+  } catch {
+    return { open: false, width: NOTES_DEFAULT_WIDTH };
+  }
+}
+
+const initialNotesPanel = loadNotesPanel();
+
+/** Whether the Notes rail is shown (hidden by default). */
+export const [notesPanelOpen, setNotesPanelOpenSignal] = createSignal(initialNotesPanel.open);
+/** The Notes rail's width, in px (clamped like the Sidebar). */
+export const [notesPanelWidth, setNotesPanelWidthSignal] = createSignal(initialNotesPanel.width);
+
+function persistNotesPanel() {
+  try {
+    const prefs: NotesPanelPrefs = { open: notesPanelOpen(), width: notesPanelWidth() };
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    // Not persisting is fine; the panel still works for this session.
+  }
+}
+
+/** Show/hide the Notes rail, persisting the choice. */
+export function setNotesPanelOpen(open: boolean) {
+  setNotesPanelOpenSignal(open);
+  persistNotesPanel();
+}
+
+/** Toggle the Notes rail. */
+export function toggleNotesPanel() {
+  setNotesPanelOpen(!notesPanelOpen());
+}
+
+/** Set the Notes rail width (clamped), persisting the choice. */
+export function setNotesPanelWidth(width: number) {
+  setNotesPanelWidthSignal(clampNotesWidth(width));
+  persistNotesPanel();
+}

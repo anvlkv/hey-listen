@@ -37,6 +37,8 @@
 | `@dschz/solid-flow` | ^0.2 | fundsp graph editor | MIT |
 | `@dschz/solid-uplot` | ^0.5 | charts | MIT |
 | `uplot` | ^1.6 | chart engine | MIT |
+| `marked` | ^18 | markdown → HTML for a note's body (M14); **lazily imported** (note preview only) | MIT |
+| `dompurify` | ^3 | sanitize the rendered note markdown (M14); **lazily imported** with `marked` | MPL-2.0 OR Apache-2.0 |
 | **Font Awesome Free 7** | 7.3.1 (vendored) | the icon font + glyphs (`public/fonts/fontawesome/`) | Icons CC BY 4.0 / Fonts SIL OFL 1.1 / Code MIT |
 | `vite` / `vite-plugin-solid` / `typescript` | — | build / tooling | MIT / MIT / Apache-2.0 |
 
@@ -56,6 +58,9 @@
   modifications.
 - **oxiaudio** `pure` feature set is Apache-2.0; MP3 **encode** is excluded from
   the facade (separate LGPL crate) — not used.
+- **`dompurify`** (M14) is dual-licensed **MPL-2.0 OR Apache-2.0**; we take the
+  Apache-2.0 option (so no MPL file-level copyleft obligation applies to it, unlike
+  symphonia). Its `marked` companion is MIT.
 - Confirm exact `flexaudio` / `fundsp` license strings from their `Cargo.toml`
   before any redistribution.
 

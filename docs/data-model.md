@@ -41,14 +41,15 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   (`.heyltemplate`), not the binary project container.
 - **Note** — an annotation on the project: an audio **time** anchor (`timeSecs`) with an
   optional `range`, an optional **analyzer tool id** it was taken from (absent = a
-  Timeline note), a markdown `body`, an optional plain-text `title`, and a **frozen**
-  `values` snapshot (the chart's readout at that time, with its `window` / `params` /
-  `options` provenance). Stored in the project file's `NOTES` section.
+  Timeline note), a markdown `body`, and a **frozen** `values` snapshot (the chart's
+  readout at that time, with its `window` / `params` / `options` provenance). The
+  note's heading is the **first line of the body**; the model's optional `title` field
+  is retained but no longer set or shown. Stored in the project file's `NOTES` section.
 
-> **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md));
-> `AnalysisTemplate` (M13), the export envelope (M12), and `Note` (M14) are still planned —
-> the export envelope is a view over an existing `AnalysisResult`. See
-> [`exports.md`](exports.md), [`templates.md`](templates.md), [`notes.md`](notes.md).
+> **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md))
+> and `Note` in M14 (see [`notes.md`](notes.md)); `AnalysisTemplate` (M13) and the
+export envelope (M12) are still planned — the export envelope is a view over an
+existing `AnalysisResult`. See [`exports.md`](exports.md), [`templates.md`](templates.md).
 
 ## Sketch (Rust)
 

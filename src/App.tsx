@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
 import AboutDialog from "./components/AboutDialog";
+import NotesPanel from "./components/NotesPanel";
 import Sidebar from "./components/Sidebar";
 import SourcePanel from "./components/SourcePanel";
 import Timeline from "./components/Timeline";
@@ -11,7 +12,12 @@ import { disposeCapture, initCapture, recording } from "./state/capture";
 import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu, aboutOpen, setAboutOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
-import { sourcePanelPinned } from "./state/settings";
+import {
+  notesPanelOpen,
+  notesPanelWidth,
+  setNotesPanelWidth,
+  sourcePanelPinned,
+} from "./state/settings";
 import { source } from "./state/source";
 import { refreshThemes } from "./state/themes";
 import { initUiState } from "./state/uiState";
@@ -48,6 +54,7 @@ export default function App() {
   let main!: HTMLDivElement;
   let drag: { y: number; height: number } | null = null;
   let sidebarDrag: { x: number; width: number } | null = null;
+  let notesDrag: { x: number; width: number } | null = null;
   let disposeDragDrop: (() => void) | undefined;
 
   const clamp = (height: number) => {
@@ -90,6 +97,25 @@ export default function App() {
 
   function onSidebarUp(event: PointerEvent) {
     sidebarDrag = null;
+    const el = event.currentTarget as HTMLElement;
+    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+  }
+
+  function onNotesDown(event: PointerEvent) {
+    const el = event.currentTarget as HTMLElement;
+    notesDrag = { x: event.clientX, width: notesPanelWidth() };
+    el.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function onNotesMove(event: PointerEvent) {
+    if (!notesDrag) return;
+    // The rail is on the right, so dragging the splitter left widens it.
+    setNotesPanelWidth(notesDrag.width - (event.clientX - notesDrag.x));
+  }
+
+  function onNotesUp(event: PointerEvent) {
+    notesDrag = null;
     const el = event.currentTarget as HTMLElement;
     if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
   }
@@ -143,6 +169,24 @@ export default function App() {
             />
           </Tooltip>
           <Workbench />
+          <Show when={notesPanelOpen()}>
+            <Tooltip label="Drag to resize the notes panel">
+              <div
+                class="app-vsplitter"
+                data-testid="splitter.notes"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize the notes panel"
+                onPointerDown={onNotesDown}
+                onPointerMove={onNotesMove}
+                onPointerUp={onNotesUp}
+                onPointerCancel={onNotesUp}
+              />
+            </Tooltip>
+            <NotesPanel
+              style={{ flex: `0 0 ${notesPanelWidth()}px`, width: `${notesPanelWidth()}px` }}
+            />
+          </Show>
         </div>
         <Show when={showTimeline()}>
           <Tooltip label="Drag to resize the timeline">

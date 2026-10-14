@@ -21,7 +21,7 @@ use crate::audio::graph::{self, GraphSpec};
 use crate::mcp::dispatch::HeadlessSession;
 
 /// The batch subcommands, matching the `plugins.cli` definitions in `tauri.conf.json`.
-const SUBCOMMANDS: [&str; 3] = ["analyzers", "analyze", "synth"];
+const SUBCOMMANDS: [&str; 4] = ["analyzers", "analyze", "synth", "notes"];
 
 /// The shared-param keys `-p` accepts (the same keys MCP's `set_shared_params` takes).
 const SHARED_PARAM_KEYS: [&str; 8] = [
@@ -72,6 +72,12 @@ pub enum Command {
         seconds: f64,
         /// The graph file path (used as the `file` label in the output).
         path: String,
+    },
+    /// `notes <FILE.heyl>` — list a saved project's notes (read-only).
+    Notes {
+        path: String,
+        json: bool,
+        full: bool,
     },
 }
 
@@ -135,6 +141,15 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 path,
             };
         }
+        "notes" => {
+            let path = string(matches, "file")
+                .ok_or("notes needs a project file: `hey-listen notes <FILE.heyl>`")?;
+            request.command = Command::Notes {
+                path,
+                json: flag(matches, "json"),
+                full: flag(matches, "full"),
+            };
+        }
         other => return Err(format!("unknown subcommand: {other}")),
     }
     validate(&request)?;
@@ -185,6 +200,7 @@ fn validate(request: &Request) -> Result<(), String> {
                 ));
             }
         }
+        Command::Notes { .. } => {}
     }
     if request.pretty && result_count(request) != 1 {
         return Err("--pretty prints a single result; give exactly one file and one tool".into());
@@ -198,6 +214,7 @@ fn result_count(request: &Request) -> usize {
         Command::Analyzers { .. } => 0,
         Command::Analyze => request.files.len() * tool_count(request),
         Command::Synth { .. } => tool_count(request),
+        Command::Notes { .. } => 0,
     }
 }
 
@@ -405,6 +422,7 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
     match &request.command {
         Command::Analyzers { json } => run_analyzers(&mut session, *json, out),
         Command::Analyze => run_analyze(&mut session, request, out),
+        Command::Notes { path, json, full } => run_notes(path, *json, *full, out),
         Command::Synth {
             graph,
             seconds,
@@ -464,6 +482,80 @@ fn run_analyzers(session: &mut HeadlessSession, json: bool, out: &mut impl Write
             1
         }
     }
+}
+
+/// List a saved project's notes, sorted by time (read-only).
+///
+/// Decodes the `.heyl` container and reads its `NOTES` section. Prints one JSON line
+/// per note (`--json`) or a table; a file with no notes prints nothing and exits `0`.
+/// A missing / unreadable / non-project file is an `error` (exit `1`).
+fn run_notes(path: &str, json: bool, full: bool, out: &mut impl Write) -> i32 {
+    let mut file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(err) => {
+            emit(
+                out,
+                &json!({ "file": path, "error": err.to_string() }),
+                false,
+            );
+            return 1;
+        }
+    };
+    let mut notes = match crate::project::read_project(&mut file) {
+        Ok(loaded) => loaded.notes,
+        Err(err) => {
+            emit(
+                out,
+                &json!({ "file": path, "error": err.to_string() }),
+                false,
+            );
+            return 1;
+        }
+    };
+    notes.sort_by(|a, b| a.time_secs.total_cmp(&b.time_secs));
+
+    for note in &notes {
+        if json {
+            let mut value = serde_json::to_value(note).unwrap_or(Value::Null);
+            if !full {
+                if let Some(object) = value.as_object_mut() {
+                    object.insert("body".to_string(), json!(excerpt(&note.body)));
+                }
+            }
+            emit(out, &value, false);
+        } else {
+            let time = match &note.range {
+                Some(range) => format!("{:.3}–{:.3}", range.start_secs, range.end_secs),
+                None => format!("{:.3}", note.time_secs),
+            };
+            let label = match note.title.as_deref() {
+                Some(title) if !title.is_empty() => title.to_string(),
+                _ if full => note.body.replace('\n', " "),
+                _ => excerpt(&note.body),
+            };
+            let values = note.values.as_ref().map(|v| v.text.as_str()).unwrap_or("");
+            let _ = writeln!(
+                out,
+                "{time}\t{}\t{label}\t{values}",
+                note.tool.as_deref().unwrap_or("-"),
+            );
+        }
+    }
+    0
+}
+
+/// A one-line excerpt of a markdown body for the table / default JSON output.
+fn excerpt(body: &str) -> String {
+    let line = body
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("");
+    let mut short: String = line.chars().take(60).collect();
+    if line.chars().count() > 60 {
+        short.push('…');
+    }
+    short
 }
 
 /// Decode each file in turn and run the requested tools over it.
@@ -1042,5 +1134,131 @@ mod tests {
         assert_eq!(values[0]["file"], path);
         assert_eq!(values[0]["source"]["sampleRate"], 48_000);
         let _ = std::fs::remove_file(&path);
+    }
+
+    // --- notes -----------------------------------------------------------
+
+    /// Write a `.heyl` with two notes (a chart note with values, a timeline range note).
+    fn write_project_file(name: &str) -> String {
+        use crate::project::sections::{AnalysisWindow, NoteValues};
+        use crate::project::{write_project, Note, SaveProject};
+        let path = std::env::temp_dir().join(name);
+        let chart_note = Note {
+            id: "n1".into(),
+            created_ms: 1,
+            updated_ms: 2,
+            time_secs: 2.5,
+            range: None,
+            tool: Some("spectrum".into()),
+            title: Some("Third harmonic".into()),
+            body: "Peak at **880 Hz**\nsecond line".into(),
+            values: Some(NoteValues {
+                tool: "spectrum".into(),
+                label: "Spectrum @ 2.5 s".into(),
+                text: "peak 880.0 Hz".into(),
+                window: AnalysisWindow {
+                    start_secs: 0.0,
+                    end_secs: 4.0,
+                },
+                params: Default::default(),
+                options: Default::default(),
+                captured_ms: 2,
+            }),
+        };
+        let timeline_note = Note {
+            id: "n0".into(),
+            created_ms: 1,
+            updated_ms: 1,
+            time_secs: 1.0,
+            range: Some(AnalysisWindow {
+                start_secs: 1.0,
+                end_secs: 1.5,
+            }),
+            tool: None,
+            title: None,
+            body: "a timeline note".into(),
+            values: None,
+        };
+        let save = SaveProject {
+            name: "notes".into(),
+            created_ms: None,
+            source: None,
+            setup: crate::project::AnalysisSetup::default(),
+            layout: Value::Null,
+            results: Vec::new(),
+            notes: vec![chart_note, timeline_note],
+            pcm: None,
+        };
+        let file = std::fs::File::create(&path).unwrap();
+        write_project(std::io::BufWriter::new(file), &save, 10).unwrap();
+        path.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn notes_reads_the_file_and_flags() {
+        let m = matches(&[
+            ("file", json!("/tmp/x.heyl")),
+            ("json", json!(true)),
+            ("full", json!(true)),
+        ]);
+        let request = build_request("notes", &m).unwrap();
+        match request.command {
+            Command::Notes { path, json, full } => {
+                assert_eq!(path, "/tmp/x.heyl");
+                assert!(json);
+                assert!(full);
+            }
+            _ => panic!("expected a notes command"),
+        }
+    }
+
+    #[test]
+    fn notes_without_a_file_is_a_usage_error() {
+        assert!(build_request("notes", &matches(&[]))
+            .unwrap_err()
+            .contains("project file"));
+    }
+
+    #[test]
+    fn run_lists_notes_sorted_by_time() {
+        let path = write_project_file("hey_listen_cli_notes.heyl");
+
+        // JSONL, full bodies.
+        let m = matches(&[
+            ("file", json!(path.clone())),
+            ("json", json!(true)),
+            ("full", json!(true)),
+        ]);
+        let request = build_request("notes", &m).unwrap();
+        let mut out = Vec::new();
+        assert_eq!(run(&request, &mut out), 0);
+        let values = lines(&out);
+        assert_eq!(values.len(), 2);
+        // Sorted by time: the timeline note (1.0 s) before the chart note (2.5 s).
+        assert_eq!(values[0]["id"], "n0");
+        assert_eq!(values[1]["id"], "n1");
+        assert_eq!(values[1]["body"], "Peak at **880 Hz**\nsecond line");
+        assert_eq!(values[1]["values"]["text"], "peak 880.0 Hz");
+
+        // Table output, excerpted bodies.
+        let m = matches(&[("file", json!(path.clone()))]);
+        let request = build_request("notes", &m).unwrap();
+        let mut out = Vec::new();
+        assert_eq!(run(&request, &mut out), 0);
+        let table = String::from_utf8(out).unwrap();
+        assert!(table.contains("2.500\tspectrum\tThird harmonic\tpeak 880.0 Hz"));
+        assert!(table.contains("1.000–1.500\t-\ta timeline note\t"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn run_reports_a_missing_project() {
+        let m = matches(&[("file", json!("/no/such/x.heyl"))]);
+        let request = build_request("notes", &m).unwrap();
+        let mut out = Vec::new();
+        assert_eq!(run(&request, &mut out), 1);
+        let values = lines(&out);
+        assert!(values[0]["error"].is_string());
     }
 }

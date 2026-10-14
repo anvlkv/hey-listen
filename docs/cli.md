@@ -121,7 +121,7 @@ a **usage error** (printed to stderr, exit `2`) — it never falls through to th
 
 ### `notes <FILE.heyl>`
 
-List the **notes** stored in a project file, sorted by time (M14, planned; see
+List the **notes** stored in a project file, sorted by time (M14; see
 [`notes.md`](notes.md)). Read-only — it decodes the container, reads the `NOTES` section,
 and never mutates the file.
 
@@ -231,7 +231,7 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
 
 - `analyzers`, `analyze`, `synth` — decode a file, run analyzers, render a synth
   graph, list the catalog, with shared params / per-tool options / a filter graph.
-- `notes` — read a saved project's notes (M14, planned; read-only).
+- `notes` — read a saved project's notes (M14; read-only).
 
 Planned in the compute subset (M12/M13):
 

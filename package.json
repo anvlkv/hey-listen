@@ -11,7 +11,7 @@
     "build:site": "node scripts/buildSite.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p e2e/tsconfig.json",
-    "test:unit": "tsx scripts/themeFile.test.ts",
+    "test:unit": "tsx scripts/themeFile.test.ts && tsx scripts/notes.test.ts",
     "tauri": "tauri",
     "test:e2e": "wdio run wdio.conf.ts",
     "test:e2e:build": "npm run tauri build && npm run test:e2e",
@@ -30,6 +30,8 @@
     "@tauri-apps/plugin-log": "^2.10.1",
     "@tauri-apps/plugin-store": "^2.5.0",
     "dockview": "^8.5.1",
+    "dompurify": "^3.4.17",
+    "marked": "^18.1.1",
     "solid-js": "^1.9.17",
     "uplot": "^1.6.32"
   },
