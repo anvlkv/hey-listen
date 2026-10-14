@@ -7,14 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "serve:site": "node scripts/serveSite.mjs",
+    "build:site": "node scripts/buildSite.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p e2e/tsconfig.json",
     "test:unit": "tsx scripts/themeFile.test.ts",
     "tauri": "tauri",
     "test:e2e": "wdio run wdio.conf.ts",
-    "test:e2e:build": "npm run tauri build && npm run test:e2e"
+    "test:e2e:build": "npm run tauri build && npm run test:e2e",
+    "screenshots": "wdio run screenshots.wdio.conf.ts"
   },
-  "license": "MIT",
+  "license": "Unlicense",
   "dependencies": {
     "@dschz/solid-flow": "^0.2.6",
     "@dschz/solid-uplot": "^0.5.2",
