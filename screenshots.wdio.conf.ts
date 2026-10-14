@@ -25,8 +25,12 @@ export const config: typeof base = {
   ...base,
   specs: ["./e2e/screenshots/capture.spec.ts"],
   async onPrepare(config, capabilities) {
-    // Keep the base behavior (kill stale apps, generate fixtures) intact.
-    await base.onPrepare?.(config, capabilities);
+    // Keep the base behavior (kill stale apps, generate fixtures) intact. WDIO types
+    // a hook as `Fn | Fn[]` (a config may chain hooks), so normalize before calling.
+    const prepare = base.onPrepare;
+    for (const hook of Array.isArray(prepare) ? prepare : prepare ? [prepare] : []) {
+      await hook(config, capabilities);
+    }
     await mkdir(ASSETS_DIR, { recursive: true });
   },
 };
