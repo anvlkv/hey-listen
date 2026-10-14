@@ -514,6 +514,43 @@ source rather than pinned.
 > usable headless; the layout part is GUI-only. See [`templates.md`](templates.md)
 > (ADR-17).
 
+## M14 — Notes (planned)
+
+An **annotation layer** on the project: a **markdown** note attached to an audio
+**time** (a point, optionally a span) and to the **analyzer chart** it was taken from,
+carrying a **frozen snapshot** of that chart's values. Notes show on the Timeline, on
+the chart they belong to, and — when **focused** — on every time-based chart; they live
+in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI.
+
+- **`Note` model.** `id`, `createdMs` / `updatedMs`, `timeSecs` (the anchor) + optional
+  `range`, `tool` (the analyzer id; absent = a Timeline note), optional plain-text
+  `title`, the **markdown** `body`, and a `values` snapshot. Serde + `ts_rs::TS`.
+- **Values snapshot.** The chart's readout at the note's time (per-frame for a
+  time-axis chart, the summary for a no-time-axis tool), **frozen** with its
+  `window` / `params` / `options` provenance; a **Recompute** action refreshes it and a
+  **stale** hint shows when the live values differ.
+- **Markdown.** Raw markdown body, sanitized render, **preview on focus loss**
+  (textarea ↔ rendered on blur), no live split.
+- **Notes panel (right rail).** A new **fixed region** (not a Workbench tab), hidden by
+  default, toggled by a Toolbar `note-sticky` button, resizable (clamped 160–520 px);
+  open/closed + width persisted app-level. Rows sorted by time; select = focus.
+- **Surfacing.** Every note a **Timeline** pin (span for a range); a chart draws **its
+  own** notes; the **focused** note draws on **every time-based chart** (the `time` sync
+  group) but **not** on the frequency-axis `spectrum`. Focusing a note **opens/raises its
+  chart** and sets the analysis window to the note's time.
+- **Persistence.** A new **`NOTES` section (`0x07`, postcard)** in the `.heyl` container;
+  notes ride `save_project` / `load_project`. Cross-window sync via `uiState`
+  (`notes` + `focusedNoteId`); note edits mark the project dirty and are one undo step.
+- **Agent surface.** MCP `list_notes` / `get_note` / `create_note` / `update_note` /
+  `delete_note` / `set_focused_note` (app-only; headless has no project) and the notes in
+  `get_state`; CLI `hey-listen notes <FILE.heyl>` (read-only, table or `--json`).
+
+> **Decision (committed):** a note is **project content** anchored to a **time** and,
+> optionally, to an **analyzer tool id** — not a Workbench tab, not an analyzer result.
+> Its subtitle is a **frozen** values snapshot (recomputable on demand), and the panel is
+> **chrome** (a fixed region, view-persisted) while the notes themselves are **data**
+> (project-persisted). See [`notes.md`](notes.md) (ADR-18).
+
 ## Backlog ✅ (delivered)
 
 Implemented after M6 as one batch. Where the delivered behaviour is narrower than
