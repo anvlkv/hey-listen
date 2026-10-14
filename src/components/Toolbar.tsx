@@ -1,10 +1,13 @@
 import { Switch } from "@kobalte/core/switch";
 import { Slider } from "@kobalte/core/slider";
 import { Meter } from "@kobalte/core/meter";
-import { For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import Button from "./Button";
 import Combobox from "./Combobox";
+import Icon from "./Icon";
 import Popover from "./Popover";
+import SelectField from "./SelectField";
+import Tooltip from "./Tooltip";
 import SharedParamsForm from "./analyzer/SharedParamsForm";
 import McpPopover from "./McpPopover";
 import { filterEnabled, setFilterEnabled } from "../state/graph";
@@ -24,12 +27,30 @@ import {
   FONT_SCALE_MIN,
   fontScale,
   nudgeFontScale,
-  setThemePreference,
-  THEME_PREFERENCES,
-  themePreference,
-  type ThemePreference,
 } from "../state/settings";
+import {
+  activeSlot,
+  activeTheme,
+  activeThemeId,
+  deleteTheme,
+  exportThemeFile,
+  importThemeFile,
+  isBuiltinTheme,
+  listThemeSummaries,
+  pickThemeExportPath,
+  pickThemeImportPath,
+  refreshThemes,
+  revealThemeDir,
+  setSlotTheme,
+  setThemeMode,
+  THEME_MODES,
+  themeDir,
+  themePreference,
+  type ThemeMode,
+} from "../state/themes";
 import { error, status } from "../state/source";
+import { setAboutOpen } from "../state/menu";
+import type { IconName } from "../lib/icons";
 import { refreshMcpStatus } from "../state/mcpSettings";
 import { meterDbLabel, meterPercent } from "../lib/format";
 
@@ -43,10 +64,17 @@ const PROJECT_LABEL: Record<string, string> = {
   loading: "loading project…",
 };
 
-const THEME_LABEL: Record<ThemePreference, string> = {
+const MODE_LABEL: Record<ThemeMode, string> = {
   auto: "Auto",
   dark: "Dark",
   light: "Light",
+};
+
+/** The icon for each theme mode. */
+const MODE_ICON: Record<ThemeMode, IconName> = {
+  auto: "circle-half-stroke",
+  dark: "moon",
+  light: "sun",
 };
 
 /**
@@ -64,11 +92,59 @@ const THEME_LABEL: Record<ThemePreference, string> = {
  * `docs/analysis-tools.md` → "Shared parameters".
  */
 export default function Toolbar() {
+  const [themeMessage, setThemeMessage] = createSignal<string | null>(null);
+  const [themePath, setThemePath] = createSignal("");
+
   onMount(() => {
     void refreshMcpStatus();
+    void themeDir()
+      .then(setThemePath)
+      .catch(() => setThemePath(""));
   });
   // Poll the preview output level for the meter; stop when the toolbar unmounts.
   onCleanup(initOutputMeter());
+
+  const themeOptions = () =>
+    listThemeSummaries().map((theme) => ({ value: theme.id, label: theme.name }));
+
+  async function onImportTheme() {
+    setThemeMessage(null);
+    const path = await pickThemeImportPath();
+    if (!path) return;
+    try {
+      const summary = await importThemeFile(path);
+      // Adopt the imported theme in the slot the user is currently looking at.
+      setSlotTheme(activeSlot(), summary.id);
+      setThemeMessage(`Imported “${summary.name}”.`);
+    } catch (err) {
+      setThemeMessage(`Import failed: ${String(err)}`);
+    }
+  }
+
+  async function onExportTheme() {
+    setThemeMessage(null);
+    const theme = activeTheme();
+    const path = await pickThemeExportPath(`${theme.meta.id}.heyltheme`);
+    if (!path) return;
+    try {
+      await exportThemeFile(theme.meta.id, path);
+      setThemeMessage(`Exported “${theme.meta.name}”.`);
+    } catch (err) {
+      setThemeMessage(`Export failed: ${String(err)}`);
+    }
+  }
+
+  async function onDeleteTheme() {
+    const id = activeThemeId();
+    if (isBuiltinTheme(id)) return;
+    setThemeMessage(null);
+    try {
+      await deleteTheme(id);
+      setThemeMessage("Theme deleted.");
+    } catch (err) {
+      setThemeMessage(`Delete failed: ${String(err)}`);
+    }
+  }
 
   const deviceOptions = () =>
     outputDevices().map((device) => ({
@@ -97,64 +173,79 @@ export default function Toolbar() {
 
       <div class="toolbar-controls">
         <Popover
-          label="Analysis params"
-          title="Shared analysis parameters (synced across tools)"
+          label="Analysis parameters"
+          title="Shared analysis params (synced across every tool)"
+          icon="sliders"
           testid="toolbar.params"
         >
           <SharedParamsForm />
         </Popover>
 
-        <Switch
-          class="toolbar-switch"
-          checked={filterEnabled()}
-          onChange={setFilterEnabled}
-          title="Apply the filter graph to preview (and analysis)"
-        >
-          <Switch.Label class="toolbar-label">Filter</Switch.Label>
-          <Switch.Input class="toolbar-switch-input" data-testid="toolbar.filter" />
-          <Switch.Control class="toolbar-switch-control">
-            <Switch.Thumb class="toolbar-switch-thumb" />
-          </Switch.Control>
-        </Switch>
-
-        <div class="toolbar-group" title="Preview output gain">
-          <span class="toolbar-label">Output</span>
-          <Slider
-            class="toolbar-slider"
-            value={[outputGain()]}
-            onChange={(values) => applyOutputGain(values[0])}
-            minValue={0}
-            maxValue={2}
-            step={0.05}
-            aria-label="Preview output gain"
+        <Tooltip label="Apply the filter graph to preview (and analysis)">
+          <Switch
+            class="toolbar-switch"
+            checked={filterEnabled()}
+            onChange={setFilterEnabled}
           >
-            <Slider.Track class="gain-track">
-              <Slider.Fill class="gain-fill" />
-              <Slider.Thumb class="gain-thumb">
-                <Slider.Input class="gain-input" data-testid="toolbar.output.gain" />
-              </Slider.Thumb>
-            </Slider.Track>
-          </Slider>
-          <span class="toolbar-readout">{Math.round(outputGain() * 100)}%</span>
-        </div>
+            <Switch.Label class="toolbar-label icon-label">
+              <Icon name="filter" />
+              Filter
+            </Switch.Label>
+            <Switch.Input class="toolbar-switch-input" data-testid="toolbar.filter" />
+            <Switch.Control class="toolbar-switch-control">
+              <Switch.Thumb class="toolbar-switch-thumb" />
+            </Switch.Control>
+          </Switch>
+        </Tooltip>
 
-        <div class="toolbar-group" title="Preview output level">
-          <span class="toolbar-label">Level</span>
-          <Meter
-            class="toolbar-meter"
-            data-testid="toolbar.output.meter"
-            value={meterPercent(outputLevel())}
-            minValue={0}
-            maxValue={100}
-            getValueLabel={() => meterDbLabel(outputLevel())}
-            aria-label="Preview output level"
-          >
-            <Meter.Track class="toolbar-meter-track">
-              <Meter.Fill class="toolbar-meter-fill" />
-            </Meter.Track>
-          </Meter>
-          <span class="toolbar-readout toolbar-meter-readout">{meterDbLabel(outputLevel())}</span>
-        </div>
+        <Tooltip label="Preview output gain">
+          <div class="toolbar-group">
+            <span class="toolbar-label icon-label">
+              <Icon name="volume-high" />
+              Output
+            </span>
+            <Slider
+              class="toolbar-slider"
+              value={[outputGain()]}
+              onChange={(values) => applyOutputGain(values[0])}
+              minValue={0}
+              maxValue={2}
+              step={0.05}
+              aria-label="Preview output gain"
+            >
+              <Slider.Track class="gain-track">
+                <Slider.Fill class="gain-fill" />
+                <Slider.Thumb class="gain-thumb">
+                  <Slider.Input class="gain-input" data-testid="toolbar.output.gain" />
+                </Slider.Thumb>
+              </Slider.Track>
+            </Slider>
+            <span class="toolbar-readout">{Math.round(outputGain() * 100)}%</span>
+          </div>
+        </Tooltip>
+
+        <Tooltip label="Preview output level">
+          <div class="toolbar-group">
+            <span class="toolbar-label icon-label">
+              <Icon name="gauge-high" />
+              Level
+            </span>
+            <Meter
+              class="toolbar-meter"
+              data-testid="toolbar.output.meter"
+              value={meterPercent(outputLevel())}
+              minValue={0}
+              maxValue={100}
+              getValueLabel={() => meterDbLabel(outputLevel())}
+              aria-label="Preview output level"
+            >
+              <Meter.Track class="toolbar-meter-track">
+                <Meter.Fill class="toolbar-meter-fill" />
+              </Meter.Track>
+            </Meter>
+            <span class="toolbar-readout toolbar-meter-readout">{meterDbLabel(outputLevel())}</span>
+          </div>
+        </Tooltip>
 
         <div class="toolbar-field">
           <Combobox
@@ -171,7 +262,13 @@ export default function Toolbar() {
           />
         </div>
 
-        <Popover label="View" title="UI scale and theme" testid="toolbar.view">
+        <Popover
+          label="Appearance"
+          title="UI scale and theme"
+          icon="circle-half-stroke"
+          testid="toolbar.view"
+          onOpen={() => void refreshThemes()}
+        >
           <div class="params-form">
             <div class="params-heading">
               UI scale <span class="params-dim">{Math.round(fontScale() * 100)}%</span>
@@ -179,50 +276,144 @@ export default function Toolbar() {
             <div class="params-field">
               <span class="params-label">Text size</span>
               <div class="toolbar-group">
-                <Button
-                  class="toolbar-btn toolbar-btn-scale"
-                  disabled={fontScale() <= FONT_SCALE_MIN}
-                  title="Decrease UI font size"
-                  aria-label="Decrease UI font size"
-                  onClick={() => nudgeFontScale(-1)}
-                >
-                  A−
-                </Button>
-                <Button
-                  class="toolbar-btn toolbar-btn-scale"
-                  disabled={fontScale() >= FONT_SCALE_MAX}
-                  title="Increase UI font size"
-                  aria-label="Increase UI font size"
-                  onClick={() => nudgeFontScale(1)}
-                >
-                  A+
-                </Button>
+                <Tooltip label="Decrease UI font size">
+                  <Button
+                    class="toolbar-btn toolbar-btn-scale icon-btn"
+                    disabled={fontScale() <= FONT_SCALE_MIN}
+                    aria-label="Decrease UI font size"
+                    onClick={() => nudgeFontScale(-1)}
+                  >
+                    <Icon name="minus" />
+                  </Button>
+                </Tooltip>
+                <Tooltip label="Increase UI font size">
+                  <Button
+                    class="toolbar-btn toolbar-btn-scale icon-btn"
+                    disabled={fontScale() >= FONT_SCALE_MAX}
+                    aria-label="Increase UI font size"
+                    onClick={() => nudgeFontScale(1)}
+                  >
+                    <Icon name="plus" />
+                  </Button>
+                </Tooltip>
               </div>
             </div>
 
-            <div class="params-heading">Theme</div>
+            <div class="params-heading">
+              Theme <span class="params-dim">{activeTheme().meta.name}</span>
+            </div>
             <div class="params-field">
-              <span class="params-label">Colour</span>
+              <span class="params-label">Mode</span>
               <div class="toolbar-group">
-                <For each={THEME_PREFERENCES}>
-                  {(preference) => (
-                    <Button
-                      class="toolbar-btn toolbar-btn-theme"
-                      aria-pressed={themePreference() === preference}
-                      title={`${THEME_LABEL[preference]} theme`}
-                      aria-label={`${THEME_LABEL[preference]} theme`}
-                      onClick={() => setThemePreference(preference)}
-                    >
-                      {THEME_LABEL[preference]}
-                    </Button>
+                <For each={THEME_MODES}>
+                  {(mode) => (
+                    <Tooltip label={`${MODE_LABEL[mode]} mode`}>
+                      <Button
+                        class="toolbar-btn toolbar-btn-theme icon-btn"
+                        aria-pressed={themePreference().mode === mode}
+                        aria-label={`${MODE_LABEL[mode]} mode`}
+                        onClick={() => setThemeMode(mode)}
+                      >
+                        <Icon name={MODE_ICON[mode]} />
+                      </Button>
+                    </Tooltip>
                   )}
                 </For>
               </div>
             </div>
+            <div class="params-field">
+              <span class="params-label">Dark theme</span>
+              <SelectField
+                options={themeOptions()}
+                value={themePreference().darkThemeId}
+                onChange={(id) => setSlotTheme("dark", id)}
+                ariaLabel="Dark slot theme"
+                disabled={themePreference().mode === "light"}
+              />
+            </div>
+            <div class="params-field">
+              <span class="params-label">Light theme</span>
+              <SelectField
+                options={themeOptions()}
+                value={themePreference().lightThemeId}
+                onChange={(id) => setSlotTheme("light", id)}
+                ariaLabel="Light slot theme"
+                disabled={themePreference().mode === "dark"}
+              />
+            </div>
+            <div class="params-field">
+              <span class="params-label">Themes</span>
+              <div class="params-actions">
+                <Tooltip label="Import a .heyltheme file">
+                  <Button
+                    class="toolbar-btn icon-btn"
+                    aria-label="Import theme"
+                    onClick={() => void onImportTheme()}
+                  >
+                    <Icon name="file-import" />
+                  </Button>
+                </Tooltip>
+                <Tooltip label="Export the current theme">
+                  <Button
+                    class="toolbar-btn icon-btn"
+                    aria-label="Export theme"
+                    onClick={() => void onExportTheme()}
+                  >
+                    <Icon name="file-export" />
+                  </Button>
+                </Tooltip>
+                <Tooltip
+                  label={
+                    isBuiltinTheme(activeThemeId())
+                      ? "Built-in themes cannot be deleted"
+                      : "Delete the current theme"
+                  }
+                >
+                  <Button
+                    class="toolbar-btn icon-btn"
+                    disabled={isBuiltinTheme(activeThemeId())}
+                    aria-label="Delete theme"
+                    onClick={() => void onDeleteTheme()}
+                  >
+                    <Icon name="trash" />
+                  </Button>
+                </Tooltip>
+                <Tooltip label="Reveal the themes folder">
+                  <Button
+                    class="toolbar-btn icon-btn"
+                    aria-label="Reveal themes folder"
+                    onClick={() => void revealThemeDir()}
+                  >
+                    <Icon name="folder-open" />
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
+            <Show when={themePath()}>
+              <div class="params-note params-dim params-path" title={themePath()}>
+                {themePath()}
+              </div>
+            </Show>
+            <Show when={themeMessage()}>
+              <div class="params-note" data-testid="toolbar.theme.message">
+                {themeMessage()}
+              </div>
+            </Show>
           </div>
         </Popover>
 
         <McpPopover />
+
+        <Tooltip label="About Hey Listen">
+          <Button
+            class="toolbar-btn icon-btn"
+            data-testid="toolbar.about"
+            aria-label="About Hey Listen"
+            onClick={() => setAboutOpen(true)}
+          >
+            <Icon name="circle-question" />
+          </Button>
+        </Tooltip>
       </div>
 
       <Show when={error()}>

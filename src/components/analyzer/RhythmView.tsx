@@ -8,7 +8,7 @@ import { mirrorCursor, syncView } from "./syncPlugins";
 import { paddedYRange } from "./range";
 import { chartAxisStyle, NoAudioState, timeRangeLabel, timeTooltip } from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/settings";
+import { chartTheme, resolvedTheme } from "../../state/themes";
 import {
   analyzerById,
   type AnalysisHandle,

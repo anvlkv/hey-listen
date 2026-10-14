@@ -138,7 +138,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
 | `save_project` / `open_project` / `new_project` | Project file actions. |
 | `list_projects` | List the open project windows (label, name, focused) — answered by the server. |
-| `list_themes` / `get_theme` / `set_theme` | Installed themes and the active theme (mode + dark/light slots); `import_theme` / `export_theme`. **(M11, planned)** |
+| `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
 | `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON / CSV) or chart (PNG), or every open tool to a folder. `export_analysis` is headless-capable; `export_chart` needs the rendered canvas. **(M12, planned)** |
 | `list_templates` / `apply_template` / `save_template` / `export_template` / `import_template` | Installed analysis templates; apply to the current project or the headless session. **(M13, planned)** |
 
@@ -281,6 +281,12 @@ at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](
   stay in step with the GUI handlers for the tools it covers. For scripting without an
   MCP client at all, use the batch CLI instead — [`cli.md`](cli.md) (`hey-listen
   analyze`), which drives the same headless session from a shell and prints JSON.
+- **Themes are chrome.** `list_themes` / `get_theme` work headless, but only for the
+  **bundled** themes (`src-tauri/src/themes.rs` → `BUILTIN_THEMES`) — headless has no
+  webview to run the TS registry and cannot resolve the app config dir, so installed
+  themes, the active mode, and `set_theme` / `import_theme` / `export_theme` need the
+  app. With the app running they run in the webview against the same registry the UI
+  drives (see [`theming.md`](theming.md)).
 - **Result caching is still deferred** (`RESULTS` is written empty), so `run_analysis`
   always recomputes.
 - **Windows release:** use `heylisten-mcp` (the app binary has no console).
@@ -322,7 +328,8 @@ at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](
 | `src-tauri/src/commands/mcp.rs` | `mcp_respond` / `mcp_ready` and `get_mcp_status` / `set_mcp_config`. |
 | `src/state/mcp.ts` | the GUI tool handlers (run against the app's stores). |
 | `src/state/mcpSettings.ts` | the popover's view over the MCP status + the snippet/copy helpers. |
-| `src-tauri/src/themes.rs`, `src-tauri/src/commands/themes.rs` | the theme-file store + commands (M11, planned). |
+| `src-tauri/src/themes.rs`, `src-tauri/src/commands/themes.rs` | the theme-file store + commands (M11). |
+| `src/lib/themeFile.ts`, `src/state/themes.ts` | the `ThemeFile` model + the theme registry / apply pipeline, and the GUI theme MCP handlers (in `src/state/mcp.ts`) (M11). |
 | `src-tauri/src/templates.rs`, `src-tauri/src/commands/templates.rs` | the template store + commands (M13, planned). |
 | `src-tauri/src/commands/export.rs` | output plumbing (`pick_save_path` / `write_text` / `write_bytes`) (M12, planned). |
 | `src/components/McpPopover.tsx` | the Toolbar MCP popover. |

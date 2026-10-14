@@ -6,7 +6,7 @@ import ZoomControls from "./ZoomControls";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import { createAnalysis, formatHz, type SpectrogramResult } from "../../state/analyzer";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/settings";
+import { chartTheme, resolvedTheme } from "../../state/themes";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
 import { NoAudioState, timeRangeLabel } from "./chartCommon";

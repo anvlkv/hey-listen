@@ -54,8 +54,8 @@ The row's two panels **swap in place** by context (they are not reordered):
   and record controls are reachable.
 - **A source exists and it is not recording** — the Timeline takes the whole row;
   the Source panel is hidden, since it is no longer needed. The Timeline's
-  **Replace…** button reveals it again (it stays until dismissed), so the source can
-  still be changed.
+  **Replace** button (an icon, with a tooltip) reveals it again (it stays until
+  dismissed), so the source can still be changed.
 
 The row (and the Sidebar) keeps its own **draggable splitter**: the height is clamped
 so the Workbench keeps a usable minimum, and the sidebar width is clamped to
@@ -71,8 +71,9 @@ compact "Add audio" state has a fixed height).
   Template… / Import / Export, M13 planned) and Close on macOS / Quit elsewhere),
   **View** (fullscreen), **Window** (minimize/maximize), and **Help** / About. On
   macOS the standard application menu (About / Services / Hide / Quit) precedes
-  them. File actions are emitted to the frontend via `app:menu`; the rest are
-  native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
+  them. **About** is a custom item that opens the in-app **About** dialog (identity +
+  attributions) rather than the native panel. File actions are emitted to the
+  frontend via `app:menu`; the rest are native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
   (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
   [`roadmap.md`](roadmap.md) → Backlog). See `src-tauri/src/menu.rs`. The
   **Toolbar shows the current project name** — the file actions live in the File
@@ -82,22 +83,23 @@ compact "Add audio" state has a fixed height).
   controls (the **filter bypass toggle**, the preview **output gain + device**, and
   the preview **output meter** which reads the core's playback level via
   `output_level`, all driving the core, ADR-9), the **Analysis params** popover (the
-  **Analysis params** popover (the
   shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), an
   **Appearance** popover (UI scale + theme — see [Theming](#theming)), a **Templates**
   popover (save / apply / import / export analysis templates — see
-  [`templates.md`](templates.md)), and an **MCP**
-  popover (the Model Context Protocol server's on/off, port, live status, and a
-  copyable `mcpServers` snippet — see [`mcp.md`](mcp.md)). The temporary **`Rust backend:`**
-  status (the M0 IPC-ping scaffold) is gone.
+  [`templates.md`](templates.md)), an **MCP** popover (the Model Context Protocol
+  server's on/off, port, live status, and a copyable `mcpServers` snippet — see
+  [`mcp.md`](mcp.md)), and an **About** button (app identity + attributions — see
+  [Icons, tooltips, and About](#icons-tooltips-and-about)). The popover triggers are
+  icons (`sliders` / `circle-half-stroke` / `plug` / `circle-question`) with tooltips.
+  The temporary **`Rust backend:`** status (the M0 IPC-ping scaffold) is gone.
 - **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
   decrease (Shift for fine control) — in addition to typing. There is no slider; an
   `ns-resize` cursor is the only affordance. This covers the Kobalte `NumberField`s
   (timers, frequency range, per-tool params), the graph nodes' inline params, and the
   synth length (`src/lib/dragNumber.ts`).
 - A user-adjustable **font size / UI zoom** (0.8–1.4×) scales the whole interface;
-  it lives in the toolbar **Appearance** popover (the former **View** popover, M11
-  planned) and is persisted.
+  it lives in the toolbar **Appearance** popover (the former **View** popover) and is
+  persisted.
 
 ## Scrolling
 
@@ -110,15 +112,47 @@ bar on every platform with no native scrollbar.
 
 ## Theming
 
-The app ships an **auto / dark / light** theme, chosen in the toolbar **Appearance**
-popover and persisted. The palette is driven by CSS custom properties (`data-theme` on
-the root) **and** the charts: the uPlot series/axis colours, the spectrogram canvas
-background and colormap, and the dockview theme all follow the active theme.
+The app ships exchangeable themes (M11): a **mode** (`Auto` / `Dark` / `Light`) plus a
+**dark-slot** and a **light-slot** theme, chosen in the toolbar **Appearance** popover
+and persisted app-level. A theme overlays a built-in **base** (`data-theme` on the
+root); its palette drives the UI (CSS custom properties), the charts (uPlot series/
+axis colours, spectrogram background and colormap), and the dockview / `solid-flow`
+themes. The registry **bundles** dark, light, **Retrowave Neon** (the shipped default,
+in the dark slot), Nord and Solarized Dark / Light; an installed `.heyltheme` overlays
+one of the bases (partial `ui` / `chart` / `colormap` / `flow`), and `auto` follows the
+OS to pick a slot. Import / export / delete / reveal live in the same Appearance
+popover. See [`theming.md`](theming.md).
 
-> **Exchangeable theme files (M11, planned).** The built-in dark and light remain the
-defaults; an installed `.heyltheme` overlays one of them (partial `ui` / `chart` /
-`colormap` / `flow`), and `auto` resolves through chosen **dark / light slots**. Import /
-export / delete live in the same Appearance popover. See [`theming.md`](theming.md).
+## Icons, tooltips, and About
+
+- **Icons** come from **Font Awesome 7 Free (Solid)** — one bundled OTF
+  (`public/fonts/fontawesome/`) drives every icon. The curated set lives in
+  `src/lib/icons.ts` (`ICON_GLYPHS`, plus `VIEW_ICONS` / `GRAPH_ICONS`), rendered by
+  `src/components/Icon.tsx`; the code point is written to `data-icon` and the `.fa`
+  rule in `src/icons.css` renders it, so the CSS needs no per-icon rules. Attribution
+  is in the About dialog; the license ships with the font.
+  - **Sidebar rows** use the tool's **chart-type** icon (`VIEW_ICONS`, keyed by the
+    analyzer's `view.kind`: waveform / series / spectrum / rhythm / matrix /
+    spectrogram / readouts), tucked into the **bottom-right corner** of the row. Two
+    tools of the same chart type share an icon. Section titles and subtitles are plain
+    text (no icons).
+- **Compaction:** self-evident controls are **icon-only** (popover triggers, zoom,
+  MCP copy, graph clear, import / export / delete / reveal, the timeline's replace and
+  zoom, record / pause / stop, the theme-mode buttons, the sidebar rows); primary and
+  transport actions keep a **short label** beside the icon. Icon-only controls always
+  keep an `aria-label`.
+- **Tooltip** (`src/components/Tooltip.tsx`) — a theme-styled hint over Kobalte's
+  `Tooltip`, replacing the native `title` on controls. The trigger wrapper is a
+  single-child **column flexbox**, so it has a real box (Floating UI needs one to
+  anchor to — a `display: contents` wrapper puts every tooltip at the top-left) while
+  staying layout-transparent: the wrapped control still fills/stretches exactly as it
+  did unwrapped. (Static readouts and error/warning spans keep a native `title`.)
+- **About** (`src/components/AboutDialog.tsx`) — a modal opened from the Toolbar's
+  `circle-question` button and from native **Help → About** (on macOS, the app menu),
+  which emits `about` on `app:menu`. It carries the app identity and the **required
+  attributions** (Font Awesome first, then the runtime dependencies), and points to
+  `ACKNOWLEDGEMENTS.md` (the individual contributors to those dependencies); license
+  links open in the system browser via the `open_external_url` command.
 
 ## Fixed regions
 

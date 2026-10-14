@@ -16,7 +16,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/settings";
+import { chartTheme, resolvedTheme } from "../../state/themes";
 import { createAnalysis, type WaveformResult } from "../../state/analyzer";
 
 const Tooltip = timeTooltip((value) => value.toFixed(3));

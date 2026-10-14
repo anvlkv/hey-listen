@@ -376,7 +376,10 @@ cost is a two-layer mental model (base + overlay) and a coarse fallback for dock
 base's chrome there unless it supplies `flow` overrides. Themes are app chrome, so they
 are **not** stored in the project file. See [`theming.md`](theming.md).
 
-**Status: planned (M11).**
+**Status: delivered (M11).** Alongside `builtin:dark` / `builtin:light`, the registry
+ships bundled **Retrowave Neon** (the shipped default, dark slot), **Nord**,
+**Solarized Dark** and **Solarized Light**; the Rust store mirrors the bundled ids for
+the headless MCP surface. See [`theming.md`](theming.md).
 
 ## ADR-16 — Exports are self-describing: JSON envelope, wide-matrix CSV, rendered PNG
 

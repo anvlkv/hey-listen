@@ -1,16 +1,19 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
+import AboutDialog from "./components/AboutDialog";
 import Sidebar from "./components/Sidebar";
 import SourcePanel from "./components/SourcePanel";
 import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
+import Tooltip from "./components/Tooltip";
 import Workbench from "./components/Workbench";
 import { disposeCapture, initCapture, recording } from "./state/capture";
 import { dragActive, initDragDrop } from "./state/dragdrop";
-import { initMenu } from "./state/menu";
+import { initMenu, aboutOpen, setAboutOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
 import { sourcePanelPinned } from "./state/settings";
 import { source } from "./state/source";
+import { refreshThemes } from "./state/themes";
 import { initUiState } from "./state/uiState";
 
 /** Bottom row (Source + Timeline): default height and drag limits, in px. */
@@ -104,6 +107,8 @@ export default function App() {
     void initCapture();
     void initMenu();
     void initMcp();
+    // Load any installed (user) themes; built-ins already applied at module load.
+    void refreshThemes();
     disposeDragDrop = initDragDrop();
     window.addEventListener("resize", handleResize);
   });
@@ -124,33 +129,35 @@ export default function App() {
               width: `${sidebarWidth()}px`,
             }}
           />
-          <div
-            class="app-vsplitter"
-            data-testid="splitter.sidebar"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize the sidebar"
-            title="Drag to resize"
-            onPointerDown={onSidebarDown}
-            onPointerMove={onSidebarMove}
-            onPointerUp={onSidebarUp}
-            onPointerCancel={onSidebarUp}
-          />
+          <Tooltip label="Drag to resize the sidebar">
+            <div
+              class="app-vsplitter"
+              data-testid="splitter.sidebar"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize the sidebar"
+              onPointerDown={onSidebarDown}
+              onPointerMove={onSidebarMove}
+              onPointerUp={onSidebarUp}
+              onPointerCancel={onSidebarUp}
+            />
+          </Tooltip>
           <Workbench />
         </div>
         <Show when={showTimeline()}>
-          <div
-            class="app-splitter"
-            data-testid="splitter.timeline"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label="Resize the timeline"
-            title="Drag to resize"
-            onPointerDown={onSplitterDown}
-            onPointerMove={onSplitterMove}
-            onPointerUp={onSplitterUp}
-            onPointerCancel={onSplitterUp}
-          />
+          <Tooltip label="Drag to resize the timeline">
+            <div
+              class="app-splitter"
+              data-testid="splitter.timeline"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize the timeline"
+              onPointerDown={onSplitterDown}
+              onPointerMove={onSplitterMove}
+              onPointerUp={onSplitterUp}
+              onPointerCancel={onSplitterUp}
+            />
+          </Tooltip>
         </Show>
         <div
           class="app-bottom"
@@ -197,6 +204,7 @@ export default function App() {
           </div>
         </div>
       </Show>
+      <AboutDialog open={aboutOpen()} onOpenChange={setAboutOpen} />
     </div>
   );
 }

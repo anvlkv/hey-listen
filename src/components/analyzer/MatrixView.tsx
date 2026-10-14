@@ -6,7 +6,7 @@ import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
 import { createReframeHandler, NoAudioState, timeRangeLabel } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/settings";
+import { chartTheme, resolvedTheme } from "../../state/themes";
 import {
   analyzerById,
   formatHz,

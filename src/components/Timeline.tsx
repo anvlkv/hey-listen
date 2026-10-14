@@ -5,10 +5,13 @@ import { channelFor } from "../state/analysis";
 import { filterEnabled } from "../state/graph";
 import { filteredSamples } from "../state/filtered";
 import { stopFollowing } from "../state/capture";
-import { chartTheme, setSourcePanelPinned, sourcePanelPinned } from "../state/settings";
+import { setSourcePanelPinned, sourcePanelPinned } from "../state/settings";
+import { chartTheme } from "../state/themes";
 import { source, status } from "../state/source";
 import Button from "./Button";
 import ChannelSelect from "./ChannelSelect";
+import Icon from "./Icon";
+import Tooltip from "./Tooltip";
 import {
   setView,
   setWindowEnd,
@@ -613,56 +616,68 @@ export default function Timeline() {
         </Show>
         <div class="timeline-actions">
           <Show when={source()}>
-            <Button
-              class="timeline-btn"
-              data-testid="timeline.replace"
-              aria-pressed={sourcePanelPinned()}
-              title="Show the source controls to replace the source"
-              onClick={() => setSourcePanelPinned(!sourcePanelPinned())}
-            >
-              Replace source…
-            </Button>
+            <Tooltip label="Show the source controls to replace the source">
+              <Button
+                class="timeline-btn icon-btn"
+                data-testid="timeline.replace"
+                aria-pressed={sourcePanelPinned()}
+                aria-label="Replace source"
+                onClick={() => setSourcePanelPinned(!sourcePanelPinned())}
+              >
+                <Icon name="folder-open" />
+              </Button>
+            </Tooltip>
           </Show>
-          <Button
-            class="timeline-btn"
-            disabled={status() !== "ready"}
-            title="Preview the analysis window"
-            onClick={togglePreview}
-          >
-            {previewing() ? "■ Stop" : "▶ Preview"}
-          </Button>
-          <Button
-            class="timeline-btn"
-            disabled={!active()}
-            title="Zoom the view to the analysis window"
-            onClick={zoomToWindow}
-          >
-            Zoom to window
-          </Button>
-          <Button
-            class="timeline-btn"
-            disabled={!active()}
-            title="Zoom out"
-            onClick={() => zoomBy(1.5)}
-          >
-            −
-          </Button>
-          <Button
-            class="timeline-btn"
-            disabled={!active()}
-            title="Zoom in"
-            onClick={() => zoomBy(1 / 1.5)}
-          >
-            +
-          </Button>
-          <Button
-            class="timeline-btn"
-            disabled={!active()}
-            title="Fit the whole source"
-            onClick={fitAll}
-          >
-            Fit
-          </Button>
+          <Tooltip label="Preview the analysis window">
+            <Button
+              class="timeline-btn icon-label"
+              disabled={status() !== "ready"}
+              onClick={togglePreview}
+            >
+              <Icon name={previewing() ? "stop" : "play"} />
+              {previewing() ? "Stop" : "Preview"}
+            </Button>
+          </Tooltip>
+          <Tooltip label="Zoom the view to the analysis window">
+            <Button
+              class="timeline-btn icon-btn"
+              disabled={!active()}
+              aria-label="Zoom to the analysis window"
+              onClick={zoomToWindow}
+            >
+              <Icon name="magnifying-glass" />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Zoom out">
+            <Button
+              class="timeline-btn icon-btn"
+              disabled={!active()}
+              aria-label="Zoom out"
+              onClick={() => zoomBy(1.5)}
+            >
+              <Icon name="minus" />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Zoom in">
+            <Button
+              class="timeline-btn icon-btn"
+              disabled={!active()}
+              aria-label="Zoom in"
+              onClick={() => zoomBy(1 / 1.5)}
+            >
+              <Icon name="plus" />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Fit the whole source">
+            <Button
+              class="timeline-btn icon-btn"
+              disabled={!active()}
+              aria-label="Fit the whole source"
+              onClick={fitAll}
+            >
+              <Icon name="expand" />
+            </Button>
+          </Tooltip>
         </div>
       </div>
 

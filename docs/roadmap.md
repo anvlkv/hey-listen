@@ -385,7 +385,7 @@ calling convention).
 > works when a single tool is given), because the plugin's matches do not preserve the
 > order of flags on the command line. See [`cli.md`](cli.md) (ADR-14).
 
-## M11 — Exchangeable themes (planned)
+## M11 — Exchangeable themes ✅
 
 Make the theme **data**: a theme is a loadable file that drives the whole UI, not just a
 dark/light switch. The built-in dark and light become the defaults; a theme is a partial
@@ -410,6 +410,23 @@ overlay on one of them, and `auto` resolves through chosen dark/light **slots**.
 to either slot; a theme is a **partial overlay** on its `base` (so it stays
 forward-compatible), and its base drives dockview / `solid-flow`. See
 [`theming.md`](theming.md) (ADR-15).
+
+> **Delivered:** `src/lib/themeFile.ts` (the `ThemeFile` model + parse/validate/
+> normalise, with unit checks in `scripts/themeFile.test.ts` → `npm run test:unit`);
+> `src/state/themes.ts` (the registry, slots, apply pipeline, and the four base
+> palettes); `src-tauri/src/themes.rs` + `commands/themes.rs` (the byte store +
+> list/write/delete/import/export/reveal commands); the Toolbar **Appearance**
+> popover (mode + dark/light slots + import/export/delete/reveal). `ChartTheme` /
+> `chartTheme` / `resolvedTheme` moved into `themes.ts`; `colormap.ts` and
+> `GraphEditor` read the active theme; `App.css` is unchanged (the base overlay).
+>
+> **Bundled themes.** Alongside `builtin:dark` / `builtin:light`, the registry ships
+> **Retrowave Neon**, **Nord**, **Solarized Dark** and **Solarized Light** as
+> built-ins (undeletable). The shipped default preference is **mode `dark` with
+> Retrowave Neon in the dark slot**, so a fresh install wears the retrowave palette;
+> the light slot stays the built-in light palette for `auto` / `light`. The bundled
+> ids/names/bases are mirrored in `src-tauri/src/themes.rs` (`BUILTIN_THEMES`) for the
+> headless MCP surface.
 
 ## M12 — Analysis exports: chart image + data (planned)
 
@@ -495,12 +512,19 @@ originally scoped, a note follows the item.
 - **Axis label readability ✅.** Wider margins and tick formatters/units for the
   charts and the Timeline ruler.
 - **UI font scale ✅.** A user-adjustable 0.8–1.4× scale for the whole interface,
-  persisted; lives in the toolbar **View** popover.
+  persisted; lives in the toolbar **Appearance** popover (formerly **View**).
 - **Light / dark theme ✅.** An **auto / dark / light** setting that themes the UI
   (CSS custom properties), the charts (uPlot strokes/axes, the spectrogram
-  background + colormap), and the dockview theme. Lives in the toolbar **View**
-  popover.
+  background + colormap), and the dockview theme. Lives in the toolbar **Appearance**
+  popover. (Extended to exchangeable theme files in M11.)
 - **Explanatory tooltips ✅.** On the shared-param choices and the analyzer entries.
+- **Icon set, styled tooltips, and an About dialog ✅.** UI controls use a bundled
+  **Font Awesome 7 Free (Solid)** font (`src/lib/icons.ts` + `src/components/Icon.tsx`);
+  self-evident controls are compacted to **icon + tooltip**, and the native `title`
+  hints on controls became the app's own **`Tooltip`** component. A modal **About**
+  dialog (the Toolbar's `circle-question` button and native **Help → About**) carries
+  the app identity and the required **attributions** (Font Awesome + the runtime
+  dependencies). See [`ui-layout.md`](ui-layout.md) → "Icons, tooltips, and About".
 - **Spectrum layers ✅.** Toggleable **min / max / mean** magnitude layers in the
   spectrum chart (per-tool params).
 - **Drag & drop file ✅.** Drop an audio file onto the window to open it.

@@ -120,7 +120,7 @@ describe("F. Cross-cutting analyzer behavior", () => {
     // the zoom controller mirrors through the shared chart bus.
     const readout = zoomReadout("waveform");
     const before = await textOf(readout);
-    const zoomIn = await $(`${analyzerPanel("waveform")} .zoom-btn[title="Zoom in"]`);
+    const zoomIn = await $(`${analyzerPanel("waveform")} .zoom-btn[aria-label="Zoom in"]`);
     await zoomIn.waitForExist();
     await zoomIn.click();
     await browser.waitUntil(async () => (await textOf(readout)) !== before, {
@@ -144,7 +144,7 @@ describe("F. Cross-cutting analyzer behavior", () => {
 
     const readout = zoomReadout("spectralCentroid");
     const full = await textOf(readout);
-    await (await $(`${analyzerPanel("spectralCentroid")} .zoom-btn[title="Zoom in"]`)).click();
+    await (await $(`${analyzerPanel("spectralCentroid")} .zoom-btn[aria-label="Zoom in"]`)).click();
     await browser.waitUntil(async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9, {
       timeoutMsg: "the spectral-centroid chart did not zoom in",
     });

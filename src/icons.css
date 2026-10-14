@@ -1,0 +1,37 @@
+/*
+ * Icon font — Font Awesome 7 Free (Solid).
+ *
+ * One bundled OTF drives every icon in the app. The glyph is supplied per element via
+ * `data-icon` (see `src/lib/icons.ts` + `src/components/Icon.tsx`), so the CSS needs
+ * no per-icon rules — just `content: attr(data-icon)`.
+ *
+ * Font Awesome Free: fonts SIL OFL 1.1, icons CC BY 4.0, code MIT — © Fonticons, Inc.
+ * The license ships with the font (`public/fonts/fontawesome/LICENSE.txt`) and the
+ * attribution lives in the About dialog and `docs/dependencies.md`.
+ */
+
+@font-face {
+  font-family: "Font Awesome 7 Free";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("/fonts/fontawesome/FontAwesome7Free-Solid-900.otf") format("opentype");
+}
+
+.fa {
+  font-family: "Font Awesome 7 Free";
+  font-weight: 900;
+  font-style: normal;
+  font-variant: normal;
+  line-height: 1;
+  display: inline-block;
+  inline-size: 1em;
+  text-align: center;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.fa::before {
+  content: attr(data-icon);
+}

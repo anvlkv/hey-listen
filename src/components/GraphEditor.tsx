@@ -23,9 +23,11 @@ import {
   warnGraph,
   type GraphEdge,
 } from "../state/graph";
-import { resolvedTheme } from "../state/settings";
+import { resolvedTheme, themeFlow } from "../state/themes";
 import GraphNode from "./GraphNode";
+import Icon from "./Icon";
 import ScrollArea from "./ScrollArea";
+import Tooltip from "./Tooltip";
 
 const nodeTypes = { graph: GraphNode } satisfies NodeTypes;
 
@@ -42,7 +44,7 @@ const SEARCH_STYLE_DARK: JSX.CSSProperties = {
   width: "100%",
   "box-sizing": "border-box",
   height: "24px",
-  padding: "0 6px",
+  padding: "0 8px 0 26px",
   font: "inherit",
   "font-size": "11px",
   color: "#e6e6e6",
@@ -58,54 +60,12 @@ const SEARCH_STYLE_LIGHT: JSX.CSSProperties = {
   border: "1px solid #d8dce2",
 };
 
-/** Flow canvas theme matched to the app palette (belt-and-braces with `colorMode`). */
-const FLOW_STYLE_DARK = {
-  "--xy-background-color": "#1f1f1f",
-  "--xy-background-pattern-dots-color": "#3a3a3a",
-  "--xy-edge-stroke": "#5898ff",
-  "--xy-edge-stroke-width": "1.5",
-  "--xy-edge-stroke-selected": "#9cc0ff",
-  "--xy-handle-background-color": "#6ea8ff",
-  "--xy-handle-border-color": "#1f1f1f",
-  "--xy-connectionline-stroke": "#6ea8ff",
-  "--xy-connectionline-stroke-width": "1.5",
-  "--xy-controls-button-background-color": "#2b2b2b",
-  "--xy-controls-button-background-color-hover": "#3e3e3e",
-  "--xy-controls-button-color": "#e6e6e6",
-  "--xy-controls-button-color-hover": "#ffffff",
-  "--xy-controls-button-border-color": "#3c3c3c",
-  "--xy-minimap-background-color": "#1a1a1a",
-  "--xy-minimap-mask-background-color": "rgba(20, 20, 20, 0.65)",
-  "--xy-minimap-mask-stroke-color": "#5898ff",
-  "--xy-edge-label-background-color": "#2b2b2b",
-  "--xy-edge-label-color": "#e6e6e6",
-} as JSX.CSSProperties;
+/** Flow canvas theme matched to the app palette (belt-and-braces with `colorMode`).
+ *  Its baseline (`--xy-*`) now lives in `state/themes.ts` as the base flow for the
+ *  active theme's `base`; a theme's `flow` overlay is merged on top by [`themeFlow`]. */
 
-/** Light variant of [`FLOW_STYLE_DARK`]: same variables, light values. */
-const FLOW_STYLE_LIGHT = {
-  "--xy-background-color": "#ffffff",
-  "--xy-background-pattern-dots-color": "#d0d4da",
-  "--xy-edge-stroke": "#2f6fd0",
-  "--xy-edge-stroke-width": "1.5",
-  "--xy-edge-stroke-selected": "#1b4fa0",
-  "--xy-handle-background-color": "#2f6fd0",
-  "--xy-handle-border-color": "#ffffff",
-  "--xy-connectionline-stroke": "#2f6fd0",
-  "--xy-connectionline-stroke-width": "1.5",
-  "--xy-controls-button-background-color": "#ffffff",
-  "--xy-controls-button-background-color-hover": "#eef0f4",
-  "--xy-controls-button-color": "#1f2328",
-  "--xy-controls-button-color-hover": "#000000",
-  "--xy-controls-button-border-color": "#d8dce2",
-  "--xy-minimap-background-color": "#f0f1f4",
-  "--xy-minimap-mask-background-color": "rgba(160, 168, 178, 0.35)",
-  "--xy-minimap-mask-stroke-color": "#2f6fd0",
-  "--xy-edge-label-background-color": "#ffffff",
-  "--xy-edge-label-color": "#1f2328",
-} as JSX.CSSProperties;
-
-/** The flow canvas inline theme for the active [`resolvedTheme`] (reactive). */
-const flowStyle = () => (resolvedTheme() === "light" ? FLOW_STYLE_LIGHT : FLOW_STYLE_DARK);
+/** The flow canvas inline theme for the active theme (reactive). */
+const flowStyle = () => themeFlow() as JSX.CSSProperties;
 /** The palette search-box inline theme for the active [`resolvedTheme`] (reactive). */
 const searchStyle = () => (resolvedTheme() === "light" ? SEARCH_STYLE_LIGHT : SEARCH_STYLE_DARK);
 
@@ -452,26 +412,35 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
             style={{ "max-height": "calc(100% - 16px)", "overflow": "hidden" }}
           >
             <div class="graph-palette-head">
-              <button
-                type="button"
-                class="graph-palette-toggle"
-                aria-expanded={!collapsed()}
-                title={collapsed() ? "Expand node palette" : "Collapse node palette"}
-                onClick={() => setCollapsed(!collapsed())}
+              <Tooltip
+                label={collapsed() ? "Expand the node palette" : "Collapse the node palette"}
+                class="tooltip-grow"
               >
-                {collapsed() ? "▸" : "▾"} Nodes
-              </button>
+                <button
+                  type="button"
+                  class="graph-palette-toggle icon-btn"
+                  aria-expanded={!collapsed()}
+                  aria-label={collapsed() ? "Expand node palette" : "Collapse node palette"}
+                  onClick={() => setCollapsed(!collapsed())}
+                >
+                  <Icon name={collapsed() ? "angle-right" : "angle-down"} />
+                  Nodes
+                </button>
+              </Tooltip>
             </div>
             <Show when={!collapsed()}>
-            <input
-              type="text"
-              class="graph-palette-search nodrag nopan"
-              placeholder="Search nodes…"
-              aria-label="Search nodes"
-              value={query()}
-              onInput={(event) => setQuery(event.currentTarget.value)}
-              style={searchStyle()}
-            />
+            <div class="graph-palette-search-wrap">
+              <Icon name="magnifying-glass" class="graph-palette-search-icon" />
+              <input
+                type="text"
+                class="graph-palette-search nodrag nopan"
+                placeholder="Search nodes…"
+                aria-label="Search nodes"
+                value={query()}
+                onInput={(event) => setQuery(event.currentTarget.value)}
+                style={searchStyle()}
+              />
+            </div>
             <ScrollArea class="graph-palette-scroll">
             <For each={groups()}>
               {(group) => (
@@ -481,29 +450,32 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
                     <For each={group.kinds}>
                       {(def) => (
                         <Show when={canAdd(def)}>
-                          <button
-                            type="button"
-                            class="graph-palette-btn"
-                            data-testid="graph.palette.btn"
-                            title={
+                          <Tooltip
+                            label={
                               def.hint
-                                ? `${def.label} — ${def.hint}\nClick to add, or drag onto the canvas (drop on a connector to insert).`
+                                ? `${def.label} — ${def.hint}. Click to add, or drag onto the canvas.`
                                 : `Add ${def.label}`
                             }
-                            on:pointerdown={(event) => onPalettePointerDown(def, event)}
-                            onClick={(event) => {
-                              // A drag that ended over the canvas still fires a `click` on
-                              // the source button in some WebViews — ignore it.
-                              if (suppressClick) {
-                                suppressClick = false;
-                                event.preventDefault();
-                                return;
-                              }
-                              addNode(props.graph, def);
-                            }}
                           >
-                            + {def.label}
-                          </button>
+                            <button
+                              type="button"
+                              class="graph-palette-btn"
+                              data-testid="graph.palette.btn"
+                              on:pointerdown={(event) => onPalettePointerDown(def, event)}
+                              onClick={(event) => {
+                                // A drag that ended over the canvas still fires a `click` on
+                                // the source button in some WebViews — ignore it.
+                                if (suppressClick) {
+                                  suppressClick = false;
+                                  event.preventDefault();
+                                  return;
+                                }
+                                addNode(props.graph, def);
+                              }}
+                            >
+                              <Icon name="plus" /> {def.label}
+                            </button>
+                          </Tooltip>
                         </Show>
                       )}
                     </For>

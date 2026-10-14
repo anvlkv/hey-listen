@@ -27,6 +27,7 @@ mod menu;
 mod project;
 mod recent;
 mod state;
+mod themes;
 
 use std::io::Write as _;
 
@@ -214,6 +215,16 @@ pub fn run() {
             commands::mcp::mcp_ready,
             commands::mcp::get_mcp_status,
             commands::mcp::set_mcp_config,
+            commands::themes::theme_dir,
+            commands::themes::list_themes,
+            commands::themes::write_theme,
+            commands::themes::delete_theme,
+            commands::themes::import_theme_file,
+            commands::themes::export_theme_file,
+            commands::themes::pick_theme_import_path,
+            commands::themes::pick_theme_export_path,
+            commands::themes::reveal_theme_dir,
+            commands::app::open_external_url,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

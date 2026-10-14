@@ -4,7 +4,7 @@ import ChartTooltip from "./ChartTooltip";
 import EmptyState from "../EmptyState";
 import type { ReframeTarget } from "./ReframeMenu";
 import type { UplotZoom } from "./uplotZoom";
-import { chartTheme } from "../../state/settings";
+import { chartTheme } from "../../state/themes";
 import { formatHz } from "../../state/analyzer";
 
 /**

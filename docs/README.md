@@ -1,9 +1,9 @@
 # Hey Listen — Planning Docs
 
 Index of the design/planning documentation. These docs are the source of truth for
-design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M10 and the
-post-M6 backlog are done). M11–M13 (theming / exports / templates) are **planned** — see
-[`theming.md`](theming.md), [`exports.md`](exports.md), [`templates.md`](templates.md).
+design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11 and the
+post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — see
+[`exports.md`](exports.md), [`templates.md`](templates.md).
 
 | Doc | What it covers |
 | --- | --- |

@@ -17,7 +17,7 @@ import {
 } from "./axisFormat";
 import { chartAxisStyle, frequencyRangeLabel, NoAudioState } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/settings";
+import { chartTheme, resolvedTheme } from "../../state/themes";
 import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
 
 const Tooltip = (props: TooltipProps) => (

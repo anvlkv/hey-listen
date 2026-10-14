@@ -4,7 +4,8 @@ Every project is built around **one audio source**. Changing the source replaces
 the entire timeline (and thus the project's contents). Each window hosts one
 project (the app can run several — see [`ui-layout.md`](ui-layout.md) → Windows).
 An audio file can also be opened by **dragging it onto the window**; the Timeline's
-**Replace…** button reveals the Source panel again once a source exists.
+**Replace** button (an icon, with a tooltip) reveals the Source panel again once a
+source exists.
 Replacing an existing source is **confirmed first**, and unsaved work is tracked
 (a `*` in the project name/title) with a prompt on close / New / Open.
 
