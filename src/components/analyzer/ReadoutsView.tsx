@@ -10,15 +10,10 @@ import type { AnalysisHandle, AnyAnalysisResult, LevelsResult } from "../../stat
  * no chart. The `levels` tool also draws peak / RMS meter bars (M11.A). See
  * `docs/analysis-tools.md`.
  */
-export default function ReadoutsView(props: {
-  analysis: AnalysisHandle<AnyAnalysisResult>;
-}) {
+export default function ReadoutsView(props: { analysis: AnalysisHandle<AnyAnalysisResult> }) {
   const result = () => props.analysis.result();
   return (
-    <Show
-      when={result()}
-      fallback={<NoAudioState />}
-    >
+    <Show when={result()} fallback={<NoAudioState />}>
       {(value) => (
         <div class="analyzer-chart">
           <Show when={value().tool === "levels"}>

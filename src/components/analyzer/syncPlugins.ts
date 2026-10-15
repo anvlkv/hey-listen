@@ -17,102 +17,106 @@ type UplotInstance = TooltipProps["u"];
  */
 
 /** Mirror the cursor of whichever chart in the same group is hovered. */
-export const mirrorCursor = (group: SyncGroup): UplotPluginFactory<AnalyzerBus> => ({ bus }) => {
-  if (!bus) return { hooks: {} };
-  let dispose: (() => void) | undefined;
-  let pointerLeave: (() => void) | undefined;
-  return {
-    hooks: {
-      ready: (u) => {
-        pointerLeave = () => bus.setData("cursorSync", { sourceId: u.root.id, group, x: null });
-        u.over.addEventListener("pointerleave", pointerLeave);
-        // Redraw when the shared cursor of this group changes.
-        dispose = createRoot((root) => {
-          createEffect(() => {
-            const msg = bus.data.cursorSync;
-            if (msg && msg.group === group && msg.sourceId !== u.root.id) u.redraw(false);
+export const mirrorCursor =
+  (group: SyncGroup): UplotPluginFactory<AnalyzerBus> =>
+  ({ bus }) => {
+    if (!bus) return { hooks: {} };
+    let dispose: (() => void) | undefined;
+    let pointerLeave: (() => void) | undefined;
+    return {
+      hooks: {
+        ready: (u) => {
+          pointerLeave = () => bus.setData("cursorSync", { sourceId: u.root.id, group, x: null });
+          u.over.addEventListener("pointerleave", pointerLeave);
+          // Redraw when the shared cursor of this group changes.
+          dispose = createRoot((root) => {
+            createEffect(() => {
+              const msg = bus.data.cursorSync;
+              if (msg && msg.group === group && msg.sourceId !== u.root.id) u.redraw(false);
+            });
+            return root;
           });
-          return root;
-        });
+        },
+        setCursor: (u) => {
+          const idx = u.cursor.idx;
+          const xs = u.data[0];
+          const x = idx != null && xs && idx < xs.length ? Number(xs[idx]) : null;
+          bus.setData("cursorSync", { sourceId: u.root.id, group, x });
+        },
+        draw: (u) => {
+          const msg = bus.data.cursorSync;
+          if (!msg || msg.group !== group || msg.sourceId === u.root.id || msg.x == null) return;
+          const x = u.valToPos(msg.x, "x", true);
+          if (!Number.isFinite(x) || !u.ctx) return;
+          const px = Math.round(x) + 0.5;
+          const { ctx } = u;
+          ctx.save();
+          ctx.strokeStyle = chartTheme().mirror;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(px, u.bbox.top);
+          ctx.lineTo(px, u.bbox.top + u.bbox.height);
+          ctx.stroke();
+          ctx.restore();
+        },
+        destroy: (u) => {
+          u.over.removeEventListener("pointerleave", pointerLeave!);
+          dispose?.();
+        },
       },
-      setCursor: (u) => {
-        const idx = u.cursor.idx;
-        const xs = u.data[0];
-        const x = idx != null && xs && idx < xs.length ? Number(xs[idx]) : null;
-        bus.setData("cursorSync", { sourceId: u.root.id, group, x });
-      },
-      draw: (u) => {
-        const msg = bus.data.cursorSync;
-        if (!msg || msg.group !== group || msg.sourceId === u.root.id || msg.x == null) return;
-        const x = u.valToPos(msg.x, "x", true);
-        if (!Number.isFinite(x) || !u.ctx) return;
-        const px = Math.round(x) + 0.5;
-        const { ctx } = u;
-        ctx.save();
-        ctx.strokeStyle = chartTheme().mirror;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(px, u.bbox.top);
-        ctx.lineTo(px, u.bbox.top + u.bbox.height);
-        ctx.stroke();
-        ctx.restore();
-      },
-      destroy: (u) => {
-        u.over.removeEventListener("pointerleave", pointerLeave!);
-        dispose?.();
-      },
-    },
+    };
   };
-};
 
 /** Mirror the x-range of charts in the same [`SyncGroup`]. */
-export const syncView = (group: SyncGroup): UplotPluginFactory<AnalyzerBus> => ({ bus }) => {
-  if (!bus) return { hooks: {} };
-  let dispose: (() => void) | undefined;
-  let destroyed = false;
+export const syncView =
+  (group: SyncGroup): UplotPluginFactory<AnalyzerBus> =>
+  ({ bus }) => {
+    if (!bus) return { hooks: {} };
+    let dispose: (() => void) | undefined;
+    let destroyed = false;
 
-  /** Apply a shared x-range, clamped to this chart's own data extent. */
-  const applyShared = (u: UplotInstance, x: [number, number]) => {
-    const scale = u.scales.x;
-    if (typeof scale.min !== "number" || typeof scale.max !== "number") return;
-    const xs = u.data[0];
-    if (!xs || xs.length < 2) return;
-    const min = Math.max(Math.min(x[0], x[1]), xs[0]);
-    const max = Math.min(Math.max(x[0], x[1]), xs[xs.length - 1]);
-    if (!(max > min)) return;
-    if (Math.abs(scale.min - min) < 1e-9 && Math.abs(scale.max - max) < 1e-9) return;
-    u.setScale("x", { min, max });
-  };
+    /** Apply a shared x-range, clamped to this chart's own data extent. */
+    const applyShared = (u: UplotInstance, x: [number, number]) => {
+      const scale = u.scales.x;
+      if (typeof scale.min !== "number" || typeof scale.max !== "number") return;
+      const xs = u.data[0];
+      if (!xs || xs.length < 2) return;
+      const min = Math.max(Math.min(x[0], x[1]), xs[0]);
+      const max = Math.min(Math.max(x[0], x[1]), xs[xs.length - 1]);
+      if (!(max > min)) return;
+      if (Math.abs(scale.min - min) < 1e-9 && Math.abs(scale.max - max) < 1e-9) return;
+      u.setScale("x", { min, max });
+    };
 
-  return {
-    hooks: {
-      ready: (u) => {
-        dispose = createRoot((root) => {
-          createEffect(() => {
+    return {
+      hooks: {
+        ready: (u) => {
+          dispose = createRoot((root) => {
+            createEffect(() => {
+              const view = bus.data.view;
+              if (!view || view.group !== group) return;
+              applyShared(u, view.x);
+            });
+            return root;
+          });
+        },
+        // uPlot resets the x-scale to fit on every `setData` (i.e. on every analysis
+        // result), which would discard the zoom. Re-apply the shared range — the
+        // last range a user action published — once the reset has settled, so a zoom
+        // survives an FFT / window / channel change.
+        setData: (u) => {
+          queueMicrotask(() => {
+            if (destroyed) return;
             const view = bus.data.view;
             if (!view || view.group !== group) return;
             applyShared(u, view.x);
           });
-          return root;
-        });
+        },
+        destroy: () => {
+          destroyed = true;
+          dispose?.();
+        },
       },
-      // uPlot resets the x-scale to fit on every `setData` (i.e. on every analysis
-      // result), which would discard the zoom. Re-apply the shared range — the
-      // last range a user action published — once the reset has settled, so a zoom
-      // survives an FFT / window / channel change.
-      setData: (u) => {
-        queueMicrotask(() => {
-          if (destroyed) return;
-          const view = bus.data.view;
-          if (!view || view.group !== group) return;
-          applyShared(u, view.x);
-        });
-      },
-      destroy: () => {
-        destroyed = true;
-        dispose?.();
-      },
-    },
+    };
   };
-};

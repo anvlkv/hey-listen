@@ -89,7 +89,14 @@ function timeParam(defaultValue = 0.01, max = 0.2): ParamDef {
 }
 
 /** Pulse width in 0..1. */
-const WIDTH_PARAM: ParamDef = { key: "width", label: "Width", default: 0.5, min: 0.01, max: 0.99, step: 0.01 };
+const WIDTH_PARAM: ParamDef = {
+  key: "width",
+  label: "Width",
+  default: 0.5,
+  min: 0.01,
+  max: 0.99,
+  step: 0.01,
+};
 
 /** Every node kind the editor can place. */
 export const NODE_KINDS: NodeKindDef[] = [
@@ -399,7 +406,9 @@ export const NODE_KINDS: NodeKindDef[] = [
     category: "processor",
     inputs: 1,
     outputs: 1,
-    params: [{ key: "delay", label: "Delay", default: 1, min: 0.1, max: 100, step: 0.1, unit: "smp" }],
+    params: [
+      { key: "delay", label: "Delay", default: 1, min: 0.1, max: 100, step: 0.1, unit: "smp" },
+    ],
     hint: "First-order all-pass whose phase shift is set by a delay in samples.",
   },
   {
@@ -461,7 +470,15 @@ export const NODE_KINDS: NodeKindDef[] = [
     inputs: 2,
     outputs: 2,
     params: [
-      { key: "angle", label: "Angle", default: 0, min: -3.1416, max: 3.1416, step: 0.01, unit: "rad" },
+      {
+        key: "angle",
+        label: "Angle",
+        default: 0,
+        min: -3.1416,
+        max: 3.1416,
+        step: 0.01,
+        unit: "rad",
+      },
       { key: "gain", label: "Gain", default: 1, min: 0, max: 2, step: 0.01 },
     ],
     hint: "Rotates the stereo image by an angle, with an overall gain.",
@@ -638,7 +655,15 @@ export const NODE_KINDS: NodeKindDef[] = [
     inputs: 1,
     outputs: 1,
     params: [
-      { key: "attack", label: "Attack", default: 0.005, min: 0.001, max: 0.1, step: 0.001, unit: "s" },
+      {
+        key: "attack",
+        label: "Attack",
+        default: 0.005,
+        min: 0.001,
+        max: 0.1,
+        step: 0.001,
+        unit: "s",
+      },
       { key: "release", label: "Release", default: 0.1, min: 0.01, max: 1, step: 0.01, unit: "s" },
     ],
     hint: "Prevents the signal from exceeding full scale (look-ahead limiter).",
@@ -650,7 +675,15 @@ export const NODE_KINDS: NodeKindDef[] = [
     inputs: 2,
     outputs: 2,
     params: [
-      { key: "attack", label: "Attack", default: 0.005, min: 0.001, max: 0.1, step: 0.001, unit: "s" },
+      {
+        key: "attack",
+        label: "Attack",
+        default: 0.005,
+        min: 0.001,
+        max: 0.1,
+        step: 0.001,
+        unit: "s",
+      },
       { key: "release", label: "Release", default: 0.1, min: 0.01, max: 1, step: 0.01, unit: "s" },
     ],
     hint: "Stereo look-ahead limiter — holds both channels within full scale.",
@@ -664,7 +697,15 @@ export const NODE_KINDS: NodeKindDef[] = [
     params: [
       { key: "threshold", label: "Thresh", default: -18, min: -60, max: 0, step: 0.5, unit: "dB" },
       { key: "ratio", label: "Ratio", default: 4, min: 1, max: 20, step: 0.1 },
-      { key: "attack", label: "Attack", default: 0.01, min: 0.0005, max: 0.5, step: 0.001, unit: "s" },
+      {
+        key: "attack",
+        label: "Attack",
+        default: 0.01,
+        min: 0.0005,
+        max: 0.5,
+        step: 0.001,
+        unit: "s",
+      },
       { key: "release", label: "Release", default: 0.1, min: 0.01, max: 2, step: 0.01, unit: "s" },
     ],
     hint: "Reduces dynamic range: quietens peaks that rise above the threshold.",
@@ -677,7 +718,15 @@ export const NODE_KINDS: NodeKindDef[] = [
     outputs: 1,
     params: [
       { key: "threshold", label: "Thresh", default: -40, min: -80, max: 0, step: 0.5, unit: "dB" },
-      { key: "attack", label: "Attack", default: 0.002, min: 0.0005, max: 0.1, step: 0.0005, unit: "s" },
+      {
+        key: "attack",
+        label: "Attack",
+        default: 0.002,
+        min: 0.0005,
+        max: 0.1,
+        step: 0.0005,
+        unit: "s",
+      },
       { key: "release", label: "Release", default: 0.05, min: 0.01, max: 1, step: 0.01, unit: "s" },
     ],
     hint: "Mutes the signal when it falls below a threshold (downward expander).",
@@ -690,8 +739,24 @@ export const NODE_KINDS: NodeKindDef[] = [
     inputs: 1,
     outputs: 1,
     params: [
-      { key: "separation", label: "Spread", default: 0.015, min: 0.001, max: 0.05, step: 0.001, unit: "s" },
-      { key: "variation", label: "Depth", default: 0.005, min: 0.0005, max: 0.02, step: 0.0005, unit: "s" },
+      {
+        key: "separation",
+        label: "Spread",
+        default: 0.015,
+        min: 0.001,
+        max: 0.05,
+        step: 0.001,
+        unit: "s",
+      },
+      {
+        key: "variation",
+        label: "Depth",
+        default: 0.005,
+        min: 0.0005,
+        max: 0.02,
+        step: 0.0005,
+        unit: "s",
+      },
       { key: "rate", label: "Rate", default: 0.5, min: 0.05, max: 8, step: 0.05, unit: "Hz" },
     ],
     hint: "Thickens the signal with several short, modulated delay copies.",
@@ -704,8 +769,24 @@ export const NODE_KINDS: NodeKindDef[] = [
     outputs: 1,
     params: [
       { key: "feedback", label: "Feedback", default: 0.5, min: -0.95, max: 0.95, step: 0.05 },
-      { key: "min_delay", label: "Min", default: 0.005, min: 0.0005, max: 0.05, step: 0.0005, unit: "s" },
-      { key: "max_delay", label: "Max", default: 0.01, min: 0.001, max: 0.05, step: 0.0005, unit: "s" },
+      {
+        key: "min_delay",
+        label: "Min",
+        default: 0.005,
+        min: 0.0005,
+        max: 0.05,
+        step: 0.0005,
+        unit: "s",
+      },
+      {
+        key: "max_delay",
+        label: "Max",
+        default: 0.01,
+        min: 0.001,
+        max: 0.05,
+        step: 0.0005,
+        unit: "s",
+      },
       { key: "rate", label: "Rate", default: 0.1, min: 0.02, max: 5, step: 0.02, unit: "Hz" },
     ],
     hint: "A short, swept delay creating a whooshing comb-filter (jet) effect.",
@@ -772,7 +853,15 @@ export const NODE_KINDS: NodeKindDef[] = [
       { key: "time", label: "Time", default: 2, min: 0.1, max: 20, step: 0.1, unit: "s" },
       { key: "diffusion", label: "Diffusion", default: 0.5, min: 0, max: 1, step: 0.01 },
       { key: "mod_speed", label: "Mod", default: 1, min: 0, max: 2, step: 0.01 },
-      { key: "loop_filter", label: "Loop filter", default: 8_000, min: 100, max: 20_000, step: 100, unit: "Hz" },
+      {
+        key: "loop_filter",
+        label: "Loop filter",
+        default: 8_000,
+        min: 100,
+        max: 20_000,
+        step: 100,
+        unit: "Hz",
+      },
     ],
     hint: "High-quality stereo reverb with a damped feedback loop — inputs: left, right.",
   },
@@ -785,7 +874,15 @@ export const NODE_KINDS: NodeKindDef[] = [
     params: [
       { key: "time", label: "Time", default: 2, min: 0.1, max: 20, step: 0.1, unit: "s" },
       { key: "diffusion", label: "Diffusion", default: 0.5, min: 0, max: 1, step: 0.01 },
-      { key: "loop_filter", label: "Loop filter", default: 8_000, min: 100, max: 20_000, step: 100, unit: "Hz" },
+      {
+        key: "loop_filter",
+        label: "Loop filter",
+        default: 8_000,
+        min: 100,
+        max: 20_000,
+        step: 100,
+        unit: "Hz",
+      },
     ],
     hint: "All-pass-loop stereo reverb — inputs: left, right; outputs: left, right.",
   },
@@ -1055,8 +1152,7 @@ export function paletteFor(graph: GraphKind): { category: string; kinds: NodeKin
       category: CATEGORY_LABELS[category],
       kinds: NODE_KINDS.filter(
         (def) =>
-          def.category === category &&
-          (graph === "filter" ? !def.synthOnly : !def.filterOnly),
+          def.category === category && (graph === "filter" ? !def.synthOnly : !def.filterOnly),
       ),
     }))
     .filter((group) => group.kinds.length > 0);

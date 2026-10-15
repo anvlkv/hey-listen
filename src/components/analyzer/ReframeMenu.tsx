@@ -76,7 +76,7 @@ export default function ReframeMenu(props: {
           {/* Callout line marking the exact time on the chart. */}
           <div class="reframe-callout" style={{ left: `${target().x}px` }} aria-hidden="true" />
           <div
-            ref={menu}
+            ref={(node) => (menu = node)}
             class="reframe-menu"
             role="menu"
             aria-label="Set analysis window"

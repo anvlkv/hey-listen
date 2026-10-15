@@ -145,9 +145,12 @@ describe("F. Cross-cutting analyzer behavior", () => {
     const readout = zoomReadout("spectralCentroid");
     const full = await textOf(readout);
     await (await $(`${analyzerPanel("spectralCentroid")} .zoom-btn[aria-label="Zoom in"]`)).click();
-    await browser.waitUntil(async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9, {
-      timeoutMsg: "the spectral-centroid chart did not zoom in",
-    });
+    await browser.waitUntil(
+      async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9,
+      {
+        timeoutMsg: "the spectral-centroid chart did not zoom in",
+      },
+    );
 
     // Change the shared FFT size: `run_analysis` re-fires and the chart re-renders
     // with new data. The zoom must survive — it used to snap back to the full window.
@@ -161,9 +164,12 @@ describe("F. Cross-cutting analyzer behavior", () => {
 
     await activateTab("spectralCentroid");
     await waitForAnalyzer("spectralCentroid");
-    await browser.waitUntil(async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9, {
-      timeoutMsg: "the analysis re-run reset the chart's zoom to the full window",
-    });
+    await browser.waitUntil(
+      async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9,
+      {
+        timeoutMsg: "the analysis re-run reset the chart's zoom to the full window",
+      },
+    );
     await closeTool("spectralCentroid");
   });
 

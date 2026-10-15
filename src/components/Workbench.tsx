@@ -1,4 +1,10 @@
-import { DockviewComponent, themeDark, themeLight, type ContextMenuItem, type DockviewApi } from "dockview";
+import {
+  DockviewComponent,
+  themeDark,
+  themeLight,
+  type ContextMenuItem,
+  type DockviewApi,
+} from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
@@ -80,7 +86,8 @@ function scheduleStampTabIds(api: DockviewApi) {
 }
 
 export default function Workbench() {
-  let host!: HTMLDivElement;
+  // The workbench mounts dockview into the `<section>` host (an `HTMLElement`).
+  let host!: HTMLElement;
   let dockview: DockviewComponent | undefined;
 
   /** The dockview theme matching the active [`resolvedTheme`]. */
@@ -153,5 +160,7 @@ export default function Workbench() {
     dockview?.dispose();
   });
 
-  return <section class="app-workbench" data-testid="region.workbench" ref={host} />;
+  return (
+    <section class="app-workbench" data-testid="region.workbench" ref={(node) => (host = node)} />
+  );
 }

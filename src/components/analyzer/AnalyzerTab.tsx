@@ -53,8 +53,8 @@ export default function AnalyzerTab(props: {
             >
               {props.params}
               <div class="params-note">
-                Shared params (FFT size, hop/overlap, window, channel, analysis rate,
-                frequency range) are in the toolbar.
+                Shared params (FFT size, hop/overlap, window, channel, analysis rate, frequency
+                range) are in the toolbar.
               </div>
             </Popover>
           </Show>
@@ -70,7 +70,9 @@ export default function AnalyzerTab(props: {
           </Popover>
         </div>
       </div>
-      <div class="analyzer-body" data-testid="analyzer.body">{props.children}</div>
+      <div class="analyzer-body" data-testid="analyzer.body">
+        {props.children}
+      </div>
 
       <Show when={props.loading && !props.hasResult}>
         <div

@@ -1,11 +1,25 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
 import ZoomControls from "./ZoomControls";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import { createAnalysis, formatHz, toolOptions, type SpectrogramResult } from "../../state/analyzer";
+import {
+  createAnalysis,
+  formatHz,
+  toolOptions,
+  type SpectrogramResult,
+} from "../../state/analyzer";
 import { analyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/themes";
 import { clamp01, spectroColormap } from "./colormap";
@@ -44,9 +58,7 @@ interface Hover {
 /** The full view for a result. */
 function fullView(result: SpectrogramResult): View {
   const f0 = result.freqs[0] ?? 0;
-  const f1 = result.freqs.length
-    ? result.freqs[result.freqs.length - 1]
-    : result.sampleRate / 2;
+  const f1 = result.freqs.length ? result.freqs[result.freqs.length - 1] : result.sampleRate / 2;
   return { t0: 0, t1: Math.max(result.duration, 1e-6), f0, f1: Math.max(f1, f0 + 1) };
 }
 
@@ -63,7 +75,9 @@ function clampView(next: View, result: SpectrogramResult): View {
   }
 
   const fLo = result.freqs[0] ?? 0;
-  const fHiRaw = result.freqs.length ? result.freqs[result.freqs.length - 1] : result.sampleRate / 2;
+  const fHiRaw = result.freqs.length
+    ? result.freqs[result.freqs.length - 1]
+    : result.sampleRate / 2;
   const fHi = Math.max(fHiRaw, fLo + 1);
   const minF = Math.max((fHi - fLo) * 1e-4, 1e-3);
   let f0 = Math.max(fLo, Math.min(next.f0, fHi));
@@ -538,7 +552,8 @@ export default function SpectrogramTab() {
     const f = event.deltaY < 0 ? 0.8 : 1.25;
 
     if (event.shiftKey) {
-      const at = v.f0 + ((box.y + box.height - (event.clientY - rect.top)) / box.height) * (v.f1 - v.f0);
+      const at =
+        v.f0 + ((box.y + box.height - (event.clientY - rect.top)) / box.height) * (v.f1 - v.f0);
       applyView({ ...v, f0: at + (v.f0 - at) * f, f1: at + (v.f1 - at) * f }, false);
     } else {
       const at = v.t0 + ((event.clientX - rect.left - box.x) / box.width) * (v.t1 - v.t0);
@@ -603,7 +618,6 @@ export default function SpectrogramTab() {
     size();
     hover();
     view();
-    analyzerBus.data.notes;
     draw();
   });
 
@@ -639,10 +653,7 @@ export default function SpectrogramTab() {
         <div class="analyzer-readouts">
           {/* Every entry is rendered upfront (with a placeholder) so the bar has a
               stable, reserved height instead of changing as the cursor moves. */}
-          <Readout
-            label="Time"
-            value={hover() ? `${hover()!.time.toFixed(3)} s` : "—"}
-          />
+          <Readout label="Time" value={hover() ? `${hover()!.time.toFixed(3)} s` : "—"} />
           <Readout label="Freq" value={hover() ? formatHz(hover()!.freq) : "—"} />
           <Readout label="Level" value={hover() ? `${hover()!.db.toFixed(1)} dB` : "—"} />
           <Readout
@@ -660,15 +671,13 @@ export default function SpectrogramTab() {
           <Readout
             label="Grid"
             value={
-              analysis.result()
-                ? `${analysis.result()!.frames} × ${analysis.result()!.bins}`
-                : "—"
+              analysis.result() ? `${analysis.result()!.frames} × ${analysis.result()!.bins}` : "—"
             }
           />
         </div>
-        <div class="spectrogram-canvas" ref={wrap}>
+        <div class="spectrogram-canvas" ref={(node) => (wrap = node)}>
           <canvas
-            ref={canvas}
+            ref={(node) => (canvas = node)}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -678,10 +687,7 @@ export default function SpectrogramTab() {
             }}
             onContextMenu={onContextMenu}
           />
-          <Show
-            when={analysis.result()}
-            fallback={<NoAudioState overlay />}
-          >
+          <Show when={analysis.result()} fallback={<NoAudioState overlay />}>
             <Show
               when={hasGrid()}
               fallback={

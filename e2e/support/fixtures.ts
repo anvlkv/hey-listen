@@ -74,7 +74,7 @@ function chirpNoise(): Float32Array {
   const k = Math.log(f1 / f0);
   for (let i = 0; i < frames; i++) {
     const t = i / SAMPLE_RATE;
-    const phase = (2 * Math.PI * f0 * duration) / k * (Math.exp((k * t) / duration) - 1);
+    const phase = ((2 * Math.PI * f0 * duration) / k) * (Math.exp((k * t) / duration) - 1);
     out[i] = AMPLITUDE * Math.sin(phase);
   }
   // Deterministic noise burst over ~1.4–1.6 s (a broadband transient for onsets).
@@ -162,9 +162,6 @@ export async function writeFixtures(): Promise<void> {
         Buffer.alloc(1024, 0x7f),
       ]),
     ),
-    writeFile(
-      FIXTURES.synthGraph,
-      Buffer.from(JSON.stringify(SYNTH_GRAPH_SPEC, null, 2), "utf8"),
-    ),
+    writeFile(FIXTURES.synthGraph, Buffer.from(JSON.stringify(SYNTH_GRAPH_SPEC, null, 2), "utf8")),
   ]);
 }

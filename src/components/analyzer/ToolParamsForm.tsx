@@ -1,6 +1,6 @@
 import { NumberField } from "@kobalte/core/number-field";
 import { Switch as KSwitch } from "@kobalte/core/switch";
-import { For, Match, Show, Switch } from "solid-js";
+import { For, Match, Show, Switch, untrack } from "solid-js";
 import SelectField from "../SelectField";
 import Tooltip from "../Tooltip";
 import { createNumberDrag } from "../../lib/dragNumber";
@@ -33,10 +33,7 @@ export default function ToolParamsForm(props: { id: AnalyzerId }) {
             <Switch fallback={<NumericParam id={props.id} field={field} />}>
               <Match when={field.kind === "select"}>
                 <Tooltip label={field.title ?? field.label}>
-                  <label
-                    class="params-field"
-                    data-testid={`toolparam.${props.id}.${field.key}`}
-                  >
+                  <label class="params-field" data-testid={`toolparam.${props.id}.${field.key}`}>
                     <span class="params-label">{field.label}</span>
                     <SelectField
                       options={field.options ?? []}
@@ -86,9 +83,9 @@ function NumericParam(props: { id: AnalyzerId; field: ToolParamField }) {
     value: () => toolOptions[props.id][props.field.key],
     onInput: (value) =>
       setToolOption(props.id, props.field.key, clampNumber(value, props.field.value, props.field)),
-    step: props.field.step ?? 1,
-    min: props.field.min,
-    max: props.field.max,
+    step: untrack(() => props.field.step ?? 1),
+    min: untrack(() => props.field.min),
+    max: untrack(() => props.field.max),
   });
 
   return (
@@ -103,7 +100,11 @@ function NumericParam(props: { id: AnalyzerId; field: ToolParamField }) {
             class="params-num"
             value={toolOptions[props.id][props.field.key]}
             onChange={(value) =>
-              setToolOption(props.id, props.field.key, clampNumber(value, props.field.value, props.field))
+              setToolOption(
+                props.id,
+                props.field.key,
+                clampNumber(value, props.field.value, props.field),
+              )
             }
             minValue={props.field.min}
             maxValue={props.field.max}

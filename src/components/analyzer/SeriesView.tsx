@@ -1,7 +1,7 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show, untrack } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -93,7 +93,8 @@ export default function SeriesView(props: {
   const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
-  const Tooltip = timeTooltip(view().formatY);
+  // The registry's formatter is static for a tool, so build the tooltip once.
+  const Tooltip = timeTooltip(untrack(() => view().formatY));
   const seriesStyle = () => view().style ?? "line";
   const seriesPaths = () => {
     const style = seriesStyle();
@@ -118,10 +119,7 @@ export default function SeriesView(props: {
   const openMenu = createUplotReframeHandler(zoom, setMenu);
 
   return (
-    <Show
-      when={result()}
-      fallback={<NoAudioState />}
-    >
+    <Show when={result()} fallback={<NoAudioState />}>
       {(r) => (
         <div class="analyzer-chart">
           <div class="analyzer-readouts">

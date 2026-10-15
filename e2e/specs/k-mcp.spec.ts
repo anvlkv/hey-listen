@@ -16,7 +16,14 @@ import path from "node:path";
 import process from "node:process";
 import { SEL } from "../support/selectors.ts";
 import { FIXTURES } from "../support/fixtures.ts";
-import { count, invokeCore, isToolOpen, selectMainWindow, waitForApp, waitForTab } from "../support/helpers.ts";
+import {
+  count,
+  invokeCore,
+  isToolOpen,
+  selectMainWindow,
+  waitForApp,
+  waitForTab,
+} from "../support/helpers.ts";
 
 /** The endpoint the running app advertises (`src-tauri/src/mcp/server.rs`). */
 interface ServerInfo {
@@ -75,9 +82,7 @@ class McpClient {
 
   static async open(info: ServerInfo): Promise<McpClient> {
     const socket = await new Promise<Socket>((resolve, reject) => {
-      const connection = connect({ host: "127.0.0.1", port: info.port }, () =>
-        resolve(connection),
-      );
+      const connection = connect({ host: "127.0.0.1", port: info.port }, () => resolve(connection));
       connection.once("error", reject);
     });
     // The token is the connection's first line.
@@ -110,11 +115,7 @@ class McpClient {
     });
   }
 
-  async request(
-    id: number,
-    method: string,
-    params?: unknown,
-  ): Promise<Record<string, unknown>> {
+  async request(id: number, method: string, params?: unknown): Promise<Record<string, unknown>> {
     this.socket.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
     return JSON.parse(await this.readLine()) as Record<string, unknown>;
   }

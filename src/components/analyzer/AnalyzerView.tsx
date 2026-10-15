@@ -1,4 +1,4 @@
-import { Match, Switch } from "solid-js";
+import { Match, Switch, untrack } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import SeriesView from "./SeriesView";
@@ -21,7 +21,8 @@ import {
  */
 export default function AnalyzerView(props: { id: AnalyzerId }) {
   const def = () => analyzerById(props.id);
-  const analysis = createAnalysis<AnyAnalysisResult>(props.id);
+  // A tab's id is fixed for its lifetime, so the handle is built once (untracked).
+  const analysis = createAnalysis<AnyAnalysisResult>(untrack(() => props.id));
 
   return (
     <AnalyzerTab

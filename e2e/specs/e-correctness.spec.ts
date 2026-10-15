@@ -8,7 +8,14 @@
  */
 
 import { analyzerPanel } from "../support/selectors.ts";
-import { openFixture, openTool, cardValue, invokeCore, waitForApp, closeAllTabs } from "../support/helpers.ts";
+import {
+  openFixture,
+  openTool,
+  cardValue,
+  invokeCore,
+  waitForApp,
+  closeAllTabs,
+} from "../support/helpers.ts";
 
 /**
  * Default shared params (`src/state/analysis.ts`): the values every analyzer runs

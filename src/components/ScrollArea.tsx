@@ -99,16 +99,20 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
 
   return (
     <div class={`scroll-area ${props.class ?? ""}`}>
-      <div class="scroll-area-viewport" ref={viewport} onWheel={onWheel}>
+      <div class="scroll-area-viewport" ref={(node) => (viewport = node)} onWheel={onWheel}>
         <div
           class="scroll-area-content"
-          ref={content}
+          ref={(node) => (content = node)}
           style={{ transform: `translateY(${-scrollTop()}px)` }}
         >
           {props.children}
         </div>
       </div>
-      <div class="scroll-area-bar" classList={{ "scroll-area-bar-hidden": !overflowing() }} ref={bar}>
+      <div
+        class="scroll-area-bar"
+        classList={{ "scroll-area-bar-hidden": !overflowing() }}
+        ref={(node) => (bar = node)}
+      >
         <Show when={overflowing()}>
           <div
             class="scroll-area-thumb"

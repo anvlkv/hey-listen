@@ -10,7 +10,13 @@ import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { referenceLine } from "./seriesPlugins";
 import { noteMarkers } from "./notePlugins";
-import { TIME_AXIS_SPACE, timeAxisValues, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
+import {
+  TIME_AXIS_SPACE,
+  timeAxisValues,
+  X_AXIS_SIZE,
+  Y_AXIS_SIZE,
+  Y_AXIS_SPACE,
+} from "./axisFormat";
 import {
   chartAxisStyle,
   createUplotReframeHandler,
@@ -78,10 +84,7 @@ export default function WaveformTab() {
       hasResult={analysis.result() != null}
       params={<ToolParamsForm id="waveform" />}
     >
-      <Show
-        when={analysis.result()}
-        fallback={<NoAudioState />}
-      >
+      <Show when={analysis.result()} fallback={<NoAudioState />}>
         {(result) => (
           <div class="analyzer-chart">
             <div class="analyzer-readouts">
@@ -94,9 +97,7 @@ export default function WaveformTab() {
               <Show
                 when={data()[0].length >= 2}
                 fallback={
-                  <div class="analyzer-empty">
-                    Empty window — widen the analysis window.
-                  </div>
+                  <div class="analyzer-empty">Empty window — widen the analysis window.</div>
                 }
               >
                 <ZoomControls

@@ -40,43 +40,45 @@ const MARKER_STYLE: Record<MarkerKind, { dark: string; light: string; width: num
  * envelope. Reads them through a reactive accessor so the markers follow the result
  * (the chart is not recreated on data change).
  */
-const rhythmMarkers = (getMarkers: () => MarkerSet[]): UplotPluginFactory<AnalyzerBus> => () => {
-  let current: MarkerSet[] = [];
-  let dispose: (() => void) | undefined;
-  return {
-    hooks: {
-      ready: (u) => {
-        dispose = createRoot((root) => {
-          createEffect(() => {
-            current = getMarkers();
-            u.redraw(false);
+const rhythmMarkers =
+  (getMarkers: () => MarkerSet[]): UplotPluginFactory<AnalyzerBus> =>
+  () => {
+    let current: MarkerSet[] = [];
+    let dispose: (() => void) | undefined;
+    return {
+      hooks: {
+        ready: (u) => {
+          dispose = createRoot((root) => {
+            createEffect(() => {
+              current = getMarkers();
+              u.redraw(false);
+            });
+            return root;
           });
-          return root;
-        });
-      },
-      draw: (u) => {
-        if (!u.ctx) return;
-        const { ctx, bbox } = u;
-        for (const marker of current) {
-          ctx.save();
-          ctx.strokeStyle = marker.color;
-          ctx.lineWidth = marker.width;
-          ctx.beginPath();
-          for (const time of marker.times) {
-            const x = u.valToPos(time, "x", true);
-            if (!Number.isFinite(x) || x < bbox.left || x > bbox.left + bbox.width) continue;
-            const px = Math.round(x) + 0.5;
-            ctx.moveTo(px, bbox.top);
-            ctx.lineTo(px, bbox.top + bbox.height);
+        },
+        draw: (u) => {
+          if (!u.ctx) return;
+          const { ctx, bbox } = u;
+          for (const marker of current) {
+            ctx.save();
+            ctx.strokeStyle = marker.color;
+            ctx.lineWidth = marker.width;
+            ctx.beginPath();
+            for (const time of marker.times) {
+              const x = u.valToPos(time, "x", true);
+              if (!Number.isFinite(x) || x < bbox.left || x > bbox.left + bbox.width) continue;
+              const px = Math.round(x) + 0.5;
+              ctx.moveTo(px, bbox.top);
+              ctx.lineTo(px, bbox.top + bbox.height);
+            }
+            ctx.stroke();
+            ctx.restore();
           }
-          ctx.stroke();
-          ctx.restore();
-        }
+        },
+        destroy: () => dispose?.(),
       },
-      destroy: () => dispose?.(),
-    },
+    };
   };
-};
 
 /** Tempo candidates for the tempogram (BPM). */
 const TEMPO_MIN_BPM = 40;
@@ -120,39 +122,41 @@ function tempoSalience(
 }
 
 /** Mark the chosen tempo on the tempogram with a vertical line. */
-const tempoMarker = (getBpm: () => number): UplotPluginFactory<AnalyzerBus> => () => {
-  let bpm = 0;
-  let dispose: (() => void) | undefined;
-  return {
-    hooks: {
-      ready: (u) => {
-        dispose = createRoot((root) => {
-          createEffect(() => {
-            bpm = getBpm();
-            u.redraw(false);
+const tempoMarker =
+  (getBpm: () => number): UplotPluginFactory<AnalyzerBus> =>
+  () => {
+    let bpm = 0;
+    let dispose: (() => void) | undefined;
+    return {
+      hooks: {
+        ready: (u) => {
+          dispose = createRoot((root) => {
+            createEffect(() => {
+              bpm = getBpm();
+              u.redraw(false);
+            });
+            return root;
           });
-          return root;
-        });
+        },
+        draw: (u) => {
+          if (!(bpm > 0) || !u.ctx) return;
+          const x = u.valToPos(bpm, "x", true);
+          const { ctx, bbox } = u;
+          if (!Number.isFinite(x) || x < bbox.left || x > bbox.left + bbox.width) return;
+          ctx.save();
+          ctx.strokeStyle = chartTheme().reference;
+          ctx.lineWidth = 1.5;
+          const px = Math.round(x) + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(px, bbox.top);
+          ctx.lineTo(px, bbox.top + bbox.height);
+          ctx.stroke();
+          ctx.restore();
+        },
+        destroy: () => dispose?.(),
       },
-      draw: (u) => {
-        if (!(bpm > 0) || !u.ctx) return;
-        const x = u.valToPos(bpm, "x", true);
-        const { ctx, bbox } = u;
-        if (!Number.isFinite(x) || x < bbox.left || x > bbox.left + bbox.width) return;
-        ctx.save();
-        ctx.strokeStyle = chartTheme().reference;
-        ctx.lineWidth = 1.5;
-        const px = Math.round(x) + 0.5;
-        ctx.beginPath();
-        ctx.moveTo(px, bbox.top);
-        ctx.lineTo(px, bbox.top + bbox.height);
-        ctx.stroke();
-        ctx.restore();
-      },
-      destroy: () => dispose?.(),
-    },
+    };
   };
-};
 
 /** Tooltip for the tempogram panel (BPM × salience). */
 const TempoTooltip = (props: TooltipProps) => (
@@ -231,10 +235,7 @@ export default function RhythmView(props: {
         </Show>
       </div>
       <div class="analyzer-plot" onWheel={zoom.wheel}>
-        <Show
-          when={result()}
-          fallback={<NoAudioState />}
-        >
+        <Show when={result()} fallback={<NoAudioState />}>
           <Show
             when={data()[0].length >= 2}
             fallback={
@@ -273,7 +274,10 @@ export default function RhythmView(props: {
                   },
                 ]}
                 scales={{ x: { time: false }, y: { range: paddedYRange } }}
-                axes={[{ ...chartAxisStyle(), label: "time (s)" }, { ...chartAxisStyle(), label: "onset strength" }]}
+                axes={[
+                  { ...chartAxisStyle(), label: "time (s)" },
+                  { ...chartAxisStyle(), label: "onset strength" },
+                ]}
               />
             </Show>
           </Show>
@@ -303,7 +307,12 @@ export default function RhythmView(props: {
                 }}
                 axes={[
                   { ...chartAxisStyle(), label: "BPM", size: X_AXIS_SIZE },
-                  { ...chartAxisStyle(), label: "salience", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
+                  {
+                    ...chartAxisStyle(),
+                    label: "salience",
+                    size: Y_AXIS_SIZE,
+                    space: Y_AXIS_SPACE,
+                  },
                 ]}
                 plugins={[cursor(), tooltip(TempoTooltip), tempoMarker(() => result()?.bpm ?? 0)]}
               />

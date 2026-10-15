@@ -50,7 +50,11 @@ export default function ChannelSelect() {
         </Select.Item>
       )}
     >
-      <Select.Trigger ref={portal.ref} class="select-trigger channel-trigger" aria-label="Channel to analyse">
+      <Select.Trigger
+        ref={portal.ref}
+        class="select-trigger channel-trigger"
+        aria-label="Channel to analyse"
+      >
         <Select.Value<ChannelOption> class="select-value">
           {(state) => state.selectedOption()?.label ?? "Downmix (mono)"}
         </Select.Value>

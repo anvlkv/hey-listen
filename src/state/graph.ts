@@ -228,11 +228,7 @@ export function outputConnected(graph: GraphKind): boolean {
   const handle = graphFor(graph);
   return handle.edges.some((edge) => {
     const target = handle.nodes.find((node) => node.id === edge.target);
-    return (
-      !!target &&
-      target.data.kind === "output" &&
-      handlePort(edge.targetHandle) === 0
-    );
+    return !!target && target.data.kind === "output" && handlePort(edge.targetHandle) === 0;
   });
 }
 

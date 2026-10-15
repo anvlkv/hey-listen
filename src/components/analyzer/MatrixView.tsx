@@ -1,10 +1,19 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
-import { createReframeHandler, NoAudioState, timeRangeLabel } from "./chartCommon";
+import { NoAudioState, timeRangeLabel } from "./chartCommon";
 import { drawNoteMarkers, noteGroups, noteNear } from "./notePlugins";
 import { dragNoteTo, refreshNoteValues } from "../../state/notes";
 import { analyzerBus } from "../../state/chartSync";
@@ -438,15 +447,17 @@ export default function MatrixView(props: {
   }
 
   /** Right-click: reframe the timeline window from the time under the pointer. */
-  const onContextMenu = createReframeHandler((event) => {
+  function onContextMenu(event: MouseEvent) {
+    event.preventDefault();
     const value = result();
     const v = view();
-    if (!value || !v) return null;
+    if (!value || !v) return;
     const rect = canvas.getBoundingClientRect();
     const box = plot();
     const x = event.clientX - rect.left;
-    return v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
-  }, setMenu);
+    const time = v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
+    setMenu({ x: event.clientX, y: event.clientY, time });
+  }
 
   // --- lifecycle ---------------------------------------------------------
 
@@ -476,7 +487,6 @@ export default function MatrixView(props: {
     size();
     hover();
     view();
-    analyzerBus.data.notes;
     draw();
   });
 
@@ -497,14 +507,8 @@ export default function MatrixView(props: {
           label={config().yLabel}
           value={hover() ? config().formatBand(hover()!.band) : "—"}
         />
-        <Readout
-          label="Value"
-          value={hover() ? config().formatValue(hover()!.value) : "—"}
-        />
-        <Readout
-          label="Grid"
-          value={result() ? `${result()!.frames} × ${result()!.bins}` : "—"}
-        />
+        <Readout label="Value" value={hover() ? config().formatValue(hover()!.value) : "—"} />
+        <Readout label="Grid" value={result() ? `${result()!.frames} × ${result()!.bins}` : "—"} />
         <Readout
           label="Range"
           value={
@@ -515,9 +519,9 @@ export default function MatrixView(props: {
         />
         <Readout label="Rate" value={result() ? formatHz(result()!.sampleRate) : "—"} />
       </div>
-      <div class="spectrogram-canvas" ref={wrap}>
+      <div class="spectrogram-canvas" ref={(node) => (wrap = node)}>
         <canvas
-          ref={canvas}
+          ref={(node) => (canvas = node)}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -527,12 +531,7 @@ export default function MatrixView(props: {
           }}
           onContextMenu={onContextMenu}
         />
-        <Show
-          when={result()}
-          fallback={
-            <NoAudioState overlay />
-          }
-        >
+        <Show when={result()} fallback={<NoAudioState overlay />}>
           <Show
             when={hasGrid()}
             fallback={

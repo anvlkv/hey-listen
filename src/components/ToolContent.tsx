@@ -1,4 +1,5 @@
-import { type Component } from "solid-js";
+import { Match, Switch, type Component } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import AnalyzerView from "./analyzer/AnalyzerView";
 import SpectrogramTab from "./analyzer/SpectrogramTab";
 import SpectrumTab from "./analyzer/SpectrumTab";
@@ -19,11 +20,22 @@ const SPECIAL_ANALYZER_VIEWS: Partial<Record<AnalyzerId, Component>> = {
  * Renders a single Workbench tool (graph editor or analyzer) as a component. Used
  * both by the Workbench (inside dockview panels) and by a popout window (which
  * shows just this tool).
+ *
+ * The dispatch is a `<Switch>` rather than early returns: a component body runs
+ * **once**, so an early return would freeze the choice instead of reacting to the id.
  */
 export default function ToolContent(props: { id: ToolId }) {
-  if (props.id === "filter") return <FilterGraphTab />;
-  if (props.id === "synth") return <SynthGraphTab />;
-  const Special = SPECIAL_ANALYZER_VIEWS[props.id as AnalyzerId];
-  if (Special) return <Special />;
-  return <AnalyzerView id={props.id as AnalyzerId} />;
+  return (
+    <Switch fallback={<AnalyzerView id={props.id as AnalyzerId} />}>
+      <Match when={props.id === "filter"}>
+        <FilterGraphTab />
+      </Match>
+      <Match when={props.id === "synth"}>
+        <SynthGraphTab />
+      </Match>
+      <Match when={SPECIAL_ANALYZER_VIEWS[props.id as AnalyzerId]}>
+        {(Special) => <Dynamic component={Special()} />}
+      </Match>
+    </Switch>
+  );
 }

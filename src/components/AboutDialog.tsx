@@ -43,8 +43,8 @@ export default function AboutDialog(props: {
           </header>
 
           <Dialog.Description class="about-blurb">
-            Capture, filter, and analyze audio — from files, live inputs, and synthesis.
-            Built on Tauri, SolidJS, and Rust DSP.
+            Capture, filter, and analyze audio — from files, live inputs, and synthesis. Built on
+            Tauri, SolidJS, and Rust DSP.
           </Dialog.Description>
 
           <section class="about-section">
@@ -61,8 +61,8 @@ export default function AboutDialog(props: {
           <section class="about-section">
             <h3 class="about-heading">Third-party software</h3>
             <p class="about-text">
-              With thanks to the many individual contributors behind these projects —
-              see <span class="about-mono">ACKNOWLEDGEMENTS.md</span> in the repository.
+              With thanks to the many individual contributors behind these projects — see{" "}
+              <span class="about-mono">ACKNOWLEDGEMENTS.md</span> in the repository.
             </p>
             <ul class="about-list">
               <For each={ATTRIBUTIONS}>

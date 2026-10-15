@@ -277,14 +277,16 @@ export const ANALYZERS: AnalyzerDef[] = [
         label: "Centroid",
         kind: "toggle",
         value: 1,
-        title: "Overlay the spectral centroid (the spectrum's centre of mass) as a contour on the heatmap.",
+        title:
+          "Overlay the spectral centroid (the spectrum's centre of mass) as a contour on the heatmap.",
       },
       {
         key: "showRolloff",
         label: "Rolloff",
         kind: "toggle",
         value: 1,
-        title: "Overlay the spectral rolloff frequency (85% of the energy lies below it) as a contour on the heatmap.",
+        title:
+          "Overlay the spectral rolloff frequency (85% of the energy lies below it) as a contour on the heatmap.",
       },
     ],
   },
@@ -312,7 +314,8 @@ export const ANALYZERS: AnalyzerDef[] = [
         kind: "select",
         value: 64,
         options: MEL_BANDS,
-        title: "Number of mel bands. More bands give finer frequency detail; 64 is a common default.",
+        title:
+          "Number of mel bands. More bands give finer frequency detail; 64 is a common default.",
       },
     ],
   },
@@ -340,7 +343,8 @@ export const ANALYZERS: AnalyzerDef[] = [
         kind: "select",
         value: 13,
         options: MFCC_COEFFS,
-        title: "Cepstral coefficients (rows). ~13 captures the spectral envelope (timbre); more add finer detail.",
+        title:
+          "Cepstral coefficients (rows). ~13 captures the spectral envelope (timbre); more add finer detail.",
       },
       {
         key: "nMels",
@@ -348,7 +352,8 @@ export const ANALYZERS: AnalyzerDef[] = [
         kind: "select",
         value: 64,
         options: MEL_BANDS,
-        title: "Mel bands fed to the cepstral transform. More bands give finer frequency detail before the DCT.",
+        title:
+          "Mel bands fed to the cepstral transform. More bands give finer frequency detail before the DCT.",
       },
     ],
   },
@@ -416,7 +421,8 @@ export const ANALYZERS: AnalyzerDef[] = [
           { value: 0.95, label: "95%" },
           { value: 0.99, label: "99%" },
         ],
-        title: "Share of spectral energy below the rolloff frequency. 85% is the usual default; 95–99% reaches further into the high-frequency tail.",
+        title:
+          "Share of spectral energy below the rolloff frequency. 85% is the usual default; 95–99% reaches further into the high-frequency tail.",
       },
     ],
   },
@@ -456,7 +462,8 @@ export const ANALYZERS: AnalyzerDef[] = [
         kind: "select",
         value: 6,
         options: CONTRAST_BANDS,
-        title: "Number of octave-spaced bands compared (peak-to-valley each). More bands span a wider range.",
+        title:
+          "Number of octave-spaced bands compared (peak-to-valley each). More bands span a wider range.",
       },
     ],
   },
@@ -577,7 +584,8 @@ export const ANALYZERS: AnalyzerDef[] = [
         min: 0.01,
         max: 0.9,
         step: 0.01,
-        title: "Voiced/unvoiced threshold for YIN. Lower is stricter (fewer frames voiced); ~0.10–0.15 is typical.",
+        title:
+          "Voiced/unvoiced threshold for YIN. Lower is stricter (fewer frames voiced); ~0.10–0.15 is typical.",
       },
     ],
   },
@@ -706,7 +714,8 @@ export const ANALYZERS: AnalyzerDef[] = [
           { value: 500, label: "500 ms" },
           { value: 1000, label: "1000 ms" },
         ],
-        title: "Analysis block length. EBU R128 uses 400 ms blocks with a 100 ms hop; custom windows use non-overlapping blocks.",
+        title:
+          "Analysis block length. EBU R128 uses 400 ms blocks with a 100 ms hop; custom windows use non-overlapping blocks.",
       },
     ],
   },
@@ -846,9 +855,9 @@ export interface AnalysisResultMap {
  * a **frozen values snapshot** from a live chart (`state/notes.ts`, M14). Not persisted
  * — the analyzers re-derive results on load.
  */
-const [latestResults, setLatestResults] = createSignal<Partial<Record<AnalyzerId, AnyAnalysisResult>>>(
-  {},
-);
+const [latestResults, setLatestResults] = createSignal<
+  Partial<Record<AnalyzerId, AnyAnalysisResult>>
+>({});
 
 /** The most recent result for `tool`, or `null` (no tab has computed one yet). */
 export function latestResult(tool: AnalyzerId): AnyAnalysisResult | null {

@@ -25,8 +25,8 @@ import {
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
 async function timelineReadout(): Promise<string> {
-  return (await browser.execute(() =>
-    document.querySelector(".timeline-readout")?.textContent?.trim() ?? "",
+  return (await browser.execute(
+    () => document.querySelector(".timeline-readout")?.textContent?.trim() ?? "",
   )) as string;
 }
 

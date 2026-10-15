@@ -1,8 +1,4 @@
-import {
-  invoke as tauriInvoke,
-  type InvokeArgs,
-  type InvokeOptions,
-} from "@tauri-apps/api/core";
+import { invoke as tauriInvoke, type InvokeArgs, type InvokeOptions } from "@tauri-apps/api/core";
 
 /**
  * The app's single IPC façade over `@tauri-apps/api`'s `invoke`.
@@ -27,22 +23,15 @@ export function setInvokeOverride(next: InvokeHandler | null): void {
   override = next;
 }
 
-export function invoke<T>(
-  cmd: string,
-  args?: InvokeArgs,
-  options?: InvokeOptions,
-): Promise<T> {
-  return override
-    ? override<T>(cmd, args, options)
-    : tauriInvoke<T>(cmd, args, options);
+export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
+  return override ? override<T>(cmd, args, options) : tauriInvoke<T>(cmd, args, options);
 }
 
 declare global {
   /** The E2E test seam, exposed on `globalThis` for `browser.tauri.execute()`. */
-  // eslint-disable-next-line no-var
+
   var __heylisten_test__:
-    | { setInvokeOverride: typeof setInvokeOverride; real: typeof tauriInvoke }
-    | undefined;
+    { setInvokeOverride: typeof setInvokeOverride; real: typeof tauriInvoke } | undefined;
 }
 
 globalThis.__heylisten_test__ = { setInvokeOverride, real: tauriInvoke };

@@ -1,4 +1,14 @@
-import { createEffect, createMemo, createResource, createSignal, For, on, Show, type JSX } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  on,
+  Show,
+  untrack,
+  type JSX,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import Button from "./Button";
 import Icon from "./Icon";
@@ -66,12 +76,7 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
         </span>
         <div class="notes-header-actions">
           <Tooltip label="Add a note at the analysis window">
-            <Button
-              class="note-icon"
-              data-testid="notes.add"
-              aria-label="Add note"
-              onClick={add}
-            >
+            <Button class="note-icon" data-testid="notes.add" aria-label="Add note" onClick={add}>
               <Icon name="plus" />
             </Button>
           </Tooltip>
@@ -104,8 +109,8 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
           when={notesSorted().length > 0}
           fallback={
             <div class="notes-empty" data-testid="notes.empty">
-              No notes yet. Add one at the analysis window, or right-click a chart and choose
-              “Add note here”.
+              No notes yet. Add one at the analysis window, or right-click a chart and choose “Add
+              note here”.
             </div>
           }
         >
@@ -244,7 +249,12 @@ function NoteRow(props: {
         </div>
       </Show>
 
-      <NoteBody body={props.note.body} id={props.note.id} expanded={props.expanded} onToggle={props.onToggleExpand} />
+      <NoteBody
+        body={props.note.body}
+        id={props.note.id}
+        expanded={props.expanded}
+        onToggle={props.onToggleExpand}
+      />
 
       <Show when={editing()}>
         <NoteEditor
@@ -267,7 +277,10 @@ function NoteBody(props: {
 }): JSX.Element {
   const rest = () => noteBody(props.body);
   const [html] = createResource(rest, (text) => renderMarkdown(text));
-  const long = () => rest().split("\n").filter((line) => line.trim().length > 0).length > 3;
+  const long = () =>
+    rest()
+      .split("\n")
+      .filter((line) => line.trim().length > 0).length > 3;
   return (
     <Show when={rest().length > 0}>
       <div class="note-body-wrap">
@@ -275,6 +288,8 @@ function NoteBody(props: {
           class="note-body markdown-body"
           classList={{ "note-body-clamped": !props.expanded() }}
           data-testid={`note.body.${props.id}`}
+          // The HTML is `renderMarkdown` output (marked + DOMPurify sanitized).
+          // eslint-disable-next-line solid/no-innerhtml -- sanitized, not raw note text
           innerHTML={html() ?? ""}
         />
         <Show when={long()}>
@@ -282,7 +297,7 @@ function NoteBody(props: {
             type="button"
             class="note-body-toggle"
             aria-label={props.expanded() ? "Collapse the note" : "Expand the note"}
-            onClick={props.onToggle}
+            onClick={() => props.onToggle()}
           >
             <Icon name={props.expanded() ? "chevron-up" : "chevron-down"} />
           </button>
@@ -299,7 +314,8 @@ function NoteEditor(props: {
   onPreview: (on: boolean) => void;
   onDone: () => void;
 }): JSX.Element {
-  const [draft, setDraft] = createSignal(props.note.body);
+  // One-shot seed: the draft is the edit buffer, not a live view of the note.
+  const [draft, setDraft] = createSignal(untrack(() => props.note.body));
   const [html] = createResource(
     () => (props.preview() ? noteBody(draft()) : null),
     (text) => renderMarkdown(text),
@@ -331,6 +347,8 @@ function NoteEditor(props: {
           data-testid={`note.preview.${props.note.id}`}
           title="Click to keep editing"
           onClick={() => props.onPreview(false)}
+          // The HTML is `renderMarkdown` output (marked + DOMPurify sanitized).
+          // eslint-disable-next-line solid/no-innerhtml -- sanitized, not raw note text
           innerHTML={html() || "<p><em>Nothing below the title</em></p>"}
         />
       </Show>
@@ -352,7 +370,9 @@ function NoteEditor(props: {
 
 /** The popped-out editor: a large, edit-only overlay (M14). */
 function NoteEditorWindow(props: { note: Note; onClose: () => void }): JSX.Element {
-  const [draft, setDraft] = createSignal(props.note.body);
+  // Seeded once; the effect below re-seeds it when the popout is switched to another
+  // note.
+  const [draft, setDraft] = createSignal(untrack(() => props.note.body));
 
   // Re-seed the draft if the popout is switched to another note.
   createEffect(

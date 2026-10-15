@@ -21,12 +21,15 @@ const PROFILE = "https://github.com/anvlkv";
 
 // --- a tiny markdown → HTML (only the subset the docs use) ------------------
 
-const escapeHtml = (s) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** Strip emoji (the site's tone is plain/ASCII). */
+/**
+ * Strip emoji (the site's tone is plain/ASCII). The variation selector (`\u{FE0F}`) is
+ * a combining mark, so it cannot sit in the character class with the ranges — it is
+ * stripped as a separate alternative.
+ */
 const deEmoji = (s) =>
-  s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, "").trimEnd();
+  s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]|\u{FE0F}/gu, "").trimEnd();
 
 /** Inline spans: links, bold, italic, inline code (escape first). */
 function inline(text) {
@@ -178,8 +181,7 @@ await writeFile(
   path.join(SITE, "acknowledgements.html"),
   page({
     title: "Acknowledgements - Hey Listen",
-    description:
-      "The open-source maintainers whose work Hey Listen is built on.",
+    description: "The open-source maintainers whose work Hey Listen is built on.",
     content: `      <h1 class="doc-title">Acknowledgements</h1>
       <div class="prose">
 ${ackBody}

@@ -7,7 +7,14 @@ import { filterEnabled } from "../state/graph";
 import { filteredSamples } from "../state/filtered";
 import { stopFollowing } from "../state/capture";
 import { setSourcePanelPinned, sourcePanelPinned } from "../state/settings";
-import { focusedNoteId, focusNote, dragNoteTo, notesSorted, refreshNoteValues, setFocusedNote } from "../state/notes";
+import {
+  focusedNoteId,
+  focusNote,
+  dragNoteTo,
+  notesSorted,
+  refreshNoteValues,
+  setFocusedNote,
+} from "../state/notes";
 import { noteLabel, noteTimeText } from "../lib/note";
 import type { Note } from "../bindings/Note";
 import { chartTheme } from "../state/themes";
@@ -377,12 +384,7 @@ export default function Timeline() {
   }
 
   /** The grab bar spanning the window along the top of the waveform (move handle). */
-  function drawMoveHandle(
-    ctx: CanvasRenderingContext2D,
-    x0: number,
-    x1: number,
-    top: number,
-  ) {
+  function drawMoveHandle(ctx: CanvasRenderingContext2D, x0: number, x1: number, top: number) {
     const w = x1 - x0;
     if (w <= 2) return;
     ctx.fillStyle = chartTheme().handleFill;
@@ -545,9 +547,7 @@ export default function Timeline() {
     }
     if (!drag) {
       const hit = noteAt(pointerX(e), pointerY(e));
-      setNoteHint(
-        hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit) } : null,
-      );
+      setNoteHint(hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit) } : null);
       return;
     }
     const x = pointerX(e);
@@ -718,7 +718,7 @@ export default function Timeline() {
           }
           style={{
             "font-size": "11px",
-            "padding": "1px 6px",
+            padding: "1px 6px",
             "border-radius": "4px",
             "white-space": "nowrap",
             color: filterEnabled() ? "#ffb454" : "#8a8a8a",
@@ -798,9 +798,9 @@ export default function Timeline() {
         </div>
       </div>
 
-      <div class="timeline-canvas" ref={wrap}>
+      <div class="timeline-canvas" ref={(node) => (wrap = node)}>
         <canvas
-          ref={canvas}
+          ref={(node) => (canvas = node)}
           data-testid="timeline.canvas"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

@@ -88,7 +88,8 @@ const SOURCE_CHOICES: SourceChoiceOption[] = [
 const micDevices = () => devices().filter((d) => d.sourceKind === "mic" && !d.isLoopback);
 const systemDevices = () => devices().filter((d) => d.sourceKind === "system" || d.isLoopback);
 
-const toOptions = (list: DeviceLike[]) => list.map((device) => ({ value: device.id, label: device.name }));
+const toOptions = (list: DeviceLike[]) =>
+  list.map((device) => ({ value: device.id, label: device.name }));
 
 function positive(value: string, fallback: number): number {
   const parsed = Number(value);
@@ -113,9 +114,7 @@ function usesDevices(kind: SourceChoice): boolean {
 
 function readout() {
   const target = targetDuration();
-  return target > 0
-    ? `${formatClock(elapsed())} / ${formatClock(target)}`
-    : formatClock(elapsed());
+  return target > 0 ? `${formatClock(elapsed())} / ${formatClock(target)}` : formatClock(elapsed());
 }
 
 /** The source-kind picker, shared by the hero and the replace controls. */
@@ -198,7 +197,11 @@ function LiveSourceInputs(props: { compact?: boolean }) {
             disabled={recording()}
           />
           <Tooltip label="Refresh the application list">
-            <Button class="src-mini icon-btn" aria-label="Refresh applications" onClick={() => void refreshProcesses()}>
+            <Button
+              class="src-mini icon-btn"
+              aria-label="Refresh applications"
+              onClick={() => void refreshProcesses()}
+            >
               <Icon name="arrows-rotate" />
             </Button>
           </Tooltip>
@@ -418,7 +421,11 @@ export default function SourcePanel() {
   const isEmpty = () => source() == null && !recording();
 
   return (
-    <aside class="app-source" data-testid="region.source" classList={{ "app-source-hero": isEmpty() }}>
+    <aside
+      class="app-source"
+      data-testid="region.source"
+      classList={{ "app-source-hero": isEmpty() }}
+    >
       <Show
         when={isEmpty()}
         fallback={<div class="src-heading">{source() ? "Replace source" : "Add audio"}</div>}
@@ -426,8 +433,8 @@ export default function SourcePanel() {
         <div class="src-hero-copy">
           <span class="src-hero-title">Add audio</span>
           <span class="src-hero-hint">
-            Open a file, record from a mic / system / application, or build a synth —
-            it becomes the timeline.
+            Open a file, record from a mic / system / application, or build a synth — it becomes the
+            timeline.
           </span>
         </div>
       </Show>
@@ -468,7 +475,11 @@ export default function SourcePanel() {
         fallback={
           <Show when={source()}>
             {(s) => (
-              <div class="source-summary" data-testid="source.summary" title={s().probe?.path ?? s().name}>
+              <div
+                class="source-summary"
+                data-testid="source.summary"
+                title={s().probe?.path ?? s().name}
+              >
                 <span class="source-name">
                   {s().name}
                   {s().live ? " ●" : ""}
