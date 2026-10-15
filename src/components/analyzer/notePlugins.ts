@@ -5,16 +5,22 @@ import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
 import { dragNoteTo, refreshNoteValues } from "../../state/notes";
 import { noteHeading } from "../../lib/note";
 import { chartTheme } from "../../state/themes";
+import { NOTE_STRIP_H } from "../notes/strip";
 import type { AnalyzerId } from "../../state/analyzer";
 
 /**
  * Note markers on the analyzer charts (M14): a chart draws **its own** notes
- * (full-strength ticks), every **other** note slightly muted, and the **focused**
- * note as a full-height rule with a label. The frequency-axis `spectrum` draws none
- * (a time marker has no meaning on a frequency axis). Notes arrive on the shared
+ * (full-strength anchors), every **other** note slightly muted, and the **focused**
+ * note as a full-height rule with a label. The anchors live in a thin **strip** along
+ * the bottom of the plot (`components/notes/strip.ts`), which keeps them clear of
+ * uPlot's drag/zoom area. The frequency-axis `spectrum` draws none (a time marker has
+ * no meaning on a frequency axis). Notes arrive on the shared
  * [`analyzerBus`](../../state/chartSync.ts) (`notes`), published by the notes store,
  * so cross-window and store changes redraw in step. See `docs/notes.md`.
  */
+
+/** The focused note's marker label font — larger than the axis font, so it reads. */
+const NOTE_LABEL_FONT = "600 12px Inter, sans-serif";
 
 /** Canvas geometry for the markers: the plot area plus a time → x mapper. */
 export interface NoteGeom {
@@ -55,7 +61,7 @@ export function noteMarkerLabel(note: Note): string {
 const inRange = (x: number, geom: NoteGeom) =>
   Number.isFinite(x) && x >= geom.left && x <= geom.right;
 
-/** A short tick at the top edge (a shaded span for a range note). */
+/** A note's anchor in the bottom strip (a shaded span for a range note). */
 function tick(
   ctx: CanvasRenderingContext2D,
   geom: NoteGeom,
@@ -74,21 +80,20 @@ function tick(
   }
   const x = geom.xFor(note.timeSecs);
   if (!inRange(x, geom)) return;
-  const px = Math.round(x) + 0.5;
-  ctx.globalAlpha = alpha;
+  const px = Math.round(x);
+  const stripTop = geom.top + geom.height - NOTE_STRIP_H;
+  // A faint stem rising out of the lane, then the grab tab inside it.
+  ctx.globalAlpha = alpha * 0.8;
   ctx.strokeStyle = color;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(px, geom.top);
-  ctx.lineTo(px, geom.top + 7);
+  ctx.moveTo(px + 0.5, stripTop - 6);
+  ctx.lineTo(px + 0.5, stripTop);
   ctx.stroke();
+  ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(px - 3, geom.top);
-  ctx.lineTo(px + 3, geom.top);
-  ctx.lineTo(px, geom.top + 5);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillRect(px - 1, stripTop + 1, 2, NOTE_STRIP_H - 2);
+  ctx.fillRect(px - 3, stripTop + 1, 6, 3);
 }
 
 /**
@@ -140,15 +145,26 @@ export function drawNoteMarkers(ctx: CanvasRenderingContext2D, geom: NoteGeom, g
       ctx.moveTo(px, geom.top);
       ctx.lineTo(px, geom.top + geom.height);
       ctx.stroke();
-      const label = noteMarkerLabel(focused);
-      ctx.font = theme.font;
+      // Its grab tab in the lane, matching the other anchors.
+      const stripTop = geom.top + geom.height - NOTE_STRIP_H;
       ctx.fillStyle = theme.note;
-      ctx.textBaseline = "top";
+      ctx.fillRect(px - 1.5, stripTop + 1, 3, NOTE_STRIP_H - 2);
+      ctx.fillRect(px - 4, stripTop + 1, 8, 3);
+      // A label chip just above the lane, so it stays readable over a heatmap.
+      const label = noteMarkerLabel(focused);
+      ctx.font = NOTE_LABEL_FONT;
+      ctx.textBaseline = "bottom";
       ctx.textAlign = "left";
       const width = ctx.measureText(label).width;
-      let lx = px + 4;
-      if (lx + width > geom.right) lx = Math.max(geom.left, px - 4 - width);
-      ctx.fillText(label, lx, geom.top + 3);
+      let lx = px + 5;
+      if (lx + width > geom.right) lx = Math.max(geom.left, px - 5 - width);
+      const baseline = stripTop - 4;
+      ctx.globalAlpha = 0.82;
+      ctx.fillStyle = theme.background;
+      ctx.fillRect(lx - 3, baseline - 15, width + 6, 16);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = theme.note;
+      ctx.fillText(label, lx, baseline);
     }
   }
   ctx.restore();
@@ -209,8 +225,9 @@ export function noteMarkers(tool: AnalyzerId): UplotPluginFactory<AnalyzerBus> {
             const rect = u.over.getBoundingClientRect();
             const localX = event.clientX - rect.left;
             const localY = event.clientY - rect.top;
-            // Only the top marker band grabs, so plot zoom/select keeps working below.
-            if (localY < u.bbox.top || localY > u.bbox.top + 14) return;
+            // Only the bottom note lane grabs, so plot drag/zoom keeps working above.
+            const stripTop = u.bbox.top + u.bbox.height - NOTE_STRIP_H;
+            if (localY < stripTop) return;
             const note = noteAt(localX);
             if (!note) return;
             drag = { id: note.id };

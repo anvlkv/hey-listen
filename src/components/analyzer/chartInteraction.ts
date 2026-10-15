@@ -10,6 +10,7 @@ import {
 } from "solid-js";
 import { analyzerBus } from "../../state/chartSync";
 import { dragNoteTo, refreshNoteValues } from "../../state/notes";
+import { NOTE_STRIP_H } from "../notes/strip";
 import { timeRangeLabel } from "./chartCommon";
 import { noteGroups, noteNear } from "./notePlugins";
 import type { ReframeTarget } from "./ReframeMenu";
@@ -164,11 +165,12 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const v = view();
     const el = canvas();
     if (!v || !el) return;
-    // Grab a note on its tick (top band) to drag it along time.
+    // Grab a note on its anchor in the bottom strip to drag it along time.
     const b = box();
     const rect = el.getBoundingClientRect();
     const localY = event.clientY - rect.top;
-    if (localY >= b.y && localY <= b.y + 14) {
+    const stripTop = b.y + b.height - NOTE_STRIP_H;
+    if (localY >= stripTop && localY <= b.y + b.height) {
       const span = Math.max(v.t1 - v.t0, 1e-9);
       const note = noteNear(
         noteGroups(options.id),

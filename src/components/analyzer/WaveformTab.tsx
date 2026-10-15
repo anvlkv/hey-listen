@@ -58,7 +58,9 @@ export default function WaveformTab() {
     const count = result.max.length;
     const step = count > 0 ? result.duration / count : 0;
     const times = new Array<number>(count);
-    for (let i = 0; i < count; i++) times[i] = i * step;
+    // The envelope buckets are evenly spaced across the window, which starts at
+    // `windowStart` — the axis is in source seconds like every other chart.
+    for (let i = 0; i < count; i++) times[i] = result.windowStart + i * step;
     if (dbMode()) {
       // Collapse the signed min/max envelope to a |peak| curve in dBFS.
       const peakDb = new Array<number>(count);

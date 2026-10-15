@@ -57,12 +57,17 @@ interface Hover {
 function fullView(result: SpectrogramResult): View {
   const f0 = result.freqs[0] ?? 0;
   const f1 = result.freqs.length ? result.freqs[result.freqs.length - 1] : result.sampleRate / 2;
-  return { t0: 0, t1: Math.max(result.duration, 1e-6), f0, f1: Math.max(f1, f0 + 1) };
+  return {
+    t0: result.windowStart,
+    t1: result.windowStart + Math.max(result.duration, 1e-6),
+    f0,
+    f1: Math.max(f1, f0 + 1),
+  };
 }
 
 /** Keep a proposed view inside the data extent and above a minimum span. */
 function clampView(next: View, result: SpectrogramResult): View {
-  const [t0, t1] = clampTimeRange(next.t0, next.t1, result.duration);
+  const [t0, t1] = clampTimeRange(next.t0, next.t1, result.windowStart, result.duration);
 
   const fLo = result.freqs[0] ?? 0;
   const fHiRaw = result.freqs.length
@@ -125,7 +130,7 @@ export default function SpectrogramTab() {
     pick: (geo) => {
       const result = analysis.result();
       if (!result || result.frames === 0 || result.bins === 0) return null;
-      const frame = frameIndex(geo.time, result.duration, result.frames);
+      const frame = frameIndex(geo.time, result.windowStart, result.duration, result.frames);
       const freq = geo.view.f0 + geo.yFrac * (geo.view.f1 - geo.view.f0);
       const bin = binAt(result, freq);
       return {
@@ -154,7 +159,7 @@ export default function SpectrogramTab() {
 
     // Draw the visible sub-rectangle of the source image (time ×, freq ↑).
     const duration = Math.max(result.duration, 1e-9);
-    const sx = clamp01(v.t0 / duration) * result.frames;
+    const sx = clamp01((v.t0 - result.windowStart) / duration) * result.frames;
     const sw = Math.max(1e-6, (v.t1 - v.t0) / duration) * result.frames;
     let binLo = 0;
     let binHi = result.bins - 1;
@@ -168,7 +173,7 @@ export default function SpectrogramTab() {
 
     blitHeatmap(ctx, off, sx, sy, sw, sh, box);
 
-    drawContours(ctx, v, box, result.duration, overlays(), {
+    drawContours(ctx, v, box, result.windowStart, result.duration, overlays(), {
       centroid: showCentroid(),
       rolloff: showRolloff(),
     });

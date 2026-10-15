@@ -456,7 +456,7 @@ non-tab chrome out of `dockview`).
 point, optionally a `range`) and to an optional **analyzer tool id** (absent = a
 Timeline note), carrying a **markdown** body and a **frozen** `values` snapshot (the
 chart's readout at that time, with its `window` / `params` / `options` provenance,
-refreshed only by an explicit **Recompute**).
+refreshed whenever the note is edited or dragged).
 
 - Notes are **data**: persisted in a new **`NOTES` section (`0x07`, postcard)** of the
   `.heyl` container, owned by the frontend store and broadcast across a project's windows
@@ -465,20 +465,30 @@ refreshed only by an explicit **Recompute**).
 - The **panel is chrome**: a new **fixed region** (a right rail), not a tab, hidden by
   default and toggled from the Toolbar, resizable, and view-persisted (open/closed +
   width) — so the "only tabs are Workbench tabs" rule holds.
-- **Surfacing** is by group: every note a **Timeline** pin; a chart draws its **own**
+- **Surfacing** is by group: every note a **Timeline** anchor; a chart draws its **own**
   notes; exactly one **focused** note draws on **every time-based chart** (the `time` sync
   group), never on the frequency-axis `spectrum`. Focusing a note opens/raises its chart
-  and sets the window to the note's time.
-- The body is **markdown**, stored raw and rendered **sanitized**, with a
-  **preview-on-focus-loss** editor.
+  and sets the window to the note's time. The anchors live in a thin **strip along the
+  bottom** of the Timeline and of each time chart, clear of the window move handle and of
+  a chart's drag/zoom area.
+- The body is **markdown**, stored raw and rendered **sanitized**, with an editor that
+  commits **explicitly** (Done / ⌘↵; Escape discards) rather than on blur.
+- A note can be **popped out into its own window** — a real Tauri window aliased to the
+  parent project, exactly like an analyzer tab's *Pop out to window* (ADR-11), raised
+  rather than duplicated.
 - Reachable headless as **read-only** over a saved project (CLI `notes <file.heyl>`); the
   MCP `*_note` tools are **app-only** (a note lives in a project).
 
 **Consequence:** the project gains a commentary layer that is portable, self-describing
 (a frozen snapshot, not a dangling number), and visible wherever the annotated moment is
-drawn — while staying out of the analyzer/tab model. Costs: a new container section and a
-markdown renderer dependency; the frozen snapshot can drift from the live analysis (hence
-the recompute + stale hint rather than a silent live value). See
-[`notes.md`](notes.md).
+drawn — while staying out of the analyzer/tab model. Costs: a new container section, a
+markdown renderer dependency, and the window plumbing for a note's own window. The frozen
+snapshot can drift from the live analysis, so a row shows the **current** readout with the
+frozen one struck through beneath when they differ (rather than a silent live value, or a
+stale hint). To keep the units honest, every analyzer chart draws **source seconds**
+(results are re-based by the engine, see
+[`analysis-tools.md`](analysis-tools.md) → Chart rendering), so a note never needs a
+per-chart conversion. See [`notes.md`](notes.md).
 
-**Status: delivered (M14).**
+**Status: delivered (M14), revised after review** (bottom strip, explicit-save editor,
+source-second axes, note window, and the count chip replacing the badge).

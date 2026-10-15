@@ -160,6 +160,8 @@ pub fn run(
                 confidence: est.confidence,
                 hop_size: env_hop,
                 times: frame_times(onset_strength.len(), env_hop, sample_rate),
+                // Filled in by `run_window` — the tool only sees the sliced region.
+                window_start: 0.0,
                 onset_strength,
                 onset_times: vec![],
                 beat_times: est.beat_times.iter().map(|&t| t as f32).collect(),
@@ -174,6 +176,8 @@ pub fn run(
                 confidence: 0.0,
                 hop_size: env_hop,
                 times: frame_times(onset_strength.len(), env_hop, sample_rate),
+                // Filled in by `run_window` — the tool only sees the sliced region.
+                window_start: 0.0,
                 onset_strength,
                 onset_times: times.iter().map(|&t| t as f32).collect(),
                 beat_times: vec![],
@@ -194,6 +198,8 @@ pub fn run(
                 confidence: est.confidence,
                 hop_size: env_hop,
                 times: frame_times(onset_strength.len(), env_hop, sample_rate),
+                // Filled in by `run_window` — the tool only sees the sliced region.
+                window_start: 0.0,
                 onset_strength,
                 onset_times: vec![],
                 beat_times: est.beat_times.iter().map(|&t| t as f32).collect(),

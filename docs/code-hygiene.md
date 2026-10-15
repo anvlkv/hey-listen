@@ -133,6 +133,12 @@ prettier, eslint, knip and the length budget. Never hand-edit it and never forma
 it — regenerate it. The same goes for the vendored Font Awesome files under
 `public/fonts/`, whose licence comments must stay verbatim.
 
+Run that `cargo test` **from `src-tauri/`**. The export directory comes from
+`src-tauri/.cargo/config.toml` (`TS_RS_EXPORT_DIR = ../src/bindings`), and Cargo only
+picks up a `.cargo/config.toml` on the way *up* from the working directory — so
+`cargo test --manifest-path src-tauri/Cargo.toml` run from the repo root misses it and
+dumps a stray `src-tauri/bindings/` instead of refreshing the real one.
+
 ## Deliberately not enforced (yet)
 
 These are real, known gaps rather than oversights. Each one is a candidate for a

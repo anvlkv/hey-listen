@@ -345,13 +345,16 @@ it, load it back and confirm the note survives, then delete it.
 | --- | --- | --- | --- |
 | N1 | Add from the rail | The rail opens from the Toolbar; `Add` creates a row whose frozen values line contains `peak` (from the focused spectrum chart); the count reads `1` | Scenario |
 | N2 | Persistence | The note survives `save_project` → `new_project` → `load_project` | Scenario |
-| N3 | Delete | The row's delete button removes the note (the empty state returns) | Scenario |
+| N3 | Own window | The row's popout action opens a `note-*` Tauri window showing just that note's editor; saving there commits and closes it, and the rail shows the new heading | Scenario |
+| N4 | Delete | The row's delete button removes the note (the empty state returns) | Scenario |
 
 > **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
-> excerpts, and the snapshot comparison behind the stale hint) are checked by
-> `npm run test:unit` (`scripts/notes.test.ts`), and the `NOTES` section is
+> excerpts, the window-frame lookup `noteFrameAt`, and the snapshot comparison) are
+> checked by `npm run test:unit` (`scripts/notes.test.ts`), and the `NOTES` section is
 > round-trip tested by `cargo test` (the `project` module — a point note with values
-> and a range note) and the batch CLI's `notes` subcommand (`cli::batch`).
+> and a range note) and the batch CLI's `notes` subcommand (`cli::batch`). The engine's
+> source-second re-basing is asserted by `cargo test`
+> (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`).
 
 ## Running
 

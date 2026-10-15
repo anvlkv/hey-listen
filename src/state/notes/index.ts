@@ -29,4 +29,5 @@ export {
 } from "./mutations";
 export { defaultNoteTool, focusNote, setFocusedNote } from "./focus";
 export { liveValues, noteValuesStale } from "./values";
+export { openNoteWindow } from "./window";
 export type { NotePatch } from "./types";

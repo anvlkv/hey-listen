@@ -226,3 +226,45 @@ fn run_analysis_echoes_settings_and_transient_does_not_write_back() {
     assert_eq!(result["params"]["fftSize"], 4096);
     assert_eq!(session.params.fft_size, 4096);
 }
+
+#[test]
+fn analysis_times_are_rebased_onto_source_seconds() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 1.0 }),
+        )
+        .unwrap();
+
+    // A window that does not start at 0: every time the payload carries is in the same
+    // source seconds the caller asked in, not relative to the slice.
+    let envelope = session
+        .dispatch(
+            "run_analysis",
+            json!({
+                "tool": "spectralCentroid",
+                "transient": true,
+                "start": 0.4,
+                "end": 0.9,
+                "includeData": true,
+            }),
+        )
+        .unwrap();
+    let result = &envelope["result"];
+    assert_eq!(result["windowStart"], 0.4);
+    let first = result["times"][0].as_f64().unwrap();
+    assert!(
+        (first - 0.4).abs() < 1e-3,
+        "the first frame should sit at the window start, got {first}"
+    );
+
+    // A tool with no time axis still records the origin it ran at.
+    let envelope = session
+        .dispatch(
+            "run_analysis",
+            json!({ "tool": "waveform", "transient": true, "start": 0.4, "end": 0.9 }),
+        )
+        .unwrap();
+    assert_eq!(envelope["result"]["windowStart"], 0.4);
+}

@@ -10,6 +10,8 @@ pub fn waveform(mono: &[f32], sample_rate: u32) -> WaveformResult {
     WaveformResult {
         sample_rate,
         frames: mono.len(),
+        // Filled in by `run_window` — the tool only sees the sliced region.
+        window_start: 0.0,
         duration: if sample_rate > 0 {
             mono.len() as f64 / f64::from(sample_rate)
         } else {

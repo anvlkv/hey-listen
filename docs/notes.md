@@ -17,8 +17,8 @@ they are reachable from the UI, the MCP server, and the batch CLI.
 - Show every note on the **Timeline**, each note on **its own chart**, and the
   **focused** note on **every time-based chart** — so a remark about one moment
   is visible wherever that moment is drawn.
-- Keep a **frozen snapshot** of the chart's values as the note's subtitle, with a
-  one-click **recompute** when the analysis has changed.
+- Keep a **frozen snapshot** of the chart's values as the note's subtitle, which
+  refreshes whenever the note is edited or dragged (there is no recompute button).
 - Reach them from the UI, MCP, and the batch CLI.
 - Persist them in the project file; sync them across a project's windows.
 
@@ -54,6 +54,10 @@ section and exported to TypeScript (`src/bindings/`). See
 - **`timeSecs`** is the anchor. It is a **point** by default; **`range`** is
   optional, so a note can also mark a span (e.g. "from here to here"). Setting a
   range never replaces the anchor — the point stays the note's identity.
+- **Every time in the app is source seconds** — the note's anchor, the Timeline, and
+  each analyzer chart's x-axis (a result carries the `windowStart` it was computed at,
+  see [`analysis-tools.md`](analysis-tools.md) → Chart rendering). So a note lines up
+  with the audio it describes without any per-chart conversion.
 - **`tool`** is a stable analyzer id (e.g. `spectrogram`, `pitchYin`) — the
   *same* id `run_analysis` / the Sidebar use. Present = the note hangs off that
   chart. Absent = a **Timeline note** (taken directly on the timeline, with no
@@ -89,9 +93,11 @@ the note's time*, captured when the note was written.
 
 `body` is raw markdown. Editing is plain text; rendering is sanitized.
 
-- **Edit / preview** — the note's editor is a textarea. **Preview renders on
-  focus loss** (blurring the editor renders the markdown; clicking the rendered
-  body re-enters edit). No live side-by-side, no toggle to hunt for.
+- **Explicit save** — the row's `edit` action swaps its rendered body for a
+  **textarea** (focused, caret at the end) with a **save** (`✓`, `data-testid`
+  `note.done.*`) and a **discard** (`✕`) action. **Done / ⌘(Ctrl)+Enter** commits the
+  draft; **Escape** discards it. Blur is *not* a save, so a stray click can never lose
+  an edit. The note is shown **once**: while editing, the textarea replaces the body.
 - **Sanitized** — the rendered HTML is sanitized (raw HTML / scripts / event
   handlers stripped), so a pasted note cannot inject markup. This adds a small
   markdown renderer + sanitizer dependency (see [`dependencies.md`](dependencies.md)).
@@ -105,45 +111,52 @@ Sidebar (see [`ui-layout.md`](ui-layout.md)). It is **not** a Workbench tab: the
 only tabs are Workbench tabs, and a note panel is chrome, not content.
 
 - **Collapsible**, **hidden by default**. A Toolbar icon button (`note-sticky`)
-  toggles it, carrying a **count badge** while the rail is closed; the panel's own
-  header has a chevron to collapse it, an **Add note** button (anchors at the current
-  analysis window, using the focused analyzer as its chart, with a **range** toggle),
-  and the total count.
+  toggles it; while the rail is closed and notes exist, the button carries its
+  **count** as a muted pill *inside* the button (a tally, not a notification badge).
+  The panel's own header has a chevron to collapse it, an **Add note** button (anchors
+  at the current analysis window, using the focused analyzer as its chart, with a
+  **range** toggle), and the total count.
 - **Resizable** with a draggable splitter, clamped like the left Sidebar
   (160–520 px). The Workbench shrinks beside it (the panel pushes, it does not
   overlay).
 - Open/closed state and width are **view settings**, persisted app-level (like
   the font scale), **not** part of the project.
 - The list is **sorted by `timeSecs`**, one row per note. A row is a **title bar**
-  — the heading (the body's first line) plus the row actions (`open chart` when the
-  note has an analyzer, `edit`, `popout`, `delete`) — over its tool + time subtitle,
-  its **current** values line (with the frozen snapshot struck through when it
-  differs), and its **full rendered body** (clamped to a height, expandable with a
-  chevron). Selecting the heading **focuses** the note (below).
-- **Popout** — the `popout` action opens the note in a large, **edit-only** view (a
-  modal over the app), for a roomier markdown surface.
+  — a compact, visually separated bar with the heading (the body's first line) on the
+  left and the row actions as **borderless icons** on the right (`open chart` when the
+  note has an analyzer, `edit`, `popout`, `delete`) — over its tool + time subtitle, its
+  **current** values line (with the frozen snapshot struck through when it differs), and
+  its **full rendered body** (clamped to a height, expandable with a chevron). Selecting
+  the heading **focuses** the note (below). Editing swaps the body for the editor
+  (above); the row never shows a note twice.
+- **Popout** — the `popout` action opens the note in its **own window** (a real Tauri
+  window, exactly like an analyzer tab's *Pop out to window*), for a roomier markdown
+  surface. Opening a note that already has a window **raises** it rather than opening a
+  duplicate.
 
 ## Surfacing: Timeline and charts
 
-Notes are drawn where the audio is drawn.
+Notes are drawn where the audio is drawn — anchored in a thin **strip** along the
+**bottom** edge, on the Timeline and on every time chart, so they stay clear of the
+Timeline's window move handle and of a chart's drag/zoom area.
 
-- **Timeline** — every note is a **pin** at `timeSecs` (a **span** for a range
-  note), rendered as a new overlay pass in the Timeline canvas (ADR-7). Hovering
-  a pin shows a hint (heading + tool + values line); clicking it focuses the note;
+- **Timeline** — every note is a **tab** in the bottom strip at `timeSecs` (a shaded
+  span for a range note), with a faint stem rising out of the lane. Hovering a tab
+  shows a hint (heading + tool + values line); clicking it focuses the note;
   **dragging** it along the timeline moves the note's time (the snapshot refreshes
   on release).
 - **A note's own chart** — the notes whose `tool` matches the chart are drawn on
-  it (full-strength ticks); the notes from **other** charts are drawn **muted**, so
+  it (full-strength anchors); the notes from **other** charts are drawn **muted**, so
   every annotation is visible where the audio is. A chart can be dragged the same
-  way by grabbing a note's tick in the top band.
+  way by grabbing a note's tab in the bottom strip.
 - **The focused note** — exactly **one** note is focused at a time. The focused
   note is drawn on **every time-based chart** (the `time` sync group: waveform,
   series-over-time, spectrogram, matrix, rhythm), via the shared chart bus
   (`state/chartSync.ts` + a note plugin). It is **not** drawn on the
   frequency-axis `spectrum` (a time marker has no meaning on a frequency axis).
-- **Marker** — a vertical rule at `timeSecs` (a shaded span for a range note)
-  with a small label (the title, or the values line). Clicking a marker focuses
-  the note.
+- **Marker** — a full-height vertical rule at `timeSecs` (a shaded span for a range
+  note) plus its tab in the strip, with a **label** (the values line, else the
+  heading) in a chip just above the lane. Clicking a marker focuses the note.
 
 **Focus follows the click:** focusing a note **opens (or raises) the chart it
 belongs to** and **sets the analysis window / cursor to the note's time** — the
@@ -174,9 +187,14 @@ panel if it is collapsed, **opens the new note's editor**, and focuses it.
   [`project-file-format.md`](project-file-format.md).
 - **Cross-window** — the frontend owns the notes store (like `params` /
   `toolOptions`) and broadcasts it as shared **UI state** (`uiState` keys
-  `notes` and `focusedNoteId`), so a project's popouts stay in lockstep
-  (ADR-11). No new Rust command owns them; they ride the existing
-  `save_project` / `load_project` / `get_ui_state` / `set_ui_state` surface.
+  `notes` and `focusedNoteId`), so a project's popouts and its note windows stay in
+  lockstep (ADR-11). No new Rust command owns them; they ride the existing
+  `save_project` / `load_project` / `get_ui_state` / `set_ui_state` surface, plus the
+  window commands below.
+- **A note's own window** — `open_note_window` creates a real Tauri window aliased to
+  the calling window's project (like `open_popout_window`), so the note is one more
+  *view* of the project, never a project of its own. The window asks `popout_note`
+  which note to render and pulls the notes from `uiState`; it closes with its parent.
 - **Dirty + history** — a note edit marks the project **dirty** and is one
   **undo/redo** step (`state/history.ts` snapshot gains the notes + focus).
   Notes reset with the history on New / Open.
@@ -224,19 +242,24 @@ nowhere to store a note.
 
 | Path | Role |
 | --- | --- |
-| `src/state/notes/` | The `Note` type, the store, create/update/delete/focus, and the values capture. |
-| `src/lib/note.ts` | Pure note helpers (clamp, label, excerpt, snapshot compare) — unit-tested. |
+| `src/state/notes/` | The `Note` type, the store, create/update/delete/focus, the values capture, and `window.ts` (open a note's own window). |
+| `src/lib/note.ts` | Pure note helpers (clamp, label, excerpt, the window-frame lookup `noteFrameAt`) — unit-tested. |
 | `src/lib/markdown.ts` | Markdown → sanitized HTML (`marked` + `dompurify`). |
-| `src/components/NotesPanel.tsx` | The right rail: the list, the editor (markdown + preview-on-blur), Add / Recompute / Delete. |
-| `src/components/analyzer/notePlugins.ts` | The chart marker plugin (focused note on every time chart; a chart's own notes). |
+| `src/components/NotesPanel.tsx` | The right rail: the header (add / range / collapse) and the list. |
+| `src/components/notes/NoteRow.tsx` | One row: the title bar, meta, values, and the body *or* the editor. |
+| `src/components/notes/NoteEditors.tsx` | The inline editor (textarea, explicit save/discard). |
+| `src/components/notes/NoteWindow.tsx` | The content of a note's **own window** (a large, edit-only editor). |
+| `src/components/notes/strip.ts` | The shared bottom-strip height (Timeline + charts). |
+| `src/components/analyzer/notePlugins.ts` | The chart marker plugin (its own notes, muted others, the focused rule + label; drag along time). |
 | `src/components/analyzer/ReframeMenu.tsx` | The chart right-click menu — carries **Add note here**. |
-| `src/components/Timeline.tsx` | The note pin/span overlay + hit-testing (ADR-7 canvas). |
-| `src/components/Toolbar.tsx` | The `note-sticky` toggle for the panel. |
+| `src/components/timeline/` | The note anchor drawing (`draw.ts`), hit-testing (`noteHit.ts`) and drag (`interaction.ts`). |
+| `src/components/Toolbar.tsx` | The `note-sticky` toggle + its count chip. |
 | `src-tauri/src/project/sections.rs` | The `Note` / `NoteValues` types (`#[derive(ts_rs::TS)]`) + the `NOTES` section id. |
 | `src-tauri/src/project/{write,read}.rs` | Write / read the `NOTES` section. |
 | `src/state/project/`, `src/state/history.ts` | Include notes in save/load, undo/redo, and the dirty signature. |
-| `src/state/uiState.ts`, `src/state/uiSync.ts` | Broadcast notes + focus across the project's windows. |
-| `src/state/settings.ts` | The Notes rail's view settings (open + width), persisted app-level. |
+| `src/state/uiState.ts`, `uiSync.ts`, `settings.ts` | Broadcast notes + focus across a project's windows; the rail's view settings (open + width), persisted app-level. |
+| `src-tauri/src/commands/window.rs` | `open_note_window` / `popout_note` — the note window. |
+| `src-tauri/src/state/window.rs` | The window registry (popout aliases, tool and note). |
 | `src-tauri/src/cli/batch/` | The `notes` subcommand (read-only over a `.heyl`). |
 | `src/state/mcp/`, `src-tauri/src/mcp/tools/` | The `*_note` tools. |
 
@@ -249,16 +272,27 @@ nowhere to store a note.
   for a time chart and the summary for a no-time-axis tool; a row shows the current
   readout and strikes through the frozen snapshot when they differ; editing the note
   (or a drag release) refreshes the snapshot.
-- **Anchoring + drag** — `time` / `range` clamp to the source; dragging a note's pin
-  (Timeline) or tick (a chart) moves it and refreshes the snapshot on release; a note
-  with an unknown `tool` is kept but draws no chart marker (and its link is inert).
+- **Anchoring + drag** — `time` / `range` clamp to the source; dragging a note's
+  anchor (Timeline strip, or a chart's strip) moves it and refreshes the snapshot on
+  release; a note with an unknown `tool` is kept but draws no chart marker (and its
+  link is inert).
+- **Source-second alignment** — a note at `t` is drawn at `t` on a chart whose window
+  does **not** start at 0 (`windowStart` shifts the frame grid, not the note), and its
+  values line reads the frame containing `t` (`noteFrameAt`).
 - **Surfacing** — the focused note is drawn on every time chart and **not** on
-  `spectrum`; a chart draws only its own notes.
+  `spectrum`; a chart draws its own notes (and other charts' muted); the anchors sit in
+  the bottom strip on both the Timeline and the charts.
+- **Editor** — the body is swapped for the textarea while editing (never both); Done /
+  ⌘↵ commits and Escape discards; a blur does not save.
+- **Note window** — `open_note_window` shows a real window that renders just that note,
+  pulling its data from the shared `uiState` and closing with its parent; opening the
+  same note twice raises the existing window.
 - **CLI** — `notes <file.heyl>` prints the notes (table / `--json`); a file with
   no `NOTES` section prints nothing; a bad file exits `1`.
 - **E2E (wdio)** — open a source, add a note from a chart, assert the Timeline
-  pin + the sidebar row + the frozen values, move the window to make the snapshot
-  stale, recompute, and reopen the project to confirm the notes persist.
+  anchor + the rail row + the frozen values, move the window and confirm the note's
+  anchor and values still read the same source second, and reopen the project to
+  confirm the notes persist.
 
 See [`roadmap.md`](roadmap.md) → **M14** and [`decisions.md`](decisions.md) →
 **ADR-18**.

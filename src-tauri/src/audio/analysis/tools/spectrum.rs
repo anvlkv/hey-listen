@@ -147,6 +147,8 @@ pub fn spectrogram(
         sample_rate,
         fft_size: fft,
         hop_size: hop,
+        // Filled in by `run_window` — the tool only sees the sliced region.
+        window_start: 0.0,
         duration: if sample_rate > 0 {
             mono.len() as f64 / f64::from(sample_rate)
         } else {

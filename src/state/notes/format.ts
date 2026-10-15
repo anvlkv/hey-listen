@@ -15,14 +15,9 @@ import {
   type SpectrumResult,
   type WaveformResult,
 } from "../analyzer";
+import { noteFrameAt } from "../../lib/note";
 
 const db = (value: number) => 20 * Math.log10(Math.max(Math.abs(value), 1e-6));
-
-/** The frame nearest a time on a uniformly-sampled axis. */
-function frameIndex(timeSecs: number, duration: number, count: number): number {
-  if (!(duration > 0) || count <= 0) return 0;
-  return Math.min(count - 1, Math.max(0, Math.round((timeSecs / duration) * count)));
-}
 
 /** The index nearest `time` in an irregular time axis. */
 function nearestIndex(times: number[], timeSecs: number): number {
@@ -56,7 +51,7 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
   switch (result.tool) {
     case "waveform": {
       const r = result as WaveformResult;
-      const frame = frameIndex(timeSecs, r.duration, r.max.length);
+      const frame = noteFrameAt(timeSecs, r.windowStart, r.duration, r.max.length);
       if (r.max.length === 0) return `t ${t} s · no data`;
       const peak = Math.max(Math.abs(r.max[frame]), Math.abs(r.min[frame]));
       return `t ${t} s · peak ${db(peak).toFixed(1)} dBFS`;
@@ -68,7 +63,7 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
     case "spectrogram": {
       const r = result as SpectrogramResult;
       if (r.frames === 0 || r.bins === 0) return `t ${t} s · no data`;
-      const frame = Math.min(r.frames - 1, frameIndex(timeSecs, r.duration, r.frames));
+      const frame = noteFrameAt(timeSecs, r.windowStart, r.duration, r.frames);
       const base = frame * r.bins;
       let bin = 0;
       let best = -Infinity;
@@ -114,7 +109,7 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
     const r = result as MatrixResult;
     if (r.frames === 0 || r.bins === 0) return `t ${t} s · no data`;
     const view = analyzerById(tool).view as MatrixViewConfig;
-    const frame = Math.min(r.frames - 1, frameIndex(timeSecs, r.duration, r.frames));
+    const frame = noteFrameAt(timeSecs, r.windowStart, r.duration, r.frames);
     const base = frame * r.bins;
     let band = 0;
     let best = -Infinity;

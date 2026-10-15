@@ -1,135 +1,17 @@
-//! Core-owned audio state.
+//! Per-window state (one window = one project = one source, ADR-3).
 //!
-//! The Rust core owns the PCM backing the timeline (ADR-9): file decodes and synth
-//! renders write it, live capture appends to it, and preview playback reads it.
-//! The frontend keeps its own copy only for rendering the waveform (a transitional
-//! duplication — see `docs/decisions.md` → ADR-9).
+//! Every project window owns its own [`WindowState`]; [`WindowRegistry`] maps a window
+//! label onto it, following popout aliases so a popout is a **view** of its parent
+//! project rather than a project of its own (ADR-11). See `docs/decisions.md`.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tauri::Manager;
 
 use crate::audio::capture::CaptureHandle;
-use crate::audio::graph::GraphSpec;
-use crate::audio::playback::Playback;
 
-/// The current source's PCM (interleaved `f32`).
-#[derive(Debug, Clone)]
-pub struct SourcePcm {
-    pub samples: Vec<f32>,
-    pub sample_rate: u32,
-    pub channels: u16,
-}
-
-/// Shared state behind the playback/filter source: one per app (one window = one
-/// project = one source).
-pub struct AudioState {
-    /// The source PCM. The `Arc`/`Mutex` lets the capture thread append while the
-    /// command layer reads.
-    pub source: Arc<Mutex<Option<SourcePcm>>>,
-    /// While true, live-capture chunks are appended to `source`.
-    pub recording: Arc<AtomicBool>,
-    /// The active filter graph, applied before preview (and, from M4, analysis).
-    pub filter: Arc<Mutex<Option<GraphSpec>>>,
-    pub playback: Playback,
-}
-
-/// A cheap, cloneable handle for appending capture chunks from the capture thread
-/// without holding the whole [`AudioState`].
-#[derive(Clone)]
-pub struct RecordingSink {
-    source: Arc<Mutex<Option<SourcePcm>>>,
-    recording: Arc<AtomicBool>,
-}
-
-impl RecordingSink {
-    /// Append captured interleaved samples while recording.
-    pub fn append(&self, interleaved: &[f32]) {
-        if !self.recording.load(Ordering::Relaxed) {
-            return;
-        }
-        let mut guard = self
-            .source
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
-        if let Some(source) = guard.as_mut() {
-            source.samples.extend_from_slice(interleaved);
-        }
-    }
-}
-
-impl AudioState {
-    pub fn new() -> Self {
-        Self {
-            source: Arc::new(Mutex::new(None)),
-            recording: Arc::new(AtomicBool::new(false)),
-            filter: Arc::new(Mutex::new(None)),
-            playback: Playback::new(),
-        }
-    }
-
-    /// A handle for appending live-capture chunks from another thread.
-    pub fn recording_sink(&self) -> RecordingSink {
-        RecordingSink {
-            source: self.source.clone(),
-            recording: self.recording.clone(),
-        }
-    }
-
-    /// Replace the source PCM (file decode / synth render).
-    pub fn set_source(&self, source: Option<SourcePcm>) {
-        self.recording.store(false, Ordering::Relaxed);
-        *self
-            .source
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner()) = source;
-    }
-
-    /// Replace the filter graph; `None` bypasses filtering.
-    pub fn set_filter(&self, spec: Option<GraphSpec>) {
-        *self
-            .filter
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner()) = spec;
-    }
-
-    /// Begin a fresh recording buffer (called when Record starts).
-    pub fn begin_recording(&self, sample_rate: u32, channels: u16) {
-        let mut guard = self
-            .source
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
-        *guard = Some(SourcePcm {
-            samples: Vec::new(),
-            sample_rate,
-            channels,
-        });
-        self.recording.store(true, Ordering::Relaxed);
-    }
-
-    /// Stop appending capture chunks (the recorded audio is kept).
-    pub fn end_recording(&self) {
-        self.recording.store(false, Ordering::Relaxed);
-    }
-
-    /// Drop the source PCM and silence preview (used when the source changes).
-    pub fn clear(&self) {
-        self.recording.store(false, Ordering::Relaxed);
-        *self
-            .source
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner()) = None;
-        self.playback.stop();
-    }
-}
-
-impl Default for AudioState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+use super::AudioState;
 
 // ---------------------------------------------------------------------------
 // Per-window state (one window = one project = one source, ADR-3)
@@ -196,7 +78,7 @@ impl Default for WindowState {
 /// Popout windows are **views** of a project, not projects of their own: their
 /// label is aliased to the parent's, so every command resolves to the parent's
 /// [`WindowState`] (the shared source / filter / playback). The alias also records
-/// which tool the popout shows.
+/// which tool or note the popout shows.
 #[derive(Default)]
 struct RegistryInner {
     states: HashMap<String, Arc<WindowState>>,
@@ -204,6 +86,8 @@ struct RegistryInner {
     aliases: HashMap<String, String>,
     /// Popout label → tool id shown in that popout.
     popout_tools: HashMap<String, String>,
+    /// Popout label → note id shown in that popout.
+    popout_notes: HashMap<String, String>,
 }
 
 #[derive(Default)]
@@ -260,6 +144,27 @@ impl WindowRegistry {
         inner.popout_tools.get(label).cloned()
     }
 
+    /// Register `popout` as a view of `parent`'s project showing the note `note_id`.
+    pub fn add_note_popout(&self, popout: &str, parent: &str, note_id: &str) {
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        inner.aliases.insert(popout.to_string(), parent.to_string());
+        inner
+            .popout_notes
+            .insert(popout.to_string(), note_id.to_string());
+    }
+
+    /// The note a popout window shows, or `None` for a tool popout / project window.
+    pub fn popout_note(&self, label: &str) -> Option<String> {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        inner.popout_notes.get(label).cloned()
+    }
+
     /// Every window of `label`'s project: the owning (root) window plus any popout
     /// windows aliased to it. Used to broadcast UI-state changes to all its views.
     pub fn project_windows(&self, label: &str) -> Vec<String> {
@@ -300,12 +205,29 @@ impl WindowRegistry {
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        let root = resolve_root(&inner.aliases, label);
-        inner.aliases.iter().find_map(|(popout, parent)| {
-            let same_project = resolve_root(&inner.aliases, parent) == root;
-            let same_tool = inner.popout_tools.get(popout).map(String::as_str) == Some(tool);
-            (same_project && same_tool).then(|| popout.clone())
-        })
+        popout_showing(&inner, label, &inner.popout_tools, tool)
+    }
+
+    /// The popout window showing `note_id` for `label`'s project, if one is open.
+    ///
+    /// Like [`WindowRegistry::popout_for`] for tools: a note that already has a window
+    /// is **raised** instead of opened twice.
+    pub fn note_popout_for(&self, label: &str, note_id: &str) -> Option<String> {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        popout_showing(&inner, label, &inner.popout_notes, note_id)
+    }
+
+    /// Whether `label` is a popout of any kind (tool or note), rather than a project
+    /// window: a popout has an alias entry, a project window does not.
+    pub fn is_popout(&self, label: &str) -> bool {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        inner.aliases.contains_key(label)
     }
 
     /// The tools popped out of `label`'s project (for saving/restoring them).
@@ -331,6 +253,7 @@ impl WindowRegistry {
                 .unwrap_or_else(|poison| poison.into_inner());
             inner.aliases.remove(label);
             inner.popout_tools.remove(label);
+            inner.popout_notes.remove(label);
             inner.aliases.retain(|_, parent| parent != label);
             inner.states.remove(label)
         };
@@ -352,6 +275,23 @@ fn resolve_root(aliases: &HashMap<String, String>, label: &str) -> String {
         current = parent.clone();
     }
     current
+}
+
+/// The popout of `label`'s project whose `shown` table (popout label → shown id) maps
+/// it to `id`, if one is open. `shown` is the tool map or the note map, so the two
+/// kinds share one lookup.
+fn popout_showing(
+    inner: &RegistryInner,
+    label: &str,
+    shown: &HashMap<String, String>,
+    id: &str,
+) -> Option<String> {
+    let root = resolve_root(&inner.aliases, label);
+    inner.aliases.iter().find_map(|(popout, parent)| {
+        let same_project = resolve_root(&inner.aliases, parent) == root;
+        let shows_id = shown.get(popout).map(String::as_str) == Some(id);
+        (same_project && shows_id).then(|| popout.clone())
+    })
 }
 
 /// Resolve the calling window's project state.

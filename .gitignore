@@ -8,6 +8,10 @@ dist
 /e2e/artifacts/
 logs/
 
+# ts-rs's fallback export dir: `cargo test` run outside `src-tauri/` misses
+# `src-tauri/.cargo/config.toml` and writes here instead of `src/bindings/`.
+/src-tauri/bindings/
+
 # husky v9 keeps its generated hook shims here; the hooks themselves
 # (.husky/pre-commit, .husky/pre-push) are tracked.
 .husky/_/

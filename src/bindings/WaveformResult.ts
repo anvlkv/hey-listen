@@ -5,6 +5,10 @@
  */
 export type WaveformResult = { sampleRate: number, frames: number, duration: number, 
 /**
+ * Source seconds where the window starts (its times / frames are relative to this).
+ */
+windowStart: number, 
+/**
  * Peak amplitude (linear, 0…1+).
  */
 peak: number, rms: number, peakDb: number, rmsDb: number, 

@@ -44,11 +44,11 @@ interface Hover {
 }
 
 function fullView(result: MatrixResult): View {
-  return { t0: 0, t1: Math.max(result.duration, 1e-6) };
+  return { t0: result.windowStart, t1: result.windowStart + Math.max(result.duration, 1e-6) };
 }
 
 function clampView(next: View, result: MatrixResult): View {
-  const [t0, t1] = clampTimeRange(next.t0, next.t1, result.duration);
+  const [t0, t1] = clampTimeRange(next.t0, next.t1, result.windowStart, result.duration);
   return { t0, t1 };
 }
 
@@ -88,7 +88,7 @@ export default function MatrixView(props: {
       const value = result();
       if (!value || value.frames === 0 || value.bins === 0) return null;
       const band = Math.min(value.bins - 1, Math.max(0, Math.round(geo.yFrac * (value.bins - 1))));
-      const frame = frameIndex(geo.time, value.duration, value.frames);
+      const frame = frameIndex(geo.time, value.windowStart, value.duration, value.frames);
       return {
         time: geo.time,
         band,
@@ -123,7 +123,7 @@ export default function MatrixView(props: {
     if (!value || !off || !v) return;
 
     const duration = Math.max(value.duration, 1e-9);
-    const sx = clamp01(v.t0 / duration) * value.frames;
+    const sx = clamp01((v.t0 - value.windowStart) / duration) * value.frames;
     const sw = Math.max(1e-6, (v.t1 - v.t0) / duration) * value.frames;
 
     blitHeatmap(ctx, off, sx, 0, sw, value.bins, box);

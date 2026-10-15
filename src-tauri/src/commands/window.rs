@@ -62,6 +62,49 @@ pub async fn open_popout_window(
     Ok(())
 }
 
+/// Open a popout window for a single note.
+///
+/// Like [`open_popout_window`], the new window is a *view* of the *calling* window's
+/// project: its label is aliased (with the note id) to the caller's, so every command
+/// resolves to the same [`crate::state::WindowState`]. A note that already has a
+/// window is **raised** instead of opened twice, and the frontend asks [`popout_note`]
+/// which note to render.
+#[tauri::command]
+pub async fn open_note_window(window: tauri::WebviewWindow, note_id: String) -> Result<(), String> {
+    let app = window.app_handle();
+    let registry = app.state::<crate::state::WindowRegistry>();
+
+    // A note already shown in this project's windows is raised, not duplicated.
+    if let Some(existing) = registry.note_popout_for(window.label(), &note_id) {
+        if let Some(popout) = app.get_webview_window(&existing) {
+            let _ = popout.unminimize();
+            let _ = popout.set_focus();
+            return Ok(());
+        }
+    }
+
+    let label = next_label("note");
+    let parent = window.label().to_string();
+
+    // Register the alias *before* the window loads, so its frontend can ask
+    // `popout_note` / `load_shared_source` and resolve to the parent project right
+    // away (no race with the window's first paint).
+    registry.add_note_popout(&label, &parent, &note_id);
+
+    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+        .title("Hey Listen")
+        .inner_size(640.0, 560.0)
+        .min_inner_size(360.0, 300.0)
+        .build();
+
+    if let Err(err) = built {
+        registry.remove(&label);
+        return Err(err.to_string());
+    }
+
+    Ok(())
+}
+
 /// The tool a popout window shows, or `None` for a regular project window.
 #[tauri::command]
 pub fn popout_tool(window: tauri::WebviewWindow) -> Option<String> {
@@ -69,6 +112,15 @@ pub fn popout_tool(window: tauri::WebviewWindow) -> Option<String> {
         .app_handle()
         .state::<crate::state::WindowRegistry>()
         .popout_tool(window.label())
+}
+
+/// The note a popout window shows, or `None` for a regular project window.
+#[tauri::command]
+pub fn popout_note(window: tauri::WebviewWindow) -> Option<String> {
+    window
+        .app_handle()
+        .state::<crate::state::WindowRegistry>()
+        .popout_note(window.label())
 }
 
 /// The tools currently popped out of the calling window's project.

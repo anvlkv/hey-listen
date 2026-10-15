@@ -3,6 +3,7 @@ import {
   clampNoteTime,
   noteBody,
   noteExcerpt,
+  noteFrameAt,
   noteHeading,
   noteLabel,
   noteTimeText,
@@ -75,6 +76,20 @@ check("formats a point and a range time subtitle", () => {
     noteTimeText({ timeSecs: 2.34, range: { startSecs: 2.34, endSecs: 3.1 } }),
     "2.340 – 3.100 s",
   );
+});
+
+check("reads the frame at a source time inside a window that does not start at 0", () => {
+  // A window of 4 s starting at source 4 s, sampled 8 frames deep (2 frames / s).
+  assertEqual(noteFrameAt(4, 4, 4, 8), 0);
+  assertEqual(noteFrameAt(4.5, 4, 4, 8), 1);
+  assertEqual(noteFrameAt(5, 4, 4, 8), 2);
+  assertEqual(noteFrameAt(7.999, 4, 4, 8), 7);
+  // A time outside the window reads its nearest edge frame, never out of range.
+  assertEqual(noteFrameAt(2, 4, 4, 8), 0);
+  assertEqual(noteFrameAt(9, 4, 4, 8), 7);
+  // Degenerate grids never index out of range.
+  assertEqual(noteFrameAt(5, 4, 0, 8), 0);
+  assertEqual(noteFrameAt(5, 4, 4, 0), 0);
 });
 
 const base = (overrides: Partial<NoteValues> = {}): NoteValues => ({

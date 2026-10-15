@@ -186,8 +186,7 @@ fn target_label<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
         }
     }
     // Otherwise, the first live window that is not a popout.
-    live.into_iter()
-        .find(|label| registry.popout_tool(label).is_none())
+    live.into_iter().find(|label| !registry.is_popout(label))
 }
 
 /// Resolve an explicit `target` label to the project window it names.
@@ -215,7 +214,7 @@ fn list_projects<R: Runtime>(app: &AppHandle<R>) -> Vec<Value> {
     let focused = crate::commands::focused_label(app).map(|label| registry.root_label(&label));
 
     let mut labels: Vec<String> = app.webview_windows().keys().cloned().collect();
-    labels.retain(|label| registry.popout_tool(label).is_none());
+    labels.retain(|label| !registry.is_popout(label));
     labels.sort();
 
     labels

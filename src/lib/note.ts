@@ -99,6 +99,25 @@ export function noteTimeText(note: Pick<Note, "timeSecs" | "range">): string {
   return `${note.timeSecs.toFixed(3)} s`;
 }
 
+/**
+ * The frame of a uniformly-sampled window grid that contains `timeSecs`.
+ *
+ * A tool's frames are evenly spaced across the analysis window, and every time a
+ * result carries is in **source seconds** (see `docs/analysis-tools.md`), so reading
+ * the frame at a note's time needs the window's origin — this is that lookup. Clamped
+ * to the grid, so a time outside the window reads its nearest edge frame.
+ */
+export function noteFrameAt(
+  timeSecs: number,
+  windowStartSecs: number,
+  durationSecs: number,
+  frames: number,
+): number {
+  if (!(durationSecs > 0) || frames <= 0) return 0;
+  const into = (timeSecs - windowStartSecs) / durationSecs;
+  return Math.min(frames - 1, Math.max(0, Math.floor(into * frames)));
+}
+
 /** Compare a window / params / options / text snapshot by value (for the stale hint). */
 export function valuesEqual(a: NoteValues | null, b: NoteValues | null): boolean {
   if (a == null && b == null) return true;

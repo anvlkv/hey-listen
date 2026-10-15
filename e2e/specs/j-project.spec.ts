@@ -28,6 +28,7 @@ import {
   count,
   closeAllTabs,
 } from "../support/helpers.ts";
+import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
 async function timelineReadout(): Promise<string> {
@@ -65,34 +66,6 @@ async function rightClick(selector: string): Promise<void> {
   }, selector);
 }
 
-/**
- * Close the window the test is currently focused on.
- *
- * Fire-and-forget: it runs the app's own `close_window` command (`window.destroy()`),
- * which tears the caller down before the IPC reply can be delivered — awaiting it
- * would hang. The frontend's `onCloseRequested` guard prevents a *native* close and
- * routes it through this command, so going through it is the supported path.
- */
-async function closeCurrentWindow(): Promise<void> {
-  await browser.tauri.execute((tauri) => {
-    void tauri.core.invoke("close_window").catch(() => {});
-  });
-}
-
-/**
- * The labels of every open Tauri window. `listWindows()` shape is not relied upon:
- * handles may be plain strings or objects carrying a `label`/`handle`.
- */
-async function windowLabels(): Promise<string[]> {
-  const windows = (await browser.tauri.listWindows()) as unknown;
-  if (!Array.isArray(windows)) return [];
-  return windows.map((w) => {
-    if (typeof w === "string") return w;
-    const obj = w as { label?: string; handle?: string; name?: string };
-    return obj.label ?? obj.handle ?? obj.name ?? "";
-  });
-}
-
 describe("H. Project file & multi-window", () => {
   before(async () => {
     await waitForApp();
@@ -110,15 +83,7 @@ describe("H. Project file & multi-window", () => {
   // window, and H2 pops a tab out into a real `popout-*` window. Close it here — the
   // spec that opens a secondary window is the one that should close it.
   after(async () => {
-    for (const label of await windowLabels()) {
-      if (!/^popout-\d+$/.test(label)) continue;
-      await browser.tauri.switchWindow(label).catch(() => {});
-      await closeCurrentWindow().catch(() => {});
-      await waitFor(
-        async () => !(await windowLabels()).includes(label),
-        `the popout ${label} did not close`,
-      ).catch(() => {});
-    }
+    await closeWindowsMatching(/^popout-\d+$/);
     await browser.tauri.switchWindow("main").catch(() => {});
   });
 

@@ -138,6 +138,14 @@ params popover holds only its non-shared options.
 Each view kind renders its data for its semantics, driven by the tool's registry
 entry — no per-tool chart component.
 
+**Every time a chart draws is source seconds.** The engine analyses the analysis
+window as a slice, so a tool's frames are laid out from the window's start; the
+engine re-bases each result onto source seconds before it leaves (`windowStart`
+records the origin — see [`data-model.md`](data-model.md) → `AnalysisResult`). A
+result's `times`, its hover readouts, the axis labels, and a note's anchor therefore
+all speak the same units, whatever the window is, and a consumer that needs a *frame*
+from a time (the heatmaps, a note's values line) maps it back through `windowStart`.
+
 - **series** — one scalar per frame over time. Declarative options pick a line /
   area / step / impulse (**stems**) path; pitch tracks use a **log-frequency y-axis
   with semitone gridlines**; bounded ratios fix `0…1`; momentary loudness adds a
@@ -153,3 +161,6 @@ entry — no per-tool chart component.
   a **tempo-salience** panel (the envelope's autocorrelation over BPM) on the tempo
   and downbeat tools.
 - **readouts** — scalar cards; the `levels` tool draws **peak / RMS meter bars**.
+- **notes** — every time-axis chart also draws its project notes as anchors in a thin
+  strip along the bottom (its own at full strength, other charts' muted, the focused
+  one as a full-height rule with a label). See [`notes.md`](notes.md) → Surfacing.

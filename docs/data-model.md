@@ -24,7 +24,11 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   [`analysis-tools.md`](analysis-tools.md)), identified by a stable id (e.g.
   `spectrogram`, `fft`, `loudness`).
 - **AnalysisResult** — cached output of a tool over a window (typed payload +
-  the params/window it was computed for).
+  the params/window it was computed for). Every time it carries is in **source
+  seconds**: the tools run on the window's slice, and the engine re-bases the result
+  onto the source timeline before it leaves (`windowStart` records the origin), so
+  the payload, the charts, a note's `timeSecs`, and an export all agree. See
+  [`analysis-tools.md`](analysis-tools.md) → Chart rendering.
 - **SharedParams** — analysis params synced across tools (FFT size, hop/overlap, window function, channel, frequency range, …).
 - **ToolOptions** — per-tool params that are *not* shared (band/coefficient counts,
   YIN threshold, f0 range, bar length, momentary window, …); they ride along with

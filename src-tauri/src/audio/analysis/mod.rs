@@ -114,7 +114,12 @@ pub fn run_window(
         params.channel,
         params.resample_to,
     )?;
-    run(tool, &mono, rate, params, options)
+    // The tools see only the sliced region (their times begin at 0), so re-base the
+    // result onto source seconds here — the single place that knows where the window
+    // sits. Everything downstream (GUI, MCP, CLI, exports) then speaks absolute time.
+    let mut result = run(tool, &mono, rate, params, options)?;
+    result.rebase(start);
+    Ok(result)
 }
 
 /// Reduce the windowed interleaved region to mono and condition it the same way

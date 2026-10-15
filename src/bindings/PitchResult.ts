@@ -7,9 +7,13 @@
  */
 export type PitchResult = { sampleRate: number, hopSize: number, frames: number, 
 /**
- * Frame times in seconds.
+ * Frame times in **source seconds**.
  */
 times: Array<number>, 
+/**
+ * Source seconds where the window starts (`times[0]` is at or after this).
+ */
+windowStart: number, 
 /**
  * f0 in Hz per frame; unvoiced frames are gaps.
  */

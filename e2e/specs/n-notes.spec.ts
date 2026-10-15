@@ -3,7 +3,8 @@
  *
  * Drives the annotation layer end to end: add a note from the Notes rail (which
  * captures the focused chart's frozen values), confirm the row + frozen values, save
- * the project, discard it, load it back and confirm the note survives, then delete it.
+ * the project, discard it, load it back and confirm the note survives, edit it in its
+ * own window, then delete it.
  *
  * Native menus cannot be clicked by WebDriver, so File actions ride the `app:menu`
  * event and the native path dialogs are stubbed via `mockReturn` (as in `j-project`).
@@ -26,6 +27,7 @@ import {
   waitForApp,
   waitForSourceLoaded,
 } from "../support/helpers.ts";
+import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
 
 /** The first note's frozen values line. */
 const firstValues = '[data-testid^="note.values."]';
@@ -41,6 +43,13 @@ describe("N. Notes", () => {
   afterEach(async () => {
     await restoreMocks();
     await mockReturn("confirm", true);
+  });
+
+  // A note opened in its own window lives until it is closed; make sure the next spec
+  // starts on a single project window.
+  after(async () => {
+    await browser.tauri.switchWindow("main").catch(() => {});
+    await closeWindowsMatching(/^note-\d+$/);
   });
 
   it("N1 — a note added from the rail captures the focused chart's values", async () => {
@@ -93,7 +102,39 @@ describe("N. Notes", () => {
     expect((await (await $(firstValues)).getText()).trim()).toContain("peak");
   });
 
-  it("N3 — deleting a note removes it", async () => {
+  it("N3 — a note opens in its own window, edits there, and the edit reaches the rail", async () => {
+    // The note window is a *view* of the same project (like an analyzer popout), so the
+    // row's popout action opens it and it renders just that note's editor.
+    await (await $('[data-testid^="note.popout."]')).click();
+
+    let noteWindow = "";
+    await waitFor(async () => {
+      noteWindow = (await windowLabels()).find((label) => /^note-\d+$/.test(label)) ?? "";
+      return noteWindow !== "";
+    }, "no note-* window appeared");
+
+    await browser.tauri.switchWindow(noteWindow);
+    await waitFor(
+      async () => (await count('[data-testid="notes.window"]')) > 0,
+      "the note window never rendered its editor",
+    );
+    const edited = "Edited in its own window";
+    await (await $('[data-testid="notes.window.body"]')).setValue(edited);
+    await (await $('[data-testid="notes.window.done"]')).click();
+
+    // Committing closes the window, and the rail picks the new heading up.
+    await waitFor(
+      async () => !(await windowLabels()).includes(noteWindow),
+      "the note window stayed open",
+    );
+    await browser.tauri.switchWindow("main").catch(() => {});
+    await waitFor(
+      async () => (await (await $('[data-testid^="note.heading."]')).getText()).trim() === edited,
+      "the note window's edit did not reach the rail",
+    );
+  });
+
+  it("N4 — deleting a note removes it", async () => {
     const del = await $('[data-testid^="note.delete."]');
     await del.waitForExist();
     await del.click();

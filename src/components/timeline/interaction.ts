@@ -10,6 +10,7 @@ import {
   windowStart,
 } from "../../state/timeline";
 import { HANDLE_HIT, MOVE_HIT, PREVIEW_THROTTLE, RULER_H } from "./constants";
+import { NOTE_STRIP_H } from "../notes/strip";
 import { noteAt, noteHintText } from "./noteHit";
 
 /**
@@ -68,6 +69,12 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     return e.clientY - rect.top;
   }
 
+  /** The top of the bottom note strip (where a note anchor can be grabbed). */
+  function noteStripTop(): number {
+    const rect = deps.canvas().getBoundingClientRect();
+    return rect.height - NOTE_STRIP_H;
+  }
+
   function minWindow(): number {
     const s = source();
     return Math.max(1e-3, s ? 4 / s.sampleRate : 1e-3);
@@ -80,8 +87,8 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     const x = pointerX(e);
     const y = pointerY(e);
 
-    // A note pin starts a drag (grab its tick, or click to focus + open its chart).
-    const note = noteAt(x, y, deps.t2x);
+    // A note anchor starts a drag (grab its tab, or click to focus + open its chart).
+    const note = noteAt(x, y, deps.t2x, noteStripTop());
     if (note) {
       noteDrag = { id: note.id, startX: x, moved: false };
       deps.setNoteHint(null);
@@ -125,7 +132,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
       return;
     }
     if (!drag) {
-      const hit = noteAt(pointerX(e), pointerY(e), deps.t2x);
+      const hit = noteAt(pointerX(e), pointerY(e), deps.t2x, noteStripTop());
       deps.setNoteHint(hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit) } : null);
       return;
     }

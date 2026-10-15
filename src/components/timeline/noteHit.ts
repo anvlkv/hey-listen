@@ -1,18 +1,25 @@
 import { analyzerById, isAnalyzerId } from "../../state/analyzer";
 import { notesSorted } from "../../state/notes";
 import { noteLabel, noteTimeText } from "../../lib/note";
-import { NOTE_BAND, NOTE_HIT, RULER_H } from "./constants";
+import { NOTE_HIT } from "./constants";
 import type { Note } from "../../bindings/Note";
 
 /**
- * Note-pin hit-testing and hover text for the Timeline canvas (M14). Pure helpers:
- * `noteAt` takes the same `t2x` projection the canvas draws with, so a click lands
- * on the pin the user sees. See `docs/notes.md` → Surfacing.
+ * Note-anchor hit-testing and hover text for the Timeline canvas (M14). Pure helpers:
+ * `noteAt` takes the same `t2x` projection the canvas draws with, so a click lands on
+ * the anchor the user sees. The anchors sit in the bottom **strip** (see
+ * `components/notes/strip.ts`), clear of the window move handle at the top.
+ * See `docs/notes.md` → Surfacing.
  */
 
-/** The note pin under a pointer position, or `null`. */
-export function noteAt(x: number, y: number, t2x: (t: number) => number): Note | null {
-  if (y < RULER_H || y > RULER_H + NOTE_BAND) return null;
+/** The note anchor under a pointer position in the bottom strip, or `null`. */
+export function noteAt(
+  x: number,
+  y: number,
+  t2x: (t: number) => number,
+  stripTop: number,
+): Note | null {
+  if (y < stripTop) return null;
   let best: Note | null = null;
   let bestDistance = NOTE_HIT;
   for (const note of notesSorted()) {
