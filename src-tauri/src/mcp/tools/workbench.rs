@@ -72,6 +72,10 @@ pub(super) fn tools() -> Vec<Value> {
                     "start": { "type": "number" },
                     "end": { "type": "number" },
                     "loop": { "type": "boolean", "description": "Loop the region (default true)." },
+                    "speed": {
+                        "type": "number",
+                        "description": "Varispeed playback rate, 0.25–4 (default 1). Shifts pitch; analysis is unaffected.",
+                    },
                 },
                 "additionalProperties": false,
             }),

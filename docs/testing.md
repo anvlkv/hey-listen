@@ -24,10 +24,10 @@ The suite runs against the **release** binary (`npm run tauri build`);
 Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 `wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
-`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 11 spec files,
-**70 tests** — A shell (3), B sources (4), C graphs (8), D analyzers (26), E
-correctness (5), F cross-cutting (5), G timeline (3), I errors (5), J project +
-popout (2), K MCP (4), L MCP UI (5).
+`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 15 spec files —
+A shell (3), B sources (4), C graphs (8), D analyzers (27), E correctness (5), F
+cross-cutting (6), G timeline (3), H open-audio (1), I errors (5), J project + popout (2),
+K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1).
 
 **IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
 plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
@@ -347,6 +347,20 @@ it, load it back and confirm the note survives, then delete it.
 | N2 | Persistence | The note survives `save_project` → `new_project` → `load_project` | Scenario |
 | N3 | Own window | The row's popout action opens a `note-*` Tauri window showing just that note's editor; saving there commits and closes it, and the rail shows the new heading | Scenario |
 | N4 | Delete | The row's delete button removes the note (the empty state returns) | Scenario |
+
+### O. Cross-window cursor sync (M14 follow-up)
+
+A second window is a view of the same project, so the shared cursor rides `uiState`. One
+window holds a canvas heatmap and the other a uPlot chart, so both painter paths are
+covered.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| O1 | Cursor mirror | Hovering either window's chart repaints the other window's chart (the Timeline mirror proves the publish; the uPlot plugin and the canvas renderer are the two painters) | Scenario |
+
+> **Also covered:** the tool-param **switch** interaction (a click on Kobalte's control
+> toggles exactly once and repaints the chart) is an extra case in `d-analyzers.spec.ts`,
+> and `scripts/previewSpeed.test.ts` unit-checks the varispeed slider's log scale.
 
 > **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
 > excerpts, the window-frame lookup `noteFrameAt`, and the snapshot comparison) are

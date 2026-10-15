@@ -3,6 +3,11 @@
 //! Playback lives in the core: the frontend drives it with fire-and-forget
 //! commands and asks for the position while scrubbing. The filter graph (if any)
 //! is applied here, so the preview matches what analysis will see from M4.
+//!
+//! **Varispeed.** `preview_region` takes a `speed` (M14 follow-up). It is a *preview*
+//! control only — analysis always reads the source at 1× — and it is implemented by
+//! resampling the loaded region, so it shifts pitch like a tape machine rather than
+//! time-stretching.
 
 use tauri::WebviewWindow;
 
@@ -10,6 +15,10 @@ use crate::audio::graph;
 use crate::audio::pcm;
 use crate::audio::playback::{self, OutputDeviceDto, PlaybackError};
 use crate::state::window_state;
+
+/// The slowest / fastest preview speed `preview_region` will honour.
+pub const MIN_SPEED: f64 = 0.25;
+pub const MAX_SPEED: f64 = 4.0;
 
 /// List the audio output devices to preview through.
 ///
@@ -23,7 +32,9 @@ pub async fn list_output_devices() -> Vec<OutputDeviceDto> {
 }
 
 /// Preview `start..end` (seconds, source time). `channel` is a 0-based channel or
-/// `None` to downmix; `device` selects an output device (or the default).
+/// `None` to downmix; `device` selects an output device (or the default); `speed` is the
+/// playback rate (varispeed, default/nonsense = 1×, clamped to
+/// [`MIN_SPEED`]..[`MAX_SPEED`]).
 ///
 /// The region is mixed down, filtered by the project graph, resampled to the
 /// device rate, and looped by the core.
@@ -35,7 +46,9 @@ pub async fn preview_region(
     loop_region: bool,
     channel: Option<usize>,
     device: Option<String>,
+    speed: Option<f64>,
 ) -> Result<(), PlaybackError> {
+    let speed = clamp_speed(speed);
     let (region, rate, channels, filter, device_rate) = {
         let state = window_state(&window);
         let device_rate = state.audio.playback.ensure_started(device)?;
@@ -66,6 +79,12 @@ pub async fn preview_region(
         (region, source_rate, channels, filter, device_rate)
     };
 
+    // The buffer is always *drained* at the device rate, so the speed is baked in by
+    // resampling the region instead: a `speed`× faster tape means a `1/speed`× shorter
+    // buffer. `logical_rate` is the frame rate the core reports positions against — with
+    // it, `position()` still yields **source** seconds (speed × elapsed real time).
+    let logical_rate = logical_rate(device_rate, speed);
+
     let mono = tauri::async_runtime::spawn_blocking(move || {
         let mono = pcm::mixdown(&region, channels, channel);
         let mono = match filter {
@@ -79,21 +98,37 @@ pub async fn preview_region(
             },
             None => mono,
         };
-        pcm::resample_linear(&mono, rate, device_rate)
+        pcm::resample_linear(&mono, rate, logical_rate)
     })
     .await
     .map_err(|err| PlaybackError::Control(err.to_string()))?;
 
-    let seconds = if device_rate > 0 {
-        mono.len() as f64 / f64::from(device_rate)
+    let seconds = if logical_rate > 0 {
+        mono.len() as f64 / f64::from(logical_rate)
     } else {
         0.0
     };
     window_state(&window)
         .audio
         .playback
-        .load(mono, device_rate, 0.0, seconds, loop_region);
+        .load(mono, logical_rate, 0.0, seconds, loop_region);
     Ok(())
+}
+
+/// Clamp a requested preview speed, treating a missing / invalid value as 1×.
+fn clamp_speed(speed: Option<f64>) -> f64 {
+    match speed {
+        Some(value) if value.is_finite() => value.clamp(MIN_SPEED, MAX_SPEED),
+        _ => 1.0,
+    }
+}
+
+/// The rate a `speed`× region is reported against once the device drains it at `1×`.
+fn logical_rate(device_rate: u32, speed: f64) -> u32 {
+    if device_rate == 0 {
+        return 0;
+    }
+    (f64::from(device_rate) / speed).round().max(1.0) as u32
 }
 
 /// Stop any in-flight preview.

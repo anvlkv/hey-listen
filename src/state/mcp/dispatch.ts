@@ -1,6 +1,6 @@
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
-import { previewRegion, stop as stopPreviewAudio } from "../../audio/preview";
+import { previewRegion, previewSpeed, stop as stopPreviewAudio } from "../../audio/preview";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
 import { ANALYZERS, isAnalyzerId, setToolOption, toolOptions, type AnalyzerId } from "../analyzer";
 import {
@@ -159,8 +159,8 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "preview": {
       const start = optionalNum(args, "start") ?? windowStart();
       const end = optionalNum(args, "end") ?? windowEnd();
-      previewRegion(start, end, optionalBool(args, "loop") ?? true);
-      return { start, end };
+      previewRegion(start, end, optionalBool(args, "loop") ?? true, optionalNum(args, "speed"));
+      return { start, end, speed: previewSpeed() };
     }
     case "stop_preview":
       stopPreviewAudio();

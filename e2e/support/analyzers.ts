@@ -70,6 +70,27 @@ export async function cardValue(id: string, label: string): Promise<string | nul
 }
 
 /**
+ * A coarse signature of a selector's first canvas, for "did it repaint" checks.
+ *
+ * Samples every 97th pixel: cheap enough for a full-size chart canvas (a real
+ * `getImageData` over 1816×1228 is ~9 MB of pixels), while still changing whenever
+ * anything visible is drawn. `"none"` means the canvas is missing or zero-sized.
+ */
+export async function canvasSignature(selector: string): Promise<string> {
+  return (await browser.execute((sel: string) => {
+    const c = document.querySelector(sel) as HTMLCanvasElement | null;
+    const ctx = c?.getContext("2d");
+    if (!c || !ctx || c.width === 0) return "none";
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    let hash = 0;
+    for (let i = 0; i < data.length; i += 4 * 97) {
+      hash = (hash * 31 + data[i] + data[i + 1] * 3 + data[i + 2] * 7) | 0;
+    }
+    return `${c.width}x${c.height}:${hash}`;
+  }, selector)) as string;
+}
+
+/**
  * True when a canvas (scoped to `scope` when given) has drawn something over its
  * own background — the "renders non-empty" check the smoke tests use.
  */

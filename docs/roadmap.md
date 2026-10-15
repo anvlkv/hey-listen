@@ -566,6 +566,57 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
 > panel is **chrome** (a fixed region, view-persisted) while the notes themselves are
 > **data** (project-persisted). See [`notes.md`](notes.md) (ADR-18).
 
+### M14 follow-up — review fixes, the notes interaction model, and the preview transport ✅
+
+A pass over the notes layer after using it, plus the transport facilities the notes
+wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
+
+- **A note is selected, not focused** (ADR-19). Selecting — the row's heading, its chart
+  action, or a lane handle — highlights the note and opens/raises its chart but **never
+  moves the analysis window**; a new row **Analyze** action (on point *and* range notes) is
+  the only thing that reframes (a range becomes the window exactly; a point gets a window
+  of the current width). This was the "clicking a note jumps there" / "adding a note moves
+  the window" report.
+- **Closing the rail unfocuses.** The focused note was a panel concept all along, so a
+  closed rail drops the focus — clearing every chart's full-height overlay and the
+  Timeline's stem — while the lane anchors stay, drawn **dull** (`panelOpen` rides the
+  notes bus message).
+- **Varispeed preview.** `preview_region` takes a `speed` (clamped 0.25×–4×, baked in by
+  resampling the region, so it shifts pitch); the transport drives it with a **log slider**
+  (`lib/previewSpeed.ts`, 1× at the centre). Preview only — analysis is always 1×. Also on
+  the MCP `preview` verb.
+- **The playhead on every time chart.** The transport's position rides the shared chart
+  bus (`playhead`), drawn as a solid rule by `syncPlugins.playheadRule` (uPlot) and
+  `chartCanvas.drawPlayhead` (canvas heatmaps) — what is being auditioned is visible on the
+  data, not only on the Timeline. And **note at the playhead** in the transport, so an
+  observation made while listening lands on the right moment.
+- **Bug: notes never worked on the matrix tools** (mel spectrogram, MFCC, chromagram,
+  spectral contrast). `valuesText` classified a result by testing `"times" in result`
+  first, but a `MatrixResult` carries `times` **as well as** `bins`/`values`, so every
+  matrix tool took the series branch, called the matrix view config's missing `formatY`,
+  and threw inside `createNote` — the note was silently dropped. The classification now
+  tests the band shape first, and `captureValues` catches a formatter failure so a readout
+  problem can never lose the note.
+- **Bug: the chart view went stale when the analysis window moved.** The visible time
+  range was clamped into the new window instead of re-fitting it (and the uPlot charts
+  re-applied the stale range after every `setData`), so a chart kept showing the previous
+  window until the user zoomed. The window **is** a chart's x extent: moving it now clears
+  the shared view (`chartSync`) and each chart re-fits.
+- **Bug: tool-param switches did not respond.** The row was a `<label>`, so a click on
+  Kobalte's `Switch.Control` fired *both* the control's own toggle and the label's implicit
+  forwarding to the hidden checkbox — two toggles, no visible change (the spectrogram's
+  Centroid / Rolloff being the obvious victims). The row is a `div` now, like the working
+  shared-params switch; covered by an e2e regression test.
+- **Bug: the hovered cursor did not cross windows.** The shared cursor was published on the
+  in-process bus only — `uiState` carried the timeline, params, options, notes and views,
+  but never the cursor. It now rides `cursor:${group}` (per sync group, so a frequency
+  cursor cannot land on a time chart).
+
+> **Delivered:** the notes interaction model (ADR-19), the varispeed slider and playhead
+> transport, and the four bug fixes above. See [`notes.md`](notes.md),
+> [`architecture.md`](architecture.md) → Playback, and `e2e/specs/` (`d-analyzers`,
+> `n-notes`, `o-cursor-sync`).
+
 ## M15 — Code hygiene (the maid) ✅
 
 A **quality gate** so the invariants above stop being aspirations: files stay short

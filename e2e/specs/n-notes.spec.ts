@@ -124,7 +124,10 @@ describe("N. Notes", () => {
     );
     const edited = "Edited in its own window";
     await (await $('[data-testid="notes.window.body"]')).setValue(edited);
-    await (await $('[data-testid="notes.window.done"]')).click();
+    // Done commits *and destroys the window*, which can win the race against this
+    // click's reply (the window is gone before WebDriver can answer) — so don't await
+    // it. Same reason `closeCurrentWindow` in `support/windows.ts` is fire-and-forget.
+    await (await $('[data-testid="notes.window.done"]')).click().catch(() => {});
 
     // Done commits and destroys the note window. WebDriver must not stay focused on
     // the gone window — the next `listWindows()` runs a script in the *current* handle

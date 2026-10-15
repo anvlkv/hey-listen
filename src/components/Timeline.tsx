@@ -4,7 +4,7 @@ import { channelFor } from "../state/analysis";
 import { stopFollowing } from "../state/capture";
 import { filteredSamples } from "../state/filtered";
 import { filterEnabled } from "../state/graph";
-import { focusedNoteId, notesSorted } from "../state/notes";
+import { createNote, defaultNoteTool, focusedNoteId, notesSorted } from "../state/notes";
 import { source, status } from "../state/source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
 import { PLOT_PAD } from "./timeline/constants";
@@ -98,6 +98,17 @@ export default function Timeline() {
 
   const preview = createPreview();
 
+  /**
+   * Drop a **point** note at the preview playhead — the cursor the user is listening to.
+   * It takes the focused analyzer as its chart (like the Notes panel's `Add`) and, as
+   * always when creating, never moves the analysis window.
+   */
+  const noteAtCursor = () => {
+    const at = preview.playSec();
+    if (at == null) return;
+    createNote({ timeSecs: at, tool: defaultNoteTool() });
+  };
+
   const interaction = createTimelineInteraction({
     canvas: () => canvas,
     active,
@@ -181,7 +192,9 @@ export default function Timeline() {
       <TimelineToolbar
         previewing={preview.previewing()}
         active={active()}
+        canNoteAtCursor={preview.playSec() != null}
         onTogglePreview={preview.togglePreview}
+        onNoteAtCursor={noteAtCursor}
         onZoomWindow={interaction.zoomToWindow}
         onZoomOut={() => interaction.zoomBy(1.5)}
         onZoomIn={() => interaction.zoomBy(1 / 1.5)}

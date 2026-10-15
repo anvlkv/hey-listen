@@ -149,7 +149,7 @@ The commands and channels below are all implemented; milestone notes record the 
 | Synth | `render_synth` | build a fundsp graph, render to PCM ✅ |
 | Filter | `set_filter_graph` | install the project filter graph (applied before preview/analysis) ✅ |
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
-| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅ |
+| Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅. `preview_region` takes a **varispeed** `speed` (M14 follow-up) — preview only, analysis is always 1×. |
 | Analysis | `run_analysis` | tool id + window + params → result |
 | Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14 ✅. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
@@ -289,6 +289,11 @@ Both windows drive the same core state:
   worker thread; the audio callback and the command side share an
   `Arc<Mutex<…>>`. The callback also tracks the output block's peak for the
   `output_level` meter.
+- Playback **speed** (M14 follow-up) is varispeed, and it is baked in at *load* time:
+  the region is resampled to `device_rate / speed` and `Playback::load` is handed that
+  logical rate, so the buffer drains `speed`× faster (pitch shifting) while
+  `position()` keeps reporting **source** seconds. Nothing in the analysis path changes —
+  analysis always reads the source at 1×.
 - The frontend is single-threaded (SolidJS); heavy PCM is streamed, not posted
   as one giant JSON blob. The **core owns the source PCM** (ADR-9) and each
   project's **shared UI state** (ADR-11); the frontend keeps only the transitional

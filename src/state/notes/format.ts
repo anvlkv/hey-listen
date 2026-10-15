@@ -1,20 +1,24 @@
-import {
-  analyzerById,
-  formatHz,
-  type AnalyzerId,
-  type AnyAnalysisResult,
-  type LevelsResult,
-  type LraResult,
-  type LufsResult,
-  type MatrixResult,
-  type MatrixView as MatrixViewConfig,
-  type RhythmResult,
-  type SeriesResult,
-  type SeriesView as SeriesViewConfig,
-  type SpectrogramResult,
-  type SpectrumResult,
-  type WaveformResult,
-} from "../analyzer";
+// Direct sibling imports rather than the `../analyzer` barrel: this module is a pure
+// result → text mapper, and the barrel re-exports the debounced runner (which pulls in
+// `@dschz/solid-uplot` and its CSS), so the barrel would keep it out of the browser-free
+// `scripts/*.test.ts` unit suite. See `scripts/notes.test.ts`.
+import { formatHz } from "../analyzer/format";
+import { analyzerById } from "../analyzer/lookup";
+import type {
+  AnalyzerId,
+  AnyAnalysisResult,
+  LevelsResult,
+  LraResult,
+  LufsResult,
+  MatrixResult,
+  MatrixView as MatrixViewConfig,
+  RhythmResult,
+  SeriesResult,
+  SeriesView as SeriesViewConfig,
+  SpectrogramResult,
+  SpectrumResult,
+  WaveformResult,
+} from "../analyzer/types";
 import { noteFrameAt } from "../../lib/note";
 
 const db = (value: number) => 20 * Math.log10(Math.max(Math.abs(value), 1e-6));
@@ -98,14 +102,11 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
       break;
   }
 
-  if ("times" in result) {
-    const r = result as SeriesResult;
-    const view = analyzerById(tool).view as SeriesViewConfig;
-    const index = presentIndex(r.values, nearestIndex(r.times, timeSecs));
-    if (index == null) return `t ${t} s · no value`;
-    return `t ${t} s · ${view.yLabel} ${view.formatY(r.values[index]!)}`;
-  }
-  if ("bins" in result) {
+  // A matrix result carries `times` **as well as** `bins` / `values`, so the band
+  // check must come first: testing `times` first would classify every mel / MFCC /
+  // chroma / contrast heatmap as a series and call the matrix view config's missing
+  // `formatY`, which throws and (before the guard in `captureValues`) lost the note.
+  if ("bins" in result && "values" in result) {
     const r = result as MatrixResult;
     if (r.frames === 0 || r.bins === 0) return `t ${t} s · no data`;
     const view = analyzerById(tool).view as MatrixViewConfig;
@@ -121,6 +122,13 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
       }
     }
     return `t ${t} s · ${view.yLabel} ${view.formatBand(band)}: ${view.formatValue(best)}`;
+  }
+  if ("times" in result) {
+    const r = result as SeriesResult;
+    const view = analyzerById(tool).view as SeriesViewConfig;
+    const index = presentIndex(r.values, nearestIndex(r.times, timeSecs));
+    if (index == null) return `t ${t} s · no value`;
+    return `t ${t} s · ${view.yLabel} ${view.formatY(r.values[index]!)}`;
   }
   return `t ${t} s`;
 }

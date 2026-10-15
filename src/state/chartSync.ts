@@ -1,9 +1,11 @@
+import { createEffect, createRoot, on } from "solid-js";
 import { createPluginBus } from "@dschz/solid-uplot";
 import type {
   CursorPluginMessageBus,
   FocusSeriesPluginMessageBus,
 } from "@dschz/solid-uplot/plugins";
 import type { Note } from "../bindings/Note";
+import { windowEnd, windowStart } from "./timeline";
 
 /**
  * Shared chart state for cross-tab sync (M5).
@@ -50,19 +52,39 @@ export interface CursorSyncMessageBus {
 }
 
 /**
- * The project's notes on the bus (M14): every note plus the focused note id, so a
- * chart's note plugin can draw its own notes and the one focused note without each
- * chart reaching into the store. Published by `state/notes/` whenever the notes or
- * the focus change. See `docs/notes.md`.
+ * The project's notes on the bus (M14): every note, the focused note id, and whether the
+ * Notes rail is open, so a chart's note plugin can draw its own notes and the one focused
+ * note without each chart reaching into the store. Published by `state/notes/` whenever
+ * the notes, the focus or the panel change. `panelOpen` drives the *dull* rendering used
+ * when the rail is closed. See `docs/notes.md`.
  */
 export interface NotesMessage {
   notes: Note[];
   focusedId: string | null;
+  panelOpen: boolean;
 }
 
 /** Bus key used by the note marker plugin. */
 export interface NotesMessageBus {
   notes?: NotesMessage;
+}
+
+/**
+ * The **preview playhead** on the bus (M14 follow-up): the source second being
+ * auditioned, or `null` when nothing is playing. Published by the Timeline's preview
+ * controller, so a time chart can draw a rule at it — the preview is then visible on the
+ * charts, not just on the Timeline. There is one playhead (the preview loops the shared
+ * analysis window), so the message carries no group tag; the frequency-axis `spectrum`
+ * simply does not install the plugin.
+ */
+export interface PlayheadMessage {
+  /** The source second now playing, or `null` when the preview stopped. */
+  secs: number | null;
+}
+
+/** Bus key used by the preview playhead plugin. */
+export interface PlayheadMessageBus {
+  playhead?: PlayheadMessage;
 }
 
 /** The bus type shared by every analyzer chart. */
@@ -71,6 +93,7 @@ export type AnalyzerBus = CursorPluginMessageBus &
   ViewMessageBus &
   CursorSyncMessageBus &
   NotesMessageBus &
+  PlayheadMessageBus &
   Record<string, unknown>;
 
 /** The one bus shared by every uPlot analyzer tab. */
@@ -84,3 +107,13 @@ export const analyzerBus = createPluginBus<AnalyzerBus>();
 export function resetChartViews() {
   analyzerBus.setData("view", null);
 }
+
+// The analysis window **is** a time chart's natural x extent, so moving it must re-fit
+// every chart. Two things otherwise leave a chart stuck on a stale range: the heatmaps
+// clamp the range they were showing into the new extent, and the uPlot charts re-apply
+// the shared range after the `setData` that follows uPlot's own fit. Clearing the shared
+// view is the same "fit your own data" signal the source replacement sends (and it
+// propagates to the sibling windows through `uiState`). See `chartInteraction.ts`.
+createRoot(() => {
+  createEffect(on([windowStart, windowEnd], () => resetChartViews(), { defer: true }));
+});

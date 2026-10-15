@@ -37,6 +37,8 @@ export interface NoteGroups {
   own: Note[];
   others: Note[];
   focused: Note | null;
+  /** Whether the Notes rail is open — closed draws the anchors dull (see [`drawNoteMarkers`]). */
+  panelOpen: boolean;
 }
 
 /** Partition the bus notes for a chart with `tool` (reads the bus reactively). */
@@ -51,7 +53,7 @@ export function noteGroups(tool: AnalyzerId | string): NoteGroups {
     if (note.id === focusedId) continue;
     (note.tool === tool ? own : others).push(note);
   }
-  return { own, others, focused };
+  return { own, others, focused, panelOpen: message?.panelOpen ?? false };
 }
 
 /** Every note a chart's lane shows: its own, the others', and the focused one. */
@@ -160,14 +162,17 @@ export function drawNoteMarkers(
   ctx.rect(geom.left, geom.top, Math.max(0, geom.right - geom.left), geom.height);
   ctx.clip();
 
-  // Other charts' notes first (muted), then this chart's own.
-  for (const note of others) tick(ctx, geom, note, theme.note, 0.28);
-  for (const note of own) tick(ctx, geom, note, theme.note, 0.7);
+  // A closed rail keeps the anchors (they still mark where the notes are) but draws them
+  // dull, so notes recede once the user is no longer working with them.
+  const quiet = groups.panelOpen ? 1 : 0.55;
+  for (const note of others) tick(ctx, geom, note, theme.note, 0.28 * quiet);
+  for (const note of own) tick(ctx, geom, note, theme.note, 0.7 * quiet);
   ctx.globalAlpha = 1;
 
   // The focused note: a full-height rule on each edge (a shaded span for a range),
-  // its handles in the lane, and its label.
-  if (focused) {
+  // its handles in the lane, and its label. Only while the rail is open — that is
+  // what "focused" means to the user.
+  if (focused && groups.panelOpen) {
     const span = noteSpan(focused);
     const x0 = geom.xFor(span.start);
     const x1 = geom.xFor(span.end);
@@ -217,7 +222,7 @@ export function drawNoteMarkers(
  */
 export function noteMarkers(tool: AnalyzerId): UplotPluginFactory<AnalyzerBus> {
   return () => {
-    let groups: NoteGroups = { own: [], others: [], focused: null };
+    let groups: NoteGroups = { own: [], others: [], focused: null, panelOpen: false };
     let lane: LaneController | undefined;
     let dispose: (() => void) | undefined;
     const listeners: [string, EventListener][] = [];

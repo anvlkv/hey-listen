@@ -10,8 +10,8 @@ import type { ChartView, PlotBox } from "./chartGeometry";
 /**
  * Drawing primitives shared by the plain-canvas heatmaps (`MatrixView` /
  * `SpectrogramTab`): the canvas frame, the offscreen heatmap image, the time axis,
- * the hover cross, the shared cursor mirror, and the note overlay. They keep the
- * two heatmaps pixel-identical without duplicating the drawing code.
+ * the hover cross, the shared cursor mirror, the preview playhead, and the note overlay.
+ * They keep the two heatmaps pixel-identical without duplicating the drawing code.
  */
 
 /** Clear the canvas, scale it to the device pixel ratio, and paint the background. */
@@ -140,6 +140,29 @@ export function drawMirrorCursor(
   ctx.beginPath();
   ctx.moveTo(Math.round(x) + 0.5, box.y);
   ctx.lineTo(Math.round(x) + 0.5, box.y + box.height);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * The **preview playhead** (M14 follow-up): a solid rule at the source second the core is
+ * auditioning, so a heatmap shows "playing now" exactly like the Timeline and the uPlot
+ * charts do (`analyzer/syncPlugins.ts` → `playheadRule`). Reads the shared bus, so every
+ * chart draws the same position.
+ */
+export function drawPlayhead(ctx: CanvasRenderingContext2D, view: ChartView, box: PlotBox): void {
+  const secs = analyzerBus.data.playhead?.secs;
+  if (secs == null) return;
+  const span = Math.max(view.t1 - view.t0, 1e-9);
+  const x = box.x + ((secs - view.t0) / span) * box.width;
+  if (!Number.isFinite(x) || x < box.x || x > box.x + box.width) return;
+  const px = Math.round(x) + 0.5;
+  ctx.save();
+  ctx.strokeStyle = chartTheme().playhead;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(px, box.y);
+  ctx.lineTo(px, box.y + box.height);
   ctx.stroke();
   ctx.restore();
 }

@@ -12,6 +12,7 @@
  */
 
 import { tab, analyzerPanel, analyzerAbout, analyzerParams } from "../support/selectors.ts";
+import { dismissPopovers } from "../support/popups.ts";
 import {
   waitForApp,
   openTool,
@@ -21,9 +22,20 @@ import {
   waitForAnalyzer,
   waitForReadouts,
   canvasHasInk,
+  canvasSignature,
   openThenClosePopover,
 } from "../support/helpers.ts";
 import { ANALYZER_TOOLS } from "../support/tools.ts";
+
+/** The state of a tool-param switch, read from its underlying checkbox. */
+async function switchOn(testid: string): Promise<boolean> {
+  return (await browser.execute((sel: string) => {
+    const input = document
+      .querySelector(sel)
+      ?.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+    return input?.checked ?? false;
+  }, testid)) as boolean;
+}
 
 describe("D. Analyzer tools — smoke (every tool)", () => {
   before(async () => {
@@ -62,4 +74,33 @@ describe("D. Analyzer tools — smoke (every tool)", () => {
       }
     });
   }
+
+  it("a tool-param switch responds to a click (the spectrogram's contours)", async () => {
+    // Regression: the switch row used to be a `<label>`, so a click on the control fired
+    // both Kobalte's `Control` handler and the label's implicit forwarding to the hidden
+    // checkbox — two toggles, no visible change. See `ToolParamsForm.ToggleParam`.
+    await openTool("spectrogram");
+    const panel = analyzerPanel("spectrogram");
+    const field = '[data-testid="toolparam.spectrogram.showCentroid"]';
+    try {
+      await waitForAnalyzer("spectrogram");
+      await (await $(analyzerParams("spectrogram"))).click();
+      const before = await switchOn(field);
+      const inkBefore = await canvasSignature(`${panel} canvas`);
+
+      await (await $(`${field} .params-switch-control`)).click();
+      await browser.pause(400);
+
+      expect(await switchOn(field)).toBe(!before);
+      expect(await canvasSignature(`${panel} canvas`)).not.toBe(inkBefore);
+
+      // Click it back, so the tool starts the next spec on its defaults.
+      await (await $(`${field} .params-switch-control`)).click();
+      await browser.pause(200);
+      expect(await switchOn(field)).toBe(before);
+    } finally {
+      await dismissPopovers();
+      await closeTool("spectrogram");
+    }
+  });
 });

@@ -1,5 +1,6 @@
 import { createSignal, type Accessor } from "solid-js";
 import { playhead, previewRegion, stop as stopPreview } from "../../audio/preview";
+import { analyzerBus } from "../../state/chartSync";
 import { windowEnd, windowStart } from "../../state/timeline";
 import { EDGE_EXCERPT } from "./constants";
 
@@ -19,6 +20,9 @@ export interface PreviewController {
  * Preview playback for the analysis window. `tick` polls the audio engine's
  * playhead every frame so the canvas can draw it; a `null` position means the core
  * stopped (ended or failed), which ends the preview.
+ *
+ * Each tick also publishes the position on the shared chart bus, so every time chart
+ * draws the same playhead (M14 follow-up).
  */
 export function createPreview(): PreviewController {
   const [previewing, setPreviewing] = createSignal(false);
@@ -26,11 +30,17 @@ export function createPreview(): PreviewController {
 
   let raf = 0;
 
+  /** Publish the playhead for the charts (`null` = stopped). */
+  function publish(secs: number | null) {
+    analyzerBus.setData("playhead", { secs });
+  }
+
   function tick() {
     raf = 0;
     if (!previewing()) return;
     const position = playhead();
     setPlaySec(position);
+    publish(position);
     // A null position means the core stopped (ended or failed) — end the preview.
     if (position == null) {
       endPreview();
@@ -42,6 +52,8 @@ export function createPreview(): PreviewController {
   function startPreview(start: number, end: number, loop: boolean) {
     previewRegion(start, end, loop);
     setPreviewing(true);
+    setPlaySec(start);
+    publish(start);
     if (!raf) raf = requestAnimationFrame(tick);
   }
 
@@ -62,6 +74,7 @@ export function createPreview(): PreviewController {
     stopPreview();
     setPreviewing(false);
     setPlaySec(null);
+    publish(null);
   }
 
   function togglePreview() {
