@@ -41,6 +41,10 @@ describe("N. Notes", () => {
   });
 
   afterEach(async () => {
+    // A spec may fail while focused on a note window that has since been destroyed;
+    // every command (including `restoreMocks`' script) would then stall in the dead
+    // webview. Land back on the project window first.
+    await browser.tauri.switchWindow("main").catch(() => {});
     await restoreMocks();
     await mockReturn("confirm", true);
   });
@@ -122,12 +126,15 @@ describe("N. Notes", () => {
     await (await $('[data-testid="notes.window.body"]')).setValue(edited);
     await (await $('[data-testid="notes.window.done"]')).click();
 
-    // Committing closes the window, and the rail picks the new heading up.
+    // Done commits and destroys the note window. WebDriver must not stay focused on
+    // the gone window — the next `listWindows()` runs a script in the *current* handle
+    // and WKWebView stalls on it until the 30 s command timeout. Switch to `main`
+    // first, then confirm the note window is gone and the rail picked the edit up.
+    await browser.tauri.switchWindow("main").catch(() => {});
     await waitFor(
       async () => !(await windowLabels()).includes(noteWindow),
       "the note window stayed open",
     );
-    await browser.tauri.switchWindow("main").catch(() => {});
     await waitFor(
       async () => (await (await $('[data-testid^="note.heading."]')).getText()).trim() === edited,
       "the note window's edit did not reach the rail",
