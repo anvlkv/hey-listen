@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { computePeaks, type Peaks } from "../lib/waveform";
 import { channelFor } from "../state/analysis";
+import { stopFollowing } from "../state/capture";
 import { filteredSamples } from "../state/filtered";
 import { filterEnabled } from "../state/graph";
 import { focusedNoteId, notesSorted } from "../state/notes";
@@ -11,6 +12,7 @@ import { drawTimeline, type TimelineDrawDeps } from "./timeline/draw";
 import { createTimelineInteraction } from "./timeline/interaction";
 import { createPreview } from "./timeline/preview";
 import TimelineToolbar from "./timeline/TimelineToolbar";
+import TimelineScrollBar from "./timeline/ScrollBar";
 
 /**
  * Timeline (fixed region): waveform of the whole source plus the draggable
@@ -86,6 +88,12 @@ export default function Timeline() {
   const applyView = (a: number, b: number) => {
     const [lo, hi] = clampView(a, b);
     setView(lo, hi);
+  };
+
+  /** Pan from the scrollbar, keeping the visible span (the clamp does the rest). */
+  const scrollTo = (start: number) => {
+    stopFollowing();
+    applyView(start, start + span());
   };
 
   const preview = createPreview();
@@ -212,6 +220,11 @@ export default function Timeline() {
           )}
         </Show>
       </div>
+      <TimelineScrollBar
+        view={() => [viewStart(), viewEnd()]}
+        duration={duration}
+        onScroll={scrollTo}
+      />
     </section>
   );
 }

@@ -13,6 +13,13 @@ import { NOTE_STRIP_H } from "../notes/strip";
 import { drawLane, type LaneSelection } from "../notes/lane";
 
 /**
+ * The filtered overlay's opacity: 85% opaque, so the filtered envelope **blends with**
+ * the raw waveform underneath (a tint on the signal, not a replacement for it) while
+ * still reading clearly at a glance.
+ */
+const FILTERED_OVERLAY_ALPHA = 0.85;
+
+/**
  * Canvas painting for the Timeline. `drawTimeline` is the entry point (called by
  * `Timeline.tsx` from its repaint effect); the ruler, handle, move-handle and note
  * helpers are module-private. The component-local values arrive as accessors in
@@ -98,6 +105,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     const fp = deps.filteredPeaks();
     const fsamp = filteredSamples();
     if (filterEnabled() && fp && fsamp && fsamp.length > 0) {
+      ctx.globalAlpha = FILTERED_OVERLAY_ALPHA;
       ctx.strokeStyle = t.filtered;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -111,6 +119,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
         ctx.lineTo(x + 0.5, Math.max(fyHi, fyLo) + 0.5);
       }
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
   }
 

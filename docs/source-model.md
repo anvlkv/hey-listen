@@ -46,8 +46,18 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 
 - Shows the whole recording plus the **analysis window** (`start..end`).
 - For extra-short windows the timeline **zooms in** on the window.
+- **Zoom / pan** — the wheel zooms around the cursor, dragging the waveform pans, and
+  the toolbar's zoom buttons fit / zoom-to-window. When the view is narrower than the
+  source a **horizontal scrollbar** appears along the bottom of the region (a
+  whole-file overview whose thumb *is* the visible span); drag its thumb to pan, click
+  the track to jump, or use the arrow keys. See `lib/timelineScroll.ts`.
+- The **filtered** signal (when a filter is active) is drawn as a translucent **overlay**
+  over the raw waveform, so its effect reads as a tint on the signal rather than a
+  replacement for it.
 - Dragging `start` or `end` plays back a **preview** of that region.
 - The whole window can be **dragged** (keeping its width) via a handle at its top.
+- The bottom **note lane** holds the project's annotations (M14) — see
+  [`notes.md`](notes.md) → Surfacing.
 - For a **multichannel** source, a channel selector (in the Timeline toolbar) picks
   the channel to display/analyse, or downmixes to mono. It is the shared analysis
   param, so the waveform, preview playback and (M4+) analyzers all agree.

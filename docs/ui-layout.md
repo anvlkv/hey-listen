@@ -162,7 +162,7 @@ popover. See [`theming.md`](theming.md).
 
 | Region | Role | Notes |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **overlays the filtered signal** when a filter is active (with an on/bypassed badge); carries the **note anchors** in a thin strip along the bottom |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider + the note lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **overlays the filtered signal** when a filter is active (with an on/bypassed badge); carries the **note anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor |
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |

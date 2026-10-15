@@ -354,7 +354,9 @@ it, load it back and confirm the note survives, then delete it.
 > round-trip tested by `cargo test` (the `project` module — a point note with values
 > and a range note) and the batch CLI's `notes` subcommand (`cli::batch`). The engine's
 > source-second re-basing is asserted by `cargo test`
-> (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`).
+> (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`), and the
+> Timeline scrollbar's clamping / thumb geometry by
+> `scripts/timelineScroll.test.ts` (`npm run test:unit`).
 
 ## Running
 
