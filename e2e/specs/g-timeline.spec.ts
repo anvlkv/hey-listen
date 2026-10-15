@@ -1,5 +1,5 @@
 /**
- * G. Timeline (M8) — matrix rows G1–G3 (`docs/testing.md`).
+ * G. Timeline (M8) — matrix rows G1–G4 (`docs/testing.md`).
  *
  * The waveform window (start/end handles + move bar) is drawn on the Timeline
  * canvas, not the DOM, so G1 addresses the end handle by its known canvas position
@@ -7,7 +7,7 @@
  * dispatches Pointer Events directly (W3C actions don't reliably reach the WebView).
  * No audio playback is asserted (headless CI has none).
  */
-import { SEL } from "../support/selectors.ts";
+import { SEL, analyzerPanel } from "../support/selectors.ts";
 import {
   waitForApp,
   waitFor,
@@ -18,6 +18,10 @@ import {
   canvasHasInk,
   waitForAnalyzer,
   closeAllTabs,
+  click,
+  textOf,
+  wheelOver,
+  dragTimelineHandle,
 } from "../support/helpers.ts";
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
@@ -27,42 +31,10 @@ async function timelineReadout(): Promise<string> {
   )) as string;
 }
 
-/**
- * Drag a Timeline window handle. The handles are drawn on the canvas at
- * `PLOT_PAD` inside the plot, so we target them by position rather than a selector.
- */
-async function dragTimelineHandle(which: "start" | "end", dx: number): Promise<void> {
-  await browser.execute(
-    (sel: string, side: string, offset: number) => {
-      const canvas = document.querySelector(sel) as HTMLCanvasElement | null;
-      if (!canvas) throw new Error("no timeline canvas");
-      const PLOT_PAD = 12; // mirrors `src/components/Timeline.tsx`
-      const rect = canvas.getBoundingClientRect();
-      const x = side === "start" ? rect.left + PLOT_PAD : rect.right - PLOT_PAD;
-      const y = rect.top + rect.height / 2;
-      const fire = (type: string, cx: number, cy: number, buttons: number) => {
-        canvas.dispatchEvent(
-          new PointerEvent(type, {
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            clientX: cx,
-            clientY: cy,
-            pointerId: 1,
-            pointerType: "mouse",
-            isPrimary: true,
-            buttons,
-          }),
-        );
-      };
-      fire("pointerdown", x, y, 1);
-      fire("pointermove", x + offset, y, 1);
-      fire("pointerup", x + offset, y, 0);
-    },
-    SEL.timelineCanvas,
-    which,
-    dx,
-  );
+/** The seconds a chart's zoom readout spans (`"0.500 – 1.750 s"` → `1.25`). */
+function readoutSpan(label: string): number {
+  const match = label.match(/([\d.]+) – ([\d.]+)/);
+  return match ? Number(match[2]) - Number(match[1]) : Number.NaN;
 }
 
 describe("G. Timeline", () => {
@@ -94,20 +66,7 @@ describe("G. Timeline", () => {
     await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
 
     // A synthetic wheel event at the canvas centre drives the Timeline's zoom.
-    await browser.execute((sel: string) => {
-      const c = document.querySelector(sel) as HTMLCanvasElement | null;
-      if (!c) return;
-      const rect = c.getBoundingClientRect();
-      c.dispatchEvent(
-        new WheelEvent("wheel", {
-          deltaY: -240,
-          clientX: rect.left + rect.width / 2,
-          clientY: rect.top + rect.height / 2,
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
-    }, SEL.timelineCanvas);
+    await wheelOver(SEL.timelineCanvas, -240);
 
     await waitFor(
       () => canvasHasInk(SEL.timelineCanvas),
@@ -124,5 +83,42 @@ describe("G. Timeline", () => {
 
     await openTool("waveform");
     await waitForAnalyzer("waveform");
+  });
+
+  it("G4 — moving the window re-fits an open chart instead of leaving a stale view", async () => {
+    // Regression: a heatmap kept the range it was showing and merely *clamped* it into the
+    // new extent, so after the window moved it showed a hairline (or nothing) until the
+    // user zoomed or dragged. The chart must re-fit to the whole new window.
+    await openFixture("sine440");
+    await openTool("spectrogram");
+    await waitForAnalyzer("spectrogram");
+
+    const chart = analyzerPanel("spectrogram");
+    const readout = () => textOf(`${chart} .zoom-readout`);
+    const span = async () => readoutSpan(await readout());
+    const fit = `${chart} [aria-label="Fit to the whole window"]`;
+
+    await waitFor(async () => (await span()) > 0, "the spectrogram showed no zoom readout");
+    const full = await span();
+
+    // Zoom well in, so the view is clearly a sub-range of the analysis window.
+    for (let i = 0; i < 3; i++) await wheelOver(`${chart} canvas`, -240);
+    await waitFor(async () => (await span()) < full, "the spectrogram never zoomed in");
+    const zoomed = await span();
+
+    // Move the analysis window: the chart must re-fit, not keep the stale zoom.
+    await dragTimelineHandle("start", 140);
+    await waitFor(
+      async () => (await span()) > zoomed,
+      "the chart kept the stale view after the window moved",
+    );
+
+    // What it shows is the whole *new* window — the same range the Fit control gives.
+    const refit = await span();
+    await click(fit);
+    await waitFor(
+      async () => Math.abs((await span()) - refit) < 0.002,
+      "Fit disagrees with the re-fit after the window moved",
+    );
   });
 });

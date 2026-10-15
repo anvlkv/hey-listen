@@ -195,7 +195,7 @@ export default function Toolbar() {
           >
             <Icon name="note-sticky" />
             <Show when={!notesPanelOpen() && notes().length > 0}>
-              <span class="notes-count-chip" data-testid="toolbar.notes.badge">
+              <span class="notes-count-chip" data-testid="toolbar.notes.count">
                 {notes().length}
               </span>
             </Show>

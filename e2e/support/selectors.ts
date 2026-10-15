@@ -36,6 +36,8 @@ export const SEL = {
   outputGain: '[data-testid="toolbar.output.gain"]',
   outputMeter: '[data-testid="toolbar.output.meter"]',
   toolbarNotes: '[data-testid="toolbar.notes"]',
+  // The note count inside the Toolbar button, shown while the rail is closed.
+  toolbarNotesCount: '[data-testid="toolbar.notes.count"]',
 
   // Notes panel (M14).
   notesRegion: '[data-testid="region.notes"]',
@@ -67,6 +69,11 @@ export const SEL = {
   // Timeline.
   timelineCanvas: '[data-testid="timeline.canvas"]',
   timelineReplace: '[data-testid="timeline.replace"]',
+  timelinePreview: '[data-testid="timeline.preview"]',
+  // The transport's note-at-the-playhead action (enabled only while previewing).
+  timelineNoteAtCursor: '[data-testid="timeline.noteAtCursor"]',
+  timelineScroll: '[data-testid="timeline.scroll"]',
+  timelineScrollThumb: '[data-testid="timeline.scroll.thumb"]',
   // The channel select keeps its ARIA label (shared with the toolbar popover).
   channelSelect: '[aria-label="Channel to analyse"]',
 

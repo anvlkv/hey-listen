@@ -58,7 +58,7 @@ const rhythmMarkers =
           dispose = createRoot((root) => {
             createEffect(() => {
               current = getMarkers();
-              u.redraw(false);
+              u.redraw();
             });
             return root;
           });
@@ -140,7 +140,7 @@ const tempoMarker =
           dispose = createRoot((root) => {
             createEffect(() => {
               bpm = getBpm();
-              u.redraw(false);
+              u.redraw();
             });
             return root;
           });

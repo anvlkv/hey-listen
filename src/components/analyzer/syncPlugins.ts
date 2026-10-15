@@ -1,7 +1,7 @@
 import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
-import type { AnalyzerBus, SyncGroup } from "../../state/chartSync";
+import { analyzerBus, type AnalyzerBus, type SyncGroup } from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
 
 /** The uPlot instance type, taken from the wrapper's plugin props. */
@@ -32,7 +32,7 @@ export const mirrorCursor =
           dispose = createRoot((root) => {
             createEffect(() => {
               const msg = bus.data.cursorSync;
-              if (msg && msg.group === group && msg.sourceId !== u.root.id) u.redraw(false);
+              if (msg && msg.group === group && msg.sourceId !== u.root.id) u.redraw();
             });
             return root;
           });
@@ -75,45 +75,57 @@ export const mirrorCursor =
  * The position rides the shared bus (`playhead`), published by the Timeline's preview
  * controller. Unlike [`mirrorCursor`] — a dashed rule following *another chart's* hover
  * — this is the transport's own position, so it is drawn solid, in the playhead colour.
+ *
+ * Reads the **module** bus rather than the one handed to the plugin (as the note plugin
+ * does), so a chart built before the first preview still sees the message.
+ *
+ * The repaint is `u.redraw()` — *not* `u.redraw(false)`, which only commits and is a
+ * no-op unless a scale/size change happens to be pending (uPlot documents `redraw()` as
+ * `setScale('x', …)`). Every plugin-driven repaint in this file had that bug.
  */
-export const playheadRule =
-  (): UplotPluginFactory<AnalyzerBus> =>
-  ({ bus }) => {
-    if (!bus) return { hooks: {} };
-    let dispose: (() => void) | undefined;
-    return {
-      hooks: {
-        ready: (u) => {
-          // Track the message: repaint as the transport advances, and once more when it
-          // stops (published as `secs: null`) so the rule is erased. Before anything has
-          // ever played there is nothing to paint.
-          dispose = createRoot((root) => {
-            createEffect(() => {
-              if (bus.data.playhead != null) u.redraw(false);
-            });
-            return root;
+export const playheadRule = (): UplotPluginFactory<AnalyzerBus> => () => {
+  let dispose: (() => void) | undefined;
+  return {
+    hooks: {
+      ready: (u) => {
+        // Track the message: repaint as the transport advances, and once more when it
+        // stops (published as `secs: null`) so the rule is erased. Before anything has
+        // ever played there is nothing to paint.
+        //
+        // The **field** is read, not just the key: the bus store *merges* an incoming
+        // message into the key, so only the field that changed notifies its readers. A
+        // listener on `playhead` alone fires once and then goes deaf — which froze the
+        // rule at its first position. `null` is a real value here (the transport
+        // stopped) and must still repaint, to erase the rule.
+        dispose = createRoot((root) => {
+          createEffect(() => {
+            const secs = analyzerBus.data.playhead?.secs;
+            if (secs === undefined) return;
+            u.redraw();
           });
-        },
-        draw: (u) => {
-          const secs = bus.data.playhead?.secs;
-          if (secs == null || !u.ctx) return;
-          const x = u.valToPos(secs, "x", true);
-          if (!Number.isFinite(x)) return;
-          const { ctx } = u;
-          const px = Math.round(x) + 0.5;
-          ctx.save();
-          ctx.strokeStyle = chartTheme().playhead;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(px, u.bbox.top);
-          ctx.lineTo(px, u.bbox.top + u.bbox.height);
-          ctx.stroke();
-          ctx.restore();
-        },
-        destroy: () => dispose?.(),
+          return root;
+        });
       },
-    };
+      draw: (u) => {
+        const secs = analyzerBus.data.playhead?.secs;
+        if (secs == null || !u.ctx) return;
+        const x = u.valToPos(secs, "x", true);
+        if (!Number.isFinite(x)) return;
+        const { ctx } = u;
+        const px = Math.round(x) + 0.5;
+        ctx.save();
+        ctx.strokeStyle = chartTheme().playhead;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(px, u.bbox.top);
+        ctx.lineTo(px, u.bbox.top + u.bbox.height);
+        ctx.stroke();
+        ctx.restore();
+      },
+      destroy: () => dispose?.(),
+    },
   };
+};
 
 /** Mirror the x-range of charts in the same [`SyncGroup`]. */
 export const syncView =

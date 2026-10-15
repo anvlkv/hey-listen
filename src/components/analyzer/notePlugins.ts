@@ -242,12 +242,14 @@ export function noteMarkers(tool: AnalyzerId): UplotPluginFactory<AnalyzerBus> {
             }));
             createEffect(() => {
               groups = noteGroups(tool);
-              u.redraw(false);
+              // `u.redraw()` (not `redraw(false)`, which commits without drawing unless a
+              // scale change is pending) — a plugin-driven repaint must always repaint.
+              u.redraw();
             });
             // Repaint while a selection is being dragged out in the lane.
             createEffect(() => {
               lane?.selection();
-              u.redraw(false);
+              u.redraw();
             });
             return root;
           });
