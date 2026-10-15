@@ -1,11 +1,7 @@
+import { type Accessor } from "solid-js";
 import { stopFollowing } from "../../state/capture";
-import {
-  dragNoteEndTo,
-  dragNoteTo,
-  focusNote,
-  refreshNoteValues,
-  setFocusedNote,
-} from "../../state/notes";
+import { notesSorted } from "../../state/notes";
+import { createLaneDrag, noteHandleAt, noteHintText, type LaneSelection } from "../notes/lane";
 import { source } from "../../state/source";
 import {
   setWindowEnd,
@@ -17,14 +13,13 @@ import {
 } from "../../state/timeline";
 import { HANDLE_HIT, MOVE_HIT, PREVIEW_THROTTLE, RULER_H } from "./constants";
 import { NOTE_STRIP_H } from "../notes/strip";
-import { noteEdgeAt, noteHintText, type NoteEdge } from "./noteHit";
 
 /**
  * Pointer interaction for the Timeline canvas: drag to pan, drag the start/end
- * handles (with an edge preview), drag the move bar to slide the window, drag note
- * pins, wheel-zoom, and the toolbar zoom actions. The component-local capabilities
- * arrive in [`TimelineInteractionDeps`]; the shared store reads/writes are imported
- * directly. See `docs/source-model.md`.
+ * handles (with an edge preview), drag the move bar to slide the window, drag a note
+ * handle / draw a note selection in the bottom lane, wheel-zoom, and the toolbar zoom
+ * actions. The component-local capabilities arrive in [`TimelineInteractionDeps`]; the
+ * shared store reads/writes are imported directly. See `docs/source-model.md`.
  */
 type DragKind = "start" | "end" | "move" | "pan";
 
@@ -50,6 +45,8 @@ export interface TimelineInteraction {
   zoomBy: (factor: number) => void;
   zoomToWindow: () => void;
   fitAll: () => void;
+  /** The span being dragged out in the note lane, for the canvas to draw. */
+  selection: Accessor<LaneSelection>;
 }
 
 export function createTimelineInteraction(deps: TimelineInteractionDeps): TimelineInteraction {
@@ -61,9 +58,17 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     origWindowStart: number;
     origWindowEnd: number;
   } | null = null;
-  /** Dragging a note's handle along the timeline (M14). */
-  let noteDrag: { id: string; edge: NoteEdge; startX: number; moved: boolean } | null = null;
+  /** Whether the note lane owns the current gesture (a handle drag or a selection). */
+  let laneActive = false;
   let lastPreview = 0;
+
+  /** The Timeline's lane holds **Timeline notes** (no chart). */
+  const lane = createLaneDrag(() => ({
+    notes: () => notesSorted(),
+    tool: () => null,
+    timeAt: deps.t2x,
+    timeFromX: (x) => deps.x2t(x),
+  }));
 
   function pointerX(e: { clientX: number }): number {
     const rect = deps.canvas().getBoundingClientRect();
@@ -75,8 +80,8 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     return e.clientY - rect.top;
   }
 
-  /** The top of the bottom note strip (where a note anchor can be grabbed). */
-  function noteStripTop(): number {
+  /** The top of the bottom note lane (where notes are created, grabbed and resized). */
+  function laneTop(): number {
     const rect = deps.canvas().getBoundingClientRect();
     return rect.height - NOTE_STRIP_H;
   }
@@ -93,10 +98,10 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     const x = pointerX(e);
     const y = pointerY(e);
 
-    // A note handle starts a drag (grab an edge, or click to focus + open its chart).
-    const hit = noteEdgeAt(x, y, deps.t2x, noteStripTop());
-    if (hit) {
-      noteDrag = { id: hit.note.id, edge: hit.edge, startX: x, moved: false };
+    // The note lane owns the bottom strip: grab a handle to move / resize a note, or
+    // drag empty space to select a span for a new one.
+    if (y >= laneTop() && lane.down(x)) {
+      laneActive = true;
       deps.setNoteHint(null);
       canvas.setPointerCapture(e.pointerId);
       return;
@@ -128,22 +133,15 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (noteDrag) {
-      const x = pointerX(e);
-      if (Math.abs(x - noteDrag.startX) > 2) noteDrag.moved = true;
-      if (noteDrag.moved) {
-        const t = Math.max(0, Math.min(deps.duration(), deps.x2t(x)));
-        // The start edge moves (a point) or resizes (a range); the end edge resizes.
-        if (noteDrag.edge === "end") dragNoteEndTo(noteDrag.id, t);
-        else dragNoteTo(noteDrag.id, t);
-      }
+    if (laneActive) {
+      lane.move(deps.x2t(pointerX(e)));
       return;
     }
     if (!drag) {
-      const hit = noteEdgeAt(pointerX(e), pointerY(e), deps.t2x, noteStripTop());
-      deps.setNoteHint(
-        hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit.note) } : null,
-      );
+      const x = pointerX(e);
+      const y = pointerY(e);
+      const hovered = y >= laneTop() ? noteHandleAt(notesSorted(), deps.t2x, x) : null;
+      deps.setNoteHint(hovered ? { x, y, text: noteHintText(hovered.note) } : null);
       return;
     }
     const x = pointerX(e);
@@ -187,17 +185,10 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
 
   function onPointerUp(e: PointerEvent) {
     const canvas = deps.canvas();
-    if (noteDrag) {
-      const { id, moved } = noteDrag;
-      noteDrag = null;
+    if (laneActive) {
+      laneActive = false;
+      lane.up();
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      if (moved) {
-        // Re-snapshot the values at the new time, and show the note where it landed.
-        refreshNoteValues(id);
-        setFocusedNote(id);
-      } else {
-        focusNote(id);
-      }
       return;
     }
     if (!drag) return;
@@ -251,5 +242,14 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     deps.applyView(0, deps.duration());
   }
 
-  return { onPointerDown, onPointerMove, onPointerUp, onWheel, zoomBy, zoomToWindow, fitAll };
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onWheel,
+    zoomBy,
+    zoomToWindow,
+    fitAll,
+    selection: lane.selection,
+  };
 }

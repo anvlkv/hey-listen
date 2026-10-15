@@ -9,10 +9,11 @@ import {
   type Accessor,
 } from "solid-js";
 import { analyzerBus } from "../../state/chartSync";
-import { dragNoteEndTo, dragNoteTo, refreshNoteValues } from "../../state/notes";
 import { NOTE_STRIP_H } from "../notes/strip";
+import { createLaneDrag, type LaneSelection } from "../notes/lane";
 import { timeRangeLabel } from "./chartCommon";
-import { noteEdgeNear, noteGroups, type NoteEdge } from "./notePlugins";
+import { laneNotes } from "./notePlugins";
+import type { AnalyzerId } from "../../state/analyzer";
 import type { ReframeTarget } from "./ReframeMenu";
 import {
   plotBox,
@@ -47,6 +48,8 @@ export interface ChartInteraction<V extends ChartView, H> {
   onPointerUp: (event: PointerEvent) => void;
   onPointerLeave: () => void;
   onContextMenu: (event: MouseEvent) => void;
+  /** The span being dragged out in the lane, for the chart to draw. */
+  selection: Accessor<LaneSelection>;
 }
 
 /** The per-chart hooks the interaction needs, so one factory serves both heatmaps. */
@@ -100,7 +103,23 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>();
 
   let pan: { x: number; y: number; view: V } | null = null;
-  let noteDrag: { id: string; edge: NoteEdge } | null = null;
+  /** Whether the note lane owns the current gesture. */
+  let laneActive = false;
+
+  /** The lane's gesture (drag a note handle, or select a span for a new note). */
+  const lane = createLaneDrag(() => {
+    const v = view();
+    const b = box();
+    const spanT = Math.max((v?.t1 ?? 0) - (v?.t0 ?? 0), 1e-9);
+    const t0 = v?.t0 ?? 0;
+    return {
+      notes: () => laneNotes(options.id),
+      // The lane's new notes belong to this chart (its id is an analyzer id).
+      tool: () => options.id as AnalyzerId,
+      timeAt: (time) => b.x + ((time - t0) / spanT) * b.width,
+      timeFromX: (x) => t0 + ((x - b.x) / b.width) * spanT,
+    };
+  });
 
   const box = createMemo(() => plotBox(size()));
 
@@ -148,15 +167,22 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     }
   }
 
+  /** Publish this chart's cursor, so the other time charts and the Timeline can show it. */
+  function publishCursor(time: number | null) {
+    analyzerBus.setData("cursorSync", { sourceId: options.id, group: "time", x: time });
+  }
+
   function updateHover(event: PointerEvent) {
     const v = view();
     const el = canvas();
     if (!v || !el) {
       setHover(null);
+      publishCursor(null);
       return;
     }
     const geo = plotGeo(el, box(), v, event.clientX, event.clientY);
     setHover(geo ? options.pick(geo) : null);
+    publishCursor(geo ? geo.time : null);
   }
 
   function onPointerDown(event: PointerEvent) {
@@ -165,40 +191,35 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const v = view();
     const el = canvas();
     if (!v || !el) return;
-    // Grab a note handle in the bottom strip to move / resize it along time.
+    // The note lane owns the bottom strip: grab a handle to move / resize a note, or
+    // drag empty space to select a span for a new one.
     const b = box();
     const rect = el.getBoundingClientRect();
     const localY = event.clientY - rect.top;
-    const stripTop = b.y + b.height - NOTE_STRIP_H;
-    if (localY >= stripTop && localY <= b.y + b.height) {
-      const span = Math.max(v.t1 - v.t0, 1e-9);
-      const hit = noteEdgeNear(
-        noteGroups(options.id),
-        (t) => b.x + ((t - v.t0) / span) * b.width,
-        event.clientX - rect.left,
-      );
-      if (hit) {
-        noteDrag = { id: hit.note.id, edge: hit.edge };
-        el.setPointerCapture(event.pointerId);
-        return;
-      }
+    if (
+      localY >= b.y + b.height - NOTE_STRIP_H &&
+      localY <= b.y + b.height &&
+      lane.down(event.clientX - rect.left)
+    ) {
+      laneActive = true;
+      el.setPointerCapture(event.pointerId);
+      return;
     }
     pan = { x: event.clientX, y: event.clientY, view: v };
     el.setPointerCapture(event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (noteDrag) {
+    // A lane gesture takes the pointer until it ends (the lane is also the pan surface's
+    // neighbour, so the two never run at once).
+    if (laneActive) {
       const v = view();
       const el = canvas();
       if (v && el) {
         const b = box();
         const rect = el.getBoundingClientRect();
         const span = Math.max(v.t1 - v.t0, 1e-9);
-        const time = v.t0 + ((event.clientX - rect.left - b.x) / b.width) * span;
-        // The start edge moves (a point) or resizes (a range); the end edge resizes.
-        if (noteDrag.edge === "end") dragNoteEndTo(noteDrag.id, time);
-        else dragNoteTo(noteDrag.id, time);
+        lane.move(v.t0 + ((event.clientX - rect.left - b.x) / b.width) * span);
       }
       return;
     }
@@ -213,16 +234,17 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
 
   function onPointerUp(event: PointerEvent) {
     const el = canvas();
-    if (noteDrag) {
-      refreshNoteValues(noteDrag.id);
-      noteDrag = null;
-    }
+    lane.up();
+    laneActive = false;
     pan = null;
     if (el?.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
   }
 
   function onPointerLeave() {
-    if (!pan) setHover(null);
+    if (!pan) {
+      setHover(null);
+      publishCursor(null);
+    }
   }
 
   function onWheel(event: WheelEvent) {
@@ -249,7 +271,14 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const b = box();
     const x = event.clientX - rect.left;
     const time = v.t0 + ((x - b.x) / b.width) * (v.t1 - v.t0);
-    setMenu({ x: event.clientX, y: event.clientY, time });
+    // `top` / `height` are the plot area, so the callout marks the chart, not the screen.
+    setMenu({
+      x: event.clientX,
+      y: event.clientY,
+      time,
+      top: rect.top + b.y,
+      height: b.height,
+    });
   }
 
   function zoomTime(factor: number) {
@@ -310,5 +339,6 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     onPointerUp,
     onPointerLeave,
     onContextMenu,
+    selection: lane.selection,
   };
 }

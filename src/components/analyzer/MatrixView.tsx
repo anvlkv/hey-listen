@@ -133,7 +133,7 @@ export default function MatrixView(props: {
     drawTimeAxis(ctx, v, box);
     drawHoverCross(ctx, box, chart.hover());
     drawMirrorCursor(ctx, v, box, props.id);
-    drawNoteOverlay(ctx, v, box, props.id);
+    drawNoteOverlay(ctx, v, box, props.id, chart.selection());
   }
 
   /** Pitch-class row rules (chromagram note grid). */

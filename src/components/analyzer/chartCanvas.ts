@@ -3,6 +3,7 @@ import { chartTheme } from "../../state/themes";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
 import { drawNoteMarkers, noteGroups } from "./notePlugins";
+import type { LaneSelection } from "../notes/lane";
 import type { AnalyzerId } from "../../state/analyzer";
 import type { ChartView, PlotBox } from "./chartGeometry";
 
@@ -143,12 +144,14 @@ export function drawMirrorCursor(
   ctx.restore();
 }
 
-/** This chart's own notes, other charts' notes (muted), and the focused note (M14). */
+/** This chart's own notes, other charts' notes (muted), and the focused note (M14) —
+ * plus the lane's live selection, if one is being dragged out. */
 export function drawNoteOverlay(
   ctx: CanvasRenderingContext2D,
   view: ChartView,
   box: PlotBox,
   tool: AnalyzerId | string,
+  selection: LaneSelection = null,
 ): void {
   const span = Math.max(view.t1 - view.t0, 1e-9);
   drawNoteMarkers(
@@ -161,5 +164,6 @@ export function drawNoteOverlay(
       right: box.x + box.width,
     },
     noteGroups(tool),
+    { selection },
   );
 }

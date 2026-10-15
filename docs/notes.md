@@ -115,11 +115,10 @@ only tabs are Workbench tabs, and a note panel is chrome, not content.
 - **Collapsible**, **hidden by default**. A Toolbar icon button (`note-sticky`)
   toggles it; while the rail is closed and notes exist, the button carries its
   **count** as a muted pill *inside* the button (a tally, not a notification badge).
-  The panel's own header has a chevron to collapse it, an **Add note** button (anchors
-  at the current analysis window, using the focused analyzer as its chart, with a
-  **range** toggle), and the total count. The toggle opens the new note as a
-  **range seed** — a slice of the window, deliberately not the whole window — whose
-  edges the user then drags.
+  The panel's own header has a chevron to collapse it, an **Add note** button (a
+  **point** note at the analysis window's start, using the focused analyzer as its
+  chart) and the total count. **Ranges are not made here** — they are drawn where the
+  audio is, in the note lane (below).
 - **Resizable** with a draggable splitter, clamped like the left Sidebar
   (160–520 px). The Workbench shrinks beside it (the panel pushes, it does not
   overlay).
@@ -140,47 +139,56 @@ only tabs are Workbench tabs, and a note panel is chrome, not content.
 
 ## Surfacing: Timeline and charts
 
-Notes are drawn where the audio is drawn — anchored in a thin **strip** along the
-**bottom** edge, on the Timeline and on every time chart, so they stay clear of the
-Timeline's window move handle and of a chart's drag/zoom area.
+Notes are drawn where the audio is drawn — in a thin **lane** along the **bottom**
+edge, on the Timeline and on every time chart, so they stay clear of the Timeline's
+window move handle and of a chart's drag/zoom area. The lane is also where they are
+**created and edited** (see [`lane.ts`](#files)): one pointer gesture serves every host.
 
-- **Timeline** — every note is drawn in the bottom strip: a **range** is a shaded
-  span with a **handle on each edge** (joined by a span bar) and a faint stem, a
-  **point** note a single tab. Hovering a handle shows a hint (heading + tool + values
-  line); clicking it focuses the note; **dragging an edge** moves the note (a point) or
-  resizes its span (a range) — the snapshot refreshes on release.
+- **The lane** — press a note's **handle** to drag it: a **point** note moves, a
+  **range** note resizes from whichever edge you took (grabbing anywhere across a range
+  takes its nearer edge). Press **empty lane space** and drag to select a span; releasing
+  creates a **range** note over it (a bare click does nothing). Hovering a handle shows a
+  hint (heading + tool + values line); clicking a note's handle focuses it.
+- **Timeline** — the lane runs along the bottom of the waveform, and holds the
+  **Timeline notes** (those with no chart). It also mirrors the **hovered chart's
+  cursor** as a dashed rule, so the moment a chart is pointing at is visible against the
+  whole recording.
 - **A note's own chart** — the notes whose `tool` matches the chart are drawn on
   it (full-strength anchors); the notes from **other** charts are drawn **muted**, so
-  every annotation is visible where the audio is. A chart can be dragged the same
-  way by grabbing a handle in its bottom strip.
+  every annotation is visible where the audio is. Dragging in a chart's lane creates a
+  note owned by **that chart**.
 - **The focused note** — exactly **one** note is focused at a time. The focused
   note is drawn on **every time-based chart** (the `time` sync group: waveform,
   series-over-time, spectrogram, matrix, rhythm), via the shared chart bus
   (`state/chartSync.ts` + a note plugin). It is **not** drawn on the
   frequency-axis `spectrum` (a time marker has no meaning on a frequency axis).
-- **Marker** — a full-height vertical rule at `timeSecs` (a shaded span for a range
-  note) plus its tab in the strip, with a **label** (the values line, else the
-  heading) in a chip just above the lane. Clicking a marker focuses the note.
+- **Marker** — a full-height vertical rule on each of the note's edges (a shaded span
+  for a range) plus its handles in the lane, with a **label** (the values line, else the
+  heading) in a chip just above it. Clicking a marker focuses the note.
 
 **Focus follows the click:** focusing a note **opens (or raises) the chart it
 belongs to** and **sets the analysis window / cursor to the note's time** — the
 same behaviour the Sidebar uses when it raises a popped-out tool (`focus_popout`).
+**Creating a note never reframes**, though: writing an annotation is not a request to
+move the analysis (see [Creating a note](#creating-a-note)).
 
 ## Creating a note
 
-Two entry points, one model:
+Three entry points, one model:
 
-- **Notes panel → Add note** — anchors at the current analysis window (the point
-  is the window start; the *add as a range* toggle opens the note as a span seeded
-  with a slice of the window, whose edges the user drags), with `tool` = the focused
-  analyzer tab if one is open. Values are captured from that chart.
-- **Chart context menu → Add note here** — anchors at the **clicked time** on
-  that chart, with `tool` = that chart's tool. (The Timeline's own right-click
-  already sets the window — *reframing* — so the Timeline right-click is left
-  alone; Timeline notes are added from the panel.)
+- **Notes panel → Add note** — a **point** note at the analysis window's start, with
+  `tool` = the focused analyzer tab if one is open. Values are captured from that chart.
+- **Note lane → drag a span** (the Timeline's or any time chart's) — a **range** note
+  over the dragged span, owned by that chart (`null` on the Timeline). Dragging a
+  note's handle instead *moves* or *resizes* that note; a bare click in the lane does
+  nothing.
+- **Chart context menu → Add note here** — a **point** note at the **clicked time**
+  on that chart, with `tool` = that chart's tool. (The Timeline's own right-click
+  already sets the window — *reframing* — so the Timeline right-click is left alone.)
 
 Creating captures the **values snapshot** at that moment (frozen), opens the
-panel if it is collapsed, **opens the new note's editor**, and focuses it.
+panel if it is collapsed, **opens the new note's editor**, and focuses it — without
+moving the analysis window.
 
 ## Persistence and cross-window
 
@@ -249,14 +257,15 @@ nowhere to store a note.
 | `src/state/notes/` | The `Note` type, the store, create/update/delete/focus, the values capture, and `window.ts` (open a note's own window). |
 | `src/lib/note.ts` | Pure note helpers (clamp, label, excerpt, the window-frame lookup `noteFrameAt`) — unit-tested. |
 | `src/lib/markdown.ts` | Markdown → sanitized HTML (`marked` + `dompurify`). |
-| `src/components/NotesPanel.tsx` | The right rail: the header (add / range / collapse) and the list. |
+| `src/components/NotesPanel.tsx` | The right rail: the header (add / collapse) and the list. |
 | `src/components/notes/NoteRow.tsx` | One row: the title bar, meta, values, and the body *or* the editor. |
 | `src/components/notes/NoteEditors.tsx` | The inline editor (textarea, explicit save/discard). |
 | `src/components/notes/NoteWindow.tsx` | The content of a note's **own window** (a large, edit-only editor). |
-| `src/components/notes/strip.ts` | The shared bottom-strip height (Timeline + charts). |
-| `src/components/analyzer/notePlugins.ts` | The chart marker plugin (its own notes, muted others, the focused rule + label; drag along time). |
+| `src/components/notes/lane.ts` | The note **lane**: its geometry, the handle hit-test, the drag / selection state machine every host shares, and its drawing. |
+| `src/components/notes/strip.ts` | The lane's height, shared by the Timeline and the charts. |
+| `src/components/analyzer/notePlugins.ts` | The chart lane plugin: its own notes, muted others, the focused rule + label, and the lane gesture. |
 | `src/components/analyzer/ReframeMenu.tsx` | The chart right-click menu — carries **Add note here**. |
-| `src/components/timeline/` | The note anchor drawing (`draw.ts`), hit-testing (`noteHit.ts`) and drag (`interaction.ts`). |
+| `src/components/timeline/` | The Timeline canvas: the lane's painting (`draw.ts`) and pointer handling (`interaction.ts`). |
 | `src/components/Toolbar.tsx` | The `note-sticky` toggle + its count chip. |
 | `src-tauri/src/project/sections.rs` | The `Note` / `NoteValues` types (`#[derive(ts_rs::TS)]`) + the `NOTES` section id. |
 | `src-tauri/src/project/{write,read}.rs` | Write / read the `NOTES` section. |
@@ -277,10 +286,10 @@ nowhere to store a note.
   readout and strikes through the frozen snapshot when they differ; editing the note
   (or a drag release) refreshes the snapshot.
 - **Anchoring + drag** — `time` / `range` clamp to the source; dragging a note's
-  handle (Timeline strip, or a chart's strip) moves a point note or resizes a range
-  (either edge, never collapsing it below a hairline), and refreshes the snapshot on
-  release; a note with an unknown `tool` is kept but draws no chart marker (and its
-  link is inert).
+  handle moves a point note or resizes a range (either edge, never collapsing it below a
+  hairline) and refreshes the snapshot on release; dragging a **lane span** creates a
+  range — and no creation path moves the analysis window; a note with an unknown `tool`
+  is kept but draws no chart marker (and its link is inert).
 - **Source-second alignment** — a note at `t` is drawn at `t` on a chart whose window
   does **not** start at 0 (`windowStart` shifts the frame grid, not the note), and its
   values line reads the frame containing `t` (`noteFrameAt`).

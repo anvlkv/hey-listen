@@ -545,10 +545,10 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
   a full-height rule with a label on **every time-based chart** (the `time` sync group)
   but **not** on the frequency-axis `spectrum`. Focusing a note **opens/raises its
   chart** and sets the analysis window to the note's time.
-- **Ranges are selections.** A range note shows a **handle on each edge** in the strip
-  and either end is draggable (never collapsing the span); a point note has one handle,
-  which moves it. The panel's range toggle opens a note as a **range seed** — a slice of
-  the window, not the whole window.
+- **Ranges are selections.** A range note shows a **handle on each edge** in the note
+  lane and either end is draggable (never collapsing the span); a point note has one
+  handle, which moves it. The panel's `Add` makes a point note; a **range** is made by
+  dragging a span in the lane (there is no range toggle — the span *is* the toggle).
 - **Source-second axes.** The engine re-bases every result onto source seconds
   (`windowStart` records the origin), so a chart's axis, its hover readout, and a note's
   `timeSecs` share one timebase whatever the analysis window is — the fix for notes

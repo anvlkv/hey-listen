@@ -181,7 +181,7 @@ export default function SpectrogramTab() {
     drawTimeAxis(ctx, v, box);
     drawHoverCross(ctx, box, chart.hover());
     drawMirrorCursor(ctx, v, box, SPECTROGRAM_ID);
-    drawNoteOverlay(ctx, v, box, SPECTROGRAM_ID);
+    drawNoteOverlay(ctx, v, box, SPECTROGRAM_ID, chart.selection());
   }
 
   createEffect(() => {
