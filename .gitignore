@@ -7,3 +7,7 @@ dist
 /e2e/.fixtures/
 /e2e/artifacts/
 logs/
+
+# husky v9 keeps its generated hook shims here; the hooks themselves
+# (.husky/pre-commit, .husky/pre-push) are tracked.
+.husky/_/

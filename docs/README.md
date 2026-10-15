@@ -4,7 +4,8 @@ Index of the design/planning documentation. These docs are the source of truth f
 design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11, M14, and the
 post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — see
 [`exports.md`](exports.md) and [`templates.md`](templates.md); [`notes.md`](notes.md)
-(M14) is delivered.
+(M14) is delivered, and **M15** (code hygiene — the format/lint/dead-code gate) is
+**in progress**: the gate has landed, the file splits have not.
 
 | Doc | What it covers |
 | --- | --- |
@@ -24,5 +25,6 @@ post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — s
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
 | [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
 | [decisions.md](decisions.md) | Architecture decision records (ADRs) |
+| [code-hygiene.md](code-hygiene.md) | The quality gate (the maid): format, lint, file-length budget, duplication, dead code, and the hooks/CI that run it |
 | [roadmap.md](roadmap.md) | Phased milestones |
 | [testing.md](testing.md) | E2E test plan + test matrix |

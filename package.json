@@ -15,7 +15,16 @@
     "tauri": "tauri",
     "test:e2e": "wdio run wdio.conf.ts",
     "test:e2e:build": "npm run tauri build && npm run test:e2e",
-    "screenshots": "wdio run screenshots.wdio.conf.ts"
+    "screenshots": "wdio run screenshots.wdio.conf.ts",
+    "prepare": "husky",
+    "maid": "npm run maid:fmt && npm run maid:lint && npm run maid:size && npm run maid:dup && npm run maid:dead && npm run maid:rs",
+    "maid:fmt": "prettier --check .",
+    "maid:lint": "eslint .",
+    "maid:size": "node scripts/checkFileSize.mjs",
+    "maid:dup": "jscpd .",
+    "maid:dead": "knip",
+    "maid:rs": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "maid:fix": "prettier --write . && eslint . --fix && node scripts/checkFileSize.mjs --update && cargo fmt --manifest-path src-tauri/Cargo.toml"
   },
   "license": "Unlicense",
   "engines": {
@@ -36,6 +45,7 @@
     "uplot": "^1.6.32"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.12.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.19.2",
@@ -48,8 +58,18 @@
     "@wdio/tauri-plugin": "^1.5.0",
     "@wdio/tauri-service": "^1.5.0",
     "@wdio/types": "^10.0.1",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-solid": "^0.18.1",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "jscpd": "^5.4.1",
+    "knip": "^6.41.0",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
     "vite": "^8.3.4",
     "vite-plugin-solid": "^2.11.14"
   }

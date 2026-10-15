@@ -1,0 +1,3 @@
+# Pre-push gate: the whole maid. Repo-scoped and slower than the pre-commit hook, so
+# it runs once per push rather than once per commit. CI runs the same command.
+npm run maid

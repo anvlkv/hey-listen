@@ -1,0 +1,4 @@
+# Pre-commit gate: fast checks over the staged files only (see lint-staged.config.mjs).
+# The full gate — dead code, duplication, the file-length budget and clippy — runs in
+# `.husky/pre-push` and in CI. See docs/code-hygiene.md.
+npx lint-staged

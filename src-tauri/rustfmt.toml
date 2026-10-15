@@ -1,0 +1,10 @@
+# Formatting rules for the Rust core. Enforced by `npm run maid:rs` and CI.
+#
+# Only stable options belong here: an unstable one makes `cargo fmt` fail on a
+# stable toolchain. `max_width = 100` is also rustfmt's default and matches the
+# frontend's prettier `printWidth` (see `.prettierrc.json`), so the two sides of
+# the IPC boundary wrap at the same column. Both keys are pinned rather than
+# relied on: `cargo fmt` passes the edition from `Cargo.toml`, but a direct
+# `rustfmt` invocation would otherwise assume edition 2015.
+edition = "2021"
+max_width = 100

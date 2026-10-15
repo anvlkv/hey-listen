@@ -1,0 +1,19 @@
+{
+  "min-tokens": 70,
+  "threshold": 1.5,
+  "gitignore": true,
+  "reporters": ["console"],
+  "format": ["typescript", "tsx", "javascript", "jsx", "css", "rust"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/src/bindings/**",
+    "**/dist/**",
+    "**/site/**",
+    "**/src-tauri/target/**",
+    "**/src-tauri/gen/**",
+    "**/e2e/artifacts/**",
+    "**/e2e/.fixtures/**",
+    "**/*.md",
+    "**/package-lock.json"
+  ]
+}

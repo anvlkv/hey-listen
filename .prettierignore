@@ -1,0 +1,28 @@
+# Build output and caches
+node_modules
+dist
+site
+.npm-cache
+logs
+
+# Rust
+src-tauri/target
+src-tauri/gen
+
+# E2E run artifacts (generated)
+e2e/artifacts
+e2e/.fixtures
+
+# Vendored font assets keep their embedded license comments verbatim
+public/fonts
+
+# Generated: ts-rs writes the IPC bindings from the Rust types (`cargo test`).
+# Never format or hand-edit these — they are overwritten on every regeneration.
+src/bindings
+
+# Hand-authored prose. The planning docs under docs/ are deliberately line-wrapped
+# and tabular; prettier would churn them without improving anything.
+*.md
+
+# Lock file is npm's to own.
+package-lock.json
