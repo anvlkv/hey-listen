@@ -88,6 +88,41 @@
   cursor: crosshair;
 }
 
+/* Horizontal scrollbar: the whole source as the track, the visible view as its thumb.
+   The thumb only renders while zoomed in (there is nothing to scroll otherwise), and the
+   track's height is fixed either way, so a zoom never reflows the canvas. */
+.timeline-scroll {
+  position: relative;
+  flex: none;
+  height: 10px;
+  margin: 0 6px 6px;
+  background: var(--track);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.timeline-scroll:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.timeline-scroll-thumb {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  min-width: 24px;
+  background: var(--control-hover-2);
+  border-radius: 4px;
+  cursor: grab;
+}
+
+.timeline-scroll-active .timeline-scroll-thumb {
+  cursor: grabbing;
+  background: var(--accent);
+}
+
 .timeline-overlay {
   position: absolute;
   inset: 0;
