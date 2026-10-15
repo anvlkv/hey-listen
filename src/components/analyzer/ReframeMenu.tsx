@@ -5,13 +5,17 @@ import { createNote } from "../../state/notes";
 import { setWindowEnd, setWindowStart } from "../../state/timeline";
 import type { AnalyzerId } from "../../state/analyzer";
 
-/** Where to place the menu and the time it targets. */
+/** Where to place the menu, the time it targets, and the chart's plot rectangle. */
 export interface ReframeTarget {
   /** Pointer position in **client** (viewport) coordinates, px. */
   x: number;
   y: number;
-  /** The time under the pointer, in seconds. */
+  /** The time under the pointer, in seconds (source seconds). */
   time: number;
+  /** The chart's plot area in client coordinates, so the callout marks the chart
+   * itself rather than the whole window. */
+  top: number;
+  height: number;
 }
 
 /** Clamp a time to the current source's `[0, duration]`. */
@@ -73,8 +77,16 @@ export default function ReframeMenu(props: {
     <Show when={props.target}>
       {(target) => (
         <Portal>
-          {/* Callout line marking the exact time on the chart. */}
-          <div class="reframe-callout" style={{ left: `${target().x}px` }} aria-hidden="true" />
+          {/* Callout line marking the exact time on the chart (bounded to it). */}
+          <div
+            class="reframe-callout"
+            style={{
+              left: `${target().x}px`,
+              top: `${target().top}px`,
+              height: `${target().height}px`,
+            }}
+            aria-hidden="true"
+          />
           <div
             ref={(node) => (menu = node)}
             class="reframe-menu"

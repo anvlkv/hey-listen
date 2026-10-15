@@ -70,18 +70,17 @@ export function frequencyRangeLabel(range: [number, number] | null): string {
 
 /**
  * Right-click handler that opens the reframe menu at the time under the pointer.
- * `timeAt` maps the event to a time in seconds (or `null` when the pointer is
- * outside the plot, which leaves the menu closed).
+ * `build` maps the event to a target (or `null` when the pointer is outside the plot,
+ * which leaves the menu closed).
  */
 export function createReframeHandler(
-  timeAt: (event: MouseEvent) => number | null,
+  build: (event: MouseEvent) => ReframeTarget | null,
   setMenu: Setter<ReframeTarget | null>,
 ): (event: MouseEvent) => void {
   return (event: MouseEvent) => {
     event.preventDefault();
-    const time = timeAt(event);
-    if (time == null) return;
-    setMenu({ x: event.clientX, y: event.clientY, time });
+    const target = build(event);
+    if (target) setMenu(target);
   };
 }
 
@@ -93,7 +92,14 @@ export function createUplotReframeHandler(
   return createReframeHandler((event) => {
     const u = zoom.instance();
     if (!u || !u.over) return null;
+    // `u.over` is the plot area itself, so its rect is what the callout should span.
     const rect = u.over.getBoundingClientRect();
-    return u.posToVal(event.clientX - rect.left, "x");
+    return {
+      x: event.clientX,
+      y: event.clientY,
+      time: u.posToVal(event.clientX - rect.left, "x"),
+      top: rect.top,
+      height: rect.height,
+    };
   }, setMenu);
 }

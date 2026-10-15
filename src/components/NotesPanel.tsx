@@ -5,14 +5,8 @@ import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
 import { createNote, defaultNoteTool, notesSorted, openNoteWindow } from "../state/notes";
 import { setNotesPanelOpen } from "../state/settings";
-import { windowEnd, windowStart } from "../state/timeline";
+import { windowStart } from "../state/timeline";
 import { NoteRow } from "./notes/NoteRow";
-
-/**
- * The Notes panel's **range** seed: how much of the analysis window a new range note
- * spans before the user drags its end handle. See `docs/notes.md` → Creating a note.
- */
-const RANGE_SEED_FRACTION = 0.1;
 
 /**
  * The **Notes panel** (M14) — a right rail (a fixed region, not a Workbench tab)
@@ -23,27 +17,18 @@ const RANGE_SEED_FRACTION = 0.1;
  * when it differs), and the rendered body clamped to a height. Selecting the heading
  * focuses the note. See `docs/notes.md`.
  *
+ * **Adding** — `Add` drops a **point** note at the analysis window's start; a **range**
+ * is drawn where the audio is, by dragging a span in the note lane of the Timeline or of
+ * any time chart (`components/notes/lane.ts`), and its edges are then draggable there.
+ *
  * The per-note expand state lives here keyed by note id and is passed to the row as an
  * **accessor** — a store edit replaces the note object and its `<For>` row is
  * recreated, and a plain value read inside the `<For>` mapper would not be reactive.
  */
 export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
-  const [asRange, setAsRange] = createSignal(false);
   const [expanded, setExpanded] = createSignal<Record<string, boolean>>({});
 
-  const add = () => {
-    const start = windowStart();
-    const end = windowEnd();
-    // A range opens as a slice of the window — a visible seed the user then drags to the
-    // span they want (its end handle is in the strip). Deliberately *not* the whole
-    // window: that is a different intent, and it leaves nothing to drag.
-    const seed = start + (end - start) * RANGE_SEED_FRACTION;
-    createNote({
-      timeSecs: start,
-      range: asRange() && seed > start ? { startSecs: start, endSecs: seed } : null,
-      tool: defaultNoteTool(),
-    });
-  };
+  const add = () => createNote({ timeSecs: windowStart(), tool: defaultNoteTool() });
 
   return (
     <aside class="app-notes" data-testid="region.notes" style={props.style}>
@@ -56,17 +41,6 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
           <Tooltip label="Add a note at the analysis window">
             <Button class="note-icon" data-testid="notes.add" aria-label="Add note" onClick={add}>
               <Icon name="plus" />
-            </Button>
-          </Tooltip>
-          <Tooltip label="When on, a new note starts as a span — drag either edge in the strip">
-            <Button
-              class="note-icon"
-              data-testid="notes.range"
-              aria-label="Add note as a range"
-              aria-pressed={asRange()}
-              onClick={() => setAsRange((value) => !value)}
-            >
-              <Icon name="arrows-left-right-to-line" />
             </Button>
           </Tooltip>
           <Tooltip label="Collapse the notes panel">
@@ -87,8 +61,9 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
           when={notesSorted().length > 0}
           fallback={
             <div class="notes-empty" data-testid="notes.empty">
-              No notes yet. Add one at the analysis window, or right-click a chart and choose “Add
-              note here”.
+              No notes yet. Add one with <strong>+</strong> at the analysis window, drag a span in
+              the Timeline's note lane to mark a range, or right-click a chart and choose “Add note
+              here”.
             </div>
           }
         >

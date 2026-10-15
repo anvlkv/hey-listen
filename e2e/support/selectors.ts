@@ -40,7 +40,6 @@ export const SEL = {
   // Notes panel (M14).
   notesRegion: '[data-testid="region.notes"]',
   notesAdd: '[data-testid="notes.add"]',
-  notesRange: '[data-testid="notes.range"]',
   notesCollapse: '[data-testid="notes.collapse"]',
   notesEmpty: '[data-testid="notes.empty"]',
   notesRows: '[data-testid="notes.rows"]',

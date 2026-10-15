@@ -115,6 +115,7 @@ export default function Timeline() {
     x2t,
     span,
     plotW,
+    laneSelection: interaction.selection,
   };
 
   function draw() {

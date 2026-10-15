@@ -9,7 +9,7 @@ import {
 } from "../../lib/note";
 import { setNotesPanelOpen } from "../settings";
 import { source } from "../source";
-import { focusNote } from "./focus";
+import { selectNote } from "./focus";
 import { noteById } from "./reads";
 import {
   editingNoteId,
@@ -59,11 +59,12 @@ export function createNote(input: NoteInput): Note {
   note.values = tool ? captureValues(tool, note.timeSecs, now) : null;
   setNotes((prev) => [...prev, note]);
   if (input.focus ?? true) {
-    // Creating reveals the rail (if collapsed), opens the new note's editor, and
-    // focuses it.
+    // Creating reveals the rail (if collapsed), opens the new note's editor and focuses
+    // it. It deliberately does **not** move the analysis window: adding an annotation
+    // must not reframe the analysis (see `docs/notes.md` → Surfacing).
     setNotesPanelOpen(true);
     setEditingNoteId(note.id);
-    focusNote(note.id);
+    selectNote(note.id);
   }
   return note;
 }

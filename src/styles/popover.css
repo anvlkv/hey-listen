@@ -113,8 +113,6 @@
 /* Vertical line marking the exact time the menu will set, over the chart. */
 .reframe-callout {
   position: fixed;
-  top: 0;
-  bottom: 0;
   width: 1px;
   pointer-events: none;
   background: var(--accent);

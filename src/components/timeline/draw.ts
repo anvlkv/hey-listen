@@ -1,14 +1,16 @@
 import { columnExtent, type ChannelPick, type Peaks } from "../../lib/waveform";
+import { analyzerBus } from "../../state/chartSync";
 import { filteredSamples } from "../../state/filtered";
 import { filterEnabled } from "../../state/graph";
-import { focusedNoteId, notesSorted } from "../../state/notes";
 import { noteSpan } from "../../lib/note";
+import { focusedNoteId, notesSorted } from "../../state/notes";
 import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
 import { LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
 import { formatRulerTime, niceStep } from "./format";
 import { NOTE_STRIP_H } from "../notes/strip";
+import { drawLane, type LaneSelection } from "../notes/lane";
 
 /**
  * Canvas painting for the Timeline. `drawTimeline` is the entry point (called by
@@ -28,6 +30,8 @@ export interface TimelineDrawDeps {
   x2t: (x: number) => number;
   span: () => number;
   plotW: () => number;
+  /** The span being dragged out in the note lane (for the live selection). */
+  laneSelection: () => LaneSelection;
 }
 
 /**
@@ -119,7 +123,8 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     drawHandle(ctx, we, waveTop, waveH, t.series);
   }
 
-  drawNotes(ctx, waveTop, waveH, w, deps.t2x);
+  drawNotes(ctx, waveTop, waveH, w, deps, !!s);
+  drawChartCursor(ctx, deps.t2x, h);
 
   const ph = deps.playSec();
   if (ph != null) {
@@ -213,37 +218,59 @@ function drawMoveHandle(ctx: CanvasRenderingContext2D, x0: number, x1: number, t
 }
 
 /**
- * Note anchors (M14): every note is a handle in the **bottom strip** — a range is two
- * handles (its edges) joined by a span bar and a full-height shaded span, a point note
- * a single tab. The focused note is emphasised with a full-height stem. Clicking a
- * handle focuses the note; hovering shows a hint; dragging an edge moves (a point) or
- * resizes (a range) the note. The strip keeps the handles clear of the window move
- * handle at the top — see `components/notes/strip.ts` and `docs/notes.md` → Surfacing.
+ * The hovered chart's cursor, mirrored onto the Timeline as a dashed rule — so the
+ * moment a chart is pointing at is visible against the whole recording. Driven by the
+ * shared `cursorSync` key (time group) that every analyzer chart publishes, and read
+ * inside the repaint effect, so the Timeline follows the pointer.
+ */
+function drawChartCursor(
+  ctx: CanvasRenderingContext2D,
+  t2x: (t: number) => number,
+  h: number,
+): void {
+  const message = analyzerBus.data.cursorSync;
+  if (!message || message.group !== "time" || message.x == null) return;
+  const x = t2x(message.x);
+  ctx.save();
+  ctx.strokeStyle = chartTheme().mirror;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(Math.round(x) + 0.5, RULER_H);
+  ctx.lineTo(Math.round(x) + 0.5, h);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * The note lane (M14): the strip along the bottom of the waveform where notes are
+ * created, moved and resized. The lane's background and the live selection come from
+ * `notes/lane.ts`; the notes are drawn on top — a **range** as a shaded span with a
+ * handle on each edge, a **point** note as a single tab — with a full-height stem for
+ * the focused one. See `components/notes/lane.ts` and `docs/notes.md` → Surfacing.
  */
 function drawNotes(
   ctx: CanvasRenderingContext2D,
   waveTop: number,
   waveH: number,
   w: number,
-  t2x: (t: number) => number,
+  deps: TimelineDrawDeps,
+  hasSource: boolean,
 ): void {
   const list = notesSorted();
-  if (list.length === 0) return;
   const theme = chartTheme();
-  const focusId = focusedNoteId();
+  const t2x = deps.t2x;
   const stripTop = waveTop + waveH - NOTE_STRIP_H;
-
-  // The lane itself, so the anchors read as a separate layer from the waveform.
-  ctx.globalAlpha = 0.45;
-  ctx.fillStyle = theme.ruler;
-  ctx.fillRect(0, stripTop, w, NOTE_STRIP_H);
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = theme.grid;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, stripTop + 0.5);
-  ctx.lineTo(w, stripTop + 0.5);
-  ctx.stroke();
+  const geom = { xFor: t2x, top: stripTop, height: NOTE_STRIP_H, left: 0, right: w };
+  drawLane(ctx, geom, {
+    background: theme.ruler,
+    color: theme.note,
+    hintColor: theme.axis,
+    hint: hasSource && list.length === 0 ? "Drag to add a note" : null,
+    selection: deps.laneSelection(),
+  });
+  if (list.length === 0) return;
+  const focusId = focusedNoteId();
 
   for (const note of list) {
     const span = noteSpan(note);

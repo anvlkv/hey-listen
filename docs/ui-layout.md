@@ -251,19 +251,19 @@ to a height, expandable with a chevron). Selecting the heading **focuses** the n
 then appears on every time-based chart and its chart is opened/raised. Editing **swaps**
 the body for a textarea with an explicit save/discard (a blur does not save). The
 `popout` action opens the note in its **own window**, raised rather than duplicated. The
-header has an **Add note** button (anchors at the current analysis window, using the
-focused analyzer as its chart) and an **as a range** toggle, and the Toolbar button
-carries its **count** as a muted pill inside the button while the rail is closed. The
-toggle opens the new note as a **range seed** — a slice of the window, deliberately not
-the whole window — so a range note shows a **handle on each edge** in the strip and
-either end can be dragged to the span the user wants (a point note has one handle,
-which moves it).
+header has an **Add note** button (a **point** note at the analysis window's start, using
+the focused analyzer as its chart), and the Toolbar button carries its **count** as a
+muted pill inside the button while the rail is closed. **Ranges are made where the audio
+is**: dragging a span in the note **lane** along the bottom of the Timeline or of any time
+chart creates a range note there, and a range then shows a **handle on each edge** in that
+lane so either end can be dragged (a point note has one handle, which moves it).
 
-Notes are surfaced in three places: every note as an **anchor in a thin strip along the
-bottom** of the Timeline (a range shows a handle on each edge, so either end is
-draggable), a chart's **own** notes in that chart's strip (with the notes from other
-charts drawn **muted**), and the **focused** note as a full-height rule with a label on
-**all time-based charts** (never the frequency-axis `spectrum`). See
+Notes are surfaced in three places: every note in the note **lane** along the bottom of
+the Timeline (a range shows a handle on each edge, so either end is draggable, and dragging
+a span in the lane marks a new one), a chart's **own** notes in that chart's lane (with the
+notes from other charts drawn **muted**), and the **focused** note as a full-height rule
+with a label on **all time-based charts** (never the frequency-axis `spectrum`). The
+Timeline also mirrors the **hovered chart's cursor** as a dashed rule. See
 [`notes.md`](notes.md) → Surfacing.
 
 ## Source picker

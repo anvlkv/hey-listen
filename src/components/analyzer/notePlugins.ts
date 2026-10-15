@@ -2,38 +2,35 @@ import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { Note } from "../../bindings/Note";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
-import { dragNoteEndTo, dragNoteTo, refreshNoteValues } from "../../state/notes";
 import { noteHeading, noteSpan } from "../../lib/note";
 import { chartTheme } from "../../state/themes";
 import { NOTE_STRIP_H } from "../notes/strip";
+import {
+  createLaneDrag,
+  drawLane,
+  type LaneController,
+  type LaneGeom,
+  type LaneSelection,
+} from "../notes/lane";
 import type { AnalyzerId } from "../../state/analyzer";
 
 /**
  * Note markers on the analyzer charts (M14): a chart draws **its own** notes
  * (full-strength anchors), every **other** note slightly muted, and the **focused**
- * note as a full-height rule with a label. The anchors live in a thin **strip** along
- * the bottom of the plot (`components/notes/strip.ts`), which keeps them clear of
- * uPlot's drag/zoom area. A range note shows **two handles** — one per edge, joined by
- * a span bar — and either edge can be dragged. The frequency-axis `spectrum` draws
- * none (a time marker has no meaning on a frequency axis). Notes arrive on the shared
- * [`analyzerBus`](../../state/chartSync.ts) (`notes`), published by the notes store,
- * so cross-window and store changes redraw in step. See `docs/notes.md`.
+ * note as a full-height rule with a label. A note is drawn in the **lane** along the
+ * bottom of the plot (`components/notes/lane.ts`, which also owns the pointer gesture
+ * — drag a handle to move / resize, drag empty space to select a span for a new note).
+ * The frequency-axis `spectrum` draws none (a time marker has no meaning on a frequency
+ * axis). Notes arrive on the shared [`analyzerBus`](../../state/chartSync.ts) (`notes`),
+ * published by the notes store, so cross-window and store changes redraw in step. A
+ * range note shows a handle on each edge. See `docs/notes.md`.
  */
 
 /** The focused note's marker label font — larger than the axis font, so it reads. */
 const NOTE_LABEL_FONT = "600 12px Inter, sans-serif";
 
-/** Which edge of a note's anchor a pointer grabbed. */
-export type NoteEdge = "start" | "end";
-
-/** Canvas geometry for the markers: the plot area plus a time → x mapper. */
-export interface NoteGeom {
-  xFor: (timeSecs: number) => number;
-  top: number;
-  height: number;
-  left: number;
-  right: number;
-}
+/** Canvas geometry for the lane's markers. */
+export type NoteGeom = LaneGeom;
 
 /** The notes a chart draws: its own, the others (muted), and the focused one. */
 export interface NoteGroups {
@@ -57,6 +54,12 @@ export function noteGroups(tool: AnalyzerId | string): NoteGroups {
   return { own, others, focused };
 }
 
+/** Every note a chart's lane shows: its own, the others', and the focused one. */
+export function laneNotes(tool: AnalyzerId | string): Note[] {
+  const { own, others, focused } = noteGroups(tool);
+  return focused ? [...own, ...others, focused] : [...own, ...others];
+}
+
 /** The focused note's marker label: its values line, else its heading. */
 export function noteMarkerLabel(note: Note): string {
   return note.values?.text || noteHeading(note.body, 32) || "Note";
@@ -65,11 +68,11 @@ export function noteMarkerLabel(note: Note): string {
 const inRange = (x: number, geom: NoteGeom) =>
   Number.isFinite(x) && x >= geom.left && x <= geom.right;
 
-/** The strip's top edge inside the plot area. */
-const stripTopOf = (geom: NoteGeom) => geom.top + geom.height - NOTE_STRIP_H;
+/** The lane's top edge inside the plot area. */
+const laneTopOf = (geom: NoteGeom) => geom.top + geom.height - NOTE_STRIP_H;
 
 /**
- * A note's grab handles in the strip: two caps joined by a span bar for a range, a
+ * A note's grab handles in the lane: two caps joined by a span bar for a range, a
  * single tab for a point note. The geometry the pointer hit-test uses, so a click
  * always lands on a handle the user can see.
  */
@@ -81,7 +84,7 @@ function drawHandles(
   cap: number,
 ) {
   const span = noteSpan(note);
-  const stripTop = stripTopOf(geom);
+  const stripTop = laneTopOf(geom);
   const x0 = Math.round(geom.xFor(span.start));
   const x1 = Math.round(geom.xFor(span.end));
   const top = stripTop + 1;
@@ -97,7 +100,7 @@ function drawHandles(
   ctx.fillRect(x0 - cap / 2, top, cap, 3);
 }
 
-/** A note's anchor in the bottom strip (a shaded span for a range note). */
+/** A note's anchor in the lane (a shaded span for a range note). */
 function tick(
   ctx: CanvasRenderingContext2D,
   geom: NoteGeom,
@@ -117,7 +120,7 @@ function tick(
   }
   const x = geom.xFor(span.start);
   if (!inRange(x, geom)) return;
-  const stripTop = stripTopOf(geom);
+  const stripTop = laneTopOf(geom);
   // A faint stem rising out of the lane, then the handle(s) inside it.
   ctx.globalAlpha = alpha * 0.8;
   ctx.strokeStyle = color;
@@ -131,13 +134,27 @@ function tick(
 }
 
 /**
- * Draw the note markers onto a 2-D context. Shared by the uPlot plugin and the canvas
- * heatmaps (`MatrixView` / `SpectrogramTab`) so the markers look identical everywhere.
+ * Draw the note lane and its markers onto a 2-D context. Shared by the uPlot plugin
+ * and the canvas heatmaps (`MatrixView` / `SpectrogramTab`) so the lane looks (and
+ * behaves) identical everywhere.
  */
-export function drawNoteMarkers(ctx: CanvasRenderingContext2D, geom: NoteGeom, groups: NoteGroups) {
+export function drawNoteMarkers(
+  ctx: CanvasRenderingContext2D,
+  geom: NoteGeom,
+  groups: NoteGroups,
+  opts: { selection?: LaneSelection; hint?: string | null } = {},
+) {
   const { own, others, focused } = groups;
-  if (own.length === 0 && others.length === 0 && !focused) return;
   const theme = chartTheme();
+  drawLane(ctx, geom, {
+    background: theme.ruler,
+    color: theme.note,
+    hintColor: theme.axis,
+    hint: opts.hint ?? null,
+    selection: opts.selection ?? null,
+  });
+  if (own.length === 0 && others.length === 0 && !focused) return;
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(geom.left, geom.top, Math.max(0, geom.right - geom.left), geom.height);
@@ -171,7 +188,6 @@ export function drawNoteMarkers(ctx: CanvasRenderingContext2D, geom: NoteGeom, g
       ctx.stroke();
     }
     drawHandles(ctx, geom, focused, theme.note, 8);
-    const px = Math.round(x0) + 0.5;
     if (inRange(x0, geom)) {
       // A label chip just above the lane, so it stays readable over a heatmap.
       const label = noteMarkerLabel(focused);
@@ -179,9 +195,10 @@ export function drawNoteMarkers(ctx: CanvasRenderingContext2D, geom: NoteGeom, g
       ctx.textBaseline = "bottom";
       ctx.textAlign = "left";
       const width = ctx.measureText(label).width;
+      const px = Math.round(x0) + 0.5;
       let lx = px + 6;
       if (lx + width > geom.right) lx = Math.max(geom.left, px - 6 - width);
-      const baseline = stripTopOf(geom) - 4;
+      const baseline = laneTopOf(geom) - 4;
       ctx.globalAlpha = 0.82;
       ctx.fillStyle = theme.background;
       ctx.fillRect(lx - 3, baseline - 15, width + 6, 16);
@@ -193,94 +210,66 @@ export function drawNoteMarkers(ctx: CanvasRenderingContext2D, geom: NoteGeom, g
   ctx.restore();
 }
 
-/** How close (px) the pointer must be to a note's edge to grab it. */
-const GRAB_PX = 7;
-
-/** The note edge within `GRAB_PX` of a plot-local x, or `null`. */
-export function noteEdgeNear(
-  groups: NoteGroups,
-  xFor: (timeSecs: number) => number,
-  localX: number,
-): { note: Note; edge: NoteEdge } | null {
-  const candidates: Note[] = [];
-  if (groups.focused) candidates.push(groups.focused);
-  candidates.push(...groups.own, ...groups.others);
-  let best: { note: Note; edge: NoteEdge } | null = null;
-  let bestDistance = GRAB_PX;
-  for (const note of candidates) {
-    const span = noteSpan(note);
-    // A range has two handles; a point note only its anchor (dragging it moves it).
-    const edges: NoteEdge[] = span.end > span.start ? ["start", "end"] : ["start"];
-    for (const edge of edges) {
-      const distance = Math.abs(xFor(edge === "end" ? span.end : span.start) - localX);
-      if (distance <= bestDistance) {
-        bestDistance = distance;
-        best = { note, edge };
-      }
-    }
-  }
-  return best;
-}
-
 /**
- * uPlot plugin: draws a chart's notes (own + muted others + the focused rule) and lets
- * the user **drag a note along the time axis** by grabbing a handle in the bottom strip.
+ * uPlot plugin: the lane's markers (own + muted others + the focused rule) on a chart,
+ * with the lane gesture wired to the plot's overlay — drag a handle to move / resize a
+ * note, drag empty lane space to select a span for a new one.
  */
 export function noteMarkers(tool: AnalyzerId): UplotPluginFactory<AnalyzerBus> {
   return () => {
     let groups: NoteGroups = { own: [], others: [], focused: null };
+    let lane: LaneController | undefined;
     let dispose: (() => void) | undefined;
-    let drag: { id: string; edge: NoteEdge } | null = null;
     const listeners: [string, EventListener][] = [];
 
     return {
       hooks: {
         ready: (u) => {
           dispose = createRoot((root) => {
+            lane = createLaneDrag(() => ({
+              notes: () => laneNotes(tool),
+              tool: () => tool,
+              // **Plot-relative** coordinates: `u.over` *is* the plot area (uPlot positions
+              // it at the plot's top-left), so the pointer and the mapper must both be
+              // relative to it — `valToPos(..., true)` returns canvas pixels instead.
+              timeAt: (time) => u.valToPos(time, "x"),
+              timeFromX: (x) => u.posToVal(x, "x"),
+            }));
             createEffect(() => {
               groups = noteGroups(tool);
+              u.redraw(false);
+            });
+            // Repaint while a selection is being dragged out in the lane.
+            createEffect(() => {
+              lane?.selection();
               u.redraw(false);
             });
             return root;
           });
 
-          /** The note edge within `GRAB_PX` of a plot-local x. */
-          const edgeAt = (localX: number) =>
-            noteEdgeNear(groups, (time) => u.valToPos(time, "x", true), localX);
-
           const onDown = (event: PointerEvent) => {
-            if (!u.over || event.button !== 0) return;
+            if (!u.over || event.button !== 0 || !lane) return;
             const rect = u.over.getBoundingClientRect();
-            const localX = event.clientX - rect.left;
             const localY = event.clientY - rect.top;
-            // Only the bottom note lane grabs, so plot drag/zoom keeps working above.
-            if (localY < u.bbox.top + u.bbox.height - NOTE_STRIP_H) return;
-            const hit = edgeAt(localX);
-            if (!hit) return;
-            drag = { id: hit.note.id, edge: hit.edge };
+            // Only the bottom lane grabs, so plot drag/zoom keeps working above it.
+            if (localY < u.bbox.height - NOTE_STRIP_H) return;
+            if (!lane.down(event.clientX - rect.left)) return;
             event.stopPropagation();
             event.preventDefault();
             u.over.setPointerCapture(event.pointerId);
           };
 
           const onMove = (event: PointerEvent) => {
-            if (!drag || !u.over) return;
-            event.stopPropagation();
+            if (!u.over || !lane) return;
             const rect = u.over.getBoundingClientRect();
-            const time = u.posToVal(event.clientX - rect.left, "x");
-            // The start edge moves (a point) or resizes (a range); the end edge resizes.
-            if (drag.edge === "end") dragNoteEndTo(drag.id, time);
-            else dragNoteTo(drag.id, time);
+            lane.move(u.posToVal(event.clientX - rect.left, "x"));
           };
 
           const onUp = (event: PointerEvent) => {
-            if (!drag) return;
-            const id = drag.id;
-            drag = null;
+            lane?.up();
             if (u.over?.hasPointerCapture(event.pointerId)) {
               u.over.releasePointerCapture(event.pointerId);
             }
-            refreshNoteValues(id);
           };
 
           for (const [type, handler] of [
