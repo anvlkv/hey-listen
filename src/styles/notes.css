@@ -125,6 +125,11 @@
   color: var(--accent);
 }
 
+/* The editor's save action reads a little stronger than the surrounding icons. */
+.note-icon-primary {
+  color: var(--fg);
+}
+
 .note-title {
   flex: 1;
   min-width: 0;
@@ -192,16 +197,6 @@
   border: 1px solid var(--border-2);
   border-radius: 4px;
   resize: vertical;
-}
-
-.note-preview {
-  min-height: 40px;
-  padding: 6px 8px;
-  font-size: 0.75rem;
-  background: var(--panel-4);
-  border: 1px solid var(--border-2);
-  border-radius: 4px;
-  cursor: text;
 }
 
 .note-editor-actions {
@@ -288,27 +283,13 @@
   color: var(--fg);
 }
 
-.note-popout-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--overlay-94);
-}
-
-.note-popout {
+.note-window {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: min(720px, 90vw);
-  max-height: 84vh;
-  padding: 14px;
-  background: var(--panel-3);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: 0 18px 50px var(--shadow-strong);
+  height: 100%;
+  padding: 12px;
+  background: var(--panel-2);
 }
 
 .note-popout-header {

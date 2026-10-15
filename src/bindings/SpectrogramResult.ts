@@ -5,6 +5,10 @@
  */
 export type SpectrogramResult = { sampleRate: number, fftSize: number, hopSize: number, duration: number, 
 /**
+ * Source seconds where the window starts (frame 0 sits here).
+ */
+windowStart: number, 
+/**
  * Frame (time) and bin (frequency) counts of `mag_db`.
  */
 frames: number, bins: number, 

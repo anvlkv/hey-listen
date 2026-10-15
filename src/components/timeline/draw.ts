@@ -7,6 +7,7 @@ import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
 import { LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
 import { formatRulerTime, niceStep } from "./format";
+import { NOTE_STRIP_H } from "../notes/strip";
 
 /**
  * Canvas painting for the Timeline. `drawTimeline` is the entry point (called by
@@ -211,9 +212,11 @@ function drawMoveHandle(ctx: CanvasRenderingContext2D, x0: number, x1: number, t
 }
 
 /**
- * Note pins (M14): every note is a triangle at its time (a shaded span for a
- * range); the focused note is emphasised with a full-height stem. Clicking a pin
- * focuses the note; hovering shows a hint. See `docs/notes.md` → Surfacing.
+ * Note anchors (M14): every note is a tab in the **bottom strip** (a shaded span
+ * for a range note); the focused note is emphasised with a full-height stem.
+ * Clicking an anchor focuses the note; hovering shows a hint; dragging it moves the
+ * note. The strip keeps the anchors clear of the window move handle at the top —
+ * see `components/notes/strip.ts` and `docs/notes.md` → Surfacing.
  */
 function drawNotes(
   ctx: CanvasRenderingContext2D,
@@ -226,6 +229,20 @@ function drawNotes(
   if (list.length === 0) return;
   const theme = chartTheme();
   const focusId = focusedNoteId();
+  const stripTop = waveTop + waveH - NOTE_STRIP_H;
+
+  // The lane itself, so the anchors read as a separate layer from the waveform.
+  ctx.globalAlpha = 0.45;
+  ctx.fillStyle = theme.ruler;
+  ctx.fillRect(0, stripTop, w, NOTE_STRIP_H);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = theme.grid;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, stripTop + 0.5);
+  ctx.lineTo(w, stripTop + 0.5);
+  ctx.stroke();
+
   for (const note of list) {
     const x = t2x(note.timeSecs);
     if (x < -12 || x > w + 12) continue;
@@ -238,21 +255,21 @@ function drawNotes(
       ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
       ctx.globalAlpha = 1;
     }
-    const size = focused ? 6 : 4;
-    ctx.globalAlpha = focused ? 1 : 0.8;
-    ctx.fillStyle = theme.note;
-    ctx.beginPath();
-    ctx.moveTo(x - size, waveTop);
-    ctx.lineTo(x + size, waveTop);
-    ctx.lineTo(x, waveTop + size + 2);
-    ctx.closePath();
-    ctx.fill();
+    const px = Math.round(x);
+    // A faint stem up out of the lane (full height for the focused note) so the
+    // anchor is still readable against the waveform.
+    ctx.globalAlpha = focused ? 1 : 0.7;
     ctx.strokeStyle = theme.note;
     ctx.lineWidth = focused ? 1.5 : 1;
     ctx.beginPath();
-    ctx.moveTo(Math.round(x) + 0.5, waveTop);
-    ctx.lineTo(Math.round(x) + 0.5, waveTop + (focused ? waveH : 10));
+    ctx.moveTo(px + 0.5, focused ? waveTop : stripTop - 7);
+    ctx.lineTo(px + 0.5, stripTop + 0.5);
     ctx.stroke();
+    // The grab tab, filling the strip with a wider cap along its top edge.
+    const cap = focused ? 8 : 6;
+    ctx.fillStyle = theme.note;
+    ctx.fillRect(px - 1, stripTop + 1, 2, NOTE_STRIP_H - 2);
+    ctx.fillRect(px - cap / 2, stripTop + 1, cap, 3);
     ctx.globalAlpha = 1;
   }
 }

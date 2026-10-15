@@ -7,22 +7,26 @@
  */
 export type RhythmResult = { bpm: number, confidence: number, hopSize: number, 
 /**
- * Frame times (seconds) of `onset_strength`.
+ * Frame times of `onset_strength`, in **source seconds**.
  */
 times: Array<number>, 
+/**
+ * Source seconds where the window starts (frame 0 sits here).
+ */
+windowStart: number, 
 /**
  * Onset-strength envelope (half-wave-rectified spectral flux).
  */
 onsetStrength: Array<number>, 
 /**
- * Detected onset times (seconds).
+ * Detected onset times (source seconds).
  */
 onsetTimes: Array<number>, 
 /**
- * Estimated beat times (seconds).
+ * Estimated beat times (source seconds).
  */
 beatTimes: Array<number>, 
 /**
- * Estimated downbeat times (seconds).
+ * Estimated downbeat times (source seconds).
  */
 downbeatTimes: Array<number>, };

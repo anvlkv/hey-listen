@@ -57,6 +57,9 @@ export function noteValuesFor(args: {
 /** The frozen snapshot's **current** readout (live from the chart), or `null`. */
 export function liveValues(note: Note): NoteValues | null {
   if (!note.tool || !isAnalyzerId(note.tool)) return null;
+  // A note anchored outside the current window has no *current* readout — the chart
+  // cannot show that time at all, so the row falls back to the frozen snapshot alone.
+  if (note.timeSecs < windowStart() || note.timeSecs > windowEnd()) return null;
   const tool = note.tool;
   const result = latestResult(tool);
   if (!result) return null;

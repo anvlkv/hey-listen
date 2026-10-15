@@ -187,7 +187,7 @@ export default function Toolbar() {
         <span class="toolbar-divider" aria-hidden="true" />
         <Tooltip label="Notes panel">
           <Button
-            class="toolbar-btn icon-btn toolbar-btn-notes"
+            class="toolbar-btn toolbar-btn-notes"
             data-testid="toolbar.notes"
             aria-label="Toggle the notes panel"
             aria-pressed={notesPanelOpen()}
@@ -195,7 +195,7 @@ export default function Toolbar() {
           >
             <Icon name="note-sticky" />
             <Show when={!notesPanelOpen() && notes().length > 0}>
-              <span class="toolbar-badge" data-testid="toolbar.notes.badge">
+              <span class="notes-count-chip" data-testid="toolbar.notes.badge">
                 {notes().length}
               </span>
             </Show>

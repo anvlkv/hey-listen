@@ -104,6 +104,8 @@ pub(super) fn build_series(
         hop_size: hop,
         frames: values.len(),
         times,
+        // Filled in by `run_window` — the builders only see the sliced region.
+        window_start: 0.0,
         values,
         min_value: if min.is_finite() { min } else { 0.0 },
         max_value: if max.is_finite() { max } else { 0.0 },
@@ -148,6 +150,8 @@ pub(super) fn pitch_series(frames: Vec<PitchFrame>, hop: usize, sample_rate: u32
         hop_size: hop,
         frames: frames_count,
         times,
+        // Filled in by `run_window` — the builder only sees the sliced region.
+        window_start: 0.0,
         values,
         min_value: if min.is_finite() { min } else { 0.0 },
         max_value: if max.is_finite() { max } else { 0.0 },
@@ -182,6 +186,8 @@ pub(super) fn build_matrix(frames: Vec<Vec<f32>>, hop: usize, sample_rate: u32) 
         bins,
         duration: seconds(n_frames * hop.max(1), sample_rate) as f32,
         times: frame_times(n_frames, hop, sample_rate),
+        // Filled in by `run_window` — the builder only sees the sliced region.
+        window_start: 0.0,
         bands: (0..bins).map(|i| i as f32).collect(),
         values,
         min_value: if min.is_finite() { min } else { 0.0 },

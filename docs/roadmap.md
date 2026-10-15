@@ -527,17 +527,28 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
   `title`, the **markdown** `body`, and a `values` snapshot. Serde + `ts_rs::TS`.
 - **Values snapshot.** The chart's readout at the note's time (per-frame for a
   time-axis chart, the summary for a no-time-axis tool), **frozen** with its
-  `window` / `params` / `options` provenance; a **Recompute** action refreshes it and a
-  **stale** hint shows when the live values differ.
-- **Markdown.** Raw markdown body, sanitized render, **preview on focus loss**
-  (textarea ↔ rendered on blur), no live split.
+  `window` / `params` / `options` provenance. A row shows the chart's **current**
+  readout with the frozen one struck through beneath when they differ; editing the note
+  or releasing a drag refreshes it. (No Recompute button, and no stale tag.)
+- **Markdown.** Raw markdown body, sanitized render, edited in a textarea that an
+  **explicit save** commits (Done / ⌘↵; Escape discards) — blur never saves, and the
+  editor **replaces** the rendered body while it is open.
 - **Notes panel (right rail).** A new **fixed region** (not a Workbench tab), hidden by
-  default, toggled by a Toolbar `note-sticky` button, resizable (clamped 160–520 px);
-  open/closed + width persisted app-level. Rows sorted by time; select = focus.
-- **Surfacing.** Every note a **Timeline** pin (span for a range); a chart draws **its
-  own** notes; the **focused** note draws on **every time-based chart** (the `time` sync
-  group) but **not** on the frequency-axis `spectrum`. Focusing a note **opens/raises its
-  chart** and sets the analysis window to the note's time.
+  default, toggled by a Toolbar `note-sticky` button (its count a muted pill *inside*
+  the button while the rail is closed), resizable (clamped 160–520 px); open/closed +
+  width persisted app-level. Compact rows sorted by time, each a **title bar** (heading
+  + icon-only actions) over the meta, the values line, and the clamped body; select =
+  focus. A note **pops out into its own window** (`open_note_window`, a real Tauri
+  window like a tool popout, raised not duplicated).
+- **Surfacing.** Every note an anchor in a thin **strip along the bottom** of the
+  Timeline (span for a range); a chart draws **its own** notes in its strip; the
+  **focused** note draws as a full-height rule with a label on **every time-based chart**
+  (the `time` sync group) but **not** on the frequency-axis `spectrum`. Focusing a note
+  **opens/raises its chart** and sets the analysis window to the note's time.
+- **Source-second axes.** The engine re-bases every result onto source seconds
+  (`windowStart` records the origin), so a chart's axis, its hover readout, and a note's
+  `timeSecs` share one timebase whatever the analysis window is — the fix for notes
+  drifting when the window moved.
 - **Persistence.** A new **`NOTES` section (`0x07`, postcard)** in the `.heyl` container;
   notes ride `save_project` / `load_project`. Cross-window sync via `uiState`
   (`notes` + `focusedNoteId`); note edits mark the project dirty and are one undo step.
@@ -547,9 +558,9 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
 
 > **Decision (committed):** a note is **project content** anchored to a **time** and,
 > optionally, to an **analyzer tool id** — not a Workbench tab, not an analyzer result.
-> Its subtitle is a **frozen** values snapshot (recomputable on demand), and the panel is
-> **chrome** (a fixed region, view-persisted) while the notes themselves are **data**
-> (project-persisted). See [`notes.md`](notes.md) (ADR-18).
+> Its subtitle is a **frozen** values snapshot (refreshed on edit / drag-release), and the
+> panel is **chrome** (a fixed region, view-persisted) while the notes themselves are
+> **data** (project-persisted). See [`notes.md`](notes.md) (ADR-18).
 
 ## M15 — Code hygiene (the maid) ✅
 

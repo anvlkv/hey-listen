@@ -117,6 +117,7 @@ export function drawContours(
   ctx: CanvasRenderingContext2D,
   view: SpectrogramWindow,
   box: PlotBox,
+  windowStart: number,
   duration: number,
   overlays: SpectrogramOverlays | null,
   toggles: ContourToggles,
@@ -144,7 +145,7 @@ export function drawContours(
         started = false;
         continue;
       }
-      const time = ((f + 0.5) / count) * total;
+      const time = windowStart + ((f + 0.5) / count) * total;
       const x = box.x + ((time - view.t0) / timeSpan) * box.width;
       const y = box.y + box.height - ((freq - view.f0) / freqSpan) * box.height;
       if (started) ctx.lineTo(x, y);

@@ -3,10 +3,9 @@ import Button from "./Button";
 import Icon from "./Icon";
 import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
-import { createNote, defaultNoteTool, noteById, notesSorted } from "../state/notes";
+import { createNote, defaultNoteTool, notesSorted, openNoteWindow } from "../state/notes";
 import { setNotesPanelOpen } from "../state/settings";
 import { windowEnd, windowStart } from "../state/timeline";
-import { NoteEditorWindow } from "./notes/NoteEditors";
 import { NoteRow } from "./notes/NoteRow";
 
 /**
@@ -18,15 +17,13 @@ import { NoteRow } from "./notes/NoteRow";
  * when it differs), and the rendered body clamped to a height. Selecting the heading
  * focuses the note. See `docs/notes.md`.
  *
- * The per-note expand/preview state lives here keyed by note id and is passed to the
- * row as **accessors** — a store edit replaces the note object and its `<For>` row is
+ * The per-note expand state lives here keyed by note id and is passed to the row as an
+ * **accessor** — a store edit replaces the note object and its `<For>` row is
  * recreated, and a plain value read inside the `<For>` mapper would not be reactive.
  */
 export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
   const [asRange, setAsRange] = createSignal(false);
-  const [popoutId, setPopoutId] = createSignal<string | null>(null);
   const [expanded, setExpanded] = createSignal<Record<string, boolean>>({});
-  const [previews, setPreviews] = createSignal<Record<string, boolean>>({});
 
   const add = () => {
     const start = windowStart();
@@ -37,8 +34,6 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
       tool: defaultNoteTool(),
     });
   };
-
-  const popoutNote = () => noteById(popoutId());
 
   return (
     <aside class="app-notes" data-testid="region.notes" style={props.style}>
@@ -93,22 +88,16 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
                 <NoteRow
                   note={note}
                   expanded={() => !!expanded()[note.id]}
-                  preview={() => !!previews()[note.id]}
                   onToggleExpand={() =>
                     setExpanded((map) => ({ ...map, [note.id]: !map[note.id] }))
                   }
-                  onPreview={(on) => setPreviews((map) => ({ ...map, [note.id]: on }))}
-                  onPopout={() => setPopoutId(note.id)}
+                  onPopout={() => void openNoteWindow(note.id)}
                 />
               )}
             </For>
           </div>
         </Show>
       </ScrollArea>
-
-      <Show when={popoutNote()}>
-        {(note) => <NoteEditorWindow note={note()} onClose={() => setPopoutId(null)} />}
-      </Show>
     </aside>
   );
 }

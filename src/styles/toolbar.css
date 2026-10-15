@@ -112,19 +112,24 @@
   border-color: var(--accent);
 }
 
-.toolbar-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  font-size: 9px;
-  line-height: 14px;
-  text-align: center;
-  color: var(--bg);
-  background: var(--accent);
-  border-radius: 7px;
+/* The Notes toggle: an icon plus its tally, so the count is *in* the button (the
+   font-scale clip rule in `base.css` would cut a badge that hung outside it). */
+.toolbar-btn-notes {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0 9px;
+}
+
+/* A muted pill, not a notification badge — the count is a tally, not an alert. */
+.notes-count-chip {
+  min-width: 16px;
+  padding: 0 5px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  background: var(--control);
+  border-radius: 8px;
 }
 
 .toolbar-label {

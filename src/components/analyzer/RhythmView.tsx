@@ -1,15 +1,22 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { createEffect, createMemo, createRoot, Show } from "solid-js";
+import { createEffect, createMemo, createRoot, createSignal, Show } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
+import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { noteMarkers } from "./notePlugins";
 import { paddedYRange } from "./range";
 import { X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
-import { chartAxisStyle, NoAudioState, timeRangeLabel, timeTooltip } from "./chartCommon";
+import {
+  chartAxisStyle,
+  createUplotReframeHandler,
+  NoAudioState,
+  timeRangeLabel,
+  timeTooltip,
+} from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
 import { chartTheme, resolvedTheme } from "../../state/themes";
 import {
@@ -181,6 +188,10 @@ export default function RhythmView(props: {
   const config = () => analyzerById(props.id).view as RhythmViewConfig;
   const result = () => props.analysis.result() as RhythmResult | null;
   const zoom = createUplotZoom("time");
+  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
+
+  /** Right-click the envelope: reframe the timeline window, or add a note here. */
+  const openMenu = createUplotReframeHandler(zoom, setMenu);
 
   /** Tempo-salience curve over the BPM range (tempo / downbeat tools only). */
   const tempogram = createMemo(() => {
@@ -234,7 +245,7 @@ export default function RhythmView(props: {
           )}
         </Show>
       </div>
-      <div class="analyzer-plot" onWheel={zoom.wheel}>
+      <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
         <Show when={result()} fallback={<NoAudioState />}>
           <Show
             when={data()[0].length >= 2}
@@ -320,6 +331,7 @@ export default function RhythmView(props: {
           </div>
         )}
       </Show>
+      <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
     </div>
   );
 }

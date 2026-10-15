@@ -5,9 +5,13 @@
  */
 export type MatrixResult = { sampleRate: number, hopSize: number, frames: number, bins: number, duration: number, 
 /**
- * Frame times in seconds.
+ * Frame times in **source seconds**.
  */
 times: Array<number>, 
+/**
+ * Source seconds where the window starts (frame 0 sits here).
+ */
+windowStart: number, 
 /**
  * Band-axis positions (index or Hz) for the retained bands.
  */

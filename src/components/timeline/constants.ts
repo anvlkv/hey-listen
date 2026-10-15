@@ -2,6 +2,9 @@
  * Layout and interaction constants for the Timeline canvas (all in CSS pixels
  * unless noted). Kept together so the drawing helpers (`draw.ts`) and the pointer
  * handling (`interaction.ts`) agree on the geometry.
+ *
+ * The note strip's height is shared with the analyzer charts — see
+ * `components/notes/strip.ts`.
  */
 
 /** Height of the ruler strip along the top of the canvas. */
@@ -14,9 +17,7 @@ export const LABEL_GAP = 8;
 export const MOVE_HIT = 10;
 /** Height of the drawn window move handle bar. */
 export const MOVE_HANDLE_H = 8;
-/** Vertical band (from the ruler) where a note pin is clickable. */
-export const NOTE_BAND = 16;
-/** Horizontal hit radius around a note pin. */
+/** Horizontal hit radius around a note anchor. */
 export const NOTE_HIT = 8;
 /** Horizontal gutter so the start/end handles never sit on the very edge. */
 export const PLOT_PAD = 12;

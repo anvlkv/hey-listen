@@ -162,7 +162,7 @@ popover. See [`theming.md`](theming.md).
 
 | Region | Role | Notes |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **overlays the filtered signal** when a filter is active (with an on/bypassed badge) |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; **overlays the filtered signal** when a filter is active (with an on/bypassed badge); carries the **note anchors** in a thin strip along the bottom |
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
@@ -187,6 +187,11 @@ None of these are closable, draggable, or tabbed.
   same project, and its title is `<tool> — <project>`. Selecting that tool in the
   Sidebar **raises** the popout (`focus_popout`) rather than opening a duplicate tab,
   and a *new* tool always opens in the main window.
+- A **note** pops out the same way (`open_note_window`, from the Notes rail's row): a
+  real window that renders just that note's editor, aliased to the same project and
+  raised rather than duplicated. A popout of either kind is never a project window:
+  the MCP server routes its tool calls to the owning project, and `list_projects`
+  lists only real projects.
 - **Analyzer popouts** are offered (graph editors stay in the Workbench: their state
   is frontend-only). A popout pulls the project's shared state
   (`timeline`/`params`/`toolOptions`/`views`/`project`) on load and pushes its own
@@ -237,21 +242,24 @@ Sidebar, 160–520 px) and it **pushes** the Workbench rather than overlaying it
 closed state and width are **view settings** persisted app-level (like the font scale),
 not project state.
 
-Each row is one note, **sorted by time**. A row is a **title bar** — its heading (the
-body's first line) with the row actions (`open chart` when the note has an analyzer,
-`edit`, `popout`, `delete`) on the right — over its tool + time subtitle, its
-**current** values line (the frozen snapshot is shown struck through beneath when it
-differs), and its **full rendered body** (clamped to a height, expandable with a
-chevron). Selecting the heading **focuses** the note — it then appears on every
-time-based chart and its chart is opened/raised. The `popout` action opens the note in
-a large, edit-only view. The header has an **Add note** button (anchors at the current
-analysis window, using the focused analyzer as its chart) and a **range** toggle, and
-the Toolbar button carries a **count badge** while the rail is closed.
+Each row is one note, **sorted by time**. A row is a compact, visually separated
+**title bar** — its heading (the body's first line) with the row actions as borderless
+icons (`open chart` when the note has an analyzer, `edit`, `popout`, `delete`) on the
+right — over its tool + time subtitle, its **current** values line (the frozen snapshot
+is shown struck through beneath when it differs), and its **full rendered body** (clamped
+to a height, expandable with a chevron). Selecting the heading **focuses** the note — it
+then appears on every time-based chart and its chart is opened/raised. Editing **swaps**
+the body for a textarea with an explicit save/discard (a blur does not save). The
+`popout` action opens the note in its **own window**, raised rather than duplicated. The
+header has an **Add note** button (anchors at the current analysis window, using the
+focused analyzer as its chart) and a **range** toggle, and the Toolbar button carries its
+**count** as a muted pill inside the button while the rail is closed.
 
-Notes are surfaced in three places: every note as a **pin** on the Timeline (draggable
-to move it), a chart's **own** notes on that chart (with the notes from other charts
-drawn **muted**), and the **focused** note on **all time-based charts** (never the
-frequency-axis `spectrum`). See [`notes.md`](notes.md) → Surfacing.
+Notes are surfaced in three places: every note as an **anchor in a thin strip along the
+bottom** of the Timeline (draggable to move it), a chart's **own** notes in that chart's
+strip (with the notes from other charts drawn **muted**), and the **focused** note as a
+full-height rule with a label on **all time-based charts** (never the frequency-axis
+`spectrum`). See [`notes.md`](notes.md) → Surfacing.
 
 ## Source picker
 

@@ -27,7 +27,7 @@ void attachConsole();
 
 void start();
 
-/** Render this window: a popout shows a single tool, a project window the whole app. */
+/** Render this window: a popout shows a single tool or note, a project window the app. */
 async function start(): Promise<void> {
   const root = document.getElementById("root");
   if (!root) {
@@ -35,27 +35,52 @@ async function start(): Promise<void> {
     return;
   }
 
-  const tool = await popoutTool();
+  const target = await popoutTarget();
   try {
-    render(() => (tool ? <PopoutApp toolId={tool} /> : <App />), root);
+    render(
+      () =>
+        target ? (
+          <PopoutApp
+            toolId={target.kind === "tool" ? target.id : undefined}
+            noteId={target.kind === "note" ? target.id : undefined}
+          />
+        ) : (
+          <App />
+        ),
+      root,
+    );
   } catch (err) {
     reportStartupFailure("the app failed to render", err);
   }
 }
 
+/** What this window pops out: a Workbench **tool** or a **note**, each with its id. */
+type PopoutTarget = { kind: "tool"; id: string } | { kind: "note"; id: string };
+
 /**
- * The tool this window pops out, or `null` for a regular project window.
+ * The tool or note this window pops out, or `null` for a regular project window.
  *
- * The first paint must never be gated on a command that can fail or never answer: a
- * rejected query renders the project window (and is reported), and so does one that
- * does not come back within [`POPOUT_QUERY_TIMEOUT_MS`] — a blank window is not a
- * useful failure mode, and on a wedged command it is otherwise all the user ever sees.
+ * Rust registers which kind a popout is (ADR-11), so the window asks for both and takes
+ * whichever answers (only one can). The first paint must never be gated on a command
+ * that can fail or never answer: a rejected query renders the project window (and is
+ * reported), and so does one that does not come back within [`POPOUT_QUERY_TIMEOUT_MS`]
+ * — a blank window is not a useful failure mode, and on a wedged command it is otherwise
+ * all the user ever sees.
  */
-async function popoutTool(): Promise<string | null> {
-  const query = invoke<string | null>("popout_tool").catch((err) => {
-    reportStartupFailure("the popout query failed; rendering the project window", err);
-    return null;
-  });
+async function popoutTarget(): Promise<PopoutTarget | null> {
+  const query = Promise.all([
+    invoke<string | null>("popout_tool"),
+    invoke<string | null>("popout_note"),
+  ])
+    .then(([tool, note]): PopoutTarget | null => {
+      if (tool != null) return { kind: "tool", id: tool };
+      if (note != null) return { kind: "note", id: note };
+      return null;
+    })
+    .catch((err) => {
+      reportStartupFailure("the popout query failed; rendering the project window", err);
+      return null;
+    });
 
   return Promise.race([
     query,

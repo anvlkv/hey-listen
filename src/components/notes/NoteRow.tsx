@@ -18,13 +18,18 @@ import { noteBody, noteHeading, noteTimeText } from "../../lib/note";
 import { renderMarkdown } from "../../lib/markdown";
 import { NoteEditor } from "./NoteEditors";
 
-/** One note: the title bar (heading + actions), meta, values, and the body. */
+/**
+ * One note: the title bar (heading + actions), meta, values, and the body.
+ *
+ * While the note is being edited the editor **replaces** the rendered body (the row
+ * shows the note once, not twice), and a commit is explicit — see [`NoteEditor`].
+ * The expand/preview state arrives as accessors: a store edit replaces the note object
+ * and its row is recreated, so a plain value read here would not be reactive.
+ */
 export function NoteRow(props: {
   note: Note;
   expanded: () => boolean;
-  preview: () => boolean;
   onToggleExpand: () => void;
-  onPreview: (on: boolean) => void;
   onPopout: () => void;
 }): JSX.Element {
   const focused = () => focusedNoteId() === props.note.id;
@@ -78,23 +83,17 @@ export function NoteRow(props: {
               class="note-icon"
               data-testid={`note.edit.${props.note.id}`}
               aria-label="Edit the note"
-              onClick={() => {
-                props.onPreview(false);
-                setEditingNoteId(props.note.id);
-              }}
+              onClick={() => setEditingNoteId(props.note.id)}
             >
               <Icon name="pencil" />
             </Button>
           </Tooltip>
-          <Tooltip label="Open the editor in a larger view">
+          <Tooltip label="Open the note in its own window">
             <Button
               class="note-icon"
               data-testid={`note.popout.${props.note.id}`}
-              aria-label="Open the editor in a larger view"
-              onClick={() => {
-                setEditingNoteId(null);
-                props.onPopout();
-              }}
+              aria-label="Open the note in its own window"
+              onClick={() => props.onPopout()}
             >
               <Icon name="arrow-up-right-from-square" />
             </Button>
@@ -116,7 +115,7 @@ export function NoteRow(props: {
         {toolTitle()} · {noteTimeText(props.note)}
       </div>
 
-      <Show when={currentText()}>
+      <Show when={!editing() && currentText()}>
         <div class="note-values">
           <span class="note-values-current" data-testid={`note.values.${props.note.id}`}>
             {currentText()}
@@ -127,20 +126,18 @@ export function NoteRow(props: {
         </div>
       </Show>
 
-      <NoteBody
-        body={props.note.body}
-        id={props.note.id}
-        expanded={props.expanded}
-        onToggle={props.onToggleExpand}
-      />
-
-      <Show when={editing()}>
-        <NoteEditor
-          note={props.note}
-          preview={props.preview}
-          onPreview={props.onPreview}
-          onDone={() => setEditingNoteId(null)}
-        />
+      <Show
+        when={editing()}
+        fallback={
+          <NoteBody
+            body={props.note.body}
+            id={props.note.id}
+            expanded={props.expanded}
+            onToggle={props.onToggleExpand}
+          />
+        }
+      >
+        <NoteEditor note={props.note} onClose={() => setEditingNoteId(null)} />
       </Show>
     </div>
   );
