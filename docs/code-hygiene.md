@@ -57,8 +57,10 @@ their head at once — including the next agent asked to change it.
 
 `scripts/checkFileSize.mjs` fails on two things: a source file over the **400-line
 ceiling** that is not in `scripts/maid-baseline/fileSizes.json`, and a budgeted
-file that **grew past its budget**. The budget exists only so the existing backlog
-can be paid down gradually instead of in one unreviewable change:
+file that **grew past its budget**. The budget existed only so the original backlog
+(~24 files, the largest 3066 lines) could be paid down gradually instead of in one
+unreviewable change; **M15 paid it down, so the baseline is now empty** and the
+ceiling applies to every file directly. The mechanism stays for the same reason:
 
 ```sh
 node scripts/checkFileSize.mjs             # check
@@ -69,26 +71,34 @@ node scripts/checkFileSize.mjs --update    # ratchet: drop entries now within th
 
 `--update` deliberately **refuses to raise a budget**. A file that got longer is a
 failure, not a new baseline: the honest fixes are to split it, or to move the new
-logic into a file of its own. Markdown is exempt — `docs/` is prose and may be long
-on purpose — as are the generated trees (`src/bindings/**`, `dist/`, `public/`,
-`src-tauri/{target,gen}`).
+logic into a file of its own. This is why the largest files today are all just under
+the ceiling rather than comfortably small — the split is what matters, and the next
+line added to a 393-line file is a failed check with a clear remedy. Markdown is
+exempt — `docs/` is prose and may be long on purpose — as are the generated trees
+(`src/bindings/**`, `dist/`, `public/`, `src-tauri/{target,gen}`).
 
 ### No new duplication
 
 `.jscpd.json` fails when duplicated **lines** exceed the threshold (70-token
 minimum match). The threshold is a **ratchet**: it sits just above today's measured
 value and comes down as duplication is removed. Lower it in the same change that
-removes a clone.
+removes a clone. M15 removed the big clones and dropped the value from **1.5 to
+0.5** (measured ≈0.36 % of lines).
 
-Current hot spots, in the order they are worth fixing:
+The clone pairs M15 removed:
 
 | Duplication | Where |
 | --- | --- |
-| ~250 lines, 17 clone pairs | `components/analyzer/MatrixView.tsx` ↔ `SpectrogramTab.tsx` — the pan / zoom / note-drag / reframe interaction, written twice |
-| ~60 lines | `ChannelSelect.tsx` ↔ `SelectField.tsx` ↔ `SourcePanel.tsx` — the same select trigger markup three times |
-| 40 lines | `scripts/notes.test.ts` ↔ `scripts/themeFile.test.ts` — each test file defines its own `check` / `assertEqual` harness |
-| 13 lines | `FilterGraphTab.tsx` ↔ `SynthGraphTab.tsx` |
-| 41 lines across 3 pairs | `App.css` internally (`.toolbar-*` vs `.params-*`, `.timeline-*` vs `.graph-*`) |
+| ~250 lines, 17 clone pairs | `components/analyzer/MatrixView.tsx` ↔ `SpectrogramTab.tsx` — the pan / zoom / note-drag / reframe interaction, written twice → one `chartInteraction.ts` |
+| ~60 lines | `ChannelSelect.tsx` ↔ `SelectField.tsx` ↔ `SourcePanel.tsx` — the same select trigger markup three times → one `SelectTrigger.tsx` |
+| 40 lines | `scripts/notes.test.ts` ↔ `scripts/themeFile.test.ts` — each test file defined its own `check` / `assertEqual` harness → `scripts/testHarness.ts` |
+| ~40 lines | `App.tsx` — the splitter down/move/up handlers, written three times → `lib/splitter.ts` + `components/Splitter.tsx` |
+
+What remains is small and mostly *within* a single file — a 26-line `match` arm
+pair in `state/analyzer/defs/`, an 18-line test-fixture pair, and 41 lines across
+three `src/styles/*` pairs (the pre-existing `.toolbar-*` vs `.params-*`,
+`.timeline-*` vs `.graph-*` resemblance). None is worth a shared abstraction yet;
+the threshold guards against *new* ones.
 
 ### No dead code
 
@@ -103,11 +113,13 @@ Two things about it are worth knowing before you edit it:
   first report's 72 "unused exports" were that single false-positive class. Note
   the smell hiding underneath: if nothing *outside* the file needs a symbol, it
   probably should not carry `export` at all.
-- **`ignoreIssues` is a burn-down list**, not a dumping ground. Each entry is a
+- **`ignoreIssues` is a burn-down list**, not a dumping ground. Each entry was a
   symbol verified by grep to be genuinely unreferenced and *deliberately* kept for
-  now. Removing dead code is a separate, later phase (`roadmap.md` → M15), so this
-  list is the worklist. Burn it down file by file; never blanket-ignore a directory
-  of app code.
+  the day the dead-code phase landed. M15 was that phase: the list is **now empty**
+  (the last ~15 symbols were deleted — write-only history flags, an unread
+  `filteredRate`, a duplicate preview `setOutputGain`, two unused theme constants,
+  and a handful of unused e2e helpers/types). If a new finding needs suppressing,
+  grep it first and prefer deleting it; never blanket-ignore a directory of app code.
 
 Dependencies are never deleted to satisfy knip. `@tauri-apps/plugin-store` and
 `@wdio/local-runner` are load-bearing through mechanisms knip cannot see (version
@@ -140,8 +152,8 @@ later ratchet, and turning one on should be its own change:
 
 ## See also
 
-- [`roadmap.md`](roadmap.md) → **M15** for the split-and-dedupe work this gate
-  protects, and the burn-down order.
+- [`roadmap.md`](roadmap.md) → **M15** for the gate itself and the split / dedupe /
+  burn-down work it protects.
 - [`architecture.md`](architecture.md) → "Rust module layout" for the module
-  structure the splits should land on.
+  structure the splits landed on.
 - [`testing.md`](testing.md) for the test suite the gate complements.

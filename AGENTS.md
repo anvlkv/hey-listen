@@ -94,7 +94,6 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11 and M14 are done; M12/M13 are planned; M15 —
-code hygiene — has landed its gate and has the file splits outstanding). Deliver
-strictly one milestone at a time; confirm current status from that file before
+`docs/roadmap.md` tracks progress (M11, M14 and M15 are done; M12/M13 are planned).
+Deliver strictly one milestone at a time; confirm current status from that file before
 starting.

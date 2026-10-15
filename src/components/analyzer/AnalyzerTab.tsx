@@ -5,7 +5,7 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 /**
  * Analyzer tab shell: a toolbar (title, run status, **params** and **about**
  * popovers) over the tool's chart body. Each analyzer supplies its own result via
- * [`createAnalysis`](./state/analyzer.ts) and renders its chart as `children`;
+ * [`createAnalysis`](./state/analyzer/) and renders its chart as `children`;
  * per-tool params are passed as the `params` slot into the params popover.
  *
  * The **shared** analysis params (ADR-6) are global and synced, so they live in the

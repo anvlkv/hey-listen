@@ -1,0 +1,226 @@
+/* --- Analyzer tabs (waveform / spectrum / spectrogram) ------------------ */
+
+.sidebar-section-gap {
+  margin-top: 16px;
+}
+
+.analyzer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--panel);
+}
+
+.analyzer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  color: var(--fg-body);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.analyzer-status {
+  color: var(--fg-muted);
+}
+
+.analyzer-error {
+  max-width: 38%;
+  color: var(--danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyzer-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.analyzer-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.analyzer-chart {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.analyzer-readouts {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px 16px;
+  flex: none;
+  /* Reserved height: the strip keeps the same height whatever the entries show. */
+  min-height: 1.75rem;
+  padding: 6px 10px;
+  font-size: 0.6875rem;
+  border-bottom: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+
+.readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex: none;
+  white-space: nowrap;
+  /* Reserve space per entry so a changing value never reflows the strip. */
+  min-width: 4.5rem;
+}
+
+.readout-label {
+  color: var(--fg-faint);
+}
+
+.readout-value {
+  color: var(--fg-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.analyzer-plot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 0;
+}
+
+.analyzer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 24px;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--fg-faint);
+}
+
+.empty-state-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.empty-state-hint {
+  max-width: 34rem;
+  color: var(--fg-muted);
+}
+
+.analyzer-empty-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Spectrogram canvas (raster heatmap — the Timeline precedent, ADR-7). */
+.spectrogram-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 0;
+}
+
+.spectrogram-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Zoom controls, overlaid on the top-right of a chart. */
+.zoom-controls {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  background: var(--overlay-92);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.zoom-btn {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--fg-strong);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.zoom-btn:hover {
+  background: var(--control-hover);
+}
+
+.zoom-readout {
+  padding-left: 3px;
+  font-size: 0.625rem;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Cursor tooltip for analyzer charts (solid-uplot tooltip plugin). */
+.chart-tooltip {
+  padding: 5px 8px;
+  font-size: 0.6875rem;
+  color: var(--fg);
+  background: var(--tooltip-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px var(--shadow);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.chart-tooltip-x {
+  margin-bottom: 2px;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-tooltip-label {
+  color: var(--fg-muted);
+}
+
+.chart-tooltip-value {
+  font-variant-numeric: tabular-nums;
+}

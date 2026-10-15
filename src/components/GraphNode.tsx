@@ -12,7 +12,7 @@ function handleTop(index: number, count: number): string {
 /**
  * A fundsp graph node: a title, its inline numeric parameters, one connection handle
  * per declared port, and a **tiny label** beside each handle. Input handle ids are
- * `"0"`, `"1"`, … so edges carry the port index (see `lib/graph.ts` `handlePort`).
+ * `"0"`, `"1"`, … so edges carry the port index (see `lib/graph/spec.ts` `handlePort`).
  */
 export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
   const def = () => nodeKind(props.data.kind);

@@ -5,9 +5,8 @@
   // Goal: turn `npx knip` into a trustworthy, exit-0 gate. This config (1) teaches
   // knip the real entry-point chain so the app, the E2E suite and the repo scripts
   // are not mistaken for dead code, (2) names the generated/vendored trees that are
-  // never dead-code findings, and (3) tightly baselines the handful of exports that
-  // really are unused today but are deliberately kept until the separate
-  // dead-code-removal phase. It deletes nothing.
+  // never dead-code findings, and (3) declares truly-dead code (the `ignoreIssues`
+  // worklist) — now empty, since the dead-code-removal phase deleted every entry.
   //
   // `npx knip` prints a few "Configuration hints" (mostly "Remove from ignore")
   // and still exits 0: hints are knip's advice, not findings. See the `ignore`
@@ -74,36 +73,8 @@
     "magick",
   ],
 
-  // --- Tight baseline of genuinely-unused code ---------------------------------
-  // Everything below is *really* unreferenced today — verified by grep across
-  // `src/`, `e2e/` and `scripts/`. It is deliberately kept until the dead-code
-  // removal phase, so each file is pinned under the issue type(s) it trips. Knip
-  // only ignores whole files per issue type (not individual symbols), so a file is
-  // listed as a unit. Burn this list down file by file.
-  "ignoreIssues": {
-    // --- Unused EXPORTS -------------------------------------------------------
-    // E2E selector helpers the specs bypass by inlining the `data-testid` literals
-    // (`toolParam`, `noteRow|Values|Delete|Edit|Stale`), plus the unused
-    // `GRAPH_TOOLS` list.
-    "e2e/support/selectors.ts": ["exports"],
-    "e2e/support/tools.ts": ["exports"],
-    // A second `setOutputGain` (the live-preview gain); the app uses the one in
-    // state/output.ts.
-    "src/audio/preview.ts": ["exports"],
-    // Theme-file constants only meaningful once theme export/import ships.
-    "src/lib/themeFile.ts": ["exports"],
-    // The `filteredRate` signal getter is never read.
-    "src/state/filtered.ts": ["exports"],
-    // Undo/redo availability getters — no UI consumes them yet.
-    "src/state/history.ts": ["exports"],
-    // Note helpers superseded by other code paths.
-    "src/state/notes.ts": ["exports"],
-    // `resetFontScale` — no caller resets the scale.
-    "src/state/settings.ts": ["exports"],
-
-    // --- Unused exported TYPES ------------------------------------------------
-    // `AnalysisResultMap` and the `CaptureInfo` re-export are never imported.
-    "src/state/analyzer.ts": ["types"],
-    "src/state/capture.ts": ["types"],
-  },
+  // --- Dead-code worklist (now emptied) ----------------------------------------
+  // Phase 1 pinned the genuinely-unused exports/types here so `npx knip` could be
+  // an exit-0 gate; phase 3 (dead-code removal) has now deleted each one.
+  "ignoreIssues": {},
 }

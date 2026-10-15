@@ -1,0 +1,362 @@
+/* Workbench panel content host (each graph tab). */
+.workbench-panel {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* --- Graph editor (filter / synth tabs) --------------------------------- */
+
+.graph-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--panel);
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  color: var(--fg-body);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.graph-toolbar-title {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.graph-toolbar-hint {
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-status {
+  color: var(--fg-muted);
+}
+
+.graph-error {
+  max-width: 38%;
+  color: var(--danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-toolbar .graph-btn:first-of-type {
+  margin-left: auto;
+}
+
+.graph-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+}
+
+.graph-number {
+  width: 52px;
+  height: 22px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.graph-btn {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-btn:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+
+.graph-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.graph-btn-primary {
+  color: var(--accent-soft-fg);
+  background: var(--primary-bg);
+  border-color: var(--border-accent);
+}
+
+.graph-btn-primary:hover:not(:disabled) {
+  background: var(--primary-bg-hover);
+}
+
+.graph-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Highlight while a palette node is being dragged over the canvas. */
+.graph-canvas-dragging {
+  outline: 1px dashed var(--accent);
+  outline-offset: -3px;
+}
+
+.graph-warn {
+  max-width: 40%;
+  color: var(--warn);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 210px;
+  padding: 8px;
+  background: var(--overlay-94);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* The palette scrolls through the same custom ScrollArea as the Sidebar, so its
+   scrollbar matches. The search box is sticky within it. */
+.graph-palette-head {
+  display: flex;
+  align-items: center;
+}
+
+.graph-palette-toggle {
+  flex: 1;
+  height: 22px;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--fg-strong);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-palette-toggle:hover {
+  background: var(--control-hover);
+}
+
+.graph-palette-scroll .scroll-area-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 10px;
+}
+
+.graph-palette-search-wrap {
+  position: relative;
+}
+
+.graph-palette-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.6875rem;
+  color: var(--fg-disabled);
+  pointer-events: none;
+}
+
+.graph-palette-search {
+  flex: none;
+  margin-bottom: 8px;
+}
+
+.graph-palette-title {
+  margin-bottom: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.graph-palette-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.graph-palette-btn {
+  height: 22px;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 0.6875rem;
+  color: var(--fg-strong);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-palette-btn:hover {
+  background: var(--control-hover);
+}
+
+/* Custom graph node. */
+.graph-node {
+  position: relative;
+  min-width: 140px;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+
+/* Tiny port label sitting just outside each handle (never intercepts the pointer). */
+.graph-port {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  transform: translateY(-50%);
+  padding: 0 3px;
+  font-size: 0.5rem;
+  line-height: 1;
+  color: var(--fg-dim);
+  background: var(--panel-3);
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.graph-port-in {
+  right: 100%;
+  margin-right: 3px;
+}
+
+.graph-port-out {
+  left: 100%;
+  margin-left: 3px;
+}
+
+.graph-node-anchor {
+  min-width: 96px;
+  background: var(--node-anchor-bg);
+  border-color: var(--border-accent);
+}
+
+.graph-node-anchor .graph-node-title {
+  text-align: center;
+  color: var(--accent-soft-fg);
+}
+
+.graph-node-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.graph-node-title {
+  font-weight: 600;
+}
+
+.graph-node-params {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.graph-param {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.graph-param-label {
+  flex: 1;
+  font-size: 0.625rem;
+  color: var(--fg-dim);
+}
+
+.graph-param-input {
+  width: 58px;
+  height: 20px;
+  padding: 0 3px;
+  font: inherit;
+  font-size: 0.6875rem;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.graph-param-unit {
+  width: 18px;
+  font-size: 0.625rem;
+  color: var(--fg-disabled);
+}
+
+.workbench-watermark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* A popped-out tab is a single, tab-less chart: hide dockview's tab strip in the
+   popout window so only the tool's content is shown. */
+.dv-groupview-popout .dv-tabs-and-actions-container {
+  display: none;
+}
+
+/* dockview.css is a separate chunk loaded after this file, so these overrides
+   need !important to beat dockview's own scrollbar rules. Tabs still scroll via
+   wheel/drag and overflow into the tab menu. */
+.dv-tabs-container,
+.dv-tabs-overflow-container {
+  scrollbar-width: none !important;
+}
+.dv-tabs-container::-webkit-scrollbar,
+.dv-tabs-overflow-container::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* The dockview group content view defaults to `overflow: auto`; our panel content
+   fills and clips itself, so force it to clip instead of drawing scrollbars. */
+.dv-view {
+  overflow: hidden !important;
+}
+
+.analyzer-title {
+  font-weight: 600;
+}

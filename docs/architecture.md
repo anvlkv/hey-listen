@@ -56,15 +56,15 @@ src-tauri/src/
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
 │   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
-│   ├── capture.rs   # flexaudio Stream poll loop -> ring buffer ✅
-│   ├── graph.rs     # fundsp Net: compile (push + connect) / apply / render ✅
+│   ├── capture/     # flexaudio Stream poll loop -> ring buffer ✅
+│   ├── graph/       # fundsp Net: compile (push + connect) / apply / render ✅
 │   ├── pcm.rs       # channel mixdown + linear resample        ✅
-│   ├── playback.rs  # cpal output stream + ring buffer         ✅
-│   └── analysis.rs  # oxiaudio wrappers                         ✅
+│   ├── playback/    # cpal output stream + ring buffer          ✅
+│   └── analysis/    # oxiaudio wrappers                         ✅
 ├── app_activity.rs  # keep the process out of macOS App Nap        ✅ (M9 follow-up)
 ├── cli/             # command-line interfaces (tauri-plugin-cli)
 │   ├── mod.rs       # the plugin flags + the `setup` entry         ✅ (M9: --mcp / --headless; M10: subcommand routing)
-│   └── batch.rs     # the `analyze` / `analyzers` / `synth` logic  ✅ (M10)
+│   └── batch/       # the `analyze` / `analyzers` / `synth` logic  ✅ (M10)
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── themes.rs        # installed theme files (app config dir)    ✅ (M11: byte store + bundled-theme metadata for headless)
@@ -167,7 +167,7 @@ The commands and channels below are all implemented; milestone notes record the 
 > **Implemented (M9 follow-up):** `get_mcp_status` / `set_mcp_config` expose the
 > server's on/off + port (persisted with `tauri-plugin-store`; the Toolbar MCP
 > popover is a view over them). `heylisten-mcp` (and `hey-listen --mcp`) auto-detects
-> bridge vs a **headless** core-native dispatcher (`mcp/dispatch.rs`), and the server
+> bridge vs a **headless** core-native dispatcher (`mcp/dispatch/`), and the server
 > answers `list_projects` plus routes any tool to a window named by `target`. See
 > [`mcp.md`](mcp.md).
 
@@ -187,7 +187,7 @@ The commands and channels below are all implemented; milestone notes record the 
 > the file's `DATA` section, and `load_project(path, onChunk)` validates the file,
 > streams `DATA` back to the frontend (for the Timeline waveform), installs the PCM
 > in the core, and returns the parsed `META`/`SOURCE`/`SETUP`/`LAYOUT`/`RESULTS`. The
-> frontend (`state/project.ts`) restores every store and the dockview layout; the
+> frontend (`state/project/`) restores every store and the dockview layout; the
 > analyzer tabs then re-derive their results. See `project-file-format.md` →
 > Implemented.
 
@@ -228,7 +228,7 @@ The commands and channels below are all implemented; milestone notes record the 
    for the waveform: the **core owns the source PCM** (ADR-9); the frontend keeps a
    transitional duplicate just for the Timeline (see `decisions.md`).
 3. **Filter (optional)** — the user edits a fundsp graph in the **Filter graph**
-   Workbench tab (`solid-flow`); the Rust backend (`audio/graph.rs`) compiles it to
+   Workbench tab (`solid-flow`); the Rust backend (`audio/graph/`) compiles it to
    a fundsp `Net` applied before preview and analysis.
 4. **Analysis** — the user opens analyzer tabs in the Workbench; `run_analysis`
    computes results via oxiaudio over the selected window, respecting shared
@@ -307,7 +307,7 @@ thread); analysis runs in Rust.
 - Results return via the invoke promise; long runs stream progress via a
   `Channel`.
 
-> **Implemented (M4):** the frontend (`state/analyzer.ts`) debounces auto-run on
+> **Implemented (M4):** the frontend (`state/analyzer/`) debounces auto-run on
 > the source / window / shared params / filter, and keeps results latest-wins with
 > a per-tool generation counter. Progress streaming and core-side mid-run
 > cancellation are deferred to the expensive tools (M5).

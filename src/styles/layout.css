@@ -1,0 +1,187 @@
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Top row: Sidebar (tool picker) + Workbench (analyzer tabs). */
+.app-top {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Draggable divider between the Workbench row and the Source + Timeline row. */
+.app-splitter {
+  flex: none;
+  height: 6px;
+  cursor: row-resize;
+  background: var(--splitter);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-splitter:hover {
+  background: var(--control);
+}
+
+/* Vertical splitter between the Sidebar and the Workbench (M7). */
+.app-vsplitter {
+  flex: none;
+  width: 6px;
+  cursor: col-resize;
+  background: var(--splitter);
+  border-right: 1px solid var(--border);
+}
+
+.app-vsplitter:hover {
+  background: var(--control);
+}
+
+/* Bottom row: Source picker (bottom-left) + Timeline; same, resizable height. */
+.app-bottom {
+  flex: none;
+  display: flex;
+  min-height: 0;
+}
+
+/* Solo bottom row (no source yet): a compact, fixed-height "Add audio" strip.
+   The source panel lays out horizontally so it fits without scrolling. */
+.app-bottom-solo {
+  align-items: stretch;
+}
+
+.app-bottom-solo .app-source {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  border-right: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  overflow: hidden;
+}
+
+/* Fixed region — not a tab, not draggable/closable. */
+.app-sidebar {
+  width: 240px;
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+/* --- Custom scroll area (we scroll ourselves; see `ScrollArea.tsx`) --- */
+
+.scroll-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.scroll-area-viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  /* No native scrollbar: the content is translated by `ScrollArea`. */
+  overflow: hidden;
+}
+
+.scroll-area-content {
+  min-width: 100%;
+  will-change: transform;
+}
+
+/* Sidebar content inset (the bar sits in the outer gutter, not the padding). */
+.sidebar-scroll .scroll-area-content {
+  padding: 12px;
+}
+
+.scroll-area-bar {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  bottom: 2px;
+  /* Spans the viewport's right padding, so the centered thumb sits in that gutter
+     (clear of the cards) rather than flush against their edge. */
+  width: 12px;
+  transition: opacity 150ms linear;
+}
+
+.scroll-area-bar-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scroll-area-thumb {
+  width: 6px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--scroll-thumb);
+  transition: background 120ms linear;
+}
+
+.scroll-area-bar:hover .scroll-area-thumb {
+  background: var(--scroll-thumb-hover);
+}
+
+.scroll-area-thumb-active {
+  background: var(--accent-2);
+}
+
+/* Themed native scrollbars for the other scroll regions (works on Windows /
+   Linux; a no-op on macOS, where the overlay bar is used instead). */
+.app-source,
+.events-list,
+.pop-listbox {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--panel);
+}
+
+.app-source::-webkit-scrollbar,
+.events-list::-webkit-scrollbar,
+.pop-listbox::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.app-source::-webkit-scrollbar-track,
+.events-list::-webkit-scrollbar-track,
+.pop-listbox::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+
+.app-source::-webkit-scrollbar-thumb,
+.events-list::-webkit-scrollbar-thumb,
+.pop-listbox::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 3px solid var(--panel);
+  border-radius: 8px;
+}
+
+.app-source::-webkit-scrollbar-thumb:hover,
+.events-list::-webkit-scrollbar-thumb:hover,
+.pop-listbox::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  border-color: var(--panel);
+}
+
+.app-source::-webkit-scrollbar-corner,
+.events-list::-webkit-scrollbar-corner,
+.pop-listbox::-webkit-scrollbar-corner {
+  background: var(--panel);
+}
+
+/* The Workbench hosts the dockview (analyzer tabs only). */
+.app-workbench {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}

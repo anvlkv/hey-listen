@@ -17,9 +17,8 @@ import type { StreamSummary } from "../bindings/StreamSummary";
  */
 
 const [filteredSamples, setFilteredSamples] = createSignal<Float32Array | null>(null);
-const [filteredRate, setFilteredRate] = createSignal(0);
 
-export { filteredSamples, filteredRate };
+export { filteredSamples };
 
 /** Debounce like the filter push, so a burst of edits triggers one render. */
 const DEBOUNCE_MS = 250;
@@ -39,13 +38,12 @@ async function fetchFiltered() {
   const pick = channelFor(s.channels);
   const stream = pcmStream();
   try {
-    const summary = await invoke<StreamSummary>("render_filtered", {
+    await invoke<StreamSummary>("render_filtered", {
       channel: channelArg(pick),
       onChunk: stream.channel,
     });
     await stream.done;
     if (current !== token) return;
-    setFilteredRate(summary.sampleRate);
     setFilteredSamples(stream.samples());
   } catch {
     if (current !== token) return;

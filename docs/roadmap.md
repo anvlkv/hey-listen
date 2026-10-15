@@ -32,7 +32,7 @@
   — see ADR-9. Output **gain + device** are Toolbar controls.
 
 > The graph editor's *editing* lives in the frontend (`solid-flow`); the *net*
-> is compiled in Rust (`audio/graph.rs`). The frontend retains a PCM copy only for
+> is compiled in Rust (`audio/graph/`). The frontend retains a PCM copy only for
 > the Timeline waveform — a transitional duplication, see ADR-9.
 
 ## M4 — Analysis engine + first tools ✅
@@ -40,11 +40,11 @@
 - oxiaudio wrappers; `run_analysis` command; shared FFT params.
 - First tools: waveform, spectrum/FFT, spectrogram.
 
-> Delivered: `audio/analysis.rs` (tool implementations + shared conditioning),
+> Delivered: `audio/analysis/` (tool implementations + shared conditioning),
 > the single `run_analysis` command, and the shared params store
 > (`state/analysis.ts`). Analyzer tabs (waveform / spectrum / spectrogram) are
 > Workbench tabs with params + about popovers, listed in the Sidebar under
-> **Analyzers**; the shared runner (`state/analyzer.ts`) debounces auto-run and
+> **Analyzers**; the shared runner (`state/analyzer/`) debounces auto-run and
 > keeps results latest-wins. Progress streaming and core-side cancellation are
 > deferred to the expensive tools in M5.
 
@@ -59,10 +59,10 @@
 > (waveform / spectrum / spectrogram) plus level meters, mel spectrogram, MFCC,
 > chromagram, the seven spectral-shape features, spectral contrast, harmonic ratio,
 > ZCR, three pitch detectors, tempo, onsets, downbeats, and the three loudness
-> tools. `audio/analysis.rs` dispatches them all through the one `run_analysis`
+> tools. `audio/analysis/` dispatches them all through the one `run_analysis`
 > command; a per-tool `ToolOptions` carries tool-specific params (band counts, YIN
 > threshold, f0 range, bar length, momentary window). The frontend registry
-> (`state/analyzer.ts`) drives a generic view layer
+> (`state/analyzer/`) drives a generic view layer
 > (`components/analyzer/AnalyzerView.tsx` → series / matrix / readouts / events),
 > so a tool is a registry entry, not a new component. The Sidebar now has a search
 > box (title + keywords) and lists **analyzers first**, grouped by domain, then the
@@ -89,7 +89,7 @@
 > `app:menu`, and the rest are native. The window **title** shows the project file
 > name on open/save. `.heyl` files are **associated** with the app, so a
 > double-clicked project opens it (macOS `RunEvent::Opened` / command line, drained
-> via `take_pending_open_paths`). `state/project.ts` collects the descriptor + setup +
+> via `take_pending_open_paths`). `state/project/` collects the descriptor + setup +
 > layout and restores every store and the Workbench (dockview) layout on load.
 > Result caching is deferred — `RESULTS` is written empty and the analyzers
 > re-derive on load — as is `i16`/FLAC `DATA` (the core owns `f32` and always
@@ -213,7 +213,7 @@
 > an MCP client reaches the *running* app. Every `tools/call` is forwarded to the
 > focused project window's frontend (`mcp:request`) and answered through the
 > `mcp_respond` command, so the agent drives the **same** stores and commands the UI
-> does — `src/state/mcp.ts` implements the tools and `src-tauri/src/mcp/tools.rs`
+> does — `src/state/mcp/` implements the tools and `src-tauri/src/mcp/tools/`
 > carries the catalog (open a source, run every analyzer, edit the filter/synth
 > graphs, preview, capture, save/load projects). **UI following** is automatic in
 > both directions: agent calls open tabs / set the analysis window / replace the
@@ -254,7 +254,7 @@ control surface and the pieces that make the agent genuinely standalone:
 > **Delivered:** `src-tauri/src/mcp/settings.rs` (the `McpController`: persisted
 > `{ enabled, port }`, a blocking accept loop (woken by a loopback connection on
 > stop), start/stop/rebind),
-> `mcp/dispatch.rs` (the headless session + engine subset), `mcp/headless.rs` (the
+> `mcp/dispatch/` (the headless session + engine subset), `mcp/headless.rs` (the
 > stdio loop), `cli.rs` (the `tauri-plugin-cli` flags), `src/state/mcpSettings.ts` +
 > `src/components/McpPopover.tsx` (the popover), the `get_mcp_status` /
 > `set_mcp_config` commands, and `list_projects` + `target` routing in
@@ -276,8 +276,8 @@ not in the analyzers. This follow-up is about the result shape and side effects.
   tab, so a sweep leaves a Workbench tab per tool (a 19-tool pass opened 19 tabs). Add
   `display` (bool, default `true`); `display: false` returns the result without opening
   or focusing a tab. Headless is already display-less, so it is a no-op there.
-- **Honest compaction.** `compact` is duplicated (`src/state/mcp.ts` `compact` and
-  `src-tauri/src/mcp/dispatch.rs` `compact`) and reduces a long **all-numeric** array to
+- **Honest compaction.** `compact` is duplicated (`src/state/mcp/` `compact` and
+  `src-tauri/src/mcp/dispatch/` `compact`) and reduces a long **all-numeric** array to
   `{ length, min, max }` — but a long array that contains `null`s (a pitch track's
   unvoiced frames) collapses to a bare `{ length }`, hiding that it is almost empty.
   Fix: numeric arrays become `{ length, min, max, argmin, argmax }` (locate the peak
@@ -305,8 +305,8 @@ not in the analyzers. This follow-up is about the result shape and side effects.
 > **Decisions (committed):** the flags are `display`, `transient`, `maxPoints`; the
 > compacted-array shape is `{ length, min, max, argmin, argmax }` (numeric) /
 > `{ length, nulls, min, max, argmin, argmax }` (with gaps). Compaction is byte-for-byte
-> the same across the two implementations (`src/state/mcp.ts` and
-> `src-tauri/src/mcp/dispatch.rs`), covered by a Rust unit test beside
+> the same across the two implementations (`src/state/mcp/` and
+> `src-tauri/src/mcp/dispatch/`), covered by a Rust unit test beside
 > `compact_collapses_long_numeric_arrays`, and carries through the CLI's `--full` /
 > compacted default (M10). A **`summary`** verb is still **not** built (out of scope). See
 > [`mcp.md`](mcp.md).
@@ -314,7 +314,7 @@ not in the analyzers. This follow-up is about the result shape and side effects.
 > **Delivered:** `run_analysis` gained `display` (default `true`), `transient`,
 > `maxPoints`, and echoes `params`/`options`; its envelope dropped the duplicated `tool`
 > (the result is tagged) and kept `window`. The result shaping (`compact` + `decimate`)
-> lives in both `src/state/mcp.ts` and `src-tauri/src/mcp/dispatch.rs`, kept identical,
+> lives in both `src/state/mcp/` and `src-tauri/src/mcp/dispatch/`, kept identical,
 > with Rust unit tests beside `compact_collapses_long_numeric_arrays`; the batch CLI
 > carries the same compacted default / `--full` behavior automatically (it drives the
 > same headless session). The source summary dropped the opaque `detail`; the `hop`
@@ -413,12 +413,12 @@ forward-compatible), and its base drives dockview / `solid-flow`. See
 
 > **Delivered:** `src/lib/themeFile.ts` (the `ThemeFile` model + parse/validate/
 > normalise, with unit checks in `scripts/themeFile.test.ts` → `npm run test:unit`);
-> `src/state/themes.ts` (the registry, slots, apply pipeline, and the four base
+> `src/state/themes/` (the registry, slots, apply pipeline, and the four base
 > palettes); `src-tauri/src/themes.rs` + `commands/themes.rs` (the byte store +
 > list/write/delete/import/export/reveal commands); the Toolbar **Appearance**
 > popover (mode + dark/light slots + import/export/delete/reveal). `ChartTheme` /
-> `chartTheme` / `resolvedTheme` moved into `themes.ts`; `colormap.ts` and
-> `GraphEditor` read the active theme; `App.css` is unchanged (the base overlay).
+> `chartTheme` / `resolvedTheme` moved into `themes/`; `colormap.ts` and
+> `GraphEditor` read the active theme; `src/styles/` is unchanged (the base overlay).
 >
 > **Bundled themes.** Alongside `builtin:dark` / `builtin:light`, the registry ships
 > **Retrowave Neon**, **Nord**, **Solarized Dark** and **Solarized Light** as
@@ -551,15 +551,15 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
 > **chrome** (a fixed region, view-persisted) while the notes themselves are **data**
 > (project-persisted). See [`notes.md`](notes.md) (ADR-18).
 
-## M15 — Code hygiene (the maid) 🚧
+## M15 — Code hygiene (the maid) ✅
 
 A **quality gate** so the invariants above stop being aspirations: files stay short
 enough to read, logic is not copy-pasted, nothing dead is left behind, and both
 languages are formatted and linted the same way. Delivered in three phases, and the
-**gate comes first** — reworking ~37 000 lines with nothing to catch a mistake is how
+**gate came first** — reworking ~37 000 lines with nothing to catch a mistake is how
 a refactor turns into a rewrite.
 
-**Phase 1 — the gate ✅ (delivered).**
+**Phase 1 — the gate ✅.**
 - **One command.** `npm run maid` (check) / `npm run maid:fix` (fix) across six
   checks: prettier, eslint (+ `eslint-plugin-solid`), a **400-line file budget**,
   jscpd duplication, knip dead code, and `cargo fmt` + `cargo clippy -D warnings`.
@@ -579,21 +579,42 @@ a refactor turns into a rewrite.
   and a missing `src-tauri/target` ignore that had eslint parsing generated JS — and
   `rustfmt` touched a single Rust file (the core was already clippy-clean).
 
-**Phase 2 — split the long files (planned).** 24 files are pinned in the budget. In
-order, biggest and safest first, one file per change, no behaviour change, gate green
-after each: `src/App.css` (3066) → `src/styles/*`; `lib/graph.ts` (1172, of which 920
-are one data literal) → `lib/graph/{types,kinds,ports,spec}.ts`;
-`src-tauri/src/audio/analysis.rs` (~1650) → `analysis/{mod,types,tools/*}`; then
-`cli/batch.rs` (~1264), `audio/graph.rs` (~1117), `state/analyzer.ts` (994),
-`state/themes.ts` (947), `mcp/dispatch.rs` (~859), `components/Timeline.tsx` (835),
-and the 400–800 band. Inline `#[cfg(test)] mod tests` move to sibling files as each
-module splits.
+**Phase 2 — split the long files ✅.** All 24 budgeted files are now directory modules
+or thin aggregators, every file is under the 400-line ceiling, and
+`scripts/maid-baseline/fileSizes.json` is **empty**. In order, biggest and safest
+first, one file per change, no behaviour change, gate green after each:
+- `src/App.css` (3066) → `src/styles/*` (15 stylesheets; `App.css` is now the
+  `@import` aggregator, so its two importers are unchanged).
+- `src/lib/graph.ts` (1268, ~920 of it one data literal) → `src/lib/graph/`
+  (`types` / `params` / `kinds/*` / `palette` / `ports` / `spec`, behind a barrel
+  `index.ts`, so `../lib/graph` still resolves).
+- `src-tauri/src/audio/analysis.rs` (1650) → `audio/analysis/{mod,types,results,
+  support,tools/*,tests}`; then `cli/batch.rs` (1264), `audio/graph.rs` (1117),
+  `mcp/dispatch.rs` (859), `mcp/tools.rs` (474), `audio/playback.rs` (439) and
+  `audio/capture.rs` (414) → the same `{mod, part}` shape.
+- the frontend stores → `state/{analyzer,themes,project,mcp,notes,capture}/`, and
+  `components/{Timeline,GraphEditor,Toolbar,NotesPanel,SourcePanel}.tsx` → sibling
+  directories.
 
-**Phase 3 — dedupe and delete (planned).** Extract the analyzer interaction shared by
-`SpectrogramTab` / `MatrixView` (the repo's largest duplication — 17 clone pairs),
-the three-way select trigger (`ChannelSelect` / `SelectField` / `SourcePanel`), one
-shared unit-test harness, and the triplicated splitter handlers in `App.tsx`; then
-work knip's list and lower both ratchets.
+Inline `#[cfg(test)] mod tests` moved to sibling files as each module split. The one
+visible knock-on was a generated binding comment (`src/bindings/SharedParams.ts`),
+re-emitted by `cargo test` because an intra-doc link now points at the moved helper.
+
+**Phase 3 — dedupe and delete ✅.** The four named duplications are gone:
+- the analyzer pan / zoom / note-drag / reframe interaction (`SpectrogramTab` ↔
+  `MatrixView` — the repo's largest at 17 clone pairs) → one
+  `components/analyzer/chartInteraction.ts` (over shared `chartGeometry` /
+  `chartCanvas`);
+- the three-way select trigger (`ChannelSelect` / `SelectField` / `SourcePanel`) →
+  one `components/SelectTrigger.tsx`;
+- the unit-test harness (`notes.test.ts` ↔ `themeFile.test.ts`) →
+  `scripts/testHarness.ts`;
+- the triplicated splitter handlers in `App.tsx` → `lib/splitter.ts` +
+  `components/Splitter.tsx`.
+
+knip's `ignoreIssues` burn-down list was worked to **empty** (~15 unreferenced
+symbols deleted), and **both ratchets were tightened**: the file budget to empty and
+the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 
 > **Decision (committed):** hygiene is enforced by a **gate**, not by review. Checks
 > are blocking (no advisory mode), the baselines are **ratchets that only tighten**,

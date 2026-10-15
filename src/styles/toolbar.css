@@ -1,0 +1,236 @@
+/* Toolbar — no title/branding (the native window title bar carries the name). */
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--panel-3);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* Project name (New / Open / Save live in the native File menu). */
+.toolbar-name {
+  max-width: 220px;
+  margin-right: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-btn {
+  height: 26px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control-2);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: var(--control-hover-2);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Compact UI font-scale buttons (A− / A+). */
+.toolbar-btn-scale {
+  min-width: 26px;
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+/* Compact auto / dark / light theme selector. */
+.toolbar-btn-theme {
+  min-width: 34px;
+  padding: 0 7px;
+  font-size: 0.6875rem;
+}
+
+.toolbar-btn-theme[aria-pressed="true"] {
+  color: var(--accent-soft-fg);
+  background: var(--primary-bg);
+  border-color: var(--border-accent);
+}
+
+.toolbar-btn-theme[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--primary-bg-hover);
+}
+
+.app-status {
+  font-size: 0.75rem;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-status-error {
+  color: var(--danger);
+  max-width: 40%;
+}
+
+/* Toolbar audio controls (filter bypass + output gain/device). */
+.toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A vertical rule that sets the Notes toggle apart at the right end of the toolbar. */
+.toolbar-divider {
+  align-self: center;
+  width: 1px;
+  height: 20px;
+  margin-left: 8px;
+  background: var(--border-2);
+}
+
+.toolbar-btn-notes[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toolbar-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: 7px;
+}
+
+.toolbar-label {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+.toolbar-readout {
+  min-width: 32px;
+  font-size: 0.6875rem;
+  color: var(--fg-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Reserve the level readout's width so a changing value (— → −23 dB) doesn't
+   reflow the toolbar controls. */
+.toolbar-meter-readout {
+  min-width: 3.25rem;
+}
+
+.toolbar-slider {
+  display: flex;
+  align-items: center;
+  width: 88px;
+}
+
+/* Preview output meter (beside gain/device). */
+.toolbar-meter {
+  display: flex;
+  align-items: center;
+  width: 64px;
+}
+
+.toolbar-meter-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.toolbar-meter-fill {
+  width: var(--kb-meter-fill-width);
+  height: 100%;
+  background: linear-gradient(90deg, var(--success), var(--warn-2) 78%, var(--danger));
+  transition: width 60ms linear;
+}
+
+.toolbar-field {
+  width: 190px;
+}
+
+.toolbar-field .combo {
+  width: 100%;
+}
+
+/* Kobalte Switch (filter bypass). */
+.toolbar-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toolbar-switch-control {
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 16px;
+  padding: 2px;
+  background: var(--control-2);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 100ms linear;
+}
+
+.toolbar-switch-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--switch-thumb);
+  transition: transform 100ms ease;
+}
+
+.toolbar-switch[data-checked] .toolbar-switch-control,
+.toolbar-switch-control[data-checked] {
+  background: var(--primary-bg);
+  border-color: var(--border-accent);
+}
+
+.toolbar-switch[data-checked] .toolbar-switch-thumb,
+.toolbar-switch-control[data-checked] .toolbar-switch-thumb {
+  transform: translateX(14px);
+  background: var(--switch-thumb-on);
+}

@@ -124,7 +124,7 @@ so no filesystem capability beyond what project save already needs.
 The **data** exports are pure compute over a result, so headless covers them fully; the
 **image** export needs the GUI.
 
-- **MCP** (`src/state/mcp.ts` + `mcp/tools.rs`):
+- **MCP** (`src/state/mcp/` + `mcp/tools/`):
   - `export_analysis { tool, format: "json" | "csv", path?, includeSidecar? }` — returns
     the serialised text (and writes it when `path` is given). `format` defaults to `json`.
     Works headless.
@@ -150,9 +150,9 @@ The **data** exports are pure compute over a result, so headless covers them ful
 | `src/components/Workbench.tsx` | The tab-context **Export ▸** entry. |
 | `src/components/analyzer/{SpectrumTab,WaveformTab,SeriesView,RhythmView,MatrixView,SpectrogramTab}.tsx` | Register their chart/image provider. |
 | `src-tauri/src/commands/export.rs` (planned) | `pick_save_path` / `write_text` / `write_bytes`. |
-| `src-tauri/src/audio/analysis.rs` (or a new `export.rs`) | The Rust CSV renderer shared with the CLI. |
-| `src-tauri/src/cli/batch.rs` | `--format` / `--out`. |
-| `src-tauri/src/mcp/tools.rs`, `src/state/mcp.ts` | The `export_*` tools. |
+| `src-tauri/src/audio/analysis/` (or a new `export.rs`) | The Rust CSV renderer shared with the CLI. |
+| `src-tauri/src/cli/batch/` | `--format` / `--out`. |
+| `src-tauri/src/mcp/tools/`, `src/state/mcp/` | The `export_*` tools. |
 
 ## Testing
 

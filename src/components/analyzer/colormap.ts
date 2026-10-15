@@ -8,7 +8,7 @@ import { activeColormapStops } from "../../state/themes";
  * The **ramp** now comes from the active theme (M11): a theme may carry its own
  * `colormap`, otherwise the base ramp for its `base` is used (dark → blue → teal →
  * gold → white; light → an inverted-lightness ramp so low values melt into the light
- * background). Both live in `state/themes.ts`, next to the rest of the palette.
+ * background). Both live in `state/themes/basePalettes.ts`, next to the rest of the palette.
  */
 
 function sample(stops: ColorStop[], t: number): [number, number, number] {

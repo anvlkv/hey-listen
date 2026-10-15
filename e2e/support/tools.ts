@@ -1,7 +1,7 @@
 /**
  * The analyzer tool matrix (M8) — the single source the parametrized smoke test
  * iterates, mirroring `docs/testing.md` → "Analyzer tools — every tool" and the
- * registry in `src/state/analyzer.ts`.
+ * registry in `src/state/analyzer/`.
  */
 
 export type ViewKind =
@@ -41,9 +41,3 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "loudnessMomentary", title: "Loudness (momentary)", view: "series" },
   { id: "loudnessRange", title: "Loudness range", view: "readouts" },
 ];
-
-/** The graph editors, which share the Workbench tab machinery. */
-export const GRAPH_TOOLS = [
-  { id: "filter", title: "Filter graph" },
-  { id: "synth", title: "Synth graph" },
-] as const;

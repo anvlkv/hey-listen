@@ -9,6 +9,7 @@ import {
   valuesEqual,
 } from "../src/lib/note";
 import type { NoteValues } from "../src/bindings/NoteValues";
+import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
 /**
  * Unit checks for the note helpers (`src/lib/note.ts`), runnable without a browser or
@@ -22,32 +23,6 @@ import type { NoteValues } from "../src/bindings/NoteValues";
  * label + excerpt, the time subtitle, and the snapshot comparison behind the stale
  * hint. See `docs/notes.md`.
  */
-
-let passed = 0;
-
-function check(name: string, fn: () => void) {
-  try {
-    fn();
-    passed += 1;
-  } catch (err) {
-    console.error(`✗ ${name}`);
-    throw err;
-  }
-}
-
-function assertEqual(actual: unknown, expected: unknown, message?: string) {
-  if (actual !== expected) {
-    throw new Error(
-      `${message ?? "assertEqual"}: expected ${String(expected)}, got ${String(actual)}`,
-    );
-  }
-}
-
-function assertDeepEqual(actual: unknown, expected: unknown) {
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(`assertDeepEqual: ${JSON.stringify(actual)} !== ${JSON.stringify(expected)}`);
-  }
-}
 
 check("clamps the anchor time to the source", () => {
   assertEqual(clampNoteTime(2.5, 4), 2.5);
@@ -132,4 +107,4 @@ check("compares snapshots by value (the stale predicate)", () => {
   assertEqual(valuesEqual(base(), base({ params: { ...base().params, fftSize: 4096 } })), false);
 });
 
-console.log(`notes: ${passed} checks passed`);
+report("notes");

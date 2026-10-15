@@ -4,6 +4,7 @@ import {
   themeIdFromName,
   type ThemeFile,
 } from "../src/lib/themeFile";
+import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
 /**
  * Unit checks for the `ThemeFile` model (`src/lib/themeFile.ts`), runnable without a
@@ -18,35 +19,9 @@ import {
  * `--`, and a parsed theme re-serialises to valid JSON. See `docs/theming.md`.
  *
  * Lives outside `src/` so it is not part of the app bundle or the frontend
- * `tsc --noEmit` graph. It uses only local assertions (no `node:assert`) so it needs
- * no extra type packages; `tsx` runs it and a thrown error is a non-zero exit.
+ * `tsc --noEmit` graph; the shared harness in `scripts/testHarness.ts` needs no extra
+ * type packages, and `tsx` turns a thrown check into a non-zero exit.
  */
-
-let passed = 0;
-
-function check(name: string, fn: () => void) {
-  try {
-    fn();
-    passed += 1;
-  } catch (err) {
-    console.error(`✗ ${name}`);
-    throw err;
-  }
-}
-
-function assertEqual(actual: unknown, expected: unknown, message?: string) {
-  if (actual !== expected) {
-    throw new Error(
-      `${message ?? "assertEqual"}: expected ${String(expected)}, got ${String(actual)}`,
-    );
-  }
-}
-
-function assertDeepEqual(actual: unknown, expected: unknown) {
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(`assertDeepEqual: ${JSON.stringify(actual)} !== ${JSON.stringify(expected)}`);
-  }
-}
 
 const VALID = {
   kind: "hey-listen.theme",
@@ -133,4 +108,4 @@ check("slugs a display name into an id", () => {
   assertEqual(themeIdFromName("!!!"), "theme");
 });
 
-console.log(`themeFile: ${passed} checks passed`);
+report("themeFile");

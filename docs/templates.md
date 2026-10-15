@@ -100,7 +100,7 @@ window/view stay inside the new source.
 
 ## Applying a template
 
-Reuses the project's own restore path (`src/state/project.ts` `applyProject`,
+Reuses the project's own restore path (`src/state/project/load.ts` `applyProject`,
 `state/graph.ts` `loadGraph`, `state/workbench.ts` `restoreLayout`,
 `state/timeline.ts` setters):
 
@@ -140,7 +140,7 @@ Rust module `src-tauri/src/templates.rs` + `src-tauri/src/commands/templates.rs`
 | --- | --- |
 | `list_templates` | Installed templates' `meta` (for the picker). |
 | `read_template(id)` | The full template payload. |
-| `save_template(name, description, payload)` | Write from the current setup (`state/project.ts` `currentSetup`/`currentLayout`). |
+| `save_template(name, description, payload)` | Write from the current setup (`state/project/snapshot.ts` `currentSetup`/`currentLayout`). |
 | `delete_template(id)` / `rename_template(id, name)` | Manage the list. |
 | `templates_dir` | The folder (shown in the UI, so a user can drop files in). |
 | `import_template_file(path)` / `export_template_file(id, path)` | Copy a `.heyltemplate` in/out via native dialogs. |
@@ -166,7 +166,7 @@ The template's **compute subset** (shared params, tool options, filter graph, wi
 policy) is enough to make an analysis reproducible headless; the **layout / dockview**
 part is GUI-only.
 
-- **MCP** (`src/state/mcp.ts` + `mcp/tools.rs`):
+- **MCP** (`src/state/mcp/` + `mcp/tools/`):
   - `list_templates` — installed templates (works headless: they are JSON on disk).
   - `apply_template { id | path, source? }` — apply setup + graphs + window policy to the
     current project (GUI) or to the headless session (compute subset).
@@ -187,10 +187,10 @@ part is GUI-only.
 | `src/state/templates.ts` | Template type, validate, assemble-from-stores, apply, window policies. |
 | `src-tauri/src/templates.rs`, `src-tauri/src/commands/templates.rs` | Storage (config dir) + list/read/write/delete/import/export. |
 | `src-tauri/src/project/sections.rs` | `AnalysisSetup` / `GraphSpec` reused as the payload (no new schema). |
-| `src/state/project.ts` | `currentSetup` / `currentLayout` (assemble), `applyProject` pieces (apply). |
+| `src/state/project/` | `currentSetup` / `currentLayout` (assemble), `applyProject` pieces (apply). |
 | `src/components/Toolbar.tsx`, `src-tauri/src/menu.rs` | The Templates popover + File ▸ Templates. |
-| `src-tauri/src/cli/batch.rs` | `--template`. |
-| `src/state/mcp.ts`, `src-tauri/src/mcp/tools.rs` | The `*_template` tools. |
+| `src-tauri/src/cli/batch/` | `--template`. |
+| `src/state/mcp/`, `src-tauri/src/mcp/tools/` | The `*_template` tools. |
 
 ## Testing
 

@@ -185,7 +185,7 @@ panel if it is collapsed, **opens the new note's editor**, and focuses it.
 
 The note tools are **app-only**: a note lives in a project, and the headless
 server has none (so it answers "requires the app", like `save_project`). Handlers
-live in `src/state/mcp.ts`; the catalog in `src-tauri/src/mcp/tools.rs`.
+live in `src/state/mcp/`; the catalog in `src-tauri/src/mcp/tools/`.
 
 | Tool | Purpose |
 | --- | --- |
@@ -224,7 +224,7 @@ nowhere to store a note.
 
 | Path | Role |
 | --- | --- |
-| `src/state/notes.ts` | The `Note` type, the store, create/update/delete/focus, and the values capture. |
+| `src/state/notes/` | The `Note` type, the store, create/update/delete/focus, and the values capture. |
 | `src/lib/note.ts` | Pure note helpers (clamp, label, excerpt, snapshot compare) — unit-tested. |
 | `src/lib/markdown.ts` | Markdown → sanitized HTML (`marked` + `dompurify`). |
 | `src/components/NotesPanel.tsx` | The right rail: the list, the editor (markdown + preview-on-blur), Add / Recompute / Delete. |
@@ -234,11 +234,11 @@ nowhere to store a note.
 | `src/components/Toolbar.tsx` | The `note-sticky` toggle for the panel. |
 | `src-tauri/src/project/sections.rs` | The `Note` / `NoteValues` types (`#[derive(ts_rs::TS)]`) + the `NOTES` section id. |
 | `src-tauri/src/project/{write,read}.rs` | Write / read the `NOTES` section. |
-| `src/state/project.ts`, `src/state/history.ts` | Include notes in save/load, undo/redo, and the dirty signature. |
+| `src/state/project/`, `src/state/history.ts` | Include notes in save/load, undo/redo, and the dirty signature. |
 | `src/state/uiState.ts`, `src/state/uiSync.ts` | Broadcast notes + focus across the project's windows. |
 | `src/state/settings.ts` | The Notes rail's view settings (open + width), persisted app-level. |
-| `src-tauri/src/cli/batch.rs` | The `notes` subcommand (read-only over a `.heyl`). |
-| `src/state/mcp.ts`, `src-tauri/src/mcp/tools.rs` | The `*_note` tools. |
+| `src-tauri/src/cli/batch/` | The `notes` subcommand (read-only over a `.heyl`). |
+| `src/state/mcp/`, `src-tauri/src/mcp/tools/` | The `*_note` tools. |
 
 ## Testing
 

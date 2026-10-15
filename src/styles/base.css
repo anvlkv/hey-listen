@@ -1,0 +1,252 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: calc(16px * var(--ui-scale, 1));
+  line-height: 1.4;
+  color: var(--fg);
+  background-color: var(--bg);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Theme palette — colours are driven by CSS custom properties so the whole UI
+   follows the active theme (see `src/state/settings.ts`). `:root` carries the
+   dark values as the pre-JS/default fallback; `[data-theme]` overrides them. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #1e1e1e;
+  --panel: #1f1f1f;
+  --panel-2: #252525;
+  --panel-3: #2b2b2b;
+  --panel-4: #262626;
+  --control: #333333;
+  --control-2: #3a3a3a;
+  --control-hover: #3f3f3f;
+  --control-hover-2: #454545;
+  --track: #1a1a1a;
+  --splitter: #1c1c1c;
+
+  --border: #3c3c3c;
+  --border-strong: #454545;
+  --border-2: #4a4a4a;
+  --border-soft: #333333;
+  --border-accent: #3f63a0;
+  --border-record: #7a3b34;
+  --border-record-2: #6a332c;
+  --border-chip: #3a537d;
+
+  --fg: #e6e6e6;
+  --fg-strong: #d6d6d6;
+  --fg-body: #c8c8c8;
+  --fg-2: #bdbdbd;
+  --fg-dim: #9a9a9a;
+  --fg-muted: #8a8a8a;
+  --fg-faint: #7f7f7f;
+  --fg-faint-2: #7a7a7a;
+  --fg-disabled: #6f6f6f;
+  --fg-accent: #b6c8e6;
+
+  --accent: #5898ff;
+  --accent-2: #6ea8ff;
+  --accent-soft-fg: #d6e4ff;
+  --knob: #e6e6e6;
+  --switch-thumb: #b6c8e6;
+  --switch-thumb-on: #d6e4ff;
+
+  --primary-bg: #2f4a7a;
+  --primary-bg-hover: #3a5a90;
+  --chip-bg: #2a3a55;
+  --chip-fg: #cfe0ff;
+  --node-anchor-bg: #26364d;
+
+  --success: #3ecf8e;
+  --warn: #ffcf6b;
+  --warn-2: #d6d052;
+  --danger: #ff7b72;
+  --danger-fg: #ffb3ad;
+  --danger-bg: rgba(255, 123, 114, 0.12);
+  --danger-border: rgba(255, 123, 114, 0.35);
+
+  --record-fg: #ffd0cc;
+  --record-bg: #4a2320;
+  --record-bg-hover: #5c2b26;
+  --record-bg-2: #3a1f1c;
+
+  --scroll-thumb: #454545;
+  --scroll-thumb-hover: #5c5c5c;
+
+  --overlay-94: rgba(37, 37, 37, 0.94);
+  --overlay-92: rgba(37, 37, 37, 0.92);
+  --tooltip-bg: rgba(24, 24, 24, 0.94);
+  --busy-veil: rgba(31, 31, 31, 0.35);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-strong: rgba(0, 0, 0, 0.55);
+
+  /* Level meters (M11.A) — peak / RMS bars on the `levels` tool. */
+  --meter-low: #3ecf8e;
+  --meter-mid: #ffcf6b;
+  --meter-high: #ff7b72;
+  --meter-peak: #ffffff;
+  --meter-unlit: #1a1a1a;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f0f1f4;
+  --panel: #ffffff;
+  --panel-2: #f7f8fa;
+  --panel-3: #ffffff;
+  --panel-4: #ffffff;
+  --control: #e8eaee;
+  --control-2: #e2e5ea;
+  --control-hover: #dde1e7;
+  --control-hover-2: #d3d8df;
+  --track: #e2e5ea;
+  --splitter: #e6e8ec;
+
+  --border: #d8dce2;
+  --border-strong: #ccd1d9;
+  --border-2: #c3c9d1;
+  --border-soft: #e0e4e9;
+  --border-accent: #a9c5ee;
+  --border-record: #e8b3ae;
+  --border-record-2: #dfa39d;
+  --border-chip: #b6cbe8;
+
+  --fg: #1f2328;
+  --fg-strong: #2a2f36;
+  --fg-body: #333a42;
+  --fg-2: #4a5058;
+  --fg-dim: #5c636d;
+  --fg-muted: #6b7280;
+  --fg-faint: #7a828c;
+  --fg-faint-2: #828a94;
+  --fg-disabled: #9aa1aa;
+  --fg-accent: #2f6fd0;
+
+  --accent: #2f6fd0;
+  --accent-2: #2f6fd0;
+  --accent-soft-fg: #1b3a6b;
+  --knob: #ffffff;
+  --switch-thumb: #ffffff;
+  --switch-thumb-on: #ffffff;
+
+  --primary-bg: #dbe7fb;
+  --primary-bg-hover: #cfe0fa;
+  --chip-bg: #e6eefb;
+  --chip-fg: #24406e;
+  --node-anchor-bg: #e3edfb;
+
+  --success: #148f5e;
+  --warn: #9a6b00;
+  --warn-2: #b39100;
+  --danger: #c8362b;
+  --danger-fg: #a3241a;
+  --danger-bg: rgba(200, 54, 43, 0.1);
+  --danger-border: rgba(200, 54, 43, 0.35);
+
+  --record-fg: #a3241a;
+  --record-bg: #fdecea;
+  --record-bg-hover: #fbdedb;
+  --record-bg-2: #fdecea;
+
+  --scroll-thumb: #c3c9d1;
+  --scroll-thumb-hover: #aab1bb;
+
+  --overlay-94: rgba(255, 255, 255, 0.94);
+  --overlay-92: rgba(255, 255, 255, 0.92);
+  --tooltip-bg: rgba(255, 255, 255, 0.97);
+  --busy-veil: rgba(255, 255, 255, 0.45);
+  --shadow: rgba(0, 0, 0, 0.16);
+  --shadow-strong: rgba(0, 0, 0, 0.2);
+
+  /* Level meters (M11.A). */
+  --meter-low: #1f9d6a;
+  --meter-mid: #d99a00;
+  --meter-high: #d94a3a;
+  --meter-peak: #1b1b1b;
+  --meter-unlit: #d2d6dc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Desktop-app feel: text is never accidentally selected while dragging. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Text fields stay selectable/editable (form controls don't inherit user-select). */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* A popped-out tab: the whole window is just the one tool. */
+.popout-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When the UI font scale is raised, single-line chrome must clip (ellipsis)
+   instead of wrapping out of its fixed-height container. */
+.toolbar-btn,
+.toolbar-label,
+.toolbar-readout,
+.toolbar-name,
+.app-status,
+.src-button,
+.src-label,
+.src-unit,
+.src-readout,
+.src-mini,
+.src-error,
+.graph-btn,
+.graph-status,
+.graph-error,
+.graph-toolbar-title,
+.graph-toolbar-hint,
+.graph-palette-btn,
+.graph-palette-title,
+.timeline-btn,
+.timeline-readout,
+.timeline-dim,
+.analyzer-title,
+.analyzer-status,
+.analyzer-error,
+.params-label,
+.params-dim,
+.zoom-btn,
+.zoom-readout,
+.chart-tooltip-label,
+.chart-tooltip-value,
+.sidebar-tool-name,
+.sidebar-subtitle,
+.sidebar-section-title,
+.combo-input {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

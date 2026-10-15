@@ -4,5 +4,18 @@
       "command": "/Volumes/Hey Listen/Hey Listen.app/Contents/MacOS/hey-listen",
       "args": ["--mcp"]
     }
+  },
+  // Zed's bundled ESLint server (vscode-eslint) otherwise reports "File ignored
+  // because of a matching ignore pattern" for the trees `eslint.config.js`
+  // deliberately ignores (`src/bindings/**` — ts-rs output — plus `site/**` and
+  // `node_modules/**`). ESLint exposes this only as the CLI/API `--no-warn-ignored`
+  // flag rather than a config option, so it is pinned here. Real lint findings are
+  // unaffected — only that one "ignored file" report is suppressed.
+  "lsp": {
+    "eslint": {
+      "settings": {
+        "onIgnoredFiles": "off"
+      }
+    }
   }
 }

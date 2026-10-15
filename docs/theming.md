@@ -5,15 +5,15 @@ applied on top of a built-in **base**. Before M11 the app shipped a fixed **auto
 dark / light** theme; that palette is what a theme now overlays, and it is authored in
 **four places** and selected with a single `data-theme` attribute:
 
-- `src/App.css` — ~70 `--*` custom properties in `:root[data-theme="dark"]` /
+- `src/styles/` — ~70 `--*` custom properties in `:root[data-theme="dark"]` /
   `:root[data-theme="light"]` (the whole UI chrome).
-- `src/state/themes.ts` — the `ChartTheme` record (`DARK_CHART` / `LIGHT_CHART`) and
+- `src/state/themes/chart.ts` — the `ChartTheme` record (`DARK_CHART` / `LIGHT_CHART`) and
   the heatmap ramps, read by every uPlot / canvas chart via `chartTheme()` and
   `colormap.ts`.
-- `src/App.css` — the level-meter colours (`--meter-*`, M11.A) join the ~70 `--*`
+- `src/styles/` — the level-meter colours (`--meter-*`, M11.A) join the ~70 `--*`
   custom properties above.
 - `src/components/Workbench.tsx` (dockview `themeDark` / `themeLight`) and the
-  `solid-flow` (`--xy-*`) styles in `src/state/themes.ts` (`BASE_FLOW`).
+  `solid-flow` (`--xy-*`) styles in `src/state/themes/basePalettes.ts` (`BASE_FLOW`).
 
 This document makes the theme **data**: a `ThemeFile` that a user can install, export,
 and share, applied on top of a built-in base.
@@ -44,7 +44,7 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
     "description": "Solarized palette, dark base",
     "base": "dark"                    // "dark" | "light" — the built-in this overlays
   },
-  // Optional partial overlay of the App.css custom properties. Unknown keys are kept
+  // Optional partial overlay of the src/styles/ custom properties. Unknown keys are kept
   // but ignored (forward-compatible); only existing variables take effect.
   "ui": {
     "bg": "#002b36",
@@ -91,7 +91,7 @@ The built-in dark and light palettes become **full `ThemeFile`s** in the registr
 and the registry **bundles** several more palettes the same way:
 
 ```ts
-// state/themes.ts
+// state/themes/builtins.ts
 const BUILTIN_THEMES: ThemeFile[] = [
   { meta: { id: "builtin:dark", name: "Dark", base: "dark" }, chart: DARK_CHART },
   { meta: { id: "builtin:light", name: "Light", base: "light" }, chart: LIGHT_CHART },
@@ -134,7 +134,7 @@ fallbacks); the picker may group suggestions by base for convenience.
 `resolvedTheme()` (used by dockview, solid-flow, and the colormap fallback) becomes
 "the **base** of the active theme". Applying a theme:
 
-1. Set `document.documentElement.dataset.theme = active.base` — so `App.css` supplies
+1. Set `document.documentElement.dataset.theme = active.base` — so `src/styles/` supplies
    the baseline palette, and the dockview / solid-flow themes get their baseline.
 2. Write the theme's `ui` map as **inline custom properties** on the root
    (`style.setProperty`) — the overlay wins over the `[data-theme]` block. Clearing a
@@ -145,7 +145,7 @@ fallbacks); the picker may group suggestions by base for convenience.
 
 Font scale (`--ui-scale`) is unaffected — it is independent of the palette.
 
-> **One source of truth.** The full set of `--*` variables lives in `App.css`; a theme
+> **One source of truth.** The full set of `--*` variables lives in `src/styles/`; a theme
 > file carries only what it changes. This keeps existing themes valid when new variables
 > are added, and avoids duplicating ~70 names in TypeScript. A theme that wants to be
 > fully self-contained can simply list every variable in `ui`.
@@ -214,9 +214,9 @@ over the same registry (see [`mcp.md`](mcp.md)):
 | --- | --- |
 | `src/lib/themeFile.ts` | The `ThemeFile` type + parse/validate/normalise. |
 | `scripts/themeFile.test.ts` | Unit checks for the model (`npm run test:unit`). |
-| `src/state/themes.ts` | The registry (built-ins + installed), apply pipeline, slot resolution, and the base palettes. |
-| `src/state/settings.ts` | Keeps `--ui-scale`; the theme signals live in `themes.ts`. |
-| `src/App.css` | The baseline palette (unchanged; becomes the fallback a theme overlays). |
+| `src/state/themes/` | The registry (built-ins + installed), apply pipeline, slot resolution, and the base palettes. |
+| `src/state/settings.ts` | Keeps `--ui-scale`; the theme signals live in `themes/`. |
+| `src/styles/` | The baseline palette (unchanged; becomes the fallback a theme overlays). |
 | `src/components/analyzer/colormap.ts` | Reads the active theme's ramp (fallback: base). |
 | `src/components/Workbench.tsx`, `src/components/GraphEditor.tsx` | Baseline theme by `base`. |
 | `src/components/Toolbar.tsx` | The **Appearance** popover. |

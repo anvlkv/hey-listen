@@ -1,4 +1,4 @@
-import { createEffect, createRoot, createSignal } from "solid-js";
+import { createEffect, createRoot } from "solid-js";
 import type { SerializedDockview } from "dockview";
 import { deepClone } from "../lib/clone";
 import type { Note } from "../bindings/Note";
@@ -15,16 +15,16 @@ import { layoutJson, openTools, restoreLayout, type ToolId } from "./workbench";
  * A **snapshot-based** history: each step captures the whole editable project as
  * plain serializable data, so a restore just replays the state through the stores'
  * existing `loadGraph` / `applySharedParams` / `setToolOptions` / `restoreLayout`
- * helpers (the same ones `state/project.ts` uses on load). Continuous edits (param
+ * helpers (the same ones `state/project/` uses on load). Continuous edits (param
  * drags, timeline scrubbing) are debounced so one gesture becomes one step.
  *
- * The undo stack's **top is always the current state**; `canUndo` therefore needs
+ * The undo stack's **top is always the current state**; undo therefore needs
  * more than one entry. Undo pops the current state onto the redo stack and restores
  * the new top; redo does the reverse. While a snapshot is being applied the capture
  * effect is muted (`applying`), so the restore is not recorded as a new edit.
  *
  * Deliberately excludes view settings (theme, font scale) — they are not project
- * state. Restoring state marks the project dirty (`state/project.ts` observes the
+ * state. Restoring state marks the project dirty (`state/project/` observes the
  * same stores), which is the correct behaviour for an undo.
  */
 
@@ -89,20 +89,12 @@ function apply(snapshot: Snapshot) {
 let undoStack: Snapshot[] = [];
 let redoStack: Snapshot[] = [];
 
-export const [canUndo, setCanUndo] = createSignal(false);
-export const [canRedo, setCanRedo] = createSignal(false);
-
 /** True while a snapshot is being restored (mutes the capture effect). */
 let applying = false;
 
 let debounceTimer: number | undefined;
 let pending: Snapshot | undefined;
 let reapplyTimer: number | undefined;
-
-function updateFlags() {
-  setCanUndo(undoStack.length > 1);
-  setCanRedo(redoStack.length > 0);
-}
 
 /** Record a state change as one undo step (unless it repeats the current top). */
 function commit(snapshot: Snapshot) {
@@ -112,7 +104,6 @@ function commit(snapshot: Snapshot) {
   undoStack.push(snapshot);
   if (undoStack.length > MAX_HISTORY) undoStack.shift();
   redoStack = [];
-  updateFlags();
 }
 
 /** Debounce continuous edits so a drag / scrub coalesces into a single step. */
@@ -154,7 +145,6 @@ export function undo() {
   if (!current) return;
   redoStack.push(current);
   restore(undoStack[undoStack.length - 1]);
-  updateFlags();
 }
 
 /** Step forward one undone edit, if there is one. No-op on an empty stack. */
@@ -164,12 +154,11 @@ export function redo() {
   if (!next) return;
   undoStack.push(next);
   restore(next);
-  updateFlags();
 }
 
 /**
  * Drop all history and seed the fresh (post New/Open) state as the base step.
- * Called by `state/project.ts` after a load or New Project, so undo cannot step
+ * Called by `state/project/` after a load or New Project, so undo cannot step
  * back across a project boundary.
  */
 export function resetHistory() {
@@ -181,14 +170,12 @@ export function resetHistory() {
   pending = undefined;
   undoStack = [];
   redoStack = [];
-  updateFlags();
   // Re-arm once Solid has flushed the store restores, then seed the base state.
   if (reapplyTimer != undefined) clearTimeout(reapplyTimer);
   reapplyTimer = window.setTimeout(() => {
     reapplyTimer = undefined;
     applying = false;
     undoStack = [capture()];
-    updateFlags();
   }, 0);
 }
 

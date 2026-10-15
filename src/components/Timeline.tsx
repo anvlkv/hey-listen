@@ -1,105 +1,16 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { playhead, previewRegion, stop as stopPreview } from "../audio/preview";
-import { columnExtent, computePeaks, type Peaks } from "../lib/waveform";
-import { analyzerById, isAnalyzerId } from "../state/analyzer";
+import { computePeaks, type Peaks } from "../lib/waveform";
 import { channelFor } from "../state/analysis";
-import { filterEnabled } from "../state/graph";
 import { filteredSamples } from "../state/filtered";
-import { stopFollowing } from "../state/capture";
-import { setSourcePanelPinned, sourcePanelPinned } from "../state/settings";
-import {
-  focusedNoteId,
-  focusNote,
-  dragNoteTo,
-  notesSorted,
-  refreshNoteValues,
-  setFocusedNote,
-} from "../state/notes";
-import { noteLabel, noteTimeText } from "../lib/note";
-import type { Note } from "../bindings/Note";
-import { chartTheme } from "../state/themes";
+import { filterEnabled } from "../state/graph";
+import { focusedNoteId, notesSorted } from "../state/notes";
 import { source, status } from "../state/source";
-import Button from "./Button";
-import ChannelSelect from "./ChannelSelect";
-import Icon from "./Icon";
-import Tooltip from "./Tooltip";
-import {
-  setView,
-  setWindowEnd,
-  setWindowStart,
-  viewEnd,
-  viewStart,
-  windowEnd,
-  windowStart,
-} from "../state/timeline";
-
-const RULER_H = 22;
-const HANDLE_HIT = 9;
-/** Horizontal gap (px) kept between consecutive ruler labels so they never collide. */
-const LABEL_GAP = 8;
-/** Vertical hit zone (px) at the top of the waveform for the window move handle. */
-const MOVE_HIT = 10;
-/** Height (px) of the drawn window move handle bar. */
-const MOVE_HANDLE_H = 8;
-/** Vertical band (px, from the ruler) where a note pin is clickable. */
-const NOTE_BAND = 16;
-/** Horizontal hit radius (px) around a note pin. */
-const NOTE_HIT = 8;
-/** Horizontal gutter so the start/end handles never sit on the very edge. */
-const PLOT_PAD = 12;
-/** Click-drag preview restart throttle, in ms. */
-const PREVIEW_THROTTLE = 110;
-/** Length of the excerpt auditioned while dragging a handle, in seconds. */
-const EDGE_EXCERPT = 0.75;
-
-const TICK_STEPS = [
-  0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600,
-  1800, 3600,
-];
-
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds)) return "–:––";
-  const sign = seconds < 0 ? "-" : "";
-  const abs = Math.abs(seconds);
-  const minutes = Math.floor(abs / 60);
-  const secs = abs - minutes * 60;
-  return `${sign}${minutes}:${secs.toFixed(2).padStart(5, "0")}`;
-}
-
-/**
- * Compact ruler label. The granularity follows the visible span so consecutive
- * ticks stay short enough not to collide: `h:mm:ss` for long spans, whole-second
- * `m:ss` from a minute up, and `ss.s` / finer for short spans.
- */
-function formatRulerTime(seconds: number, visibleSpan: number): string {
-  if (!Number.isFinite(seconds)) return "–:––";
-  const sign = seconds < 0 ? "-" : "";
-  const abs = Math.abs(seconds);
-  const hours = Math.floor(abs / 3600);
-  const minutes = Math.floor((abs % 3600) / 60);
-  const secs = Math.floor(abs % 60);
-  if (hours > 0 || visibleSpan >= 3600) {
-    return `${sign}${hours}:${minutes.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
-  }
-  if (visibleSpan >= 60) {
-    return `${sign}${minutes}:${secs.toString().padStart(2, "0")}`;
-  }
-  if (visibleSpan >= 1) return `${sign}${abs.toFixed(1)}`;
-  if (visibleSpan >= 0.1) return `${sign}${abs.toFixed(2)}`;
-  return `${sign}${abs.toFixed(3)}`;
-}
-
-function niceStep(span: number, width: number): number {
-  const target = Math.max(1, width / 90);
-  for (const step of TICK_STEPS) {
-    if (span / step <= target) return step;
-  }
-  return TICK_STEPS[TICK_STEPS.length - 1];
-}
-
-type DragKind = "start" | "end" | "move" | "pan";
+import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
+import { PLOT_PAD } from "./timeline/constants";
+import { drawTimeline, type TimelineDrawDeps } from "./timeline/draw";
+import { createTimelineInteraction } from "./timeline/interaction";
+import { createPreview } from "./timeline/preview";
+import TimelineToolbar from "./timeline/TimelineToolbar";
 
 /**
  * Timeline (fixed region): waveform of the whole source plus the draggable
@@ -111,6 +22,9 @@ type DragKind = "start" | "end" | "move" | "pan";
  *   windows auto-zoom on release (see `docs/source-model.md`).
  * - Dragging the grab bar along the top of the window moves the whole window,
  *   keeping its width (no preview, no auto-zoom).
+ *
+ * The canvas painting, pointer interaction and toolbar live in sibling modules
+ * under `./timeline/`; this component owns the state and composes them.
  */
 export default function Timeline() {
   let canvas!: HTMLCanvasElement;
@@ -118,8 +32,6 @@ export default function Timeline() {
 
   const [cssW, setCssW] = createSignal(0);
   const [cssH, setCssH] = createSignal(0);
-  const [playSec, setPlaySec] = createSignal<number | null>(null);
-  const [previewing, setPreviewing] = createSignal(false);
   const [noteHint, setNoteHint] = createSignal<{ x: number; y: number; text: string } | null>(null);
 
   const duration = () => source()?.duration ?? 0;
@@ -176,479 +88,37 @@ export default function Timeline() {
     setView(lo, hi);
   };
 
-  // --- preview -----------------------------------------------------------
+  const preview = createPreview();
 
-  let raf = 0;
+  const interaction = createTimelineInteraction({
+    canvas: () => canvas,
+    active,
+    duration,
+    t2x,
+    x2t,
+    span,
+    plotW,
+    applyView,
+    setNoteHint,
+    previewEdge: preview.previewEdge,
+    endPreview: preview.endPreview,
+  });
 
-  function tick() {
-    raf = 0;
-    if (!previewing()) return;
-    const position = playhead();
-    setPlaySec(position);
-    // A null position means the core stopped (ended or failed) — end the preview.
-    if (position == null) {
-      endPreview();
-      return;
-    }
-    raf = requestAnimationFrame(tick);
-  }
-
-  function startPreview(a: number, b: number, loop: boolean) {
-    previewRegion(a, b, loop);
-    setPreviewing(true);
-    if (!raf) raf = requestAnimationFrame(tick);
-  }
-
-  /** Audition a short excerpt next to the handle being dragged. */
-  function previewEdge(kind: "start" | "end") {
-    const wLen = windowEnd() - windowStart();
-    if (wLen <= 0) return;
-    const len = Math.min(EDGE_EXCERPT, wLen);
-    if (kind === "end") startPreview(windowEnd() - len, windowEnd(), true);
-    else startPreview(windowStart(), windowStart() + len, true);
-  }
-
-  function endPreview() {
-    if (raf) {
-      cancelAnimationFrame(raf);
-      raf = 0;
-    }
-    stopPreview();
-    setPreviewing(false);
-    setPlaySec(null);
-  }
-
-  function togglePreview() {
-    if (previewing()) endPreview();
-    else startPreview(windowStart(), windowEnd(), true);
-  }
-
-  // --- drawing -----------------------------------------------------------
+  const drawDeps: TimelineDrawDeps = {
+    cssW,
+    cssH,
+    peaks,
+    filteredPeaks,
+    pick,
+    playSec: preview.playSec,
+    t2x,
+    x2t,
+    span,
+    plotW,
+  };
 
   function draw() {
-    const ctx = canvas?.getContext("2d");
-    const w = cssW();
-    const h = cssH();
-    if (!ctx || w <= 0 || h <= 0) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
-    const waveTop = RULER_H;
-    const waveH = h - RULER_H;
-    const t = chartTheme();
-
-    ctx.fillStyle = t.background;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = t.surface;
-    ctx.fillRect(0, waveTop, w, waveH);
-
-    const s = source();
-    const ws = t2x(windowStart());
-    const we = t2x(windowEnd());
-
-    // Analysis window shading.
-    if (s) {
-      ctx.fillStyle = t.waveFill;
-      ctx.fillRect(ws, waveTop, we - ws, waveH);
-    }
-
-    // Waveform.
-    if (s && s.frames > 0) {
-      const mid = waveTop + waveH / 2;
-      const half = (waveH / 2) * 0.94;
-      const p = peaks();
-      const x0 = PLOT_PAD;
-      const x1 = w - PLOT_PAD;
-      ctx.strokeStyle = t.series;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = x0; x < x1; x++) {
-        const f0 = x2t(x) * s.sampleRate;
-        const f1 = x2t(x + 1) * s.sampleRate;
-        const [lo, hi] = columnExtent(p, s.samples, s.frames, s.channels, f0, f1, pick());
-        const yHi = mid - hi * half;
-        const yLo = mid - lo * half;
-        ctx.moveTo(x + 0.5, Math.min(yHi, yLo));
-        ctx.lineTo(x + 0.5, Math.max(yHi, yLo) + 0.5);
-      }
-      ctx.stroke();
-
-      ctx.strokeStyle = t.midline;
-      ctx.beginPath();
-      ctx.moveTo(x0, mid + 0.5);
-      ctx.lineTo(x1, mid + 0.5);
-      ctx.stroke();
-
-      // Filtered overlay: the same envelope, drawn over the raw waveform in a
-      // warm colour so the filter's effect is visible. Mono, at the source rate.
-      const fp = filteredPeaks();
-      const fsamp = filteredSamples();
-      if (filterEnabled() && fp && fsamp && fsamp.length > 0) {
-        ctx.strokeStyle = t.filtered;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let x = x0; x < x1; x++) {
-          const f0 = x2t(x) * s.sampleRate;
-          const f1 = x2t(x + 1) * s.sampleRate;
-          const [flo, fhi] = columnExtent(fp, fsamp, fsamp.length, 1, f0, f1, "mix");
-          const fyHi = mid - fhi * half;
-          const fyLo = mid - flo * half;
-          ctx.moveTo(x + 0.5, Math.min(fyHi, fyLo));
-          ctx.lineTo(x + 0.5, Math.max(fyHi, fyLo) + 0.5);
-        }
-        ctx.stroke();
-      }
-    }
-
-    drawRuler(ctx, w);
-
-    if (s) {
-      // Whole-window move handle (edge handles drawn after so their grab tabs win).
-      drawMoveHandle(ctx, ws, we, waveTop);
-      drawHandle(ctx, ws, waveTop, waveH, t.series);
-      drawHandle(ctx, we, waveTop, waveH, t.series);
-    }
-
-    drawNotes(ctx, waveTop, waveH);
-
-    const ph = playSec();
-    if (ph != null) {
-      const x = t2x(ph);
-      ctx.strokeStyle = t.playhead;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, waveTop);
-      ctx.lineTo(x + 0.5, h);
-      ctx.stroke();
-    }
-  }
-
-  function drawRuler(ctx: CanvasRenderingContext2D, w: number) {
-    const theme = chartTheme();
-    ctx.fillStyle = theme.ruler;
-    ctx.fillRect(0, 0, w, RULER_H);
-    ctx.strokeStyle = theme.grid;
-    ctx.beginPath();
-    ctx.moveTo(0, RULER_H - 0.5);
-    ctx.lineTo(w, RULER_H - 0.5);
-    ctx.stroke();
-
-    const s = span();
-    const step = niceStep(s, plotW());
-    const first = Math.ceil(viewStart() / step) * step;
-    ctx.fillStyle = theme.axis;
-    ctx.font = "10px Inter, sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-
-    // Track the right edge of the last drawn label so neighbouring labels never
-    // collide; a label that would overlap is skipped (its tick is still drawn).
-    let lastRight = -Infinity;
-    for (let t = first; t <= viewEnd() + 1e-9; t += step) {
-      const x = t2x(t);
-      ctx.strokeStyle = theme.rulerTick;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, RULER_H - 6);
-      ctx.lineTo(x + 0.5, RULER_H);
-      ctx.stroke();
-
-      const label = formatRulerTime(t, s);
-      const width = ctx.measureText(label).width;
-      // Prefer the label to the right of its tick; flip it left near the edge.
-      let lx = x + 4;
-      if (lx + width > w) lx = x - 4 - width;
-      if (lx < lastRight + LABEL_GAP) continue;
-      ctx.fillText(label, lx, RULER_H / 2);
-      lastRight = lx + width;
-    }
-  }
-
-  function drawHandle(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    top: number,
-    height: number,
-    color: string,
-  ) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, top);
-    ctx.lineTo(x, top + height);
-    ctx.stroke();
-
-    // Wider grab tab at the top of the handle.
-    ctx.fillStyle = color;
-    ctx.fillRect(x - 4, top, 8, 12);
-  }
-
-  /** The grab bar spanning the window along the top of the waveform (move handle). */
-  function drawMoveHandle(ctx: CanvasRenderingContext2D, x0: number, x1: number, top: number) {
-    const w = x1 - x0;
-    if (w <= 2) return;
-    ctx.fillStyle = chartTheme().handleFill;
-    ctx.fillRect(x0, top, w, MOVE_HANDLE_H);
-    // Grip ridges so the bar reads as a draggable handle.
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    const cx = Math.round((x0 + x1) / 2) + 0.5;
-    for (let i = -1; i <= 1; i++) {
-      const gx = cx + i * 4;
-      ctx.moveTo(gx, top + 2);
-      ctx.lineTo(gx, top + MOVE_HANDLE_H - 2);
-    }
-    ctx.stroke();
-  }
-
-  /**
-   * Note pins (M14): every note is a triangle at its time (a shaded span for a
-   * range); the focused note is emphasised with a full-height stem. Clicking a pin
-   * focuses the note; hovering shows a hint. See `docs/notes.md` → Surfacing.
-   */
-  function drawNotes(ctx: CanvasRenderingContext2D, waveTop: number, waveH: number) {
-    const list = notesSorted();
-    if (list.length === 0) return;
-    const theme = chartTheme();
-    const focusId = focusedNoteId();
-    const w = cssW();
-    for (const note of list) {
-      const x = t2x(note.timeSecs);
-      if (x < -12 || x > w + 12) continue;
-      const focused = note.id === focusId;
-      if (note.range) {
-        const x0 = t2x(note.range.startSecs);
-        const x1 = t2x(note.range.endSecs);
-        ctx.globalAlpha = focused ? 0.22 : 0.12;
-        ctx.fillStyle = theme.note;
-        ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
-        ctx.globalAlpha = 1;
-      }
-      const size = focused ? 6 : 4;
-      ctx.globalAlpha = focused ? 1 : 0.8;
-      ctx.fillStyle = theme.note;
-      ctx.beginPath();
-      ctx.moveTo(x - size, waveTop);
-      ctx.lineTo(x + size, waveTop);
-      ctx.lineTo(x, waveTop + size + 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = theme.note;
-      ctx.lineWidth = focused ? 1.5 : 1;
-      ctx.beginPath();
-      ctx.moveTo(Math.round(x) + 0.5, waveTop);
-      ctx.lineTo(Math.round(x) + 0.5, waveTop + (focused ? waveH : 10));
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  /** The note pin under a pointer position, or `null`. */
-  function noteAt(x: number, y: number): Note | null {
-    if (y < RULER_H || y > RULER_H + NOTE_BAND) return null;
-    let best: Note | null = null;
-    let bestDistance = NOTE_HIT;
-    for (const note of notesSorted()) {
-      const distance = Math.abs(t2x(note.timeSecs) - x);
-      if (distance <= bestDistance) {
-        bestDistance = distance;
-        best = note;
-      }
-    }
-    return best;
-  }
-
-  /** The hover hint text for a note (title · tool · time · values line). */
-  function noteHintText(note: Note): string {
-    const tool = note.tool && isAnalyzerId(note.tool) ? analyzerById(note.tool).title : "Timeline";
-    const values = note.values ? ` · ${note.values.text}` : "";
-    return `${noteLabel(note)} · ${tool} · ${noteTimeText(note)}${values}`;
-  }
-
-  // --- interaction -------------------------------------------------------
-
-  let drag: {
-    kind: DragKind;
-    pointerX: number;
-    origViewStart: number;
-    origViewEnd: number;
-    origWindowStart: number;
-    origWindowEnd: number;
-  } | null = null;
-  /** Dragging a note pin along the timeline (M14). */
-  let noteDrag: { id: string; startX: number; moved: boolean } | null = null;
-  let lastPreview = 0;
-
-  function pointerX(e: { clientX: number }): number {
-    const rect = canvas.getBoundingClientRect();
-    return e.clientX - rect.left;
-  }
-
-  function pointerY(e: { clientY: number }): number {
-    const rect = canvas.getBoundingClientRect();
-    return e.clientY - rect.top;
-  }
-
-  function minWindow(): number {
-    const s = source();
-    return Math.max(1e-3, s ? 4 / s.sampleRate : 1e-3);
-  }
-
-  function onPointerDown(e: PointerEvent) {
-    if (!active() || !source()) return;
-    stopFollowing();
-    const x = pointerX(e);
-    const y = pointerY(e);
-
-    // A note pin starts a drag (grab its tick, or click to focus + open its chart).
-    const note = noteAt(x, y);
-    if (note) {
-      noteDrag = { id: note.id, startX: x, moved: false };
-      setNoteHint(null);
-      canvas.setPointerCapture(e.pointerId);
-      return;
-    }
-
-    const ws = t2x(windowStart());
-    const we = t2x(windowEnd());
-
-    let kind: DragKind = "pan";
-    // Edge handles win at their x positions; the top bar covers the interior.
-    if (Math.abs(x - ws) <= HANDLE_HIT) kind = "start";
-    else if (Math.abs(x - we) <= HANDLE_HIT) kind = "end";
-    else if (x > ws && x < we && y >= RULER_H && y <= RULER_H + MOVE_HIT) kind = "move";
-
-    drag = {
-      kind,
-      pointerX: x,
-      origViewStart: viewStart(),
-      origViewEnd: viewEnd(),
-      origWindowStart: windowStart(),
-      origWindowEnd: windowEnd(),
-    };
-    canvas.setPointerCapture(e.pointerId);
-
-    if (kind === "start" || kind === "end") {
-      lastPreview = 0;
-      previewEdge(kind);
-    }
-  }
-
-  function onPointerMove(e: PointerEvent) {
-    if (noteDrag) {
-      const x = pointerX(e);
-      if (Math.abs(x - noteDrag.startX) > 2) noteDrag.moved = true;
-      if (noteDrag.moved) {
-        const t = Math.max(0, Math.min(duration(), x2t(x)));
-        dragNoteTo(noteDrag.id, t);
-      }
-      return;
-    }
-    if (!drag) {
-      const hit = noteAt(pointerX(e), pointerY(e));
-      setNoteHint(hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit) } : null);
-      return;
-    }
-    const x = pointerX(e);
-
-    if (drag.kind === "pan") {
-      const dt = ((drag.pointerX - x) / plotW()) * span();
-      applyView(drag.origViewStart + dt, drag.origViewEnd + dt);
-      return;
-    }
-
-    const s = source();
-    if (!s) return;
-
-    if (drag.kind === "move") {
-      // Slide the whole window by the pointer delta, preserving its width and
-      // keeping it inside [0, duration]. The viewport is left untouched.
-      const dur = duration();
-      const wLen = drag.origWindowEnd - drag.origWindowStart;
-      const dt = x2t(x) - x2t(drag.pointerX);
-      const start = Math.max(0, Math.min(dur - wLen, drag.origWindowStart + dt));
-      setWindowStart(start);
-      setWindowEnd(start + wLen);
-      return;
-    }
-
-    const t = Math.max(0, Math.min(duration(), x2t(x)));
-    const gap = minWindow();
-    if (drag.kind === "start") {
-      setWindowStart(Math.max(0, Math.min(t, windowEnd() - gap)));
-    } else {
-      setWindowEnd(Math.min(duration(), Math.max(t, windowStart() + gap)));
-    }
-
-    // Audition near the handle as it moves (throttled to avoid restart thrash).
-    const now = performance.now();
-    if (now - lastPreview > PREVIEW_THROTTLE) {
-      lastPreview = now;
-      previewEdge(drag.kind);
-    }
-  }
-
-  function onPointerUp(e: PointerEvent) {
-    if (noteDrag) {
-      const { id, moved } = noteDrag;
-      noteDrag = null;
-      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      if (moved) {
-        // Re-snapshot the values at the new time, and show the note where it landed.
-        refreshNoteValues(id);
-        setFocusedNote(id);
-      } else {
-        focusNote(id);
-      }
-      return;
-    }
-    if (!drag) return;
-    // Only the edge handles preview + auto-zoom on release; move/pan do not.
-    const wasEdge = drag.kind === "start" || drag.kind === "end";
-    drag = null;
-    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-    if (wasEdge) {
-      endPreview();
-      maybeAutoZoom();
-    }
-  }
-
-  function maybeAutoZoom() {
-    const s = source();
-    if (!s || s.duration <= 0) return;
-    const wDur = windowEnd() - windowStart();
-    if (wDur > 0 && wDur <= s.duration * 0.05) {
-      const pad = Math.max(wDur * 0.1, s.duration * 0.005);
-      applyView(Math.max(0, windowStart() - pad), Math.min(s.duration, windowEnd() + pad));
-    }
-  }
-
-  function onWheel(e: WheelEvent) {
-    if (!source()) return;
-    stopFollowing();
-    e.preventDefault();
-    const t = x2t(pointerX(e));
-    const factor = e.deltaY < 0 ? 0.8 : 1.25;
-    applyView(t + (viewStart() - t) * factor, t + (viewEnd() - t) * factor);
-  }
-
-  function zoomBy(factor: number) {
-    stopFollowing();
-    const center = (viewStart() + viewEnd()) / 2;
-    applyView(center + (viewStart() - center) * factor, center + (viewEnd() - center) * factor);
-  }
-
-  function zoomToWindow() {
-    stopFollowing();
-    const wDur = windowEnd() - windowStart();
-    const pad = Math.max(wDur * 0.05, 1e-3);
-    applyView(Math.max(0, windowStart() - pad), Math.min(duration(), windowEnd() + pad));
-  }
-
-  function fitAll() {
-    stopFollowing();
-    applyView(0, duration());
+    drawTimeline(canvas?.getContext("2d"), drawDeps);
   }
 
   // --- lifecycle ---------------------------------------------------------
@@ -670,14 +140,14 @@ export default function Timeline() {
     const ro = new ResizeObserver(() => syncCanvasSize());
     ro.observe(wrap);
     syncCanvasSize();
-    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("wheel", interaction.onWheel, { passive: false });
     onCleanup(() => {
       ro.disconnect();
-      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("wheel", interaction.onWheel);
     });
   });
 
-  onCleanup(() => endPreview());
+  onCleanup(() => preview.endPreview());
 
   createEffect(() => {
     // Track everything the canvas draws.
@@ -689,7 +159,7 @@ export default function Timeline() {
     viewEnd();
     windowStart();
     windowEnd();
-    playSec();
+    preview.playSec();
     filteredSamples();
     filterEnabled();
     notesSorted();
@@ -697,115 +167,26 @@ export default function Timeline() {
     draw();
   });
 
-  const windowDuration = () => windowEnd() - windowStart();
-
   return (
     <section class="app-timeline" data-testid="region.timeline">
-      <div class="timeline-toolbar">
-        <div class="timeline-readout">
-          <span>
-            <strong>{formatTime(windowStart())}</strong> –{" "}
-            <strong>{formatTime(windowEnd())}</strong>
-          </span>
-          <span class="timeline-dim">Δ {formatTime(windowDuration())}</span>
-        </div>
-        <span
-          class="timeline-filter"
-          title={
-            filterEnabled()
-              ? "The filter graph is applied to the signal"
-              : "The filter graph is bypassed"
-          }
-          style={{
-            "font-size": "11px",
-            padding: "1px 6px",
-            "border-radius": "4px",
-            "white-space": "nowrap",
-            color: filterEnabled() ? "#ffb454" : "#8a8a8a",
-            border: `1px solid ${filterEnabled() ? "#6b4a1f" : "#3a3a3a"}`,
-            background: filterEnabled() ? "rgba(255, 180, 84, 0.12)" : "transparent",
-          }}
-        >
-          {filterEnabled() ? "Filter on" : "Filter off"}
-        </span>
-        <Show when={(source()?.channels ?? 1) > 1}>
-          <ChannelSelect />
-        </Show>
-        <div class="timeline-actions">
-          <Show when={source()}>
-            <Tooltip label="Show the source controls to replace the source">
-              <Button
-                class="timeline-btn icon-btn"
-                data-testid="timeline.replace"
-                aria-pressed={sourcePanelPinned()}
-                aria-label="Replace source"
-                onClick={() => setSourcePanelPinned(!sourcePanelPinned())}
-              >
-                <Icon name="folder-open" />
-              </Button>
-            </Tooltip>
-          </Show>
-          <Tooltip label="Preview the analysis window">
-            <Button
-              class="timeline-btn icon-label"
-              disabled={status() !== "ready"}
-              onClick={togglePreview}
-            >
-              <Icon name={previewing() ? "stop" : "play"} />
-              {previewing() ? "Stop" : "Preview"}
-            </Button>
-          </Tooltip>
-          <Tooltip label="Zoom the view to the analysis window">
-            <Button
-              class="timeline-btn icon-btn"
-              disabled={!active()}
-              aria-label="Zoom to the analysis window"
-              onClick={zoomToWindow}
-            >
-              <Icon name="magnifying-glass" />
-            </Button>
-          </Tooltip>
-          <Tooltip label="Zoom out">
-            <Button
-              class="timeline-btn icon-btn"
-              disabled={!active()}
-              aria-label="Zoom out"
-              onClick={() => zoomBy(1.5)}
-            >
-              <Icon name="minus" />
-            </Button>
-          </Tooltip>
-          <Tooltip label="Zoom in">
-            <Button
-              class="timeline-btn icon-btn"
-              disabled={!active()}
-              aria-label="Zoom in"
-              onClick={() => zoomBy(1 / 1.5)}
-            >
-              <Icon name="plus" />
-            </Button>
-          </Tooltip>
-          <Tooltip label="Fit the whole source">
-            <Button
-              class="timeline-btn icon-btn"
-              disabled={!active()}
-              aria-label="Fit the whole source"
-              onClick={fitAll}
-            >
-              <Icon name="expand" />
-            </Button>
-          </Tooltip>
-        </div>
-      </div>
+      <TimelineToolbar
+        previewing={preview.previewing()}
+        active={active()}
+        onTogglePreview={preview.togglePreview}
+        onZoomWindow={interaction.zoomToWindow}
+        onZoomOut={() => interaction.zoomBy(1.5)}
+        onZoomIn={() => interaction.zoomBy(1 / 1.5)}
+        onFit={interaction.fitAll}
+      />
 
       <div class="timeline-canvas" ref={(node) => (wrap = node)}>
         <canvas
           ref={(node) => (canvas = node)}
           data-testid="timeline.canvas"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerDown={interaction.onPointerDown}
+          onPointerMove={interaction.onPointerMove}
+          onPointerUp={interaction.onPointerUp}
+          onPointerCancel={interaction.onPointerUp}
           onPointerLeave={() => setNoteHint(null)}
         />
         <Show when={!active()}>

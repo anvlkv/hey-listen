@@ -1,0 +1,208 @@
+/* --- Readout-only analyzer body (levels / tempo / loudness) ------------- */
+
+.readout-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+}
+
+.readout-card {
+  min-width: 120px;
+  padding: 10px 12px;
+  background: var(--panel-4);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+}
+
+.readout-card-label {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.readout-card-value {
+  margin-top: 4px;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+/* --- Level meters (M11.A) ------------------------------------------------ */
+
+.meters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 12px 10px;
+}
+
+.meter-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 84px;
+  align-items: center;
+  gap: 10px;
+}
+
+.meter-label {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.meter-value {
+  font-size: 0.6875rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.meter-track {
+  position: relative;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(
+    to right,
+    var(--meter-low) 0%,
+    var(--meter-low) 62%,
+    var(--meter-mid) 78%,
+    var(--meter-high) 100%
+  );
+}
+
+/* Covers the unlit portion (from the value to the right edge) so the fill's
+   colours stay anchored to the dBFS scale instead of stretching. */
+.meter-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: var(--meter-unlit);
+}
+
+.meter-hold {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--meter-peak);
+}
+
+.meter-track-ruler {
+  height: 14px;
+  background: none;
+  overflow: visible;
+}
+
+.meter-tick {
+  position: absolute;
+  top: 2px;
+  font-size: 0.5625rem;
+  color: var(--fg-faint);
+  transform: translateX(-50%);
+}
+
+.meter-ruler .meter-label,
+.meter-ruler .meter-value {
+  visibility: hidden;
+}
+
+/* --- Tempogram panel (M11.A, tempo / downbeats) ------------------------- */
+
+.analyzer-tempogram {
+  position: relative;
+  flex: 0 0 32%;
+  min-height: 92px;
+  padding: 4px 0 0;
+}
+
+.analyzer-tempogram-label {
+  position: absolute;
+  top: 6px;
+  left: 74px;
+  z-index: 1;
+  font-size: 0.625rem;
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+
+/* --- Event-list analyzer body (onsets / downbeats) ---------------------- */
+
+.events-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  padding: 10px;
+  overflow: auto;
+}
+
+.event-chip {
+  padding: 2px 6px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--chip-fg);
+  background: var(--chip-bg);
+  border: 1px solid var(--border-chip);
+  border-radius: 4px;
+}
+
+/* --- Per-tool params (below the shared params) -------------------------- */
+
+.params-tool {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.params-field-num {
+  align-items: center;
+}
+
+/* --- Busy indication (spinners) ----------------------------------------- */
+
+.analyzer-busy {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* First computation: dim the (still empty) body and spin in the centre. */
+.analyzer-busy-center {
+  inset: 0;
+  background: var(--busy-veil);
+}
+
+/* Recompute: a small spinner in the bottom-right corner, keeping the result. */
+.analyzer-busy-corner {
+  right: 10px;
+  bottom: 10px;
+  padding: 5px;
+  background: var(--overlay-92);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent-2);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

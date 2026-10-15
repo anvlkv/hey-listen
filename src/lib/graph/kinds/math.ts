@@ -1,0 +1,78 @@
+import type { NodeKindDef } from "../types";
+
+/** Node kinds: math. */
+export const MATH: NodeKindDef[] = [
+  {
+    kind: "add",
+    label: "Add",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Adds two signals (A + B).",
+  },
+  {
+    kind: "subtract",
+    label: "Subtract",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Subtracts B from A (A − B).",
+  },
+  {
+    kind: "multiply",
+    label: "Multiply",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Multiplies two signals (A × B) — ring-mod, or a VCA with a control input.",
+  },
+  {
+    kind: "divide",
+    label: "Divide",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "Divides A by B (A ÷ B).",
+  },
+  {
+    kind: "min",
+    label: "Minimum",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "The lower of two signals, sample by sample.",
+  },
+  {
+    kind: "max",
+    label: "Maximum",
+    category: "math",
+    inputs: 2,
+    outputs: 1,
+    params: [],
+    hint: "The higher of two signals, sample by sample.",
+  },
+  {
+    kind: "abs",
+    label: "Absolute",
+    category: "math",
+    inputs: 1,
+    outputs: 1,
+    params: [],
+    hint: "Rectifies the signal (|A|).",
+  },
+  {
+    kind: "invert",
+    label: "Invert",
+    category: "math",
+    inputs: 1,
+    outputs: 1,
+    params: [],
+    hint: "Flips the signal's polarity (−A).",
+  },
+  // Processors — filters and utilities (fixed parameters via the `*_hz` constructors).
+];

@@ -17,7 +17,7 @@ fftSize: number,
  */
 hop: number, 
 /**
- * Optional overlap randomization (see [`stft_magnitudes`]).
+ * Optional overlap randomization (see [`super::support::stft_magnitudes`]).
  */
 randomizedOverlap: boolean, windowFn: WindowKind, 
 /**

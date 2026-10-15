@@ -1,7 +1,7 @@
 //! Native application menu (File / Edit / View / Window / Help).
 //!
 //! The File and Edit actions are emitted to the frontend on the [`MENU_EVENT`]
-//! channel — the frontend owns the project state (`state/project.ts` reacts to the
+//! channel — the frontend owns the project state (`state/project/` reacts to the
 //! File actions; `state/menu.ts` routes undo/redo to `state/history.ts`). View and
 //! Window use **predefined** items (fullscreen / minimize / maximize), so they work
 //! without a round-trip. On macOS the first submenu is the application menu
@@ -21,7 +21,7 @@ use crate::recent::{self, RecentProject};
 /// Event carrying a menu action id (File / Edit) to the frontend.
 pub const MENU_EVENT: &str = "app:menu";
 
-/// The File actions the frontend handles (ids match `state/project.ts` / `state/menu.ts`).
+/// The File actions the frontend handles (ids match `state/project/` / `state/menu.ts`).
 const FILE_ACTIONS: [&str; 5] = ["new", "newWindow", "open", "save", "saveAs"];
 
 /// The Edit actions the frontend handles (ids match `state/menu.ts` → `state/history.ts`).

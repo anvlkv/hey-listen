@@ -52,7 +52,7 @@ pub struct InstalledTheme {
 
 /// The bundled themes' identity `(id, name, base)`.
 ///
-/// Mirrors the built-in registry in `src/state/themes.ts` (`BUILTIN_THEMES`) — the
+/// Mirrors the built-in registry in `src/state/themes/builtins.ts` (`BUILTIN_THEMES`) — the
 /// webview applies the full palettes from TypeScript, but the **headless** MCP server
 /// has no webview, so it reports the bundled themes from here. Keep the two lists in
 /// sync when adding a bundled theme.

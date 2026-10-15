@@ -52,7 +52,7 @@ export interface CursorSyncMessageBus {
 /**
  * The project's notes on the bus (M14): every note plus the focused note id, so a
  * chart's note plugin can draw its own notes and the one focused note without each
- * chart reaching into the store. Published by `state/notes.ts` whenever the notes or
+ * chart reaching into the store. Published by `state/notes/` whenever the notes or
  * the focus change. See `docs/notes.md`.
  */
 export interface NotesMessage {

@@ -1,11 +1,11 @@
 //! The analyzer catalog — the Rust-side source of truth for `list_analyzers`.
 //!
 //! The GUI renders the full analyzer definitions (views, per-tool param schemas,
-//! help text) from the frontend store (`src/state/analyzer.ts`), which the webview
+//! help text) from the frontend store (`src/state/analyzer/`), which the webview
 //! needs for uPlot charts. The **headless** MCP server has no webview, so it needs
 //! its own list of the ids and the human metadata agents use to pick a tool.
 //!
-//! Keep this list in step with `src/state/analyzer.ts` (`ANALYZERS`) and
+//! Keep this list in step with `src/state/analyzer/defs.ts` (`ANALYZERS`) and
 //! [`crate::audio::analysis::run`]: an id here that `run` does not know returns an
 //! error, and an id `run` knows but this list omits is invisible to a headless
 //! agent. The ids are the same strings the GUI uses.
