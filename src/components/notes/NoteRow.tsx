@@ -22,7 +22,9 @@ import { NoteEditor } from "./NoteEditors";
  * One note: the title bar (heading + actions), meta, values, and the body.
  *
  * While the note is being edited the editor **replaces** the rendered body (the row
- * shows the note once, not twice), and a commit is explicit — see [`NoteEditor`].
+ * shows the note once, not twice), and a commit is explicit — see [`NoteEditor`]. The
+ * values line stays visible while editing: it is the frozen snapshot being annotated,
+ * so hiding it would hide the very thing the note is about.
  * The expand/preview state arrives as accessors: a store edit replaces the note object
  * and its row is recreated, so a plain value read here would not be reactive.
  */
@@ -83,7 +85,7 @@ export function NoteRow(props: {
               class="note-icon"
               data-testid={`note.edit.${props.note.id}`}
               aria-label="Edit the note"
-              onClick={() => setEditingNoteId(props.note.id)}
+              onClick={() => setEditingNoteId(editing() ? null : props.note.id)}
             >
               <Icon name="pencil" />
             </Button>
@@ -115,7 +117,7 @@ export function NoteRow(props: {
         {toolTitle()} · {noteTimeText(props.note)}
       </div>
 
-      <Show when={!editing() && currentText()}>
+      <Show when={currentText()}>
         <div class="note-values">
           <span class="note-values-current" data-testid={`note.values.${props.note.id}`}>
             {currentText()}
