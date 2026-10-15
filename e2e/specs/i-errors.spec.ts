@@ -115,7 +115,9 @@ async function deleteOutputEdge(): Promise<void> {
     .catch(() => {});
   // Deletion is a window-level key handler that ignores events while an input has
   // focus, so drop focus first (a lingering palette search box would swallow it).
-  await browser.execute(() => (document.activeElement as HTMLElement | null)?.blur?.()).catch(() => {});
+  await browser
+    .execute(() => (document.activeElement as HTMLElement | null)?.blur?.())
+    .catch(() => {});
   await browser.keys("Backspace").catch(() => {});
 }
 
@@ -249,7 +251,7 @@ describe("I. Errors & warnings", () => {
     // The persistent banner is the flow editor's `.graph-warn` (the transient banner
     // carries `data-testid="graph.warning"`).
     const warning = await $(".graph-editor .graph-warn");
-    expect((await warning.getText())).toContain("Output is not connected");
+    expect(await warning.getText()).toContain("Output is not connected");
     // The graph editor is still mounted and usable after the disconnect.
     expect(await $(SEL.graphCanvas).isExisting()).toBe(true);
   });

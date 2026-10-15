@@ -41,7 +41,15 @@ import {
   type GraphLayout,
   SYNTH_GRAPH,
 } from "./graph";
-import { closeSource, setError, setSource, setStatus, setWindowTitle, source, type ProbeInfo } from "./source";
+import {
+  closeSource,
+  setError,
+  setSource,
+  setStatus,
+  setWindowTitle,
+  source,
+  type ProbeInfo,
+} from "./source";
 import {
   setView,
   setWindowEnd,
@@ -122,15 +130,16 @@ const [projectTitle, setProjectTitle] = createSignal<string | null>(null);
 /** Whether there are unsaved edits (drives the title `*` and the close/new/open prompts). */
 export const [dirty, setDirty] = createSignal(false);
 /** The project's clean display name (no unsaved marker); shared with popouts. */
-export const projectDisplayName = () =>
-  projectTitle() ?? source()?.name ?? "Untitled project";
+export const projectDisplayName = () => projectTitle() ?? source()?.name ?? "Untitled project";
 /** The project's display name: the explicit title, else the current source's name. */
 export const projectName = () => projectDisplayName() + (dirty() ? " *" : "");
 /** Apply the project title (used when a remote window syncs its project name). */
 export function applyProjectTitle(name: string | null) {
   setProjectTitle(name);
 }
-export const [projectStatus, setProjectStatus] = createSignal<"idle" | "saving" | "loading">("idle");
+export const [projectStatus, setProjectStatus] = createSignal<"idle" | "saving" | "loading">(
+  "idle",
+);
 export const [projectError, setProjectError] = createSignal<string | null>(null);
 /** Creation time of the loaded project, preserved across re-saves. */
 const [createdMs, setCreatedMs] = createSignal<number | null>(null);
@@ -253,7 +262,10 @@ async function currentLayout(): Promise<LayoutDto> {
 }
 
 function defaultFileName(): string {
-  const base = projectLabel(projectName()).trim().replace(/[^\w.-]+/g, "_") || "project";
+  const base =
+    projectLabel(projectName())
+      .trim()
+      .replace(/[^\w.-]+/g, "_") || "project";
   return `${base}.heyl`;
 }
 
@@ -446,7 +458,9 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
     const span = (range: AnalysisWindowDto | undefined, fallbackEnd: number) => {
       const end = Math.min(fallbackEnd, Math.max(0, range?.endSecs ?? fallbackEnd));
       const start = Math.min(end, Math.max(0, range?.startSecs ?? 0));
-      return end > start ? { startSecs: start, endSecs: end } : { startSecs: 0, endSecs: fallbackEnd };
+      return end > start
+        ? { startSecs: start, endSecs: end }
+        : { startSecs: 0, endSecs: fallbackEnd };
     };
     const win = span(loaded.setup.window, duration);
     const view = span(loaded.setup.view, duration);

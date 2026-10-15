@@ -10,35 +10,34 @@ import { chartTheme } from "../../state/themes";
  */
 
 /** A dashed horizontal line at `value` on the y-scale, with a small left label. */
-export const referenceLine = (spec: {
-  value: number;
-  label: string;
-}): UplotPluginFactory<AnalyzerBus> => () => ({
-  hooks: {
-    draw: (u) => {
-      if (!u.ctx) return;
-      const y = u.valToPos(spec.value, "y", true);
-      if (!Number.isFinite(y) || y < u.bbox.top || y > u.bbox.top + u.bbox.height) return;
-      const { ctx, bbox } = u;
-      ctx.save();
-      ctx.strokeStyle = chartTheme().reference;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([5, 4]);
-      const py = Math.round(y) + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(bbox.left, py);
-      ctx.lineTo(bbox.left + bbox.width, py);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.font = chartTheme().font;
-      ctx.fillStyle = chartTheme().reference;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(spec.label, bbox.left + 6, py - 3);
-      ctx.restore();
+export const referenceLine =
+  (spec: { value: number; label: string }): UplotPluginFactory<AnalyzerBus> =>
+  () => ({
+    hooks: {
+      draw: (u) => {
+        if (!u.ctx) return;
+        const y = u.valToPos(spec.value, "y", true);
+        if (!Number.isFinite(y) || y < u.bbox.top || y > u.bbox.top + u.bbox.height) return;
+        const { ctx, bbox } = u;
+        ctx.save();
+        ctx.strokeStyle = chartTheme().reference;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 4]);
+        const py = Math.round(y) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(bbox.left, py);
+        ctx.lineTo(bbox.left + bbox.width, py);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = chartTheme().font;
+        ctx.fillStyle = chartTheme().reference;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(spec.label, bbox.left + 6, py - 3);
+        ctx.restore();
+      },
     },
-  },
-});
+  });
 
 /**
  * Faint gridlines at the C / E / G semitone frequencies across the visible

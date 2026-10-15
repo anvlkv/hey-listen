@@ -147,7 +147,7 @@ export default function App() {
   return (
     <div class="app-shell" data-testid="app">
       <Toolbar />
-      <div class="app-main" ref={main}>
+      <div class="app-main" ref={(node) => (main = node)}>
         <div class="app-top">
           <Sidebar
             style={{

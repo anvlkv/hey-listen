@@ -23,10 +23,7 @@ export function clampNoteTime(timeSecs: number, duration: number): number {
  * Order and clamp a span to `[0, duration]`. Returns `null` when the span collapses
  * (so a degenerate range becomes a point note rather than an empty span).
  */
-export function clampNoteRange(
-  range: AnalysisWindow,
-  duration: number,
-): AnalysisWindow | null {
+export function clampNoteRange(range: AnalysisWindow, duration: number): AnalysisWindow | null {
   let a = range.startSecs;
   let b = range.endSecs;
   if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
@@ -89,7 +86,10 @@ export function noteBody(body: string): string {
   const lines = body.split("\n");
   const heading = lines.findIndex((line) => line.trim().length > 0);
   if (heading < 0) return "";
-  return lines.slice(heading + 1).join("\n").trim();
+  return lines
+    .slice(heading + 1)
+    .join("\n")
+    .trim();
 }
 
 /** `"2.340 s"` (or `"1.000 – 1.500 s"` for a range) — the note's time subtitle. */

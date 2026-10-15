@@ -112,7 +112,7 @@ export default function McpPopover() {
         <div class="params-field">
           <span class="params-label">Port</span>
           <input
-            ref={portInput}
+            ref={(node) => (portInput = node)}
             class="mcp-port"
             type="number"
             min="1"
@@ -134,7 +134,10 @@ export default function McpPopover() {
             classList={{ "mcp-dot-on": endpoint() != null }}
             aria-hidden="true"
           />
-          <Show when={endpoint()} fallback={<span>{status()?.enabled ? "not listening" : "off"}</span>}>
+          <Show
+            when={endpoint()}
+            fallback={<span>{status()?.enabled ? "not listening" : "off"}</span>}
+          >
             {(value) => <span>listening on {value()}</span>}
           </Show>
         </div>
@@ -182,9 +185,9 @@ export default function McpPopover() {
           {copied() ? "Copied" : "Copy"}
         </Button>
         <p class="params-note">
-          Add this to your MCP client's settings file. The app entry needs Hey Listen
-          running (it drives the live project); the <code>heylisten-mcp</code> entry
-          works standalone (headless when no app is running).
+          Add this to your MCP client's settings file. The app entry needs Hey Listen running (it
+          drives the live project); the <code>heylisten-mcp</code> entry works standalone (headless
+          when no app is running).
         </p>
       </div>
     </Popover>

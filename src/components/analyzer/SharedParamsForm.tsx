@@ -67,7 +67,12 @@ export default function SharedParamsForm() {
       <Tooltip label={fftHelp()}>
         <label class="params-field">
           <span class="params-label">FFT size</span>
-          <SelectField options={fftOptions} value={fftSize()} onChange={setFftSize} label="FFT size" />
+          <SelectField
+            options={fftOptions}
+            value={fftSize()}
+            onChange={setFftSize}
+            label="FFT size"
+          />
         </label>
       </Tooltip>
 
@@ -129,38 +134,38 @@ export default function SharedParamsForm() {
         <div class="params-field params-range">
           <span class="params-label">Frequency range</span>
           <div class="params-range-inputs">
-          <NumberField
-            class="params-num"
-            value={freqMinHz()}
-            onChange={(value) => setFreqMinHz(nonNegative(value, 0))}
-            minValue={0}
-            step={50}
-            format={false}
-          >
-            <NumberField.Input
-              class={`src-num num-drag${freqMinDrag.dragging() ? " num-dragging" : ""}`}
-              aria-label="Minimum frequency (Hz)"
-              {...freqMinDrag.handlers}
-            />
-          </NumberField>
-          <span class="params-dim">–</span>
-          <NumberField
-            class="params-num"
-            value={freqMaxHz()}
-            onChange={(value) => setFreqMaxHz(nonNegative(value, 0))}
-            minValue={0}
-            step={50}
-            format={false}
-          >
-            <NumberField.Input
-              class={`src-num num-drag${freqMaxDrag.dragging() ? " num-dragging" : ""}`}
-              placeholder="Nyquist"
-              aria-label="Maximum frequency (Hz)"
-              {...freqMaxDrag.handlers}
-            />
-          </NumberField>
-          <span class="params-dim">Hz</span>
-        </div>
+            <NumberField
+              class="params-num"
+              value={freqMinHz()}
+              onChange={(value) => setFreqMinHz(nonNegative(value, 0))}
+              minValue={0}
+              step={50}
+              format={false}
+            >
+              <NumberField.Input
+                class={`src-num num-drag${freqMinDrag.dragging() ? " num-dragging" : ""}`}
+                aria-label="Minimum frequency (Hz)"
+                {...freqMinDrag.handlers}
+              />
+            </NumberField>
+            <span class="params-dim">–</span>
+            <NumberField
+              class="params-num"
+              value={freqMaxHz()}
+              onChange={(value) => setFreqMaxHz(nonNegative(value, 0))}
+              minValue={0}
+              step={50}
+              format={false}
+            >
+              <NumberField.Input
+                class={`src-num num-drag${freqMaxDrag.dragging() ? " num-dragging" : ""}`}
+                placeholder="Nyquist"
+                aria-label="Maximum frequency (Hz)"
+                {...freqMaxDrag.handlers}
+              />
+            </NumberField>
+            <span class="params-dim">Hz</span>
+          </div>
         </div>
       </Tooltip>
 

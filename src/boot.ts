@@ -66,7 +66,10 @@ function isIntlLocale(tag: string): boolean {
 normalizeNavigatorLanguage();
 
 window.addEventListener("error", (event) =>
-  reportStartupFailure(`uncaught error at ${event.filename}:${event.lineno}`, event.error ?? event.message),
+  reportStartupFailure(
+    `uncaught error at ${event.filename}:${event.lineno}`,
+    event.error ?? event.message,
+  ),
 );
 
 window.addEventListener("unhandledrejection", (event) =>

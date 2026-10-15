@@ -36,14 +36,12 @@ export const TOOLS: ToolDef[] = [
     description: "Build a fundsp synth and render it to the timeline",
     group: "graph",
   },
-  ...ANALYZERS.map(
-    (analyzer): ToolDef => ({
-      id: analyzer.id,
-      title: analyzer.title,
-      description: analyzer.description,
-      group: "analyzer",
-    }),
-  ),
+  ...ANALYZERS.map((analyzer): ToolDef => ({
+    id: analyzer.id,
+    title: analyzer.title,
+    description: analyzer.description,
+    group: "analyzer",
+  })),
 ];
 
 export function toolsInGroup(group: ToolGroup): ToolDef[] {
@@ -82,9 +80,7 @@ export async function openTool(id: ToolId) {
   }
   // A popped-out tool lives in its own window: selecting it must raise that window
   // instead of opening a duplicate tab here (no duplicate analyzer tabs).
-  const raised = await invoke<boolean>("focus_popout", { toolId: id }).catch(
-    () => false,
-  );
+  const raised = await invoke<boolean>("focus_popout", { toolId: id }).catch(() => false);
   if (raised) return;
   // New tools always open in the **main** window, even when a popout is focused.
   addToMainGrid(api, id, toolById(id).title);

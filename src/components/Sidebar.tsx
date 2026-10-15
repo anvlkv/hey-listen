@@ -65,9 +65,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
   );
 
   const anyMatches = createMemo(() =>
-    ANALYZER_SECTIONS.some((section) =>
-      analyzersInSection(section.id).some(matches),
-    ),
+    ANALYZER_SECTIONS.some((section) => analyzersInSection(section.id).some(matches)),
   );
 
   return (
@@ -86,34 +84,38 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
       </div>
 
       <ScrollArea class="sidebar-scroll">
-      <div class="sidebar-section-title">Analyzers</div>
-      <Show
-        when={anyMatches()}
-        fallback={<div class="sidebar-empty" data-testid="sidebar.empty">No analyzers match “{query()}”.</div>}
-      >
-        <For each={ANALYZER_SECTIONS}>
-          {(section) => {
-            const list = createMemo(() =>
-              analyzersInSection(section.id).filter(matches).map(toTool),
-            );
-            return (
-              <Show when={list().length > 0}>
-                <div class="sidebar-subtitle">{section.title}</div>
-                <Tools tools={list()} />
-              </Show>
-            );
-          }}
-        </For>
-      </Show>
+        <div class="sidebar-section-title">Analyzers</div>
+        <Show
+          when={anyMatches()}
+          fallback={
+            <div class="sidebar-empty" data-testid="sidebar.empty">
+              No analyzers match “{query()}”.
+            </div>
+          }
+        >
+          <For each={ANALYZER_SECTIONS}>
+            {(section) => {
+              const list = createMemo(() =>
+                analyzersInSection(section.id).filter(matches).map(toTool),
+              );
+              return (
+                <Show when={list().length > 0}>
+                  <div class="sidebar-subtitle">{section.title}</div>
+                  <Tools tools={list()} />
+                </Show>
+              );
+            }}
+          </For>
+        </Show>
 
-      <div class="sidebar-section-title sidebar-section-gap">Graphs</div>
-      <Tools
-        tools={toolsInGroup("graph").map((tool) => ({
-          ...tool,
-          tooltip: tool.description,
-          icon: GRAPH_ICONS[tool.id as "filter" | "synth"],
-        }))}
-      />
+        <div class="sidebar-section-title sidebar-section-gap">Graphs</div>
+        <Tools
+          tools={toolsInGroup("graph").map((tool) => ({
+            ...tool,
+            tooltip: tool.description,
+            icon: GRAPH_ICONS[tool.id as "filter" | "synth"],
+          }))}
+        />
       </ScrollArea>
     </aside>
   );

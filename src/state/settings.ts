@@ -52,10 +52,12 @@ function applyFontScale(scale: number) {
   }
 }
 
-const [fontScale, setFontScaleSignal] = createSignal(loadScale());
+const initialScale = loadScale();
+
+const [fontScale, setFontScaleSignal] = createSignal(initialScale);
 
 // Apply eagerly at module load so a persisted scale never flashes the default.
-applyFontScale(fontScale());
+applyFontScale(initialScale);
 
 /** Set the UI font scale (clamped to `[MIN, MAX]`, snapped to `STEP`). */
 export function setFontScale(value: number) {

@@ -112,10 +112,7 @@ describe("L. MCP control surface", () => {
       if (!(await enabled())) await toggle();
       await setPort(busy);
 
-      await waitFor(
-        async () => (await count(SEL.mcpWarning)) > 0,
-        "no port-in-use note appeared",
-      );
+      await waitFor(async () => (await count(SEL.mcpWarning)) > 0, "no port-in-use note appeared");
       // The server still came up — on a different port than the busy one.
       const status = await textOf(SEL.mcpStatus);
       expect(status).toContain("listening on 127.0.0.1:");

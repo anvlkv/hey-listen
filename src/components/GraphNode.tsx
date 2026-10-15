@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, untrack } from "solid-js";
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
 import { createNumberDrag } from "../lib/dragNumber";
 import { nodeKind, portLabel, type GraphKind, type ParamDef } from "../lib/graph";
@@ -91,18 +91,15 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
 }
 
 /** A node parameter: type it, or drag up/down to adjust (M7). */
-function ParamInput(props: {
-  graph: GraphKind;
-  nodeId: string;
-  param: ParamDef;
-  value: number;
-}) {
+function ParamInput(props: { graph: GraphKind; nodeId: string; param: ParamDef; value: number }) {
   const drag = createNumberDrag({
     value: () => props.value,
     onInput: (value) => updateParam(props.graph, props.nodeId, props.param.key, value),
-    step: props.param.step,
-    min: props.param.min,
-    max: props.param.max,
+    // The bounds come from the static registry (`ParamDef`), so snapshot them once
+    // rather than tracking them.
+    step: untrack(() => props.param.step),
+    min: untrack(() => props.param.min),
+    max: untrack(() => props.param.max),
   });
 
   return (

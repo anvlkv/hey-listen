@@ -38,7 +38,13 @@ export function readoutsFor(result: ReadoutResult): ReadoutSpec[] {
 
 /** Readouts for a plain `SeriesResult` (many scalar-over-time spectral tools). */
 export function seriesReadouts(
-  result: { frames: number; hopSize: number; sampleRate: number; minValue: number; maxValue: number },
+  result: {
+    frames: number;
+    hopSize: number;
+    sampleRate: number;
+    minValue: number;
+    maxValue: number;
+  },
   formatY: (value: number) => string,
 ): ReadoutSpec[] {
   const specs: ReadoutSpec[] = [

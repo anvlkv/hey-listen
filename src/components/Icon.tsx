@@ -9,9 +9,17 @@ import { ICON_GLYPHS, type IconName } from "../lib/icons";
  * accessible name (`aria-label`), which keeps the accessible tree clean.
  */
 export default function Icon(props: { name: IconName; class?: string }) {
-  // An icon is decorative: a name with no glyph must never break the render, so an
-  // unknown name renders nothing rather than throwing (`String.fromCodePoint(NaN)`).
-  const glyph = ICON_GLYPHS[props.name] as string | undefined;
-  const char = glyph ? String.fromCodePoint(Number.parseInt(glyph, 16)) : "";
-  return <i class={`fa ${props.class ?? ""}`} data-icon={char} aria-hidden="true" />;
+  return (
+    <i class={`fa ${props.class ?? ""}`} data-icon={glyphChar(props.name)} aria-hidden="true" />
+  );
+}
+
+/**
+ * The glyph code point for `name`, or `""` for an unknown one: a decorative icon must
+ * never break the render, so a missing glyph renders nothing rather than throwing
+ * (`String.fromCodePoint(NaN)`).
+ */
+function glyphChar(name: IconName): string {
+  const glyph = ICON_GLYPHS[name] as string | undefined;
+  return glyph ? String.fromCodePoint(Number.parseInt(glyph, 16)) : "";
 }

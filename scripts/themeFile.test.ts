@@ -36,7 +36,9 @@ function check(name: string, fn: () => void) {
 
 function assertEqual(actual: unknown, expected: unknown, message?: string) {
   if (actual !== expected) {
-    throw new Error(`${message ?? "assertEqual"}: expected ${String(expected)}, got ${String(actual)}`);
+    throw new Error(
+      `${message ?? "assertEqual"}: expected ${String(expected)}, got ${String(actual)}`,
+    );
   }
 }
 
@@ -52,7 +54,12 @@ const VALID = {
   meta: { id: "retrowave-neon", name: "Retrowave Neon", base: "dark" },
   ui: { bg: "#12081f", "--accent": "#ff4fd8", ignored: 12, object: { nope: true } },
   chart: { series: "#2de2e6" },
-  colormap: { stops: [[0, [0, 0, 0]], [1, [255, 255, 255]]] },
+  colormap: {
+    stops: [
+      [0, [0, 0, 0]],
+      [1, [255, 255, 255]],
+    ],
+  },
 };
 
 check("parses a valid theme and normalises the ui overlay", () => {

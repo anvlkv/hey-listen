@@ -187,8 +187,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
         kinds: needle
           ? group.kinds.filter(
               (def) =>
-                def.label.toLowerCase().includes(needle) ||
-                def.kind.toLowerCase().includes(needle),
+                def.label.toLowerCase().includes(needle) || def.kind.toLowerCase().includes(needle),
             )
           : group.kinds,
       }))
@@ -331,7 +330,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
     <div class="graph-editor">
       <div class="graph-toolbar">{props.children}</div>
       <div
-        ref={canvasEl}
+        ref={(node) => (canvasEl = node)}
         class="graph-canvas"
         classList={{ "graph-canvas-dragging": dragging() !== null }}
         data-testid="graph.canvas"
@@ -380,9 +379,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
             }
             if (nodes.length) {
               const ids = new Set(
-                nodes
-                  .filter((node) => !isAnchorKind(node.data.kind))
-                  .map((node) => node.id),
+                nodes.filter((node) => !isAnchorKind(node.data.kind)).map((node) => node.id),
               );
               handle().setNodes((current) => current.filter((node) => !ids.has(node.id)));
             }
@@ -409,7 +406,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
           <Panel
             position="top-left"
             class="graph-palette"
-            style={{ "max-height": "calc(100% - 16px)", "overflow": "hidden" }}
+            style={{ "max-height": "calc(100% - 16px)", overflow: "hidden" }}
           >
             <div class="graph-palette-head">
               <Tooltip
@@ -429,64 +426,64 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
               </Tooltip>
             </div>
             <Show when={!collapsed()}>
-            <div class="graph-palette-search-wrap">
-              <Icon name="magnifying-glass" class="graph-palette-search-icon" />
-              <input
-                type="text"
-                class="graph-palette-search nodrag nopan"
-                placeholder="Search nodes…"
-                aria-label="Search nodes"
-                value={query()}
-                onInput={(event) => setQuery(event.currentTarget.value)}
-                style={searchStyle()}
-              />
-            </div>
-            <ScrollArea class="graph-palette-scroll">
-            <For each={groups()}>
-              {(group) => (
-                <div class="graph-palette-group">
-                  <div class="graph-palette-title">{group.category}</div>
-                  <div class="graph-palette-buttons">
-                    <For each={group.kinds}>
-                      {(def) => (
-                        <Show when={canAdd(def)}>
-                          <Tooltip
-                            label={
-                              def.hint
-                                ? `${def.label} — ${def.hint}. Click to add, or drag onto the canvas.`
-                                : `Add ${def.label}`
-                            }
-                          >
-                            <button
-                              type="button"
-                              class="graph-palette-btn"
-                              data-testid="graph.palette.btn"
-                              on:pointerdown={(event) => onPalettePointerDown(def, event)}
-                              onClick={(event) => {
-                                // A drag that ended over the canvas still fires a `click` on
-                                // the source button in some WebViews — ignore it.
-                                if (suppressClick) {
-                                  suppressClick = false;
-                                  event.preventDefault();
-                                  return;
+              <div class="graph-palette-search-wrap">
+                <Icon name="magnifying-glass" class="graph-palette-search-icon" />
+                <input
+                  type="text"
+                  class="graph-palette-search nodrag nopan"
+                  placeholder="Search nodes…"
+                  aria-label="Search nodes"
+                  value={query()}
+                  onInput={(event) => setQuery(event.currentTarget.value)}
+                  style={searchStyle()}
+                />
+              </div>
+              <ScrollArea class="graph-palette-scroll">
+                <For each={groups()}>
+                  {(group) => (
+                    <div class="graph-palette-group">
+                      <div class="graph-palette-title">{group.category}</div>
+                      <div class="graph-palette-buttons">
+                        <For each={group.kinds}>
+                          {(def) => (
+                            <Show when={canAdd(def)}>
+                              <Tooltip
+                                label={
+                                  def.hint
+                                    ? `${def.label} — ${def.hint}. Click to add, or drag onto the canvas.`
+                                    : `Add ${def.label}`
                                 }
-                                addNode(props.graph, def);
-                              }}
-                            >
-                              <Icon name="plus" /> {def.label}
-                            </button>
-                          </Tooltip>
-                        </Show>
-                      )}
-                    </For>
-                  </div>
-                </div>
-              )}
-            </For>
-            <Show when={groups().length === 0}>
-              <div class="graph-palette-title">No matching nodes</div>
-            </Show>
-            </ScrollArea>
+                              >
+                                <button
+                                  type="button"
+                                  class="graph-palette-btn"
+                                  data-testid="graph.palette.btn"
+                                  on:pointerdown={(event) => onPalettePointerDown(def, event)}
+                                  onClick={(event) => {
+                                    // A drag that ended over the canvas still fires a `click` on
+                                    // the source button in some WebViews — ignore it.
+                                    if (suppressClick) {
+                                      suppressClick = false;
+                                      event.preventDefault();
+                                      return;
+                                    }
+                                    addNode(props.graph, def);
+                                  }}
+                                >
+                                  <Icon name="plus" /> {def.label}
+                                </button>
+                              </Tooltip>
+                            </Show>
+                          )}
+                        </For>
+                      </div>
+                    </div>
+                  )}
+                </For>
+                <Show when={groups().length === 0}>
+                  <div class="graph-palette-title">No matching nodes</div>
+                </Show>
+              </ScrollArea>
             </Show>
           </Panel>
           <Background variant="dots" />

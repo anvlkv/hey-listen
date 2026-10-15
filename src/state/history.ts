@@ -4,13 +4,7 @@ import { deepClone } from "../lib/clone";
 import type { Note } from "../bindings/Note";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
-import {
-  filterEnabled,
-  graphLayout,
-  loadGraph,
-  setFilterEnabled,
-  type GraphLayout,
-} from "./graph";
+import { filterEnabled, graphLayout, loadGraph, setFilterEnabled, type GraphLayout } from "./graph";
 import { setWindowEnd, setWindowStart, windowEnd, windowStart } from "./timeline";
 import { focusedNoteId, notes, replaceNotes, setFocusedNoteId } from "./notes";
 import { layoutJson, openTools, restoreLayout, type ToolId } from "./workbench";

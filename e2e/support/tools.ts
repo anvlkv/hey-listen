@@ -4,7 +4,8 @@
  * registry in `src/state/analyzer.ts`.
  */
 
-export type ViewKind = "waveform" | "spectrum" | "spectrogram" | "matrix" | "series" | "readouts" | "events";
+export type ViewKind =
+  "waveform" | "spectrum" | "spectrogram" | "matrix" | "series" | "readouts" | "events";
 
 export interface AnalyzerTool {
   id: string;

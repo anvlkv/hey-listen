@@ -95,11 +95,7 @@ function tick(
  * Draw the note markers onto a 2-D context. Shared by the uPlot plugin and the canvas
  * heatmaps (`MatrixView` / `SpectrogramTab`) so the markers look identical everywhere.
  */
-export function drawNoteMarkers(
-  ctx: CanvasRenderingContext2D,
-  geom: NoteGeom,
-  groups: NoteGroups,
-) {
+export function drawNoteMarkers(ctx: CanvasRenderingContext2D, geom: NoteGeom, groups: NoteGroups) {
   const { own, others, focused } = groups;
   if (own.length === 0 && others.length === 0 && !focused) return;
   const theme = chartTheme();

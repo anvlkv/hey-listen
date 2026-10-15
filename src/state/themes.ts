@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, untrack } from "solid-js";
 import { invoke } from "../lib/ipc";
 import type { InstalledTheme } from "../bindings/InstalledTheme";
 import {
@@ -186,7 +186,12 @@ const BUILTIN_THEMES: ThemeFile[] = [
   {
     kind: "hey-listen.theme",
     formatVersion: 1,
-    meta: { id: "builtin:dark", name: "Dark", description: "The built-in dark palette.", base: "dark" },
+    meta: {
+      id: "builtin:dark",
+      name: "Dark",
+      description: "The built-in dark palette.",
+      base: "dark",
+    },
     chart: DARK_CHART,
   },
   {
@@ -736,9 +741,14 @@ function loadThemePreference(): ThemePreference {
     const parsed = JSON.parse(raw) as Partial<ThemePreference>;
     const mode = parsed.mode;
     return {
-      mode: mode === "auto" || mode === "dark" || mode === "light" ? mode : DEFAULT_THEME_PREFERENCE.mode,
+      mode:
+        mode === "auto" || mode === "dark" || mode === "light"
+          ? mode
+          : DEFAULT_THEME_PREFERENCE.mode,
       darkThemeId:
-        typeof parsed.darkThemeId === "string" ? parsed.darkThemeId : DEFAULT_THEME_PREFERENCE.darkThemeId,
+        typeof parsed.darkThemeId === "string"
+          ? parsed.darkThemeId
+          : DEFAULT_THEME_PREFERENCE.darkThemeId,
       lightThemeId:
         typeof parsed.lightThemeId === "string"
           ? parsed.lightThemeId
@@ -819,8 +829,8 @@ export function applyTheme() {
 }
 
 // Apply eagerly at module load — built-ins are static, so a persisted preference
-// never flashes the default.
-applyTheme();
+// never flashes the default. Untracked: nothing here subscribes to the theme.
+untrack(() => applyTheme());
 
 darkQuery?.addEventListener("change", (event) => {
   setSystemDark(event.matches);

@@ -49,7 +49,11 @@ export default function SelectField<T>(props: {
         </Select.Item>
       )}
     >
-      <Select.Trigger ref={portal.ref} class="select-trigger" aria-label={props.ariaLabel ?? props.label}>
+      <Select.Trigger
+        ref={portal.ref}
+        class="select-trigger"
+        aria-label={props.ariaLabel ?? props.label}
+      >
         <Select.Value<SelectOption<T>> class="select-value">
           {(state) => state.selectedOption()?.label ?? ""}
         </Select.Value>

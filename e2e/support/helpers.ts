@@ -37,7 +37,7 @@ export async function waitForApp(): Promise<void> {
     // (a partially mounted app is a very different bug from an empty document), and
     // let the app's own `[startup]` logs — which `src/boot.ts` sends to the log file
     // and, under the suite, to this run's frontend log — carry the error itself.
-    throw new Error(`${(err as Error).message}\n${await describeWindow()}`);
+    throw new Error(`${(err as Error).message}\n${await describeWindow()}`, { cause: err });
   }
 }
 
@@ -493,10 +493,13 @@ export async function mockReject(command: string, message: string): Promise<void
 
 /** Drop test-specific mocks, restoring the dialog defaults (the override stays). */
 export async function restoreMocks(): Promise<void> {
-  await browser.tauri.execute((_tauri, defaults) => {
-    const g = globalThis as unknown as { __e2e_mocks__?: Record<string, unknown> };
-    g.__e2e_mocks__ = { ...(defaults as Record<string, unknown>) };
-  }, DIALOG_DEFAULTS as unknown as Record<string, unknown>);
+  await browser.tauri.execute(
+    (_tauri, defaults) => {
+      const g = globalThis as unknown as { __e2e_mocks__?: Record<string, unknown> };
+      g.__e2e_mocks__ = { ...(defaults as Record<string, unknown>) };
+    },
+    DIALOG_DEFAULTS as unknown as Record<string, unknown>,
+  );
 }
 
 /** Call a real Tauri command from the test. */
@@ -513,12 +516,16 @@ export async function invokeCore<T = unknown>(
 
 /** Emit a Tauri event from the app's own context (e.g. a native menu action). */
 export async function emitEvent(name: string, payload: unknown): Promise<void> {
-  await browser.tauri.execute((_tauri, ev, p) => {
-    const g = globalThis as unknown as {
-      __TAURI__: { event: { emit: (n: string, x: unknown) => Promise<void> } };
-    };
-    return g.__TAURI__.event.emit(ev as string, p);
-  }, name, payload);
+  await browser.tauri.execute(
+    (_tauri, ev, p) => {
+      const g = globalThis as unknown as {
+        __TAURI__: { event: { emit: (n: string, x: unknown) => Promise<void> } };
+      };
+      return g.__TAURI__.event.emit(ev as string, p);
+    },
+    name,
+    payload,
+  );
 }
 
 /** Trigger a File/Edit menu action (`save`, `open`, `new`, `undo`, …). */

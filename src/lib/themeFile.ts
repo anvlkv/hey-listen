@@ -114,9 +114,7 @@ export interface ThemeSummary extends ThemeMeta {
   builtin: boolean;
 }
 
-export type ThemeParseResult =
-  | { ok: true; theme: ThemeFile }
-  | { ok: false; error: string };
+export type ThemeParseResult = { ok: true; theme: ThemeFile } | { ok: false; error: string };
 
 /** `--`-prefix a CSS custom-property name (idempotent). */
 export function cssVarName(name: string): string {
@@ -155,9 +153,9 @@ function normaliseColormap(raw: unknown): { stops: ColorStop[] } | undefined {
     const position = typeof pos === "number" && Number.isFinite(pos) ? pos : null;
     if (position == null) continue;
     if (!Array.isArray(color) || color.length < 3) continue;
-    const rgb = color.slice(0, 3).map((channel) =>
-      typeof channel === "number" && Number.isFinite(channel) ? channel : null,
-    );
+    const rgb = color
+      .slice(0, 3)
+      .map((channel) => (typeof channel === "number" && Number.isFinite(channel) ? channel : null));
     if (rgb.some((channel) => channel == null)) continue;
     out.push([position, rgb as number[]]);
   }
@@ -208,7 +206,7 @@ export function parseThemeFile(text: string): ThemeParseResult {
     return { ok: false, error: "meta.id must be a non-empty string" };
   }
   if (base !== "dark" && base !== "light") {
-    return { ok: false, error: "meta.base must be \"dark\" or \"light\"" };
+    return { ok: false, error: 'meta.base must be "dark" or "light"' };
   }
 
   const theme: ThemeFile = {

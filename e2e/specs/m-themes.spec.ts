@@ -58,8 +58,7 @@ async function setSlot(slot: "Dark" | "Light", name: string): Promise<void> {
 /** The persisted preference (`hey-listen:theme`), parsed. */
 async function storedPreference(): Promise<Record<string, unknown>> {
   const raw = (await browser.execute(() => localStorage.getItem("hey-listen:theme"))) as
-    | string
-    | null;
+    string | null;
   return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
 }
 
@@ -105,7 +104,10 @@ describe("M. Exchangeable themes", () => {
     await selectMode("Dark");
 
     await setSlot("Dark", "Nord");
-    await waitFor(async () => (await rootVar("--bg")) === "#2e3440", "the nord palette did not apply");
+    await waitFor(
+      async () => (await rootVar("--bg")) === "#2e3440",
+      "the nord palette did not apply",
+    );
 
     // Restore the default slot for later specs.
     await setSlot("Dark", "Retrowave Neon");

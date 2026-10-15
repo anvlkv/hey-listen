@@ -63,11 +63,36 @@ const WINDOW = { start: 10, end: 16 };
  */
 const FILTER_GRAPH = {
   nodes: [
-    { id: "input", type: "graph", position: { x: 40, y: 150 }, data: { kind: "input", params: {}, graph: "filter" } },
-    { id: "highpass", type: "graph", position: { x: 220, y: 150 }, data: { kind: "highpass", params: { freq: 300, q: 1 }, graph: "filter" } },
-    { id: "lowpass", type: "graph", position: { x: 400, y: 150 }, data: { kind: "lowpass", params: { freq: 7000, q: 1 }, graph: "filter" } },
-    { id: "gain", type: "graph", position: { x: 580, y: 150 }, data: { kind: "gain", params: { gain: 1 }, graph: "filter" } },
-    { id: "output", type: "graph", position: { x: 760, y: 150 }, data: { kind: "output", params: {}, graph: "filter" } },
+    {
+      id: "input",
+      type: "graph",
+      position: { x: 40, y: 150 },
+      data: { kind: "input", params: {}, graph: "filter" },
+    },
+    {
+      id: "highpass",
+      type: "graph",
+      position: { x: 220, y: 150 },
+      data: { kind: "highpass", params: { freq: 300, q: 1 }, graph: "filter" },
+    },
+    {
+      id: "lowpass",
+      type: "graph",
+      position: { x: 400, y: 150 },
+      data: { kind: "lowpass", params: { freq: 7000, q: 1 }, graph: "filter" },
+    },
+    {
+      id: "gain",
+      type: "graph",
+      position: { x: 580, y: 150 },
+      data: { kind: "gain", params: { gain: 1 }, graph: "filter" },
+    },
+    {
+      id: "output",
+      type: "graph",
+      position: { x: 760, y: 150 },
+      data: { kind: "output", params: {}, graph: "filter" },
+    },
   ],
   edges: [
     { id: "e1", source: "input", target: "highpass", sourceHandle: "0", targetHandle: "0" },

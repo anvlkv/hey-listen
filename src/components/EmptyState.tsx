@@ -13,10 +13,7 @@ export default function EmptyState(props: {
   overlay?: boolean;
 }) {
   return (
-    <div
-      class="analyzer-empty"
-      classList={{ "analyzer-empty-overlay": props.overlay ?? false }}
-    >
+    <div class="analyzer-empty" classList={{ "analyzer-empty-overlay": props.overlay ?? false }}>
       <span class="empty-state-icon" aria-hidden="true">
         {props.icon}
       </span>

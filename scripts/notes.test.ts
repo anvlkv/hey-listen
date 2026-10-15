@@ -129,10 +129,7 @@ check("compares snapshots by value (the stale predicate)", () => {
   assertEqual(valuesEqual(base(), base({ text: "different" })), false);
   assertEqual(valuesEqual(base(), base({ window: { startSecs: 0, endSecs: 2 } })), false);
   assertEqual(valuesEqual(base(), base({ options: { showMean: 0 } })), false);
-  assertEqual(
-    valuesEqual(base(), base({ params: { ...base().params, fftSize: 4096 } })),
-    false,
-  );
+  assertEqual(valuesEqual(base(), base({ params: { ...base().params, fftSize: 4096 } })), false);
 });
 
 console.log(`notes: ${passed} checks passed`);

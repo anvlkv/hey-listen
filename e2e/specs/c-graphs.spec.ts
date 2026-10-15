@@ -16,7 +16,6 @@ import {
   waitForApp,
   waitFor,
   openTool,
-  mockReturn,
   mockReject,
   invokeCore,
   waitForSourceLoaded,
@@ -64,9 +63,7 @@ async function setPaletteSearch(value: string): Promise<void> {
 async function paletteHasButton(text: string): Promise<boolean> {
   return (await browser.execute(
     (sel: string, want: string) =>
-      Array.from(document.querySelectorAll(sel)).some((b) =>
-        (b.textContent ?? "").includes(want),
-      ),
+      Array.from(document.querySelectorAll(sel)).some((b) => (b.textContent ?? "").includes(want)),
     SEL.graphPaletteBtn,
     text,
   )) as boolean;
@@ -81,12 +78,16 @@ async function waitForPaletteButton(text: string): Promise<void> {
 async function addPaletteNode(search: string, buttonText: string): Promise<void> {
   await setPaletteSearch(search);
   await waitForPaletteButton(buttonText);
-  await browser.execute((sel: string, text: string) => {
-    const button = Array.from(document.querySelectorAll(sel)).find((b) =>
-      (b.textContent ?? "").includes(text),
-    ) as HTMLElement | undefined;
-    button?.click();
-  }, SEL.graphPaletteBtn, buttonText);
+  await browser.execute(
+    (sel: string, text: string) => {
+      const button = Array.from(document.querySelectorAll(sel)).find((b) =>
+        (b.textContent ?? "").includes(text),
+      ) as HTMLElement | undefined;
+      button?.click();
+    },
+    SEL.graphPaletteBtn,
+    buttonText,
+  );
   await setPaletteSearch("");
 }
 
@@ -187,17 +188,21 @@ async function canvasPoint(fx: number, fy: number): Promise<{ x: number; y: numb
  * middle), so the node rects are enough — no library-internal handle selectors.
  */
 async function seedEdgeMidpoint(): Promise<{ x: number; y: number }> {
-  return (await browser.execute((inputSel: string, outputSel: string) => {
-    const input = document.querySelector(inputSel);
-    const output = document.querySelector(outputSel);
-    if (!input || !output) throw new Error("the seed Input/Output nodes are missing");
-    const a = input.getBoundingClientRect();
-    const b = output.getBoundingClientRect();
-    return {
-      x: (a.right + b.left) / 2,
-      y: (a.top + a.height / 2 + b.top + b.height / 2) / 2,
-    };
-  }, graphNode("input"), graphNode("output"))) as { x: number; y: number };
+  return (await browser.execute(
+    (inputSel: string, outputSel: string) => {
+      const input = document.querySelector(inputSel);
+      const output = document.querySelector(outputSel);
+      if (!input || !output) throw new Error("the seed Input/Output nodes are missing");
+      const a = input.getBoundingClientRect();
+      const b = output.getBoundingClientRect();
+      return {
+        x: (a.right + b.left) / 2,
+        y: (a.top + a.height / 2 + b.top + b.height / 2) / 2,
+      };
+    },
+    graphNode("input"),
+    graphNode("output"),
+  )) as { x: number; y: number };
 }
 
 /** The client centre of the first node of `kind`, or null. */
@@ -212,8 +217,9 @@ async function nodeCentre(kind: string): Promise<{ x: number; y: number } | null
 
 /** The tiny port labels rendered on the canvas. */
 async function portLabels(): Promise<string[]> {
-  return (await browser.execute((sel: string) =>
-    Array.from(document.querySelectorAll(sel)).map((p) => (p.textContent ?? "").trim()),
+  return (await browser.execute(
+    (sel: string) =>
+      Array.from(document.querySelectorAll(sel)).map((p) => (p.textContent ?? "").trim()),
     SEL.graphPort,
   )) as string[];
 }
@@ -253,7 +259,10 @@ describe("C. Graph editors", () => {
     expect(await count(sidebarTool("filter"))).toBe(1);
 
     // The container the `solid-flow` graph is rendered in.
-    await waitFor(async () => (await count(SEL.graphCanvas)) > 0, "the graph canvas did not render");
+    await waitFor(
+      async () => (await count(SEL.graphCanvas)) > 0,
+      "the graph canvas did not render",
+    );
 
     // The default `Input → Output` seed is pushed to the core; it must compile
     // cleanly (a failure would surface the graph tab's error banner).
@@ -437,13 +446,10 @@ describe("C. Graph editors", () => {
     await dragPaletteNode("gain", "Gain", drop);
 
     // Spliced: Input → Gain → Output (3 nodes, 2 links), and the core accepts it.
-    await waitFor(
-      async () => {
-        const hint = await filterHint();
-        return hint.includes("3 nodes") && hint.includes("2 links");
-      },
-      "the dropped node was not spliced into the connector",
-    );
+    await waitFor(async () => {
+      const hint = await filterHint();
+      return hint.includes("3 nodes") && hint.includes("2 links");
+    }, "the dropped node was not spliced into the connector");
     await browser.pause(500); // let the debounced set_filter_graph settle
     expect(await count(SEL.graphError)).toBe(0);
 

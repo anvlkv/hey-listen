@@ -157,11 +157,7 @@ export default function Toolbar() {
 
   return (
     <header class="app-toolbar" data-testid="region.toolbar">
-      <span
-        class="toolbar-name"
-        data-testid="toolbar.project.name"
-        title={projectName()}
-      >
+      <span class="toolbar-name" data-testid="toolbar.project.name" title={projectName()}>
         {projectName()}
       </span>
 
@@ -185,11 +181,7 @@ export default function Toolbar() {
         </Popover>
 
         <Tooltip label="Apply the filter graph to preview (and analysis)">
-          <Switch
-            class="toolbar-switch"
-            checked={filterEnabled()}
-            onChange={setFilterEnabled}
-          >
+          <Switch class="toolbar-switch" checked={filterEnabled()} onChange={setFilterEnabled}>
             <Switch.Label class="toolbar-label icon-label">
               <Icon name="filter" />
               Filter

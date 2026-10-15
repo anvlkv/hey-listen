@@ -109,10 +109,7 @@ export default function SpectrumTab() {
       hasResult={analysis.result() != null}
       params={<ToolParamsForm id="spectrum" />}
     >
-      <Show
-        when={analysis.result()}
-        fallback={<NoAudioState />}
-      >
+      <Show when={analysis.result()} fallback={<NoAudioState />}>
         {(result) => (
           <div class="analyzer-chart">
             <div class="analyzer-readouts">
@@ -177,7 +174,12 @@ export default function SpectrumTab() {
                         space: FREQ_AXIS_SPACE,
                         values: frequencyAxisValues,
                       },
-                      { ...chartAxisStyle(), label: "level (dB)", size: Y_AXIS_SIZE, space: Y_AXIS_SPACE },
+                      {
+                        ...chartAxisStyle(),
+                        label: "level (dB)",
+                        size: Y_AXIS_SIZE,
+                        space: Y_AXIS_SPACE,
+                      },
                     ]}
                   />
                 </Show>

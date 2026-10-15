@@ -3,13 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { deepClone } from "../lib/clone";
 import type { AnalysisWindow } from "../bindings/AnalysisWindow";
 import type { Note } from "../bindings/Note";
-import {
-  ANALYZERS,
-  isAnalyzerId,
-  setToolOption,
-  toolOptions,
-  type AnalyzerId,
-} from "./analyzer";
+import { ANALYZERS, isAnalyzerId, setToolOption, toolOptions, type AnalyzerId } from "./analyzer";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import {
   setView,
@@ -163,10 +157,7 @@ async function run(tool: string, args: Args, target?: string): Promise<unknown> 
       closeSource();
       return { source: null };
     case "render_synth":
-      await renderSynth(
-        optionalNum(args, "seconds") ?? 5,
-        !optionalBool(args, "replace"),
-      );
+      await renderSynth(optionalNum(args, "seconds") ?? 5, !optionalBool(args, "replace"));
       return sourceSummary();
 
     // --- analysis -----------------------------------------------------------
