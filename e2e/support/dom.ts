@@ -49,6 +49,32 @@ export async function waitForSelector(selector: string, timeoutMsg: string, time
   await browser.waitUntil(async () => (await count(selector)) > 0, { timeout, timeoutMsg });
 }
 
+/**
+ * Dispatch a wheel gesture at the centre of an element (`deltaY < 0` zooms in).
+ * Charts and the Timeline listen for `wheel` on a canvas/element rather than the DOM
+ * scroll container, so the event is dispatched at the element's centre.
+ */
+export async function wheelOver(selector: string, deltaY: number): Promise<void> {
+  await browser.execute(
+    (sel: string, delta: number) => {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (!el) throw new Error(`wheelOver: no element for ${sel}`);
+      const rect = el.getBoundingClientRect();
+      el.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: delta,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    },
+    selector,
+    deltaY,
+  );
+}
+
 /** Wait for a condition with a friendly message. */
 export async function waitFor(
   condition: () => Promise<boolean>,

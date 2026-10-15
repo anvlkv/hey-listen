@@ -221,6 +221,12 @@ None of these are closable, draggable, or tabbed.
   synced: a chart's view is pushed to the core as `view:time` / `view:freq` and
   applied in the project's other windows (ADR-11).
 
+  > **Careful when consuming the bus.** It is a Solid store, and `setData` *merges* an
+  > object into an existing key: it notifies the message's **fields**, not the key, so a
+  > listener that tracked only `bus.data.playhead` (say) fires once and then never again.
+  > Read the field you actually need — which is why every `view` / `cursorSync` consumer
+  > touches `.group`. This bit the transport playhead (`syncPlugins.ts`).
+
 ## Sidebar
 
 The Sidebar's **width is draggable** (a splitter between it and the Workbench,

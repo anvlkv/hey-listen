@@ -76,6 +76,12 @@ export interface NotesMessageBus {
  * charts, not just on the Timeline. There is one playhead (the preview loops the shared
  * analysis window), so the message carries no group tag; the frequency-axis `spectrum`
  * simply does not install the plugin.
+ *
+ * **Read `secs`, not the key.** The bus is a Solid store, and `setData` *merges* an object
+ * into an existing key: it notifies the message's **fields**, not the key itself, so a
+ * consumer that tracked `data.playhead` alone would fire once and then never again. Every
+ * reader of an object-valued key here therefore reads the field it needs (which is also
+ * why the `view` / `cursorSync` readers all touch `.group`). See `syncPlugins.ts`.
  */
 export interface PlayheadMessage {
   /** The source second now playing, or `null` when the preview stopped. */

@@ -2,7 +2,7 @@ import { createSignal, type Accessor } from "solid-js";
 import { playhead, previewRegion, stop as stopPreview } from "../../audio/preview";
 import { analyzerBus } from "../../state/chartSync";
 import { windowEnd, windowStart } from "../../state/timeline";
-import { EDGE_EXCERPT } from "./constants";
+import { EDGE_EXCERPT, PREVIEW_TICK_MS } from "./constants";
 
 /** The Timeline's preview controller: auditions a region and exposes the playhead. */
 export interface PreviewController {
@@ -18,8 +18,11 @@ export interface PreviewController {
 
 /**
  * Preview playback for the analysis window. `tick` polls the audio engine's
- * playhead every frame so the canvas can draw it; a `null` position means the core
- * stopped (ended or failed), which ends the preview.
+ * playhead on a **timer** (not `requestAnimationFrame`), because the transport's position
+ * is a *clock*, not a paint: rAF is suspended while the window is occluded, which froze
+ * the position (and the drawn playhead, and the time a note-at-the-playhead lands on)
+ * even though the core kept looping the audio. A `null` position means the core stopped
+ * (ended or failed), which ends the preview.
  *
  * Each tick also publishes the position on the shared chart bus, so every time chart
  * draws the same playhead (M14 follow-up).
@@ -28,7 +31,7 @@ export function createPreview(): PreviewController {
   const [previewing, setPreviewing] = createSignal(false);
   const [playSec, setPlaySec] = createSignal<number | null>(null);
 
-  let raf = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
 
   /** Publish the playhead for the charts (`null` = stopped). */
   function publish(secs: number | null) {
@@ -36,17 +39,12 @@ export function createPreview(): PreviewController {
   }
 
   function tick() {
-    raf = 0;
     if (!previewing()) return;
     const position = playhead();
     setPlaySec(position);
     publish(position);
     // A null position means the core stopped (ended or failed) — end the preview.
-    if (position == null) {
-      endPreview();
-      return;
-    }
-    raf = requestAnimationFrame(tick);
+    if (position == null) endPreview();
   }
 
   function startPreview(start: number, end: number, loop: boolean) {
@@ -54,7 +52,7 @@ export function createPreview(): PreviewController {
     setPreviewing(true);
     setPlaySec(start);
     publish(start);
-    if (!raf) raf = requestAnimationFrame(tick);
+    timer ??= setInterval(tick, PREVIEW_TICK_MS);
   }
 
   /** Audition a short excerpt next to the handle being dragged. */
@@ -67,9 +65,9 @@ export function createPreview(): PreviewController {
   }
 
   function endPreview() {
-    if (raf) {
-      cancelAnimationFrame(raf);
-      raf = 0;
+    if (timer !== undefined) {
+      clearInterval(timer);
+      timer = undefined;
     }
     stopPreview();
     setPreviewing(false);

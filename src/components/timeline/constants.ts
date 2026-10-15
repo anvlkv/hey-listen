@@ -21,5 +21,7 @@ export const MOVE_HANDLE_H = 8;
 export const PLOT_PAD = 12;
 /** Click-drag preview restart throttle, in ms. */
 export const PREVIEW_THROTTLE = 110;
+/** Interval at which the transport polls its position while previewing, in ms (~60 Hz). */
+export const PREVIEW_TICK_MS = 16;
 /** Length of the excerpt auditioned while dragging a handle, in seconds. */
 export const EDGE_EXCERPT = 0.75;

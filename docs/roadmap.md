@@ -590,6 +590,14 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   `chartCanvas.drawPlayhead` (canvas heatmaps) — what is being auditioned is visible on the
   data, not only on the Timeline. And **note at the playhead** in the transport, so an
   observation made while listening lands on the right moment.
+- **Bug: the chart playhead froze at its first position.** The rule appeared but never
+  moved or erased. Two causes, both silent: a plugin-driven repaint used `u.redraw(false)`,
+  which only `commit()`s and so repaints nothing unless a scale change happens to be
+  pending (uPlot documents `redraw()` as `setScale('x', …)`), and the transport watcher
+  tracked the bus **key** while `setData` *merges* an object into an existing key — so only
+  the message's **fields** notify, and the listener fired once and went deaf. `redraw()`
+  is now used everywhere a plugin repaints, and the watcher reads `playhead.secs`.
+  Covered by the `q-transport` playhead cases.
 - **Bug: notes never worked on the matrix tools** (mel spectrogram, MFCC, chromagram,
   spectral contrast). `valuesText` classified a result by testing `"times" in result`
   first, but a `MatrixResult` carries `times` **as well as** `bins`/`values`, so every
@@ -613,9 +621,9 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   cursor cannot land on a time chart).
 
 > **Delivered:** the notes interaction model (ADR-19), the varispeed slider and playhead
-> transport, and the four bug fixes above. See [`notes.md`](notes.md),
+> transport, and the five bug fixes above. See [`notes.md`](notes.md),
 > [`architecture.md`](architecture.md) → Playback, and `e2e/specs/` (`d-analyzers`,
-> `n-notes`, `o-cursor-sync`).
+> `g-timeline` → G4, `n-notes`, `o-cursor-sync`, `p-notes-interactions`, `q-transport`).
 
 ## M15 — Code hygiene (the maid) ✅
 

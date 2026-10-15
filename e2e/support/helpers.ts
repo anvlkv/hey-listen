@@ -23,7 +23,10 @@
 export { waitForApp, selectMainWindow } from "./app.ts";
 
 // --- raw DOM helpers (avoid element-handle stalls) -------------------------
-export { count, textOf, click, waitFor, pointerDrag } from "./dom.ts";
+export { count, textOf, click, waitFor, pointerDrag, wheelOver } from "./dom.ts";
+
+// --- Timeline canvas geometry (window handles) -----------------------------
+export { dragTimelineHandle } from "./timeline.ts";
 
 // --- Workbench tabs --------------------------------------------------------
 export {

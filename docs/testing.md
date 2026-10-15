@@ -24,10 +24,11 @@ The suite runs against the **release** binary (`npm run tauri build`);
 Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 `wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
-`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 15 spec files —
+`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 17 spec files —
 A shell (3), B sources (4), C graphs (8), D analyzers (27), E correctness (5), F
-cross-cutting (6), G timeline (3), H open-audio (1), I errors (5), J project + popout (2),
-K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1).
+cross-cutting (6), G timeline (4), H open-audio (1), I errors (5), J project + popout (2),
+K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1),
+P notes interactions (4), Q preview transport (5).
 
 **IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
 plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
@@ -247,6 +248,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | G1 | Window range | Drag start/end handles; preview plays, the settled window re-runs analysis | Scenario |
 | G2 | Zoom | Zoom a short window; waveform re-renders at higher detail | Smoke |
 | G3 | Channel select | Pick L/R/mix on a stereo file; waveform + analyzers agree | Scenario |
+| G4 | Window move re-fits the charts | Zoom a heatmap in, move the analysis window: the chart re-fits to the whole *new* window (the same range the Fit control gives) instead of keeping a stale slice | Scenario |
 
 ### H. Project file (M6) & multi-window (M7)
 
@@ -361,6 +363,36 @@ covered.
 > **Also covered:** the tool-param **switch** interaction (a click on Kobalte's control
 > toggles exactly once and repaints the chart) is an extra case in `d-analyzers.spec.ts`,
 > and `scripts/previewSpeed.test.ts` unit-checks the varispeed slider's log scale.
+
+### P. Notes — the interaction model (M14 follow-up)
+
+What the flow spec (`n-notes`) leaves out: what creating, selecting and analyzing a note
+do to the analysis window, closing the rail, the Timeline lane gesture, and the **matrix**
+tools where note creation used to throw.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| P1 | Create / select ≠ reframe | `Add` opens the editor (keeping the frozen values line) and neither it nor selecting the row moves the analysis window | Scenario |
+| P2 | Analyze reframes | The row's `Analyze` is the only action that moves the window onto the note (a range becomes it) | Scenario |
+| P3 | Closing the rail | Closing unfocuses the note and the Toolbar button carries the count | Scenario |
+| P4 | Matrix tools | A note is created on the mel spectrogram — the regression where a `MatrixResult` (which carries `times` *and* `bins`) was classified as a series and threw | Scenario |
+
+### Q. Preview transport (M14 follow-up)
+
+The Timeline's transport: the **varispeed** slider, the **playhead** a preview paints on
+the open charts, the **note-at-the-playhead** action, and the Timeline scrollbar. Audio
+cannot be heard headlessly and WebKit suspends `requestAnimationFrame` (and throttles
+timers) for the window WebDriver drives, so the transport advances in coarse steps and the
+assertions are what it *drives* — not frame-by-frame smoothness. The playhead cases retry,
+because opening the audio device can fail transiently (which correctly stops the preview).
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| Q1 | Speed scale | The slider is logarithmic with 1× at the centre (ten arrow steps read 1.15×, a linear track would read 1.10×) | Scenario |
+| Q2 | uPlot playhead | Starting the transport paints the rule on a uPlot chart's canvas and stopping erases it | Scenario |
+| Q3 | Note at the playhead | With the window moved off the source start, the transport's button drops a note at the transport's position | Scenario |
+| Q4 | Timeline scrollbar | Zooming the Timeline view reveals a scroll thumb | Smoke |
+| Q5 | Heatmap playhead | The same rule appears on a canvas heatmap (the other painter path) | Scenario |
 
 > **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
 > excerpts, the window-frame lookup `noteFrameAt`, and the snapshot comparison) are
