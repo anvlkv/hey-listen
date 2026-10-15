@@ -9,6 +9,12 @@ import { windowEnd, windowStart } from "../state/timeline";
 import { NoteRow } from "./notes/NoteRow";
 
 /**
+ * The Notes panel's **range** seed: how much of the analysis window a new range note
+ * spans before the user drags its end handle. See `docs/notes.md` → Creating a note.
+ */
+const RANGE_SEED_FRACTION = 0.1;
+
+/**
  * The **Notes panel** (M14) — a right rail (a fixed region, not a Workbench tab)
  * listing the project's annotations. There is no separate title field: a note's
  * heading is the **first line** of its markdown body (and is not repeated in the
@@ -28,9 +34,13 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
   const add = () => {
     const start = windowStart();
     const end = windowEnd();
+    // A range opens as a slice of the window — a visible seed the user then drags to the
+    // span they want (its end handle is in the strip). Deliberately *not* the whole
+    // window: that is a different intent, and it leaves nothing to drag.
+    const seed = start + (end - start) * RANGE_SEED_FRACTION;
     createNote({
       timeSecs: start,
-      range: asRange() && end > start ? { startSecs: start, endSecs: end } : null,
+      range: asRange() && seed > start ? { startSecs: start, endSecs: seed } : null,
       tool: defaultNoteTool(),
     });
   };
@@ -48,7 +58,7 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
               <Icon name="plus" />
             </Button>
           </Tooltip>
-          <Tooltip label="When on, the new note spans the whole analysis window">
+          <Tooltip label="When on, a new note starts as a span — drag either edge in the strip">
             <Button
               class="note-icon"
               data-testid="notes.range"

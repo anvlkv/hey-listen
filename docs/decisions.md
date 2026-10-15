@@ -470,7 +470,7 @@ refreshed whenever the note is edited or dragged).
   group), never on the frequency-axis `spectrum`. Focusing a note opens/raises its chart
   and sets the window to the note's time. The anchors live in a thin **strip along the
   bottom** of the Timeline and of each time chart, clear of the window move handle and of
-  a chart's drag/zoom area.
+  a chart's drag/zoom area; a **range** is a selection there, with a handle on each edge.
 - The body is **markdown**, stored raw and rendered **sanitized**, with an editor that
   commits **explicitly** (Done / ⌘↵; Escape discards) rather than on blur.
 - A note can be **popped out into its own window** — a real Tauri window aliased to the
@@ -490,5 +490,6 @@ stale hint). To keep the units honest, every analyzer chart draws **source secon
 [`analysis-tools.md`](analysis-tools.md) → Chart rendering), so a note never needs a
 per-chart conversion. See [`notes.md`](notes.md).
 
-**Status: delivered (M14), revised after review** (bottom strip, explicit-save editor,
-source-second axes, note window, and the count chip replacing the badge).
+**Status: delivered (M14), revised after review** (bottom strip, draggable range edges,
+explicit-save editor, source-second axes, note window, and the count chip replacing the
+badge).

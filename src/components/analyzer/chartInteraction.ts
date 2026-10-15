@@ -9,10 +9,10 @@ import {
   type Accessor,
 } from "solid-js";
 import { analyzerBus } from "../../state/chartSync";
-import { dragNoteTo, refreshNoteValues } from "../../state/notes";
+import { dragNoteEndTo, dragNoteTo, refreshNoteValues } from "../../state/notes";
 import { NOTE_STRIP_H } from "../notes/strip";
 import { timeRangeLabel } from "./chartCommon";
-import { noteGroups, noteNear } from "./notePlugins";
+import { noteEdgeNear, noteGroups, type NoteEdge } from "./notePlugins";
 import type { ReframeTarget } from "./ReframeMenu";
 import {
   plotBox,
@@ -100,7 +100,7 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>();
 
   let pan: { x: number; y: number; view: V } | null = null;
-  let noteDrag: { id: string } | null = null;
+  let noteDrag: { id: string; edge: NoteEdge } | null = null;
 
   const box = createMemo(() => plotBox(size()));
 
@@ -165,20 +165,20 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const v = view();
     const el = canvas();
     if (!v || !el) return;
-    // Grab a note on its anchor in the bottom strip to drag it along time.
+    // Grab a note handle in the bottom strip to move / resize it along time.
     const b = box();
     const rect = el.getBoundingClientRect();
     const localY = event.clientY - rect.top;
     const stripTop = b.y + b.height - NOTE_STRIP_H;
     if (localY >= stripTop && localY <= b.y + b.height) {
       const span = Math.max(v.t1 - v.t0, 1e-9);
-      const note = noteNear(
+      const hit = noteEdgeNear(
         noteGroups(options.id),
         (t) => b.x + ((t - v.t0) / span) * b.width,
         event.clientX - rect.left,
       );
-      if (note) {
-        noteDrag = { id: note.id };
+      if (hit) {
+        noteDrag = { id: hit.note.id, edge: hit.edge };
         el.setPointerCapture(event.pointerId);
         return;
       }
@@ -196,7 +196,9 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
         const rect = el.getBoundingClientRect();
         const span = Math.max(v.t1 - v.t0, 1e-9);
         const time = v.t0 + ((event.clientX - rect.left - b.x) / b.width) * span;
-        dragNoteTo(noteDrag.id, time);
+        // The start edge moves (a point) or resizes (a range); the end edge resizes.
+        if (noteDrag.edge === "end") dragNoteEndTo(noteDrag.id, time);
+        else dragNoteTo(noteDrag.id, time);
       }
       return;
     }

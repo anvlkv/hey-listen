@@ -2,6 +2,7 @@ import { columnExtent, type ChannelPick, type Peaks } from "../../lib/waveform";
 import { filteredSamples } from "../../state/filtered";
 import { filterEnabled } from "../../state/graph";
 import { focusedNoteId, notesSorted } from "../../state/notes";
+import { noteSpan } from "../../lib/note";
 import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
@@ -212,11 +213,12 @@ function drawMoveHandle(ctx: CanvasRenderingContext2D, x0: number, x1: number, t
 }
 
 /**
- * Note anchors (M14): every note is a tab in the **bottom strip** (a shaded span
- * for a range note); the focused note is emphasised with a full-height stem.
- * Clicking an anchor focuses the note; hovering shows a hint; dragging it moves the
- * note. The strip keeps the anchors clear of the window move handle at the top —
- * see `components/notes/strip.ts` and `docs/notes.md` → Surfacing.
+ * Note anchors (M14): every note is a handle in the **bottom strip** — a range is two
+ * handles (its edges) joined by a span bar and a full-height shaded span, a point note
+ * a single tab. The focused note is emphasised with a full-height stem. Clicking a
+ * handle focuses the note; hovering shows a hint; dragging an edge moves (a point) or
+ * resizes (a range) the note. The strip keeps the handles clear of the window move
+ * handle at the top — see `components/notes/strip.ts` and `docs/notes.md` → Surfacing.
  */
 function drawNotes(
   ctx: CanvasRenderingContext2D,
@@ -244,32 +246,45 @@ function drawNotes(
   ctx.stroke();
 
   for (const note of list) {
-    const x = t2x(note.timeSecs);
-    if (x < -12 || x > w + 12) continue;
+    const span = noteSpan(note);
+    const x0 = t2x(span.start);
+    const x1 = t2x(span.end);
+    if (Math.max(x0, x1) < -14 || Math.min(x0, x1) > w + 14) continue;
     const focused = note.id === focusId;
-    if (note.range) {
-      const x0 = t2x(note.range.startSecs);
-      const x1 = t2x(note.range.endSecs);
+    const isRange = span.end > span.start;
+    if (isRange) {
       ctx.globalAlpha = focused ? 0.22 : 0.12;
       ctx.fillStyle = theme.note;
       ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
       ctx.globalAlpha = 1;
     }
-    const px = Math.round(x);
-    // A faint stem up out of the lane (full height for the focused note) so the
-    // anchor is still readable against the waveform.
+    const p0 = Math.round(x0);
+    const p1 = Math.round(x1);
+    // A faint stem up out of the lane (full height for the focused note) so the anchor
+    // is still readable against the waveform; a focused range also rules its end.
     ctx.globalAlpha = focused ? 1 : 0.7;
     ctx.strokeStyle = theme.note;
     ctx.lineWidth = focused ? 1.5 : 1;
     ctx.beginPath();
-    ctx.moveTo(px + 0.5, focused ? waveTop : stripTop - 7);
-    ctx.lineTo(px + 0.5, stripTop + 0.5);
+    ctx.moveTo(p0 + 0.5, focused ? waveTop : stripTop - 7);
+    ctx.lineTo(p0 + 0.5, stripTop + 0.5);
+    if (isRange && focused) {
+      ctx.moveTo(p1 + 0.5, waveTop);
+      ctx.lineTo(p1 + 0.5, stripTop + 0.5);
+    }
     ctx.stroke();
-    // The grab tab, filling the strip with a wider cap along its top edge.
-    const cap = focused ? 8 : 6;
+    ctx.globalAlpha = focused ? 1 : 0.85;
     ctx.fillStyle = theme.note;
-    ctx.fillRect(px - 1, stripTop + 1, 2, NOTE_STRIP_H - 2);
-    ctx.fillRect(px - cap / 2, stripTop + 1, cap, 3);
+    if (isRange) {
+      // The span bar between two grab handles, one per edge.
+      ctx.fillRect(p0, stripTop + 4, Math.max(1, p1 - p0), 3);
+      ctx.fillRect(p0 - 3, stripTop + 1, 6, NOTE_STRIP_H - 2);
+      ctx.fillRect(p1 - 3, stripTop + 1, 6, NOTE_STRIP_H - 2);
+    } else {
+      const cap = focused ? 8 : 6;
+      ctx.fillRect(p0 - 1, stripTop + 1, 2, NOTE_STRIP_H - 2);
+      ctx.fillRect(p0 - cap / 2, stripTop + 1, cap, 3);
+    }
     ctx.globalAlpha = 1;
   }
 }

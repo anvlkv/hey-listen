@@ -1,5 +1,11 @@
 import { stopFollowing } from "../../state/capture";
-import { dragNoteTo, focusNote, refreshNoteValues, setFocusedNote } from "../../state/notes";
+import {
+  dragNoteEndTo,
+  dragNoteTo,
+  focusNote,
+  refreshNoteValues,
+  setFocusedNote,
+} from "../../state/notes";
 import { source } from "../../state/source";
 import {
   setWindowEnd,
@@ -11,7 +17,7 @@ import {
 } from "../../state/timeline";
 import { HANDLE_HIT, MOVE_HIT, PREVIEW_THROTTLE, RULER_H } from "./constants";
 import { NOTE_STRIP_H } from "../notes/strip";
-import { noteAt, noteHintText } from "./noteHit";
+import { noteEdgeAt, noteHintText, type NoteEdge } from "./noteHit";
 
 /**
  * Pointer interaction for the Timeline canvas: drag to pan, drag the start/end
@@ -55,8 +61,8 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     origWindowStart: number;
     origWindowEnd: number;
   } | null = null;
-  /** Dragging a note pin along the timeline (M14). */
-  let noteDrag: { id: string; startX: number; moved: boolean } | null = null;
+  /** Dragging a note's handle along the timeline (M14). */
+  let noteDrag: { id: string; edge: NoteEdge; startX: number; moved: boolean } | null = null;
   let lastPreview = 0;
 
   function pointerX(e: { clientX: number }): number {
@@ -87,10 +93,10 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     const x = pointerX(e);
     const y = pointerY(e);
 
-    // A note anchor starts a drag (grab its tab, or click to focus + open its chart).
-    const note = noteAt(x, y, deps.t2x, noteStripTop());
-    if (note) {
-      noteDrag = { id: note.id, startX: x, moved: false };
+    // A note handle starts a drag (grab an edge, or click to focus + open its chart).
+    const hit = noteEdgeAt(x, y, deps.t2x, noteStripTop());
+    if (hit) {
+      noteDrag = { id: hit.note.id, edge: hit.edge, startX: x, moved: false };
       deps.setNoteHint(null);
       canvas.setPointerCapture(e.pointerId);
       return;
@@ -127,13 +133,17 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
       if (Math.abs(x - noteDrag.startX) > 2) noteDrag.moved = true;
       if (noteDrag.moved) {
         const t = Math.max(0, Math.min(deps.duration(), deps.x2t(x)));
-        dragNoteTo(noteDrag.id, t);
+        // The start edge moves (a point) or resizes (a range); the end edge resizes.
+        if (noteDrag.edge === "end") dragNoteEndTo(noteDrag.id, t);
+        else dragNoteTo(noteDrag.id, t);
       }
       return;
     }
     if (!drag) {
-      const hit = noteAt(pointerX(e), pointerY(e), deps.t2x, noteStripTop());
-      deps.setNoteHint(hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit) } : null);
+      const hit = noteEdgeAt(pointerX(e), pointerY(e), deps.t2x, noteStripTop());
+      deps.setNoteHint(
+        hit ? { x: pointerX(e), y: pointerY(e), text: noteHintText(hit.note) } : null,
+      );
       return;
     }
     const x = pointerX(e);

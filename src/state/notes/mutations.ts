@@ -1,9 +1,16 @@
 import type { Note } from "../../bindings/Note";
 import { isAnalyzerId, type AnalyzerId } from "../analyzer";
-import { clampNoteRange, clampNoteTime } from "../../lib/note";
+import {
+  clampNoteRange,
+  clampNoteRangeEnd,
+  clampNoteRangeStart,
+  clampNoteTime,
+  noteSpan,
+} from "../../lib/note";
 import { setNotesPanelOpen } from "../settings";
 import { source } from "../source";
 import { focusNote } from "./focus";
+import { noteById } from "./reads";
 import {
   editingNoteId,
   focusedNoteId,
@@ -99,12 +106,37 @@ export function refreshNoteValues(id: string) {
 }
 
 /**
- * Live drag of a note's anchor time (clamped to the source). Call
- * [`refreshNoteValues`] on release to re-snapshot the values at the new time.
+ * Live drag of a note's **start** edge (clamped to the source), along the time axis.
+ *
+ * A point note moves; a range note **resizes** — its start follows the pointer and its
+ * end stays put (the selection semantics the strip's two handles imply). Call
+ * [`refreshNoteValues`] on release to re-snapshot the values at the new start.
  */
 export function dragNoteTo(id: string, timeSecs: number) {
   const duration = source()?.duration ?? 0;
-  updateNote(id, { timeSecs: clampNoteTime(timeSecs, duration) });
+  const note = noteById(id);
+  if (!note) return;
+  const range = note.range;
+  if (!range) {
+    updateNote(id, { timeSecs: clampNoteTime(timeSecs, duration) });
+    return;
+  }
+  const start = clampNoteRangeStart(clampNoteTime(timeSecs, duration), range.endSecs);
+  updateNote(id, { timeSecs: start, range: { startSecs: start, endSecs: range.endSecs } });
+}
+
+/**
+ * Live drag of a range's **end** edge, clamped to the source (the span never
+ * collapses). A point note grows a range from its anchor, which is how a range is
+ * made by dragging. Call [`refreshNoteValues`] on release.
+ */
+export function dragNoteEndTo(id: string, timeSecs: number) {
+  const duration = source()?.duration ?? 0;
+  const note = noteById(id);
+  if (!note) return;
+  const start = noteSpan(note).start;
+  const end = clampNoteRangeEnd(start, timeSecs, duration);
+  updateNote(id, { range: { startSecs: start, endSecs: end } });
 }
 
 /** Replace the whole list (load / undo / cross-window sync), pruning stale selections. */
