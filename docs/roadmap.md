@@ -551,6 +551,55 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
 > **chrome** (a fixed region, view-persisted) while the notes themselves are **data**
 > (project-persisted). See [`notes.md`](notes.md) (ADR-18).
 
+## M15 — Code hygiene (the maid) 🚧
+
+A **quality gate** so the invariants above stop being aspirations: files stay short
+enough to read, logic is not copy-pasted, nothing dead is left behind, and both
+languages are formatted and linted the same way. Delivered in three phases, and the
+**gate comes first** — reworking ~37 000 lines with nothing to catch a mistake is how
+a refactor turns into a rewrite.
+
+**Phase 1 — the gate ✅ (delivered).**
+- **One command.** `npm run maid` (check) / `npm run maid:fix` (fix) across six
+  checks: prettier, eslint (+ `eslint-plugin-solid`), a **400-line file budget**,
+  jscpd duplication, knip dead code, and `cargo fmt` + `cargo clippy -D warnings`.
+  See [`code-hygiene.md`](code-hygiene.md).
+- **Blocking hooks.** `.husky/pre-commit` (fast, staged files) and `.husky/pre-push`
+  (the whole gate), installed by `npm install` through the `prepare` script.
+- **CI.** The frontend job runs the five frontend checks; the rust job runs fmt +
+  clippy on all three OSes and `cargo test` on Linux — which doubles as the
+  **`src/bindings/` drift check** (ts-rs rewrites it during the run, and an
+  uncommitted diff fails the job).
+- **Ratchets, not snapshots.** The file budget can only shrink, the duplication
+  threshold sits just above today's measurement, and knip's `ignoreIssues` is an
+  explicit burn-down worklist with a grep-verified reason per file. Nothing was
+  silenced by loosening a rule.
+- **First pass.** prettier reformatted 61 files in one commit; eslint surfaced 46
+  errors / 23 warnings — including three real Solid bugs (`solid/components-return-once`)
+  and a missing `src-tauri/target` ignore that had eslint parsing generated JS — and
+  `rustfmt` touched a single Rust file (the core was already clippy-clean).
+
+**Phase 2 — split the long files (planned).** 24 files are pinned in the budget. In
+order, biggest and safest first, one file per change, no behaviour change, gate green
+after each: `src/App.css` (3066) → `src/styles/*`; `lib/graph.ts` (1172, of which 920
+are one data literal) → `lib/graph/{types,kinds,ports,spec}.ts`;
+`src-tauri/src/audio/analysis.rs` (~1650) → `analysis/{mod,types,tools/*}`; then
+`cli/batch.rs` (~1264), `audio/graph.rs` (~1117), `state/analyzer.ts` (994),
+`state/themes.ts` (947), `mcp/dispatch.rs` (~859), `components/Timeline.tsx` (835),
+and the 400–800 band. Inline `#[cfg(test)] mod tests` move to sibling files as each
+module splits.
+
+**Phase 3 — dedupe and delete (planned).** Extract the analyzer interaction shared by
+`SpectrogramTab` / `MatrixView` (the repo's largest duplication — 17 clone pairs),
+the three-way select trigger (`ChannelSelect` / `SelectField` / `SourcePanel`), one
+shared unit-test harness, and the triplicated splitter handlers in `App.tsx`; then
+work knip's list and lower both ratchets.
+
+> **Decision (committed):** hygiene is enforced by a **gate**, not by review. Checks
+> are blocking (no advisory mode), the baselines are **ratchets that only tighten**,
+> and the one-time formatting churn is isolated in a single commit so later diffs stay
+> readable.
+
 ## Backlog ✅ (delivered)
 
 Implemented after M6 as one batch. Where the delivered behaviour is narrower than

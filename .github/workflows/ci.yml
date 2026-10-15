@@ -26,6 +26,23 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The maid: the repo-wide invariants that keep the codebase navigable. Runs the
+      # same npm scripts as `npm run maid` locally (the Rust half runs in the job below).
+      - name: Format check (prettier)
+        run: npm run maid:fmt
+
+      - name: Lint (eslint, incl. Solid reactivity)
+        run: npm run maid:lint
+
+      - name: File-length budget
+        run: npm run maid:size
+
+      - name: Duplication (jscpd)
+        run: npm run maid:dup
+
+      - name: Dead code (knip)
+        run: npm run maid:dead
+
   rust:
     name: Rust check (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -77,9 +94,25 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: cargo check
+      - name: Rust format + clippy
         working-directory: src-tauri
-        run: cargo check
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+
+      # `cargo test` also regenerates the ts-rs bindings into src/bindings, so this
+      # doubles as the "did you regenerate the TypeScript after changing a boundary
+      # type?" check (see docs/dependencies.md → Tooling notes). One OS is enough.
+      - name: Rust tests + bindings in sync
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: src-tauri
+        run: |
+          cargo test
+          if [ -n "$(git --no-optional-locks status --porcelain -- ../src/bindings)" ]; then
+            echo "::error::src/bindings is out of date — run 'cargo test' in src-tauri and commit the regenerated bindings"
+            git --no-pager diff -- ../src/bindings
+            exit 1
+          fi
 
   e2e:
     name: E2E (${{ matrix.os }})

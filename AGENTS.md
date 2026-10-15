@@ -32,6 +32,9 @@ save source + setup + results to a binary project file.
 5. **Validate before claiming done:**
    - `npm run typecheck` and `npm run build` (frontend)
    - `cargo check` in `src-tauri/` (Rust; first build is slow — many deps)
+   - `npm run maid` — the quality gate (prettier, eslint, the 400-line budget,
+     duplication, dead code, Rust fmt + clippy). The git hooks run it for you: fast
+     checks on commit, the whole gate on push. See `docs/code-hygiene.md`.
    - State exactly what you ran and saw.
 
 6. **npm cache note:** `~/.npm` on this machine may contain root-owned files and
@@ -75,6 +78,11 @@ Load the matching skill (via the `skill` tool) before working in that area:
   tools. See `docs/architecture.md` → "Analysis execution model".
 - **No duplicate analyzer tabs**; shared params (FFT size, hop/overlap, window
   function, channel, frequency range) are synced across tools.
+- **Keep the maid green.** Source files stay **under 400 lines** — the budget in
+  `scripts/maid-baseline/fileSizes.json` only ratchets down, so split a file instead
+  of raising it. No new duplication, no dead code, both languages formatted.
+  `src/bindings/**` is **generated** by `cargo test`: never hand-edit or format it.
+  See `docs/code-hygiene.md`.
 
 ## Layout
 
@@ -86,6 +94,7 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11 and M14 are done; M12/M13 are planned).
-Deliver strictly one milestone at a time; confirm current status from that file
-before starting.
+`docs/roadmap.md` tracks progress (M11 and M14 are done; M12/M13 are planned; M15 —
+code hygiene — has landed its gate and has the file splits outstanding). Deliver
+strictly one milestone at a time; confirm current status from that file before
+starting.
