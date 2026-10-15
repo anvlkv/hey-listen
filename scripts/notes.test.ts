@@ -1,11 +1,14 @@
 import {
   clampNoteRange,
+  clampNoteRangeEnd,
+  clampNoteRangeStart,
   clampNoteTime,
   noteBody,
   noteExcerpt,
   noteFrameAt,
   noteHeading,
   noteLabel,
+  noteSpan,
   noteTimeText,
   valuesEqual,
 } from "../src/lib/note";
@@ -76,6 +79,34 @@ check("formats a point and a range time subtitle", () => {
     noteTimeText({ timeSecs: 2.34, range: { startSecs: 2.34, endSecs: 3.1 } }),
     "2.340 – 3.100 s",
   );
+});
+
+check("spans a point note at its anchor and a range note across its range", () => {
+  assertDeepEqual(noteSpan({ timeSecs: 2, range: null }), { start: 2, end: 2 });
+  assertDeepEqual(noteSpan({ timeSecs: 2, range: { startSecs: 1.5, endSecs: 3 } }), {
+    start: 1.5,
+    end: 3,
+  });
+});
+
+check("clamps a dragged range end so the span never collapses", () => {
+  // Inside the source: kept as-is.
+  assertEqual(clampNoteRangeEnd(1, 2, 4), 2);
+  // Past the source end: clamped to it.
+  assertEqual(clampNoteRangeEnd(1, 9, 4), 4);
+  // Dragged onto (or past) the start: kept a hairline away, never collapsed.
+  assertEqual(clampNoteRangeEnd(1, 1, 4), 1.001);
+  assertEqual(clampNoteRangeEnd(1, 0.5, 4), 1.001);
+  // Unknown source duration: only the lower bound applies.
+  assertEqual(clampNoteRangeEnd(1, 3, 0), 3);
+  assertEqual(clampNoteRangeEnd(1, 0, 0), 1.001);
+});
+
+check("clamps a dragged range start inside the span", () => {
+  assertEqual(clampNoteRangeStart(1, 3), 1);
+  assertEqual(clampNoteRangeStart(-2, 3), 0);
+  // Never onto its own end.
+  assertEqual(clampNoteRangeStart(3, 3), 2.999);
 });
 
 check("reads the frame at a source time inside a window that does not start at 0", () => {

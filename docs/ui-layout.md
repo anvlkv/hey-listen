@@ -252,14 +252,19 @@ then appears on every time-based chart and its chart is opened/raised. Editing *
 the body for a textarea with an explicit save/discard (a blur does not save). The
 `popout` action opens the note in its **own window**, raised rather than duplicated. The
 header has an **Add note** button (anchors at the current analysis window, using the
-focused analyzer as its chart) and a **range** toggle, and the Toolbar button carries its
-**count** as a muted pill inside the button while the rail is closed.
+focused analyzer as its chart) and an **as a range** toggle, and the Toolbar button
+carries its **count** as a muted pill inside the button while the rail is closed. The
+toggle opens the new note as a **range seed** — a slice of the window, deliberately not
+the whole window — so a range note shows a **handle on each edge** in the strip and
+either end can be dragged to the span the user wants (a point note has one handle,
+which moves it).
 
 Notes are surfaced in three places: every note as an **anchor in a thin strip along the
-bottom** of the Timeline (draggable to move it), a chart's **own** notes in that chart's
-strip (with the notes from other charts drawn **muted**), and the **focused** note as a
-full-height rule with a label on **all time-based charts** (never the frequency-axis
-`spectrum`). See [`notes.md`](notes.md) → Surfacing.
+bottom** of the Timeline (a range shows a handle on each edge, so either end is
+draggable), a chart's **own** notes in that chart's strip (with the notes from other
+charts drawn **muted**), and the **focused** note as a full-height rule with a label on
+**all time-based charts** (never the frequency-axis `spectrum`). See
+[`notes.md`](notes.md) → Surfacing.
 
 ## Source picker
 

@@ -53,7 +53,9 @@ section and exported to TypeScript (`src/bindings/`). See
 
 - **`timeSecs`** is the anchor. It is a **point** by default; **`range`** is
   optional, so a note can also mark a span (e.g. "from here to here"). Setting a
-  range never replaces the anchor — the point stays the note's identity.
+  range never *replaces* the anchor — the point stays the note's identity, and the UI
+  keeps a range's `startSecs` equal to `timeSecs` (dragging either edge moves the
+  matching end).
 - **Every time in the app is source seconds** — the note's anchor, the Timeline, and
   each analyzer chart's x-axis (a result carries the `windowStart` it was computed at,
   see [`analysis-tools.md`](analysis-tools.md) → Chart rendering). So a note lines up
@@ -115,7 +117,9 @@ only tabs are Workbench tabs, and a note panel is chrome, not content.
   **count** as a muted pill *inside* the button (a tally, not a notification badge).
   The panel's own header has a chevron to collapse it, an **Add note** button (anchors
   at the current analysis window, using the focused analyzer as its chart, with a
-  **range** toggle), and the total count.
+  **range** toggle), and the total count. The toggle opens the new note as a
+  **range seed** — a slice of the window, deliberately not the whole window — whose
+  edges the user then drags.
 - **Resizable** with a draggable splitter, clamped like the left Sidebar
   (160–520 px). The Workbench shrinks beside it (the panel pushes, it does not
   overlay).
@@ -140,15 +144,15 @@ Notes are drawn where the audio is drawn — anchored in a thin **strip** along 
 **bottom** edge, on the Timeline and on every time chart, so they stay clear of the
 Timeline's window move handle and of a chart's drag/zoom area.
 
-- **Timeline** — every note is a **tab** in the bottom strip at `timeSecs` (a shaded
-  span for a range note), with a faint stem rising out of the lane. Hovering a tab
-  shows a hint (heading + tool + values line); clicking it focuses the note;
-  **dragging** it along the timeline moves the note's time (the snapshot refreshes
-  on release).
+- **Timeline** — every note is drawn in the bottom strip: a **range** is a shaded
+  span with a **handle on each edge** (joined by a span bar) and a faint stem, a
+  **point** note a single tab. Hovering a handle shows a hint (heading + tool + values
+  line); clicking it focuses the note; **dragging an edge** moves the note (a point) or
+  resizes its span (a range) — the snapshot refreshes on release.
 - **A note's own chart** — the notes whose `tool` matches the chart are drawn on
   it (full-strength anchors); the notes from **other** charts are drawn **muted**, so
   every annotation is visible where the audio is. A chart can be dragged the same
-  way by grabbing a note's tab in the bottom strip.
+  way by grabbing a handle in its bottom strip.
 - **The focused note** — exactly **one** note is focused at a time. The focused
   note is drawn on **every time-based chart** (the `time` sync group: waveform,
   series-over-time, spectrogram, matrix, rhythm), via the shared chart bus
@@ -167,9 +171,9 @@ same behaviour the Sidebar uses when it raises a popped-out tool (`focus_popout`
 Two entry points, one model:
 
 - **Notes panel → Add note** — anchors at the current analysis window (the point
-  is the window start; an *use the window as a range* toggle sets `range`), with
-  `tool` = the focused analyzer tab if one is open. Values are captured from that
-  chart.
+  is the window start; the *add as a range* toggle opens the note as a span seeded
+  with a slice of the window, whose edges the user drags), with `tool` = the focused
+  analyzer tab if one is open. Values are captured from that chart.
 - **Chart context menu → Add note here** — anchors at the **clicked time** on
   that chart, with `tool` = that chart's tool. (The Timeline's own right-click
   already sets the window — *reframing* — so the Timeline right-click is left
@@ -273,7 +277,8 @@ nowhere to store a note.
   readout and strikes through the frozen snapshot when they differ; editing the note
   (or a drag release) refreshes the snapshot.
 - **Anchoring + drag** — `time` / `range` clamp to the source; dragging a note's
-  anchor (Timeline strip, or a chart's strip) moves it and refreshes the snapshot on
+  handle (Timeline strip, or a chart's strip) moves a point note or resizes a range
+  (either edge, never collapsing it below a hairline), and refreshes the snapshot on
   release; a note with an unknown `tool` is kept but draws no chart marker (and its
   link is inert).
 - **Source-second alignment** — a note at `t` is drawn at `t` on a chart whose window

@@ -21,6 +21,7 @@ export { noteById, notesSorted } from "./reads";
 export {
   createNote,
   deleteNote,
+  dragNoteEndTo,
   dragNoteTo,
   refreshNoteValues,
   replaceNotes,
