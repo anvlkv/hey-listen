@@ -1,0 +1,89 @@
+/* --- MCP popover (M9 follow-up) ----------------------------------------- */
+.mcp-panel {
+  width: 300px;
+}
+
+.mcp-port {
+  width: 84px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control-2);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+}
+
+.mcp-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  color: var(--fg-dim);
+  /* The endpoint is worth copying, so it opts out of the app-wide no-select. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.mcp-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+
+.mcp-dot-on {
+  background: var(--accent-2);
+}
+
+.mcp-note {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--fg-dim);
+}
+
+.mcp-error {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--danger);
+}
+
+/* --- Tooltip (Kobalte) -------------------------------------------------- */
+
+/* The trigger wrapper must have a **real box**: Floating UI positions the tooltip
+   from the trigger's `getBoundingClientRect()`, so a `display: contents` wrapper
+   (no box) put every tooltip at the top-left.
+
+   A single-child **column** flexbox is layout-transparent: the wrapped control
+   fills the anchor's cross axis (width) and keeps its own height, so a control that
+   was a stretched flex item still stretches, and one that was content-sized stays
+   content-sized. */
+.tooltip-anchor {
+  display: flex;
+  flex-direction: column;
+}
+
+.tooltip-anchor > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A wrapped control that used to grow along a row (the graph palette toggle). */
+.tooltip-anchor.tooltip-grow {
+  flex: 1;
+}
+
+.tooltip-content {
+  z-index: 2000;
+  max-width: 280px;
+  padding: 5px 8px;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--fg);
+  background: var(--tooltip-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px var(--shadow);
+  pointer-events: none;
+}

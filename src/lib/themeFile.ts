@@ -5,7 +5,7 @@
  * built-in (see `docs/theming.md`, ADR-15).
  *
  * This module owns the shape and the parse/validate/normalise step only; the
- * registry, slot resolution and apply pipeline live in `state/themes.ts`. Parsing
+ * registry, slot resolution and apply pipeline live in `state/themes/`. Parsing
  * is lenient on purpose — unknown keys are kept (forward-compatible) and only the
  * structural invariants (`kind`, `formatVersion`, `meta`) are enforced, so a theme
  * written for a newer build still loads and simply ignores what it cannot use.
@@ -70,10 +70,6 @@ export interface ChartTheme {
 
 /** The `kind` discriminator every theme file carries. */
 export const THEME_KIND = "hey-listen.theme";
-/** The payload version this build writes. */
-export const THEME_FORMAT_VERSION = 1;
-/** The file extension (without the dot) for theme files. */
-export const THEME_EXTENSION = "heyltheme";
 
 /** Which built-in palette a theme overlays. */
 export type ThemeBase = "dark" | "light";
@@ -98,7 +94,7 @@ export interface ThemeFile {
   kind: string;
   formatVersion: number;
   meta: ThemeMeta;
-  /** Partial overlay of the `App.css` custom properties (keys may omit `--`). */
+  /** Partial overlay of the `src/styles/` custom properties (keys may omit `--`). */
   ui?: Record<string, string>;
   /** Partial `ChartTheme` overlay (uPlot + canvas charts). */
   chart?: Partial<ChartTheme>;

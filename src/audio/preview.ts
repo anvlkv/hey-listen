@@ -56,11 +56,6 @@ export function stop() {
   void invoke("stop_preview");
 }
 
-/** Set the preview output gain (linear, ≥ 0). */
-export function setOutputGain(gain: number) {
-  void invoke("set_output_gain", { gain });
-}
-
 /** Current position within the looped region (seconds), while playing. */
 export function playhead(): number | null {
   if (!previewPlaying()) return null;

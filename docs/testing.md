@@ -183,7 +183,7 @@ One parametrized smoke test iterates over all 26 tool ids and, for each: opens t
 tab from the Sidebar, waits for the result view to render non-empty, opens the
 **about** and **params** popovers, re-clicks to confirm **no duplicate tab**, then
 closes. This is what "cover every tool" means — a single, data-driven test, not 26
-copies. The ids and view kinds come from `src/state/analyzer.ts`:
+copies. The ids and view kinds come from `src/state/analyzer/`:
 
 | Tool | id | View | Smoke asserts |
 | --- | --- | --- | --- |

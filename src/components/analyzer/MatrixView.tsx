@@ -1,22 +1,26 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-  untrack,
-} from "solid-js";
+import { createEffect, createMemo, Show, untrack } from "solid-js";
 import Readout from "./Readout";
-import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
+import ReframeMenu from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
-import { clamp01, spectroColormap } from "./colormap";
-import { formatTimeTick } from "./axisFormat";
-import { NoAudioState, timeRangeLabel } from "./chartCommon";
-import { drawNoteMarkers, noteGroups, noteNear } from "./notePlugins";
-import { dragNoteTo, refreshNoteValues } from "../../state/notes";
-import { analyzerBus } from "../../state/chartSync";
+import { clamp01 } from "./colormap";
+import { NoAudioState } from "./chartCommon";
+import { createChartInteraction } from "./chartInteraction";
+import {
+  beginFrame,
+  blitHeatmap,
+  buildHeatmapImage,
+  drawHoverCross,
+  drawMirrorCursor,
+  drawNoteOverlay,
+  drawTimeAxis,
+} from "./chartCanvas";
+import {
+  clampTimeRange,
+  frameIndex,
+  hasFrameData,
+  type ChartView,
+  type PlotBox,
+} from "./chartGeometry";
 import { chartTheme, resolvedTheme } from "../../state/themes";
 import {
   analyzerById,
@@ -28,13 +32,8 @@ import {
   type MatrixView as MatrixViewConfig,
 } from "../../state/analyzer";
 
-const MARGIN = { left: 66, right: 8, top: 8, bottom: 22 };
-
 /** The visible time range (seconds). */
-interface View {
-  t0: number;
-  t1: number;
-}
+type View = ChartView;
 
 interface Hover {
   time: number;
@@ -49,15 +48,7 @@ function fullView(result: MatrixResult): View {
 }
 
 function clampView(next: View, result: MatrixResult): View {
-  const duration = Math.max(result.duration, 1e-9);
-  const minT = duration * 1e-4;
-  let t0 = Math.max(0, Math.min(next.t0, duration));
-  let t1 = Math.max(0, Math.min(next.t1, duration));
-  if (t1 - t0 < minT) t1 = t0 + minT;
-  if (t1 > duration) {
-    t1 = duration;
-    t0 = Math.max(0, t1 - minT);
-  }
+  const [t0, t1] = clampTimeRange(next.t0, next.t1, result.duration);
   return { t0, t1 };
 }
 
@@ -74,70 +65,39 @@ export default function MatrixView(props: {
 }) {
   const config = () => analyzerById(props.id).view as MatrixViewConfig;
   const result = () => props.analysis.result() as MatrixResult | null;
-  const [size, setSize] = createSignal({ width: 0, height: 0 });
-  const [hover, setHover] = createSignal<Hover | null>(null);
-  const [view, setView] = createSignal<View | null>(null);
-  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
-  let wrap!: HTMLDivElement;
-  let canvas!: HTMLCanvasElement;
-  let pan: { x: number; view: View } | null = null;
-  let noteDrag: { id: string } | null = null;
-
-  createEffect(
-    on(
-      () => result(),
-      (value) => {
-        if (!value) {
-          setView(null);
-          return;
-        }
-        // Keep the current zoom across a data refresh (a new analysis result must
-        // not reset it); only fit the full window when there is no view yet.
-        const current = untrack(view);
-        setView(current ? clampView(current, value) : fullView(value));
-      },
-    ),
-  );
-
-  // Follow the shared time range when another chart (uPlot or matrix) zooms it, and
-  // reset to the full window when the shared view is cleared (the source changed).
-  createEffect(() => {
-    const shared = analyzerBus.data.view;
-    const current = result();
-    if (!current) return;
-    if (shared == null) {
-      setView(fullView(current));
-      return;
-    }
-    if (shared.group !== "time" || shared.sourceId === props.id) return;
-    setView(clampView({ t0: shared.x[0], t1: shared.x[1] }, current));
+  const chart = createChartInteraction<View, Hover, MatrixResult>({
+    // A tab's id is fixed for its lifetime, so the interaction is built once (untracked).
+    id: untrack(() => props.id),
+    result,
+    fullView,
+    clampView,
+    applyShared: (_current, x, value) => clampView({ t0: x[0], t1: x[1] }, value),
+    pan: (v, dxFrac) => {
+      const dt = dxFrac * (v.t1 - v.t0);
+      return { t0: v.t0 - dt, t1: v.t1 - dt };
+    },
+    wheel: (v, xFrac, _yFrac, factor) => {
+      const at = v.t0 + xFrac * (v.t1 - v.t0);
+      return {
+        view: { t0: at + (v.t0 - at) * factor, t1: at + (v.t1 - at) * factor },
+        publish: true,
+      };
+    },
+    pick: (geo) => {
+      const value = result();
+      if (!value || value.frames === 0 || value.bins === 0) return null;
+      const band = Math.min(value.bins - 1, Math.max(0, Math.round(geo.yFrac * (value.bins - 1))));
+      const frame = frameIndex(geo.time, value.duration, value.frames);
+      return {
+        time: geo.time,
+        band,
+        value: value.values[frame * value.bins + band],
+        x: geo.x,
+        y: geo.y,
+      };
+    },
   });
-
-  /** Apply a view locally and (optionally) publish it to the shared time group. */
-  function applyView(next: View, publish: boolean) {
-    const current = result();
-    if (!current) return;
-    const clamped = clampView(next, current);
-    setView(clamped);
-    if (publish) {
-      analyzerBus.setData("view", {
-        sourceId: props.id,
-        group: "time",
-        x: [clamped.t0, clamped.t1],
-      });
-    }
-  }
-
-  const plot = () => {
-    const { width, height } = size();
-    return {
-      x: MARGIN.left,
-      y: MARGIN.top,
-      width: Math.max(1, width - MARGIN.left - MARGIN.right),
-      height: Math.max(1, height - MARGIN.top - MARGIN.bottom),
-    };
-  };
 
   /** Offscreen frames×bins image (time ×, band ↑), rebuilt on data change. */
   const image = createMemo<HTMLCanvasElement | null>(() => {
@@ -147,90 +107,37 @@ export default function MatrixView(props: {
     const lo = value.minValue;
     const hi = Math.max(value.maxValue, lo + 1e-3);
     const span = hi - lo;
-
-    const off = document.createElement("canvas");
     // Time runs horizontally, band vertically.
-    off.width = frames;
-    off.height = bins;
-    const ctx = off.getContext("2d");
-    if (!ctx) return null;
-    const pixels = ctx.createImageData(frames, bins);
-    for (let y = 0; y < bins; y++) {
-      // Top row = highest band.
-      const band = bins - 1 - y;
-      for (let x = 0; x < frames; x++) {
-        const cell = value.values[x * bins + band];
-        const [r, g, bl] = spectroColormap(clamp01((cell - lo) / span));
-        const offset = (y * frames + x) * 4;
-        pixels.data[offset] = r;
-        pixels.data[offset + 1] = g;
-        pixels.data[offset + 2] = bl;
-        pixels.data[offset + 3] = 255;
-      }
-    }
-    ctx.putImageData(pixels, 0, 0);
-    return off;
+    return buildHeatmapImage(frames, bins, lo, span, (x, row) => value.values[x * bins + row]);
   });
 
   function draw() {
-    const ctx = canvas?.getContext("2d");
-    const { width, height } = size();
-    if (!ctx || width <= 0 || height <= 0) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = chartTheme().spectroBackground;
-    ctx.fillRect(0, 0, width, height);
+    const { width, height } = chart.size();
+    const ctx = beginFrame(chart.canvas(), width, height);
+    if (!ctx) return;
 
     const value = result();
-    const v = view();
+    const v = chart.view();
     const off = image();
-    const box = plot();
+    const box = chart.box();
     if (!value || !off || !v) return;
 
     const duration = Math.max(value.duration, 1e-9);
     const sx = clamp01(v.t0 / duration) * value.frames;
     const sw = Math.max(1e-6, (v.t1 - v.t0) / duration) * value.frames;
 
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(off, sx, 0, sw, value.bins, box.x, box.y, box.width, box.height);
-    ctx.imageSmoothingEnabled = true;
+    blitHeatmap(ctx, off, sx, 0, sw, value.bins, box);
 
     if (config().noteGrid) drawNoteGrid(ctx, value, box);
     drawBands(ctx, value, box);
-    drawTime(ctx, v, box);
-    drawHover(ctx, box);
-    drawMirror(ctx, v, box);
-    drawNotes(ctx, v, box);
-  }
-
-  /** This chart's own notes, other charts' notes (muted), and the focused note (M14). */
-  function drawNotes(
-    ctx: CanvasRenderingContext2D,
-    v: View,
-    box: { x: number; y: number; width: number; height: number },
-  ) {
-    const span = Math.max(v.t1 - v.t0, 1e-9);
-    drawNoteMarkers(
-      ctx,
-      {
-        xFor: (time) => box.x + ((time - v.t0) / span) * box.width,
-        top: box.y,
-        height: box.height,
-        left: box.x,
-        right: box.x + box.width,
-      },
-      noteGroups(props.id),
-    );
+    drawTimeAxis(ctx, v, box);
+    drawHoverCross(ctx, box, chart.hover());
+    drawMirrorCursor(ctx, v, box, props.id);
+    drawNoteOverlay(ctx, v, box, props.id);
   }
 
   /** Pitch-class row rules (chromagram note grid). */
-  function drawNoteGrid(
-    ctx: CanvasRenderingContext2D,
-    value: MatrixResult,
-    box: { x: number; y: number; width: number; height: number },
-  ) {
+  function drawNoteGrid(ctx: CanvasRenderingContext2D, value: MatrixResult, box: PlotBox) {
     if (value.bins < 2) return;
     ctx.save();
     ctx.strokeStyle = chartTheme().grid;
@@ -253,11 +160,7 @@ export default function MatrixView(props: {
     ctx.restore();
   }
 
-  function drawBands(
-    ctx: CanvasRenderingContext2D,
-    value: MatrixResult,
-    box: { x: number; y: number; width: number; height: number },
-  ) {
+  function drawBands(ctx: CanvasRenderingContext2D, value: MatrixResult, box: PlotBox) {
     if (value.bins === 0) return;
     ctx.font = "10px Inter, sans-serif";
     ctx.fillStyle = chartTheme().axis;
@@ -271,243 +174,32 @@ export default function MatrixView(props: {
     ctx.textAlign = "left";
   }
 
-  function drawTime(
-    ctx: CanvasRenderingContext2D,
-    v: View,
-    box: { x: number; y: number; width: number; height: number },
-  ) {
-    const span = v.t1 - v.t0;
-    ctx.font = "10px Inter, sans-serif";
-    ctx.fillStyle = chartTheme().axis;
-    ctx.textBaseline = "top";
-    // Keep the edge labels inside the canvas: left/right align the end stops.
-    for (const [frac, align] of [
-      [0, "left"],
-      [0.5, "center"],
-      [1, "right"],
-    ] as const) {
-      const time = v.t0 + frac * span;
-      ctx.textAlign = align;
-      ctx.fillText(
-        `${formatTimeTick(time, span)}s`,
-        box.x + frac * box.width,
-        box.y + box.height + 4,
-      );
-    }
-    ctx.textAlign = "left";
-  }
-
-  function drawHover(
-    ctx: CanvasRenderingContext2D,
-    box: { x: number; y: number; width: number; height: number },
-  ) {
-    const h = hover();
-    if (!h) return;
-    ctx.strokeStyle = chartTheme().hover;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(box.x, h.y + 0.5);
-    ctx.lineTo(box.x + box.width, h.y + 0.5);
-    ctx.moveTo(h.x + 0.5, box.y);
-    ctx.lineTo(h.x + 0.5, box.y + box.height);
-    ctx.stroke();
-  }
-
-  /** Draw the shared cursor from whichever other time chart is hovered. */
-  function drawMirror(
-    ctx: CanvasRenderingContext2D,
-    v: View,
-    box: { x: number; y: number; width: number; height: number },
-  ) {
-    const msg = analyzerBus.data.cursorSync;
-    if (!msg || msg.group !== "time" || msg.sourceId === props.id || msg.x == null) return;
-    const span = v.t1 - v.t0;
-    if (!(span > 0)) return;
-    const x = box.x + ((msg.x - v.t0) / span) * box.width;
-    if (x < box.x || x > box.x + box.width) return;
-    ctx.save();
-    ctx.strokeStyle = chartTheme().mirror;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(Math.round(x) + 0.5, box.y);
-    ctx.lineTo(Math.round(x) + 0.5, box.y + box.height);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function pick(clientX: number, clientY: number): Hover | null {
-    const value = result();
-    const v = view();
-    if (!value || !v || value.frames === 0 || value.bins === 0) return null;
-    const rect = canvas.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    const box = plot();
-    if (x < box.x || x > box.x + box.width || y < box.y || y > box.y + box.height) return null;
-
-    const time = v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
-    const band = Math.min(
-      value.bins - 1,
-      Math.max(0, Math.round((1 - (y - box.y) / box.height) * (value.bins - 1))),
-    );
-    const frame = Math.min(
-      value.frames - 1,
-      Math.max(0, Math.round((time / Math.max(value.duration, 1e-9)) * value.frames - 0.5)),
-    );
-    return {
-      time,
-      band,
-      value: value.values[frame * value.bins + band],
-      x,
-      y,
-    };
-  }
-
-  // --- interaction -------------------------------------------------------
-
-  function onPointerDown(event: PointerEvent) {
-    // Pan with the primary button only, so right-click can open the reframe menu.
-    if (event.button !== 0) return;
-    const v = view();
-    if (!v) return;
-    // Grab a note on its tick (top band) to drag it along time.
-    const box = plot();
-    const rect = canvas.getBoundingClientRect();
-    const localY = event.clientY - rect.top;
-    if (localY >= box.y && localY <= box.y + 14) {
-      const span = Math.max(v.t1 - v.t0, 1e-9);
-      const note = noteNear(
-        noteGroups(props.id),
-        (t) => box.x + ((t - v.t0) / span) * box.width,
-        event.clientX - rect.left,
-      );
-      if (note) {
-        noteDrag = { id: note.id };
-        canvas.setPointerCapture(event.pointerId);
-        return;
-      }
-    }
-    pan = { x: event.clientX, view: v };
-    canvas.setPointerCapture(event.pointerId);
-  }
-
-  function onPointerMove(event: PointerEvent) {
-    if (noteDrag) {
-      const v = view();
-      if (v) {
-        const box = plot();
-        const rect = canvas.getBoundingClientRect();
-        const span = Math.max(v.t1 - v.t0, 1e-9);
-        const time = v.t0 + ((event.clientX - rect.left - box.x) / box.width) * span;
-        dragNoteTo(noteDrag.id, time);
-      }
-      return;
-    }
-    if (pan) {
-      const box = plot();
-      const dx = event.clientX - pan.x;
-      const dt = (dx / box.width) * (pan.view.t1 - pan.view.t0);
-      applyView({ t0: pan.view.t0 - dt, t1: pan.view.t1 - dt }, true);
-    }
-    setHover(pick(event.clientX, event.clientY));
-  }
-
-  function onPointerUp(event: PointerEvent) {
-    if (noteDrag) {
-      refreshNoteValues(noteDrag.id);
-      noteDrag = null;
-    }
-    pan = null;
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  }
-
-  function onWheel(event: WheelEvent) {
-    const v = view();
-    if (!v) return;
-    event.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const box = plot();
-    const f = event.deltaY < 0 ? 0.8 : 1.25;
-    const at = v.t0 + ((event.clientX - rect.left - box.x) / box.width) * (v.t1 - v.t0);
-    applyView({ t0: at + (v.t0 - at) * f, t1: at + (v.t1 - at) * f }, true);
-  }
-
-  function zoomTime(factor: number) {
-    const v = view();
-    if (!v) return;
-    const center = (v.t0 + v.t1) / 2;
-    const half = ((v.t1 - v.t0) / 2) * factor;
-    applyView({ t0: center - half, t1: center + half }, true);
-  }
-
-  function fit() {
-    const value = result();
-    if (value) applyView(fullView(value), true);
-  }
-
-  /** Right-click: reframe the timeline window from the time under the pointer. */
-  function onContextMenu(event: MouseEvent) {
-    event.preventDefault();
-    const value = result();
-    const v = view();
-    if (!value || !v) return;
-    const rect = canvas.getBoundingClientRect();
-    const box = plot();
-    const x = event.clientX - rect.left;
-    const time = v.t0 + ((x - box.x) / box.width) * (v.t1 - v.t0);
-    setMenu({ x: event.clientX, y: event.clientY, time });
-  }
-
-  // --- lifecycle ---------------------------------------------------------
-
-  function syncSize() {
-    const rect = wrap.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(rect.width * dpr));
-    canvas.height = Math.max(1, Math.round(rect.height * dpr));
-    setSize({ width: rect.width, height: rect.height });
-  }
-
-  onMount(() => {
-    const observer = new ResizeObserver(() => syncSize());
-    observer.observe(wrap);
-    syncSize();
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    onCleanup(() => {
-      observer.disconnect();
-      canvas.removeEventListener("wheel", onWheel);
-    });
-  });
-
   createEffect(() => {
     // Track everything the canvas draws (theme included, so a theme switch redraws).
     resolvedTheme();
     image();
-    size();
-    hover();
-    view();
+    chart.size();
+    chart.hover();
+    chart.view();
     draw();
   });
 
-  const zoomLabel = () => timeRangeLabel(view());
-
-  const hasGrid = () => {
-    const r = result();
-    return !!r && r.frames > 0 && r.bins > 0;
-  };
+  const hasGrid = () => hasFrameData(result());
 
   return (
     <div class="analyzer-chart">
       <div class="analyzer-readouts">
         {/* Every entry is rendered upfront (with a placeholder) so the bar has a
             stable, reserved height instead of changing as the cursor moves. */}
-        <Readout label="Time" value={hover() ? `${hover()!.time.toFixed(3)} s` : "—"} />
+        <Readout label="Time" value={chart.hover() ? `${chart.hover()!.time.toFixed(3)} s` : "—"} />
         <Readout
           label={config().yLabel}
-          value={hover() ? config().formatBand(hover()!.band) : "—"}
+          value={chart.hover() ? config().formatBand(chart.hover()!.band) : "—"}
         />
-        <Readout label="Value" value={hover() ? config().formatValue(hover()!.value) : "—"} />
+        <Readout
+          label="Value"
+          value={chart.hover() ? config().formatValue(chart.hover()!.value) : "—"}
+        />
         <Readout label="Grid" value={result() ? `${result()!.frames} × ${result()!.bins}` : "—"} />
         <Readout
           label="Range"
@@ -519,17 +211,15 @@ export default function MatrixView(props: {
         />
         <Readout label="Rate" value={result() ? formatHz(result()!.sampleRate) : "—"} />
       </div>
-      <div class="spectrogram-canvas" ref={(node) => (wrap = node)}>
+      <div class="spectrogram-canvas" ref={chart.attachWrap}>
         <canvas
-          ref={(node) => (canvas = node)}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onPointerLeave={() => {
-            if (!pan) setHover(null);
-          }}
-          onContextMenu={onContextMenu}
+          ref={chart.attachCanvas}
+          onPointerDown={chart.onPointerDown}
+          onPointerMove={chart.onPointerMove}
+          onPointerUp={chart.onPointerUp}
+          onPointerCancel={chart.onPointerUp}
+          onPointerLeave={chart.onPointerLeave}
+          onContextMenu={chart.onContextMenu}
         />
         <Show when={result()} fallback={<NoAudioState overlay />}>
           <Show
@@ -541,15 +231,15 @@ export default function MatrixView(props: {
             }
           >
             <ZoomControls
-              onZoomIn={() => zoomTime(0.5)}
-              onZoomOut={() => zoomTime(2)}
-              onFit={fit}
-              label={zoomLabel()}
+              onZoomIn={chart.zoomIn}
+              onZoomOut={chart.zoomOut}
+              onFit={chart.fit}
+              label={chart.zoomLabel()}
             />
           </Show>
         </Show>
       </div>
-      <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
+      <ReframeMenu target={chart.menu()} onClose={() => chart.setMenu(null)} tool={props.id} />
     </div>
   );
 }

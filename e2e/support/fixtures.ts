@@ -134,7 +134,7 @@ function toWav(channels: Float32Array[], sampleRate: number): Buffer {
   return Buffer.concat([header, pcm]);
 }
 
-/** The synth graph fixture: `sine(440) → output` (matches `src/lib/graph.ts`). */
+/** The synth graph fixture: `sine(440) → output` (matches `src/lib/graph/`). */
 export const SYNTH_GRAPH_SPEC = {
   nodes: [
     { id: "osc-1", kind: "sine", params: [440] },

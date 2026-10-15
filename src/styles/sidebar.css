@@ -1,0 +1,69 @@
+.sidebar-empty {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: var(--fg-disabled);
+}
+
+.sidebar-section-title {
+  margin-bottom: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.sidebar-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-tool {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  /* Leave room for the chart-type icon in the bottom-right corner. */
+  padding-right: 26px;
+  text-align: left;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* The tool's chart-type icon, tucked into the bottom-right corner of the row. */
+.sidebar-tool-icon {
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  font-size: 0.75rem;
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+
+.sidebar-tool-open .sidebar-tool-icon {
+  color: var(--accent-2);
+}
+
+.sidebar-tool:hover {
+  background: var(--control);
+  border-color: var(--border-2);
+}
+
+.sidebar-tool-open {
+  border-color: var(--accent);
+}
+
+.sidebar-tool-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.sidebar-tool-desc {
+  font-size: 0.6875rem;
+  color: var(--fg-dim);
+}

@@ -145,7 +145,7 @@ settles anyway.
 
 > **Implemented (M3):** the core owns the source PCM (`state.rs`): `stream_file`
 > caches the decode, `render_synth` caches the render, live capture appends while
-> recording, and `clear_audio_source` drops it. `audio/playback.rs` keeps one
+> recording, and `clear_audio_source` drops it. `audio/playback/` keeps one
 > `cpal` output stream open on a dedicated worker (the stream is `!Send` on macOS)
 > and plays the region after mixdown → filter → resample; `audio/preview.ts`
 > replaces the deleted Web Audio module. Because the core filters a region *when it
@@ -234,7 +234,7 @@ through the `mcp_respond` command, which completes the server's waiting channel.
 `heylisten-mcp` binary (`heylisten-mcp`, or `hey-listen --mcp`) is a dumb
 stdio ⇄ socket byte pump, so a standard MCP client still connects over stdio. The
 tool **catalog** is static in the core (`tools/list` always answers); the tool
-**handlers** live in the frontend (`src/state/mcp.ts`), so there is no second,
+**handlers** live in the frontend (`src/state/mcp/`), so there is no second,
 parallel execution path.
 
 **Consequence:** an agent action is reflected in the live window and the window's
@@ -345,12 +345,12 @@ server exposes — the CLI takes the graph directly, as does headless `render_sy
 See [`cli.md`](cli.md).
 
 **Status: delivered (M10).** See [`cli.md`](cli.md); the batch logic lives in
-`src-tauri/src/cli/batch.rs`.
+`src-tauri/src/cli/batch/`.
 
 ## ADR-15 — Themes are data: a `ThemeFile` over a built-in base, resolved by slots
 
 **Context:** the app ships a fixed auto/dark/light theme, with the palette authored in
-**four** places (the `--*` custom properties in `App.css`, the `ChartTheme` in
+**four** places (the `--*` custom properties in `src/styles/`, the `ChartTheme` in
 `state/settings.ts`, the heatmap ramps in `colormap.ts`, and the dockview / `solid-flow`
 themes). Shipping *exchangeable* themes means a theme must be able to drive all four,
 but restating ~70 CSS variables in every theme would duplicate the palette and break
@@ -360,7 +360,7 @@ whenever a variable is added.
 declared `base`** (`dark` or `light`). The built-in dark and light become two full
 `ThemeFile`s in the registry (`builtin:dark` / `builtin:light`, undeletable); a user
 theme carries only what it changes (`ui` CSS vars, `chart` fields, a `colormap` ramp,
-optional `flow` overrides). Applying sets `data-theme = base` (so `App.css`, dockview and
+optional `flow` overrides). Applying sets `data-theme = base` (so `src/styles/`, dockview and
 `solid-flow` supply the baseline), then writes the `ui` overlay as **inline custom
 properties** on the root, merges `chart`, and swaps the colormap. The preference becomes
 a **mode + two slots** (`darkThemeId` / `lightThemeId`); `auto` follows the OS to pick a

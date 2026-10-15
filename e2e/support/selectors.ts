@@ -115,15 +115,5 @@ export const analyzerParams = (id: string) => `[data-testid="analyzer.params.${i
 /** An analyzer's "About" popover trigger. */
 export const analyzerAbout = (id: string) => `[data-testid="analyzer.about.${id}"]`;
 
-/** A tool-specific params control, keyed by tool id and param key. */
-export const toolParam = (id: string, key: string) => `[data-testid="toolparam.${id}.${key}"]`;
-
 /** The first note row in the Notes panel (ids are uuid-based, so match the prefix). */
 export const firstNoteRow = '[data-testid^="note.row."]';
-
-/** A note row / its frozen values line / its delete button, by note id. */
-export const noteRow = (id: string) => `[data-testid="note.row.${id}"]`;
-export const noteValues = (id: string) => `[data-testid="note.values.${id}"]`;
-export const noteDelete = (id: string) => `[data-testid="note.delete.${id}"]`;
-export const noteEdit = (id: string) => `[data-testid="note.edit.${id}"]`;
-export const noteStale = (id: string) => `[data-testid="note.stale.${id}"]`;

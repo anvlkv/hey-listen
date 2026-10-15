@@ -6,7 +6,7 @@ import type { NoteValues } from "../bindings/NoteValues";
  * Pure helpers for the note model (M14): clamping, labels, excerpts, and the
  * "is the frozen snapshot stale" comparison. Kept free of stores/Tauri so they can
  * be unit-tested with `npm run test:unit` (see `scripts/notes.test.ts`); the store
- * itself lives in `state/notes.ts`. See `docs/notes.md`.
+ * itself lives in `state/notes/`. See `docs/notes.md`.
  */
 
 /** Longest body excerpt used when a note has no title. */

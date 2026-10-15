@@ -1,54 +1,30 @@
-import { Meter } from "@kobalte/core/meter";
-import { NumberField } from "@kobalte/core/number-field";
-import { Select } from "@kobalte/core/select";
-import { Slider } from "@kobalte/core/slider";
 import { createEffect, on, onCleanup, Show } from "solid-js";
 import Button from "./Button";
-import Combobox from "./Combobox";
 import Icon from "./Icon";
-import Tooltip from "./Tooltip";
-import { createNumberDrag, type NumberDrag } from "../lib/dragNumber";
-import { formatClock, meterDbLabel, meterPercent } from "../lib/format";
-import { unwrapSingle } from "../lib/kobalte";
-import { createPopupMount } from "../lib/popupMount";
+import LiveControls from "./source/LiveControls";
+import LiveSourceInputs from "./source/LiveSourceInputs";
+import SourceKindSelect from "./source/SourceKindSelect";
+import { usesDevices } from "./source/kinds";
+import { createNumberDrag } from "../lib/dragNumber";
 import { openFileDialog, source } from "../state/source";
 import { openTool } from "../state/workbench";
 import {
-  applyGain,
-  cancelCountdown,
   captureError,
   choice,
-  countdown,
   deviceId,
-  devices,
-  elapsed,
-  gain,
-  level,
   mixMicDeviceId,
   mixSystemDeviceId,
-  monitoring,
-  paused,
-  processes,
   recording,
   refreshDevices,
   refreshProcesses,
-  setChoice,
-  setDeviceId,
-  setMixMicDeviceId,
-  setMixSystemDeviceId,
   setStartDelay,
   setTargetDuration,
-  setTargetPid,
   sourcesError,
-  startCapture,
   startDelay,
   startMonitor,
   stopMonitor,
-  stopCapture,
   targetDuration,
   targetPid,
-  togglePause,
-  type SourceChoice,
 } from "../state/capture";
 
 /**
@@ -62,302 +38,8 @@ import {
  * wraps.
  *
  * Controls are Kobalte primitives (`Select`, `Combobox`, `Slider`, `NumberField`,
- * `Meter`, `Button`); see ADR-8.
+ * `Meter`, `Button`); see ADR-8. The pieces live under `components/source/`.
  */
-
-interface DeviceLike {
-  id: string;
-  name: string;
-}
-
-interface SourceChoiceOption {
-  value: SourceChoice;
-  label: string;
-}
-
-/** The source kinds the picker offers (synth renders from its Workbench tab). */
-const SOURCE_CHOICES: SourceChoiceOption[] = [
-  { value: "file", label: "Audio file" },
-  { value: "mic", label: "Microphone" },
-  { value: "system", label: "System audio" },
-  { value: "process", label: "Application" },
-  { value: "mix", label: "Mic + system" },
-  { value: "synth", label: "Synth (graph)" },
-];
-
-const micDevices = () => devices().filter((d) => d.sourceKind === "mic" && !d.isLoopback);
-const systemDevices = () => devices().filter((d) => d.sourceKind === "system" || d.isLoopback);
-
-const toOptions = (list: DeviceLike[]) =>
-  list.map((device) => ({ value: device.id, label: device.name }));
-
-function positive(value: string, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
-}
-
-function deviceOptions() {
-  return toOptions(choice() === "mic" ? micDevices() : systemDevices());
-}
-
-function processOptions() {
-  return processes().map((proc) => ({
-    value: String(proc.pid),
-    label: proc.isOutputActive ? `${proc.name} ●` : proc.name,
-  }));
-}
-
-/** Kinds whose inputs list devices (see `LiveSourceInputs`); the rest need none. */
-function usesDevices(kind: SourceChoice): boolean {
-  return kind === "mic" || kind === "system" || kind === "mix";
-}
-
-function readout() {
-  const target = targetDuration();
-  return target > 0 ? `${formatClock(elapsed())} / ${formatClock(target)}` : formatClock(elapsed());
-}
-
-/** The source-kind picker, shared by the hero and the replace controls. */
-function SourceKindSelect() {
-  const portal = createPopupMount();
-  return (
-    <Select<SourceChoiceOption>
-      value={SOURCE_CHOICES.find((item) => item.value === choice())}
-      onChange={(value) => {
-        const option = unwrapSingle(value);
-        if (!option) return;
-        setChoice(option.value);
-        // Selections are per-kind: a mic device id is not valid for system, etc.
-        setDeviceId(null);
-        setTargetPid(null);
-      }}
-      options={SOURCE_CHOICES}
-      optionValue="value"
-      optionTextValue="label"
-      disabled={recording()}
-      onOpenChange={(isOpen) => {
-        if (isOpen) portal.refresh();
-      }}
-      sameWidth
-      itemComponent={(item) => (
-        <Select.Item item={item.item} class="pop-item">
-          <Select.ItemLabel class="pop-item-label">{item.item.rawValue.label}</Select.ItemLabel>
-          <Select.ItemIndicator class="pop-item-indicator">✓</Select.ItemIndicator>
-        </Select.Item>
-      )}
-    >
-      <Select.Trigger ref={portal.ref} class="select-trigger" data-testid="source.kind">
-        <Select.Value<SourceChoiceOption> class="select-value">
-          {(state) => state.selectedOption()?.label ?? "Audio file"}
-        </Select.Value>
-        <Select.Icon class="select-icon">▾</Select.Icon>
-      </Select.Trigger>
-      <Select.Portal mount={portal.mount()}>
-        <Select.Content class="pop-content">
-          <Select.Listbox class="pop-listbox" />
-        </Select.Content>
-      </Select.Portal>
-    </Select>
-  );
-}
-
-/** The device / application / mix inputs for live kinds. */
-function LiveSourceInputs(props: { compact?: boolean }) {
-  return (
-    <>
-      <Show when={choice() === "mic" || choice() === "system"}>
-        <div class="src-field">
-          <span class="src-label icon-label">
-            <Icon name="headphones" />
-            Device
-          </span>
-          <Combobox
-            options={deviceOptions()}
-            value={deviceId()}
-            onChange={setDeviceId}
-            emptyLabel="System default"
-            label="Device"
-            disabled={recording()}
-          />
-        </div>
-      </Show>
-
-      <Show when={choice() === "process"}>
-        <div class={props.compact ? "src-field" : "src-stack"}>
-          <span class="src-label icon-label">
-            <Icon name="desktop" />
-            Application
-          </span>
-          <Combobox
-            options={processOptions()}
-            value={targetPid() == null ? null : String(targetPid())}
-            onChange={(value) => setTargetPid(value == null ? null : Number(value))}
-            placeholder="Choose an application…"
-            label="Application"
-            disabled={recording()}
-          />
-          <Tooltip label="Refresh the application list">
-            <Button
-              class="src-mini icon-btn"
-              aria-label="Refresh applications"
-              onClick={() => void refreshProcesses()}
-            >
-              <Icon name="arrows-rotate" />
-            </Button>
-          </Tooltip>
-        </div>
-      </Show>
-
-      <Show when={choice() === "mix"}>
-        <div class={props.compact ? "src-field" : "src-stack"}>
-          <Combobox
-            options={toOptions(micDevices())}
-            value={mixMicDeviceId()}
-            onChange={setMixMicDeviceId}
-            emptyLabel="Mic: default"
-            label="Microphone device"
-            disabled={recording()}
-          />
-          <Combobox
-            options={toOptions(systemDevices())}
-            value={mixSystemDeviceId()}
-            onChange={setMixSystemDeviceId}
-            emptyLabel="System: default"
-            label="System device"
-            disabled={recording()}
-          />
-        </div>
-      </Show>
-    </>
-  );
-}
-
-/** Gain, level meter, timing, and record/stop controls for live kinds. */
-function LiveControls(props: { startDrag: NumberDrag; stopDrag: NumberDrag }) {
-  return (
-    <>
-      <Slider
-        class="src-field"
-        value={[gain()]}
-        onChange={(values) => void applyGain(values[0])}
-        minValue={0}
-        maxValue={4}
-        step={0.05}
-        aria-label="Input gain"
-      >
-        <Slider.Label class="src-label icon-label">
-          <Icon name="sliders" />
-          Gain
-        </Slider.Label>
-        <Slider.Track class="gain-track">
-          <Slider.Fill class="gain-fill" />
-          <Slider.Thumb class="gain-thumb">
-            <Slider.Input class="gain-input" />
-          </Slider.Thumb>
-        </Slider.Track>
-        <span class="src-readout">{Math.round(gain() * 100)}%</span>
-      </Slider>
-
-      <Tooltip label={monitoring() ? "Input level — live" : "Input level"}>
-        <Meter
-          class="src-field"
-          value={meterPercent(level())}
-          minValue={0}
-          maxValue={100}
-          getValueLabel={() => meterDbLabel(level())}
-        >
-          <Meter.Label class="src-label icon-label">
-            <Icon name="gauge-high" />
-            Level
-          </Meter.Label>
-          <Meter.Track class="src-meter">
-            <Meter.Fill class="src-meter-fill" />
-          </Meter.Track>
-          <span class="src-readout">{meterDbLabel(level())}</span>
-        </Meter>
-      </Tooltip>
-
-      <Show when={!recording()}>
-        <div class="src-field src-timing">
-          <Tooltip label="Delay before recording begins, in seconds (drag up/down to change)">
-            <NumberField
-              class="src-numfield"
-              value={startDelay()}
-              onChange={(value) => setStartDelay(positive(value, 0))}
-              minValue={0}
-              step={1}
-              format={false}
-            >
-              <NumberField.Label class="src-label">Start in</NumberField.Label>
-              <NumberField.Input
-                class={`src-num num-drag${props.startDrag.dragging() ? " num-dragging" : ""}`}
-                {...props.startDrag.handlers}
-              />
-            </NumberField>
-          </Tooltip>
-          <span class="src-unit">s</span>
-
-          <Tooltip label="Stop automatically after this many seconds (0 = until stopped); drag up/down to change">
-            <NumberField
-              class="src-numfield"
-              value={targetDuration()}
-              onChange={(value) => setTargetDuration(positive(value, 0))}
-              minValue={0}
-              step={1}
-              format={false}
-            >
-              <NumberField.Label class="src-label">Stop after</NumberField.Label>
-              <NumberField.Input
-                class={`src-num num-drag${props.stopDrag.dragging() ? " num-dragging" : ""}`}
-                placeholder="0"
-                {...props.stopDrag.handlers}
-              />
-            </NumberField>
-          </Tooltip>
-          <span class="src-unit">s</span>
-        </div>
-      </Show>
-
-      <div class="src-actions">
-        <Show when={countdown() != null}>
-          <Button class="src-button" onClick={cancelCountdown}>
-            Cancel ({countdown()})
-          </Button>
-        </Show>
-        <Show when={countdown() == null && !recording()}>
-          <Button
-            class="src-button src-record icon-label"
-            data-testid="source.record"
-            onClick={() => void startCapture()}
-          >
-            <Icon name="record-vinyl" />
-            Record
-          </Button>
-        </Show>
-        <Show when={recording()}>
-          <Button
-            class="src-button icon-label"
-            data-testid="source.pause"
-            onClick={() => void togglePause()}
-          >
-            <Icon name={paused() ? "circle-play" : "circle-pause"} />
-            {paused() ? "Resume" : "Pause"}
-          </Button>
-          <Button
-            class="src-button src-stop icon-label"
-            data-testid="source.stop"
-            onClick={() => void stopCapture()}
-          >
-            <Icon name="circle-stop" />
-            Stop
-          </Button>
-          <span class="src-readout">{readout()}</span>
-        </Show>
-      </div>
-    </>
-  );
-}
-
 export default function SourcePanel() {
   let processesRequested = false;
   let devicesRequested = false;

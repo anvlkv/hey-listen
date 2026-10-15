@@ -1,0 +1,198 @@
+/* Fixed region — not a tab, not draggable/closable. */
+.app-source {
+  width: 240px;
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  overflow: auto;
+  background: var(--panel-2);
+  border-right: 1px solid var(--border);
+}
+
+.src-button {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.src-button:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+
+.src-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.src-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.src-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.src-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.src-label {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.src-heading {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* "Add audio" hero empty state: a horizontal strip (title/hint left, the
+   controls right) so it fits the compact bottom row without scrolling. */
+.src-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.src-hero-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.src-hero-hint {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  max-width: 30rem;
+}
+
+/* The picker + capture controls. Stacks vertically in the narrow corner panel;
+   the empty-state strip lays them inline and wraps. */
+.src-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-bottom-solo .src-controls {
+  flex: 1;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-width: 0;
+}
+
+.src-unit {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.src-num {
+  width: 42px;
+  height: 22px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+/* Drag-to-adjust numeric inputs (M7): drag up to increase, down to decrease. The
+   `ns-resize` cursor is the affordance; `num-dragging` is set only mid-drag. */
+.num-drag {
+  cursor: ns-resize;
+}
+
+.num-drag.num-dragging {
+  background: var(--control-hover);
+}
+
+.src-readout {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--fg-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.src-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.src-actions .src-button {
+  width: auto;
+  flex: 1;
+}
+
+.src-record {
+  color: var(--record-fg);
+  background: var(--record-bg);
+  border-color: var(--border-record);
+}
+
+.src-record:hover:not(:disabled) {
+  background: var(--record-bg-hover);
+}
+
+.src-stop {
+  color: var(--record-fg);
+  background: var(--record-bg-2);
+  border-color: var(--border-record-2);
+}
+
+.src-mini {
+  height: 18px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 0.625rem;
+  color: var(--fg-accent);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.src-mini:hover {
+  background: var(--control);
+}
+
+.src-error {
+  margin-top: auto;
+  padding: 3px 6px;
+  font-size: 0.6875rem;
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

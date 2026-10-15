@@ -18,7 +18,7 @@
 //!  └──────────┘ ◄────────── └──────────────┘ ◄───── └───────────┬──────────────┘
 //!                                                               │ mcp:request event
 //!                                                               ▼
-//!                                                      window frontend (state/mcp.ts)
+//!                                                      window frontend (state/mcp/)
 //!                                                               │ mcp_respond
 //!                                                               ▼
 //! ```

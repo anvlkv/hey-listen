@@ -2,7 +2,7 @@
 
 The filter and synth graphs are built with `solid-flow` in two **Workbench tabs**
 (see ADR-10). The frontend owns *editing*; the Rust core owns the *net* — a
-`GraphSpec` (JSON) is compiled to a fundsp `Net` in `src-tauri/src/audio/graph.rs`.
+`GraphSpec` (JSON) is compiled to a fundsp `Net` in `src-tauri/src/audio/graph/`.
 
 ## The model mirrors fundsp `Net`
 
@@ -56,7 +56,7 @@ signal arithmetic (A op B) — `multiply` doubles as a VCA/ring-mod when one inp
 a control signal from `dc`/`sine_lfo`; `add` is the arithmetic twin of the routing
 `mix`. `abs` rectifies and `invert` flips polarity (both 1-in/1-out). fundsp exposes
 its binary math as combinators (`sum`/`product`/`-`) rather than fixed-arity units,
-so these are small custom `AudioUnit`s in `audio/graph.rs` (as with `SumUnit` and the
+so these are small custom `AudioUnit`s in `audio/graph/` (as with `SumUnit` and the
 compressor/gate).
 
 **Parameter smoothing.** Control-rate inputs — every `*_cv` cut-off/Q/gain/… input
@@ -108,7 +108,7 @@ is readable at a glance. Multi-port nodes get semantic labels — `mix`/`add` ar
 *audio*/*cut*/*Q* (plus *gain*/*morph*), `resonator_cv` is *center*/*bw*, and
 `panner` is *audio*/*pan*. Single-port sides fall back to *in*/*out* and unnamed
 multi-port sides to *in1*/*in2*/*out1*/*out2*. The labels live in a per-kind map
-(`lib/graph.ts` → `PORT_LABELS` + `portLabel`), render outside the handle, and are
+(`lib/graph/ports.ts` → `PORT_LABELS` + `portLabel`), render outside the handle, and are
 `pointer-events: none` so they never interfere with wiring.
 
 ## Canvas

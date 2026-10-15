@@ -70,7 +70,7 @@ export const ICON_GLYPHS = {
 export type IconName = keyof typeof ICON_GLYPHS;
 
 /**
- * The chart-type icon for an analyzer, keyed by its **view kind** (`state/analyzer.ts`)
+ * The chart-type icon for an analyzer, keyed by its **view kind** (`state/analyzer/`)
  * — a plain reflection of how the result is drawn, so two tools of the same chart
  * type share an icon.
  */

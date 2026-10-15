@@ -22,7 +22,7 @@ a local server as a `command` + `args` and speak MCP over its stdio.
  └──────────┘ ◄────────── └──────────────┘ ◄───── └─────────────┬──────────────┘
                                                                 │ mcp:request
                                                                 ▼
-                                                       window frontend (state/mcp.ts)
+                                                       window frontend (state/mcp/)
                                                                 │ runs the tool
                                                                 │ mcp_respond
                                                                 ▼
@@ -113,8 +113,8 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 ## Tools
 
 `tools/list` always answers (the catalog is static, in
-`src-tauri/src/mcp/tools.rs`), even before a window is ready; the *handlers* live in
-`src/state/mcp.ts`.
+`src-tauri/src/mcp/tools/`), even before a window is ready; the *handlers* live in
+`src/state/mcp/`.
 
 | Tool | Purpose |
 | --- | --- |
@@ -244,8 +244,8 @@ exposed rough edges in **result shape and side effects**. Delivered as *M9 follo
 2. **Honest compaction.** A long numeric array → `{ length, min, max, argmin, argmax }`;
    a long array with gaps → `{ length, nulls, min, max, argmin, argmax }` over the present
    numbers. "One voiced frame out of 511" is now visible at a glance (`nulls: 510`). The
-   two implementations stay in step: `src/state/mcp.ts` (`compact`) and
-   `src-tauri/src/mcp/dispatch.rs` (`compact`), with a matching Rust unit test.
+   two implementations stay in step: `src/state/mcp/shaping.ts` (`compact`) and
+   `src-tauri/src/mcp/dispatch/shape.rs` (`compact`), with a matching Rust unit test.
 3. **Bounded `includeData`.** A `maxPoints` argument decimates the returned arrays to ≤ N
    points by striding (keeping the first and last), so `includeData` need not dump every
    frame.
@@ -315,22 +315,22 @@ at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](
 | --- | --- |
 | `src-tauri/src/mcp/mod.rs` | module root: constants, the `Pending` request/response map, `run` (the auto-detecting stdio entry). |
 | `src-tauri/src/mcp/protocol.rs` | JSON-RPC + MCP method surface (pure, unit-tested). |
-| `src-tauri/src/mcp/tools.rs` | the static tool catalog (names + JSON schemas + the shared `target`). |
+| `src-tauri/src/mcp/tools/` | the static tool catalog (names + JSON schemas + the shared `target`). |
 | `src-tauri/src/mcp/server.rs` | the loopback transport, `list_projects`, and the `target` routing. |
 | `src-tauri/src/mcp/settings.rs` | `McpConfig` / `McpStatus` + the `McpController` (persist + start/stop/rebind). |
 | `src-tauri/src/mcp/bridge.rs` | the stdio ⇄ socket bridge + the advertisement probe. |
-| `src-tauri/src/mcp/dispatch.rs` | the headless session: the engine subset (no window); the shared `set_filter_graph`. |
+| `src-tauri/src/mcp/dispatch/` | the headless session: the engine subset (no window); the shared `set_filter_graph`. |
 | `src-tauri/src/mcp/headless.rs` | the headless stdio loop. |
 | `src-tauri/src/cli/mod.rs` | the `tauri-plugin-cli` flags (`--mcp` / `--headless`) + the batch subcommand routing. |
-| `src-tauri/src/cli/batch.rs` | the batch CLI (`analyzers` / `analyze` / `synth`) over the headless session. |
+| `src-tauri/src/cli/batch/` | the batch CLI (`analyzers` / `analyze` / `synth`) over the headless session. |
 | `src-tauri/src/app_activity.rs` | the macOS user-initiated activity (opts out of App Nap). |
 | `src-tauri/Info.plist` | macOS bundle additions — `NSAppSleepDisabled` (opts out of App Nap). |
 | `src-tauri/src/audio/analyzers.rs` | the Rust analyzer catalog for headless `list_analyzers`. |
 | `src-tauri/src/commands/mcp.rs` | `mcp_respond` / `mcp_ready` and `get_mcp_status` / `set_mcp_config`. |
-| `src/state/mcp.ts` | the GUI tool handlers (run against the app's stores). |
+| `src/state/mcp/` | the GUI tool handlers (run against the app's stores). |
 | `src/state/mcpSettings.ts` | the popover's view over the MCP status + the snippet/copy helpers. |
 | `src-tauri/src/themes.rs`, `src-tauri/src/commands/themes.rs` | the theme-file store + commands (M11). |
-| `src/lib/themeFile.ts`, `src/state/themes.ts` | the `ThemeFile` model + the theme registry / apply pipeline, and the GUI theme MCP handlers (in `src/state/mcp.ts`) (M11). |
+| `src/lib/themeFile.ts`, `src/state/themes/` | the `ThemeFile` model + the theme registry / apply pipeline, and the GUI theme MCP handlers (in `src/state/mcp/`) (M11). |
 | `src-tauri/src/templates.rs`, `src-tauri/src/commands/templates.rs` | the template store + commands (M13, planned). |
 | `src-tauri/src/commands/export.rs` | output plumbing (`pick_save_path` / `write_text` / `write_bytes`) (M12, planned). |
 | `src/components/McpPopover.tsx` | the Toolbar MCP popover. |

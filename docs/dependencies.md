@@ -95,5 +95,5 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli`
   opt-out, both in the bundle's `Info.plist` and at runtime. See [`mcp.md`](mcp.md).
 - **Batch CLI (M10):** a **subcommand of the app binary**, declared in the existing
   `tauri-plugin-cli` (`plugins.cli`) — no new crate, no new binary. It reuses the
-  headless session (`mcp/dispatch.rs`) and the same engine functions, so it adds no
+  headless session (`mcp/dispatch/`) and the same engine functions, so it adds no
   dependencies. See [`cli.md`](cli.md).

@@ -1,0 +1,104 @@
+/* Fixed region — not a tab, not draggable/closable. */
+.app-timeline {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-2);
+}
+
+.timeline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 34px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.timeline-readout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--fg-body);
+  min-width: 0;
+}
+
+.timeline-readout strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-dim {
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Channel selector (only for multichannel sources); reuses the Kobalte Select. */
+.timeline-channel {
+  flex: none;
+  width: 170px;
+}
+
+.channel-trigger {
+  height: 24px;
+}
+
+.timeline-btn {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.timeline-btn:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+
+.timeline-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.timeline-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.timeline-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.timeline-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  pointer-events: none;
+}
+
+.timeline-error {
+  color: var(--danger);
+}

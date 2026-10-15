@@ -7,13 +7,13 @@ import { createSignal } from "solid-js";
  * (text and text-bearing controls), default `1` (100%), clamped to 0.8–1.4 in 0.05
  * steps (plus the Source panel pin below).
  *
- * Font scale is applied by writing `--ui-scale` on the document root; `App.css`
+ * Font scale is applied by writing `--ui-scale` on the document root; `src/styles/`
  * derives the root `font-size` from it, and text rules use `rem` (1rem = scaled
  * root). We deliberately do **not** use CSS `zoom`/`transform`: those would break
  * the Timeline 2D-canvas device-pixel-ratio math, `dockview` drag coordinates, and
  * uPlot sizing.
  *
- * The **theme** moved to [`./themes`](themes.ts) in M11 (exchangeable theme files);
+ * The **theme** moved to [`./themes`](themes/index.ts) in M11 (exchangeable theme files);
  * it applies `data-theme` + a `ui` overlay on the root. Font scale is persisted in
  * `localStorage` (read once at init, written on change) so it survives reloads.
  */
@@ -76,11 +76,6 @@ export function nudgeFontScale(direction: number) {
   setFontScale(fontScale() + direction * FONT_SCALE_STEP);
 }
 
-/** Reset the scale back to the default (100%). */
-export function resetFontScale() {
-  setFontScale(1);
-}
-
 export { fontScale };
 
 /**
@@ -95,7 +90,7 @@ export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
  * The **Notes panel** (M14) — a right rail, the mirror of the Sidebar. It is UI
  * chrome (not project content), so its open/closed state and width are persisted
  * app-level in `localStorage`, exactly like the font scale; the notes themselves
- * are project data (`state/notes.ts`). See `docs/notes.md` → The Notes panel.
+ * are project data (`state/notes/`). See `docs/notes.md` → The Notes panel.
  */
 
 /** Default rail width, in px. */

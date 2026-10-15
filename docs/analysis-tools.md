@@ -115,9 +115,9 @@ audio (the window moves to fit the new source). See [`templates.md`](templates.m
 
 ## Implementation status
 
-All tools above are implemented (M5) in `src-tauri/src/audio/analysis.rs` and
+All tools above are implemented (M5) in `src-tauri/src/audio/analysis/` and
 dispatched by the single `run_analysis` command. The frontend registry
-(`state/analyzer.ts`) declares each tool's title, description, about copy,
+(`state/analyzer/`) declares each tool's title, description, about copy,
 keywords, sidebar section, view (series / matrix / rhythm / readouts / events), and
 per-tool params, so adding a tool is a registry entry plus its Rust function — no
 bespoke component. **No duplicate tabs** per tool, and **zoom/cursor are synced**

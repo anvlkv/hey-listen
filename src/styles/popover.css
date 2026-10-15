@@ -1,0 +1,123 @@
+/* --- Popover (Kobalte) -------------------------------------------------- */
+
+.pop-trigger {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg-strong);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pop-trigger:hover {
+  background: var(--control-hover);
+}
+
+/* An icon-only popover trigger: trim the side padding so it reads square. */
+.pop-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.55em;
+}
+
+.pop-trigger[data-expanded] {
+  color: var(--accent-soft-fg);
+  border-color: var(--accent);
+}
+
+.pop-panel {
+  z-index: 1000;
+  max-width: 340px;
+  padding: 12px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px var(--shadow-strong);
+}
+
+.pop-arrow {
+  fill: var(--panel-3);
+  stroke: var(--border-strong);
+}
+
+.pop-panel-about {
+  width: 320px;
+  max-width: 320px;
+}
+
+/* The params popover's trailing hint is a direct child (a sibling of the form),
+   so constrain it to the form width — otherwise its long sentence stretches the
+   panel wider than the controls above it. */
+.pop-panel > .params-note {
+  max-width: 264px;
+}
+
+.about-title {
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.about-body {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--fg-2);
+}
+
+/* --- Reframe menu (right-click: set the timeline window) ---------------- */
+
+.reframe-menu {
+  min-width: 184px;
+  padding: 6px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px var(--shadow-strong);
+  z-index: 1000;
+}
+
+.reframe-menu-title {
+  padding: 4px 8px 6px;
+  margin-bottom: 4px;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.reframe-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.reframe-btn:hover,
+.reframe-btn[data-hover] {
+  background: var(--control-2);
+}
+
+/* Vertical line marking the exact time the menu will set, over the chart. */
+.reframe-callout {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  pointer-events: none;
+  background: var(--accent);
+  opacity: 0.35;
+  z-index: 999;
+}

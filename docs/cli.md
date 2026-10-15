@@ -5,7 +5,7 @@ opening or driving a window — so a shell script or CI job can do bulk analysis
 read the results as JSON. It is the non-MCP sibling of the headless MCP server: the
 same engine, a friendlier calling convention.
 
-This is delivered (**M10**). The batch logic lives in `src-tauri/src/cli/batch.rs`;
+This is delivered (**M10**). The batch logic lives in `src-tauri/src/cli/batch/`;
 the interface is declared in `tauri.conf.json` → `plugins.cli`. See
 [`roadmap.md`](roadmap.md) → M10 and [`decisions.md`](decisions.md) → ADR-14.
 
@@ -268,9 +268,9 @@ Deliberately out of scope:
 | --- | --- |
 | `src-tauri/tauri.conf.json` | the `plugins.cli` interface: the `analyzers` / `analyze` / `synth` subcommands + their args. |
 | `src-tauri/src/cli/mod.rs` | the plugin flags + the `setup` entry: `--mcp` → MCP, a subcommand → batch, else GUI. |
-| `src-tauri/src/cli/batch.rs` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `notes`). |
-| `src-tauri/src/mcp/dispatch.rs` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
-| `src-tauri/src/audio/{decode,analysis,analyzers,graph}.rs` | the engine functions the batch command calls. |
+| `src-tauri/src/cli/batch/` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `notes`). |
+| `src-tauri/src/mcp/dispatch/` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
+| `src-tauri/src/audio/{decode,analyzers}.rs`, `src-tauri/src/audio/{analysis,graph}/` | the engine functions the batch command calls. |
 
 ## Testing
 

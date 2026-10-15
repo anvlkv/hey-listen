@@ -60,7 +60,7 @@ enum Source {
     Synth { graph: GraphSpec },
 }
 
-// A fundsp editor graph (see `src-tauri/src/audio/graph.rs`).
+// A fundsp editor graph (see `src-tauri/src/audio/graph/`).
 struct GraphSpec { nodes: Vec<GraphNode>, edges: Vec<GraphEdge> }
 struct GraphNode { id: String, kind: String, params: Vec<f32> }
 struct GraphEdge { from: String, from_port: usize, to: String, to_port: usize }
