@@ -123,16 +123,23 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
 
   const box = createMemo(() => plotBox(size()));
 
-  // Keep the current zoom across a data refresh (a new analysis result must not
-  // reset it); only fit the full window when there is no view yet.
+  // Keep the current zoom across a *data* refresh (an FFT / option change must not reset
+  // it), but re-fit when the **analysis window** moved: the data then covers a different
+  // span, and clamping the previous range into the new extent left the chart showing a
+  // stale slice (a hairline when the ranges did not overlap) until the user zoomed or
+  // dragged. See `resetChartViews` in `state/chartSync.ts` for the uPlot side.
   createEffect(
-    on(options.result, (result) => {
+    on(options.result, (result, prev) => {
       if (!result) {
         setView(null);
         return;
       }
       const current = untrack(view);
-      setView(current ? options.clampView(current, result) : options.fullView(result));
+      const windowMoved =
+        !prev || prev.windowStart !== result.windowStart || prev.duration !== result.duration;
+      setView(
+        current && !windowMoved ? options.clampView(current, result) : options.fullView(result),
+      );
     }),
   );
 

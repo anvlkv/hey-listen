@@ -466,11 +466,14 @@ refreshed whenever the note is edited or dragged).
   default and toggled from the Toolbar, resizable, and view-persisted (open/closed +
   width) — so the "only tabs are Workbench tabs" rule holds.
 - **Surfacing** is by group: every note a **Timeline** anchor; a chart draws its **own**
-  notes; exactly one **focused** note draws on **every time-based chart** (the `time` sync
-  group), never on the frequency-axis `spectrum`. Focusing a note opens/raises its chart
-  and sets the window to the note's time. The anchors live in a thin **strip along the
-  bottom** of the Timeline and of each time chart, clear of the window move handle and of
-  a chart's drag/zoom area; a **range** is a selection there, with a handle on each edge.
+  notes; exactly one **selected** note draws on **every time-based chart** (the `time` sync
+  group), never on the frequency-axis `spectrum`. Selecting a note opens/raises its chart
+  but **never moves the analysis window** — that is the row's explicit **Analyze** action
+  (ADR-19). The anchors live in a thin **strip along the bottom** of the Timeline and of
+  each time chart, clear of the window move handle and of a chart's drag/zoom area; a
+  **range** is a selection there, with a handle on each edge. With the rail closed the
+  focus is dropped and the anchors are drawn **dull** (a note is only "focused" while you
+  are working with the panel).
 - The body is **markdown**, stored raw and rendered **sanitized**, with an editor that
   commits **explicitly** (Done / ⌘↵; Escape discards) rather than on blur.
 - A note can be **popped out into its own window** — a real Tauri window aliased to the
@@ -492,4 +495,33 @@ per-chart conversion. See [`notes.md`](notes.md).
 
 **Status: delivered (M14), revised after review** (bottom strip, draggable range edges,
 explicit-save editor, source-second axes, note window, and the count chip replacing the
-badge).
+badge), then again for the interaction model — see **ADR-19**.
+
+## ADR-19 — A note is selected, not focused: the window moves only on Analyze
+
+**Context:** ADR-18 gave notes "focus follows the click": clicking a note highlighted it,
+opened its chart **and** moved the analysis window onto its time. In use that was wrong.
+A note is a remark *about* a moment the user has already chosen; clicking it — or, worse,
+grabbing its handle by a pixel — yanked the analysis away from what they were looking at,
+and creating a (point) note felt like it reframed the window. The two intents ("show me
+this note" vs. "analyse this span") were fused into one gesture.
+
+**Decision:** split them.
+
+- **Select** (`selectNote`) — highlight the note and open (or raise) the chart it belongs
+to. This is what the row heading, the row's chart action and the lane are wired to. It
+  **never** touches the analysis window, so selecting or creating a note can never reframe
+  the analysis.
+- **Analyze** (`analyzeNote`) — the row's explicit **Analyze** action, and the *only*
+  thing that moves the window onto a note: a range becomes the window exactly, a point
+  gets a window of the current width (or a tenth of the source) starting at its time.
+  Offered on **both** kinds of note (a point has a moment worth analysing too).
+- The **focused** note is a **panel** concept: closing the rail drops the focus, which
+  also clears the charts' full-height overlay and the Timeline's stem. The lane anchors
+  stay as an index of where the notes are, drawn dull.
+
+**Consequence:** browsing the rail (or the lane) is now a read-only act, and reframing is
+always one deliberate click. Costs: one more icon in the row, and "where is this note?"
+is answered by Analyze rather than by the click itself. See [`notes.md`](notes.md).
+
+**Status: delivered (M14 follow-up).**

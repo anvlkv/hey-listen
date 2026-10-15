@@ -21,6 +21,7 @@ import {
   drawHoverCross,
   drawMirrorCursor,
   drawNoteOverlay,
+  drawPlayhead,
   drawTimeAxis,
 } from "./chartCanvas";
 import {
@@ -181,11 +182,14 @@ export default function SpectrogramTab() {
     drawTimeAxis(ctx, v, box);
     drawHoverCross(ctx, box, chart.hover());
     drawMirrorCursor(ctx, v, box, SPECTROGRAM_ID);
+    // Read inside `draw` so the repaint effect below tracks the transport position.
+    drawPlayhead(ctx, v, box);
     drawNoteOverlay(ctx, v, box, SPECTROGRAM_ID, chart.selection());
   }
 
   createEffect(() => {
-    // Track everything the canvas draws (theme included, so a theme switch redraws).
+    // Track everything the canvas draws (theme and the preview playhead included, so a
+    // theme switch and the transport both repaint).
     resolvedTheme();
     image();
     overlays();

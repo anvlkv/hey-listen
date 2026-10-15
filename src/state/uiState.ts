@@ -59,7 +59,7 @@ registerUiState("project", (value) => {
 
 // Notes ride the project's shared UI state so a project's windows stay in lockstep
 // (ADR-11/ADR-18). A remote focus is applied without the UI side effects (opening the
-// chart / moving the window) that a local `focusNote` performs.
+// chart / selecting) that a local `selectNote` performs.
 registerUiState("notes", (value) => {
   replaceNotes((value as Note[]) ?? []);
 });
@@ -74,6 +74,20 @@ for (const group of ["time", "freq"] as const) {
       "view",
       value == null ? null : { sourceId: REMOTE_VIEW, group, x: value as [number, number] },
     );
+  });
+}
+
+// The **hovered cursor** rides the shared state too, so a chart in the main window
+// mirrors the pointer in a popped-out one and back. Tagged per group like the views, so
+// a frequency cursor never lands on a time chart. The local publishes come from the
+// charts (`chartInteraction` / `mirrorCursor`); this only carries them across windows.
+for (const group of ["time", "freq"] as const) {
+  registerUiState(`cursor:${group}`, (value) => {
+    analyzerBus.setData("cursorSync", {
+      sourceId: REMOTE_VIEW,
+      group,
+      x: (value as number | null) ?? null,
+    });
   });
 }
 
@@ -114,6 +128,14 @@ export async function initUiState(): Promise<void> {
         if (view.group === group && view.sourceId !== REMOTE_VIEW) {
           pushUiState(`view:${group}`, view.x);
         }
+      });
+
+      // Only the pointers this window owns are pushed; a remote cursor is applied, never
+      // echoed back (`sourceId === REMOTE_VIEW`).
+      createEffect(() => {
+        const cursor = analyzerBus.data.cursorSync;
+        if (cursor == null || cursor.sourceId === REMOTE_VIEW) return;
+        if (cursor.group === group) pushUiState(`cursor:${group}`, cursor.x);
       });
     }
   });

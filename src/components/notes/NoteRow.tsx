@@ -6,12 +6,13 @@ import type { Note } from "../../bindings/Note";
 import { analyzerById, isAnalyzerId } from "../../state/analyzer";
 import { VIEW_ICONS } from "../../lib/icons";
 import {
+  analyzeNote,
   deleteNote,
   editingNoteId,
-  focusNote,
   focusedNoteId,
   liveValues,
   noteValuesStale,
+  selectNote,
   setEditingNoteId,
 } from "../../state/notes";
 import { noteBody, noteHeading, noteTimeText } from "../../lib/note";
@@ -20,6 +21,10 @@ import { NoteEditor } from "./NoteEditors";
 
 /**
  * One note: the title bar (heading + actions), meta, values, and the body.
+ *
+ * The heading and the chart action only **select** the note (highlight + open its
+ * chart); moving the analysis window onto the note is the explicit **Analyze** action,
+ * so browsing the rail never re-frames the analysis (see `state/notes/focus.ts`).
  *
  * While the note is being edited the editor **replaces** the rendered body (the row
  * shows the note once, not twice), and a commit is explicit — see [`NoteEditor`]. The
@@ -59,13 +64,23 @@ export function NoteRow(props: {
         <button
           type="button"
           class="note-title"
-          onClick={() => focusNote(props.note.id)}
-          title="Focus this note"
+          onClick={() => selectNote(props.note.id)}
+          title="Select this note"
           data-testid={`note.heading.${props.note.id}`}
         >
           {noteHeading(props.note.body) || "Note"}
         </button>
         <div class="note-titlebar-actions">
+          <Tooltip label={props.note.range ? "Analyze this span" : "Analyze this moment"}>
+            <Button
+              class="note-icon"
+              data-testid={`note.analyze.${props.note.id}`}
+              aria-label="Analyze this note"
+              onClick={() => analyzeNote(props.note.id)}
+            >
+              <Icon name="arrows-left-right-to-line" />
+            </Button>
+          </Tooltip>
           <Show when={def()}>
             {(tool) => (
               <Tooltip label={`Open the ${tool().title} chart`}>
@@ -73,7 +88,7 @@ export function NoteRow(props: {
                   class="note-icon"
                   data-testid={`note.open.${props.note.id}`}
                   aria-label="Open the chart"
-                  onClick={() => focusNote(props.note.id)}
+                  onClick={() => selectNote(props.note.id)}
                 >
                   <Icon name={VIEW_ICONS[tool().view.kind]} />
                 </Button>

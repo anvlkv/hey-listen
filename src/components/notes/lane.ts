@@ -6,8 +6,8 @@ import {
   dragNoteEndTo,
   dragNoteTo,
   refreshNoteValues,
+  selectNote,
   setFocusedNote,
-  focusNote,
 } from "../../state/notes";
 import { noteLabel, noteSpan, noteTimeText } from "../../lib/note";
 import { source } from "../../state/source";
@@ -25,10 +25,11 @@ import { source } from "../../state/source";
  *   **range** note over that span (a bare click does nothing, so the lane is safe to
  *   click through).
  *
- * Creating a note focuses it and opens its editor, but **never moves the analysis
+ * Creating a note selects it and opens its editor, but **never moves the analysis
  * window** — a note is an annotation *on* the analysis, not a request to reframe it.
- * Clicking an existing note's handle still focuses it (which does reframe, the same
- * "focus follows the click" rule as the panel). See `docs/notes.md`.
+ * Grabbing a note's handle and clicking it behave the same way: a drag moves/resizes it
+ * and a click just selects it. Only the row's **Analyze** button reframes (see
+ * `state/notes/focus.ts`). See `docs/notes.md`.
  */
 
 /** Which edge of a note's span a lane handle moves. */
@@ -162,11 +163,11 @@ export function createLaneDrag(host: () => LaneHost): LaneController {
     if (!active) return;
     if (active.kind === "handle") {
       if (moved) {
-        // The note moved: re-snapshot its values and keep it in view.
+        // The note moved: re-snapshot its values and keep it selected.
         refreshNoteValues(active.id);
         setFocusedNote(active.id);
       } else {
-        focusNote(active.id);
+        selectNote(active.id);
       }
       return;
     }

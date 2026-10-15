@@ -8,12 +8,15 @@
  * and cross-window sync rides `uiState` (ADR-11/ADR-18).
  *
  * The store also publishes its state on the shared chart bus (`notes`), so a chart's
- * note plugin can draw its own notes and the one focused note.
+ * note plugin can draw its own notes, the one focused note, and whether the rail is open.
+ *
+ * **Select vs. analyze.** Selecting a note ([`selectNote`]) only highlights it and opens
+ * its chart; only [`analyzeNote`] (the row's Analyze button) moves the analysis window.
  *
  * This module is the package's public surface — it re-exports the store's API, so
  * importers need no changes. The parts live in focused siblings: `types` (input
  * shapes), `signals` (the store signals + bus publish), `reads` (queries),
- * `mutations` (create/update/delete/patch), `focus` (focus/selection), `values`
+ * `mutations` (create/update/delete/patch), `focus` (selection/analyze), `values`
  * (frozen readout snapshots) and `format` (the per-tool readout line).
  */
 export { editingNoteId, focusedNoteId, notes, setEditingNoteId, setFocusedNoteId } from "./signals";
@@ -28,7 +31,7 @@ export {
   resetNotes,
   updateNote,
 } from "./mutations";
-export { defaultNoteTool, focusNote, setFocusedNote } from "./focus";
+export { analyzeNote, defaultNoteTool, selectNote, setFocusedNote } from "./focus";
 export { liveValues, noteValuesStale } from "./values";
 export { openNoteWindow } from "./window";
 export type { NotePatch } from "./types";

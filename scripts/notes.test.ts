@@ -13,6 +13,9 @@ import {
   valuesEqual,
 } from "../src/lib/note";
 import type { NoteValues } from "../src/bindings/NoteValues";
+import type { MatrixResult } from "../src/bindings/MatrixResult";
+import type { SeriesResult } from "../src/bindings/SeriesResult";
+import { valuesText } from "../src/state/notes/format";
 import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
 /**
@@ -121,6 +124,45 @@ check("reads the frame at a source time inside a window that does not start at 0
   // Degenerate grids never index out of range.
   assertEqual(noteFrameAt(5, 4, 0, 8), 0);
   assertEqual(noteFrameAt(5, 4, 4, 0), 0);
+});
+
+check("reads a matrix tool's values line, not a series one", () => {
+  // A `MatrixResult` carries `times` as well as `bins`/`values`, so a naive
+  // `"times" in result` test classified mel / MFCC / chroma / contrast heatmaps as a
+  // series and read `view.formatY` (undefined for a matrix tool) — which threw inside
+  // `createNote` and silently dropped the note.
+  const matrix: MatrixResult = {
+    sampleRate: 48000,
+    hopSize: 512,
+    frames: 2,
+    bins: 3,
+    duration: 2,
+    times: [0, 1],
+    windowStart: 0,
+    bands: [0, 1, 2],
+    // Frame 0: band 2 peaks; frame 1: band 1 peaks.
+    values: [1, 2, 3, 4, 5, 1],
+    minValue: 1,
+    maxValue: 5,
+  };
+  assertEqual(valuesText("melSpectrogram", matrix, 0), "t 0.000 s · mel band mel 3: 3.0");
+  assertEqual(valuesText("melSpectrogram", matrix, 1), "t 1.000 s · mel band mel 2: 5.0");
+  // Even a zeroed grid must not throw (the mel/MFCC window can be too short to frame).
+  const empty: MatrixResult = { ...matrix, frames: 0, bins: 0, values: [] };
+  assertEqual(valuesText("melSpectrogram", empty, 0), "t 0.000 s · no data");
+
+  const series: SeriesResult = {
+    sampleRate: 48000,
+    hopSize: 512,
+    frames: 2,
+    duration: 2,
+    times: [0, 1],
+    windowStart: 0,
+    values: [100, 220],
+    minValue: 100,
+    maxValue: 220,
+  };
+  assertEqual(valuesText("spectralCentroid", series, 1), "t 1.000 s · centroid (Hz) 220 Hz");
 });
 
 const base = (overrides: Partial<NoteValues> = {}): NoteValues => ({

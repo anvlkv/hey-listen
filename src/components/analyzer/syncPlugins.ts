@@ -68,6 +68,53 @@ export const mirrorCursor =
     };
   };
 
+/**
+ * Draw the **preview playhead** as a solid rule (M14 follow-up): the source second the
+ * core is auditioning, so the charts show "playing now" and not just the Timeline.
+ *
+ * The position rides the shared bus (`playhead`), published by the Timeline's preview
+ * controller. Unlike [`mirrorCursor`] — a dashed rule following *another chart's* hover
+ * — this is the transport's own position, so it is drawn solid, in the playhead colour.
+ */
+export const playheadRule =
+  (): UplotPluginFactory<AnalyzerBus> =>
+  ({ bus }) => {
+    if (!bus) return { hooks: {} };
+    let dispose: (() => void) | undefined;
+    return {
+      hooks: {
+        ready: (u) => {
+          // Track the message: repaint as the transport advances, and once more when it
+          // stops (published as `secs: null`) so the rule is erased. Before anything has
+          // ever played there is nothing to paint.
+          dispose = createRoot((root) => {
+            createEffect(() => {
+              if (bus.data.playhead != null) u.redraw(false);
+            });
+            return root;
+          });
+        },
+        draw: (u) => {
+          const secs = bus.data.playhead?.secs;
+          if (secs == null || !u.ctx) return;
+          const x = u.valToPos(secs, "x", true);
+          if (!Number.isFinite(x)) return;
+          const { ctx } = u;
+          const px = Math.round(x) + 0.5;
+          ctx.save();
+          ctx.strokeStyle = chartTheme().playhead;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(px, u.bbox.top);
+          ctx.lineTo(px, u.bbox.top + u.bbox.height);
+          ctx.stroke();
+          ctx.restore();
+        },
+        destroy: () => dispose?.(),
+      },
+    };
+  };
+
 /** Mirror the x-range of charts in the same [`SyncGroup`]. */
 export const syncView =
   (group: SyncGroup): UplotPluginFactory<AnalyzerBus> =>

@@ -13,10 +13,12 @@ export function setFocusedNote(id: string | null) {
 }
 
 /**
- * Select a note from the UI **without** touching the analysis window: highlight it and
- * open (or raise) the chart it belongs to. Used when a note is *created*, so writing an
- * annotation never reframes the analysis the user is looking at.
- * See `docs/notes.md` → Surfacing.
+ * Select a note from the UI: highlight it and open (or raise) the chart it belongs to.
+ *
+ * Selecting **never** moves the analysis window — a note is an annotation *on* the
+ * analysis, so neither creating one nor clicking one is a request to reframe. Moving
+ * the window onto a note is the explicit [`analyzeNote`] action (the row's **Analyze**
+ * button). See `docs/notes.md` → Surfacing.
  */
 export function selectNote(id: string | null) {
   setFocusedNoteId(id);
@@ -25,11 +27,11 @@ export function selectNote(id: string | null) {
 }
 
 /**
- * Focus a note from the UI: [`selectNote`], **and** move the analysis window onto the
- * note's time (or its span). This is the "focus follows the click" rule the panel's row
- * and the lane use — a click is a request to look at that moment.
+ * The **only** action that moves the analysis window onto a note: the row's Analyze
+ * button. A range note becomes the window exactly; a point note gets a window of the
+ * current width (or a tenth of the source) starting at its time.
  */
-export function focusNote(id: string | null) {
+export function analyzeNote(id: string | null) {
   selectNote(id);
   const note = noteById(id);
   if (!note) return;

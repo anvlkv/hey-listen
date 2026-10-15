@@ -6,7 +6,7 @@ import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
-import { mirrorCursor, syncView } from "./syncPlugins";
+import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { noteMarkers } from "./notePlugins";
 import { paddedYRange } from "./range";
 import { X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
@@ -270,6 +270,7 @@ export default function RhythmView(props: {
                   tooltip(Tooltip),
                   mirrorCursor("time"),
                   syncView("time"),
+                  playheadRule(),
                   noteMarkers(props.id),
                   rhythmMarkers(markers),
                 ]}

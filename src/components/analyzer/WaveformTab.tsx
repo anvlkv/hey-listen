@@ -7,7 +7,7 @@ import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
-import { mirrorCursor, syncView } from "./syncPlugins";
+import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { referenceLine } from "./seriesPlugins";
 import { noteMarkers } from "./notePlugins";
 import {
@@ -119,6 +119,7 @@ export default function WaveformTab() {
                       tooltip(Tooltip),
                       mirrorCursor("time"),
                       syncView("time"),
+                      playheadRule(),
                       noteMarkers("waveform"),
                       ...(dbMode() ? [referenceLine({ value: 0, label: "0 dBFS" })] : []),
                     ]}

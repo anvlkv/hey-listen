@@ -20,16 +20,7 @@ export function captureValues(
   capturedMs: number,
 ): NoteValues | null {
   const result = latestResult(tool);
-  if (!result) return null;
-  return noteValuesFor({
-    tool,
-    result,
-    timeSecs,
-    window: { startSecs: windowStart(), endSecs: windowEnd() },
-    params: sharedParams(),
-    options: { ...toolOptions[tool] },
-    capturedMs,
-  });
+  return result ? snapshot(tool, result, timeSecs, capturedMs) : null;
 }
 
 /** Build a `NoteValues` snapshot from a live result (the readout at the note's time). */
@@ -62,16 +53,37 @@ export function liveValues(note: Note): NoteValues | null {
   if (note.timeSecs < windowStart() || note.timeSecs > windowEnd()) return null;
   const tool = note.tool;
   const result = latestResult(tool);
-  if (!result) return null;
-  return noteValuesFor({
-    tool,
-    result,
-    timeSecs: note.timeSecs,
-    window: { startSecs: windowStart(), endSecs: windowEnd() },
-    params: sharedParams(),
-    options: { ...toolOptions[tool] },
-    capturedMs: note.values?.capturedMs ?? Date.now(),
-  });
+  return result
+    ? snapshot(tool, result, note.timeSecs, note.values?.capturedMs ?? Date.now())
+    : null;
+}
+
+/**
+ * Build a snapshot, catching a formatter failure so it can never escape into the note
+ * store. Both the capture path (creating / editing a note) and the live-readout path
+ * (the row's values line) route through here: the snapshot is a *subtitle*, so losing
+ * it must never cost the user their note or blank the rail.
+ */
+function snapshot(
+  tool: AnalyzerId,
+  result: AnyAnalysisResult,
+  timeSecs: number,
+  capturedMs: number,
+): NoteValues | null {
+  try {
+    return noteValuesFor({
+      tool,
+      result,
+      timeSecs,
+      window: { startSecs: windowStart(), endSecs: windowEnd() },
+      params: sharedParams(),
+      options: { ...toolOptions[tool] },
+      capturedMs,
+    });
+  } catch (err) {
+    console.error(`could not read ${tool}'s values at ${timeSecs} s`, err);
+    return null;
+  }
 }
 
 /** True when the live readout's **values line** differs from the frozen snapshot. */

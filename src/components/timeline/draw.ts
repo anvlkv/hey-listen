@@ -4,6 +4,7 @@ import { filteredSamples } from "../../state/filtered";
 import { filterEnabled } from "../../state/graph";
 import { noteSpan } from "../../lib/note";
 import { focusedNoteId, notesSorted } from "../../state/notes";
+import { notesPanelOpen } from "../../state/settings";
 import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
@@ -256,7 +257,8 @@ function drawChartCursor(
  * created, moved and resized. The lane's background and the live selection come from
  * `notes/lane.ts`; the notes are drawn on top — a **range** as a shaded span with a
  * handle on each edge, a **point** note as a single tab — with a full-height stem for
- * the focused one. See `components/notes/lane.ts` and `docs/notes.md` → Surfacing.
+ * the focused one. A **closed rail** draws them dull (and never focuses one). See
+ * `components/notes/lane.ts` and `docs/notes.md` → Surfacing.
  */
 function drawNotes(
   ctx: CanvasRenderingContext2D,
@@ -280,6 +282,8 @@ function drawNotes(
   });
   if (list.length === 0) return;
   const focusId = focusedNoteId();
+  // A closed rail keeps the pins but quiets them (see `analyzer/notePlugins.ts`).
+  const quiet = notesPanelOpen() ? 1 : 0.55;
 
   for (const note of list) {
     const span = noteSpan(note);
@@ -289,7 +293,7 @@ function drawNotes(
     const focused = note.id === focusId;
     const isRange = span.end > span.start;
     if (isRange) {
-      ctx.globalAlpha = focused ? 0.22 : 0.12;
+      ctx.globalAlpha = focused ? 0.22 : 0.12 * quiet;
       ctx.fillStyle = theme.note;
       ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
       ctx.globalAlpha = 1;
@@ -298,7 +302,7 @@ function drawNotes(
     const p1 = Math.round(x1);
     // A faint stem up out of the lane (full height for the focused note) so the anchor
     // is still readable against the waveform; a focused range also rules its end.
-    ctx.globalAlpha = focused ? 1 : 0.7;
+    ctx.globalAlpha = focused ? 1 : 0.7 * quiet;
     ctx.strokeStyle = theme.note;
     ctx.lineWidth = focused ? 1.5 : 1;
     ctx.beginPath();
@@ -309,7 +313,7 @@ function drawNotes(
       ctx.lineTo(p1 + 0.5, stripTop + 0.5);
     }
     ctx.stroke();
-    ctx.globalAlpha = focused ? 1 : 0.85;
+    ctx.globalAlpha = focused ? 1 : 0.85 * quiet;
     ctx.fillStyle = theme.note;
     if (isRange) {
       // The span bar between two grab handles, one per edge.

@@ -55,25 +55,34 @@ export default function ToolParamsForm(props: { id: AnalyzerId }) {
   );
 }
 
-/** An on/off tool param, rendered as a switch (0/1 crossing IPC unchanged). */
+/**
+ * An on/off tool param, rendered as a switch (0/1 crossing IPC unchanged).
+ *
+ * The row is a **`div`**, not a `label`, and that is load-bearing: Kobalte's
+ * `Switch.Control` is a `div` with its own `onClick` → `toggle()`, and the `Switch.Input`
+ * it hides is a real checkbox. A wrapping `label` activates that checkbox too, so a click
+ * on the switch fired **both** toggles and cancelled itself out — the visible track never
+ * responded. The working "Randomized overlap" row in `SharedParamsForm` is a `div` for the
+ * same reason. The accessible name comes from the input's `aria-label`.
+ */
 function ToggleParam(props: { id: AnalyzerId; field: ToolParamField }) {
   const on = () => toolOptions[props.id][props.field.key] !== 0;
   return (
-    <Tooltip label={props.field.title ?? props.field.label}>
-      <label class="params-field" data-testid={`toolparam.${props.id}.${props.field.key}`}>
-        <span class="params-label">{props.field.label}</span>
+    <div class="params-field" data-testid={`toolparam.${props.id}.${props.field.key}`}>
+      <span class="params-label">{props.field.label}</span>
+      <Tooltip label={props.field.title ?? props.field.label}>
         <KSwitch
           class="params-switch"
           checked={on()}
           onChange={(checked) => setToolOption(props.id, props.field.key, checked ? 1 : 0)}
         >
-          <KSwitch.Input class="params-switch-input" />
+          <KSwitch.Input class="params-switch-input" aria-label={props.field.label} />
           <KSwitch.Control class="params-switch-control">
             <KSwitch.Thumb class="params-switch-thumb" />
           </KSwitch.Control>
         </KSwitch>
-      </label>
-    </Tooltip>
+      </Tooltip>
+    </div>
   );
 }
 

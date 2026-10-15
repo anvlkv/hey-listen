@@ -126,16 +126,21 @@ only tabs are Workbench tabs, and a note panel is chrome, not content.
   the font scale), **not** part of the project.
 - The list is **sorted by `timeSecs`**, one row per note. A row is a **title bar**
   — a compact, visually separated bar with the heading (the body's first line) on the
-  left and the row actions as **borderless icons** on the right (`open chart` when the
-  note has an analyzer, `edit`, `popout`, `delete`) — over its tool + time subtitle, its
-  **current** values line (with the frozen snapshot struck through when it differs), and
-  its **full rendered body** (clamped to a height, expandable with a chevron). Selecting
-  the heading **focuses** the note (below). Editing swaps the body for the editor
-  (above); the row never shows a note twice.
+  left and the row actions as **borderless icons** on the right (`analyze`, `open chart`
+  when the note has an analyzer, `edit`, `popout`, `delete`) — over its tool + time
+  subtitle, its **current** values line (with the frozen snapshot struck through when it
+  differs, and kept visible while editing, since it is what the note is *about*), and its
+  **full rendered body** (clamped to a height, expandable with a chevron). Selecting the
+  heading or the chart action **selects** the note (ADR-19); **Analyze** is the one
+action that moves the analysis window. Editing swaps the body for the editor (above);
+  the row never shows a note twice.
 - **Popout** — the `popout` action opens the note in its **own window** (a real Tauri
   window, exactly like an analyzer tab's *Pop out to window*), for a roomier markdown
   surface. Opening a note that already has a window **raises** it rather than opening a
   duplicate.
+- **Closing the rail** (its chevron, the Toolbar toggle, or a persisted-closed start)
+  **unfocuses**: the focused-note overlay disappears from every chart and the lane
+  anchors — still there, so the notes remain locatable — are drawn dull.
 
 ## Surfacing: Timeline and charts
 
@@ -148,7 +153,8 @@ window move handle and of a chart's drag/zoom area. The lane is also where they 
   **range** note resizes from whichever edge you took (grabbing anywhere across a range
   takes its nearer edge). Press **empty lane space** and drag to select a span; releasing
   creates a **range** note over it (a bare click does nothing). Hovering a handle shows a
-  hint (heading + tool + values line); clicking a note's handle focuses it.
+  hint (heading + tool + values line); clicking a note's handle **selects** it (it never
+  reframes — ADR-19).
 - **Timeline** — the lane runs along the bottom of the waveform, and holds the
   **Timeline notes** (those with no chart). It also mirrors the **hovered chart's
   cursor** as a dashed rule, so the moment a chart is pointing at is visible against the
@@ -164,13 +170,18 @@ window move handle and of a chart's drag/zoom area. The lane is also where they 
   frequency-axis `spectrum` (a time marker has no meaning on a frequency axis).
 - **Marker** — a full-height vertical rule on each of the note's edges (a shaded span
   for a range) plus its handles in the lane, with a **label** (the values line, else the
-  heading) in a chip just above it. Clicking a marker focuses the note.
+  heading) in a chip just above it. Clicking a marker **selects** the note.
 
-**Focus follows the click:** focusing a note **opens (or raises) the chart it
-belongs to** and **sets the analysis window / cursor to the note's time** — the
-same behaviour the Sidebar uses when it raises a popped-out tool (`focus_popout`).
-**Creating a note never reframes**, though: writing an annotation is not a request to
-move the analysis (see [Creating a note](#creating-a-note)).
+**Focus follows the click:** selecting a note **opens (or raises) the chart it belongs
+to** but **never moves the analysis window** — a note is a remark about a moment, not a
+request to reframe. Moving the window onto a note is the row's explicit **Analyze**
+action (a range becomes the window; a point gets a window of the current width starting
+at its time), so both *creating* and *selecting* a note leave the analysis alone. See
+[Creating a note](#creating-a-note) and `decisions.md` → ADR-19.
+
+**The focused note is a panel concept.** Closing the rail drops the focus, which also
+clears every chart's full-height overlay and the Timeline's stem; the lane anchors stay
+(they are the index of where the notes are) but are drawn **dull**.
 
 ## Creating a note
 
@@ -187,8 +198,28 @@ Three entry points, one model:
   already sets the window — *reframing* — so the Timeline right-click is left alone.)
 
 Creating captures the **values snapshot** at that moment (frozen), opens the
-panel if it is collapsed, **opens the new note's editor**, and focuses it — without
-moving the analysis window.
+panel if it is collapsed, **opens the new note's editor**, and **selects** it — without
+moving the analysis window. There is also a **note at the playhead** action in the
+Timeline transport (below), which is how a note is pinned to the moment being auditioned.
+
+## Preview playback and the shared playhead
+
+The Timeline's transport auditions the analysis window through the core (ADR-9). Three
+transport facilities are shared with the notes layer:
+
+- **Speed (varispeed).** A **log slider** beside the play button (`lib/previewSpeed.ts`,
+  0.25×–4×, **1× exactly at the centre** — a linear track would crush every slow rate into
+  its first percent). The core resamples the region (`preview_region`'s `speed`), so a rate
+  **shifts pitch** like a tape machine rather than time-stretching, and it is a *preview*
+  control only: analysis always reads the source at 1×. The frontend tracks the rate so the
+  locally computed playhead stays in source seconds.
+- **The playhead on every time chart.** The position rides the shared chart bus
+  (`playhead`), so a chart draws the transport's own solid rule (the uPlot charts via
+  `syncPlugins.playheadRule`, the canvas heatmaps via `chartCanvas.drawPlayhead`) — what is
+  being auditioned is visible where the data is, not only on the Timeline.
+- **Note at the playhead.** The transport's `note-sticky` button drops a **point** note at
+  the playhead (enabled only while previewing), taking the focused analyzer as its chart
+  like the panel's Add — so an observation made *while listening* lands on the right moment.
 
 ## Persistence and cross-window
 
