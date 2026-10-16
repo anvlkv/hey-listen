@@ -159,8 +159,30 @@ img {
   font-size: clamp(1rem, 2.2vw, 1.2rem);
 }
 
-.media {
+/* --- Hero composition ------------------------------------------------------ */
+
+.hero-stage {
+  position: relative;
   margin-top: 3rem;
+}
+
+/*
+ * The popout card overlapping the workbench shot. Its CSS spot is the *bottom* of the
+ * stage; `main.js` lifts it from there all the way to the top as the hero scrolls (a
+ * reverse parallax). Without JS it simply sits here.
+ */
+.stage-float {
+  position: absolute;
+  right: -4%;
+  bottom: -8%;
+  z-index: 2;
+  width: 38%;
+  margin: 0;
+  will-change: transform;
+}
+
+.stage-float .shot {
+  box-shadow: 0 34px 74px -20px rgba(0, 0, 0, 0.88);
 }
 
 /* --- Screenshots ---------------------------------------------------------- */
@@ -221,6 +243,20 @@ img {
   font-size: 0.95rem;
 }
 
+/*
+ * An odd number of features leaves the last one alone in the final row: centre it, so
+ * the leftover reads as a deliberate closing note rather than a gap. Only in the
+ * two-column layout — the single-column one just stacks.
+ */
+@media (min-width: 721px) {
+  .feature-list > li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    justify-self: center;
+    max-width: 44ch;
+    text-align: center;
+  }
+}
+
 /* --- Detail screenshots --------------------------------------------------- */
 
 .details {
@@ -276,6 +312,18 @@ img {
   margin: 1.1rem 0 0;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+/* The release the button points at, tucked into the button itself. */
+.button-version {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid rgba(25, 3, 16, 0.28);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0.72;
 }
 
 /* --- Footer --------------------------------------------------------------- */
@@ -478,6 +526,14 @@ img {
   .feature-list,
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* No room to overlap once the shot is phone-width: the card rejoins the flow.
+     (The scroll parallax is skipped at this width in `main.js`.) */
+  .stage-float {
+    position: static;
+    width: 100%;
+    margin-top: 1.5rem;
   }
 }
 

@@ -448,6 +448,29 @@ npm run dev      # then open http://localhost:1420/preview.html
 
 `vite build` builds only `index.html`, so `preview.html` is never bundled or shipped.
 
+### Marketing screenshots
+
+`npm run screenshots` (`screenshots.wdio.conf.ts` → `e2e/screenshots/capture.spec.ts`)
+drives the **release** binary through the same embedded WebDriver `test:e2e` uses and
+writes the marketing page's PNGs into `site/assets/`: `hero.png` (the whole window — the
+Workbench grid with the notes rail open), `pitch.png` (the Pitch (autocorrelation)
+popout window), and the `spectrum.png` / `tempo.png` / `filter.png` details. It lives
+outside `e2e/specs/` on purpose, so CI never runs it: it is a manual, GUI-only task (it
+launches a window and plays a moment of audio).
+
+The shots come from a **project file**, not a scripted sequence of calls: the spec opens
+`PROJECT` — a `.heyl` that carries the source audio (the PCM is embedded), the Workbench
+**grid**, the band-pass filter, the analysis window and the notes — and captures what it
+restores. That file is deliberately *not* in the repo, so a fresh clone has to point
+`PROJECT` at its own project to recapture. Two things bite here:
+
+- **A split layout cannot be scripted.** `openTool` adds every new tab to the focused
+group, so the grid only exists in a restored layout.
+- **Re-apply the filter after the restored popout boots.** Loading a project puts the
+graph back in the editor, but the *analysis* does not pick it up until the graph is
+pushed to the core again (the popout window boots its own copy and lands it in the shared
+core after the project's own), so the spec calls `set_filter_graph` once the popout is up.
+
 ### When the shell does not render
 
 A first paint that never happens is the hardest E2E failure to read: the app process and

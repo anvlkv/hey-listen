@@ -29,8 +29,9 @@ jobs:
           node-version: 24
 
       # Regenerate the documentation subpages (acknowledgements + roadmap) from the
-      # repo's markdown sources, so the published pages never drift.
-      - name: Build documentation subpages
+      # repo's markdown sources, and stamp the release version (from package.json) into
+      # the hand-authored page, so the published site never drifts from the repo.
+      - name: Build the site (doc subpages + version)
         run: node scripts/buildSite.mjs
 
       - uses: actions/configure-pages@v5
