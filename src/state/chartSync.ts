@@ -114,12 +114,34 @@ export function resetChartViews() {
   analyzerBus.setData("view", null);
 }
 
+/** How long the analysis window must settle before the charts drop their zoom. */
+const RESET_DEBOUNCE_MS = 120;
+
 // The analysis window **is** a time chart's natural x extent, so moving it must re-fit
 // every chart. Two things otherwise leave a chart stuck on a stale range: the heatmaps
 // clamp the range they were showing into the new extent, and the uPlot charts re-apply
 // the shared range after the `setData` that follows uPlot's own fit. Clearing the shared
 // view is the same "fit your own data" signal the source replacement sends (and it
 // propagates to the sibling windows through `uiState`). See `chartInteraction.ts`.
+//
+// It is **debounced on the settle**, not fired per change: the window moves on every
+// pointermove of a drag, while the data a chart would re-fit to only arrives when the
+// (itself debounced) analysis lands ~200 ms later — so clearing the view per move re-fits
+// and repaints every open chart for nothing, and pushes that to the project's other
+// windows each time. That per-move work is what made a window drag unusable.
 createRoot(() => {
-  createEffect(on([windowStart, windowEnd], () => resetChartViews(), { defer: true }));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(
+    on(
+      [windowStart, windowEnd],
+      () => {
+        if (timer !== undefined) clearTimeout(timer);
+        timer = setTimeout(() => {
+          timer = undefined;
+          resetChartViews();
+        }, RESET_DEBOUNCE_MS);
+      },
+      { defer: true },
+    ),
+  );
 });

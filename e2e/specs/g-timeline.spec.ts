@@ -1,5 +1,5 @@
 /**
- * G. Timeline (M8) — matrix rows G1–G4 (`docs/testing.md`).
+ * G. Timeline (M8) — matrix rows G1–G5 (`docs/testing.md`).
  *
  * The waveform window (start/end handles + move bar) is drawn on the Timeline
  * canvas, not the DOM, so G1 addresses the end handle by its known canvas position
@@ -19,9 +19,12 @@ import {
   waitForAnalyzer,
   closeAllTabs,
   click,
+  mockReturn,
   textOf,
   wheelOver,
   dragTimelineHandle,
+  startInvokeCounts,
+  takeInvokeCounts,
 } from "../support/helpers.ts";
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
@@ -41,6 +44,9 @@ describe("G. Timeline", () => {
   before(async () => {
     await waitForApp();
     await closeAllTabs();
+    // Install the stubbed dialogs (file picker / confirm) here rather than inheriting
+    // them from whichever spec file happens to run first, so this suite also stands alone.
+    await mockReturn("confirm", true);
   });
 
   it("G1 — dragging the window handle settles the window and re-runs analysis", async () => {
@@ -120,5 +126,28 @@ describe("G. Timeline", () => {
       async () => Math.abs((await span()) - refit) < 0.002,
       "Fit disagrees with the re-fit after the window moved",
     );
+  });
+
+  it("G5 — a window drag coalesces its cross-window pushes", async () => {
+    // Regression: every pointermove pushed the shared UI state (the window, the view…)
+    // and the core broadcast each push to the project's other windows, whose handlers
+    // re-ran effects and repainted. At pointer rate that queued cross-window work faster
+    // than it drained, so dragging the window with a popout open stopped responding.
+    await openFixture("sine440");
+    await openTool("spectrogram");
+    await waitForAnalyzer("spectrogram");
+
+    const before = await timelineReadout();
+    await startInvokeCounts();
+    // One gesture, twenty moves — a fast drag.
+    await dragTimelineHandle("end", -160, 20);
+    const counts = await takeInvokeCounts();
+
+    // The gesture did move the window (so the drag was real) …
+    await waitFor(async () => (await timelineReadout()) !== before, "the window never moved");
+    // … it did push the new window to the project's other windows …
+    expect(counts.set_ui_state ?? 0).toBeGreaterThan(0);
+    // … but not once per move: each push is a broadcast every other window acts on.
+    expect(counts.set_ui_state ?? 0).toBeLessThanOrEqual(6);
   });
 });

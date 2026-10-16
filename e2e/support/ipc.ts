@@ -29,47 +29,86 @@ const DIALOG_DEFAULTS: Record<string, MockEntry> = {
 };
 
 /**
+ * Install the seam override (idempotent) through the app's own IPC seam
+ * (`src/lib/ipc.ts`), seeding the dialog defaults so a real dialog can never appear.
+ * The override counts invokes when a count is active and dispatches any mock.
+ */
+async function ensureOverride(): Promise<void> {
+  await browser.tauri.execute(
+    (_tauri, defaults) => {
+      const g = globalThis as unknown as {
+        __heylisten_test__?: {
+          setInvokeOverride: (fn: unknown) => void;
+          real: (...args: unknown[]) => Promise<unknown>;
+        };
+        __e2e_mocks__?: Record<string, MockEntry>;
+        __e2e_counts__?: Record<string, number>;
+        __e2e_installed__?: boolean;
+      };
+      const seam = g.__heylisten_test__;
+      if (!seam) throw new Error("the app's __heylisten_test__ IPC seam is missing");
+      g.__e2e_mocks__ = {
+        ...(defaults as Record<string, MockEntry>),
+        ...(g.__e2e_mocks__ ?? {}),
+      };
+      if (g.__e2e_installed__) return;
+      seam.setInvokeOverride((c: string, a?: unknown, o?: unknown) => {
+        // Read the table per call: `__e2e_mocks__` is re-created on every install, and a
+        // capture here would go stale the moment a later `setMock` added an entry.
+        const table = g.__e2e_mocks__ ?? {};
+        const counts = g.__e2e_counts__;
+        if (counts) counts[c] = (counts[c] ?? 0) + 1;
+        const mock = table[c];
+        if (mock) {
+          if (mock.reject) return Promise.reject(new Error(mock.message ?? "mocked rejection"));
+          return Promise.resolve(mock.value);
+        }
+        return seam.real(c, a, o);
+      });
+      g.__e2e_installed__ = true;
+    },
+    DIALOG_DEFAULTS as unknown as Record<string, unknown>,
+  );
+}
+
+/**
  * Install a command mock through the app's own IPC seam (`src/lib/ipc.ts`).
  *
  * Installing a mock always seeds the dialog defaults first, so a real dialog can
  * never appear.
  */
 export async function setMock(command: string, entry: MockEntry): Promise<void> {
+  await ensureOverride();
   await browser.tauri.execute(
-    (_tauri, cmd, patch, defaults) => {
-      const g = globalThis as unknown as {
-        __heylisten_test__?: {
-          setInvokeOverride: (fn: unknown) => void;
-          real: (...args: unknown[]) => Promise<unknown>;
-        };
-        __e2e_mocks__?: Record<string, unknown>;
-        __e2e_installed__?: boolean;
-      };
-      const seam = g.__heylisten_test__;
-      if (!seam) throw new Error("the app's __heylisten_test__ IPC seam is missing");
-      g.__e2e_mocks__ = {
-        ...(defaults as Record<string, unknown>),
-        ...(g.__e2e_mocks__ ?? {}),
-      };
-      const table = g.__e2e_mocks__;
-      table[cmd as string] = patch;
-      if (!g.__e2e_installed__) {
-        seam.setInvokeOverride((c: string, a?: unknown, o?: unknown) => {
-          const current = g.__e2e_mocks__!;
-          if (Object.prototype.hasOwnProperty.call(current, c)) {
-            const m = current[c] as MockEntry;
-            if (m.reject) return Promise.reject(new Error(m.message ?? "mocked rejection"));
-            return Promise.resolve(m.value);
-          }
-          return seam.real(c, a, o);
-        });
-        g.__e2e_installed__ = true;
-      }
+    (_tauri, cmd, patch) => {
+      (globalThis as unknown as { __e2e_mocks__: Record<string, unknown> }).__e2e_mocks__[
+        cmd as string
+      ] = patch;
     },
     command,
     entry as unknown as Record<string, unknown>,
-    DIALOG_DEFAULTS as unknown as Record<string, unknown>,
   );
+}
+
+/**
+ * Start counting invokes per command (they still run for real). Used to assert that a
+ * gesture does not talk to the core at pointer rate — see [`takeInvokeCounts`].
+ */
+export async function startInvokeCounts(): Promise<void> {
+  await ensureOverride();
+  await browser.tauri.execute(() => {
+    (globalThis as unknown as { __e2e_counts__?: Record<string, number> }).__e2e_counts__ = {};
+  });
+}
+
+/** Read and reset the per-command invoke counts from [`startInvokeCounts`]. */
+export async function takeInvokeCounts(): Promise<Record<string, number>> {
+  return (await browser.tauri.execute(() => {
+    const g = globalThis as unknown as { __e2e_counts__?: Record<string, number> };
+    const counts = g.__e2e_counts__ ?? {};
+    g.__e2e_counts__ = {};
+    return counts;
+  })) as Record<string, number>;
 }
 
 /** Mock a backend command to always resolve with `value`. */

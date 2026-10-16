@@ -62,4 +62,13 @@ export {
 export { openSelect, pickOption, openThenClosePopover, dismissPopovers } from "./popups.ts";
 
 // --- IPC: mock, invoke, emit ----------------------------------------------
-export { mockReturn, mockReject, restoreMocks, invokeCore, emitEvent, menuAction } from "./ipc.ts";
+export {
+  mockReturn,
+  mockReject,
+  restoreMocks,
+  invokeCore,
+  emitEvent,
+  menuAction,
+  startInvokeCounts,
+  takeInvokeCounts,
+} from "./ipc.ts";
