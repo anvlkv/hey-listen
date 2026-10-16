@@ -170,10 +170,15 @@ img {
  * The popout card overlapping the workbench shot. Its CSS spot is the *bottom* of the
  * stage; `main.js` lifts it from there all the way to the top as the hero scrolls (a
  * reverse parallax). Without JS it simply sits here.
+ *
+ * The overhang is a fixed 20px, not a percentage of the container: the container keeps
+ * at least a 24px margin inside the page, so the card can hang past the shot without
+ * ever widening the document (a `%` overhang overflowed at ~1024px and popped a second,
+ * horizontal scrollbar).
  */
 .stage-float {
   position: absolute;
-  right: -4%;
+  right: -20px;
   bottom: -8%;
   z-index: 2;
   width: 38%;
