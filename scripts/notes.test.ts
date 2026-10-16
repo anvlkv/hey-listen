@@ -13,8 +13,9 @@ import {
   valuesEqual,
 } from "../src/lib/note";
 import type { NoteValues } from "../src/bindings/NoteValues";
-import type { MatrixResult } from "../src/bindings/MatrixResult";
-import type { SeriesResult } from "../src/bindings/SeriesResult";
+// The *app's* result types, not the bindings': the runner tags every result with the
+// tool it came from (`tool`), and `valuesText` dispatches on it.
+import type { MatrixResult, SeriesResult } from "../src/state/analyzer/types";
 import { valuesText } from "../src/state/notes/format";
 import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
@@ -132,6 +133,7 @@ check("reads a matrix tool's values line, not a series one", () => {
   // series and read `view.formatY` (undefined for a matrix tool) — which threw inside
   // `createNote` and silently dropped the note.
   const matrix: MatrixResult = {
+    tool: "melSpectrogram",
     sampleRate: 48000,
     hopSize: 512,
     frames: 2,
@@ -152,10 +154,10 @@ check("reads a matrix tool's values line, not a series one", () => {
   assertEqual(valuesText("melSpectrogram", empty, 0), "t 0.000 s · no data");
 
   const series: SeriesResult = {
+    tool: "spectralCentroid",
     sampleRate: 48000,
     hopSize: 512,
     frames: 2,
-    duration: 2,
     times: [0, 1],
     windowStart: 0,
     values: [100, 220],
