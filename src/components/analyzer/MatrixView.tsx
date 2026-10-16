@@ -22,7 +22,7 @@ import {
   type ChartView,
   type PlotBox,
 } from "./chartGeometry";
-import { chartTheme, resolvedTheme } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
   formatHz,
@@ -178,9 +178,10 @@ export default function MatrixView(props: {
   }
 
   createEffect(() => {
-    // Track everything the canvas draws (theme and the preview playhead included, so a
-    // theme switch and the transport both repaint).
-    resolvedTheme();
+    // Track everything the canvas draws (the active theme and the preview playhead
+    // included, so any theme switch and the transport both repaint). Keyed on the theme
+    // **id**, not just its base: two themes on the same base still recolour the canvas.
+    activeThemeId();
     image();
     chart.size();
     chart.hover();

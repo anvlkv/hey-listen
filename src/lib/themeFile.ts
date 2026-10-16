@@ -44,10 +44,12 @@ export interface ChartTheme {
   overlayRolloff: string;
   /** Canvas background behind a spectrogram/heatmap. */
   spectroBackground: string;
-  /** Hover crosshair colour (canvas charts). */
+  /** Hover crosshair colour (canvas charts; also the uPlot crosshair, via CSS). */
   hover: string;
-  /** Mirrored (synced) cursor colour (canvas charts). */
+  /** Mirrored (synced) cursor colour — the same cursor on every chart in a group. */
   mirror: string;
+  /** Drag-to-zoom selection tint (uPlot's `.u-select` rectangle). */
+  select: string;
   /** Timeline/spectrogram full-canvas background. */
   background: string;
   /** Timeline waveform-area background. */
@@ -62,6 +64,12 @@ export interface ChartTheme {
   midline: string;
   /** Note annotation marker colour (Timeline pins + chart note markers). */
   note: string;
+  /** Rhythm marker: detected onsets. */
+  markerOnset: string;
+  /** Rhythm marker: detected beats. */
+  markerBeat: string;
+  /** Rhythm marker: detected downbeats (drawn heavier). */
+  markerDownbeat: string;
   /** Timeline filtered-overlay stroke. */
   filtered: string;
   /** Timeline window move-handle fill (semi-transparent accent). */

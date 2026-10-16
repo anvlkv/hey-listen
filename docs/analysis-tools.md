@@ -164,3 +164,14 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
 - **notes** — every time-axis chart also draws its project notes as anchors in a thin
   strip along the bottom (its own at full strength, other charts' muted, the focused
   one as a full-height rule with a label). See [`notes.md`](notes.md) → Surfacing.
+
+**Cursors and overlays** are theme roles, not per-tool constants (see
+[`theming.md`](theming.md) → the `ChartTheme` role list): `hover` is where the pointer
+is (the uPlot crosshair **and** the canvas cross, so both charts agree), `mirror` is the
+same cursor mirrored in from another chart in the group (dashed), `playhead` is the
+preview transport (solid), `reference` is a target/threshold rule, and `note` the
+annotation anchors. Each is held at a distinct hue in every bundled theme, so several
+can be on a chart at once. Over a **heatmap** the background *is* the data, so the
+cross, cursor, playhead and contours are stroked with a background-coloured **halo**
+(`chartCanvas.strokeOverRamp`) — the halo separates the line from whatever band of the
+ramp it crosses, which no single stroke colour could do.

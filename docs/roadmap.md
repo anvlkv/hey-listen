@@ -454,9 +454,21 @@ driven throughout — no per-tool chart components.
 - **Level meters.** The `levels` tool draws **peak / RMS meter bars** (dBFS scale with
   a peak-hold marker) above its numeric cards.
 
-> **Theme-aware.** Three new `ChartTheme` fields — `reference`, `overlayCentroid`,
-> `overlayRolloff` — default in the dark/light base palettes; the meter colours are the
-> CSS custom properties `--meter-low/mid/high/peak/unlit`. See [`theming.md`](theming.md).
+> **Theme-aware.** The overlays are `ChartTheme` roles, so a theme drives them: the three
+> new fields `reference`, `overlayCentroid`, `overlayRolloff` default in the dark/light
+> base palettes (as do `select`, the drag-zoom tint, and the rhythm markers
+> `markerOnset` / `markerBeat` / `markerDownbeat`, which used to be hardcoded per base);
+> the meter colours are the CSS custom properties `--meter-low/mid/high/peak/unlit`. See
+> [`theming.md`](theming.md).
+>
+> **Cursor and overlay legibility.** A chart can carry several marks at once, so every
+> bundled theme holds each role at a hue of its own — previously `reference` was the
+> *same* colour as the playhead in the dark/light bases, the retrowave `mirror` was the
+> same pink as its playhead, and the mirror was the same blue as a beat marker in both
+> bases. uPlot's own crosshair and drag-select are now themed too (derived to
+> `--chart-hover` / `--chart-select`; its stylesheet is the only place they can be set),
+> and marks drawn over a heatmap get a background-coloured **halo** so they read against
+> any band of the ramp.
 >
 > **Delivered:** `SeriesView` + `seriesPlugins.ts` (reference line, semitone grid);
 > `WaveformTab` (dB), `SpectrumTab` (log axis), `SpectrogramTab` (contours),

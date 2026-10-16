@@ -14,6 +14,12 @@ import { themeById } from "./registry";
  *   theme's `ui` overlay is written as inline custom properties on the root, and the
  *   `chart` / `colormap` / `flow` overlays are merged by their readers.
  *
+ * Two `chart` colours are **derived** onto the root as `--chart-*`, because they land in
+ * CSS rather than on a canvas: uPlot's own hover crosshair and its drag-select rectangle
+ * are painted by its stylesheet from these properties (see [`analyzer.css`]). Deriving
+ * them keeps `chart.hover` / `chart.select` the single source, so an installed theme
+ * needs no `ui` duplication.
+ *
  * Everything is app-level chrome, persisted in `localStorage` — a theme is **not**
  * part of the project file. See `docs/theming.md` and ADR-15.
  */
@@ -124,7 +130,14 @@ export function resolvedTheme(): ThemeBase {
 /** The inline custom properties the last apply wrote (cleared on the next apply). */
 let appliedOverlay: string[] = [];
 
-/** Push the active theme onto the document root (base + `ui` overlay). */
+/**
+ * The `chart` fields CSS reads directly, as `--chart-<name>`. uPlot's crosshair and
+ * drag-select are styled by its own stylesheet, which has no per-instance option for
+ * either — so the palette is bridged to CSS here rather than duplicated in `ui`.
+ */
+const DERIVED_CHART_VARS = ["hover", "select"] as const;
+
+/** Push the active theme onto the document root (base + `ui` overlay + derived chart vars). */
 export function applyTheme() {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -135,6 +148,12 @@ export function applyTheme() {
   appliedOverlay = [];
   for (const [name, value] of Object.entries(theme.ui ?? {})) {
     root.style.setProperty(name, value);
+    appliedOverlay.push(name);
+  }
+  const chart = chartTheme();
+  for (const field of DERIVED_CHART_VARS) {
+    const name = `--chart-${field}`;
+    root.style.setProperty(name, chart[field]);
     appliedOverlay.push(name);
   }
 }

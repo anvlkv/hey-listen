@@ -151,6 +151,25 @@
   touch-action: none;
 }
 
+/* uPlot paints its own hover crosshair and drag-select rectangle from its stylesheet,
+   with no per-chart option for either. Recolour both from the active theme's chart
+   palette (`--chart-hover` / `--chart-select`, written by the apply pipeline), so the
+   crosshair matches the canvas charts' hover cross and the selection stays visible on
+   a dark background. */
+.uplot .u-hz .u-cursor-x,
+.uplot .u-vt .u-cursor-y {
+  border-right-color: var(--chart-hover, #607d8b);
+}
+
+.uplot .u-hz .u-cursor-y,
+.uplot .u-vt .u-cursor-x {
+  border-bottom-color: var(--chart-hover, #607d8b);
+}
+
+.uplot .u-select {
+  background: var(--chart-select, rgba(0, 0, 0, 0.07));
+}
+
 /* Zoom controls, overlaid on the top-right of a chart. */
 .zoom-controls {
   position: absolute;
