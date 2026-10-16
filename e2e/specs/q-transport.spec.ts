@@ -22,6 +22,7 @@ import {
   mockReturn,
   openFixture,
   openTool,
+  rowSignature,
   waitFor,
   waitForAnalyzer,
   waitForApp,
@@ -81,25 +82,6 @@ async function playheadOnChart(chart: string, idle: string): Promise<boolean> {
     if ((await rowSignature(chart)) !== idle) return true;
   }
   return false;
-}
-
-/**
- * A signature of one horizontal line of pixels across a canvas' middle. The playhead is a
- * full-height rule, so a single row catches it — unlike a sparse sample of the whole
- * canvas, which can miss a ~2 px line entirely.
- */
-async function rowSignature(selector: string): Promise<string> {
-  return (await browser.execute((sel: string) => {
-    const c = document.querySelector(sel) as HTMLCanvasElement | null;
-    const ctx = c?.getContext("2d");
-    if (!c || !ctx || c.width === 0) return "none";
-    const { data } = ctx.getImageData(0, Math.floor(c.height / 2), c.width, 1);
-    let hash = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      hash = (hash * 31 + data[i] + data[i + 1] * 3 + data[i + 2] * 7) | 0;
-    }
-    return `${c.width}:${hash}`;
-  }, selector)) as string;
 }
 
 describe("Q. Preview transport", () => {

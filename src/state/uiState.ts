@@ -1,6 +1,6 @@
 import { createEffect, createRoot } from "solid-js";
 import type { Note } from "../bindings/Note";
-import { analyzerBus } from "./chartSync";
+import { analyzerBus, readBusMessage } from "./chartSync";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
 import { focusedNoteId, notes, replaceNotes, setFocusedNoteId } from "./notes";
@@ -118,7 +118,9 @@ export async function initUiState(): Promise<void> {
     }
     for (const group of ["time", "freq"] as const) {
       createEffect(() => {
-        const view = analyzerBus.data.view;
+        // Read every field of the message in every run (`readBusMessage`): returning early
+        // on a constant tag would drop the position from this effect's dependencies.
+        const view = readBusMessage(analyzerBus.data.view);
         // A cleared view (source replaced) propagates as `null` too, so the other
         // windows fit the new timeline instead of keeping a stale zoom.
         if (view == null) {
@@ -133,7 +135,7 @@ export async function initUiState(): Promise<void> {
       // Only the pointers this window owns are pushed; a remote cursor is applied, never
       // echoed back (`sourceId === REMOTE_VIEW`).
       createEffect(() => {
-        const cursor = analyzerBus.data.cursorSync;
+        const cursor = readBusMessage(analyzerBus.data.cursorSync);
         if (cursor == null || cursor.sourceId === REMOTE_VIEW) return;
         if (cursor.group === group) pushUiState(`cursor:${group}`, cursor.x);
       });

@@ -91,6 +91,30 @@ export async function canvasSignature(selector: string): Promise<string> {
 }
 
 /**
+ * A signature of a **band of rows** across a selector's first canvas.
+ *
+ * A full-height rule (the mirrored cursor, the preview playhead, a note's rule) only
+ * occupies a couple of pixels, which the sparse sample of [`canvasSignature`] can miss
+ * entirely — so this reads a band of rows instead of one. A **band** (rather than a single
+ * row) because the mirrored cursor is *dashed*: a dashed rule's on/off phase is fixed
+ * relative to the plot, so one row can sit in a gap for every position of the line. Eight
+ * consecutive rows always cover a `[4, 4]` dash cycle. `"none"` means no canvas.
+ */
+export async function rowSignature(selector: string): Promise<string> {
+  return (await browser.execute((sel: string) => {
+    const c = document.querySelector(sel) as HTMLCanvasElement | null;
+    const ctx = c?.getContext("2d");
+    if (!c || !ctx || c.width === 0) return "none";
+    const { data } = ctx.getImageData(0, Math.max(0, Math.floor(c.height / 2) - 4), c.width, 8);
+    let hash = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      hash = (hash * 31 + data[i] + data[i + 1] * 3 + data[i + 2] * 7) | 0;
+    }
+    return `${c.width}:${hash}`;
+  }, selector)) as string;
+}
+
+/**
  * True when a canvas (scoped to `scope` when given) has drawn something over its
  * own background — the "renders non-empty" check the smoke tests use.
  */

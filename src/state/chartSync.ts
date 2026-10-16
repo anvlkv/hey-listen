@@ -70,6 +70,26 @@ export interface NotesMessageBus {
 }
 
 /**
+ * Read a bus message for a consumer, **all of its fields at once**.
+ *
+ * Two Solid-store rules make this worth centralising — both bit a chart (see the M14
+ * follow-up in `docs/roadmap.md`):
+ *
+ * - `setData` *merges* a message into its key, so only the message's **fields** notify
+ *   their readers: an effect that tracked the key alone fired once and then never again;
+ * - an effect keeps only the dependencies **its last run read**, so a reader that returned
+ *   early on one field (the group tag, say) *dropped* the others and stopped firing when
+ *   the position moved — it went on mirroring the position it had last drawn.
+ *
+ * Spreading the message reads every field in every run, whichever guard the caller applies
+ * afterwards, and hands back a plain snapshot so the caller cannot half-read it again.
+ * `null` means no message.
+ */
+export function readBusMessage<T extends object>(message: T | null | undefined): T | null {
+  return message ? ({ ...message } as T) : null;
+}
+
+/**
  * The **preview playhead** on the bus (M14 follow-up): the source second being
  * auditioned, or `null` when nothing is playing. Published by the Timeline's preview
  * controller, so a time chart can draw a rule at it — the preview is then visible on the
@@ -77,11 +97,12 @@ export interface NotesMessageBus {
  * analysis window), so the message carries no group tag; the frequency-axis `spectrum`
  * simply does not install the plugin.
  *
- * **Read `secs`, not the key.** The bus is a Solid store, and `setData` *merges* an object
+ * **Read the fields, not the key.** The bus is a Solid store, and `setData` *merges* an object
  * into an existing key: it notifies the message's **fields**, not the key itself, so a
  * consumer that tracked `data.playhead` alone would fire once and then never again. Every
- * reader of an object-valued key here therefore reads the field it needs (which is also
- * why the `view` / `cursorSync` readers all touch `.group`). See `syncPlugins.ts`.
+ * reader of a bus message here goes through [`readBusMessage`], which reads *all* the
+ * fields in every run — an early return before touching one of them would silently drop it
+ * from the effect. See `syncPlugins.ts`.
  */
 export interface PlayheadMessage {
   /** The source second now playing, or `null` when the preview stopped. */

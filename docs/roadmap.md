@@ -610,6 +610,18 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   the message's **fields** notify, and the listener fired once and went deaf. `redraw()`
   is now used everywhere a plugin repaints, and the watcher reads `playhead.secs`.
   Covered by the `q-transport` playhead cases.
+- **Bug: only the canvas charts followed a cursor mirrored from the other window.** With the
+  spectrogram popped out and a uPlot chart in `main`, the popout's hover reached the heatmap
+  but the chart drew the mirrored rule **once** — at the position it had at that moment —
+  and then froze. The repaint watcher returned early on the message's **tag** (`group` /
+  `sourceId`, constant for one publisher), and a Solid effect keeps only the dependencies
+  **its last run** read: after the early return the cursor position was no longer tracked, so
+  later moves changed nothing. The canvas painter was immune only because it reads the
+  position *while drawing*. A `readBusMessage` helper (`state/chartSync.ts`) now reads every
+  field of a bus message in every run — and hands back a snapshot so a caller cannot
+  half-read it again — and every consumer of an object-valued key goes through it. The
+  sibling of the `playhead.secs` trap above; covered by `o-cursor-sync.spec.ts` (a **second**
+  remote move must move the mirror again).
 - **Bug: notes never worked on the matrix tools** (mel spectrogram, MFCC, chromagram,
   spectral contrast). `valuesText` classified a result by testing `"times" in result`
   first, but a `MatrixResult` carries `times` **as well as** `bins`/`values`, so every
@@ -648,7 +660,7 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   coalescing.
 
 > **Delivered:** the notes interaction model (ADR-19), the varispeed slider and playhead
-> transport, and the six bug fixes above. See [`notes.md`](notes.md),
+> transport, and the seven bug fixes above. See [`notes.md`](notes.md),
 > [`architecture.md`](architecture.md) → Playback, and `e2e/specs/` (`d-analyzers`,
 > `g-timeline` → G4 / G5, `n-notes`, `o-cursor-sync`, `p-notes-interactions`,
 > `q-transport`).

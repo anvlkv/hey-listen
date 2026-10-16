@@ -362,7 +362,13 @@ covered.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
-| O1 | Cursor mirror | Hovering either window's chart repaints the other window's chart (the Timeline mirror proves the publish; the uPlot plugin and the canvas renderer are the two painters) | Scenario |
+| O1 | Cursor mirror | Hovering either window's chart repaints the other window's chart (the Timeline mirror proves the publish; the uPlot plugin and the canvas renderer are the two painters), and a **second** remote move keeps following — a watcher that tracked only the message tag froze the mirror after the first position | Scenario |
+
+> **Sampling a dashed rule.** The mirrored cursor is dashed (`[4, 4]`), and a dash's on/off
+> phase is fixed relative to the plot, so reading a **single** row of pixels can sit in a gap
+> at *every* position and report "nothing moved" — a false negative that cost a whole
+> debugging session. `rowSignature` (`e2e/support/analyzers.ts`) therefore reads a **band** of
+> eight consecutive rows, which always covers a dash cycle.
 
 > **Also covered:** the tool-param **switch** interaction (a click on Kobalte's control
 > toggles exactly once and repaints the chart) is an extra case in `d-analyzers.spec.ts`,
