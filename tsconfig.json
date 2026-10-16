@@ -21,6 +21,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  // `scripts/` holds the browser-free unit suites (`npm run test:unit`), which `tsx`
+  // runs without type-checking — so they are checked here, or their types drift silently.
+  "include": ["src", "scripts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
