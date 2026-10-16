@@ -4,7 +4,8 @@
  * Two small, dependency-free behaviours:
  *   1. A gentle scroll-reveal over `.reveal` elements (IntersectionObserver).
  *   2. A **reverse parallax** on the hero: the popout card rides from the bottom of the
- *      workbench shot all the way up to its top as the hero scrolls away.
+ *      workbench shot all the way up to its top as the hero scrolls away — from the very
+ *      first scrolled pixel.
  *
  * Both are fully disabled under `prefers-reduced-motion` (and, for the reveal, when
  * IntersectionObserver is unavailable) — the page then reads exactly as it would
@@ -65,16 +66,17 @@
 
     const place = () => {
       ticking = false;
-      const viewport = window.innerHeight || 1;
+      const scrolled = window.scrollY || 0;
       for (const card of cards) {
         // The stage is the card's positioned parent; the card's own CSS spot is the
         // *bottom* of it, so the travel is a pure upward offset.
         const box = (card.parentElement ?? card).getBoundingClientRect();
         if (box.height === 0) continue;
-        // 0 while the stage's top is still in the top fifth of the viewport (a fresh
-        // load shows the card at rest at the bottom), rising to 1 once the stage has
-        // moved a full height past that — the card ends at the top of the shot.
-        const progress = clamp((viewport * 0.2 - box.top) / box.height, 0, 1);
+        // Driven by the scroll position itself (the page-absolute bottom of the stage),
+        // so the card lifts from the very first scrolled pixel and comes to rest at the
+        // top of the shot exactly as the hero leaves the viewport.
+        const bottom = box.top + scrolled + box.height;
+        const progress = clamp(scrolled / bottom, 0, 1);
         const lift = Math.round(progress * box.height * PARALLAX_TRAVEL);
         card.style.transform = "translate3d(0, " + -lift + "px, 0)";
       }
