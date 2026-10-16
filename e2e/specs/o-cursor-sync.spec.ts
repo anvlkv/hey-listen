@@ -13,6 +13,7 @@ import {
   count,
   openFixture,
   openTool,
+  rowSignature,
   waitFor,
   waitForAnalyzer,
   waitForApp,
@@ -109,13 +110,13 @@ describe("N. Notes — cross-window cursor", () => {
     const popout = await popOut("spectrogram");
     const heatmap = `${analyzerPanel("spectrogram")} canvas`;
     const series = `${analyzerPanel("spectralCentroid")} .u-over`;
+    const seriesCanvas = series.replace(" .u-over", " canvas");
 
     // --- main → popout: hover the uPlot chart, the heatmap should follow ------------
     await browser.tauri.switchWindow("main");
-    const seriesBefore = await canvasSignature(series.replace(" .u-over", " canvas"));
+    const seriesBefore = await canvasSignature(seriesCanvas);
     await hover(series, 0.3, 0.4);
-    const seriesAfter = await canvasSignature(series.replace(" .u-over", " canvas"));
-
+    const seriesAfter = await canvasSignature(seriesCanvas);
     await browser.tauri.switchWindow(popout);
     const heatmapNear = await canvasSignature(heatmap);
     const leftMarker = heatmapNear;
@@ -127,7 +128,17 @@ describe("N. Notes — cross-window cursor", () => {
     // --- popout → main: hover the heatmap, the uPlot chart should follow ------------
     await hover(heatmap, 0.25, 0.4);
     await browser.tauri.switchWindow("main");
-    const seriesFromPopout = await canvasSignature(series.replace(" .u-over", " canvas"));
+    const seriesFromPopout = await canvasSignature(seriesCanvas);
+
+    // …and it must keep up as that remote pointer *moves*. A watcher that tracked only
+    // the message's tag (its group / sourceId — constant for one publisher) drew the
+    // first position and then mirrored it forever: the popout's moves reached the canvas
+    // heatmap (which reads the position while drawing) but not a uPlot chart.
+    const mirrorBefore = await rowSignature(seriesCanvas);
+    await browser.tauri.switchWindow(popout);
+    await hover(heatmap, 0.7, 0.4);
+    await browser.tauri.switchWindow("main");
+    const mirrorAfter = await rowSignature(seriesCanvas);
 
     expect({
       // The hovered chart draws its own crosshair, so it repaints locally too.
@@ -135,11 +146,13 @@ describe("N. Notes — cross-window cursor", () => {
       heatmapFollowedTheSeries: heatmapNear !== heatmapFar,
       heatmapMovedMarker: leftMarker !== heatmapFar,
       seriesFollowedTheHeatmap: seriesFromPopout !== seriesAfter,
+      seriesKeptUpWithTheSecondMove: mirrorAfter !== mirrorBefore,
     }).toEqual({
       seriesRepainted: true,
       heatmapFollowedTheSeries: true,
       heatmapMovedMarker: true,
       seriesFollowedTheHeatmap: true,
+      seriesKeptUpWithTheSecondMove: true,
     });
   });
 });

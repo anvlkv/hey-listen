@@ -47,6 +47,7 @@ export {
   cardValue,
   canvasHasInk,
   canvasSignature,
+  rowSignature,
 } from "./analyzers.ts";
 
 // --- Source ----------------------------------------------------------------

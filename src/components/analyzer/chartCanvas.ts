@@ -1,4 +1,4 @@
-import { analyzerBus } from "../../state/chartSync";
+import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
@@ -168,14 +168,19 @@ export function drawHoverCross(
   strokeOverRamp(ctx, path, chartTheme().hover, 1);
 }
 
-/** Draw the shared cursor from whichever other time chart is hovered. */
+/**
+ * The mirrored cursor of whichever other time chart is hovered (M5): a dashed rule, the
+ * same position on every time chart and on the Timeline. `readBusMessage` reads the whole
+ * message so the caller's repaint effect keeps the position in its dependencies — see
+ * `state/chartSync.ts`.
+ */
 export function drawMirrorCursor(
   ctx: CanvasRenderingContext2D,
   view: ChartView,
   box: PlotBox,
   id: string,
 ): void {
-  const msg = analyzerBus.data.cursorSync;
+  const msg = readBusMessage(analyzerBus.data.cursorSync);
   if (!msg || msg.group !== "time" || msg.sourceId === id || msg.x == null) return;
   const span = view.t1 - view.t0;
   if (!(span > 0)) return;

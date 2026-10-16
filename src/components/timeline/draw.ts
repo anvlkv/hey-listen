@@ -1,5 +1,5 @@
 import { columnExtent, type ChannelPick, type Peaks } from "../../lib/waveform";
-import { analyzerBus } from "../../state/chartSync";
+import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { filteredSamples } from "../../state/filtered";
 import { filterEnabled } from "../../state/graph";
 import { noteSpan } from "../../lib/note";
@@ -238,7 +238,7 @@ function drawChartCursor(
   t2x: (t: number) => number,
   h: number,
 ): void {
-  const message = analyzerBus.data.cursorSync;
+  const message = readBusMessage(analyzerBus.data.cursorSync);
   if (!message || message.group !== "time" || message.x == null) return;
   const x = t2x(message.x);
   ctx.save();

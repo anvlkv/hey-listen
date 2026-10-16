@@ -1,7 +1,12 @@
 import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
-import { analyzerBus, type AnalyzerBus, type SyncGroup } from "../../state/chartSync";
+import {
+  analyzerBus,
+  readBusMessage,
+  type AnalyzerBus,
+  type SyncGroup,
+} from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
 
 /** The uPlot instance type, taken from the wrapper's plugin props. */
@@ -28,11 +33,16 @@ export const mirrorCursor =
         ready: (u) => {
           pointerLeave = () => bus.setData("cursorSync", { sourceId: u.root.id, group, x: null });
           u.over.addEventListener("pointerleave", pointerLeave);
-          // Redraw when the shared cursor of this group changes.
+          // Redraw when the shared cursor of this group changes. `readBusMessage` reads
+          // every field of the message in every run: reading only the tag (group /
+          // sourceId — constant for one publisher) left the mirror frozen at the position
+          // it had last drawn, and returning early on the tag *dropped* the position from
+          // this effect altogether. See `state/chartSync.ts`.
           dispose = createRoot((root) => {
             createEffect(() => {
-              const msg = bus.data.cursorSync;
-              if (msg && msg.group === group && msg.sourceId !== u.root.id) u.redraw();
+              const msg = readBusMessage(bus.data.cursorSync);
+              if (!msg || msg.group !== group || msg.sourceId === u.root.id) return;
+              u.redraw();
             });
             return root;
           });
@@ -153,7 +163,7 @@ export const syncView =
         ready: (u) => {
           dispose = createRoot((root) => {
             createEffect(() => {
-              const view = bus.data.view;
+              const view = readBusMessage(bus.data.view);
               if (!view || view.group !== group) return;
               applyShared(u, view.x);
             });
@@ -167,7 +177,7 @@ export const syncView =
         setData: (u) => {
           queueMicrotask(() => {
             if (destroyed) return;
-            const view = bus.data.view;
+            const view = readBusMessage(bus.data.view);
             if (!view || view.group !== group) return;
             applyShared(u, view.x);
           });

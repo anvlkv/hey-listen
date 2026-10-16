@@ -8,7 +8,7 @@ import {
   untrack,
   type Accessor,
 } from "solid-js";
-import { analyzerBus } from "../../state/chartSync";
+import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { NOTE_STRIP_H } from "../notes/strip";
 import { createLaneDrag, type LaneSelection } from "../notes/lane";
 import { timeRangeLabel } from "./chartCommon";
@@ -147,7 +147,9 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
   // window when the shared view is cleared (the source changed). `view` is read
   // untracked so writing it here cannot re-trigger this effect.
   createEffect(() => {
-    const shared = analyzerBus.data.view;
+    // `readBusMessage` reads every field in every run, so this effect keeps firing as a
+    // chart is re-zoomed (see `state/chartSync.ts`).
+    const shared = readBusMessage(analyzerBus.data.view);
     const result = options.result();
     if (!result) return;
     if (shared == null) {

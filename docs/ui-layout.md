@@ -224,8 +224,12 @@ None of these are closable, draggable, or tabbed.
   > **Careful when consuming the bus.** It is a Solid store, and `setData` *merges* an
   > object into an existing key: it notifies the message's **fields**, not the key, so a
   > listener that tracked only `bus.data.playhead` (say) fires once and then never again.
-  > Read the field you actually need — which is why every `view` / `cursorSync` consumer
-  > touches `.group`. This bit the transport playhead (`syncPlugins.ts`).
+  > Worse, an effect keeps only the dependencies **its last run** read — so a consumer that
+  > returns early on one field (the `group` tag, say) *drops* the rest and stops firing when
+  > they change. Both traps bit a chart (the transport playhead, the cross-window cursor
+  > mirror), so every consumer of an object-valued key now reads whole messages through
+  > `readBusMessage` (`state/chartSync.ts`), which reads every field in every run. See
+  > `docs/roadmap.md` → M14 follow-up.
 
 ## Sidebar
 
