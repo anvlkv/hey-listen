@@ -5,23 +5,30 @@
  * `specs` at this one file. It lives outside `e2e/specs/` on purpose: CI only runs the
  * `*.spec.ts` files in that directory, so a normal run never captures marketing PNGs.
  *
- * It binds the release app to a real audio file, installs a filter graph + a focused
- * analysis window, and writes four PNGs into `site/assets/` — one distinct view each:
- *   - `filter.png`       — the filter graph editor.
- *   - `spectrogram.png`  — clipped to the spectrogram panel (filter applied).
- *   - `tempo.png`        — clipped to the tempo (rhythm) panel (filter applied).
- *   - `hero.png`         — the full viewport, spectrum active (filter applied).
+ * The shots come from a **project file** rather than a hand-built sequence of MCP
+ * calls: the file carries the source (embedded PCM), the Workbench grid, the filter,
+ * the analysis window and the notes, so the page cannot drift from the app's real
+ * state — and the analyzer *grid* is only reachable by restoring a saved layout (the
+ * app opens every new tab into the focused group, so a split cannot be scripted).
+ *
+ * It writes five PNGs into `site/assets/`:
+ *   - `hero.png`      — the whole window: Spectrogram + Tempo over Level meters, with
+ *                       the notes rail open and the phrase note's span drawn.
+ *   - `pitch.png`     — the Pitch (autocorrelation) popout window, on its own.
+ *   - `spectrum.png`  — clipped to the spectrum panel.
+ *   - `tempo.png`     — clipped to the tempo (rhythm) panel.
+ *   - `filter.png`    — the filter graph editor, showing the band-pass the project
+ *                       carries (it is what makes the analyzers read a clean signal).
  *
  * Capture-specific details:
  *   - The core's replace-source / discard-changes `confirm` is mocked to `true` so no
  *     native dialog can appear and block a capture.
- *   - The filter graph + analysis window are installed through the app's own MCP
- *     surface (an `mcp:request` event), the same path an agent uses — so the editor
- *     shows the graph and the analyzers are conditioned by it.
- *   - A synthetic pointer position is emulated over each chart so its crosshair (and
+ *   - A synthetic pointer position is emulated over a chart so its crosshair (and
  *     hover tooltip / readouts) render in the shot.
  *   - The embedded driver's "take element screenshot" returns the full viewport, so
- *     the detail shots are captured full-viewport and cropped with ImageMagick.
+ *     the detail shots are captured full-viewport and cropped with ImageMagick; every
+ *     asset is then capped to a sensible width (the app may well be running
+ *     maximized, and a page never wants a 3k-wide PNG).
  */
 
 import { execFileSync } from "node:child_process";
@@ -29,17 +36,21 @@ import { rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzerPanel, SEL } from "../support/selectors.ts";
+import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
 import {
-  waitForApp,
-  closeAllTabs,
-  emitEvent,
-  waitForSourceLoaded,
-  openTool,
-  waitForAnalyzer,
   canvasHasInk,
-  mockReturn,
+  click,
+  closeAllTabs,
   count,
+  emitEvent,
+  mockReturn,
+  openTool,
   textOf,
+  waitFor,
+  waitForAnalyzer,
+  waitForApp,
+  waitForReadouts,
+  waitForSourceLoaded,
 } from "../support/helpers.ts";
 
 /** `site/assets/` — two levels up from this `e2e/screenshots/` directory. */
@@ -51,56 +62,14 @@ const ASSETS_DIR = path.resolve(
   "assets",
 );
 
-/** The audio file the marketing screenshots analyse (a short bird-call recording). */
-const SOURCE = "/Users/anvlkv/Downloads/XC673283 - Blue-capped Ifrit - Ifrita kowaldi.mp3";
+/** The project the shots are taken from (see `docs/testing.md` → Marketing screenshots). */
+const PROJECT = "/Users/anvlkv/Downloads/blue capped ifrit.heyl";
 
-/** The analysis window (source seconds): a representative slice, not the whole file. */
-const WINDOW = { start: 10, end: 16 };
+/** The heading of the note focused for the shots — the call-phrase **range** note. */
+const FOCUS_NOTE_HEADING = "Call phrase";
 
-/**
- * A tasteful filter graph: `Input → High-pass(300 Hz) → Low-pass(7 kHz) → Gain → Output`
- * — a band-pass that trims rumble and hiss so the bird's voice comes forward.
- */
-const FILTER_GRAPH = {
-  nodes: [
-    {
-      id: "input",
-      type: "graph",
-      position: { x: 40, y: 150 },
-      data: { kind: "input", params: {}, graph: "filter" },
-    },
-    {
-      id: "highpass",
-      type: "graph",
-      position: { x: 220, y: 150 },
-      data: { kind: "highpass", params: { freq: 300, q: 1 }, graph: "filter" },
-    },
-    {
-      id: "lowpass",
-      type: "graph",
-      position: { x: 400, y: 150 },
-      data: { kind: "lowpass", params: { freq: 7000, q: 1 }, graph: "filter" },
-    },
-    {
-      id: "gain",
-      type: "graph",
-      position: { x: 580, y: 150 },
-      data: { kind: "gain", params: { gain: 1 }, graph: "filter" },
-    },
-    {
-      id: "output",
-      type: "graph",
-      position: { x: 760, y: 150 },
-      data: { kind: "output", params: {}, graph: "filter" },
-    },
-  ],
-  edges: [
-    { id: "e1", source: "input", target: "highpass", sourceHandle: "0", targetHandle: "0" },
-    { id: "e2", source: "highpass", target: "lowpass", sourceHandle: "0", targetHandle: "0" },
-    { id: "e3", source: "lowpass", target: "gain", sourceHandle: "0", targetHandle: "0" },
-    { id: "e4", source: "gain", target: "output", sourceHandle: "0", targetHandle: "0" },
-  ],
-};
+/** Cap each asset's width, in device px (the page shows them at 960 CSS px, so 2x). */
+const ASSET_WIDTH = 1954;
 
 /** The canvas element(s) inside each analyzer panel that render a crosshair on hover. */
 const CHART_TARGETS = {
@@ -108,6 +77,9 @@ const CHART_TARGETS = {
   spectrogram: '[data-testid="analyzer.spectrogram"] canvas',
   tempo: '[data-testid="analyzer.tempo"] canvas',
 } as const;
+
+/** The first note row's heading (`ids are uuid-based, so match the prefix`). */
+const FIRST_NOTE_HEADING = '[data-testid^="note.row."] [data-testid^="note.heading."]';
 
 /** Drive the app's own MCP surface (the same path an agent uses). */
 let mcpId = 1;
@@ -155,6 +127,16 @@ async function hoverAt(selector: string, fx = 0.5, fy = 0.5): Promise<void> {
   await browser.pause(200);
 }
 
+/** Cap an asset's width (no upscaling) so a maximized window cannot bloat the page. */
+function capWidth(label: string, maxWidth: number): void {
+  const file = path.join(ASSETS_DIR, `${label}.png`);
+  try {
+    execFileSync("magick", [file, "-resize", `${maxWidth}x>`, file]);
+  } catch (err) {
+    console.warn(`magick resize for "${label}" failed; keeping the full-size PNG:`, err);
+  }
+}
+
 /**
  * Capture the viewport and crop it to `selector`'s bounding box (CSS px ×
  * `devicePixelRatio`) with ImageMagick. The embedded driver's element screenshot
@@ -184,6 +166,7 @@ async function cropElement(label: string, selector: string): Promise<void> {
   const y = Math.round(box.top * box.dpr);
   try {
     execFileSync("magick", [full, "-crop", `${w}x${h}+${x}+${y}`, "+repage", file]);
+    capWidth(label, ASSET_WIDTH);
   } catch (err) {
     console.warn(`magick crop for "${label}" failed; keeping the full viewport shot:`, err);
     await browser.saveScreenshot(file);
@@ -202,57 +185,147 @@ async function captureAnalyzer(id: keyof typeof CHART_TARGETS): Promise<void> {
   await cropElement(id, analyzerPanel(id));
 }
 
-/** Save the filter graph editor once its nodes are rendered and the filter is applied. */
-async function captureFilterGraph(): Promise<void> {
-  await browser.waitUntil(
-    async () => (await count('[data-testid="graph.node"]')) >= FILTER_GRAPH.nodes.length,
-    { timeout: 15_000, timeoutMsg: "the filter graph nodes never rendered" },
-  );
-  await browser.waitUntil(async () => (await textOf(SEL.graphHint)).includes("applied"), {
-    timeout: 10_000,
-    timeoutMsg: "the filter graph did not report as applied",
+/** Capture the app's one analyzer popout window (the project restores it on load). */
+async function capturePopout(label: string, tool: string, popout: string): Promise<void> {
+  await browser.tauri.switchWindow(popout);
+  await hoverAt(`[data-testid="analyzer.${tool}"] canvas`);
+  await browser.saveScreenshot(path.join(ASSETS_DIR, `${label}.png`));
+  capWidth(label, ASSET_WIDTH);
+  await browser.tauri.switchWindow("main");
+}
+
+/**
+ * Wait for the popout window the project restores, and for its chart to draw — then
+ * come back to `main`. Returns the popout's window label.
+ *
+ * Waiting is also what makes the filter correct: opening a project restores the graph
+ * into the editor, but the **analysis** only picks it up once the graph is pushed to the
+ * core again (the popout window boots its own seeded copy and lands it in the *shared*
+ * core after the project's own). So the caller re-applies the filter once this returns.
+ */
+async function waitForPopout(tool: string): Promise<string> {
+  let popout = "";
+  await waitFor(async () => {
+    popout = (await windowLabels()).find((name) => /^popout-\d+$/.test(name)) ?? "";
+    return popout !== "";
+  }, "the project's popout window never appeared");
+
+  await browser.tauri.switchWindow(popout);
+  await browser.waitUntil(async () => (await count(analyzerPanel(tool))) > 0, {
+    timeout: 60_000,
+    timeoutMsg: `the popout never rendered the "${tool}" panel`,
   });
-  await cropElement("filter", ".graph-editor");
+  await browser.waitUntil(async () => canvasHasInk(`[data-testid="analyzer.${tool}"] canvas`), {
+    timeout: 30_000,
+    timeoutMsg: `the popout's "${tool}" chart never drew anything`,
+  });
+  await browser.tauri.switchWindow("main");
+  return popout;
+}
+
+/** Make sure the notes rail is open, and that it has the project's rows. */
+async function openNotesRail(): Promise<void> {
+  if ((await count(SEL.notesRegion)) === 0) {
+    await click(SEL.toolbarNotes);
+    await waitFor(async () => (await count(SEL.notesRegion)) > 0, "the notes rail did not open");
+  }
+  await waitFor(
+    async () => (await count(FIRST_NOTE_HEADING)) > 0,
+    "the notes rail showed no note rows",
+  );
+}
+
+/**
+ * Select the note headed `heading` (its markdown's first line) by clicking the row.
+ * Selecting is what focuses a note — and a focused note only draws its full-height
+ * span while the rail is open, which is exactly what the hero shows.
+ */
+async function focusNote(heading: string): Promise<void> {
+  const clicked = (await browser.execute((wanted: string) => {
+    const headings = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-testid^="note.heading."]'),
+    );
+    const match = headings.find((el) => (el.textContent ?? "").trim() === wanted);
+    if (!match) return false;
+    match.click();
+    return true;
+  }, heading)) as boolean;
+  if (!clicked) throw new Error(`no note row is headed "${heading}"`);
 }
 
 describe("Marketing screenshots", () => {
-  it("captures the filter graph, analyzer details, and hero", async () => {
+  // The popout is this spec's to close: the next session must start on a single window.
+  after(async () => {
+    await closeWindowsMatching(/^(popout|note)-\d+$/);
+    await browser.tauri.switchWindow("main").catch(() => {});
+  });
+
+  it("captures the workbench, the pitch popout, and the analyzer details", async () => {
     await waitForApp();
     // Auto-answer the core's replace-source / discard-changes confirm so no native
     // dialog can appear or block a capture.
     await mockReturn("confirm", true);
     await closeAllTabs();
 
-    // Open the audio file as a fresh project (the same channel macOS `open` uses).
-    await emitEvent("app:open-project", [SOURCE]);
+    // Open the project the shots describe: source, Workbench grid, filter, analysis
+    // window and notes all travel with the file.
+    await emitEvent("app:open-project", [PROJECT]);
     await waitForSourceLoaded();
+    await waitFor(
+      async () => (await textOf(SEL.projectName)).includes("blue capped"),
+      "the project never became the current one",
+    );
 
-    // Focus the analyzers on a representative slice, then shape it with a filter.
-    await mcp("set_analysis_window", { start: WINDOW.start, end: WINDOW.end });
-    await mcp("set_filter_graph", { graph: FILTER_GRAPH, enabled: true });
-    await browser.pause(1000); // let the filter net compile + install in the core
-
-    // Filter graph editor first (the graph survives its tab being closed).
-    await openTool("filter");
-    await captureFilterGraph();
-
-    // Analyzer details — each rendered with the filter applied.
-    await openTool("spectrogram");
+    // Its Workbench: a left column of Spectrogram over Tempo, and Level meters beside.
+    // Every panel is its own group, so all three mount (and compute) at once.
+    for (const id of ["spectrogram", "tempo", "levels"]) {
+      await waitFor(async () => (await count(`[data-testid="tab.${id}"]`)) > 0, `no "${id}" tab`);
+    }
     await waitForAnalyzer("spectrogram");
-    await captureAnalyzer("spectrogram");
-
-    await openTool("tempo");
     await waitForAnalyzer("tempo");
+    // Level meters is a readout-card analyzer, so it has no chart to wait on.
+    await waitForReadouts("levels");
+
+    // The popout window boots a copy of the app; once it (and its chart) is up, re-apply
+    // the project's filter so every *analysis* below runs against the filtered audio.
+    const popout = await waitForPopout("pitchAutocorr");
+    await mcp("set_filter_graph", { enabled: true });
+    await browser.pause(1200); // let every open chart re-run against the filtered audio
+
+    // The rail carries the annotations, and the focused note draws across every
+    // time-based chart — so focus the phrase note before the shot.
+    await openNotesRail();
+    await focusNote(FOCUS_NOTE_HEADING);
+
+    // Hero: a crosshair on the spectrogram, and preview running so the toolbar's
+    // output meter reads live levels.
+    await hoverAt(CHART_TARGETS.spectrogram);
+    await mcp("preview", {});
+    await browser.pause(800); // let the output meter fill
+    await browser.saveScreenshot(path.join(ASSETS_DIR, "hero.png"));
+    capWidth("hero", ASSET_WIDTH);
+    await mcp("stop_preview", {});
+
+    // The Pitch (autocorrelation) popout the project restores, captured on its own.
+    await capturePopout("pitch", "pitchAutocorr", popout);
+
+    // Detail shots: one analyzer alone in the Workbench (the crop excludes the rail).
+    await closeAllTabs();
+    await openTool("spectrum");
+    await captureAnalyzer("spectrum");
+
+    await closeAllTabs();
+    await openTool("tempo");
     await captureAnalyzer("tempo");
 
-    // Hero: start preview so the toolbar output meter reads live levels, re-focus the
-    // spectrum tab, then capture the whole window.
-    await mcp("preview", {});
-    await openTool("spectrum");
-    await waitForAnalyzer("spectrum");
-    await hoverAt(CHART_TARGETS.spectrum);
-    await browser.pause(600); // let the output meter fill
-    await browser.saveScreenshot(path.join(ASSETS_DIR, "hero.png"));
-    await mcp("stop_preview", {});
+    // The filter graph last: the project's band-pass is applied to every analysis
+    // above, so this shot needs no setup beyond opening the tab.
+    await closeAllTabs();
+    await openTool("filter");
+    await waitFor(
+      async () => (await textOf(SEL.graphHint)).includes("applied"),
+      "the filter graph did not report as applied",
+    );
+    await cropElement("filter", ".graph-editor");
   });
 });

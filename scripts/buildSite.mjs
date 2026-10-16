@@ -4,6 +4,9 @@
  *   - `site/acknowledgements.html`  ←  `ACKNOWLEDGEMENTS.md`
  *   - `site/roadmap.html`           ←  `docs/roadmap.md` (milestone titles + status)
  *
+ * and stamp the release version (from `package.json`) into the hand-authored page: the
+ * download button in `site/index.html` and its mirror in `site/copy.json`.
+ *
  * Run in the deploy workflow (before publishing `site/`) and locally via
  * `npm run build:site`. Pure Node, no dependencies. The generated pages share the
  * main site's stylesheet and header/footer.
@@ -203,4 +206,48 @@ ${timelineHtml(milestones)}`,
   }),
 );
 
+// --- version stamp -----------------------------------------------------------
+
+/**
+ * Stamp the release version into a hand-authored file.
+ *
+ * `site/` has no build step of its own, so the download button's version would drift
+ * from the `package.json` the release process bumps. Stamping it here — the deploy runs
+ * this script before uploading — keeps the *published* page honest, while the checked-in
+ * file keeps the last published version (which is what a local preview should show,
+ * since `serve:site` does not stamp).
+ *
+ * A missing anchor is an error on purpose: silently skipping the stamp is exactly how a
+ * version goes stale without anyone noticing.
+ */
+async function stampVersion(file, pattern, value) {
+  const before = await readFile(file, "utf8");
+  if (!pattern.test(before)) {
+    throw new Error(`no version anchor (${pattern}) in ${path.relative(ROOT, file)}`);
+  }
+  const after = before.replace(pattern, value);
+  if (after === before) return false;
+  await writeFile(file, after);
+  return true;
+}
+
+const { version } = JSON.parse(await readFile(path.join(ROOT, "package.json"), "utf8"));
+
+const stamped = [
+  await stampVersion(
+    path.join(SITE, "index.html"),
+    /(<span class="button-version">v)[^<]*(<\/span>)/,
+    `$1${version}$2`,
+  ),
+  await stampVersion(
+    path.join(SITE, "copy.json"),
+    /("downloadVersion"\s*:\s*")[^"]*(")/,
+    `$1${version}$2`,
+  ),
+];
+
 console.log(`site: wrote acknowledgements.html + roadmap.html (${milestones.length} milestones)`);
+console.log(
+  `site: version v${version}` +
+    (stamped.some(Boolean) ? " stamped into index.html + copy.json" : " (already current)"),
+);
