@@ -14,6 +14,38 @@ import type { ChartView, PlotBox } from "./chartGeometry";
  * They keep the two heatmaps pixel-identical without duplicating the drawing code.
  */
 
+/**
+ * Stroke `path` twice: a background-coloured **halo** under the colour.
+ *
+ * A heatmap's background *is* the data, so its colour ranges over the whole ramp (near
+ * black to near white). No single stroke colour contrasts with all of it, so every rule
+ * and contour drawn over a heatmap is outlined in the heatmap's background colour: the
+ * halo separates the line from whatever band it crosses, and the line itself is then read
+ * against the halo. Flat-background charts (uPlot) need none of this.
+ */
+export function strokeOverRamp(
+  ctx: CanvasRenderingContext2D,
+  path: Path2D,
+  color: string,
+  width: number,
+  dash: number[] = [],
+): void {
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.75;
+  ctx.strokeStyle = chartTheme().spectroBackground;
+  ctx.lineWidth = width + 2.5;
+  ctx.stroke(path);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.setLineDash(dash);
+  ctx.stroke(path);
+  ctx.restore();
+}
+
 /** Clear the canvas, scale it to the device pixel ratio, and paint the background. */
 export function beginFrame(
   canvas: HTMLCanvasElement | undefined,
@@ -103,6 +135,22 @@ export function drawTimeAxis(ctx: CanvasRenderingContext2D, view: ChartView, box
   ctx.textAlign = "left";
 }
 
+/** A full-height vertical rule across the plot at canvas-x, haloed for a heatmap. */
+function verticalRule(
+  ctx: CanvasRenderingContext2D,
+  box: PlotBox,
+  x: number,
+  color: string,
+  width: number,
+  dash: number[] = [],
+): void {
+  const px = Math.round(x) + 0.5;
+  const path = new Path2D();
+  path.moveTo(px, box.y);
+  path.lineTo(px, box.y + box.height);
+  strokeOverRamp(ctx, path, color, width, dash);
+}
+
 /** The hover cross at the pointer's plot position, when the pointer is on the chart. */
 export function drawHoverCross(
   ctx: CanvasRenderingContext2D,
@@ -110,14 +158,14 @@ export function drawHoverCross(
   point: { x: number; y: number } | null,
 ): void {
   if (!point) return;
-  ctx.strokeStyle = chartTheme().hover;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(box.x, point.y + 0.5);
-  ctx.lineTo(box.x + box.width, point.y + 0.5);
-  ctx.moveTo(point.x + 0.5, box.y);
-  ctx.lineTo(point.x + 0.5, box.y + box.height);
-  ctx.stroke();
+  const px = Math.round(point.x) + 0.5;
+  const py = Math.round(point.y) + 0.5;
+  const path = new Path2D();
+  path.moveTo(box.x, py);
+  path.lineTo(box.x + box.width, py);
+  path.moveTo(px, box.y);
+  path.lineTo(px, box.y + box.height);
+  strokeOverRamp(ctx, path, chartTheme().hover, 1);
 }
 
 /** Draw the shared cursor from whichever other time chart is hovered. */
@@ -133,15 +181,7 @@ export function drawMirrorCursor(
   if (!(span > 0)) return;
   const x = box.x + ((msg.x - view.t0) / span) * box.width;
   if (x < box.x || x > box.x + box.width) return;
-  ctx.save();
-  ctx.strokeStyle = chartTheme().mirror;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(Math.round(x) + 0.5, box.y);
-  ctx.lineTo(Math.round(x) + 0.5, box.y + box.height);
-  ctx.stroke();
-  ctx.restore();
+  verticalRule(ctx, box, x, chartTheme().mirror, 1, [4, 4]);
 }
 
 /**
@@ -156,15 +196,7 @@ export function drawPlayhead(ctx: CanvasRenderingContext2D, view: ChartView, box
   const span = Math.max(view.t1 - view.t0, 1e-9);
   const x = box.x + ((secs - view.t0) / span) * box.width;
   if (!Number.isFinite(x) || x < box.x || x > box.x + box.width) return;
-  const px = Math.round(x) + 0.5;
-  ctx.save();
-  ctx.strokeStyle = chartTheme().playhead;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(px, box.y);
-  ctx.lineTo(px, box.y + box.height);
-  ctx.stroke();
-  ctx.restore();
+  verticalRule(ctx, box, x, chartTheme().playhead, 1.5);
 }
 
 /** This chart's own notes, other charts' notes (muted), and the focused note (M14) —

@@ -18,7 +18,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
   type AnalysisHandle,
@@ -36,10 +36,14 @@ interface MarkerSet {
   width: number;
 }
 
-const MARKER_STYLE: Record<MarkerKind, { dark: string; light: string; width: number }> = {
-  onsets: { dark: "rgba(120, 220, 150, 0.6)", light: "rgba(40, 140, 90, 0.55)", width: 1 },
-  beats: { dark: "rgba(120, 170, 255, 0.55)", light: "rgba(47, 111, 208, 0.55)", width: 1 },
-  downbeats: { dark: "rgba(255, 175, 80, 0.95)", light: "rgba(200, 120, 20, 0.9)", width: 2 },
+/** Downbeats are drawn heavier than beats / onsets, so the bar is unmistakable. */
+const MARKER_WIDTH: Record<MarkerKind, number> = { onsets: 1, beats: 1, downbeats: 2 };
+
+/** The chart-palette field each marker kind draws in (see `ChartTheme`). */
+const MARKER_FIELD: Record<MarkerKind, "markerOnset" | "markerBeat" | "markerDownbeat"> = {
+  onsets: "markerOnset",
+  beats: "markerBeat",
+  downbeats: "markerDownbeat",
 };
 
 /**
@@ -203,13 +207,12 @@ export default function RhythmView(props: {
   const markers = (): MarkerSet[] => {
     const r = result();
     if (!r) return [];
+    const theme = chartTheme();
     const sets: MarkerSet[] = [];
     for (const kind of config().markers) {
-      const style = MARKER_STYLE[kind];
-      const color = resolvedTheme() === "light" ? style.light : style.dark;
       const times =
         kind === "onsets" ? r.onsetTimes : kind === "beats" ? r.beatTimes : r.downbeatTimes;
-      sets.push({ times, color, width: style.width });
+      sets.push({ times, color: theme[MARKER_FIELD[kind]], width: MARKER_WIDTH[kind] });
     }
     return sets;
   };
@@ -261,7 +264,7 @@ export default function RhythmView(props: {
               onFit={zoom.fit}
               label={timeRangeLabel(zoom.range())}
             />
-            <Show when={resolvedTheme()} keyed>
+            <Show when={activeThemeId()} keyed>
               <SolidUplot
                 autoResize
                 pluginBus={analyzerBus}
@@ -299,7 +302,7 @@ export default function RhythmView(props: {
         {(t) => (
           <div class="analyzer-tempogram">
             <div class="analyzer-tempogram-label">Tempo salience</div>
-            <Show when={resolvedTheme()} keyed>
+            <Show when={activeThemeId()} keyed>
               <SolidUplot
                 autoResize
                 pluginBus={analyzerBus}

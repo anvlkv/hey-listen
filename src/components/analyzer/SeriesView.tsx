@@ -27,7 +27,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
   type AnalysisHandle,
@@ -151,7 +151,7 @@ export default function SeriesView(props: {
                 onFit={zoom.fit}
                 label={timeRangeLabel(zoom.range())}
               />
-              <Show when={resolvedTheme()} keyed>
+              <Show when={activeThemeId()} keyed>
                 <SolidUplot
                   autoResize
                   pluginBus={analyzerBus}

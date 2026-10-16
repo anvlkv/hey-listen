@@ -25,7 +25,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import { createAnalysis, toolOptions, type WaveformResult } from "../../state/analyzer";
 
 /** A ~72 dB window anchored on the frame peak, never above 0 dBFS. */
@@ -108,9 +108,10 @@ export default function WaveformTab() {
                   onFit={zoom.fit}
                   label={timeRangeLabel(zoom.range())}
                 />
-                {/* Remount on theme or scale-mode change: the wrapper fixes `series`
-                    at mount, and the two modes declare a different series count. */}
-                <Show when={`${resolvedTheme()}|${dbMode() ? "db" : "lin"}`} keyed>
+                {/* Remount on a theme or scale-mode change: the wrapper fixes `series`
+                    at mount (so a theme switch must rebuild to recolour), and the two
+                    modes declare a different series count. */}
+                <Show when={`${activeThemeId()}|${dbMode() ? "db" : "lin"}`} keyed>
                   <SolidUplot
                     autoResize
                     pluginBus={analyzerBus}

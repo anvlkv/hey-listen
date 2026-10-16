@@ -1,6 +1,6 @@
 import { formatHz, type SpectrogramResult } from "../../state/analyzer";
 import { chartTheme } from "../../state/themes";
-import { buildHeatmapImage } from "./chartCanvas";
+import { buildHeatmapImage, strokeOverRamp } from "./chartCanvas";
 import type { ChartView, PlotBox } from "./chartGeometry";
 
 /**
@@ -130,14 +130,9 @@ export function drawContours(
   const track = (values: Float64Array, color: string) => {
     const count = values.length;
     if (count < 2) return;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(box.x, box.y, box.width, box.height);
-    ctx.clip();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.25;
-    ctx.lineJoin = "round";
-    ctx.beginPath();
+    // Clipped to the plot, so a contour crossing the visible band is cut at the edge
+    // rather than drawn over the axis labels.
+    const path = new Path2D();
     let started = false;
     for (let f = 0; f < count; f++) {
       const freq = values[f];
@@ -148,13 +143,17 @@ export function drawContours(
       const time = windowStart + ((f + 0.5) / count) * total;
       const x = box.x + ((time - view.t0) / timeSpan) * box.width;
       const y = box.y + box.height - ((freq - view.f0) / freqSpan) * box.height;
-      if (started) ctx.lineTo(x, y);
+      if (started) path.lineTo(x, y);
       else {
-        ctx.moveTo(x, y);
+        path.moveTo(x, y);
         started = true;
       }
     }
-    ctx.stroke();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(box.x, box.y, box.width, box.height);
+    ctx.clip();
+    strokeOverRamp(ctx, path, color, 1.25);
     ctx.restore();
   };
 

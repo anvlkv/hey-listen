@@ -17,7 +17,7 @@ import {
 } from "./axisFormat";
 import { chartAxisStyle, frequencyRangeLabel, NoAudioState } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { chartTheme, resolvedTheme } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
 
 const Tooltip = (props: TooltipProps) => (
@@ -136,9 +136,10 @@ export default function SpectrumTab() {
                   onFit={zoom.fit}
                   label={zoomLabel()}
                 />
-                {/* Remount when the axis mode changes: the wrapper fixes `scales`
-                    at mount, so a log↔linear switch must rebuild the chart. */}
-                <Show when={`${resolvedTheme()}|${logFreq() ? "log" : "lin"}`} keyed>
+                {/* Remount when the axis mode or the theme changes: the wrapper fixes
+                    `scales` at mount, so a log↔linear switch — and any theme switch,
+                    which recolours the series — must rebuild the chart. */}
+                <Show when={`${activeThemeId()}|${logFreq() ? "log" : "lin"}`} keyed>
                   <SolidUplot
                     autoResize
                     pluginBus={analyzerBus}

@@ -15,6 +15,11 @@ dark / light** theme; that palette is what a theme now overlays, and it is autho
 - `src/components/Workbench.tsx` (dockview `themeDark` / `themeLight`) and the
   `solid-flow` (`--xy-*`) styles in `src/state/themes/basePalettes.ts` (`BASE_FLOW`).
 
+Two `chart` colours are also **bridged to CSS** as `--chart-hover` / `--chart-select`,
+written on the root by the apply pipeline (see "Application pipeline" below) because
+uPlot paints its own crosshair and drag-select from its stylesheet, with no per-chart
+option for either.
+
 This document makes the theme **data**: a `ThemeFile` that a user can install, export,
 and share, applied on top of a built-in base.
 
@@ -78,7 +83,11 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
 - **`ui` keys** may be written with or without the leading `--`; the loader normalises.
 - **`chart`** is a partial `ChartTheme`. Beyond the fields shown, `reference` draws a
   chart reference line (e.g. the −14 LUFS target, 0 dBFS), and `overlayCentroid` /
-  `overlayRolloff` colour the spectrogram contour overlays (M11.A).
+  `overlayRolloff` colour the spectrogram contour overlays (M11.A). `markerOnset` /
+  `markerBeat` / `markerDownbeat` colour the rhythm markers, `select` the drag-to-zoom
+  tint, and `hover` / `mirror` / `playhead` / `note` the cursors and note anchors (see
+  `state/themes/chart.ts` for the full role list — a theme that changes one must keep it
+  distinct from the rest it shares a chart with).
 - **Meter colours** (the `levels` tool) are the `ui` variables `--meter-low` /
   `--meter-mid` / `--meter-high` / `--meter-peak` / `--meter-unlit`.
 - **`meta.id`** is the stable key used for the slots and persistence. Built-ins are
@@ -142,6 +151,13 @@ fallbacks); the picker may group suggestions by base for convenience.
 3. `chartTheme()` returns `merge(baseChart, active.chart)`.
 4. `colormap.ts` reads `active.colormap` (or the base ramp).
 5. `GraphEditor`'s `flowStyle()` merges `FLOW_STYLE_<base>` with `active.flow`.
+6. `--chart-hover` / `--chart-select` are written on the root from `chartTheme()`, so
+   uPlot's own crosshair and drag-select follow the palette (see the note above).
+
+Every chart **keyed** on the theme re-renders: the uPlot views remount on
+`activeThemeId()` (the wrapper fixes `series` / `scales` at mount) and the canvas
+heatmaps repaint on the same signal — the **id**, not just the base, so switching
+between two themes on the same base still recolours them.
 
 Font scale (`--ui-scale`) is unaffected — it is independent of the palette.
 
