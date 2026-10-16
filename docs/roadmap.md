@@ -631,11 +631,27 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   in-process bus only — `uiState` carried the timeline, params, options, notes and views,
   but never the cursor. It now rides `cursor:${group}` (per sync group, so a frequency
   cursor cannot land on a time chart).
+- **Bug: dragging the analysis window could stop the app responding.** The drag path did far
+  too much per pointermove: it pushed the project's shared UI state (the window, the
+  timeline view, …), and the core broadcast every push to the project's other windows,
+  whose handlers re-ran effects and repainted; each move also re-fit **and fully repainted
+  every open chart**, and took a whole-project snapshot (`layoutJson` → dockview's
+  `toJSON` plus deep clones) for undo, while the window's two ends were written as two
+  separate reactive transactions. With a popout open (a split Workbench of spectral charts
+  and a couple of notes) that queued cross-window work faster than it drained, so the
+  window moved a little and then the app stopped responding. Three changes: a UI-state push
+  is **coalesced** (`uiSync.ts` — the leading value at once, then at most one per 60 ms,
+  always the latest, so another window still follows a drag), the window's ends are written
+  in one `batch`, and the shared-view reset that re-fits the charts is **debounced to the
+  settle** (the data a chart re-fits to only arrives with the debounced analysis, ~200 ms
+  later). The drag is back to ~3 ms per move, and `g-timeline.spec.ts` → G5 asserts the
+  coalescing.
 
 > **Delivered:** the notes interaction model (ADR-19), the varispeed slider and playhead
-> transport, and the five bug fixes above. See [`notes.md`](notes.md),
+> transport, and the six bug fixes above. See [`notes.md`](notes.md),
 > [`architecture.md`](architecture.md) → Playback, and `e2e/specs/` (`d-analyzers`,
-> `g-timeline` → G4, `n-notes`, `o-cursor-sync`, `p-notes-interactions`, `q-transport`).
+> `g-timeline` → G4 / G5, `n-notes`, `o-cursor-sync`, `p-notes-interactions`,
+> `q-transport`).
 
 ## M15 — Code hygiene (the maid) ✅
 

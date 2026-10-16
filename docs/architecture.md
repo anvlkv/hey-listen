@@ -103,6 +103,13 @@ instead of diverging JS copies. A **popout** window is aliased to its parent (it
 `WindowRegistry` entry resolves to the parent's `WindowState`), so it shares the
 source, the filter, and the UI state while still being a real Tauri window.
 
+The bridge **coalesces** its pushes: the keys include ones that change on every
+pointermove of a gesture (the analysis window, the timeline view, a dragged param), and
+every push is an IPC round trip plus a broadcast that makes another window re-run its
+effects and repaint. At pointer rate that queued work faster than it drained — a
+window drag with a popout open stopped responding — so a burst sends its first value at
+once and then at most one per 60 ms, always with the latest value.
+
 **The app must stay responsive in the background.** Both features that run without
 focus — the **MCP server** (an agent drives the app from another window) and **live
 capture** (recording continues while the user works elsewhere) — break under macOS

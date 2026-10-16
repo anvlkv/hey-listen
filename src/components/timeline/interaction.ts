@@ -1,4 +1,4 @@
-import { type Accessor } from "solid-js";
+import { batch, type Accessor } from "solid-js";
 import { stopFollowing } from "../../state/capture";
 import { notesSorted } from "../../state/notes";
 import { createLaneDrag, noteHandleAt, noteHintText, type LaneSelection } from "../notes/lane";
@@ -158,12 +158,19 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     if (drag.kind === "move") {
       // Slide the whole window by the pointer delta, preserving its width and
       // keeping it inside [0, duration]. The viewport is left untouched.
+      //
+      // Both ends are written in one transaction: unbatched, each write would run every
+      // window-dependent effect (the Timeline repaint, the analysis debounce, the chart
+      // re-fit, the history snapshot, the cross-window push) on its own, doubling the
+      // cost of a gesture that fires at pointer rate.
       const dur = deps.duration();
       const wLen = drag.origWindowEnd - drag.origWindowStart;
       const dt = deps.x2t(x) - deps.x2t(drag.pointerX);
       const start = Math.max(0, Math.min(dur - wLen, drag.origWindowStart + dt));
-      setWindowStart(start);
-      setWindowEnd(start + wLen);
+      batch(() => {
+        setWindowStart(start);
+        setWindowEnd(start + wLen);
+      });
       return;
     }
 

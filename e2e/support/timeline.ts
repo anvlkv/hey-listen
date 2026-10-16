@@ -12,14 +12,19 @@ import { SEL } from "./selectors.ts";
 const PLOT_PAD = 12;
 
 /**
- * Drag one of the Timeline's analysis-window handles (`start` / `end`) by `dx` pixels.
- * W3C pointer actions don't reliably reach the system WebView, so the Pointer Events are
- * dispatched directly — the app's real handlers still run. It then waits for the window
- * change to settle, because the readout is asserted straight after in several suites.
+ * Drag one of the Timeline's analysis-window handles (`start` / `end`) by `dx` pixels,
+ * delivering the movement as `moves` pointer moves inside **one** gesture. W3C pointer
+ * actions don't reliably reach the system WebView, so the Pointer Events are dispatched
+ * directly — the app's real handlers still run. It then waits for the window change to
+ * settle, because the readout is asserted straight after in several suites.
  */
-export async function dragTimelineHandle(which: "start" | "end", dx: number): Promise<void> {
+export async function dragTimelineHandle(
+  which: "start" | "end",
+  dx: number,
+  moves = 1,
+): Promise<void> {
   await browser.execute(
-    (sel: string, side: string, offset: number, pad: number) => {
+    (sel: string, side: string, offset: number, pad: number, steps: number) => {
       const canvas = document.querySelector(sel) as HTMLCanvasElement | null;
       if (!canvas) throw new Error("dragTimelineHandle: no timeline canvas");
       const rect = canvas.getBoundingClientRect();
@@ -40,13 +45,14 @@ export async function dragTimelineHandle(which: "start" | "end", dx: number): Pr
           }),
         );
       fire("pointerdown", x, 1);
-      fire("pointermove", x + offset, 1);
+      for (let i = 1; i <= steps; i++) fire("pointermove", x + (offset * i) / steps, 1);
       fire("pointerup", x + offset, 0);
     },
     SEL.timelineCanvas,
     which,
     dx,
     PLOT_PAD,
+    moves,
   );
   await browser.pause(250);
 }

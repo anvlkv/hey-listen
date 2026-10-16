@@ -26,7 +26,7 @@ Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
 `npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 17 spec files —
 A shell (3), B sources (4), C graphs (8), D analyzers (27), E correctness (5), F
-cross-cutting (6), G timeline (4), H open-audio (1), I errors (5), J project + popout (2),
+cross-cutting (6), G timeline (5), H open-audio (1), I errors (5), J project + popout (2),
 K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1),
 P notes interactions (4), Q preview transport (5).
 
@@ -53,7 +53,10 @@ log there, WDIO writes one JSON per spec, and `onComplete` merges them into
 it and carry state. Helpers account for that: `openFixture` is duration-aware (it
 skips a reload when the same fixture is already loaded), each spec's `before`
 `closeAllTabs()`, and the **popout spec runs last** (its window is a real Tauri
-window the suite can't close — see `j-project.spec.ts`).
+window the suite can't close — see `j-project.spec.ts`). Because the dialogs are
+stubbed through the app's own IPC seam, a spec that loads a file should install its own
+stubs (`openFixture` does) rather than inherit them from whichever file ran first — a
+suite file has to stand alone for a targeted `--spec` run to mean anything.
 
 **Dockview unmounts hidden panels.** The default renderer keeps only the active
 tab mounted, so a test that reads a chart must activate its tab (`activateTab`).
@@ -249,6 +252,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | G2 | Zoom | Zoom a short window; waveform re-renders at higher detail | Smoke |
 | G3 | Channel select | Pick L/R/mix on a stereo file; waveform + analyzers agree | Scenario |
 | G4 | Window move re-fits the charts | Zoom a heatmap in, move the analysis window: the chart re-fits to the whole *new* window (the same range the Fit control gives) instead of keeping a stale slice | Scenario |
+| G5 | A drag coalesces its pushes | A 20-move handle drag in one gesture moves the window and pushes the shared state a handful of times, not once per move | Scenario |
 
 ### H. Project file (M6) & multi-window (M7)
 
