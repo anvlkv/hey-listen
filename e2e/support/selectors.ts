@@ -15,6 +15,8 @@ export const SEL = {
   bottom: '[data-testid="region.bottom"]',
   timeline: '[data-testid="region.timeline"]',
   source: '[data-testid="region.source"]',
+  // The shell a popout window renders instead of the app (ADR-11).
+  popout: '[data-testid="region.popout"]',
   splitterTimeline: '[data-testid="splitter.timeline"]',
   splitterSidebar: '[data-testid="splitter.sidebar"]',
   splitterNotes: '[data-testid="splitter.notes"]',

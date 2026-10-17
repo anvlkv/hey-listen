@@ -52,8 +52,11 @@ log there, WDIO writes one JSON per spec, and `onComplete` merges them into
 **One app instance per run.** WebdriverIO launches the app once, so spec files share
 it and carry state. Helpers account for that: `openFixture` is duration-aware (it
 skips a reload when the same fixture is already loaded), each spec's `before`
-`closeAllTabs()`, and the **popout spec runs last** (its window is a real Tauri
-window the suite can't close — see `j-project.spec.ts`). Because the dialogs are
+`closeAllTabs()`, and a spec that opens a **secondary window** closes it in its own
+`after` hook (`j-project` → H2, `o-cursor-sync`, `r-multi-project`) — through the app's
+own `close_window`, because a leftover window leaves the session pointed at it and the
+next spec's calls then fail against it. (`s-close-main` is the exception: it is last, and
+leaves one project window open so the app does not exit before teardown.) Because the dialogs are
 stubbed through the app's own IPC seam, a spec that loads a file should install its own
 stubs (`openFixture` does) rather than inherit them from whichever file ran first — a
 suite file has to stand alone for a targeted `--spec` run to mean anything.
@@ -413,6 +416,61 @@ because opening the audio device can fail transiently (which correctly stops the
 > (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`), and the
 > Timeline scrollbar's clamping / thumb geometry by
 > `scripts/timelineScroll.test.ts` (`npm run test:unit`).
+
+### R. Two projects at once (M7 multi-window)
+
+One window = one project (ADR-3), so H1/H2 only ever exercise a *single* project: H1 replaces
+the source within one window, H2 pops a tab out of the one window. This spec is the
+cross-window angle — two project windows, each with its own audio, its own analysis, and its
+own popout.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| R1 | Independent projects | A second window (`open_project_window`) keeps its own source (the 0:02 tone vs the 0:03 chirp) and analyses it against its own core state; going back and forth disturbs neither window's timeline nor its chart | Scenario |
+| R2 | A popout per project | Popping the *same* tool out of both projects yields two popouts, each a view of its own project: different charts at the same params, and each titled after its own project (`Spectrum — <source>`) | Scenario |
+| R3 | Raise is per project | Selecting the popped-out tool in one project raises *that* project's popout and opens no duplicate tab; the other project's Workbench is untouched | Scenario |
+| R4 | Shared params stay in their project | Changing the shared FFT size in one project updates that project's own popout (a view of the same state) and leaves the other project's popout, showing the same tool, on its old size | Scenario |
+| R5 | Save/load isolation | A project is saved in one window while the other is dirty, then that file is loaded into the dirty window: the loaded window adopts the name/source, the other keeps its own name, dirty marker and audio — and the load restores its layout's popped-out tool without opening a **second** popout for a tool that is already popped out | Scenario |
+| R6 | Closing a project | Closing one project window destroys its own popout and leaves the other project's popout alive | Scenario |
+
+> **R and S own the windows they open.** R closes every window it created in its `after`
+> hook (popouts first, then the project windows). S is the suite's last spec because it
+> closes `main`, whose label comes from `tauri.conf.json` and cannot be recreated.
+>
+> **Known failure — found by R4/R5.** Both currently fail on a real bug: a `ui-state` patch
+> is delivered to **every** window. Tauri matches a listener's own target *before* applying
+> the emit filter (`match_any_or_filter`, `tauri/src/event/listener.rs`), and
+> `listen("ui-state")` uses the default `Any` target — so the `emit_to(label, …)` in
+> `commands/ui.rs` does not scope. A shared param or project title changed in one project
+> reaches the other project's frontend, which then pushes it back into its own core state.
+> The same rule makes `app:menu` actions reach every project window, contradicting
+> `menu.rs`'s "emit only to the focused window". The fix is to register those listeners with
+> an explicit `target` (`{ kind: "WebviewWindow", label }`) — or to route by the event's
+> `source` field — not to change the emit side.
+>
+> **Two harness rules it depends on.** `browser.tauri.switchWindow(label)` moves the *standard*
+> WebDriver context with it — for the embedded provider the service calls
+> `browser.switchToWindow(label)` and the label *is* the handle — so the existing DOM helpers
+> keep working in the window switched to. But a window is listed **before** its webview has
+> booted, so a switch to a just-created window is followed by `waitForShell()`. And a fresh
+> webview has the test seam but **no installed IPC override**, so each newly entered window
+> installs its dialog mocks first (`e2e/support/ipc.ts`).
+>
+> **Closing the window the session is sitting in** leaves the service pinned to a dead window
+> label, and every `tauri.execute` (including `listWindows()`) then rejects until the session
+> points at a live label. `windowLabels()` therefore falls back to plain WebDriver window
+> handles for exactly this case.
+
+### S. Closing the main window (M7 multi-window)
+
+`main` is a project window like any other, so closing it must close its own popouts and
+leave the other project alone. This is the suite's **last** spec: `main`'s label comes from
+`tauri.conf.json` and cannot be recreated, and the app exits when the last window closes —
+so the spec leaves one project window open instead of tearing that one down too.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| S1 | Close main | With two projects each holding a popout, closing `main` destroys main's popout, keeps the other project **and its popout** alive (which still renders a chart), and the app stays up | Scenario |
 
 ## Running
 
