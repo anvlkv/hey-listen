@@ -44,6 +44,7 @@ import {
   waitFor,
   waitForAnalyzer,
   waitForApp,
+  waitForReadouts,
   waitForShell,
 } from "../support/helpers.ts";
 import { popOutTab } from "../support/popouts.ts";
@@ -62,6 +63,8 @@ let second = "";
 /** The two popouts, one per project (opened by R2). */
 let mainPopout = "";
 let secondPopout = "";
+/** A popout the project loaded in R5 does not record (must close on load). */
+let levelsPopout = "";
 
 /** The `second` project window, opening one if this spec has not made it yet. */
 async function ensureSecondWindow(): Promise<string> {
@@ -281,9 +284,9 @@ describe("R. Two projects at once", () => {
     const tmpFile = path.join(os.tmpdir(), `heylisten-e2e-multi-${Date.now()}.heyl`);
     const label = path.basename(tmpFile, ".heyl");
 
-    // Save the *second* project while main is dirty. Tauri delivers the emit to every
-    // window (see `menuActionIn`), but every other window's save path is mocked to `null`,
-    // so only this one can actually write.
+    // Save the *second* project while main is dirty. The menu emit is targeted at this
+    // window, and `app:menu` is listened for per window (`src/lib/windowEvents.ts`), so
+    // main runs nothing.
     await browser.tauri.switchWindow(second);
     await waitForShell();
     await mockReturn("pick_project_save_path", tmpFile);
@@ -312,9 +315,14 @@ describe("R. Two projects at once", () => {
     );
     const secondDirty = await textIn(second, SEL.projectName);
 
-    // Load that file into *main* while the second project has unsaved work.
+    // A popout the loaded project does *not* record — it must close on load (R6).
     await browser.tauri.switchWindow("main");
     await waitForShell();
+    await openTool("levels");
+    await waitForReadouts("levels");
+    levelsPopout = await popOutTab("levels");
+
+    // Load that file into *main* while the second project has unsaved work.
     await mockReturn("pick_project_open_path", tmpFile);
     await menuActionIn("main", "open");
     await waitFor(
@@ -325,23 +333,27 @@ describe("R. Two projects at once", () => {
     await waitFor(
       async () => (await textOf(SEL.projectName)).trim() === label,
       "main did not adopt the loaded project's name",
+      30_000,
     );
     expect((await textOf(SEL.projectName)).trim().endsWith("*")).toBe(false);
 
     // The other project is exactly as it was: same name, still dirty, same audio.
     expect(await textIn(second, SEL.projectName)).toBe(secondDirty);
     expect(await timelineReadoutText()).toContain("0:03");
-
-    // A load also restores the loaded project's popped-out tools (ADR-11). main already
-    // has `spectrum` popped out, and the loaded project records it as popped out — so the
-    // project must still end up with exactly **one** popout for it, not a duplicate.
-    await browser.tauri.switchWindow("main");
-    await waitForShell();
-    await browser.pause(1000); // the restore opens popouts on a `setTimeout(0)` tick
-    expect(await invokeCore<string[]>("popout_tools")).toEqual(["spectrum"]);
   });
 
-  it("R6 — closing a project window closes its own popouts, not the other project's", async () => {
+  it("R6 — loading a project reconciles its popout windows", async () => {
+    // R5 loaded into main a project whose layout records `spectrum` as popped out, while
+    // main already had `spectrum` *and* `levels` popped out. The load must leave exactly
+    // the project's own popouts: one window per recorded tool, and the extras closed.
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await browser.pause(1000); // the reconcile runs on a `setTimeout(0)` tick
+    expect(await invokeCore<string[]>("popout_tools")).toEqual(["spectrum"]);
+    expect(await windowLabels()).not.toContain(levelsPopout);
+  });
+
+  it("R7 — closing a project window closes its own popouts, not the other project's", async () => {
     await waitForApp();
     second = await ensureSecondWindow();
     await browser.tauri.switchWindow(second);

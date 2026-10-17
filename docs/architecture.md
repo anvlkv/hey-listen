@@ -161,7 +161,7 @@ The commands and channels below are all implemented; milestone notes record the 
 | Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14 ✅. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 | Window | `open_project_window` | open a new, independent project window (M7) ✅ |
-| Window | `open_popout_window`, `popout_tool`, `popout_tools` | open/query a popout window for a tool (M7) ✅ |
+| Window | `open_popout_window`, `sync_popouts`, `popout_tool`, `popout_tools` | open/raise a popout window for a tool, reconcile a project's popouts on load (M7) ✅ |
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 | MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
@@ -270,6 +270,15 @@ Both windows drive the same core state:
 - A UI edit in either window calls `set_ui_state`, which stores the value and emits
   `ui-state` to the other windows, which apply it — so the timeline window, params,
   chart zoom, and project name stay in lockstep.
+
+**Scoping is two-sided.** `emit_to(label, …)` only *filters* a global emit: Tauri checks a
+listener's own target **before** applying that filter (`match_any_or_filter` in
+`tauri/src/event/listener.rs`), so a listener registered with the default `Any` target
+receives every emit in the app — including every other project window's. Window-scoped
+events (`ui-state`, `app:menu`, `app:open-project`, `mcp:request`, `source_status`) are
+therefore registered through `listenThisWindow` (`src/lib/windowEvents.ts`), which targets
+this window's label, and emitted with `emit_to` on the Rust side. `Emitter::emit` — even on
+a `WebviewWindow` — is a global broadcast, so it must not be used for a per-window event.
 
 ## Threading
 

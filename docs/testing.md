@@ -264,6 +264,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | H0 | Open audio from the OS | Emit the file-association channel (`app:open-project`) with an audio path; it opens as a **fresh project** named after the file, with the audio on the timeline | Scenario |
 | H1 | Save/load | `save_project` → `load_project`; source + setup + results round-trip | Scenario |
 | H2 | Popout | Right-click a tab → **Pop out to window**; a native window shows just that tool, titled `<tool> — <project>`; selecting it in the Sidebar raises the popout (no duplicate tab); timeline/params/zoom sync; it closes with its parent and reopens on project load | Scenario |
+| H3 | Closed popout returns a tab | Closing the popout window forgets the tool in the core (`popout_tools`); selecting it in the Sidebar then opens a **tab**, not a dead window | Scenario |
 
 > **H2 leaves one window behind.** One app instance is reused across spec files, so a
 > `popout-*` window that survives makes the *next* spec's `execute/sync` calls time out
@@ -372,6 +373,13 @@ covered.
 > at *every* position and report "nothing moved" — a false negative that cost a whole
 > debugging session. `rowSignature` (`e2e/support/analyzers.ts`) therefore reads a **band** of
 > eight consecutive rows, which always covers a dash cycle.
+>
+> **The local cursor is a DOM element.** uPlot 1.6.32 draws its *native* crosshair as
+> `.u-cursor-x` / `.u-cursor-y` divs positioned with a transform, not on the canvas — so the
+> hovered chart's own repaint is asserted on that element's transform, while the *mirrored*
+> cursor (a canvas rule) is asserted with `canvasSignature` / `rowSignature`. Asserting the
+> local repaint on canvas pixels only ever passed because a leaked `ui-state` echo drew a
+> mirror rule onto the hovered chart (the scoping bug described under R).
 
 > **Also covered:** the tool-param **switch** interaction (a click on Kobalte's control
 > toggles exactly once and repaints the chart) is an extra case in `d-analyzers.spec.ts`,
@@ -430,23 +438,30 @@ own popout.
 | R2 | A popout per project | Popping the *same* tool out of both projects yields two popouts, each a view of its own project: different charts at the same params, and each titled after its own project (`Spectrum — <source>`) | Scenario |
 | R3 | Raise is per project | Selecting the popped-out tool in one project raises *that* project's popout and opens no duplicate tab; the other project's Workbench is untouched | Scenario |
 | R4 | Shared params stay in their project | Changing the shared FFT size in one project updates that project's own popout (a view of the same state) and leaves the other project's popout, showing the same tool, on its old size | Scenario |
-| R5 | Save/load isolation | A project is saved in one window while the other is dirty, then that file is loaded into the dirty window: the loaded window adopts the name/source, the other keeps its own name, dirty marker and audio — and the load restores its layout's popped-out tool without opening a **second** popout for a tool that is already popped out | Scenario |
-| R6 | Closing a project | Closing one project window destroys its own popout and leaves the other project's popout alive | Scenario |
+| R5 | Save/load isolation | A project is saved in one window while the other is dirty, then that file is loaded into the dirty window: the loaded window adopts the name/source, the other keeps its own name, dirty marker and audio | Scenario |
+| R6 | Popouts reconcile on load | The loaded project's layout records a tool that is **already** popped out (kept, not duplicated), while another tool that the window has popped out is **not** in the loaded layout (closed) | Scenario |
+| R7 | Closing a project | Closing one project window destroys its own popout and leaves the other project's popout alive | Scenario |
 
 > **R and S own the windows they open.** R closes every window it created in its `after`
 > hook (popouts first, then the project windows). S is the suite's last spec because it
 > closes `main`, whose label comes from `tauri.conf.json` and cannot be recreated.
 >
-> **Known failure — found by R4/R5.** Both currently fail on a real bug: a `ui-state` patch
-> is delivered to **every** window. Tauri matches a listener's own target *before* applying
-> the emit filter (`match_any_or_filter`, `tauri/src/event/listener.rs`), and
-> `listen("ui-state")` uses the default `Any` target — so the `emit_to(label, …)` in
-> `commands/ui.rs` does not scope. A shared param or project title changed in one project
-> reaches the other project's frontend, which then pushes it back into its own core state.
-> The same rule makes `app:menu` actions reach every project window, contradicting
-> `menu.rs`'s "emit only to the focused window". The fix is to register those listeners with
-> an explicit `target` (`{ kind: "WebviewWindow", label }`) — or to route by the event's
-> `source` field — not to change the emit side.
+> **R4/R5 guard a fixed bug.** Both used to fail: a `ui-state` patch was delivered to
+> **every** window, because Tauri matches a listener's own target *before* applying the
+> emit filter (`match_any_or_filter`, `tauri/src/event/listener.rs`) and
+> `listen("ui-state")` used the default `Any` target — so `emit_to(label, …)` did not scope.
+> A shared param or project title changed in one project reached the other project's
+> frontend, which pushed it back into its own core state; `app:menu` had the same problem.
+> The fix is two-sided: window-scoped listeners now go through `listenThisWindow`
+> (`src/lib/windowEvents.ts`, an explicit `WebviewWindow { label }` target) and the two
+> global emits (`Open Recent`, capture status) use `emit_to`. Changing only the emit side
+> would not have been enough.
+>
+> **Popouts reconcile in one command.** A load (and New Project) calls `sync_popouts`, which
+> closes the windows the project no longer records — duplicates included — and opens the
+> recorded ones that are missing (`src-tauri/src/commands/window.rs`).
+> `open_popout_window` is itself idempotent (it raises an existing window), so no path can
+> create two windows for one tool.
 >
 > **Two harness rules it depends on.** `browser.tauri.switchWindow(label)` moves the *standard*
 > WebDriver context with it — for the embedded provider the service calls

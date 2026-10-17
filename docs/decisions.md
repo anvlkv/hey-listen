@@ -206,7 +206,8 @@ project state.
 zoom, and project name stay in sync automatically, and a popout reuses the parent's
 source without copying PCM. Popouts are created only by Tauri/wry
 (`open_popout_window`), never by `window.open`; the frontend just renders. A popped
-tool is recorded in the project's `LAYOUT` and its window re-created on load, and a
+tool is recorded in the project's `LAYOUT` and its windows reconciled on load
+(`sync_popouts`: one window per recorded tool, extras and duplicates closed), and a
 project window closes its popouts when it closes. Because a popout is a view, not a
 second tab, selecting a popped-out tool **raises** its window (`focus_popout`) rather
 than opening a duplicate tab.

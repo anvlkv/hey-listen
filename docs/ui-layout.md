@@ -186,7 +186,11 @@ None of these are closable, draggable, or tabbed.
   only renders (ADR-11). It shows just that tool (no tab strip), is a *view* of the
   same project, and its title is `<tool> — <project>`. Selecting that tool in the
   Sidebar **raises** the popout (`focus_popout`) rather than opening a duplicate tab,
-  and a *new* tool always opens in the main window.
+  and a *new* tool always opens in the main window. There is **one window per tool per
+  project**: popping it out again raises the window, and closing it forgets the tool, so
+  selecting it again opens a **tab**. A project load (or New Project) reconciles the
+  windows (`sync_popouts`): the tools its layout records get exactly one window each, and
+  popouts it does not record close.
 - A **note** pops out the same way (`open_note_window`, from the Notes rail's row): a
   real window that renders just that note's editor, aliased to the same project and
   raised rather than duplicated. A popout of either kind is never a project window:

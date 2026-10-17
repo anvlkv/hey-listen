@@ -11,6 +11,7 @@
 //! aliased to its parent's project state (the shared source / filter / playback),
 //! and which runs the app in "popout" mode to show a single tool.
 
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -24,39 +25,105 @@ pub fn next_label(prefix: &str) -> String {
     format!("{prefix}-{n}")
 }
 
-/// Open a popout window for a single Workbench tool.
+/// Bring a window to the front (un-minimize first: `set_focus` alone can leave it behind).
+fn raise(window: &tauri::WebviewWindow) {
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+}
+
+/// Create a popout window for `tool`, owned by `parent`'s project.
+///
+/// The alias is registered **before** the window loads, so its frontend can ask
+/// `popout_tool` / `load_shared_source` and resolve to the parent project right away
+/// (no race with the window's first paint).
+fn create_popout(app: &AppHandle, parent: &str, tool_id: &str) -> Result<(), String> {
+    let label = next_label("popout");
+    let registry = app.state::<crate::state::WindowRegistry>();
+    registry.add_popout(&label, parent, tool_id);
+
+    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+        .title("Hey Listen")
+        .inner_size(900.0, 640.0)
+        .min_inner_size(480.0, 360.0)
+        .build();
+
+    if let Err(err) = built {
+        registry.remove(&label);
+        return Err(err.to_string());
+    }
+
+    Ok(())
+}
+
+/// Open a popout window for a single Workbench tool, or raise the one already open.
 ///
 /// The new window is a view of the *calling* window's project: its label is
 /// aliased to the caller's, so every command (source, analysis, preview) resolves
 /// to the same [`crate::state::WindowState`]. The frontend asks [`popout_tool`]
-/// which tool to render.
+/// which tool to render. One window per tool per project: popping the same tool out
+/// again **raises** the existing window rather than opening a duplicate.
 #[tauri::command]
 pub async fn open_popout_window(
     window: tauri::WebviewWindow,
     tool_id: String,
 ) -> Result<(), String> {
-    let label = next_label("popout");
-    let parent = window.label().to_string();
+    let app = window.app_handle();
+    let registry = app.state::<crate::state::WindowRegistry>();
+    if let Some(existing) = registry.popout_for(window.label(), &tool_id) {
+        if let Some(popout) = app.get_webview_window(&existing) {
+            raise(&popout);
+            return Ok(());
+        }
+    }
+    create_popout(app, window.label(), &tool_id)
+}
 
-    // Register the alias *before* the window loads, so its frontend can ask
-    // `popout_tool` / `load_shared_source` and resolve to the parent project right
-    // away (no race with the window's first paint).
-    let registry = window.app_handle().state::<crate::state::WindowRegistry>();
-    registry.add_popout(&label, &parent, &tool_id);
+/// Make the calling project's tool popouts match `tools`.
+///
+/// Used when a project is **loaded** (or replaced by a new one): a load swaps the whole
+/// project, so the previous project's popout windows — and any duplicate for a tool —
+/// close, and the tools the loaded layout shows popped out get a window. Reconciling in
+/// one command keeps the two halves (close then open) in a single order; doing it from
+/// the frontend as a loop could leave a duplicate between the calls.
+#[tauri::command]
+pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<String>) -> Result<(), String> {
+    let app = window.app_handle();
+    let registry = app.state::<crate::state::WindowRegistry>();
+    let root = registry.root_label(window.label());
+    let live = app.webview_windows();
 
-    let built = WebviewWindowBuilder::new(
-        window.app_handle(),
-        &label,
-        WebviewUrl::App("index.html".into()),
-    )
-    .title("Hey Listen")
-    .inner_size(900.0, 640.0)
-    .min_inner_size(480.0, 360.0)
-    .build();
+    // What is open *now*, per tool (skip windows that are already destroyed).
+    let open: HashSet<String> = registry
+        .project_windows(&root)
+        .into_iter()
+        .filter(|label| label != &root && live.contains_key(label))
+        .filter_map(|label| registry.popout_tool(&label))
+        .collect();
 
-    if let Err(err) = built {
-        registry.remove(&label);
-        return Err(err.to_string());
+    // Close what the project no longer shows, and every window but the first for a tool
+    // it does show — so a load can never leave two windows for one tool.
+    let mut kept: HashSet<String> = HashSet::new();
+    for label in registry.project_windows(&root) {
+        if label == root || !live.contains_key(&label) {
+            continue;
+        }
+        let Some(tool) = registry.popout_tool(&label) else {
+            continue; // a note popout, not a tool view
+        };
+        let wanted = tools.iter().any(|candidate| candidate == &tool);
+        let first = kept.insert(tool);
+        if !wanted || !first {
+            if let Some(popout) = app.get_webview_window(&label) {
+                let _ = popout.destroy();
+            }
+        }
+    }
+
+    // Open the ones the project shows that had no window.
+    for tool in tools {
+        if !open.contains(&tool) {
+            create_popout(app, &root, &tool)?;
+        }
     }
 
     Ok(())
@@ -77,8 +144,7 @@ pub async fn open_note_window(window: tauri::WebviewWindow, note_id: String) -> 
     // A note already shown in this project's windows is raised, not duplicated.
     if let Some(existing) = registry.note_popout_for(window.label(), &note_id) {
         if let Some(popout) = app.get_webview_window(&existing) {
-            let _ = popout.unminimize();
-            let _ = popout.set_focus();
+            raise(&popout);
             return Ok(());
         }
     }
@@ -147,8 +213,7 @@ pub fn focus_popout(window: tauri::WebviewWindow, tool_id: String) -> bool {
     let Some(popout) = app.get_webview_window(&label) else {
         return false;
     };
-    let _ = popout.unminimize();
-    let _ = popout.set_focus();
+    raise(&popout);
     true
 }
 

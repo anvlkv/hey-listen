@@ -28,7 +28,7 @@ import {
   type ProbeInfo,
 } from "../source";
 import { setView, setWindowEnd, setWindowStart } from "../timeline";
-import { restoreLayout } from "../workbench";
+import { restoreLayout, TOOLS } from "../workbench";
 import { beginBaseline, endBaseline } from "./dirty";
 import { basename, projectLabel } from "./paths";
 import { rememberRecent } from "./recents";
@@ -152,15 +152,18 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
   restoreLayout(loaded.layout?.dockview ?? null);
 
-  // 5b. Recreate the windows for tools that had been popped out. Deferred a tick so
-  // the restored state has been pushed to the core before the popouts pull it.
-  for (const tool of loaded.layout?.popouts ?? []) {
-    window.setTimeout(() => {
-      void invoke("open_popout_window", { toolId: tool }).catch((err) =>
-        console.error("could not restore the popout window", err),
-      );
-    }, 0);
-  }
+  // 5b. Reconcile the project's popout windows with the loaded layout: a load replaces
+  // the whole project, so the previous project's popouts close and the tools this layout
+  // shows popped out get a window (exactly one each). Deferred a tick so the restored
+  // state has been pushed to the core before a new popout pulls it.
+  const popouts = (loaded.layout?.popouts ?? []).filter((id) =>
+    TOOLS.some((tool) => tool.id === id),
+  );
+  window.setTimeout(() => {
+    void invoke("sync_popouts", { tools: popouts }).catch((err) =>
+      console.error("could not restore the popout windows", err),
+    );
+  }, 0);
 
   // 6. The project's notes (M14): replace the store (this marks the project clean
   //    again via the baseline below). Applied before the undo history is reset.

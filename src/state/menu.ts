@@ -1,5 +1,5 @@
 import { invoke } from "../lib/ipc";
-import { listen } from "@tauri-apps/api/event";
+import { listenThisWindow } from "../lib/windowEvents";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { redo, undo } from "./history";
@@ -72,7 +72,7 @@ async function openPaths(paths: string[]) {
 /** Subscribe to native menu actions and OS file-open requests. */
 export async function initMenu() {
   try {
-    await listen<string>("app:menu", (event) => {
+    await listenThisWindow<string>("app:menu", (event) => {
       switch (event.payload) {
         case "new":
           void guarded(newProject);
@@ -114,7 +114,7 @@ export async function initMenu() {
       void invoke("close_window").catch(() => {});
     });
 
-    await listen<string[]>("app:open-project", (event) => {
+    await listenThisWindow<string[]>("app:open-project", (event) => {
       void openPaths(event.payload);
     });
 
