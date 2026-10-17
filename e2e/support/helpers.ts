@@ -20,7 +20,7 @@
  */
 
 // --- app lifecycle ---------------------------------------------------------
-export { waitForApp, selectMainWindow } from "./app.ts";
+export { waitForApp, waitForShell, selectMainWindow } from "./app.ts";
 
 // --- raw DOM helpers (avoid element-handle stalls) -------------------------
 export { count, textOf, click, waitFor, pointerDrag, wheelOver } from "./dom.ts";
@@ -70,6 +70,7 @@ export {
   invokeCore,
   emitEvent,
   menuAction,
+  menuActionIn,
   startInvokeCounts,
   takeInvokeCounts,
 } from "./ipc.ts";

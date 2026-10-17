@@ -28,7 +28,8 @@ import {
   count,
   closeAllTabs,
 } from "../support/helpers.ts";
-import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
+import { popOutTab } from "../support/popouts.ts";
+import { closeWindowsMatching } from "../support/windows.ts";
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
 async function timelineReadout(): Promise<string> {
@@ -37,33 +38,13 @@ async function timelineReadout(): Promise<string> {
   )) as string;
 }
 
-/** Reveal the Source panel when a source is already loaded (it hides once loaded). */
+/**
+ * Reveal the Source panel when a source is already loaded (it hides once loaded).
+ */
 async function revealSourcePanel(): Promise<void> {
   if (!(await $('[data-testid="source.kind"]').isExisting())) {
     await (await $(SEL.timelineReplace)).click();
   }
-}
-
-/** Right-click an element (WKWebView won't synthesise `contextmenu` from pointer actions). */
-async function rightClick(selector: string): Promise<void> {
-  const el = await $(selector);
-  await el.waitForExist();
-  await browser.execute((sel: string) => {
-    const target = document.querySelector(sel) as HTMLElement | null;
-    if (!target) throw new Error(`rightClick: no element for ${sel}`);
-    const rect = target.getBoundingClientRect();
-    target.dispatchEvent(
-      new MouseEvent("contextmenu", {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        button: 2,
-        buttons: 2,
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2,
-      }),
-    );
-  }, selector);
 }
 
 describe("H. Project file & multi-window", () => {
@@ -135,20 +116,8 @@ describe("H. Project file & multi-window", () => {
     await openTool("spectrum");
     await waitForAnalyzer("spectrum");
 
-    // Right-click the tab: dockview renders its own context menu (`.dv-context-menu`).
-    await rightClick(tab("spectrum"));
-    const menu = await $(".dv-context-menu");
-    await menu.waitForExist();
-    const items = await menu.$$(".dv-context-menu-item");
-    let popped = false;
-    for (const item of items) {
-      if ((await item.getText()).trim() === "Pop out to window") {
-        await item.click();
-        popped = true;
-        break;
-      }
-    }
-    expect(popped).toBe(true);
+    // Right-click the tab → "Pop out to window" (dockview renders its own context menu).
+    const popout = await popOutTab("spectrum");
 
     // The tab leaves the main Workbench (it becomes a native window instead).
     await waitFor(
@@ -157,18 +126,9 @@ describe("H. Project file & multi-window", () => {
     );
 
     // A fresh `popout-<n>` window exists and renders exactly the one tool.
-    let popout = "";
-    await waitFor(async () => {
-      popout = (await windowLabels()).find((l) => /^popout-\d+$/.test(l)) ?? "";
-      return popout !== "";
-    }, "no popout-* window appeared");
-
     await browser.tauri.switchWindow(popout);
     // The popout shell (`region.popout`) renders exactly the one tool.
-    await waitFor(
-      async () => (await count('[data-testid="region.popout"]')) > 0,
-      "the popout never rendered its shell",
-    );
+    await waitFor(async () => (await count(SEL.popout)) > 0, "the popout never rendered its shell");
     const panel = await $(analyzerPanel("spectrum"));
     await panel.waitForExist();
     await waitFor(

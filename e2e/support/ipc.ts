@@ -162,3 +162,28 @@ export async function emitEvent(name: string, payload: unknown): Promise<void> {
 export async function menuAction(action: string): Promise<void> {
   await emitEvent("app:menu", action);
 }
+
+/**
+ * Trigger a File/Edit menu action in **one named window**.
+ *
+ * [`menuAction`] emits with `event.emit`, which Tauri delivers to *all* targets. A targeted
+ * emit is the faithful equivalent of the native menu (`src-tauri/src/menu.rs` →
+ * `emit_to(focused_label, …)`) — **but** Tauri matches a listener's own target *before*
+ * applying the emit filter (`match_any_or_filter`, `tauri/src/event/listener.rs`), and the
+ * app's `listen("app:menu")` uses the default `Any` target. So today the action still
+ * reaches every window; callers must keep the other windows' dialogs mocked to `null`.
+ * See the R spec.
+ */
+export async function menuActionIn(label: string, action: string): Promise<void> {
+  await browser.tauri.execute(
+    (_tauri, target, event, payload) => {
+      const g = globalThis as unknown as {
+        __TAURI__: { event: { emitTo: (t: string, e: string, p: unknown) => Promise<void> } };
+      };
+      return g.__TAURI__.event.emitTo(target as string, event as string, payload);
+    },
+    label,
+    "app:menu",
+    action,
+  );
+}
