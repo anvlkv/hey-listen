@@ -351,6 +351,13 @@ describe("R. Two projects at once", () => {
     await browser.pause(1000); // the reconcile runs on a `setTimeout(0)` tick
     expect(await invokeCore<string[]>("popout_tools")).toEqual(["spectrum"]);
     expect(await windowLabels()).not.toContain(levelsPopout);
+
+    // A load replaces every view of the project, so the project's popouts are recreated
+    // rather than reused; the label from R2 is stale. Remember the live one for R7.
+    mainPopout =
+      (await windowLabels()).find(
+        (label) => /^popout-\d+$/.test(label) && label !== secondPopout,
+      ) ?? mainPopout;
   });
 
   it("R7 — closing a project window closes its own popouts, not the other project's", async () => {
@@ -366,7 +373,7 @@ describe("R. Two projects at once", () => {
 
     const remaining = await windowLabels();
     expect(remaining).not.toContain(secondPopout);
-    expect(remaining).toContain(mainPopout);
+    expect(remaining).toContain(mainPopout); // refreshed by R6 after the load
     second = "";
   });
 });

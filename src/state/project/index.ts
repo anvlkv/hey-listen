@@ -27,6 +27,7 @@
 import "./dirty";
 import "./title";
 
+export { isEmptyProject } from "./dirty";
 export { isProjectFile } from "./paths";
 export {
   applyProjectTitle,

@@ -29,33 +29,10 @@ import {
   textOf,
 } from "../support/helpers.ts";
 import { FIXTURES } from "../support/fixtures.ts";
+import { addPaletteNode, ensureFilterEnabled, toggleFilter } from "../support/graph.ts";
 
 /** Kobalte portals every popover panel with this class. */
 const POP_PANEL = ".pop-panel";
-
-/**
- * The toolbar Filter switch's pressed state. `SEL.toolbarFilter` is the Kobalte
- * `Switch.Input` — visually hidden (`pointer-events: none`) but carrying the
- * `data-checked` state, so drive it by script (mirrors `c-graphs.spec.ts`).
- */
-async function filterSwitchOn(): Promise<boolean> {
-  return (await browser.execute((sel: string) => {
-    const input = document.querySelector(sel);
-    return !!input && input.hasAttribute("data-checked");
-  }, SEL.toolbarFilter)) as boolean;
-}
-
-/** Toggle the toolbar Filter switch and wait for its pressed state to flip. */
-async function toggleFilter(): Promise<void> {
-  const before = await filterSwitchOn();
-  await browser.execute((sel: string) => {
-    (document.querySelector(sel) as HTMLElement | null)?.click();
-  }, SEL.toolbarFilter);
-  await waitFor(
-    async () => (await filterSwitchOn()) !== before,
-    "the toolbar Filter switch did not toggle",
-  );
-}
 
 /** Change the shared FFT size to force every mounted analyzer to re-run. */
 async function changeFftSize(analyzerId: string): Promise<void> {
@@ -185,7 +162,10 @@ describe("I. Errors & warnings", () => {
 
   it("I3 — a rejected set_filter_graph shows a graph error; the toggle still works", async () => {
     await openTool("filter");
-    if (!(await filterSwitchOn())) await toggleFilter(); // keep it enabled
+    // The switch reads on only with a composed graph; this test bypasses an *active*
+    // filter, so compose one first (a targeted run may start from the seed).
+    await addPaletteNode("gain", "Gain");
+    await ensureFilterEnabled();
 
     await mockReject("set_filter_graph", "filter push failed (mock)");
     await toggleFilter(); // → bypassed ⇒ pushes `null` ⇒ rejected

@@ -192,6 +192,15 @@ export async function loadProject(path: string): Promise<void> {
       path,
       onChunk: stream.channel,
     });
+    // A load replaces every view of the project (the core has already installed the new
+    // source). A surviving popout still holds the old project's UI state and can push it
+    // back while the new state is restored (it made a fresh load come up dirty), so close
+    // the old views before the stream is assembled. The saved layout's popouts are reopened
+    // by `sync_popouts` below. Closing only after the file decoded keeps a failed load from
+    // tearing down the current project's windows.
+    await invoke("close_popouts").catch((err) =>
+      console.error("could not close the previous popouts", err),
+    );
     // Wait for the core's end-of-stream sentinel before assembling (large chunks
     // arrive asynchronously — see `lib/pcmStream.ts`).
     await stream.done;

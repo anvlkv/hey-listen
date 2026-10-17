@@ -6,6 +6,7 @@ import { redo, undo } from "./history";
 import { openPath } from "./source";
 import {
   dirty,
+  isEmptyProject,
   isProjectFile,
   loadProject,
   newProject,
@@ -38,10 +39,11 @@ export const [aboutOpen, setAboutOpen] = createSignal(false);
 
 /**
  * Confirm discarding unsaved work before replacing the project; `true` when it is
- * safe to proceed (nothing is dirty, or the user chose to discard).
+ * safe to proceed (nothing is dirty, the project is empty, or the user chose to
+ * discard).
  */
 async function confirmDiscard(): Promise<boolean> {
-  if (!dirty()) return true;
+  if (!dirty() || isEmptyProject()) return true;
   return invoke<boolean>("confirm", {
     message: "You have unsaved changes. Discard them?",
     title: "Discard changes?",
@@ -53,7 +55,12 @@ async function guarded(action: () => Promise<void>): Promise<void> {
   if (await confirmDiscard()) await action();
 }
 
-async function openPaths(paths: string[]) {
+/**
+ * Open dropped/launched paths: a `.heyl` file loads that project, any other path
+ * opens as a fresh project with the file as its source. Shared with drag-and-drop so
+ * a dropped project file follows the same discard guard as File → Open.
+ */
+export async function openPaths(paths: string[]) {
   const pending = paths.filter((path) => !handled.has(path) && path !== projectPath());
   if (pending.length === 0) return;
   if (!(await confirmDiscard())) return;
@@ -110,7 +117,7 @@ export async function initMenu() {
     // otherwise call `destroy()` itself, which needs a window permission we do not hold.
     await getCurrentWindow().onCloseRequested(async (event) => {
       event.preventDefault();
-      if (dirty() && !(await confirmDiscard())) return;
+      if (!(await confirmDiscard())) return;
       void invoke("close_window").catch(() => {});
     });
 

@@ -2,7 +2,7 @@ import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { pcmStream } from "../lib/pcmStream";
 import { channel, channelArg, channelFor } from "./analysis";
-import { filterEnabled, filterRevision } from "./graph";
+import { filterActive, filterRevision } from "./graph";
 import { source } from "./source";
 import type { StreamSummary } from "../bindings/StreamSummary";
 
@@ -13,7 +13,8 @@ import type { StreamSummary } from "../bindings/StreamSummary";
  * The core conditions it exactly like preview/analysis (channel mixdown → filter)
  * at the **source** sample rate, so it lines up 1:1 with the raw waveform. This is
  * a read-only view: it never mutates the core source. It is cleared (`null`) while
- * the filter is bypassed or there is no source.
+ * no filter is applied (bypassed, or the graph is still the identity seed) or there is
+ * no source.
  */
 
 const [filteredSamples, setFilteredSamples] = createSignal<Float32Array | null>(null);
@@ -28,7 +29,7 @@ let token = 0;
 
 async function fetchFiltered() {
   const s = source();
-  if (!s || !filterEnabled()) {
+  if (!s || !filterActive()) {
     setFilteredSamples(null);
     return;
   }
@@ -61,7 +62,7 @@ function scheduleFiltered() {
 createRoot(() => {
   createEffect(
     on(
-      () => [source(), filterRevision(), filterEnabled(), channel()],
+      () => [source(), filterRevision(), filterActive(), channel()],
       () => scheduleFiltered(),
     ),
   );

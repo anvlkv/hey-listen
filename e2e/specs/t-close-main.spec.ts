@@ -1,5 +1,5 @@
 /**
- * S. Closing the main window (M7 multi-window).
+ * T. Closing the main window (M7 multi-window).
  *
  * `main` is a project window like any other (its label comes from `tauri.conf.json`), so
  * closing it must behave like closing any project: its own popouts go with it, and the
@@ -35,7 +35,7 @@ import {
 /** The project window that outlives `main`. */
 let second = "";
 
-describe("S. Closing the main window", () => {
+describe("T. Closing the main window", () => {
   before(async () => {
     await waitForApp();
     await closeAllTabs();
@@ -49,7 +49,7 @@ describe("S. Closing the main window", () => {
     await browser.tauri.switchWindow(second).catch(() => {});
   });
 
-  it("S1 — main's popouts close with it; the other project's popout survives", async () => {
+  it("T1 — main's popouts close with it; the other project's popout survives", async () => {
     // The project that must survive: its own source, its own popout.
     second = await openProjectWindow();
     await browser.tauri.switchWindow(second);

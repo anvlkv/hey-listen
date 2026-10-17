@@ -209,6 +209,7 @@ pub fn run() {
             commands::window::open_project_window,
             commands::window::open_popout_window,
             commands::window::sync_popouts,
+            commands::window::close_popouts,
             commands::window::open_note_window,
             commands::window::popout_tool,
             commands::window::popout_note,
