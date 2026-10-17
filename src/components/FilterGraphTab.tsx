@@ -5,8 +5,8 @@ import Icon from "./Icon";
 import Tooltip from "./Tooltip";
 import {
   FILTER_GRAPH,
+  filterActive,
   filterApplying,
-  filterEnabled,
   filterError,
   graphWarning,
   outputConnected,
@@ -27,7 +27,7 @@ export default function FilterGraphTab() {
       <span class="graph-toolbar-title">Filter graph</span>
       <span class="graph-toolbar-hint" data-testid="graph.hint">
         {nodes()} node{nodes() === 1 ? "" : "s"} · {links()} link{links() === 1 ? "" : "s"} ·{" "}
-        {filterEnabled() ? "applied before preview & analysis" : "bypassed"}
+        {filterActive() ? "applied before preview & analysis" : "bypassed"}
       </span>
       <Show when={!outputConnected("filter")}>
         <span class="graph-warn" data-testid="graph.warning">

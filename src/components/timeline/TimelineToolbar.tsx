@@ -1,11 +1,13 @@
 import { Slider } from "@kobalte/core/slider";
+import { Switch } from "@kobalte/core/switch";
 import { Show } from "solid-js";
 import { previewSpeed, setPreviewSpeed } from "../../audio/preview";
 import { positionToSpeed, speedToPosition } from "../../lib/previewSpeed";
-import { filterEnabled } from "../../state/graph";
+import { filterActive, filterComposed, setFilterEnabled } from "../../state/graph";
 import { setSourcePanelPinned, sourcePanelPinned } from "../../state/settings";
 import { source, status } from "../../state/source";
 import { windowEnd, windowStart } from "../../state/timeline";
+import { openTool } from "../../state/workbench";
 import Button from "../Button";
 import ChannelSelect from "../ChannelSelect";
 import Icon from "../Icon";
@@ -35,6 +37,13 @@ export default function TimelineToolbar(props: {
 }) {
   const windowDuration = () => windowEnd() - windowStart();
 
+  function onFilterChange(enabled: boolean) {
+    setFilterEnabled(enabled);
+    // Nothing to apply yet: take the user where they can compose a filter, and the
+    // switch follows once the graph does something.
+    if (enabled && !filterComposed()) void openTool("filter");
+  }
+
   return (
     <div class="timeline-toolbar">
       <div class="timeline-readout">
@@ -43,25 +52,33 @@ export default function TimelineToolbar(props: {
         </span>
         <span class="timeline-dim">Δ {formatTime(windowDuration())}</span>
       </div>
-      <span
-        class="timeline-filter"
-        title={
-          filterEnabled()
+      <Tooltip
+        label={
+          filterActive()
             ? "The filter graph is applied to the signal"
             : "The filter graph is bypassed"
         }
-        style={{
-          "font-size": "11px",
-          padding: "1px 6px",
-          "border-radius": "4px",
-          "white-space": "nowrap",
-          color: filterEnabled() ? "#ffb454" : "#8a8a8a",
-          border: `1px solid ${filterEnabled() ? "#6b4a1f" : "#3a3a3a"}`,
-          background: filterEnabled() ? "rgba(255, 180, 84, 0.12)" : "transparent",
-        }}
       >
-        {filterEnabled() ? "Filter on" : "Filter off"}
-      </span>
+        <Switch
+          class="toolbar-switch timeline-filter"
+          checked={filterActive()}
+          onChange={onFilterChange}
+        >
+          <Switch.Label class="toolbar-label icon-label">
+            <Icon name="filter" />
+            Filter
+            <span class="timeline-filter-state">{filterActive() ? "on" : "off"}</span>
+          </Switch.Label>
+          <Switch.Input
+            class="toolbar-switch-input"
+            data-testid="toolbar.filter"
+            data-composed={filterComposed()}
+          />
+          <Switch.Control class="toolbar-switch-control">
+            <Switch.Thumb class="toolbar-switch-thumb" />
+          </Switch.Control>
+        </Switch>
+      </Tooltip>
       <Show when={(source()?.channels ?? 1) > 1}>
         <ChannelSelect />
       </Show>

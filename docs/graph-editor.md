@@ -76,7 +76,10 @@ smoothing across a net *rebuild* is out of scope.)
 
 - The **filter graph** is installed via `set_filter_graph` (debounced) and applied
   to the (channel-selected, mono) signal **before preview** and, from M4, analysis.
-  The Toolbar **Filter** switch bypasses it.
+  The **Timeline toolbar's Filter switch** bypasses it. The fresh `Input → Output`
+  seed is an identity pass-through, so the switch reads **off** until a non-anchor
+  node is added; enabling it while the graph is still the seed opens the filter view
+  so the user can compose one.
 - The core filters a region **when it is loaded**, so `audio/preview.ts` re-issues
   the active preview whenever the filter graph, analysis channel, or output device
   changes — a filter edit is heard immediately, not on the next preview.

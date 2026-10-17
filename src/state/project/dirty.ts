@@ -2,7 +2,8 @@ import { createEffect, createRoot } from "solid-js";
 import { toSpec } from "../../lib/graph";
 import { sharedParams } from "../analysis";
 import { toolOptions } from "../analyzer";
-import { FILTER_GRAPH, filterEnabled, SYNTH_GRAPH } from "../graph";
+import { recording } from "../capture";
+import { FILTER_GRAPH, filterEnabled, graphPristine, SYNTH_GRAPH } from "../graph";
 import { notes } from "../notes";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
@@ -15,24 +16,88 @@ import { setDirty } from "./signals";
  */
 
 /**
+ * Copy a value with every object's keys sorted, so equal state produces an equal
+ * signature regardless of the order it was serialized in. State crosses to the core
+ * and back (UI sync, project load) as JSON, and that round-trip does not preserve the
+ * insertion order of records such as `toolOptions` — an order-only difference must not
+ * read as an unsaved edit.
+ */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (!value || typeof value !== "object") return value;
+  const source = value as Record<string, unknown>;
+  return Object.keys(source)
+    .sort()
+    .reduce<Record<string, unknown>>((out, key) => {
+      out[key] = canonical(source[key]);
+      return out;
+    }, {});
+}
+
+/**
+ * Drop the pixel sizes dockview records with a layout. They track the window's current
+ * dimensions, not the project: restoring a layout in a differently sized window changes
+ * them, which made a freshly loaded project look dirty. Structure (panels, views, split
+ * topology, active group) is kept.
+ */
+function withoutViewportSizes(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutViewportSizes);
+  if (!value || typeof value !== "object") return value;
+  const source = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(source)) {
+    if (key === "size") continue;
+    out[key] = withoutViewportSizes(entry);
+  }
+  return out;
+}
+
+/** A layout signature that ignores viewport-dependent sizes (see the helper above). */
+function layoutSignature(layout: ReturnType<typeof layoutJson>): unknown {
+  if (!layout) return null;
+  const grid = { ...layout.grid } as Record<string, unknown>;
+  delete grid.width;
+  delete grid.height;
+  return withoutViewportSizes({ ...layout, grid });
+}
+
+/**
  * A signature of every piece of state the project file stores. Reading it inside a
  * reactive effect subscribes to those signals, so any edit re-runs the effect and
  * (once a baseline exists) flags the project dirty.
  */
 function projectSignature(): string {
-  return JSON.stringify({
-    source: [source()?.name ?? null, source()?.frames ?? null],
-    filter: toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges),
-    synth: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges),
-    shared: sharedParams(),
-    toolOptions,
-    window: [windowStart(), windowEnd()],
-    view: [viewStart(), viewEnd()],
-    filterEnabled: filterEnabled(),
-    openTools: openTools(),
-    layout: layoutJson(),
-    notes: notes(),
-  });
+  return JSON.stringify(
+    canonical({
+      source: [source()?.name ?? null, source()?.frames ?? null],
+      filter: toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges),
+      synth: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges),
+      shared: sharedParams(),
+      toolOptions,
+      window: [windowStart(), windowEnd()],
+      view: [viewStart(), viewEnd()],
+      filterEnabled: filterEnabled(),
+      openTools: openTools(),
+      layout: layoutSignature(layoutJson()),
+      notes: notes(),
+    }),
+  );
+}
+
+/**
+ * Whether the project has nothing worth protecting: no source, no notes, and both
+ * graphs still in their seeded (default) shape. Opening a tab or moving a splitter
+ * marks such a project dirty (the layout is part of the project file), but a
+ * discard prompt would be noise — there is no work to lose yet.
+ */
+export function isEmptyProject(): boolean {
+  return (
+    !source() &&
+    !recording() &&
+    notes().length === 0 &&
+    graphPristine("filter") &&
+    graphPristine("synth")
+  );
 }
 
 /** The signature at the last clean point (initial state, save, or load). */

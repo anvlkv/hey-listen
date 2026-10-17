@@ -21,13 +21,15 @@ import { setCreatedMs, setProjectError, setProjectPath, setProjectTitle } from "
 export async function newProject(): Promise<void> {
   if (recording()) await stopCapture();
   await stopMonitor();
+  // A new project replaces every view: close the old project's popouts before the reset,
+  // so none can push the old UI state back (see `loadProject`).
+  await invoke("close_popouts").catch((err) =>
+    console.error("could not close the previous popouts", err),
+  );
 
   beginBaseline();
   setProjectError(null);
   closeAllTools();
-  // A popout is a view of *this* window's project, so the previous project's windows would
-  // now show the fresh one. Close them with the tabs.
-  void invoke("sync_popouts", { tools: [] }).catch(() => {});
   resetGraph("filter");
   resetGraph("synth");
   resetAnalysisParams();

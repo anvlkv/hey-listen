@@ -71,8 +71,8 @@ describe("C. Graph editors", () => {
       "the graph canvas did not render",
     );
 
-    // The default `Input → Output` seed is pushed to the core; it must compile
-    // cleanly (a failure would surface the graph tab's error banner).
+    // The default `Input → Output` seed is not applied (it is an identity pass-through);
+    // a failed push would still surface the graph tab's error banner.
     expect(await count(SEL.graphError)).toBe(0);
 
     // A direct core check of the same identity graph (belt-and-braces with the UI).
@@ -107,7 +107,7 @@ describe("C. Graph editors", () => {
   it("C2 — the toolbar Filter switch toggles bypass without error", async () => {
     await openTool("filter"); // focus the tab opened in C1
 
-    expect(await filterSwitchOn()).toBe(true); // the project default is enabled
+    expect(await filterSwitchOn()).toBe(true); // C1 composed a filter, so it reads on
 
     await toggleFilter(); // → bypassed
     expect(await filterSwitchOn()).toBe(false);
@@ -247,10 +247,11 @@ describe("C. Graph editors", () => {
   it("C8 — dropping a node onto a connector splices it in", async () => {
     await openTool("filter");
     await clearFilterGraph();
-    await ensureFilterEnabled();
 
     const drop = await seedEdgeMidpoint();
     await dragPaletteNode("gain", "Gain", drop);
+    // The graph now does something, so the switch follows (it reads off on the seed).
+    await ensureFilterEnabled();
 
     // Spliced: Input → Gain → Output (3 nodes, 2 links), and the core accepts it.
     await waitFor(async () => {

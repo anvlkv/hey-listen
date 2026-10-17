@@ -1,4 +1,3 @@
-import { Switch } from "@kobalte/core/switch";
 import { Slider } from "@kobalte/core/slider";
 import { Meter } from "@kobalte/core/meter";
 import { onCleanup, onMount, Show } from "solid-js";
@@ -10,7 +9,6 @@ import Tooltip from "./Tooltip";
 import SharedParamsForm from "./analyzer/SharedParamsForm";
 import AppearancePopover from "./toolbar/AppearancePopover";
 import McpPopover from "./McpPopover";
-import { filterEnabled, setFilterEnabled } from "../state/graph";
 import {
   applyOutputGain,
   initOutputMeter,
@@ -44,9 +42,9 @@ const PROJECT_LABEL: Record<string, string> = {
  *
  * Holds app-level status and the current **project name** (the New / Open / Save
  * actions live in the native **File** menu — see `src-tauri/src/menu.rs`), plus the
- * filter-graph bypass toggle and the preview output (gain + device), which drive
- * the core (ADR-9). The audio source picker lives in the bottom-left Source region
- * (see `docs/ui-layout.md`).
+ * preview output (gain + device), which drives the core (ADR-9). The filter bypass
+ * toggle lives in the Timeline toolbar (see `docs/ui-layout.md`); the audio source
+ * picker lives in the bottom-left Source region.
  *
  * The **shared analysis params** (ADR-6) live here too, in an "Analysis params"
  * popover: they are global and synced across every analyzer, so they belong in the
@@ -90,19 +88,6 @@ export default function Toolbar() {
         >
           <SharedParamsForm />
         </Popover>
-
-        <Tooltip label="Apply the filter graph to preview (and analysis)">
-          <Switch class="toolbar-switch" checked={filterEnabled()} onChange={setFilterEnabled}>
-            <Switch.Label class="toolbar-label icon-label">
-              <Icon name="filter" />
-              Filter
-            </Switch.Label>
-            <Switch.Input class="toolbar-switch-input" data-testid="toolbar.filter" />
-            <Switch.Control class="toolbar-switch-control">
-              <Switch.Thumb class="toolbar-switch-thumb" />
-            </Switch.Control>
-          </Switch>
-        </Tooltip>
 
         <Tooltip label="Preview output gain">
           <div class="toolbar-group">

@@ -93,7 +93,8 @@ chroma bins, onset threshold, etc.
 Audio can be filtered before analysis: the user builds a **fundsp graph** in the
 Filter graph Workbench tab (see [`graph-editor.md`](graph-editor.md)). The graph is
 applied upstream of preview playback and all analysis, and can be bypassed with the
-Toolbar **Filter** toggle.
+**Filter** switch in the Timeline toolbar. It reads **off** while the graph is still
+its identity seed (nothing to apply).
 
 The node palette is a focused subset of fundsp today; covering the full node set is
 tracked in the [roadmap](roadmap.md) backlog.

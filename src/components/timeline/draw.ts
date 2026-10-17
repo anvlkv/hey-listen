@@ -1,7 +1,7 @@
 import { columnExtent, type ChannelPick, type Peaks } from "../../lib/waveform";
 import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { filteredSamples } from "../../state/filtered";
-import { filterEnabled } from "../../state/graph";
+import { filterActive } from "../../state/graph";
 import { noteSpan } from "../../lib/note";
 import { focusedNoteId, notesSorted } from "../../state/notes";
 import { notesPanelOpen } from "../../state/settings";
@@ -105,7 +105,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     // warm colour so the filter's effect is visible. Mono, at the source rate.
     const fp = deps.filteredPeaks();
     const fsamp = filteredSamples();
-    if (filterEnabled() && fp && fsamp && fsamp.length > 0) {
+    if (filterActive() && fp && fsamp && fsamp.length > 0) {
       ctx.globalAlpha = FILTERED_OVERLAY_ALPHA;
       ctx.strokeStyle = t.filtered;
       ctx.lineWidth = 1;

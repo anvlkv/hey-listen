@@ -78,6 +78,31 @@ pub async fn open_popout_window(
     create_popout(app, window.label(), &tool_id)
 }
 
+/// Close every popout window of the calling project (tool **and** note views).
+///
+/// Used at the start of a **project load** (and a new project): those replace the whole
+/// project, so a popout — a view of the old state — cannot be reused. Left open, it keeps
+/// the old UI state locally and pushes it back through the UI sync while the loaded
+/// state is being restored, which marked a freshly loaded project dirty (a stale timeline
+/// zoom came back from the surviving view).
+#[tauri::command]
+pub async fn close_popouts(window: tauri::WebviewWindow) -> Result<(), String> {
+    let app = window.app_handle();
+    let registry = app.state::<crate::state::WindowRegistry>();
+    let root = registry.root_label(window.label());
+    for label in registry.popouts_of(&root) {
+        if let Some(popout) = app.get_webview_window(&label) {
+            if popout.destroy().is_ok() {
+                registry.remove(&label);
+            }
+        } else {
+            // Already gone: forget its alias/state anyway.
+            registry.remove(&label);
+        }
+    }
+    Ok(())
+}
+
 /// Make the calling project's tool popouts match `tools`.
 ///
 /// Used when a project is **loaded** (or replaced by a new one): a load swaps the whole

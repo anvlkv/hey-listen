@@ -37,6 +37,41 @@
   white-space: nowrap;
 }
 
+/* Filter bypass switch (moved here from the app toolbar): the switch itself is the
+   on/off indicator, so it needs no separate badge. */
+.timeline-filter {
+  flex: none;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--fg-body);
+}
+
+.timeline-filter .toolbar-switch-control {
+  width: 26px;
+  height: 14px;
+  border-radius: 7px;
+}
+
+.timeline-filter .toolbar-switch-thumb {
+  width: 8px;
+  height: 8px;
+}
+
+.timeline-filter .toolbar-switch[data-checked] .toolbar-switch-thumb,
+.timeline-filter .toolbar-switch-control[data-checked] .toolbar-switch-thumb {
+  transform: translateX(12px);
+}
+
+.timeline-filter-state {
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  color: var(--fg-dim);
+}
+
+.timeline-filter[data-checked] .timeline-filter-state {
+  color: var(--fg-accent);
+}
+
 .timeline-actions {
   display: flex;
   gap: 6px;

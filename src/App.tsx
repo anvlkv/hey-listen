@@ -191,7 +191,7 @@ export default function App() {
               "font-weight": "500",
             }}
           >
-            Drop to open audio file
+            Drop to open audio or project file
           </div>
         </div>
       </Show>

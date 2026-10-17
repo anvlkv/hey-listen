@@ -223,6 +223,42 @@ export function hasKind(graph: GraphKind, kind: string): boolean {
   return graphFor(graph).nodes.some((node) => node.data.kind === kind);
 }
 
+/** The kinds of a fresh graph's nodes (see [`seed`]). */
+function seedKinds(graph: GraphKind): string[] {
+  return graph === "filter" ? ["input", "output"] : ["sine", "output"];
+}
+
+/** Whether a node still carries its kind's default parameter values. */
+function nodeIsDefault(node: GraphNode): boolean {
+  const def = nodeKind(node.data.kind);
+  return !def || def.params.every((p) => (node.data.params[p.key] ?? p.default) === p.default);
+}
+
+/**
+ * Whether a graph still has its seeded shape: the seed node kinds in order, default
+ * parameters, and the single link between them. Used to tell an untouched project
+ * from one whose graphs are worth saving.
+ */
+export function graphPristine(graph: GraphKind): boolean {
+  const handle = graphFor(graph);
+  const kinds = seedKinds(graph);
+  return (
+    handle.nodes.length === kinds.length &&
+    handle.nodes.every((node, i) => node.data.kind === kinds[i] && nodeIsDefault(node)) &&
+    handle.edges.length === 1 &&
+    handle.edges[0].source === handle.nodes[0].id &&
+    handle.edges[0].target === handle.nodes[1].id
+  );
+}
+
+/**
+ * Whether the filter graph does more than pass the input through — i.e. the user has
+ * composed a filter. The fresh `Input → Output` seed is *not* a composed filter.
+ */
+export function filterComposed(): boolean {
+  return FILTER_GRAPH.nodes.some((node) => !isAnchorKind(node.data.kind));
+}
+
 /** Whether the single `output` node's input is wired (else the graph is silent). */
 export function outputConnected(graph: GraphKind): boolean {
   const handle = graphFor(graph);
@@ -254,8 +290,16 @@ export function clearGraphWarning() {
 
 export const [filterError, setFilterError] = createSignal<string | null>(null);
 export const [filterApplying, setFilterApplying] = createSignal(false);
-/** Whether the filter graph is applied to preview (and, later, analysis). */
+/**
+ * The user's intent: filter when a filter graph is composed. The **displayed** state is
+ * [`filterActive`], so an identity (seeded) graph still reads as off.
+ */
 export const [filterEnabled, setFilterEnabled] = createSignal(true);
+
+/** Whether a filter is actually applied: enabled *and* a composed graph exists. */
+export function filterActive(): boolean {
+  return filterEnabled() && filterComposed();
+}
 /**
  * Bumped after every `set_filter_graph` round-trip. `audio/preview.ts` watches this
  * to reload the active preview, so a filter edit is heard immediately instead of
@@ -269,7 +313,8 @@ let pushTimer: number | undefined;
 async function pushFilterGraph() {
   setFilterApplying(true);
   const spec = toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges);
-  const payload = filterEnabled() && spec.nodes.length > 0 ? spec : null;
+  // The identity seed is not a filter, so it is pushed as a bypass (null).
+  const payload = filterActive() ? spec : null;
   try {
     await invoke("set_filter_graph", { spec: payload });
     setFilterError(null);

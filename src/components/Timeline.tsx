@@ -3,7 +3,7 @@ import { computePeaks, type Peaks } from "../lib/waveform";
 import { channelFor } from "../state/analysis";
 import { stopFollowing } from "../state/capture";
 import { filteredSamples } from "../state/filtered";
-import { filterEnabled } from "../state/graph";
+import { filterActive } from "../state/graph";
 import { createNote, defaultNoteTool, focusedNoteId, notesSorted } from "../state/notes";
 import { source, status } from "../state/source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
@@ -181,7 +181,7 @@ export default function Timeline() {
     windowEnd();
     preview.playSec();
     filteredSamples();
-    filterEnabled();
+    filterActive();
     notesSorted();
     focusedNoteId();
     draw();

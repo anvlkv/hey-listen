@@ -11,9 +11,10 @@ import { SEL, graphNode } from "./selectors.ts";
 import { click, count, waitFor } from "./dom.ts";
 
 /**
- * The toolbar Filter switch (`SEL.toolbarFilter` — a Kobalte `Switch.Input`). It is
+ * The Timeline Filter switch (`SEL.toolbarFilter` — a Kobalte `Switch.Input`). It is
  * visually hidden (`pointer-events: none`), so it must be clicked via script; its
- * pressed state is Kobalte's `data-checked` attribute.
+ * pressed state is Kobalte's `data-checked` attribute. The switch reads **on** only
+ * while a composed filter exists (the identity seed reads off).
  */
 export async function filterSwitchOn(): Promise<boolean> {
   return (await browser.execute((sel: string) => {
@@ -22,13 +23,32 @@ export async function filterSwitchOn(): Promise<boolean> {
   }, SEL.toolbarFilter)) as boolean;
 }
 
-/** Toggle the toolbar Filter switch and wait for its pressed state to flip. */
+/** Whether the filter graph does more than the `Input → Output` seed. */
+export async function filterGraphComposed(): Promise<boolean> {
+  return (await browser.execute(
+    (sel: string) => document.querySelector(sel)?.getAttribute("data-composed") === "true",
+    SEL.toolbarFilter,
+  )) as boolean;
+}
+
+/**
+ * Toggle the Filter switch. Enabling a graph with nothing composed keeps the switch
+ * off (there is no filter to apply) while opening the filter view, so that case waits
+ * for the view instead of for a flip.
+ */
 export async function toggleFilter(): Promise<void> {
   const before = await filterSwitchOn();
   await click(SEL.toolbarFilter);
+  if (!before && !(await filterGraphComposed())) {
+    await waitFor(
+      async () => (await count(SEL.graphHint)) > 0,
+      "enabling an empty filter graph did not open the filter view",
+    );
+    return;
+  }
   await waitFor(
     async () => (await filterSwitchOn()) !== before,
-    "the toolbar Filter switch did not toggle",
+    "the Filter switch did not toggle",
   );
 }
 

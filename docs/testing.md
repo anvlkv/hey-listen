@@ -55,7 +55,7 @@ skips a reload when the same fixture is already loaded), each spec's `before`
 `closeAllTabs()`, and a spec that opens a **secondary window** closes it in its own
 `after` hook (`j-project` → H2, `o-cursor-sync`, `r-multi-project`) — through the app's
 own `close_window`, because a leftover window leaves the session pointed at it and the
-next spec's calls then fail against it. (`s-close-main` is the exception: it is last, and
+next spec's calls then fail against it. (`t-close-main` is the exception: it is last, and
 leaves one project window open so the app does not exit before teardown.) Because the dialogs are
 stubbed through the app's own IPC seam, a spec that loads a file should install its own
 stubs (`openFixture` does) rather than inherit them from whichever file ran first — a
@@ -69,7 +69,9 @@ actions (or native HTML5 drag-and-drop) under WebDriver, so `pointerDrag` (timel
 handles, splitter) and `dragPaletteNode` (graph palette) dispatch the app's **real**
 `pointer*` handlers directly — the same UI path, just driven by events the harness
 can emit. (The palette drag is pointer-based, not HTML5 drag-and-drop, because
-Tauri's native file-drop handler consumes HTML5 drags over the WebView.)
+Tauri's native file-drop handler consumes HTML5 drags over the WebView.) A dropped
+**file** is driven by emitting the same native window event the handler listens for:
+`emitEvent("tauri://drag-drop", { type: "drop", paths: [path], position })`.
 
 ## Deliverables (this milestone)
 
@@ -105,7 +107,8 @@ Tests select by stable `data-testid` plus the existing ARIA labels (the search b
 already carries `aria-label="Search analyzers"`). This milestone adds `data-testid`
 hooks only where a test needs one — a thin, test-only attribute, not a refactor.
 Convention: `data-testid="region.toolbar|sidebar|workbench|timeline|source|bottom"`
-(regions), `toolbar.filter`, `toolbar.error`, `sidebar.search`,
+(regions), `toolbar.filter` (the Filter switch in the **Timeline** toolbar),
+`toolbar.error`, `sidebar.search`,
 `sidebar.tool.<id>`, `tab.<id>` (stamped on the dockview tab), `analyzer.<id>`,
 `analyzer.error`, `analyzer.params.<id>` / `analyzer.about.<id>`, `graph.error`,
 `graph.warning` (the persistent **Output is not connected** banner),
@@ -176,7 +179,7 @@ whole workflow), **Manual** (documented steps, run by a human, not in CI).
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | C1 | Filter graph | Build `input → lowpass → output`; graph compiles and is shown | Scenario |
-| C2 | Filter bypass | Toggle the Toolbar **Filter** switch; preview/analysis reflect on/off | Scenario |
+| C2 | Filter bypass | The Timeline toolbar's **Filter** switch reads off on the identity seed; composing a node turns it on; toggling bypasses it (preview/analysis reflect on/off); enabling with an empty graph opens the filter view | Scenario |
 | C3 | Synth graph | `sine → output`, render; PCM lands on the timeline (B2) | Scenario |
 | C4 | Graph rules | A second edge into an occupied input / a cycle is rejected with a warning, no crash | Smoke |
 | C5 | Math nodes | The **Math** group (`add`/`subtract`/`multiply`/`divide`/`min`/`max`/`abs`/`invert`) is offered in the palette; a `multiply` graph compiles in the core | Smoke |
@@ -476,7 +479,15 @@ own popout.
 > points at a live label. `windowLabels()` therefore falls back to plain WebDriver window
 > handles for exactly this case.
 
-### S. Closing the main window (M7 multi-window)
+### S. Project UX
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| S1 | Empty project | Opening a tab marks the layout dirty, but replacing a project with no source and pristine graphs raises **no** discard prompt | Scenario |
+| S2 | Drop a project | Dropping a `.heyl` file loads that project (through the same discard guard as File → Open), while an audio drop still replaces the source | Scenario |
+| S3 | Filter switch | It lives in the Timeline toolbar, reads off on the identity seed, enabling with an empty graph opens the filter view, composing a node turns it on, and clearing the graph turns it off again | Scenario |
+
+### T. Closing the main window (M7 multi-window)
 
 `main` is a project window like any other, so closing it must close its own popouts and
 leave the other project alone. This is the suite's **last** spec: `main`'s label comes from
@@ -485,7 +496,7 @@ so the spec leaves one project window open instead of tearing that one down too.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
-| S1 | Close main | With two projects each holding a popout, closing `main` destroys main's popout, keeps the other project **and its popout** alive (which still renders a chart), and the app stays up | Scenario |
+| T1 | Close main | With two projects each holding a popout, closing `main` destroys main's popout, keeps the other project **and its popout** alive (which still renders a chart), and the app stays up | Scenario |
 
 ## Running
 
