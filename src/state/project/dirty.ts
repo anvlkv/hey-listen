@@ -40,6 +40,20 @@ let baseline = projectSignature();
 /** True while restoring state, so the restore itself doesn't flag the project dirty. */
 let baselining = true;
 
+/**
+ * How long the restored state may keep settling before it becomes the clean point.
+ *
+ * A restore is not one synchronous step: dockview re-serializes its layout a tick after
+ * `fromJSON` (and re-syncs `openTools`), and the project's popout windows are reconciled a
+ * tick after that. A single macrotask raced those — under load, a freshly **loaded project
+ * came up marked dirty** because the settled layout differed from the baseline. So the
+ * baseline is re-armed until the state has been quiet for this long.
+ */
+const SETTLE_MS = 300;
+
+/** The pending settle timer (see [`endBaseline`]). */
+let settle: number | undefined;
+
 /** Take the current state as the clean baseline and clear the unsaved marker. */
 export function markClean() {
   baseline = projectSignature();
@@ -49,18 +63,26 @@ export function markClean() {
 /** Suppress the dirty effect while a load/new restores state. */
 export function beginBaseline() {
   baselining = true;
+  window.clearTimeout(settle);
+  settle = undefined;
 }
 
 /**
- * Re-arm the baseline once restored state has settled. A macrotask runs after Solid
- * has flushed the effect, so the restore neither leaves the project dirty nor hides a
- * subsequent edit.
+ * Re-arm the baseline once restored state has settled. The state becomes clean after
+ * [`SETTLE_MS`] without a change; every change made while restoring pushes that deadline
+ * out (see the effect below), so nothing the restore itself settles on is marked dirty.
  */
 export function endBaseline() {
-  window.setTimeout(() => {
+  armSettle();
+}
+
+/** Restart the quiet period that ends a restore. */
+function armSettle() {
+  window.clearTimeout(settle);
+  settle = window.setTimeout(() => {
     baselining = false;
-    setDirty(false);
-  }, 0);
+    markClean();
+  }, SETTLE_MS);
 }
 
 createRoot(() => {
@@ -68,6 +90,7 @@ createRoot(() => {
     const signature = projectSignature();
     if (baselining) {
       baseline = signature; // the restored state becomes the clean baseline
+      armSettle(); // …and a later settling change extends the quiet period
       return;
     }
     setDirty(signature !== baseline);

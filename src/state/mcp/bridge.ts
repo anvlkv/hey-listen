@@ -1,5 +1,5 @@
-import { listen } from "@tauri-apps/api/event";
 import { invoke } from "../../lib/ipc";
+import { listenThisWindow } from "../../lib/windowEvents";
 import { asArgs } from "./args";
 import { run } from "./dispatch";
 
@@ -15,7 +15,7 @@ interface McpRequest {
 /** Subscribe to tool calls from the MCP server. Call once per project window. */
 export async function initMcp(): Promise<void> {
   try {
-    await listen<McpRequest>("mcp:request", (event) => {
+    await listenThisWindow<McpRequest>("mcp:request", (event) => {
       void handle(event.payload);
     });
     // Tell the core the listener is live, so forwarded calls are not attempted

@@ -1,5 +1,5 @@
 import { invoke } from "../lib/ipc";
-import { listen } from "@tauri-apps/api/event";
+import { listenThisWindow } from "../lib/windowEvents";
 
 /**
  * Cross-window UI-state sync.
@@ -94,7 +94,7 @@ export async function initUiSync(): Promise<void> {
   for (const [key, value] of Object.entries(snapshot)) applies.get(key)?.(value);
   synced = true;
 
-  await listen<{ key: string; value: unknown; source: string }>("ui-state", (event) => {
+  await listenThisWindow<{ key: string; value: unknown; source: string }>("ui-state", (event) => {
     applies.get(event.payload.key)?.(event.payload.value);
   });
 }

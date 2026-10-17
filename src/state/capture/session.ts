@@ -1,6 +1,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import { invoke } from "../../lib/ipc";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
+import { listenThisWindow } from "../../lib/windowEvents";
 import { createEffect, createRoot, on } from "solid-js";
 import { PeakAccumulator } from "../../lib/waveform";
 import type { CaptureInfo } from "../../bindings/CaptureInfo";
@@ -79,7 +80,7 @@ let unlisten: UnlistenFn | null = null;
  */
 export async function initCapture() {
   try {
-    unlisten = await listen<CaptureStatusEvent>("source_status", (event) => {
+    unlisten = await listenThisWindow<CaptureStatusEvent>("source_status", (event) => {
       const { kind, message } = event.payload;
       if (kind === "recovered") {
         setCaptureError(null);

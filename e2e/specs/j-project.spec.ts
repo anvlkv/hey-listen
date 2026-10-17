@@ -15,6 +15,7 @@ import path from "node:path";
 import { SEL, sidebarTool, tab, analyzerPanel } from "../support/selectors.ts";
 import {
   waitForApp,
+  waitForShell,
   openTool,
   openFixture,
   mockReturn,
@@ -25,11 +26,12 @@ import {
   openTabTitles,
   canvasHasInk,
   waitForAnalyzer,
+  invokeCore,
   count,
   closeAllTabs,
 } from "../support/helpers.ts";
 import { popOutTab } from "../support/popouts.ts";
-import { closeWindowsMatching } from "../support/windows.ts";
+import { closeCurrentWindow, closeWindowsMatching, windowLabels } from "../support/windows.ts";
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
 async function timelineReadout(): Promise<string> {
@@ -148,5 +150,35 @@ describe("H. Project file & multi-window", () => {
     await browser.pause(400);
     expect(await openTabTitles()).toEqual(before);
     expect(await count(tab("spectrum"))).toBe(0);
+  });
+
+  it("H3 — a closed popout returns its tool to a tab when selected again", async () => {
+    // H2 leaves its popout open; start from the project window with no popouts.
+    await waitForApp();
+    await closeAllTabs();
+    await closeWindowsMatching(/^popout-\d+$/);
+    await browser.tauri.switchWindow("main").catch(() => {});
+
+    await openTool("spectrum");
+    await waitForAnalyzer("spectrum");
+    const popout = await popOutTab("spectrum");
+    await waitFor(
+      async () => (await count(tab("spectrum"))) === 0,
+      "the tab stayed in the main Workbench",
+    );
+    expect(await invokeCore<string[]>("popout_tools")).toEqual(["spectrum"]);
+
+    // Closing the popout window closes that view, and the core forgets the tool is out.
+    await browser.tauri.switchWindow(popout);
+    await waitForShell();
+    await closeCurrentWindow();
+    await browser.tauri.switchWindow("main").catch(() => {});
+    await waitFor(async () => !(await windowLabels()).includes(popout), "the popout did not close");
+    expect(await invokeCore<string[]>("popout_tools")).toEqual([]);
+
+    // …so selecting the tool again opens a **tab**, not a dead window.
+    await openTool("spectrum");
+    await waitForAnalyzer("spectrum");
+    expect(await count(tab("spectrum"))).toBe(1);
   });
 });

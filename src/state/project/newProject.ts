@@ -1,3 +1,4 @@
+import { invoke } from "../../lib/ipc";
 import { resetAnalysisParams } from "../analysis";
 import { resetToolOptions } from "../analyzer";
 import {
@@ -24,6 +25,9 @@ export async function newProject(): Promise<void> {
   beginBaseline();
   setProjectError(null);
   closeAllTools();
+  // A popout is a view of *this* window's project, so the previous project's windows would
+  // now show the fresh one. Close them with the tabs.
+  void invoke("sync_popouts", { tools: [] }).catch(() => {});
   resetGraph("filter");
   resetGraph("synth");
   resetAnalysisParams();

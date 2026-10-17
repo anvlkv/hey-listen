@@ -156,7 +156,11 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
     if let Some(path) = id.strip_prefix(RECENT_PREFIX) {
         // `recent:none` is the disabled placeholder and never fires, but guard anyway.
         if !path.is_empty() && path != "none" {
-            let _ = app.emit(OPEN_EVENT, vec![path.to_string()]);
+            // Same routing as an OS file-open (`handle_open_paths`): the **focused** project
+            // window opens it, not every window (`Emitter::emit` is a global broadcast).
+            if let Some(label) = focused_label(app) {
+                let _ = app.emit_to(label, OPEN_EVENT, vec![path.to_string()]);
+            }
         }
         return;
     }

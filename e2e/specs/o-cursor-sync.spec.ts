@@ -48,6 +48,20 @@ async function hover(selector: string, xFrac: number, yFrac: number): Promise<vo
   await browser.pause(300);
 }
 
+/**
+ * A uPlot crosshair element's CSS transform (its position).
+ *
+ * uPlot 1.6.32 draws the **native** cursor as DOM elements (`.u-cursor-x` / `.u-cursor-y`,
+ * positioned with a transform), *not* on the canvas — so a local hover never changes the
+ * canvas pixels. A *mirrored* cursor (from another window) is a canvas rule instead.
+ */
+async function cursorTransform(selector: string): Promise<string> {
+  return (await browser.execute((sel: string) => {
+    const el = document.querySelector(sel) as HTMLElement | null;
+    return el ? getComputedStyle(el).transform : "missing";
+  }, selector)) as string;
+}
+
 /** Right-click a tab and choose "Pop out to window" from dockview's context menu. */
 async function popOut(id: string): Promise<string> {
   await browser.execute((sel: string) => {
@@ -114,8 +128,10 @@ describe("N. Notes — cross-window cursor", () => {
 
     // --- main → popout: hover the uPlot chart, the heatmap should follow ------------
     await browser.tauri.switchWindow("main");
-    const seriesBefore = await canvasSignature(seriesCanvas);
+    const cursorX = `${analyzerPanel("spectralCentroid")} .u-cursor-x`;
+    const cursorBefore = await cursorTransform(cursorX);
     await hover(series, 0.3, 0.4);
+    const cursorAfter = await cursorTransform(cursorX);
     const seriesAfter = await canvasSignature(seriesCanvas);
     await browser.tauri.switchWindow(popout);
     const heatmapNear = await canvasSignature(heatmap);
@@ -141,8 +157,8 @@ describe("N. Notes — cross-window cursor", () => {
     const mirrorAfter = await rowSignature(seriesCanvas);
 
     expect({
-      // The hovered chart draws its own crosshair, so it repaints locally too.
-      seriesRepainted: seriesBefore !== seriesAfter,
+      // The hovered chart's own crosshair is the DOM cursor, so it moves locally too.
+      seriesRepainted: cursorBefore !== cursorAfter,
       heatmapFollowedTheSeries: heatmapNear !== heatmapFar,
       heatmapMovedMarker: leftMarker !== heatmapFar,
       seriesFollowedTheHeatmap: seriesFromPopout !== seriesAfter,

@@ -111,7 +111,9 @@ pub async fn start_capture(
             let _ = stream::send_f32_chunk(&on_chunk, &samples);
         }
         CaptureMessage::Event(event) => {
-            let _ = status_window.emit(SOURCE_STATUS, event);
+            // Only the capturing window's Source panel should show this: on a
+            // `WebviewWindow`, `emit` is a global broadcast — `emit_to` is the scoped one.
+            let _ = status_window.emit_to(status_window.label(), SOURCE_STATUS, event);
         }
     };
 
