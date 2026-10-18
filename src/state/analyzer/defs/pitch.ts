@@ -7,11 +7,13 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
   {
     id: "pitchPyin",
     title: "Pitch (pYIN)",
-    description: "Probabilistic YIN fundamental track",
+    description: "Robust pitch track — the default",
     about:
-      "Fundamental-frequency track from pYIN (probabilistic YIN with Viterbi " +
-      "smoothing) — the most robust of the three pitch tools, and the default. " +
-      "Unvoiced frames are left blank. Good for monophonic melody and speech.",
+      "**What it shows.** The fundamental frequency (the perceived pitch) over time; " +
+      "unvoiced moments are left blank.\n\n" +
+      "**Why use it.** The most reliable of the three pitch tools and a good default " +
+      "for monophonic melody or speech. Smoothing keeps it steadier and less prone " +
+      "to octave jumps than plain YIN.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
@@ -19,11 +21,13 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
   {
     id: "pitchYin",
     title: "Pitch (YIN)",
-    description: "YIN fundamental track",
+    description: "Fast pitch track, no smoothing",
     about:
-      "Fundamental-frequency track from the YIN estimator (frame-by-frame, no " +
-      "smoothing). Faster than pYIN and often similar on clean material, but more " +
-      "prone to octave errors. Set the voiced/unvoiced threshold below.",
+      "**What it shows.** A pitch estimate for every moment, with no smoothing " +
+      "between frames.\n\n" +
+      "**Why use it.** Faster than pYIN and often similar on clean material, but it " +
+      "can jump an octave. Adjust the threshold below to trade sensitivity for " +
+      "stability.",
     keywords: ["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
@@ -44,11 +48,13 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
   {
     id: "pitchAutocorr",
     title: "Pitch (autocorrelation)",
-    description: "Autocorrelation fundamental track",
+    description: "Simple pitch track for clear periodic sounds",
     about:
-      "Fundamental-frequency track from FFT-based autocorrelation. Simple and cheap; " +
-      "reliable on strongly periodic signals but sensitive to the assumed range. " +
-      "Set the expected fundamental range below.",
+      "**What it shows.** The pitch found by comparing the signal with a delayed " +
+      "copy of itself.\n\n" +
+      "**Why use it.** Cheap and dependable on strongly periodic sounds, but " +
+      "sensitive to the range you expect. Set that range below, and prefer pYIN on " +
+      "noisy or changing material.",
     keywords: ["pitch", "autocorrelation", "acf", "f0", "fundamental", "period"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),

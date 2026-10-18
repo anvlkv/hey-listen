@@ -132,7 +132,11 @@ export interface AnalyzerDef {
   id: AnalyzerId;
   title: string;
   description: string;
-  /** "About" popover copy: when and how to use the tool. */
+  /**
+   * "About" popover copy: what the tool shows and when to use it. Markdown —
+   * paragraphs plus `**bold**` / `*italic*` lead-ins (the Sidebar previews it as
+   * plain text).
+   */
   about: string;
   /** Search terms for the Sidebar search box (`docs/analysis-tools.md`). */
   keywords: string[];

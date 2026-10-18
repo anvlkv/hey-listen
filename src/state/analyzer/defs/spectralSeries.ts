@@ -10,11 +10,13 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralCentroid",
     title: "Spectral centroid",
-    description: "Spectral centre of mass over time",
+    description: "Brightness over time",
     about:
-      "The frequency-weighted centre of mass of the spectrum per frame — a rough " +
-      "brightness/timbre track. It rises with high-frequency content (e.g. cymbals, " +
-      "fricatives) and falls for dark, low-frequency material.",
+      "**What it shows.** Where the spectrum's energy sits on average — its *centre " +
+      "of mass* — as a single frequency over time.\n\n" +
+      "**Why use it.** A quick brightness and timbre track: it rises for cymbals, " +
+      "fricatives, and bright mixes, and falls for bass and dark material. Useful " +
+      "for comparing the tone of two takes.",
     keywords: ["centroid", "brightness", "timbre", "spectral", "center of mass"],
     section: "spectral",
     view: series("centroid (Hz)", formatHz, { style: "area", yScale: "log" }),
@@ -22,11 +24,13 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralFlux",
     title: "Spectral flux",
-    description: "Frame-to-frame spectral change (onset strength)",
+    description: "How much the spectrum changes moment to moment",
     about:
-      "The L2 norm of the half-wave-rectified change in magnitude between adjacent " +
-      "frames — an onset-strength signal. Spikes mark note and drum attacks; it is " +
-      "the basis of the onset and tempo detectors.",
+      "**What it shows.** How much the spectrum changes from one moment to the next; " +
+      "spikes mark attacks.\n\n" +
+      "**Why use it.** Reveals note and drum hits, and is the signal behind the " +
+      "onset and tempo tools. A good way to see rhythm in the sound itself rather " +
+      "than in the beat grid.",
     keywords: ["flux", "onset", "transient", "novelty", "spectral change"],
     section: "spectral",
     view: series("flux", fmtPlain, { style: "stems" }),
@@ -34,11 +38,13 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralRolloff",
     title: "Spectral rolloff",
-    description: "Frequency below which most energy lies",
+    description: "Where most of the energy ends",
     about:
-      "The frequency under which a chosen share of the spectral energy is " +
-      "concentrated (85% by default) — another brightness measure. Steadily low for " +
-      "tonal/bassy signals, high for noise or bright material.",
+      "**What it shows.** The frequency below which a chosen share of the energy " +
+      "lies — 85% by default.\n\n" +
+      "**Why use it.** Another brightness measure: low and steady for bass-heavy or " +
+      "tonal material, high for noise and bright mixes. Raise the share to reach " +
+      "further into the high-frequency tail.",
     keywords: ["rolloff", "roll-off", "brightness", "energy", "high frequency"],
     section: "spectral",
     view: series("rolloff (Hz)", formatHz, { style: "area", yScale: "log" }),
@@ -61,11 +67,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralFlatness",
     title: "Spectral flatness",
-    description: "Tonality vs noisiness over time",
+    description: "Tone versus noise",
     about:
-      "The ratio of the geometric to the arithmetic mean of the power spectrum, in " +
-      "0…1. Near 0 for a pure tone, near 1 for white noise — so it separates tonal " +
-      "from noisy content.",
+      "**What it shows.** A score from 0 to 1: close to 0 for a clear tone, close to " +
+      "1 for noise.\n\n" +
+      "**Why use it.** Separates tonal from noisy stretches — useful for finding " +
+      "hiss, breaths, cymbals, and pitched passages.",
     keywords: ["flatness", "wiener", "entropy", "tonal", "noise", "tonality"],
     section: "spectral",
     view: series("flatness", fmtPlain, { style: "area", yRange: [0, 1] }),
@@ -73,12 +80,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralContrast",
     title: "Spectral contrast",
-    description: "Peak-to-valley ratio per octave band",
+    description: "Clear peaks versus broad noise, per octave",
     about:
-      "For each octave-spaced band, the peak-to-valley ratio in dB. High contrast " +
-      "means clear peaks over the band's noise floor (strong harmonics); low " +
-      "contrast means a broadband, noisy band. Handy for distinguishing music from " +
-      "speech and noise.",
+      "**What it shows.** For each octave band, how far the strongest peak sits " +
+      "above the band's noise floor, in dB.\n\n" +
+      "**Why use it.** High values mean strong harmonics; low values mean a broad, " +
+      "noisy band. Helps tell music from speech and noise.",
     keywords: ["contrast", "peak", "valley", "octave", "band", "spectral"],
     section: "spectral",
     view: {
@@ -102,11 +109,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralBandwidth",
     title: "Spectral bandwidth",
-    description: "Spread around the spectral centroid",
+    description: "How spread out the energy is",
     about:
-      "The power-weighted standard deviation of the spectrum around its centroid, in " +
-      "Hz — how spread out the energy is. Broad for noise and dense mixes, narrow " +
-      "for a single tone.",
+      "**What it shows.** The width of the spectrum around its centre of mass, in " +
+      "Hz.\n\n" +
+      "**Why use it.** Narrow for a single tone, wide for noise and dense mixes — a " +
+      "simple gauge of how complex or full a sound is.",
     keywords: ["bandwidth", "spread", "variance", "width", "spectral"],
     section: "spectral",
     view: series("bandwidth (Hz)", formatHz, { style: "area", yScale: "log" }),
@@ -114,10 +122,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralEntropy",
     title: "Spectral entropy",
-    description: "Order vs disorder of the spectrum",
+    description: "Order versus disorder in the spectrum",
     about:
-      "Shannon entropy of the normalised power spectrum, in bits. Low for a pure " +
-      "tone (energy in few bins), high for noise (energy spread across bins).",
+      "**What it shows.** A disorder score: low when energy concentrates in a few " +
+      "frequencies, high when it spreads across many.\n\n" +
+      "**Why use it.** Separates clean tones and chords from noise and crowded " +
+      "material. Read it alongside *flatness*.",
     keywords: ["entropy", "shannon", "disorder", "noise", "spectral"],
     section: "spectral",
     view: series("entropy (bits)", fmtPlain, { style: "area" }),
@@ -125,11 +135,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectralCrest",
     title: "Spectral crest factor",
-    description: "Peak-to-average spectral power ratio",
+    description: "Peak versus average spectral power",
     about:
-      "The ratio of the maximum to the mean spectral power per frame. High for " +
-      "peaky, tonal spectra (a pure sine is extreme); near 1 for a flat, noise-like " +
-      "spectrum.",
+      "**What it shows.** How far the strongest frequency stands out from the " +
+      "average, moment by moment.\n\n" +
+      "**Why use it.** High for sharp, tonal spectra and near 1 for flat noise — " +
+      "good for spotting tonal events inside a noisy bed.",
     keywords: ["crest", "factor", "peak", "average", "tonal", "spectral"],
     section: "spectral",
     view: series("crest factor", fmtPlain, { style: "stepped" }),
@@ -137,11 +148,13 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "harmonicRatio",
     title: "Harmonic ratio",
-    description: "Harmonic (periodic) content over time",
+    description: "How periodic the sound is",
     about:
-      "An autocorrelation-based estimate of the harmonic-to-total ratio in 0…1 — how " +
-      "periodic the frame is. Near 1 for sustained pitched tones, near 0 for noise " +
-      "and unvoiced speech. Set the expected fundamental range below.",
+      "**What it shows.** A 0–1 estimate of how much of the sound is *harmonic* " +
+      "(periodic) rather than noise.\n\n" +
+      "**Why use it.** Near 1 for sustained pitched notes and vowels, near 0 for " +
+      "hiss, fricatives, and unvoiced speech. Set the expected fundamental range " +
+      "below so the estimate stays useful.",
     keywords: ["harmonic", "ratio", "hnr", "periodicity", "autocorrelation", "noise"],
     section: "spectral",
     view: series("harmonic ratio", fmtRatio, { style: "area", yRange: [0, 1] }),
@@ -173,11 +186,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "zeroCrossingRate",
     title: "Zero-crossing rate",
-    description: "Sign-change rate over time",
+    description: "How often the waveform crosses zero",
     about:
-      "The fraction of adjacent sample pairs that cross zero per frame. High for " +
-      "noisy or high-frequency content, low for low-frequency tones. A classic " +
-      "voiced/unvoiced and percussive/tonal cue.",
+      "**What it shows.** How often the signal changes sign, as a rate from 0 to 1.\n\n" +
+      "**Why use it.** A classic cue for noisy or high-frequency content versus low " +
+      "tones, and for voiced versus unvoiced speech. It also helps separate " +
+      "percussive from tonal material.",
     keywords: ["zero crossing", "zcr", "sign", "voiced", "percussive", "rate"],
     section: "spectral",
     view: series("zero-crossing rate", fmtRatio, { style: "area", yRange: [0, 1] }),

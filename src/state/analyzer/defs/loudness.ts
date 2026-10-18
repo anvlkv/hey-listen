@@ -6,11 +6,12 @@ export const LOUDNESS_ANALYZERS: AnalyzerDef[] = [
   {
     id: "loudnessIntegrated",
     title: "Integrated LUFS",
-    description: "EBU R128 integrated loudness",
+    description: "Overall loudness for the window (EBU R128)",
     about:
-      "Programme loudness integrated over the window, per EBU R128 / ITU-R BS.1770 " +
-      "(with the gating the standard requires). This is the number streaming " +
-      "platforms normalise to (typically −14 LUFS).",
+      "**What it shows.** One loudness figure for the window, in LUFS, measured the " +
+      "EBU R128 / ITU-R BS.1770 way — including the *gating* that skips near-silence.\n\n" +
+      "**Why use it.** Streaming platforms normalise to this number (often −14 LUFS), " +
+      "so it tells you how loud your material will feel next to everything else.",
     keywords: ["loudness", "lufs", "ebu", "r128", "integrated", "gating", "normalization"],
     section: "loudness",
     view: { kind: "readouts" },
@@ -18,11 +19,13 @@ export const LOUDNESS_ANALYZERS: AnalyzerDef[] = [
   {
     id: "loudnessMomentary",
     title: "Loudness (momentary)",
-    description: "Short-term loudness over time",
+    description: "Loudness over time",
     about:
-      "Loudness as it evolves through the window. By default this is EBU R128 " +
-      "momentary loudness (400 ms blocks, 100 ms hop); pick a custom window to use " +
-      "non-overlapping blocks instead. Good for spotting level changes and dynamics.",
+      "**What it shows.** Loudness as it changes through the window, with −14 LUFS " +
+      "marked as a reference.\n\n" +
+      "**Why use it.** Spot level changes, drops, and dynamics. By default it uses " +
+      "short 400 ms blocks (EBU R128); choose a custom window for fixed, " +
+      "non-overlapping blocks.",
     keywords: ["loudness", "momentary", "short term", "lufs", "dynamics", "level"],
     section: "loudness",
     view: series("loudness (LUFS)", (value) => `${value.toFixed(1)} LUFS`, {
@@ -50,11 +53,13 @@ export const LOUDNESS_ANALYZERS: AnalyzerDef[] = [
   {
     id: "loudnessRange",
     title: "Loudness range",
-    description: "LRA — loudness spread in LU",
+    description: "How wide the loudness swings (LRA)",
     about:
-      "Loudness range (LRA): the spread between the quiet and loud passages of the " +
-      "programme, in LU. A high LRA means wide dynamics; a low LRA means heavily " +
-      "compressed, consistent material.",
+      "**What it shows.** The spread between the quiet and loud passages of the " +
+      "window, in LU.\n\n" +
+      "**Why use it.** A high range means wide dynamics; a low range means " +
+      "compressed, even material. Useful for matching the feel of a mix or checking " +
+      "a master.",
     keywords: ["loudness", "range", "lra", "dynamics", "spread", "compression"],
     section: "loudness",
     view: { kind: "readouts" },

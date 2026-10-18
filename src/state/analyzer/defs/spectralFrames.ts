@@ -14,13 +14,16 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectrum",
     title: "Spectrum",
-    description: "Averaged FFT magnitude vs frequency",
+    description: "Average level at each frequency",
     about:
-      "Averaged magnitude spectrum (STFT magnitudes averaged across the window's " +
-      "frames), so steady tones stand out as peaks. Uses the shared FFT size, hop, " +
-      "window function, channel, and frequency range. Drag-select to zoom; the " +
-      "cursor readout gives the frequency and level under the pointer. The per-tool " +
-      "switches overlay the per-frame min / max magnitude around the mean.",
+      "**What it shows.** The spectrum averaged over the window — level at each " +
+      "frequency — so steady tones stand out as peaks.\n\n" +
+      "**Why use it.** Find a signal's main frequencies, see where noise sits, or " +
+      "compare takes. Drag-select to zoom, and hover for the frequency and level " +
+      "under the pointer.\n\n" +
+      "**Layers.** *Mean* is the average; *Min* and *Max* show the quietest and " +
+      "loudest frame at each frequency. The shared FFT size, hop, window, channel, " +
+      "and frequency range apply.",
     keywords: ["spectrum", "fft", "frequency", "magnitude", "welch", "harmonic"],
     section: "spectral",
     view: { kind: "spectrum" },
@@ -40,12 +43,15 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
   {
     id: "spectrogram",
     title: "Spectrogram",
-    description: "STFT magnitude heatmap over time and frequency",
+    description: "Frequency content over time as a heatmap",
     about:
-      "A magnitude heatmap: frequency on the vertical axis, time on the horizontal, " +
-      "and colour for level (dBFS). Good for seeing how energy moves over time — " +
-      "transients, harmonics, and noise. Uses the shared STFT params; the per-tool " +
-      "control sets the displayed dynamic range.",
+      "**What it shows.** Frequency up the side, time across, and colour for level " +
+      "(dBFS).\n\n" +
+      "**Why use it.** Follow how energy moves — transients, harmonics, and noise — " +
+      "and see at a glance whether a sound is steady or changing. The shared FFT " +
+      "settings apply; the per-tool control sets the displayed dynamic range.\n\n" +
+      "**Contours.** *Centroid* and *Rolloff* can be drawn on top to trace the " +
+      "spectrum's centre of mass and the frequency below which most energy lies.",
     keywords: ["spectrogram", "stft", "heatmap", "time", "frequency", "waterfall"],
     section: "spectral",
     view: { kind: "spectrogram" },
@@ -71,12 +77,13 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
   {
     id: "melSpectrogram",
     title: "Mel spectrogram",
-    description: "Log-mel energies over time and mel bands",
+    description: "Energy in perceptually spaced bands over time",
     about:
-      "A time × mel-band heatmap of log-mel energies. The mel scale spaces bands " +
-      "perceptually (closer together at low frequencies), which makes it the usual " +
-      "front end for speech and music ML. Uses the shared FFT size and hop; choose " +
-      "the band count here.",
+      "**What it shows.** A time × band heatmap of log-mel energy, where bands are " +
+      "spaced the way hearing is — closer together at low frequencies.\n\n" +
+      "**Why use it.** It matches perception better than a plain spectrogram and is " +
+      "the usual starting point for speech and music models. Choose the band count " +
+      "here; the shared FFT size and hop apply.",
     keywords: ["mel", "spectrogram", "perceptual", "log", "speech", "machine learning"],
     section: "spectral",
     view: {
@@ -100,12 +107,14 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
   {
     id: "mfcc",
     title: "MFCC",
-    description: "Mel-frequency cepstral coefficients over time",
+    description: "A compact timbre fingerprint over time",
     about:
-      "Mel-frequency cepstral coefficients: a compact descriptor of the spectral " +
-      "envelope (roughly timbre), one row per coefficient. The first coefficients " +
-      "carry most of the energy. Derived from the same log-mel front end as the mel " +
-      "spectrogram.",
+      "**What it shows.** A few coefficients per moment that summarise the shape of " +
+      "the spectrum — roughly, its *timbre*.\n\n" +
+      "**Why use it.** It condenses a whole spectrum into a handful of numbers, " +
+      "which makes sounds easy to compare and is a common feature for speech and " +
+      "music models. The first coefficients carry most of the shape; add more for " +
+      "finer detail.",
     keywords: ["mfcc", "cepstral", "timbre", "coefficient", "speech", "feature"],
     section: "spectral",
     view: {
@@ -138,11 +147,13 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
   {
     id: "chromagram",
     title: "Chromagram",
-    description: "Energy per pitch class over time",
+    description: "Energy per musical note over time",
     about:
-      "Energy in each of the twelve pitch classes (C…B) per frame — like a folded " +
-      "spectrum. Useful for chords, key, and harmony: all octaves of a pitch land in " +
-      "the same row.",
+      "**What it shows.** Twelve rows, one per pitch class (C through B), with every " +
+      "octave of a note folded into the same row.\n\n" +
+      "**Why use it.** Read chords, key, and harmony without wading through " +
+      "harmonics. Tonal music shows clear rows; percussion and noise spread across " +
+      "all of them.",
     keywords: ["chroma", "chromagram", "pitch class", "harmony", "chord", "key"],
     section: "spectral",
     view: {

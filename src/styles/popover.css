@@ -70,6 +70,12 @@
   color: var(--fg-2);
 }
 
+/* Lead-ins ("What it shows.", "Why use it.") read as subtitles in the About panel. */
+.about-body strong {
+  font-weight: 600;
+  color: var(--fg);
+}
+
 /* --- Reframe menu (right-click: set the timeline window) ---------------- */
 
 .reframe-menu {

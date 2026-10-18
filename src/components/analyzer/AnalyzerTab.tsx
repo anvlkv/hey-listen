@@ -1,5 +1,6 @@
-import { Show, type JSX } from "solid-js";
+import { createResource, createSignal, Show, type JSX } from "solid-js";
 import Popover from "../Popover";
+import { markdownSummary, renderMarkdown } from "../../lib/markdown";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 
 /**
@@ -27,6 +28,11 @@ export default function AnalyzerTab(props: {
   children: JSX.Element;
 }) {
   const def = () => analyzerById(props.id);
+
+  // The About panel renders the registry's markdown copy. The renderer is a
+  // dynamic import, so it is only loaded once the panel is first opened.
+  const [aboutOpen, setAboutOpen] = createSignal(false);
+  const [aboutHtml] = createResource(aboutOpen, () => renderMarkdown(def().about));
 
   return (
     <div class="analyzer" data-testid={`analyzer.${props.id}`}>
@@ -64,9 +70,22 @@ export default function AnalyzerTab(props: {
             icon="circle-question"
             panelClass="pop-panel-about"
             testid={`analyzer.about.${props.id}`}
+            onOpen={() => setAboutOpen(true)}
           >
             <div class="about-title">{def().title}</div>
-            <p class="about-body">{def().about}</p>
+            <Show
+              when={aboutHtml()}
+              fallback={<p class="about-body">{markdownSummary(def().about)}</p>}
+            >
+              {(html) => (
+                <div
+                  class="about-body markdown-body"
+                  // `renderMarkdown` output (marked + DOMPurify sanitized).
+                  // eslint-disable-next-line solid/no-innerhtml -- sanitized registry copy
+                  innerHTML={html()}
+                />
+              )}
+            </Show>
           </Popover>
         </div>
       </div>

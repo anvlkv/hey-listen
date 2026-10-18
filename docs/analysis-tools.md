@@ -7,7 +7,9 @@ as a tab in the Workbench.
 
 - Stable `tool id` (string). **No duplicate tabs** per tool.
 - Each tool has a **params popover** (per-tool config).
-- Each tool has an **about popover** (when/how to use it).
+- Each tool has an **about popover** (what it shows, and when to use it). The copy
+  is **markdown** — short paragraphs with bold or italic lead-ins — rendered in the
+  panel; the Sidebar's hover hint is a plain-text preview of it.
 - Each tool carries **keywords** (search terms) for the Sidebar search box, which
   filters analyzers by title and keywords.
 - Each **choice** (window function, hop/overlap, FFT size, analyzer) carries an
