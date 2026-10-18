@@ -4,6 +4,7 @@ import { SPEED_MAX, SPEED_MIN } from "../lib/previewSpeed";
 import { channel, channelArg } from "../state/analysis";
 import { filterRevision } from "../state/graph";
 import { outputDeviceId } from "../state/output";
+import { windowEnd, windowStart } from "../state/timeline";
 
 /**
  * Preview playback, driven by the Rust core (ADR-9).
@@ -15,6 +16,8 @@ import { outputDeviceId } from "../state/output";
  * The core filters the region *when it is loaded*, so when the filter graph (or the
  * analysis channel / output device) changes while a preview is playing, the region
  * is re-issued — otherwise a filter edit would only be heard on the next preview.
+ * A preview started on the analysis window (`previewWindow`) also reloads once the
+ * window settles, so moving it never keeps auditioning the old region.
  *
  * **Speed** is *varispeed* (M14 follow-up): the core resamples the region, so a rate
  * shifts pitch rather than time-stretching. It is purely a preview control — analysis
@@ -22,10 +25,16 @@ import { outputDeviceId } from "../state/output";
  * (`lib/previewSpeed.ts`), which mirrors the core's clamp in `commands/playback.rs`.
  */
 
+/** Trailing debounce before a moved analysis window reloads the looped region, in ms. */
+const FOLLOW_DEBOUNCE_MS = 200;
+
 let regionStart = 0;
 let regionEnd = 0;
 let loopRegion = true;
 let startedAt = 0;
+/** Whether the loaded region tracks the analysis window (see `previewWindow`). */
+let followWindow = false;
+let followTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Whether a preview region is currently loaded/playing (drives the output meter). */
 export const [previewPlaying, setPreviewPlaying] = createSignal(false);
@@ -61,10 +70,19 @@ function issue(start: number, end: number, loop: boolean) {
 /**
  * Play `startSec..endSec` (source seconds), optionally looping. Restarting while
  * already playing replaces the current region (used for drag preview). An explicit
- * `speed` also sets the current rate.
+ * `speed` also sets the current rate; `follow` keeps the region on the analysis
+ * window (see [`previewWindow`]).
  */
-export function previewRegion(startSec: number, endSec: number, loop = true, speed?: number) {
+export function previewRegion(
+  startSec: number,
+  endSec: number,
+  loop = true,
+  speed?: number,
+  follow = false,
+) {
   if (speed != null) setPreviewSpeed(speed);
+  followWindow = follow;
+  cancelFollow();
   regionStart = startSec;
   regionEnd = endSec;
   loopRegion = loop;
@@ -73,8 +91,20 @@ export function previewRegion(startSec: number, endSec: number, loop = true, spe
   issue(startSec, endSec, loop);
 }
 
+/**
+ * Play `startSec..endSec` and keep the looped region on the analysis window: moving
+ * it — by the Timeline's move handle, the chart's Reframe menu, Analyze, or MCP
+ * `set_window` — reloads the region once the move settles. An explicit preview range
+ * (`previewRegion`) stays where it was.
+ */
+export function previewWindow(startSec: number, endSec: number, loop = true, speed?: number) {
+  previewRegion(startSec, endSec, loop, speed, true);
+}
+
 /** Stop any in-flight preview. */
 export function stop() {
+  cancelFollow();
+  followWindow = false;
   setPreviewPlaying(false);
   void invoke("stop_preview");
 }
@@ -92,15 +122,44 @@ export function playhead(): number | null {
 /** Re-load the current region so the core re-reads the filter/channel/device/speed. */
 function refreshPreview() {
   if (!previewPlaying()) return;
+  if (followWindow) {
+    regionStart = windowStart();
+    regionEnd = windowEnd();
+  }
   startedAt = performance.now();
   issue(regionStart, regionEnd, loopRegion);
 }
 
-// Re-apply the preview when anything that changes the *loaded* buffer changes.
+function cancelFollow() {
+  if (followTimer !== undefined) {
+    clearTimeout(followTimer);
+    followTimer = undefined;
+  }
+}
+
+/**
+ * Reload a window-following preview once the window settles. The core mixes, filters
+ * and resamples a region *when it is loaded*, so re-issuing at pointer rate would
+ * thrash it and restart the loop on every move; the trailing debounce coalesces a
+ * whole drag into one reload, matching the analysis auto-run's settle window.
+ */
+function followWindowChange() {
+  if (!previewPlaying() || !followWindow) return;
+  cancelFollow();
+  followTimer = setTimeout(() => {
+    followTimer = undefined;
+    if (!previewPlaying() || !followWindow) return;
+    refreshPreview();
+  }, FOLLOW_DEBOUNCE_MS);
+}
+
+// Re-apply the preview when anything that changes the *loaded* buffer changes, and
+// keep a window preview on the window as it moves.
 createRoot(() => {
   createEffect(
     on([channel, filterRevision, outputDeviceId, previewSpeed], () => refreshPreview(), {
       defer: true,
     }),
   );
+  createEffect(on([windowStart, windowEnd], followWindowChange, { defer: true }));
 });

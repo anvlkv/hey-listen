@@ -25,8 +25,8 @@ export { waitForApp, waitForShell, selectMainWindow } from "./app.ts";
 // --- raw DOM helpers (avoid element-handle stalls) -------------------------
 export { count, textOf, click, waitFor, pointerDrag, wheelOver } from "./dom.ts";
 
-// --- Timeline canvas geometry (window handles) -----------------------------
-export { dragTimelineHandle } from "./timeline.ts";
+// --- Timeline canvas geometry (window handles / move bar) ------------------
+export { dragTimelineHandle, dragTimelineWindow } from "./timeline.ts";
 
 // --- Workbench tabs --------------------------------------------------------
 export {
@@ -73,4 +73,5 @@ export {
   menuActionIn,
   startInvokeCounts,
   takeInvokeCounts,
+  lastInvokeArgs,
 } from "./ipc.ts";

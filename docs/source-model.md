@@ -55,7 +55,9 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
   over the raw waveform, so its effect reads as a tint on the signal rather than a
   replacement for it.
 - Dragging `start` or `end` plays back a **preview** of that region.
-- The whole window can be **dragged** (keeping its width) via a handle at its top.
+- The whole window can be **dragged** (keeping its width) via a handle at its top; a
+  preview that is playing reloads onto the new window when the drag settles, so it never
+  keeps auditioning the old region.
 - The bottom **note lane** holds the project's annotations (M14) — see
   [`notes.md`](notes.md) → Surfacing.
 - For a **multichannel** source, a channel selector (in the Timeline toolbar) picks

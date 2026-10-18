@@ -43,6 +43,7 @@ async function ensureOverride(): Promise<void> {
         };
         __e2e_mocks__?: Record<string, MockEntry>;
         __e2e_counts__?: Record<string, number>;
+        __e2e_last_args__?: Record<string, unknown>;
         __e2e_installed__?: boolean;
       };
       const seam = g.__heylisten_test__;
@@ -58,6 +59,8 @@ async function ensureOverride(): Promise<void> {
         const table = g.__e2e_mocks__ ?? {};
         const counts = g.__e2e_counts__;
         if (counts) counts[c] = (counts[c] ?? 0) + 1;
+        const last = g.__e2e_last_args__;
+        if (last) last[c] = a;
         const mock = table[c];
         if (mock) {
           if (mock.reject) return Promise.reject(new Error(mock.message ?? "mocked rejection"));
@@ -91,13 +94,20 @@ export async function setMock(command: string, entry: MockEntry): Promise<void> 
 }
 
 /**
- * Start counting invokes per command (they still run for real). Used to assert that a
- * gesture does not talk to the core at pointer rate — see [`takeInvokeCounts`].
+ * Start counting invokes per command (they still run for real) and recording the
+ * arguments of the latest call. Used to assert that a gesture does not talk to the
+ * core at pointer rate and that the call it does make carries the right values —
+ * see [`takeInvokeCounts`] / [`lastInvokeArgs`].
  */
 export async function startInvokeCounts(): Promise<void> {
   await ensureOverride();
   await browser.tauri.execute(() => {
-    (globalThis as unknown as { __e2e_counts__?: Record<string, number> }).__e2e_counts__ = {};
+    const g = globalThis as unknown as {
+      __e2e_counts__?: Record<string, number>;
+      __e2e_last_args__?: Record<string, unknown>;
+    };
+    g.__e2e_counts__ = {};
+    g.__e2e_last_args__ = {};
   });
 }
 
@@ -109,6 +119,20 @@ export async function takeInvokeCounts(): Promise<Record<string, number>> {
     g.__e2e_counts__ = {};
     return counts;
   })) as Record<string, number>;
+}
+
+/**
+ * The arguments of the most recent invoke of `command` since [`startInvokeCounts`], or
+ * `null` if it has not been called. IPC mocking only exposes return values, so this is
+ * how a test asserts *what* a gesture handed the core.
+ */
+export async function lastInvokeArgs(command: string): Promise<Record<string, unknown> | null> {
+  return (await browser.tauri.execute((_tauri, c) => {
+    const g = globalThis as unknown as {
+      __e2e_last_args__?: Record<string, unknown>;
+    };
+    return (g.__e2e_last_args__?.[c as string] as Record<string, unknown> | undefined) ?? null;
+  }, command)) as Record<string, unknown> | null;
 }
 
 /** Mock a backend command to always resolve with `value`. */

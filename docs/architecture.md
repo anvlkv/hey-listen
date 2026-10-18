@@ -336,7 +336,9 @@ thread); analysis runs in Rust.
 **Trigger policy:**
 
 - Timeline window markers → **preview playback** (audio streaming, no analysis);
-  the *settled* window then re-analyzes open tools (debounced).
+  a playing window preview is **re-loaded on the settled window** (debounced, because
+  the core filters a region when it loads it), and the *settled* window then re-analyzes
+  open tools (debounced).
 - Tool params (FFT size, hop/overlap, …) → debounced auto-run, no button.
 - Expensive tools (tempo, chromagram, long-window spectral) may opt into an
   explicit **Run** button instead of auto-run.

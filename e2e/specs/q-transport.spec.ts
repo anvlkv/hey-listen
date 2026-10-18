@@ -3,7 +3,8 @@
  *
  * The Timeline's transport: the **varispeed slider** (a log scale with 1× at the centre),
  * the **playhead** drawn on the open charts while auditioning, the **note-at-the-playhead**
- * action, and the Timeline's **scrollbar** when the view is zoomed in.
+ * action, the Timeline's **scrollbar** when the view is zoomed in, and the looped region
+ * **following the analysis window** when it is moved.
  *
  * Audio itself cannot be heard headlessly, and WebKit suspends `requestAnimationFrame`
  * (and throttles timers) for the window WebDriver drives, so the transport advances in
@@ -18,11 +19,15 @@ import {
   closeTool,
   count,
   dragTimelineHandle,
+  dragTimelineWindow,
+  lastInvokeArgs,
   menuAction,
   mockReturn,
   openFixture,
   openTool,
   rowSignature,
+  startInvokeCounts,
+  takeInvokeCounts,
   waitFor,
   waitForAnalyzer,
   waitForApp,
@@ -37,6 +42,16 @@ async function readout(): Promise<string> {
   return (await browser.execute(
     () => document.querySelector(".timeline-readout")?.textContent?.trim() ?? "",
   )) as string;
+}
+
+/** The `m:ss.ss – m:ss.ss` window from that readout, in seconds. */
+function windowSeconds(text: string): [number, number] {
+  const times: number[] = [];
+  for (const match of text.matchAll(/(\d+):(\d{2}\.\d{2})/g)) {
+    times.push(Number(match[1]) * 60 + Number(match[2]));
+  }
+  if (times.length < 2) throw new Error(`unexpected timeline readout: ${text}`);
+  return [times[0], times[1]];
 }
 
 /** Set the transport speed with a keyboard gesture on the slider (its thumb moves focus). */
@@ -180,5 +195,43 @@ describe("Q. Preview transport", () => {
       "the Timeline never showed a scroll thumb when zoomed in",
     );
     expect(await count(SEL.timelineScroll)).toBe(1);
+  });
+
+  it("Q6 — moving the window reloads a playing preview onto the new window", async () => {
+    await stopTransport();
+    // Start from a clean timeline/view, then leave the window room to slide: a
+    // full-width window has nowhere to move, so pull its end in first.
+    await menuAction("new");
+    await openFixture("sine440");
+    await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
+    await dragTimelineHandle("end", -160);
+    const before = await readout();
+
+    await (await $(SEL.timelinePreview)).click();
+    await waitFor(async () => await transportPlaying(), "the transport never started the preview");
+
+    // Count only what the move itself issues.
+    await startInvokeCounts();
+    await dragTimelineWindow(120, 12);
+
+    // The region reload is debounced to the settle, so wait for it rather than assuming
+    // the gesture's pause covered a throttled timer.
+    await waitFor(
+      async () => (await lastInvokeArgs("preview_region")) != null,
+      "the transport never reloaded the preview after the window moved",
+    );
+    const counts = await takeInvokeCounts();
+    const moved = await readout();
+    expect(moved).not.toBe(before);
+
+    // One reload for the whole gesture (not one per pointer move), carrying the *new*
+    // window instead of the stale region the preview started on.
+    expect(counts.preview_region ?? 0).toBe(1);
+    const [startSecs, endSecs] = windowSeconds(moved);
+    const args = await lastInvokeArgs("preview_region");
+    expect(args?.start).toBeCloseTo(startSecs, 2);
+    expect(args?.end).toBeCloseTo(endSecs, 2);
+
+    await stopTransport();
   });
 });

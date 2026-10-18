@@ -28,7 +28,7 @@ import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run 
 A shell (3), B sources (4), C graphs (8), D analyzers (27), E correctness (5), F
 cross-cutting (6), G timeline (5), H open-audio (1), I errors (5), J project + popout (2),
 K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1),
-P notes interactions (4), Q preview transport (5).
+P notes interactions (4), Q preview transport (6).
 
 **IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
 plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
@@ -404,11 +404,12 @@ tools where note creation used to throw.
 ### Q. Preview transport (M14 follow-up)
 
 The Timeline's transport: the **varispeed** slider, the **playhead** a preview paints on
-the open charts, the **note-at-the-playhead** action, and the Timeline scrollbar. Audio
-cannot be heard headlessly and WebKit suspends `requestAnimationFrame` (and throttles
-timers) for the window WebDriver drives, so the transport advances in coarse steps and the
-assertions are what it *drives* — not frame-by-frame smoothness. The playhead cases retry,
-because opening the audio device can fail transiently (which correctly stops the preview).
+the open charts, the **note-at-the-playhead** action, the Timeline scrollbar, and the
+looped region **following the analysis window** when it moves. Audio cannot be heard
+headlessly and WebKit suspends `requestAnimationFrame` (and throttles timers) for the
+window WebDriver drives, so the transport advances in coarse steps and the assertions are
+what it *drives* — not frame-by-frame smoothness. The playhead cases retry, because
+opening the audio device can fail transiently (which correctly stops the preview).
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
@@ -417,6 +418,7 @@ because opening the audio device can fail transiently (which correctly stops the
 | Q3 | Note at the playhead | With the window moved off the source start, the transport's button drops a note at the transport's position | Scenario |
 | Q4 | Timeline scrollbar | Zooming the Timeline view reveals a scroll thumb | Smoke |
 | Q5 | Heatmap playhead | The same rule appears on a canvas heatmap (the other painter path) | Scenario |
+| Q6 | Preview follows the window | Moving the whole window while previewing reloads `preview_region` **once** at the settle, with the *new* window (not the stale region, and not per pointer move) | Scenario |
 
 > **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
 > excerpts, the window-frame lookup `noteFrameAt`, and the snapshot comparison) are
