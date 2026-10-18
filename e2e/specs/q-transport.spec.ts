@@ -32,6 +32,7 @@ import {
   openTool,
   restoreMocks,
   rowSignature,
+  stableRowSignature,
   startInvokeCounts,
   takeInvokeCounts,
   waitFor,
@@ -139,7 +140,7 @@ describe("Q. Preview transport", () => {
     const chart = `${analyzerPanel("waveform")} canvas`;
 
     // Starting the transport publishes its position, so the rule lands on the chart...
-    const idle = await rowSignature(chart);
+    const idle = await stableRowSignature(chart);
     expect(await playheadOnChart(chart, idle)).toBe(true);
 
     // ...and stopping erases it, leaving the chart as it was.
@@ -157,7 +158,7 @@ describe("Q. Preview transport", () => {
     await waitForAnalyzer("spectrogram");
     const chart = `${analyzerPanel("spectrogram")} canvas`;
 
-    const idle = await rowSignature(chart);
+    const idle = await stableRowSignature(chart);
     expect(await playheadOnChart(chart, idle)).toBe(true);
     await stopTransport();
     await waitFor(

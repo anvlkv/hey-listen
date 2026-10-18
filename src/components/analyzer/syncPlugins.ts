@@ -154,7 +154,10 @@ export const syncView =
       const min = Math.max(Math.min(x[0], x[1]), xs[0]);
       const max = Math.min(Math.max(x[0], x[1]), xs[xs.length - 1]);
       if (!(max > min)) return;
-      if (Math.abs(scale.min - min) < 1e-9 && Math.abs(scale.max - max) < 1e-9) return;
+      // Always call `setScale`, even when `scales.x` already reads this range. uPlot
+      // queues its own reset-to-fit inside the same `setData` task (`autoScaleX` writes
+      // `pendScales`), and `scales.x` still reports the pre-reset range here — so an
+      // "unchanged" early return would let that pending full-range reset win.
       u.setScale("x", { min, max });
     };
 

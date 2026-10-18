@@ -144,6 +144,9 @@ describe("F. Cross-cutting analyzer behavior", () => {
 
     const readout = zoomReadout("spectralCentroid");
     const full = await textOf(readout);
+    // The hop is derived from the FFT size, so a changed hop proves the re-run landed.
+    const hopBefore = await readoutValue("spectralCentroid", "Hop");
+    expect(hopBefore).toBeTruthy();
     await (await $(`${analyzerPanel("spectralCentroid")} .zoom-btn[aria-label="Zoom in"]`)).click();
     await browser.waitUntil(
       async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9,
@@ -164,6 +167,16 @@ describe("F. Cross-cutting analyzer behavior", () => {
 
     await activateTab("spectralCentroid");
     await waitForAnalyzer("spectralCentroid");
+    // Wait for the re-run to render: the frames/hop change with the FFT size, and only
+    // then is this a test of the zoom surviving a *completed* re-run (not a pass before
+    // the analysis lands).
+    await browser.waitUntil(
+      async () => {
+        const hop = await readoutValue("spectralCentroid", "Hop");
+        return hop != null && hop !== hopBefore;
+      },
+      { timeoutMsg: "the analysis did not re-run with the new FFT size" },
+    );
     await browser.waitUntil(
       async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9,
       {

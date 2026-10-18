@@ -249,7 +249,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | F3 | Shared params | Change FFT size / channel / freq range; `run_analysis` re-fires, all open tools agree | Scenario |
 | F4 | Zoom/cursor sync | Zoom one time chart (the visible range actually narrows); x-zoom mirrors across the time-group tabs | Scenario |
 | F5 | Popovers | Params + about popovers render per-tool config/copy | Smoke |
-| F6 | Zoom persistence | Zoom a chart, then change the shared FFT size (an analysis re-run); the zoom survives (used to snap back to the full window) | Scenario |
+| F6 | Zoom persistence | Zoom a chart, then change the shared FFT size (an analysis re-run; the test waits for the new hop before asserting); the zoom survives (used to snap back to the full window) | Scenario |
 
 ### G. Timeline
 
@@ -258,7 +258,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | G1 | Window range | Drag start/end handles; preview plays, the settled window re-runs analysis | Scenario |
 | G2 | Zoom | Zoom a short window; waveform re-renders at higher detail | Smoke |
 | G3 | Channel select | Pick L/R/mix on a stereo file; waveform + analyzers agree | Scenario |
-| G4 | Window move re-fits the charts | Zoom a heatmap in, move the analysis window: the chart re-fits to the whole *new* window (the same range the Fit control gives) instead of keeping a stale slice | Scenario |
+| G4 | Window move re-fits the charts | Zoom a heatmap in, move the analysis window: the chart re-fits to the whole *new* window (waits for the re-run, then matches the same range the Fit control gives) instead of keeping a stale slice | Scenario |
 | G5 | A drag coalesces its pushes | A 20-move handle drag in one gesture moves the window and pushes the shared state a handful of times, not once per move | Scenario |
 
 ### H. Project file (M6) & multi-window (M7)
@@ -419,10 +419,10 @@ and the note time are all frontend-side.
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | Q1 | Speed scale | The slider is logarithmic with 1× at the centre (ten arrow steps read 1.15×, a linear track would read 1.10×) | Scenario |
-| Q2 | uPlot playhead | Starting the transport paints the rule on a uPlot chart's canvas and stopping erases it | Scenario |
+| Q2 | uPlot playhead | Starting the transport paints the rule on a uPlot chart's canvas and stopping erases it (the idle state is captured once the canvas settles) | Scenario |
 | Q3 | Note at the playhead | With the window moved off the source start, the transport's button drops a note at the transport's position | Scenario |
 | Q4 | Timeline scrollbar | Zooming the Timeline view reveals a scroll thumb | Smoke |
-| Q5 | Heatmap playhead | The same rule appears on a canvas heatmap (the other painter path) | Scenario |
+| Q5 | Heatmap playhead | The same rule appears on a canvas heatmap (the other painter path), and the settled idle signature returns once the transport stops | Scenario |
 | Q6 | Preview follows the window | Moving the whole window while previewing reloads `preview_region` **once** at the settle, with the *new* window (not the stale region, and not per pointer move) | Scenario |
 
 > **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
