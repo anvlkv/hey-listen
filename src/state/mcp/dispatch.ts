@@ -1,6 +1,11 @@
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
-import { previewRegion, previewSpeed, stop as stopPreviewAudio } from "../../audio/preview";
+import {
+  previewRegion,
+  previewSpeed,
+  previewWindow,
+  stop as stopPreviewAudio,
+} from "../../audio/preview";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
 import { ANALYZERS, isAnalyzerId, setToolOption, toolOptions, type AnalyzerId } from "../analyzer";
 import {
@@ -157,9 +162,15 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
 
     // --- playback -----------------------------------------------------------
     case "preview": {
-      const start = optionalNum(args, "start") ?? windowStart();
-      const end = optionalNum(args, "end") ?? windowEnd();
-      previewRegion(start, end, optionalBool(args, "loop") ?? true, optionalNum(args, "speed"));
+      const startArg = optionalNum(args, "start");
+      const endArg = optionalNum(args, "end");
+      const start = startArg ?? windowStart();
+      const end = endArg ?? windowEnd();
+      const loop = optionalBool(args, "loop") ?? true;
+      const speed = optionalNum(args, "speed");
+      // The bare verb auditions the analysis window; an explicit range stays put.
+      if (startArg == null && endArg == null) previewWindow(start, end, loop, speed);
+      else previewRegion(start, end, loop, speed);
       return { start, end, speed: previewSpeed() };
     }
     case "stop_preview":

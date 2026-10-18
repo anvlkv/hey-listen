@@ -23,7 +23,8 @@ import TimelineScrollBar from "./timeline/ScrollBar";
  * - Dragging a `start`/`end` handle previews an excerpt at that edge; short
  *   windows auto-zoom on release (see `docs/source-model.md`).
  * - Dragging the grab bar along the top of the window moves the whole window,
- *   keeping its width (no preview, no auto-zoom).
+ *   keeping its width (no edge excerpt or auto-zoom; a preview that is playing
+ *   reloads onto the new window when the move settles).
  *
  * The canvas painting, pointer interaction and toolbar live in sibling modules
  * under `./timeline/`; this component owns the state and composes them.

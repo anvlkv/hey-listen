@@ -221,6 +221,14 @@ transport facilities are shared with the notes layer:
   the playhead (enabled only while previewing), taking the focused analyzer as its chart
   like the panel's Add — so an observation made *while listening* lands on the right moment.
 
+The transport **keeps auditioning the analysis window**: a preview started from the play
+button follows the window when it moves — the Timeline's top move handle, a chart's
+*Reframe* menu, a note's *Analyze*, undo/redo, or MCP `set_window`. The core mixes, filters
+and resamples a region when it loads it, so the reload is **debounced to the move's
+settle** (~200 ms, matching the analysis auto-run) instead of being re-sent at pointer
+rate; an explicit range (`previewRegion`, e.g. an MCP `preview` with `start`/`end`) stays
+where it was.
+
 ## Persistence and cross-window
 
 - **Project file** — notes are project content, stored in a new **`NOTES`

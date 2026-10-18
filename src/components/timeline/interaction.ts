@@ -199,7 +199,8 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
       return;
     }
     if (!drag) return;
-    // Only the edge handles preview + auto-zoom on release; move/pan do not.
+    // Only the edge handles start an excerpt + auto-zoom on release; move/pan do not
+    // (a playing window preview follows the move via `audio/preview.ts`).
     const wasEdge = drag.kind === "start" || drag.kind === "end";
     drag = null;
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);

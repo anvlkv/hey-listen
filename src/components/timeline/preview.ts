@@ -1,5 +1,5 @@
 import { createSignal, type Accessor } from "solid-js";
-import { playhead, previewRegion, stop as stopPreview } from "../../audio/preview";
+import { playhead, previewRegion, previewWindow, stop as stopPreview } from "../../audio/preview";
 import { analyzerBus } from "../../state/chartSync";
 import { windowEnd, windowStart } from "../../state/timeline";
 import { EDGE_EXCERPT, PREVIEW_TICK_MS } from "./constants";
@@ -49,6 +49,16 @@ export function createPreview(): PreviewController {
 
   function startPreview(start: number, end: number, loop: boolean) {
     previewRegion(start, end, loop);
+    markStarted(start);
+  }
+
+  /** Audition the analysis window; the loop follows it while the window moves. */
+  function startWindowPreview() {
+    previewWindow(windowStart(), windowEnd(), true);
+    markStarted(windowStart());
+  }
+
+  function markStarted(start: number) {
     setPreviewing(true);
     setPlaySec(start);
     publish(start);
@@ -77,7 +87,7 @@ export function createPreview(): PreviewController {
 
   function togglePreview() {
     if (previewing()) endPreview();
-    else startPreview(windowStart(), windowEnd(), true);
+    else startWindowPreview();
   }
 
   return { previewing, playSec, startPreview, previewEdge, endPreview, togglePreview };
