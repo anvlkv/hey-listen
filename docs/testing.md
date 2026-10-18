@@ -26,7 +26,7 @@ Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
 `npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 17 spec files —
 A shell (3), B sources (4), C graphs (8), D analyzers (27), E correctness (5), F
-cross-cutting (6), G timeline (5), H open-audio (1), I errors (5), J project + popout (2),
+cross-cutting (6), G timeline (5), H open-audio (1), I errors (6), J project + popout (2),
 K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1),
 P notes interactions (4), Q preview transport (6).
 
@@ -108,7 +108,8 @@ already carries `aria-label="Search analyzers"`). This milestone adds `data-test
 hooks only where a test needs one — a thin, test-only attribute, not a refactor.
 Convention: `data-testid="region.toolbar|sidebar|workbench|timeline|source|bottom"`
 (regions), `toolbar.filter` (the Filter switch in the **Timeline** toolbar),
-`toolbar.error`, `sidebar.search`,
+`toolbar.error`, `toolbar.preview.error` (a preview that could not start),
+`sidebar.search`,
 `sidebar.tool.<id>`, `tab.<id>` (stamped on the dockview tab), `analyzer.<id>`,
 `analyzer.error`, `analyzer.params.<id>` / `analyzer.about.<id>`, `graph.error`,
 `graph.warning` (the persistent **Output is not connected** banner),
@@ -288,6 +289,7 @@ capture error (B4) and the graph connection warning (C4) complete the picture.
 | I3 | Filter graph tab | Mock `set_filter_graph` to reject | Red `graph-error` shows the message; Filter bypass toggle still works | Scenario |
 | I4 | Synth graph tab | Mock `render_synth` to reject | Red `graph-error` shows the message; Render button re-enables | Scenario |
 | I5 | Graph tabs (warning) | Disconnect the `output` node | Persistent `graph-warn` "Output is not connected…" shows, then clears once rewired | Scenario |
+| I6 | Toolbar (preview) | Mock `preview_region` to reject | Red `toolbar.preview.error` names the failure; the transport does not look alive; a successful retry clears it | Scenario |
 
 ### K. MCP server (M9)
 
@@ -408,8 +410,11 @@ the open charts, the **note-at-the-playhead** action, the Timeline scrollbar, an
 looped region **following the analysis window** when it moves. Audio cannot be heard
 headlessly and WebKit suspends `requestAnimationFrame` (and throttles timers) for the
 window WebDriver drives, so the transport advances in coarse steps and the assertions are
-what it *drives* — not frame-by-frame smoothness. The playhead cases retry, because
-opening the audio device can fail transiently (which correctly stops the preview).
+what it *drives* — not frame-by-frame smoothness. The playhead cases stub
+`preview_region` through the IPC seam: the runners have no audio output device, so the
+real command rejects with `NoDevice` (which correctly stops the preview and surfaces in
+the toolbar's `toolbar.preview.error`, see I6), while the transport clock, the playhead
+and the note time are all frontend-side.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
@@ -621,6 +626,8 @@ bundle, not part of CI.
   smoke, not a wdio spec.
 - No IPC mocks for every command — `browser.tauri.execute()` is used only where a
   UI path can't be driven (the native file dialog, synth fixture setup) or to force
-  an error path (I2–I4); never to skip a real, drivable UI path.
+  an error path (I2–I4, I6); never to skip a real, drivable UI path. The audio device
+  stubbed in Q is the same kind of boundary: no CI runner has one, and the transport
+  is driven from the frontend, so the UI path stays real.
 - No visual-snapshot / pixel-diff testing — layout is asserted structurally.
 - No performance or load tests.

@@ -29,6 +29,8 @@ export const SEL = {
   projectName: '[data-testid="toolbar.project.name"]',
   projectError: '[data-testid="toolbar.project.error"]',
   toolbarError: '[data-testid="toolbar.error"]',
+  // The toolbar's preview/output error (no output device, device busy, …).
+  toolbarPreviewError: '[data-testid="toolbar.preview.error"]',
   toolbarFilter: '[data-testid="toolbar.filter"]',
   toolbarParams: '[data-testid="toolbar.params"]',
   toolbarView: '[data-testid="toolbar.view"]',

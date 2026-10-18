@@ -11,6 +11,11 @@
  * coarse steps here. What is asserted is therefore what the transport *drives* — the
  * slider's scale, the rule appearing on an open chart, the note landing at the
  * transport's position, and the scrollbar — not frame-by-frame smoothness.
+ *
+ * The runners have no audio output device, so the real `preview_region` rejects with
+ * `NoDevice` (which correctly stops the preview). The transport's clock, the playhead it
+ * publishes and the note time are all frontend-side, so the device boundary is stubbed
+ * through the IPC seam (as the native dialogs are), leaving the UI path real.
  */
 import { SEL, analyzerPanel } from "../support/selectors.ts";
 import {
@@ -25,6 +30,7 @@ import {
   mockReturn,
   openFixture,
   openTool,
+  restoreMocks,
   rowSignature,
   startInvokeCounts,
   takeInvokeCounts,
@@ -82,21 +88,15 @@ async function stopTransport(): Promise<void> {
 }
 
 /**
- * Start the transport and check that `chart` shows the playhead, retrying: opening the
- * audio device can fail transiently in a headless environment, which (correctly) stops the
- * transport and erases the rule.
+ * Start the transport and check that `chart` shows the playhead. The region load is
+ * stubbed (see the file comment), so starting is deterministic and needs no retry.
  */
 async function playheadOnChart(chart: string, idle: string): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (!(await transportPlaying())) {
-      await (await $(SEL.timelinePreview)).click();
-      // Let the transport report playing and paint once before comparing.
-      await waitFor(async () => await transportPlaying(), "the transport never started");
-      await browser.pause(500);
-    }
-    if ((await rowSignature(chart)) !== idle) return true;
-  }
-  return false;
+  if (!(await transportPlaying())) await (await $(SEL.timelinePreview)).click();
+  // Let the transport report playing and paint once before comparing.
+  await waitFor(async () => await transportPlaying(), "the transport never started");
+  await browser.pause(500);
+  return (await rowSignature(chart)) !== idle;
 }
 
 describe("Q. Preview transport", () => {
@@ -104,7 +104,13 @@ describe("Q. Preview transport", () => {
     await waitForApp();
     await closeAllTabs();
     await mockReturn("confirm", true);
+    // Keep the transport's client-side clock independent of the host's audio hardware.
+    await mockReturn("preview_region", null);
     await menuAction("new");
+  });
+
+  after(async () => {
+    await restoreMocks();
   });
 
   it("Q1 — the speed slider is logarithmic, with 1× at the centre", async () => {
