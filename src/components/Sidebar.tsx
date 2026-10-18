@@ -3,6 +3,7 @@ import Icon from "./Icon";
 import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
 import { GRAPH_ICONS, VIEW_ICONS, type IconName } from "../lib/icons";
+import { markdownSummary } from "../lib/markdown";
 import { openTool, openTools, toolsInGroup, type ToolDef } from "../state/workbench";
 import {
   ANALYZER_SECTIONS,
@@ -27,13 +28,14 @@ import {
 /** A sidebar entry: the workbench tool, its chart-type icon, and the hover copy. */
 type SidebarTool = ToolDef & { tooltip: string; icon: IconName };
 
-// Analyzers carry an `about` string (when/how to use); surface it on hover.
+// Analyzers carry markdown `about` copy (when/how to use); surface a plain-text
+// preview on hover — the full, formatted version lives in the tab's About popover.
 const toTool = (def: AnalyzerDef): SidebarTool => ({
   id: def.id,
   title: def.title,
   description: def.description,
   group: "analyzer",
-  tooltip: def.about,
+  tooltip: markdownSummary(def.about, 240),
   icon: VIEW_ICONS[def.view.kind],
 });
 

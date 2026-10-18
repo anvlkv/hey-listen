@@ -7,9 +7,11 @@ export const RHYTHM_ANALYZERS: AnalyzerDef[] = [
     title: "Tempo",
     description: "Estimated BPM and beat grid",
     about:
-      "Estimates the tempo (BPM) from an onset-strength histogram and returns a " +
-      "confidence and a beat grid. Works best on steady, percussive material; expect " +
-      "octave errors (half/double time) on sparse or rubato input.",
+      "**What it shows.** A tempo estimate in BPM, a confidence score, and the beat " +
+      "grid it found.\n\n" +
+      "**Why use it.** Gives a starting grid for editing or checking a performance. " +
+      "Best on steady, percussive material; sparse or freely played music can read " +
+      "as half or double time.",
     keywords: ["tempo", "bpm", "beat", "rhythm", "pulse", "detection"],
     section: "rhythm",
     view: { kind: "rhythm", markers: ["beats"] },
@@ -17,11 +19,13 @@ export const RHYTHM_ANALYZERS: AnalyzerDef[] = [
   {
     id: "onsets",
     title: "Onsets",
-    description: "Detected note / event start times",
+    description: "When new sounds begin",
     about:
-      "Detects onset times (in seconds) by spectral-flux peak picking. Useful for " +
-      "finding attacks, transients, and note boundaries. Tune expectations with the " +
-      "shared FFT size and hop.",
+      "**What it shows.** The start times of detected events, marked on the onset " +
+      "envelope.\n\n" +
+      "**Why use it.** Find attacks, note boundaries, and transients — handy for " +
+      "trimming, slicing, or checking timing. The shared FFT size and hop set the " +
+      "time resolution.",
     keywords: ["onset", "attack", "transient", "event", "note", "detection"],
     section: "rhythm",
     view: { kind: "rhythm", markers: ["onsets"] },
@@ -29,11 +33,12 @@ export const RHYTHM_ANALYZERS: AnalyzerDef[] = [
   {
     id: "downbeats",
     title: "Downbeats",
-    description: "Estimated bar-start beat times",
+    description: "Where the bars start",
     about:
-      "Estimates the tempo, then picks the beats likely to start a bar (downbeats) " +
-      "using above-average bass energy. Set the beats-per-bar below (4 for 4/4). " +
-      "Best on rhythmic music with a clear bass drum.",
+      "**What it shows.** Beat times, with the beats likely to begin a bar marked as " +
+      "downbeats.\n\n" +
+      "**Why use it.** Gives a bar grid for rhythmic music, so you can line up loops, " +
+      "cuts, or notes. Works best with a clear bass drum; set beats per bar below.",
     keywords: ["downbeat", "bar", "measure", "beat", "meter", "rhythm"],
     section: "rhythm",
     view: { kind: "rhythm", markers: ["beats", "downbeats"] },
