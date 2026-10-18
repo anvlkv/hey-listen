@@ -227,7 +227,10 @@ None of these are closable, draggable, or tabbed.
   spectrogram / matrix views join the time group too. Zooming **cannot** go beyond
   the data's x extent (the range is clamped). Cross-tab **and cross-window** zoom is
   synced: a chart's view is pushed to the core as `view:time` / `view:freq` and
-  applied in the project's other windows (ADR-11).
+  applied in the project's other windows (ADR-11). Moving the analysis window clears
+  the shared view after a short settle so every chart re-fits to the new extent; a
+  chart zoomed **after** the move keeps its zoom (the pending clear is dropped) — a
+  throttled timer can otherwise run late and silently undo a newer zoom on CI.
 
   > **Careful when consuming the bus.** It is a Solid store, and `setData` *merges* an
   > object into an existing key: it notifies the message's **fields**, not the key, so a

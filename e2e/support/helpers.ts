@@ -48,6 +48,7 @@ export {
   canvasHasInk,
   canvasSignature,
   rowSignature,
+  stableRowSignature,
 } from "./analyzers.ts";
 
 // --- Source ----------------------------------------------------------------

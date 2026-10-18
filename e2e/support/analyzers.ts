@@ -115,6 +115,30 @@ export async function rowSignature(selector: string): Promise<string> {
 }
 
 /**
+ * A row signature once the canvas has **settled** (two equal reads `pauseMs` apart).
+ *
+ * Charts render asynchronously (the heatmap image build, a late analysis result), so an
+ * "idle" signature captured straight after `waitForAnalyzer` can race a repaint — the
+ * chart then never returns to the stale value (e.g. after a preview's playhead is
+ * erased). Settling first makes an idle/settled comparison sound.
+ */
+export async function stableRowSignature(
+  selector: string,
+  timeout = 10_000,
+  pauseMs = 150,
+): Promise<string> {
+  const started = Date.now();
+  let previous = await rowSignature(selector);
+  while (Date.now() - started < timeout) {
+    await browser.pause(pauseMs);
+    const current = await rowSignature(selector);
+    if (current === previous) return current;
+    previous = current;
+  }
+  return previous;
+}
+
+/**
  * True when a canvas (scoped to `scope` when given) has drawn something over its
  * own background — the "renders non-empty" check the smoke tests use.
  */

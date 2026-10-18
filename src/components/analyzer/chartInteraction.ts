@@ -8,7 +8,7 @@ import {
   untrack,
   type Accessor,
 } from "solid-js";
-import { analyzerBus, readBusMessage } from "../../state/chartSync";
+import { analyzerBus, readBusMessage, publishChartView } from "../../state/chartSync";
 import { NOTE_STRIP_H } from "../notes/strip";
 import { createLaneDrag, type LaneSelection } from "../notes/lane";
 import { timeRangeLabel } from "./chartCommon";
@@ -168,7 +168,7 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const clamped = options.clampView(next, result);
     setView(clamped);
     if (publishTime) {
-      analyzerBus.setData("view", {
+      publishChartView({
         sourceId: options.id,
         group: "time",
         x: [clamped.t0, clamped.t1],

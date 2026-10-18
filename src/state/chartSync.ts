@@ -127,6 +127,20 @@ export type AnalyzerBus = CursorPluginMessageBus &
 export const analyzerBus = createPluginBus<AnalyzerBus>();
 
 /**
+ * Counts the views published by a **user action** (zoom / pan / fit). Used to let a
+ * newer zoom supersede a pending re-fit: a timer armed by a window move must not wipe
+ * a view the user set after it — timers can run late (WebKit throttles them for an
+ * occluded window; the CI window is one), so this is not theoretical.
+ */
+let viewRevision = 0;
+
+/** Publish a chart's visible x-range for its sync group (a user zoom / pan / fit). */
+export function publishChartView(message: ViewMessage) {
+  viewRevision++;
+  analyzerBus.setData("view", message);
+}
+
+/**
  * Drop the shared x-view for both groups so every chart fits its own data again.
  * Called when the source is replaced: the previous zoom no longer applies to the
  * new (whole-timeline) audio.
@@ -156,10 +170,15 @@ createRoot(() => {
     on(
       [windowStart, windowEnd],
       () => {
+        // A chart zoomed *after* the window changed owns the view: clear only the range
+        // that predates the move. The timer can fire long after it was armed (WebKit
+        // throttles timers in an occluded window), by which time the user may have
+        // zoomed — a late clear would then silently undo that zoom.
+        const revision = viewRevision;
         if (timer !== undefined) clearTimeout(timer);
         timer = setTimeout(() => {
           timer = undefined;
-          resetChartViews();
+          if (viewRevision === revision) resetChartViews();
         }, RESET_DEBOUNCE_MS);
       },
       { defer: true },

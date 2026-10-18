@@ -40,6 +40,21 @@ function readoutSpan(label: string): number {
   return match ? Number(match[2]) - Number(match[1]) : Number.NaN;
 }
 
+/** The `a – b` window from a chart's zoom readout, in seconds. */
+function readoutWindow(label: string): [number, number] | null {
+  const match = label.match(/([\d.]+) – ([\d.]+)/);
+  return match ? [Number(match[1]), Number(match[2])] : null;
+}
+
+/** The `m:ss.ss – m:ss.ss` window from the Timeline readout, in seconds. */
+function timelineWindow(text: string): [number, number] | null {
+  const times: number[] = [];
+  for (const match of text.matchAll(/(\d+):(\d{2}\.\d{2})/g)) {
+    times.push(Number(match[1]) * 60 + Number(match[2]));
+  }
+  return times.length >= 2 ? [times[0], times[1]] : null;
+}
+
 describe("G. Timeline", () => {
   before(async () => {
     await waitForApp();
@@ -104,20 +119,30 @@ describe("G. Timeline", () => {
     const span = async () => readoutSpan(await readout());
     const fit = `${chart} [aria-label="Fit to the whole window"]`;
 
+    // Start from the whole window (a shared zoom may be in force from the previous
+    // spec, and the suite shares one app process), then zoom well in.
+    await click(fit);
     await waitFor(async () => (await span()) > 0, "the spectrogram showed no zoom readout");
     const full = await span();
 
-    // Zoom well in, so the view is clearly a sub-range of the analysis window.
     for (let i = 0; i < 3; i++) await wheelOver(`${chart} canvas`, -240);
     await waitFor(async () => (await span()) < full, "the spectrogram never zoomed in");
-    const zoomed = await span();
 
-    // Move the analysis window: the chart must re-fit, not keep the stale zoom.
+    // Move the analysis window: the chart must re-fit to the *whole new* window, not
+    // keep the stale zoom. Wait for the re-run to render (the visible range now equals
+    // the moved window) before capturing what Fit must agree with — otherwise the
+    // comparison can straddle the result arriving.
     await dragTimelineHandle("start", 140);
-    await waitFor(
-      async () => (await span()) > zoomed,
-      "the chart kept the stale view after the window moved",
-    );
+    const moved = timelineWindow(await timelineReadout());
+    expect(moved).not.toBeNull();
+    await waitFor(async () => {
+      const range = readoutWindow(await readout());
+      return (
+        range != null &&
+        Math.abs(range[0] - moved![0]) < 0.02 &&
+        Math.abs(range[1] - moved![1]) < 0.02
+      );
+    }, "the chart did not re-fit to the moved window");
 
     // What it shows is the whole *new* window — the same range the Fit control gives.
     const refit = await span();
