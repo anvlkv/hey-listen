@@ -19,6 +19,7 @@ import {
   refreshOutputDevices,
   setOutputDeviceId,
 } from "../state/output";
+import { previewError } from "../audio/preview";
 import { projectError, projectName, projectStatus } from "../state/project";
 import { notes } from "../state/notes";
 import { notesPanelOpen, toggleNotesPanel } from "../state/settings";
@@ -188,6 +189,15 @@ export default function Toolbar() {
         </Tooltip>
       </div>
 
+      <Show when={previewError()}>
+        <span
+          class="app-status app-status-error"
+          data-testid="toolbar.preview.error"
+          title={previewError() ?? undefined}
+        >
+          {previewError()}
+        </span>
+      </Show>
       <Show when={error()}>
         <span
           class="app-status app-status-error"

@@ -1,6 +1,6 @@
 [package]
 name = "hey-listen"
-version = "0.3.3"
+version = "0.3.4"
 description = "Hey Listen — audio analysis workbench: capture, filter, and analyze audio."
 edition = "2021"
 # The crate has two binaries (`hey-listen`, the GUI, and `heylisten-mcp`, the

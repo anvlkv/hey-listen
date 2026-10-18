@@ -101,6 +101,10 @@ compact "Add audio" state has a fixed height).
   `ns-resize` cursor is the only affordance. This covers the Kobalte `NumberField`s
   (timers, frequency range, per-tool params), the graph nodes' inline params, and the
   synth length (`src/lib/dragNumber.ts`).
+- A **failed preview reports why** in the Toolbar: the device-dependent region load
+  (no output device, device busy, …) surfaces as a red `toolbar.preview.error` status
+  and clears on the next successful attempt. The transport clock is frontend-side, so
+  the failure never leaves a moving playhead or a "playing" button behind.
 - A user-adjustable **font size / UI zoom** (0.8–1.4×) scales the whole interface;
   it lives in the toolbar **Appearance** popover (the former **View** popover) and is
   persisted.

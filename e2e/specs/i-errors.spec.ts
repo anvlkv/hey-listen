@@ -1,9 +1,9 @@
 /**
- * I. Errors & warnings — matrix rows I1–I5 (`docs/testing.md`).
+ * I. Errors & warnings — matrix rows I1–I6 (`docs/testing.md`).
  *
  * One case per UI surface: force the condition, assert the message appears in the
- * right place, and assert the app stays usable. I2–I4 force the failure by mocking
- * the IPC command the surface rides on; I1 lets a real `probe_file` fail on the
+ * right place, and assert the app stays usable. I2–I4 and I6 force the failure by
+ * mocking the IPC command the surface rides on; I1 lets a real `probe_file` fail on the
  * corrupt fixture. I5 is a best-effort edge deletion (see its comment).
  *
  * Every test restores its mocks so nothing leaks into the next — a fresh app session
@@ -200,6 +200,12 @@ describe("I. Errors & warnings", () => {
 
     // The error handler runs in a `finally`, so the button must come back to life.
     await waitFor(() => render.isEnabled(), "the Render button stayed disabled after the error");
+    // A failed render is not a failed *source*: the timeline (and its preview) stays
+    // usable, rather than being left on the red "Source failed" state.
+    await waitFor(
+      async () => (await $(SEL.timelinePreview)).isEnabled(),
+      "a failed render disabled the preview (the source was marked as failed)",
+    );
     expect(await count(tab("synth"))).toBe(1);
   });
 
@@ -234,5 +240,47 @@ describe("I. Errors & warnings", () => {
     expect(await warning.getText()).toContain("Output is not connected");
     // The graph editor is still mounted and usable after the disconnect.
     expect(await $(SEL.graphCanvas).isExisting()).toBe(true);
+  });
+
+  it("I6 — a failed preview surfaces in the toolbar and clears on retry", async () => {
+    if (!(await $(SEL.timeline).isExisting())) await openFixture("sine440");
+    await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
+
+    // The device-dependent region load fails (the real command does on a runner with
+    // no audio output device; force it here so the case is deterministic everywhere).
+    await mockReject("preview_region", "no audio output device is available");
+    const preview = await $(SEL.timelinePreview);
+    await preview.click();
+
+    await waitFor(
+      async () => (await textOf(SEL.toolbarPreviewError)).includes("no audio output device"),
+      "the failed preview did not surface in the toolbar",
+    );
+    // A failed start is not a playing transport: the note action must go away again
+    // (milliseconds after the click, once the rejection lands).
+    await waitFor(
+      async () => !(await $(SEL.timelineNoteAtCursor).isEnabled()),
+      "the failed preview left the transport looking alive",
+    );
+
+    // Retrying against a working device boundary clears the error and plays.
+    await restoreMocks();
+    await mockReturn("preview_region", null);
+    await preview.click();
+    await waitFor(
+      async () => (await count(SEL.toolbarPreviewError)) === 0,
+      "the preview error did not clear after a successful start",
+    );
+    await waitFor(
+      async () => (await $(SEL.timelineNoteAtCursor)).isEnabled(),
+      "the retried preview did not start",
+    );
+
+    // Stop, so the next case starts from a clean transport.
+    await preview.click();
+    await waitFor(
+      async () => !(await $(SEL.timelineNoteAtCursor).isEnabled()),
+      "the preview did not stop",
+    );
   });
 });

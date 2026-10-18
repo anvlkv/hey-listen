@@ -35,12 +35,21 @@ let startedAt = 0;
 /** Whether the loaded region tracks the analysis window (see `previewWindow`). */
 let followWindow = false;
 let followTimer: ReturnType<typeof setTimeout> | undefined;
+/** Latest-wins token: a superseded load must not stop (or report) a newer preview. */
+let issueToken = 0;
 
 /** Whether a preview region is currently loaded/playing (drives the output meter). */
 export const [previewPlaying, setPreviewPlaying] = createSignal(false);
 
 /** The varispeed playback rate (1 = real time). Applied on the next region load. */
 export const [previewSpeed, setPreviewSpeedSignal] = createSignal(1);
+
+/**
+ * The last preview failure (no output device, device busy, no source, …), or `null`.
+ * Cleared when the next region load is attempted, so the toolbar error disappears as
+ * soon as the user retries (and reappears only if that attempt fails too).
+ */
+export const [previewError, setPreviewError] = createSignal<string | null>(null);
 
 /** Clamp to the range the core honours, treating a non-number as 1×. */
 function clampSpeed(value: number): number {
@@ -54,6 +63,8 @@ export function setPreviewSpeed(value: number) {
 }
 
 function issue(start: number, end: number, loop: boolean) {
+  const token = ++issueToken;
+  setPreviewError(null);
   void invoke("preview_region", {
     start,
     end,
@@ -62,7 +73,10 @@ function issue(start: number, end: number, loop: boolean) {
     device: outputDeviceId(),
     speed: previewSpeed(),
   }).catch((err) => {
+    // A newer load (or a stop) superseded this one: its result no longer applies.
+    if (token !== issueToken) return;
     console.error("preview failed", err);
+    setPreviewError(`Preview failed: ${String(err)}`);
     setPreviewPlaying(false);
   });
 }
@@ -103,6 +117,8 @@ export function previewWindow(startSec: number, endSec: number, loop = true, spe
 
 /** Stop any in-flight preview. */
 export function stop() {
+  // Ignore the failure of a load that was stopped before it settled.
+  issueToken++;
   cancelFollow();
   followWindow = false;
   setPreviewPlaying(false);

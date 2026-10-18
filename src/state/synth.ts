@@ -58,9 +58,10 @@ export async function renderSynth(seconds: number, confirm = true) {
       channels: Math.max(1, summary.channels),
     });
   } catch (err) {
+    // A rejected render is a *graph* error (shown in the synth tab): the previously
+    // loaded source is untouched, so do not mark it as failed or disable the Timeline.
     setSynthError(String(err));
-    setError(String(err));
-    setStatus("error");
+    setStatus(source() ? "ready" : "empty");
   } finally {
     setRendering(false);
   }
