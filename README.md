@@ -58,6 +58,7 @@ Start with the [architecture](docs/architecture.md) and
 - [Analysis tools](docs/analysis-tools.md) — oxiaudio inventory, tool/tab model, shared params
 - [MCP server](docs/mcp.md) — agent access, the stdio bridge, UI following
 - [Batch CLI](docs/cli.md) — `hey-listen analyze`: bulk-analyze files from a shell, no window
+- [Agent skill — audio analysis](.agents/skills/audio-analysis/SKILL.md) — driving the engine via the MCP server or the batch CLI
 - [Dependencies & licenses](docs/dependencies.md)
 - [Packaging](docs/packaging.md) — release/CI process and the build matrix
 - [Testing](docs/testing.md) — E2E plan and test matrix
