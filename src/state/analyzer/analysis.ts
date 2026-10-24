@@ -24,7 +24,7 @@ import {
 import { filterRevision } from "../graph";
 import { source, status } from "../source";
 import { windowEnd, windowStart } from "../timeline";
-import { toolOptions } from "./options";
+import { engineOptions } from "./options";
 import { setLatestResult } from "./results";
 import type { AnalyzerId, AnyAnalysisResult } from "./types";
 
@@ -53,8 +53,11 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
   let generation = 0;
   let timer: number | undefined;
 
-  /** Snapshot the per-tool options; reading every key keeps this reactive. */
-  const options = () => ({ ...toolOptions[tool] });
+  /**
+   * Snapshot the engine-facing per-tool options. It reads the engine keys (so an
+   * engine change re-runs) but not the display toggles, which only repaint the chart.
+   */
+  const options = () => engineOptions(tool);
 
   async function run() {
     const src = source();

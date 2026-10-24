@@ -6,8 +6,9 @@ use oxiaudio::dsp::spectral::WindowFn;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    DEFAULT_BAR_LENGTH, DEFAULT_MAX_F0, DEFAULT_MIN_F0, DEFAULT_N_BANDS, DEFAULT_N_MELS,
-    DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD,
+    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DEFAULT_BAR_LENGTH, DEFAULT_N_BANDS, DEFAULT_N_MELS,
+    DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0,
+    YIN_MAX_F0, YIN_MIN_F0,
 };
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
@@ -55,7 +56,7 @@ pub struct SharedParams {
     /// Optional analysis sample rate (resample before analysis).
     #[serde(default)]
     pub resample_to: Option<u32>,
-    /// Band limit for spectral/pitch tools, in Hz.
+    /// Band limit for **spectral** tools, in Hz (pitch tools use their own f0 range).
     #[serde(default)]
     pub freq_min_hz: f64,
     #[serde(default)]
@@ -111,32 +112,102 @@ serialize_error_as_string!(AnalysisError);
 
 /// Per-tool options (not shared across tools). Absent fields fall back to the tool
 /// defaults; see `docs/analysis-tools.md`.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, ts_rs::TS)]
+///
+/// Keys are canonical **camelCase**; snake_case aliases are accepted when reading a
+/// request (the IPC, headless, and CLI boundaries), and unknown keys are rejected rather
+/// than silently ignored.
+#[derive(Debug, Clone, Default, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ToolOptions {
-    #[serde(default)]
     pub n_mels: Option<usize>,
-    #[serde(default)]
     pub n_mfcc: Option<usize>,
-    #[serde(default)]
     pub n_bands: Option<usize>,
-    #[serde(default)]
     pub rolloff_percent: Option<f32>,
-    #[serde(default)]
     pub yin_threshold: Option<f32>,
-    #[serde(default)]
     pub min_f0_hz: Option<f32>,
-    #[serde(default)]
     pub max_f0_hz: Option<f32>,
-    #[serde(default)]
     pub bar_length: Option<usize>,
-    #[serde(default)]
     pub window_ms: Option<u32>,
-    #[serde(default)]
     pub f_min_hz: Option<f32>,
-    #[serde(default)]
     pub f_max_hz: Option<f32>,
+}
+
+/// The wire form of [`ToolOptions`]. It lives apart from the exported type because
+/// ts-rs does not understand `serde(alias)` (it emits a warning per field), and the
+/// aliases are only needed when *reading* an external request.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ToolOptionsWire {
+    #[serde(default, alias = "n_mels")]
+    n_mels: Option<usize>,
+    #[serde(default, alias = "n_mfcc")]
+    n_mfcc: Option<usize>,
+    #[serde(default, alias = "n_bands")]
+    n_bands: Option<usize>,
+    #[serde(default, alias = "rolloff_percent")]
+    rolloff_percent: Option<f32>,
+    #[serde(default, alias = "yin_threshold")]
+    yin_threshold: Option<f32>,
+    #[serde(default, alias = "min_f0_hz")]
+    min_f0_hz: Option<f32>,
+    #[serde(default, alias = "max_f0_hz")]
+    max_f0_hz: Option<f32>,
+    #[serde(default, alias = "bar_length")]
+    bar_length: Option<usize>,
+    #[serde(default, alias = "window_ms")]
+    window_ms: Option<u32>,
+    #[serde(default, alias = "f_min_hz")]
+    f_min_hz: Option<f32>,
+    #[serde(default, alias = "f_max_hz")]
+    f_max_hz: Option<f32>,
+}
+
+impl From<ToolOptionsWire> for ToolOptions {
+    fn from(wire: ToolOptionsWire) -> Self {
+        Self {
+            n_mels: wire.n_mels,
+            n_mfcc: wire.n_mfcc,
+            n_bands: wire.n_bands,
+            rolloff_percent: wire.rolloff_percent,
+            yin_threshold: wire.yin_threshold,
+            min_f0_hz: wire.min_f0_hz,
+            max_f0_hz: wire.max_f0_hz,
+            bar_length: wire.bar_length,
+            window_ms: wire.window_ms,
+            f_min_hz: wire.f_min_hz,
+            f_max_hz: wire.f_max_hz,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ToolOptions {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        ToolOptionsWire::deserialize(deserializer).map(Self::from)
+    }
+}
+
+/// The canonical camelCase name for an engine option key, accepting its snake_case
+/// alias. `None` means the key is not a per-tool engine option. Keep the canonical
+/// names in step with [`ToolOptions`] and the analyzer catalog's option metadata.
+pub fn canonical_option_key(key: &str) -> Option<&'static str> {
+    Some(match key {
+        "nMels" | "n_mels" => "nMels",
+        "nMfcc" | "n_mfcc" => "nMfcc",
+        "nBands" | "n_bands" => "nBands",
+        "rolloffPercent" | "rolloff_percent" => "rolloffPercent",
+        "yinThreshold" | "yin_threshold" => "yinThreshold",
+        "minF0Hz" | "min_f0_hz" => "minF0Hz",
+        "maxF0Hz" | "max_f0_hz" => "maxF0Hz",
+        "barLength" | "bar_length" => "barLength",
+        "windowMs" | "window_ms" => "windowMs",
+        "fMinHz" | "f_min_hz" => "fMinHz",
+        "fMaxHz" | "f_max_hz" => "fMaxHz",
+        _ => return None,
+    })
 }
 
 impl ToolOptions {
@@ -164,14 +235,32 @@ impl ToolOptions {
             .clamp(0.01, 0.9)
     }
 
-    pub(super) fn min_f0_hz(&self) -> f32 {
-        self.min_f0_hz.unwrap_or(DEFAULT_MIN_F0).max(1.0)
+    /// Resolve a pitch range from the per-tool `minF0Hz` / `maxF0Hz`, falling back to
+    /// this tool's defaults. A missing or non-finite value uses the default, and the
+    /// resolved range is always ordered.
+    fn f0_range(&self, default_min: f32, default_max: f32) -> (f32, f32) {
+        let min = self
+            .min_f0_hz
+            .filter(|value| value.is_finite())
+            .unwrap_or(default_min)
+            .max(1.0);
+        let max = self
+            .max_f0_hz
+            .filter(|value| value.is_finite())
+            .unwrap_or(default_max);
+        (min, max.max(min + 1.0))
     }
 
-    pub(super) fn max_f0_hz(&self) -> f32 {
-        self.max_f0_hz
-            .unwrap_or(DEFAULT_MAX_F0)
-            .max(self.min_f0_hz() + 1.0)
+    pub(super) fn yin_range(&self) -> (f32, f32) {
+        self.f0_range(YIN_MIN_F0, YIN_MAX_F0)
+    }
+
+    pub(super) fn autocorr_range(&self) -> (f32, f32) {
+        self.f0_range(AUTOCORR_MIN_F0, AUTOCORR_MAX_F0)
+    }
+
+    pub(super) fn harmonic_range(&self) -> (f32, f32) {
+        self.f0_range(HARMONIC_MIN_F0, HARMONIC_MAX_F0)
     }
 
     pub(super) fn bar_length(&self) -> usize {

@@ -6,7 +6,7 @@ use super::super::support::{
 };
 use super::super::{
     AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SharedParams, ToolOptions,
-    DB_FLOOR,
+    DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
 };
 use super::{
     chromagram, levels, mel_spectrogram, mfcc, spectral_contrast, spectrogram, spectrum, waveform,
@@ -110,17 +110,20 @@ pub fn run(
             hop,
             sample_rate,
         ))),
-        "harmonicRatio" => Ok(AnalysisResult::HarmonicRatio(series_from_vec(
-            oxiaudio::dsp::spectral::harmonic_ratio(
-                &lib_buf(),
-                pitch_fft,
+        "harmonicRatio" => {
+            let (min_f0, max_f0) = options.harmonic_range();
+            Ok(AnalysisResult::HarmonicRatio(series_from_vec(
+                oxiaudio::dsp::spectral::harmonic_ratio(
+                    &lib_buf(),
+                    pitch_fft,
+                    pitch_hop,
+                    min_f0,
+                    max_f0,
+                ),
                 pitch_hop,
-                options.min_f0_hz(),
-                options.max_f0_hz(),
-            ),
-            pitch_hop,
-            sample_rate,
-        ))),
+                sample_rate,
+            )))
+        }
         "zeroCrossingRate" => Ok(AnalysisResult::ZeroCrossingRate(series_from_vec(
             oxiaudio::dsp::spectral::zero_crossing_rate(&lib_buf(), fft, hop),
             hop,
@@ -130,28 +133,36 @@ pub fn run(
             oxiaudio::dsp::detect_pitch_pyin(&lib_buf(), pitch_fft, pitch_hop),
             pitch_hop,
             sample_rate,
+            (PYIN_MIN_F0, PYIN_MAX_F0),
         ))),
-        "pitchYin" => Ok(AnalysisResult::PitchYin(pitch_series(
-            oxiaudio::dsp::detect_pitch_yin(
-                &lib_buf(),
-                pitch_fft,
+        "pitchYin" => {
+            let (min_f0, max_f0) = options.yin_range();
+            let frames = oxiaudio::dsp::PitchTracker::new(pitch_fft, pitch_hop)
+                .with_threshold(options.yin_threshold())
+                .with_range(min_f0, max_f0)
+                .track(&lib_buf());
+            Ok(AnalysisResult::PitchYin(pitch_series(
+                frames,
                 pitch_hop,
-                options.yin_threshold(),
-            ),
-            pitch_hop,
-            sample_rate,
-        ))),
-        "pitchAutocorr" => Ok(AnalysisResult::PitchAutocorr(pitch_series(
-            oxiaudio::dsp::detect_pitch_autocorr(
-                &lib_buf(),
-                pitch_fft,
+                sample_rate,
+                (min_f0, max_f0),
+            )))
+        }
+        "pitchAutocorr" => {
+            let (min_f0, max_f0) = options.autocorr_range();
+            Ok(AnalysisResult::PitchAutocorr(pitch_series(
+                oxiaudio::dsp::detect_pitch_autocorr(
+                    &lib_buf(),
+                    pitch_fft,
+                    pitch_hop,
+                    min_f0,
+                    max_f0,
+                ),
                 pitch_hop,
-                options.min_f0_hz(),
-                options.max_f0_hz(),
-            ),
-            pitch_hop,
-            sample_rate,
-        ))),
+                sample_rate,
+                (min_f0, max_f0),
+            )))
+        }
         "tempo" => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;

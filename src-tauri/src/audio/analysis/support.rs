@@ -124,7 +124,13 @@ pub(super) fn series_from_vec(values: Vec<f32>, hop: usize, sample_rate: u32) ->
 
 /// Wrap a pitch track: unvoiced frames become gaps, times come from the tracker,
 /// plus the voiced-frame summary so a nearly-empty track is visible at a glance.
-pub(super) fn pitch_series(frames: Vec<PitchFrame>, hop: usize, sample_rate: u32) -> PitchResult {
+/// `range` is the f0 search window the detector actually used, in Hz.
+pub(super) fn pitch_series(
+    frames: Vec<PitchFrame>,
+    hop: usize,
+    sample_rate: u32,
+    range: (f32, f32),
+) -> PitchResult {
     let times: Vec<f32> = frames
         .iter()
         .map(|frame| frame.time_seconds as f32)
@@ -155,6 +161,8 @@ pub(super) fn pitch_series(frames: Vec<PitchFrame>, hop: usize, sample_rate: u32
         values,
         min_value: if min.is_finite() { min } else { 0.0 },
         max_value: if max.is_finite() { max } else { 0.0 },
+        effective_min_f0_hz: range.0,
+        effective_max_f0_hz: range.1,
         voiced_frames,
         voiced_fraction: if frames_count == 0 {
             0.0

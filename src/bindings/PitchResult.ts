@@ -19,6 +19,11 @@ windowStart: number,
  */
 values: Array<number | null>, minValue: number, maxValue: number, 
 /**
+ * The f0 search window the detector actually used, in Hz. pYIN's fixed
+ * 50–2000 Hz window shows here instead of a requested range it cannot honour.
+ */
+effectiveMinF0Hz: number, effectiveMaxF0Hz: number, 
+/**
  * Frames with a detected pitch (non-gap `values`).
  */
 voicedFrames: number, 

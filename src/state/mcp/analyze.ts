@@ -1,6 +1,12 @@
 import { invoke } from "../../lib/ipc";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
-import { isAnalyzerId, setToolOption, toolOptions } from "../analyzer";
+import {
+  applyOptionPatch,
+  engineOptions,
+  isAnalyzerId,
+  setToolOption,
+  toolOptions,
+} from "../analyzer";
 import { source } from "../source";
 import { setWindowEnd, setWindowStart, windowEnd, windowStart } from "../timeline";
 import { openTool } from "../workbench";
@@ -37,10 +43,11 @@ export async function runAnalysis(args: Args) {
     }
   }
 
-  // Effective per-tool options, likewise.
+  // Effective per-tool options, likewise. The patch is validated (unknown keys fail)
+  // and canonicalized, then the engine-only view is what crosses IPC.
   let options = { ...toolOptions[tool] };
   if ("options" in args) {
-    const patch = numericOptions(args.options);
+    const patch = applyOptionPatch(tool, asArgs(args.options));
     if (transient) {
       options = { ...options, ...patch };
     } else {
@@ -48,6 +55,7 @@ export async function runAnalysis(args: Args) {
       options = { ...toolOptions[tool] };
     }
   }
+  const requestOptions = engineOptions(tool, options);
 
   // Effective window (clamped to the source). An explicit start/end persists unless
   // the call is transient.
@@ -65,7 +73,7 @@ export async function runAnalysis(args: Args) {
   if (optionalBool(args, "display") ?? true) await openTool(tool);
 
   const result = await invoke<unknown>("run_analysis", {
-    request: { tool, start: span.start, end: span.end, params, options },
+    request: { tool, start: span.start, end: span.end, params, options: requestOptions },
   });
 
   let payload = result;
@@ -90,15 +98,6 @@ function mergeParams(base: SharedParamsDto, patch: Partial<SharedParamsDto>): Sh
   if ("resampleTo" in patch) out.resampleTo = patch.resampleTo ?? null;
   if (patch.freqMinHz != null) out.freqMinHz = patch.freqMinHz;
   if (patch.freqMaxHz != null) out.freqMaxHz = patch.freqMaxHz;
-  return out;
-}
-
-/** Keep only the numeric entries of an options patch (non-numbers are ignored). */
-function numericOptions(value: unknown): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [key, item] of Object.entries(asArgs(value))) {
-    if (typeof item === "number") out[key] = item;
-  }
   return out;
 }
 

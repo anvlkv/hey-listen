@@ -5,10 +5,15 @@
 //! needs for uPlot charts. The **headless** MCP server has no webview, so it needs
 //! its own list of the ids and the human metadata agents use to pick a tool.
 //!
-//! Keep this list in step with `src/state/analyzer/defs.ts` (`ANALYZERS`) and
+//! Keep this list in step with `src/state/analyzer/defs/` (`ANALYZERS`) and
 //! [`crate::audio::analysis::run`]: an id here that `run` does not know returns an
 //! error, and an id `run` knows but this list omits is invisible to a headless
 //! agent. The ids are the same strings the GUI uses.
+//!
+//! The catalog data lives in [`catalog`]; the option metadata and the
+//! `list_analyzers` payload live here.
+
+mod catalog;
 
 /// One analyzer's agent-facing metadata (mirrors `AnalyzerDef` in the frontend,
 /// minus the view/params detail the webview needs).
@@ -20,304 +25,183 @@ pub struct AnalyzerInfo {
     pub keywords: &'static [&'static str],
 }
 
+/// One per-tool **engine** option's metadata. `list_analyzers` carries the compact
+/// keys + defaults; the remaining fields are the full detail M21's `get_analyzer`
+/// returns, kept here so the catalog stays the one source of truth.
+#[allow(dead_code)] // the descriptive fields are read by `get_analyzer` (M21)
+pub struct OptionInfo {
+    /// Canonical camelCase key (matching `ToolOptions`).
+    pub key: &'static str,
+    pub label: &'static str,
+    pub default: f64,
+    pub min: f64,
+    pub max: f64,
+    pub help: &'static str,
+}
+
 /// Every analyzer, grouped by section, in the order the Sidebar shows them.
-pub const ANALYZERS: &[AnalyzerInfo] = &[
-    // Time domain
-    AnalyzerInfo {
-        id: "waveform",
-        title: "Waveform",
-        description: "Time-domain shape with peak / RMS levels",
-        section: "time",
-        keywords: &[
-            "waveform",
-            "time",
-            "envelope",
-            "amplitude",
-            "peak",
-            "rms",
-            "oscilloscope",
+pub const ANALYZERS: &[AnalyzerInfo] = catalog::ANALYZERS;
+
+/// Per-analyzer engine-option metadata, keyed by analyzer id. Analyzers without
+/// their own options are absent (the `list_analyzers` option map is then empty).
+const OPTIONS: &[(&str, &[OptionInfo])] = &[
+    (
+        "melSpectrogram",
+        &[OptionInfo {
+            key: "nMels",
+            label: "Mel bands",
+            default: 64.0,
+            min: 8.0,
+            max: 256.0,
+            help: "Number of mel bands; more bands give finer frequency detail.",
+        }],
+    ),
+    (
+        "mfcc",
+        &[
+            OptionInfo {
+                key: "nMfcc",
+                label: "Coefficients",
+                default: 13.0,
+                min: 1.0,
+                max: 64.0,
+                help: "Cepstral coefficients (rows); ~13 captures the spectral envelope.",
+            },
+            OptionInfo {
+                key: "nMels",
+                label: "Mel bands",
+                default: 64.0,
+                min: 8.0,
+                max: 256.0,
+                help: "Mel bands fed to the cepstral transform.",
+            },
         ],
-    },
-    AnalyzerInfo {
-        id: "levels",
-        title: "Level meters",
-        description: "Peak and RMS level over the window",
-        section: "time",
-        keywords: &[
-            "level",
-            "meter",
-            "peak",
-            "rms",
-            "dbfs",
-            "loudness",
-            "amplitude",
+    ),
+    (
+        "spectralRolloff",
+        &[OptionInfo {
+            key: "rolloffPercent",
+            label: "Energy share",
+            default: 0.85,
+            min: 0.01,
+            max: 0.99,
+            help: "Share of spectral energy below the rolloff frequency.",
+        }],
+    ),
+    (
+        "spectralContrast",
+        &[OptionInfo {
+            key: "nBands",
+            label: "Bands",
+            default: 6.0,
+            min: 2.0,
+            max: 16.0,
+            help: "Number of octave-spaced bands compared peak-to-valley.",
+        }],
+    ),
+    (
+        "harmonicRatio",
+        &[
+            OptionInfo {
+                key: "minF0Hz",
+                label: "Min f0",
+                default: 50.0,
+                min: 20.0,
+                max: 4_000.0,
+                help: "Lowest expected fundamental — the bottom of the autocorrelation search.",
+            },
+            OptionInfo {
+                key: "maxF0Hz",
+                label: "Max f0",
+                default: 4_000.0,
+                min: 40.0,
+                max: 8_000.0,
+                help: "Highest expected fundamental — the top of the autocorrelation search.",
+            },
         ],
-    },
-    // Spectral
-    AnalyzerInfo {
-        id: "spectrum",
-        title: "Spectrum",
-        description: "Averaged FFT magnitude vs frequency",
-        section: "spectral",
-        keywords: &[
-            "spectrum",
-            "fft",
-            "frequency",
-            "magnitude",
-            "welch",
-            "harmonic",
+    ),
+    (
+        "pitchYin",
+        &[
+            OptionInfo {
+                key: "yinThreshold",
+                label: "YIN threshold",
+                default: 0.12,
+                min: 0.01,
+                max: 0.9,
+                help: "Voiced/unvoiced threshold; lower is stricter.",
+            },
+            OptionInfo {
+                key: "minF0Hz",
+                label: "Min f0",
+                default: 50.0,
+                min: 20.0,
+                max: 5_000.0,
+                help: "Lowest expected fundamental — the bottom of the YIN search.",
+            },
+            OptionInfo {
+                key: "maxF0Hz",
+                label: "Max f0",
+                default: 2_000.0,
+                min: 40.0,
+                max: 8_000.0,
+                help: "Highest expected fundamental — YIN can search above 2 kHz.",
+            },
         ],
-    },
-    AnalyzerInfo {
-        id: "spectrogram",
-        title: "Spectrogram",
-        description: "STFT magnitude heatmap over time and frequency",
-        section: "spectral",
-        keywords: &[
-            "spectrogram",
-            "stft",
-            "heatmap",
-            "time",
-            "frequency",
-            "waterfall",
+    ),
+    (
+        "pitchAutocorr",
+        &[
+            OptionInfo {
+                key: "minF0Hz",
+                label: "Min f0",
+                default: 60.0,
+                min: 20.0,
+                max: 2_000.0,
+                help: "Lowest expected fundamental — the bottom of the autocorrelation search.",
+            },
+            OptionInfo {
+                key: "maxF0Hz",
+                label: "Max f0",
+                default: 1_200.0,
+                min: 40.0,
+                max: 5_000.0,
+                help: "Highest expected fundamental — the top of the autocorrelation search.",
+            },
         ],
-    },
-    AnalyzerInfo {
-        id: "melSpectrogram",
-        title: "Mel spectrogram",
-        description: "Log-mel energies over time and mel bands",
-        section: "spectral",
-        keywords: &[
-            "mel",
-            "spectrogram",
-            "perceptual",
-            "log",
-            "speech",
-            "machine learning",
-        ],
-    },
-    AnalyzerInfo {
-        id: "mfcc",
-        title: "MFCC",
-        description: "Mel-frequency cepstral coefficients over time",
-        section: "spectral",
-        keywords: &[
-            "mfcc",
-            "cepstral",
-            "timbre",
-            "coefficient",
-            "speech",
-            "feature",
-        ],
-    },
-    AnalyzerInfo {
-        id: "chromagram",
-        title: "Chromagram",
-        description: "Energy per pitch class over time",
-        section: "spectral",
-        keywords: &[
-            "chroma",
-            "chromagram",
-            "pitch class",
-            "harmony",
-            "chord",
-            "key",
-        ],
-    },
-    AnalyzerInfo {
-        id: "spectralCentroid",
-        title: "Spectral centroid",
-        description: "Spectral centre of mass over time",
-        section: "spectral",
-        keywords: &[
-            "centroid",
-            "brightness",
-            "timbre",
-            "spectral",
-            "center of mass",
-        ],
-    },
-    AnalyzerInfo {
-        id: "spectralFlux",
-        title: "Spectral flux",
-        description: "Frame-to-frame spectral change (onset strength)",
-        section: "spectral",
-        keywords: &["flux", "onset", "transient", "novelty", "spectral change"],
-    },
-    AnalyzerInfo {
-        id: "spectralRolloff",
-        title: "Spectral rolloff",
-        description: "Frequency below which most energy lies",
-        section: "spectral",
-        keywords: &[
-            "rolloff",
-            "roll-off",
-            "brightness",
-            "energy",
-            "high frequency",
-        ],
-    },
-    AnalyzerInfo {
-        id: "spectralFlatness",
-        title: "Spectral flatness",
-        description: "Tonality vs noisiness over time",
-        section: "spectral",
-        keywords: &[
-            "flatness", "wiener", "entropy", "tonal", "noise", "tonality",
-        ],
-    },
-    AnalyzerInfo {
-        id: "spectralContrast",
-        title: "Spectral contrast",
-        description: "Peak-to-valley ratio per octave band",
-        section: "spectral",
-        keywords: &["contrast", "peak", "valley", "octave", "band", "spectral"],
-    },
-    AnalyzerInfo {
-        id: "spectralBandwidth",
-        title: "Spectral bandwidth",
-        description: "Spread around the spectral centroid",
-        section: "spectral",
-        keywords: &["bandwidth", "spread", "variance", "width", "spectral"],
-    },
-    AnalyzerInfo {
-        id: "spectralEntropy",
-        title: "Spectral entropy",
-        description: "Order vs disorder of the spectrum",
-        section: "spectral",
-        keywords: &["entropy", "shannon", "disorder", "noise", "spectral"],
-    },
-    AnalyzerInfo {
-        id: "spectralCrest",
-        title: "Spectral crest factor",
-        description: "Peak-to-average spectral power ratio",
-        section: "spectral",
-        keywords: &["crest", "factor", "peak", "average", "tonal", "spectral"],
-    },
-    AnalyzerInfo {
-        id: "harmonicRatio",
-        title: "Harmonic ratio",
-        description: "Harmonic (periodic) content over time",
-        section: "spectral",
-        keywords: &[
-            "harmonic",
-            "ratio",
-            "hnr",
-            "periodicity",
-            "autocorrelation",
-            "noise",
-        ],
-    },
-    AnalyzerInfo {
-        id: "zeroCrossingRate",
-        title: "Zero-crossing rate",
-        description: "Sign-change rate over time",
-        section: "spectral",
-        keywords: &[
-            "zero crossing",
-            "zcr",
-            "sign",
-            "voiced",
-            "percussive",
-            "rate",
-        ],
-    },
-    // Pitch / melody
-    AnalyzerInfo {
-        id: "pitchPyin",
-        title: "Pitch (pYIN)",
-        description: "Probabilistic YIN fundamental track",
-        section: "pitch",
-        keywords: &["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
-    },
-    AnalyzerInfo {
-        id: "pitchYin",
-        title: "Pitch (YIN)",
-        description: "YIN fundamental track",
-        section: "pitch",
-        keywords: &["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
-    },
-    AnalyzerInfo {
-        id: "pitchAutocorr",
-        title: "Pitch (autocorrelation)",
-        description: "Autocorrelation fundamental track",
-        section: "pitch",
-        keywords: &[
-            "pitch",
-            "autocorrelation",
-            "acf",
-            "f0",
-            "fundamental",
-            "period",
-        ],
-    },
-    // Rhythm / tempo
-    AnalyzerInfo {
-        id: "tempo",
-        title: "Tempo",
-        description: "Estimated BPM and beat grid",
-        section: "rhythm",
-        keywords: &["tempo", "bpm", "beat", "rhythm", "pulse", "detection"],
-    },
-    AnalyzerInfo {
-        id: "onsets",
-        title: "Onsets",
-        description: "Detected note / event start times",
-        section: "rhythm",
-        keywords: &["onset", "attack", "transient", "event", "note", "detection"],
-    },
-    AnalyzerInfo {
-        id: "downbeats",
-        title: "Downbeats",
-        description: "Estimated bar-start beat times",
-        section: "rhythm",
-        keywords: &["downbeat", "bar", "measure", "beat", "meter", "rhythm"],
-    },
-    // Loudness
-    AnalyzerInfo {
-        id: "loudnessIntegrated",
-        title: "Integrated LUFS",
-        description: "EBU R128 integrated loudness",
-        section: "loudness",
-        keywords: &[
-            "loudness",
-            "lufs",
-            "ebu",
-            "r128",
-            "integrated",
-            "gating",
-            "normalization",
-        ],
-    },
-    AnalyzerInfo {
-        id: "loudnessMomentary",
-        title: "Loudness (momentary)",
-        description: "Short-term loudness over time",
-        section: "loudness",
-        keywords: &[
-            "loudness",
-            "momentary",
-            "short term",
-            "lufs",
-            "dynamics",
-            "level",
-        ],
-    },
-    AnalyzerInfo {
-        id: "loudnessRange",
-        title: "Loudness range",
-        description: "LRA — loudness spread in LU",
-        section: "loudness",
-        keywords: &[
-            "loudness",
-            "range",
-            "lra",
-            "dynamics",
-            "spread",
-            "compression",
-        ],
-    },
+    ),
+    (
+        "downbeats",
+        &[OptionInfo {
+            key: "barLength",
+            label: "Beats per bar",
+            default: 4.0,
+            min: 2.0,
+            max: 12.0,
+            help: "Beats per bar — the time-signature numerator.",
+        }],
+    ),
+    (
+        "loudnessMomentary",
+        &[OptionInfo {
+            key: "windowMs",
+            label: "Window",
+            default: 0.0,
+            min: 0.0,
+            max: 1_000.0,
+            help: "Momentary window in ms; 0 uses the EBU R128 400 ms block.",
+        }],
+    ),
 ];
+
+/// The engine options declared for `id` (empty for a tool without options).
+fn options_for(id: &str) -> &'static [OptionInfo] {
+    OPTIONS
+        .iter()
+        .find(|(tool, _)| *tool == id)
+        .map(|(_, options)| *options)
+        .unwrap_or(&[])
+}
 
 /// Whether `id` names an analyzer (so a headless `run_analysis` can fail fast with a
 /// helpful message instead of the engine's generic unknown-tool error).
@@ -325,17 +209,24 @@ pub fn is_analyzer(id: &str) -> bool {
     ANALYZERS.iter().any(|analyzer| analyzer.id == id)
 }
 
-/// The catalog in the shape `list_analyzers` returns (an array of objects).
+/// The catalog in the shape `list_analyzers` returns (an array of objects). Each
+/// entry carries the analyzer's metadata plus a compact `options` map of its
+/// canonical option keys to their defaults.
 pub fn list() -> Vec<serde_json::Value> {
     ANALYZERS
         .iter()
         .map(|analyzer| {
+            let options: serde_json::Map<String, serde_json::Value> = options_for(analyzer.id)
+                .iter()
+                .map(|option| (option.key.to_string(), serde_json::json!(option.default)))
+                .collect();
             serde_json::json!({
                 "id": analyzer.id,
                 "title": analyzer.title,
                 "description": analyzer.description,
                 "section": analyzer.section,
                 "keywords": analyzer.keywords,
+                "options": options,
             })
         })
         .collect()
@@ -344,6 +235,7 @@ pub fn list() -> Vec<serde_json::Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::audio::analysis::canonical_option_key;
 
     #[test]
     fn catalog_covers_every_engine_tool() {
@@ -388,6 +280,35 @@ mod tests {
             assert!(item["id"].as_str().is_some_and(|id| !id.is_empty()));
             assert!(item["title"].as_str().is_some_and(|t| !t.is_empty()));
             assert!(item["keywords"].as_array().is_some());
+            assert!(item["options"].is_object());
         }
+    }
+
+    #[test]
+    fn option_metadata_names_known_canonical_keys() {
+        for (id, options) in OPTIONS {
+            assert!(is_analyzer(id), "option metadata for unknown analyzer {id}");
+            for option in *options {
+                assert_eq!(
+                    canonical_option_key(option.key),
+                    Some(option.key),
+                    "{} is not a canonical option key",
+                    option.key
+                );
+                assert!(option.min <= option.default && option.default <= option.max);
+                assert!(!option.label.is_empty() && !option.help.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn list_carries_the_pitch_option_defaults() {
+        let items = list();
+        let find = |id: &str| items.iter().find(|item| item["id"] == id).unwrap();
+        assert_eq!(find("pitchYin")["options"]["minF0Hz"], 50.0);
+        assert_eq!(find("pitchYin")["options"]["maxF0Hz"], 2000.0);
+        assert_eq!(find("pitchYin")["options"]["yinThreshold"], 0.12);
+        assert_eq!(find("harmonicRatio")["options"]["maxF0Hz"], 4000.0);
+        assert!(find("pitchPyin")["options"].as_object().unwrap().is_empty());
     }
 }

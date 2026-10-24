@@ -32,7 +32,10 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 - **SharedParams** — analysis params synced across tools (FFT size, hop/overlap, window function, channel, frequency range, …).
 - **ToolOptions** — per-tool params that are *not* shared (band/coefficient counts,
   YIN threshold, f0 range, bar length, momentary window, …); they ride along with
-  every `run_analysis` call and fall back to per-tool defaults when absent.
+  every `run_analysis` call and fall back to per-tool defaults when absent. Keys are
+  canonical **camelCase**; snake_case aliases are accepted when reading a request, and
+  an unknown key is rejected (M16). Chart-display toggles are not engine options and
+  never cross IPC.
 - **LayoutState** — `dockview` `api.toJSON()` + solid-flow graph positions.
 - **ThemeFile** — an installable palette: a declared `base` (`dark` / `light`) plus
   partial `ui` (CSS custom properties) / `chart` / `colormap` / `flow` overlays. The
@@ -93,7 +96,8 @@ struct SharedParams {
 }
 
 // Per-tool options, sent with every `run_analysis` call next to `SharedParams`.
-// Every field is optional; absent fields use the tool's defaults.
+// Every field is optional; absent fields use the tool's defaults. Keys are camelCase;
+// snake_case aliases are accepted when reading, and unknown keys are rejected (M16).
 struct ToolOptions {
     n_mels: Option<usize>,
     n_mfcc: Option<usize>,

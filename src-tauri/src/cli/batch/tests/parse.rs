@@ -100,6 +100,19 @@ fn unknown_option_key_is_rejected() {
 }
 
 #[test]
+fn snake_case_option_aliases_are_canonicalized() {
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["pitchYin"])),
+        ("option", json!(["min_f0_hz=50"])),
+    ]);
+    let request = build_request("analyze", &m).unwrap();
+    assert_eq!(request.options[0].tool, "pitchYin");
+    assert_eq!(request.options[0].key, "minF0Hz");
+    assert_eq!(request.options[0].value, json!(50));
+}
+
+#[test]
 fn pretty_needs_a_single_result() {
     let m = matches(&[
         ("file", json!(["a.wav", "b.wav"])),

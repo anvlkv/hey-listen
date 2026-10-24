@@ -21,6 +21,7 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
         label: "dB scale",
         kind: "toggle",
         value: 0,
+        target: "view",
         title: "Plot the envelope in dBFS (0 dBFS at the top) instead of linear amplitude.",
       },
     ],

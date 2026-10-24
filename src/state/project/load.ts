@@ -1,7 +1,7 @@
 import { invoke } from "../../lib/ipc";
 import { pcmStream } from "../../lib/pcmStream";
 import { applySharedParams } from "../analysis";
-import { setToolOptions } from "../analyzer";
+import { loadToolOptions } from "../analyzer";
 import {
   KIND_LABEL,
   recording,
@@ -104,7 +104,7 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
 
   // 2. Analysis setup.
   applySharedParams(loaded.setup.shared);
-  setToolOptions(loaded.setup.toolOptions ?? {});
+  loadToolOptions(loaded.setup.toolOptions ?? {});
   setFilterEnabled(loaded.setup.filterEnabled ?? true);
 
   // 3. The source PCM + the analysis window / view it was saved with.

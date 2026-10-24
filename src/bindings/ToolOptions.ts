@@ -3,5 +3,9 @@
 /**
  * Per-tool options (not shared across tools). Absent fields fall back to the tool
  * defaults; see `docs/analysis-tools.md`.
+ *
+ * Keys are canonical **camelCase**; snake_case aliases are accepted when reading a
+ * request (the IPC, headless, and CLI boundaries), and unknown keys are rejected rather
+ * than silently ignored.
  */
 export type ToolOptions = { nMels: number | null, nMfcc: number | null, nBands: number | null, rolloffPercent: number | null, yinThreshold: number | null, minF0Hz: number | null, maxF0Hz: number | null, barLength: number | null, windowMs: number | null, fMinHz: number | null, fMaxHz: number | null, };

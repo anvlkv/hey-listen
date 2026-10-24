@@ -4,6 +4,7 @@
 use serde_json::Value;
 use tauri_plugin_cli::Matches;
 
+use crate::audio::analysis::canonical_option_key;
 use crate::audio::analyzers;
 use crate::audio::graph::{self, GraphSpec};
 
@@ -26,21 +27,6 @@ const SHARED_PARAM_KEYS: [&str; 8] = [
 
 /// The values `windowFn` accepts (`docs/analysis-tools.md`).
 const WINDOW_FNS: [&str; 4] = ["hann", "hamming", "blackman", "rectangular"];
-
-/// The per-tool option keys `-o` accepts (the same keys MCP's `set_tool_options` takes).
-const TOOL_OPTION_KEYS: [&str; 11] = [
-    "nMels",
-    "nMfcc",
-    "nBands",
-    "rolloffPercent",
-    "yinThreshold",
-    "minF0Hz",
-    "maxF0Hz",
-    "barLength",
-    "windowMs",
-    "fMinHz",
-    "fMaxHz",
-];
 
 /// Whether `name` is a batch subcommand (used to tell a real usage error from a
 /// `.heyl` file path that the plugin's parser rejected).
@@ -286,10 +272,15 @@ fn parse_option_patches(tokens: &[String], tools: &[String]) -> Result<Vec<Optio
         if !analyzers::is_analyzer(&tool) {
             return Err(format!("unknown analyzer in `-o`: {tool}"));
         }
-        if !TOOL_OPTION_KEYS.contains(&key.as_str()) {
-            return Err(format!("unknown option for {tool}: {key}"));
-        }
-        patches.push(OptionPatch { tool, key, value });
+        // Canonicalize camelCase / snake_case (`min_f0_hz` → `minF0Hz`) so the same
+        // keys MCP's `set_tool_options` takes work here too.
+        let key = canonical_option_key(&key)
+            .ok_or_else(|| format!("unknown option for {tool}: {key}"))?;
+        patches.push(OptionPatch {
+            tool,
+            key: key.to_string(),
+            value,
+        });
     }
     Ok(patches)
 }
