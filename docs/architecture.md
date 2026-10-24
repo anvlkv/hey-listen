@@ -211,6 +211,10 @@ The commands and channels below are all implemented; milestone notes record the 
   `app:open-project`.
 - `app:open-project` — opened `.heyl` paths (file association); routed to the focused
   window, or queued once for the first frontend if none is listening yet (M6, M7).
+  macOS delivers the open-documents Apple Event **before** `RunEvent::Ready` (which
+  is when `setup` manages the queue), so `handle_open_paths` falls back to a
+  process-level queue that `setup` adopts — calling `state()` that early would panic
+  (and the release profile is `panic = "abort"`).
 - `ui-state` — one UI-state patch (`{ key, value, source }`) emitted to the project's
   **other** windows when `set_ui_state` changes a value (M7, ADR-11); the sender is
   skipped, and each receiver applies the patch to its stores.

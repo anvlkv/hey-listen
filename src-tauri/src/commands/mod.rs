@@ -38,7 +38,10 @@ pub(crate) fn focused_label<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
         .or_else(|| windows.contains_key("main").then(|| "main".to_string()))
         .or_else(|| windows.keys().next().cloned());
     focused.map(|label| {
-        app.state::<crate::state::WindowRegistry>()
-            .root_label(&label)
+        // `focused_label` is also reached from OS callbacks that can arrive before
+        // `setup` managed the registry (and a panic there aborts the process).
+        app.try_state::<crate::state::WindowRegistry>()
+            .map(|registry| registry.root_label(&label))
+            .unwrap_or(label)
     })
 }

@@ -207,14 +207,39 @@ pub struct OpenedFiles {
     drained: AtomicBool,
 }
 
+/// Paths the OS delivered before `setup` ran. macOS hands a cold-launched app the
+/// open-documents Apple Event **before** `RunEvent::Ready` (which is when `setup`
+/// manages [`OpenedFiles`]), so they cannot be queued in the managed state yet.
+/// [`OpenedFiles::adopt_early`] drains this once the state exists.
+static EARLY_OPEN_PATHS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Queue a path unless it is already queued (the OS may repeat a request).
+fn queue_unique(queue: &mut Vec<String>, path: String) {
+    if !queue.iter().any(|existing| existing == &path) {
+        queue.push(path);
+    }
+}
+
 impl OpenedFiles {
     fn queue(&self, path: String) {
         let mut guard = self
             .pending
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        if !guard.iter().any(|existing| existing == &path) {
-            guard.push(path);
+        queue_unique(&mut guard, path);
+    }
+
+    /// Move paths that arrived before this state existed into the queue.
+    pub fn adopt_early(&self) {
+        let mut early = EARLY_OPEN_PATHS
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let mut guard = self
+            .pending
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        for path in early.drain(..) {
+            queue_unique(&mut guard, path);
         }
     }
 
@@ -256,10 +281,22 @@ pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Ve
         return;
     }
     // Queue for the first frontend to drain (cold start / before any window listens).
-    {
-        let state = app.state::<OpenedFiles>();
-        for path in &paths {
-            state.queue(path.clone());
+    // On a cold launch the OS can deliver the request before `setup` manages this
+    // state — `state()` would panic (and `panic = "abort"` turns that into SIGABRT),
+    // so fall back to the process-level queue `setup` adopts.
+    match app.try_state::<OpenedFiles>() {
+        Some(state) => {
+            for path in &paths {
+                state.queue(path.clone());
+            }
+        }
+        None => {
+            let mut early = EARLY_OPEN_PATHS
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner());
+            for path in &paths {
+                queue_unique(&mut early, path.clone());
+            }
         }
     }
     // If a window already exists, also route the request to the focused one.
