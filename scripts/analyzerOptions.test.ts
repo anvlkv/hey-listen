@@ -56,6 +56,14 @@ check("the compact option defaults are engine-only", () => {
   assertEqual("showMean" in optionDefaults("spectrum"), false);
 });
 
+check("frame-RMS options are engine options with defaults", () => {
+  assertDeepEqual(optionDefaults("frameRms"), { frameMs: 10, hopMs: 5 });
+  assertDeepEqual(applyOptionPatch("frameRms", { frame_ms: 20, hop_ms: 10 }), {
+    frameMs: 20,
+    hopMs: 10,
+  });
+});
+
 check("loading an older project fills in new option defaults", () => {
   loadToolOptions({ pitchYin: { yinThreshold: 0.2 } });
   assertEqual(toolOptions.pitchYin.minF0Hz, 50);

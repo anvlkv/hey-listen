@@ -9,4 +9,4 @@ mod time;
 pub use dispatch::run;
 pub use features::{chromagram, mel_spectrogram, mfcc, spectral_contrast};
 pub use spectrum::{spectrogram, spectrum};
-pub use time::{levels, waveform};
+pub use time::{frame_rms_envelope, levels, waveform};

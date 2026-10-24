@@ -49,6 +49,38 @@ fn run_finds_the_spectrum_peak() {
 }
 
 #[test]
+fn run_frame_rms_applies_its_option_patch() {
+    let path = std::env::temp_dir().join("hey_listen_cli_frame_rms.wav");
+    write_sine_wav(&path, 8_000, 8_000);
+    let mut request = analyze_request(
+        vec![path.to_string_lossy().into_owned()],
+        vec!["frameRms".into()],
+    );
+    // `-o frameRms.frameMs=20 -o frameRms.hopMs=10` at 8 kHz → 160 / 80 samples.
+    request.options = vec![
+        OptionPatch {
+            tool: "frameRms".into(),
+            key: "frameMs".into(),
+            value: json!(20),
+        },
+        OptionPatch {
+            tool: "frameRms".into(),
+            key: "hopMs".into(),
+            value: json!(10),
+        },
+    ];
+
+    let mut out = Vec::new();
+    assert_eq!(run(&request, &mut out), 0);
+    let values = lines(&out);
+    assert_eq!(values.len(), 1);
+    assert_eq!(values[0]["result"]["tool"], "frameRms");
+    assert_eq!(values[0]["result"]["frameSize"], 160);
+    assert_eq!(values[0]["result"]["hopSize"], 80);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
 fn run_prints_one_line_per_file() {
     let a = std::env::temp_dir().join("hey_listen_cli_a.wav");
     let b = std::env::temp_dir().join("hey_listen_cli_b.wav");

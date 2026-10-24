@@ -61,8 +61,13 @@ const PYIN_MAX_F0: f32 = 2_000.0;
 const MAX_PITCH_FRAMES: usize = 512;
 /// Cap on frames for the onset-strength envelope handed to the rhythm charts.
 const MAX_RHYTHM_FRAMES: usize = 4096;
+/// Cap on frames for the frame-RMS envelope (M17), so a long window stays bounded.
+const MAX_FRAME_RMS_FRAMES: usize = 8192;
 
 const DEFAULT_BAR_LENGTH: usize = 4;
+/// Frame-RMS defaults: 10 ms frames on a 5 ms hop (M17).
+const DEFAULT_FRAME_MS: f32 = 10.0;
+const DEFAULT_HOP_MS: f32 = 5.0;
 
 // --- signal conditioning -------------------------------------------------
 

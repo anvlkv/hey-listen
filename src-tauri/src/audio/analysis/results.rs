@@ -111,6 +111,11 @@ pub struct SeriesResult {
     pub values: Vec<Option<f32>>,
     pub min_value: f32,
     pub max_value: f32,
+    /// The RMS frame length in samples, for tools that measure per frame (`frameRms`).
+    /// Absent for tools whose frames are defined by the shared FFT size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub frame_size: Option<usize>,
 }
 
 /// A pitch track: the f0 series over time plus a voiced-frame summary, so a
@@ -212,6 +217,7 @@ pub enum AnalysisResult {
     Spectrum(SpectrumResult),
     Spectrogram(SpectrogramResult),
     Levels(LevelsResult),
+    FrameRms(SeriesResult),
     MelSpectrogram(MatrixResult),
     Mfcc(MatrixResult),
     Chromagram(MatrixResult),
@@ -267,7 +273,8 @@ impl AnalysisResult {
             | AnalysisResult::SpectralCrest(result)
             | AnalysisResult::HarmonicRatio(result)
             | AnalysisResult::ZeroCrossingRate(result)
-            | AnalysisResult::LoudnessMomentary(result) => {
+            | AnalysisResult::LoudnessMomentary(result)
+            | AnalysisResult::FrameRms(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }

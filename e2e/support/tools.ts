@@ -16,6 +16,7 @@ export interface AnalyzerTool {
 export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "waveform", title: "Waveform", view: "waveform" },
   { id: "levels", title: "Level meters", view: "readouts" },
+  { id: "frameRms", title: "Amplitude envelope", view: "series" },
   { id: "spectrum", title: "Spectrum", view: "spectrum" },
   { id: "spectrogram", title: "Spectrogram", view: "spectrogram" },
   { id: "melSpectrogram", title: "Mel spectrogram", view: "matrix" },

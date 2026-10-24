@@ -12,4 +12,9 @@ times: Array<number>,
 /**
  * Source seconds where the window starts (`times[0]` is at or after this).
  */
-windowStart: number, values: Array<number | null>, minValue: number, maxValue: number, };
+windowStart: number, values: Array<number | null>, minValue: number, maxValue: number, 
+/**
+ * The RMS frame length in samples, for tools that measure per frame (`frameRms`).
+ * Absent for tools whose frames are defined by the shared FFT size.
+ */
+frameSize?: number, };

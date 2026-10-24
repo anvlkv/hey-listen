@@ -23,6 +23,7 @@ import type { LraResult as LraPayload } from "../../bindings/LraResult";
 export type AnalyzerId =
   | "waveform"
   | "levels"
+  | "frameRms"
   | "spectrum"
   | "spectrogram"
   | "melSpectrogram"

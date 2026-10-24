@@ -38,6 +38,22 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
             "amplitude",
         ],
     },
+    AnalyzerInfo {
+        id: "frameRms",
+        title: "Amplitude envelope",
+        description: "Frame RMS level in dBFS over time",
+        section: "time",
+        keywords: &[
+            "envelope",
+            "amplitude",
+            "rms",
+            "dbfs",
+            "level",
+            "frame",
+            "dynamics",
+            "loudness",
+        ],
+    },
     // Spectral
     AnalyzerInfo {
         id: "spectrum",

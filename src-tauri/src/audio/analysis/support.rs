@@ -8,7 +8,7 @@ use oxiaudio::{AudioBuffer, ChannelLayout, SampleFormat};
 
 use super::{
     AnalysisError, MatrixResult, PitchResult, SeriesResult, SharedParams, WindowKind, DB_FLOOR,
-    MAX_PITCH_FRAMES, MAX_RHYTHM_FRAMES, MAX_STFT_CELLS,
+    MAX_FRAME_RMS_FRAMES, MAX_PITCH_FRAMES, MAX_RHYTHM_FRAMES, MAX_STFT_CELLS,
 };
 
 /// Build a mono `oxiaudio` buffer view over `samples`.
@@ -87,6 +87,50 @@ pub(super) fn frame_times(frames: usize, hop: usize, sample_rate: u32) -> Vec<f3
     (0..frames).map(|i| i as f32 * dt).collect()
 }
 
+/// Frame-centred RMS envelope: `(times_secs, levels_db, frame_samples, hop_samples)`.
+///
+/// Frames start at 0 and advance by the hop; each level is the frame's RMS in dBFS
+/// (floored at [`DB_FLOOR`]) and each time is the frame's **centre**, so a value lines
+/// up with the audio it measures. A signal shorter than one frame still yields one
+/// value over the samples present. The hop widens if a long window would exceed
+/// [`MAX_FRAME_RMS_FRAMES`]; the effective frame and hop are returned so the result can
+/// report them rather than the request that was not honoured.
+pub(super) fn frame_rms(
+    mono: &[f32],
+    sample_rate: u32,
+    frame_ms: f32,
+    hop_ms: f32,
+) -> (Vec<f32>, Vec<f32>, usize, usize) {
+    let rate = f64::from(sample_rate.max(1));
+    let frame = ((f64::from(frame_ms) / 1000.0) * rate).round().max(1.0) as usize;
+    let requested_hop = ((f64::from(hop_ms) / 1000.0) * rate).round().max(1.0) as usize;
+    let hop = requested_hop.max(mono.len().div_ceil(MAX_FRAME_RMS_FRAMES).max(1));
+
+    let len = mono.len();
+    let mut times = Vec::new();
+    let mut values = Vec::new();
+    let mut start = 0usize;
+    while start < len {
+        let end = (start + frame).min(len);
+        let slice = &mono[start..end];
+        let sum: f64 = slice.iter().map(|&sample| f64::from(sample).powi(2)).sum();
+        let rms = (sum / slice.len() as f64).sqrt() as f32;
+        let db = if rms > 0.0 {
+            20.0 * rms.log10()
+        } else {
+            DB_FLOOR
+        };
+        let centre = (start as f64 + (end - start) as f64 / 2.0) / rate;
+        times.push(centre as f32);
+        values.push(db_or_floor(db));
+        if end >= len {
+            break;
+        }
+        start += hop;
+    }
+    (times, values, frame, hop)
+}
+
 pub(super) fn build_series(
     times: Vec<f32>,
     values: Vec<Option<f32>>,
@@ -109,6 +153,7 @@ pub(super) fn build_series(
         values,
         min_value: if min.is_finite() { min } else { 0.0 },
         max_value: if max.is_finite() { max } else { 0.0 },
+        frame_size: None,
     }
 }
 

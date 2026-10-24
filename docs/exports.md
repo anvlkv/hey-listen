@@ -57,7 +57,7 @@ frame, one column per frequency band.
 
 | View kind | Shape |
 | --- | --- |
-| `series` (incl. `loudnessMomentary`) | `time_s,value` |
+| `series` (incl. `frameRms` / `loudnessMomentary`) | `time_s,value` |
 | `pitch` | `time_s,f0_hz` (blank cell for an unvoiced frame) |
 | `spectrum` | `freq_hz,mean_db,min_db,max_db` |
 | `spectrogram` / `matrix` | wide: first column `time_s`, then one column per bin, header row = bin centre frequencies (`440.0` … or band index for index-axis matrices such as MFCC/chroma) |

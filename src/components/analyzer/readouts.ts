@@ -44,6 +44,8 @@ export function seriesReadouts(
     sampleRate: number;
     minValue: number;
     maxValue: number;
+    /** The RMS frame length, for tools that measure per frame (`frameRms`). */
+    frameSize?: number | null;
   },
   formatY: (value: number) => string,
 ): ReadoutSpec[] {
@@ -52,6 +54,9 @@ export function seriesReadouts(
     { label: "Hop", value: `${result.hopSize}` },
     { label: "Rate", value: formatHz(result.sampleRate) },
   ];
+  if (result.frameSize != null) {
+    specs.push({ label: "Frame", value: `${result.frameSize}` });
+  }
   if (result.frames > 0) {
     specs.push({ label: "Min", value: formatY(result.minValue) });
     specs.push({ label: "Max", value: formatY(result.maxValue) });

@@ -6,9 +6,9 @@ use oxiaudio::dsp::spectral::WindowFn;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DEFAULT_BAR_LENGTH, DEFAULT_N_BANDS, DEFAULT_N_MELS,
-    DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0,
-    YIN_MAX_F0, YIN_MIN_F0,
+    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DEFAULT_BAR_LENGTH, DEFAULT_FRAME_MS, DEFAULT_HOP_MS,
+    DEFAULT_N_BANDS, DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD,
+    HARMONIC_MAX_F0, HARMONIC_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
 };
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
@@ -131,6 +131,8 @@ pub struct ToolOptions {
     pub window_ms: Option<u32>,
     pub f_min_hz: Option<f32>,
     pub f_max_hz: Option<f32>,
+    pub frame_ms: Option<f32>,
+    pub hop_ms: Option<f32>,
 }
 
 /// The wire form of [`ToolOptions`]. It lives apart from the exported type because
@@ -161,6 +163,10 @@ struct ToolOptionsWire {
     f_min_hz: Option<f32>,
     #[serde(default, alias = "f_max_hz")]
     f_max_hz: Option<f32>,
+    #[serde(default, alias = "frame_ms")]
+    frame_ms: Option<f32>,
+    #[serde(default, alias = "hop_ms")]
+    hop_ms: Option<f32>,
 }
 
 impl From<ToolOptionsWire> for ToolOptions {
@@ -177,6 +183,8 @@ impl From<ToolOptionsWire> for ToolOptions {
             window_ms: wire.window_ms,
             f_min_hz: wire.f_min_hz,
             f_max_hz: wire.f_max_hz,
+            frame_ms: wire.frame_ms,
+            hop_ms: wire.hop_ms,
         }
     }
 }
@@ -206,6 +214,8 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "windowMs" | "window_ms" => "windowMs",
         "fMinHz" | "f_min_hz" => "fMinHz",
         "fMaxHz" | "f_max_hz" => "fMaxHz",
+        "frameMs" | "frame_ms" => "frameMs",
+        "hopMs" | "hop_ms" => "hopMs",
         _ => return None,
     })
 }
@@ -277,5 +287,21 @@ impl ToolOptions {
 
     pub(super) fn mel_f_max(&self) -> Option<f32> {
         self.f_max_hz.filter(|&f| f > 0.0)
+    }
+
+    /// The RMS frame length in ms (M17), clamped to a usable range.
+    pub(super) fn frame_ms(&self) -> f32 {
+        self.frame_ms
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .unwrap_or(DEFAULT_FRAME_MS)
+            .clamp(0.1, 1_000.0)
+    }
+
+    /// The envelope hop in ms (M17). May exceed the frame, leaving uncovered gaps.
+    pub(super) fn hop_ms(&self) -> f32 {
+        self.hop_ms
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .unwrap_or(DEFAULT_HOP_MS)
+            .clamp(0.05, 1_000.0)
     }
 }
