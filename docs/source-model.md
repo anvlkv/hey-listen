@@ -54,6 +54,9 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - The **filtered** signal (when a filter is active) is drawn as a translucent **overlay**
   over the raw waveform, so its effect reads as a tint on the signal rather than a
   replacement for it.
+- Repaints are cheap at **every** zoom: the waveform is drawn from a pyramid of min/max
+  envelopes (one pass per source), so a zoomed-in long recording never rescans its PCM
+  on a pointer move or a transport tick (`lib/waveform.ts`).
 - Dragging `start` or `end` plays back a **preview** of that region.
 - The whole window can be **dragged** (keeping its width) via a handle at its top; a
   preview that is playing reloads onto the new window when the drag settles, so it never

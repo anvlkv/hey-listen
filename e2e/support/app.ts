@@ -7,7 +7,8 @@
  * `switchWindow`. [`waitForShell`] is that wait.
  */
 import { SEL } from "./selectors.ts";
-import { count } from "./dom.ts";
+import { count, waitFor } from "./dom.ts";
+import { menuAction, mockReturn } from "./ipc.ts";
 
 /** Wait until `condition` holds, appending what the window actually showed on failure. */
 async function waitForWindow(
@@ -79,4 +80,22 @@ async function describeWindow(): Promise<string> {
 /** The release binary launches a "main" window; make sure it is the active one. */
 export async function selectMainWindow(): Promise<void> {
   await browser.tauri.switchWindow("main").catch(() => {});
+}
+
+/**
+ * File → New, then wait until the timeline is actually gone.
+ *
+ * The menu action is an **event**: `emit` returns before the frontend has reset the
+ * project. A caller that immediately re-opens a fixture would read the previous
+ * source's duration in the Timeline readout and `openFixture` would skip the open as
+ * "already loaded" — then the reset lands and the timeline stays empty (the Windows CI
+ * hit exactly that in Q6). Wait for the empty state, not just for the emit.
+ */
+export async function newEmptyProject(): Promise<void> {
+  await mockReturn("confirm", true);
+  await menuAction("new");
+  await waitFor(
+    async () => (await count(SEL.timeline)) === 0,
+    "New Project did not clear the timeline",
+  );
 }

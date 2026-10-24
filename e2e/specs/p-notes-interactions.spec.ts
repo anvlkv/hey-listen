@@ -13,8 +13,7 @@ import { SEL, analyzerPanel } from "../support/selectors.ts";
 import {
   closeAllTabs,
   count,
-  menuAction,
-  mockReturn,
+  newEmptyProject,
   openFixture,
   openTool,
   waitFor,
@@ -85,8 +84,7 @@ describe("P. Notes — interaction model", () => {
     await waitForApp();
     await closeAllTabs();
     // Start from a clean project, so the note counts below are deterministic.
-    await mockReturn("confirm", true);
-    await menuAction("new");
+    await newEmptyProject();
   });
 
   it("P1 — creating opens the editor, keeps the values, and moves nothing", async () => {

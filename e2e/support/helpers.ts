@@ -20,7 +20,7 @@
  */
 
 // --- app lifecycle ---------------------------------------------------------
-export { waitForApp, waitForShell, selectMainWindow } from "./app.ts";
+export { waitForApp, waitForShell, selectMainWindow, newEmptyProject } from "./app.ts";
 
 // --- raw DOM helpers (avoid element-handle stalls) -------------------------
 export { count, textOf, click, waitFor, pointerDrag, wheelOver } from "./dom.ts";
@@ -49,6 +49,7 @@ export {
   canvasSignature,
   rowSignature,
   stableRowSignature,
+  waitForRowChange,
 } from "./analyzers.ts";
 
 // --- Source ----------------------------------------------------------------

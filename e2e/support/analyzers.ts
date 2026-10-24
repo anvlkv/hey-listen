@@ -139,6 +139,32 @@ export async function stableRowSignature(
 }
 
 /**
+ * Wait until a canvas's **row-band** signature differs from `previous`, and return it.
+ *
+ * A mirrored cursor (and the preview playhead) travels over an IPC event, so the paint
+ * is not synchronous with the gesture that caused it — especially when the chart lives
+ * in another window. Reading the signature once, after a fixed pause, races that
+ * delivery; waiting for the change is deterministic. The band covers a dashed rule
+ * (`rowSignature`) where the sparse `canvasSignature` sample could miss a 1 px line.
+ */
+export async function waitForRowChange(
+  selector: string,
+  previous: string,
+  timeoutMsg: string,
+  timeout = 15_000,
+): Promise<string> {
+  let current = previous;
+  await browser.waitUntil(
+    async () => {
+      current = await rowSignature(selector);
+      return current !== previous;
+    },
+    { timeout, timeoutMsg },
+  );
+  return current;
+}
+
+/**
  * True when a canvas (scoped to `scope` when given) has drawn something over its
  * own background — the "renders non-empty" check the smoke tests use.
  */
