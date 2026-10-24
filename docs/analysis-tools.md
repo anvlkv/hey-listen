@@ -169,8 +169,11 @@ form keeps `{length, min, max, argmin, argmax}` (plus `frameSize`), and
 **Note segments (M18).** `noteMetrics` gates the frame-RMS envelope (absolute floor +
 threshold relative to the window peak + hysteresis), merges short gaps, drops short
 notes, and returns per-note spans, gaps, RMS/peak levels, levels relative to the loudest
-note, and a normalized envelope. The **Note segments** view is summary cards over a
-scrollable table. These are **detected audio notes**, not the project's user-authored
+note, and a normalized envelope. The **Note segments** view is summary cards, a segment
+chart over the analysis window (each note as a **peak/RMS block** over its envelope, a
+**voiced** split ruler, **gap** bands with durations, a **gate** rule, and a per-note
+**f0** overlay on a right-hand axis), and a scrollable table; hovering a note highlights
+its row. These are **detected audio notes**, not the project's user-authored
 **annotations** (M14) — see [`notes.md`](notes.md) → Terminology. In MCP/CLI the result
 is compacted by the normal rules: the summary counts (`noteCount`, `gapCount`, …) always
 survive, while the `notes` / `gaps` arrays collapse to `{length}` when long; request
@@ -183,8 +186,10 @@ default). Jitter is the spread of the linearly detrended f0 track in cents; shim
 the spread of the note's frame RMS in dB; the HNR figure is the mean 0–1
 `harmonic_ratio` — an **autocorrelation periodicity proxy**, not HNR in dB. They are
 **proxies**, not clinical measures, and are `null` when a note is too short (or too
-unvoiced) to measure. The table shows all five, and the per-tool `minF0Hz` / `maxF0Hz`
-bound the proxy grid just as they do for the pitch tools.
+unvoiced) to measure. The table shows all five, the segment chart's hover card shows
+voiced, f0, jitter, shimmer, and the HNR proxy for the note under the pointer (and the
+per-note median f0 is also drawn on a right-hand axis), and the per-tool `minF0Hz` /
+`maxF0Hz` bound the proxy grid just as they do for the pitch tools.
 
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the
@@ -220,6 +225,16 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
 - **rhythm** — the onset-strength envelope with beat / onset / downbeat markers, plus
   a **tempo-salience** panel (the envelope's autocorrelation over BPM) on the tempo
   and downbeat tools.
+- **note segments** — the detected notes over the analysis window, drawn as
+  **blocks** whose height is the note's **peak** with a stronger fill up to its **RMS**
+  (the cap between them is the crest), over its frame-RMS envelope line. A **segment
+  ruler** along the top edge is the note's extent split by its **voiced** share, the
+  loudest note takes the reference colour, and each note is numbered above its peak
+  when the span can hold it. **Gaps** are banded and labelled with their duration; the
+  **gate** is drawn when it falls in view; the per-note median **f0** is a flat dashed
+  segment on a right-hand axis. It joins the `"time"` sync group, hovering a note
+  highlights its table row, and the hover card shows the whole record (span, gaps,
+  RMS/peak, levels versus the loudest note, voiced, f0, jitter, shimmer, HNR proxy).
 - **readouts** — scalar cards; the `levels` tool draws **peak / RMS meter bars**.
 - **notes** — every time-axis chart also draws its project notes as anchors in a thin
   strip along the bottom (its own at full strength, other charts' muted, the focused

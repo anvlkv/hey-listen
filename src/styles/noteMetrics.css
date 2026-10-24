@@ -1,0 +1,146 @@
+/* --- Note segments (M18/M19): summary cards, segment chart, table -------- */
+
+.note-metrics-summary {
+  flex: none;
+  flex-wrap: nowrap;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.note-metrics-summary .readout-card {
+  min-width: 94px;
+  padding: 6px 10px;
+}
+
+.note-metrics-summary .readout-card-value {
+  font-size: 1rem;
+}
+
+/* The segment chart sits between the summary and the table: fixed-ish height, and
+   the table keeps (and scrolls within) the rest. */
+.note-segments-chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 36%;
+  min-height: 150px;
+  max-height: 280px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* What each mark on the chart means (the colors come from the active chart theme). */
+.note-segments-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 12px;
+  flex: none;
+  min-height: 24px;
+  padding: 4px 12px;
+  font-size: 0.625rem;
+  color: var(--fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.note-segments-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+.note-segments-legend-mark {
+  display: inline-flex;
+  flex: none;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--legend-color, var(--fg-faint));
+}
+
+.note-segments-legend-mark.is-dashed {
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--legend-color, var(--fg-faint)) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.note-segments-legend-mark.is-fill {
+  height: 8px;
+  opacity: 0.45;
+}
+
+.note-segments-legend-mark.is-split {
+  height: 5px;
+  overflow: hidden;
+}
+
+.note-segments-legend-mark.is-split i {
+  flex: 1;
+  background: var(--legend-color, var(--fg-faint));
+}
+
+.note-segments-legend-mark.is-split i:last-child {
+  opacity: 0.28;
+}
+
+.note-segments-legend-gate {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.note-metrics-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+}
+
+.note-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.note-metrics-table th,
+.note-metrics-table td {
+  padding: 5px 8px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.note-metrics-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+
+.note-metrics-table th:first-child,
+.note-metrics-table td:first-child {
+  text-align: left;
+  color: var(--fg-faint);
+}
+
+.note-metrics-table tbody tr:hover {
+  background: var(--panel-2);
+}
+
+.note-metrics-table tbody tr.is-hovered {
+  background: var(--panel-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.note-metrics-table tbody tr.is-reference td:first-child {
+  color: var(--accent-2);
+  font-weight: 600;
+}

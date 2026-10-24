@@ -15,6 +15,7 @@
 @import "./styles/sidebar.css";
 @import "./styles/graph.css";
 @import "./styles/analyzer.css";
+@import "./styles/noteMetrics.css";
 @import "./styles/popover.css";
 @import "./styles/params.css";
 @import "./styles/panels.css";

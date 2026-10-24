@@ -891,11 +891,14 @@ Explicit notes, ends, gaps, counts, and levels.
 
 > **Delivered:** `noteMetrics` (Pitch / melody) returns the note records, explicit gaps,
 > the summary counts/medians, the gate used, and a 7-point normalized envelope per note.
-> The **Note segments** view renders summary cards over a scrollable per-note table; the
-> catalog entry and option metadata make it available in the GUI, headless MCP, and
-> `hey-listen analyze`, and times are re-based onto source seconds like every result.
-> Tests: `audio::analysis::tests::note_metrics`, the catalog default checks, and the
-> headless option/result flow.
+> The **Note segments** view renders summary cards, a **segment chart** over the
+> analysis window (each note as a peak/RMS block over its envelope, a voiced-share
+> ruler, gap bands with durations, the gate, numbered notes, and a per-note f0 overlay
+> on a right-hand axis; hovering a note highlights its table row), and a scrollable
+> per-note table; the catalog entry and option metadata make it available in the GUI,
+> headless MCP, and `hey-listen analyze`, and times are re-based onto source seconds
+> like every result. Tests: `audio::analysis::tests::note_metrics`, the catalog default
+> checks, and the headless option/result flow.
 >
 > **Terminology:** these are **detected audio notes**, distinct from the project's
 > user-authored **annotations** (M14, stored as `Note`). The right rail is now labelled
@@ -927,9 +930,11 @@ Per-note jitter, shimmer, and HNR proxies, built on the M18 segments.
 > the **autocorrelation periodicity proxy**, not HNR in dB, and all five are described
 > as proxies in the UI. The per-tool `minF0Hz` / `maxF0Hz` reach the proxy grid; notes
 > with too few voiced / harmonic frames return `null` rather than a misleading number.
-> The Note segments table shows the five columns, and the catalog entry + option
-> metadata make the pitch options available through the GUI, headless MCP, and
-> `hey-listen analyze` (snake_case aliases included).
+> The Note segments table shows the five columns, the segment chart's hover card shows
+> the whole per-note record (span, gaps, RMS/peak, levels versus the loudest note,
+> voiced, f0, jitter, shimmer, HNR proxy), and the catalog entry + option metadata make
+> the pitch options available through the GUI, headless MCP, and `hey-listen analyze`
+> (snake_case aliases included).
 >
 > Tests: a steady note has near-zero jitter/shimmer and a high HNR proxy; vibrato
 > raises jitter; AM raises shimmer; noise lowers the HNR proxy; a short note returns

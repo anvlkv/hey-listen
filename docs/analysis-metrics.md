@@ -166,10 +166,13 @@ and hop are echoed.
 > **Delivered.** `noteMetrics` (Pitch / melody) segments the frame-RMS envelope with
 > the documented gate, hysteresis, short-gap merge, and short-note drop, and returns
 > per-note spans, gaps, RMS / peak levels, levels relative to the loudest note, and a
-> 7-point normalized envelope. A **Note segments** view renders summary cards over a
-> scrollable per-note table. The catalog entry and option metadata ship with it, so it
-> works in the GUI, headless MCP, and `hey-listen analyze`; result times are re-based
-> onto source seconds like every other time-bearing result. Tests live in
+> 7-point normalized envelope. A **Note segments** view renders summary cards, a segment
+> chart over the analysis window (each note as a peak/RMS block over its envelope, a
+> voiced-share ruler, gap bands with durations, the gate, and a per-note f0 overlay on a
+> right-hand axis; hovering a note highlights its table row), and a scrollable per-note
+> table. The catalog entry and option metadata ship with it, so it works in the GUI,
+> headless MCP, and `hey-listen analyze`; result times are re-based onto source seconds
+> like every other time-bearing result. Tests live in
 > `audio::analysis::tests::note_metrics`, `audio::analyzers::tests`, and
 > `mcp::dispatch::tests`.
 >
@@ -200,8 +203,12 @@ implicit. There is no per-note level or envelope summary.
   note, and the threshold used. Gaps between notes are also returned explicitly.
   Leading/trailing silence is reflected in the first note's `gapBeforeSecs` and the last
   note's `gapAfterSecs`, but is not counted in `gapCount`.
-- New `noteMetrics` table view: summary cards plus a scrollable per-note table. A chart
-  overlay/timeline spans can come later.
+- New `noteMetrics` view: summary cards, a segment chart over the analysis window
+  (peak/RMS blocks over each note's frame-RMS envelope, a voiced-share ruler, gap bands
+  with durations, the gate, the note numbers, and a per-note f0 overlay on a right-hand
+  axis), and a scrollable per-note table. The chart joins the `"time"` sync group, so
+  its zoom and cursor follow every other time-axis analyzer, and hovering a note
+  highlights its table row.
 - MCP note: a long `notes` array of objects is compacted to `{ length }` by default;
   callers use `includeData: true` to read the records. The summary counts make that
   discoverable.
