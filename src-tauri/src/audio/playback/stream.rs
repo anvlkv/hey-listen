@@ -167,6 +167,9 @@ where
         .map_err(|err| PlaybackError::Device(err.to_string()))
 }
 
+/// Bottom of the preview meter's −60 dBFS scale (see the frontend's `lib/format.ts`).
+const METER_FLOOR: f32 = 0.001;
+
 /// Fill an output buffer by duplicating the mono signal across every channel, and
 /// track the block's peak magnitude for the output meter.
 fn fill<T: Sample + FromSample<f32>>(state: &mut PlayState, data: &mut [T], channels: usize) {
@@ -183,7 +186,9 @@ fn fill<T: Sample + FromSample<f32>>(state: &mut PlayState, data: &mut [T], chan
         }
     }
     // Hold the block peak, then decay so the meter still falls back between blocks.
-    state.level = peak.max(state.level * 0.85);
+    // Snap to silence at the floor so a quiet passage cannot decay into denormals.
+    let level = peak.max(state.level * 0.85);
+    state.level = if level < METER_FLOOR { 0.0 } else { level };
 }
 
 fn next_sample(state: &mut PlayState) -> f32 {
