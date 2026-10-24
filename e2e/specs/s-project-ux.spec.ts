@@ -23,6 +23,7 @@ import {
   emitEvent,
   menuAction,
   mockReturn,
+  newEmptyProject,
   openFixture,
   restoreMocks,
   startInvokeCounts,
@@ -38,16 +39,6 @@ import {
   filterSwitchOn,
   toggleFilter,
 } from "../support/graph.ts";
-
-/** Start a fresh project and wait until the old source and tabs are gone. */
-async function newEmptyProject(): Promise<void> {
-  await mockReturn("confirm", true);
-  await menuAction("new");
-  await waitFor(
-    async () => (await count(SEL.timeline)) === 0,
-    "New Project did not clear the timeline",
-  );
-}
 
 describe("S. Project UX fixes", () => {
   before(async () => {

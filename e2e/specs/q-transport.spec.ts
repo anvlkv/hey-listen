@@ -26,8 +26,8 @@ import {
   dragTimelineHandle,
   dragTimelineWindow,
   lastInvokeArgs,
-  menuAction,
   mockReturn,
+  newEmptyProject,
   openFixture,
   openTool,
   restoreMocks,
@@ -104,10 +104,10 @@ describe("Q. Preview transport", () => {
   before(async () => {
     await waitForApp();
     await closeAllTabs();
-    await mockReturn("confirm", true);
     // Keep the transport's client-side clock independent of the host's audio hardware.
     await mockReturn("preview_region", null);
-    await menuAction("new");
+    // File → New is an event: wait for it to land, so the first fixture opens fresh.
+    await newEmptyProject();
   });
 
   after(async () => {
@@ -207,8 +207,9 @@ describe("Q. Preview transport", () => {
   it("Q6 — moving the window reloads a playing preview onto the new window", async () => {
     await stopTransport();
     // Start from a clean timeline/view, then leave the window room to slide: a
-    // full-width window has nowhere to move, so pull its end in first.
-    await menuAction("new");
+    // full-width window has nowhere to move, so pull its end in first. Wait for the
+    // reset: the menu event returns before the project is actually cleared.
+    await newEmptyProject();
     await openFixture("sine440");
     await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
     await dragTimelineHandle("end", -160);

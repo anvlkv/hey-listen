@@ -517,6 +517,23 @@ npm run typecheck:e2e        # type-check the suite (no app needed)
 Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
 service log).
 
+### Waiting rules (learned from CI flakes)
+
+- **A menu action is an event, not a call.** `emit` returns before the frontend has
+  handled it. Wait for the observable result — `newEmptyProject()` (`support/app.ts`)
+  waits until the Timeline is gone — instead of assuming the reset landed. Q6 used to
+  re-open a fixture immediately after `new`, read the *old* duration in the readout,
+  skip the open as "already loaded", and then sit on an empty timeline.
+- **Closing the current window is scheduled, not awaited.** The app's `close_window`
+  destroys the caller, which can kill the WebDriver script's reply first (a 30 s
+  timeout on Windows). `closeCurrentWindow()` returns from the script and destroys a
+  beat later; callers wait for the label to disappear (`windowLabels`).
+- **Cross-window state arrives over IPC.** A cursor/view/playhead mirrored from
+  another window repaints *after* the gesture that caused it. Wait for the change
+  (`waitForRowChange` in `support/analyzers.ts`) rather than sleeping a fixed time —
+  and use the row-band signature for a thin canvas rule, which the sparse
+  `canvasSignature` sample can miss.
+
 ### Rendering the UI without the app
 
 For pure layout / CSS / component iteration, **`preview.html`** (repo root) renders the

@@ -73,10 +73,14 @@ handle must audition that region.
 
 **Decision:** render the waveform with the plain 2D canvas API rather than
 solid-uplot — the Timeline needs custom range handles, a ruler, and zoom/pan that
-would otherwise fight the chart abstraction. Rendering uses a per-source
-min/max peak envelope (with a raw-sample fallback when zoomed in). Preview
-playback is frontend-only via the Web Audio API, since the decoded PCM is already
-in the WebView; Rust has no playback path.
+would otherwise fight the chart abstraction. Rendering uses a per-source **pyramid
+of min/max envelopes** (a fine level for deep zooms, coarser levels up to the full
+view, and a raw-sample fallback only when a column is narrower than the finest
+bucket). A single base envelope left a pathological middle zoom: the raw fallback
+scanned millions of samples per repaint for a 4-minute file, and the Timeline
+repaints on every chart cursor move and transport tick. Preview playback is
+frontend-only via the Web Audio API, since the decoded PCM is already in the
+WebView; Rust has no playback path.
 
 **Consequence:** the Timeline stays independent of the analyzer charting stack
 (solid-uplot remains for analyzer tabs in M4+). The full PCM is retained in the
@@ -154,9 +158,10 @@ settles anyway.
 > be heard on the next preview.
 >
 > **Transitional deviation:** the frontend still retains a full PCM copy for the
-> Timeline *waveform* (peaks + zoomed raw-sample fallback). ADR-9's "the WebView
-> keeps only the peak envelope" needs Rust-side peak/LOD streaming and is deferred;
-> until then the PCM exists twice (traced here deliberately).
+> Timeline *waveform* (the multi-resolution peak pyramid + a raw-sample fallback at
+> extreme zoom). ADR-9's "the WebView keeps only the peak envelope" needs Rust-side
+> peak/LOD streaming and is deferred; until then the PCM exists twice (traced here
+> deliberately).
 
 ## ADR-10 — The graph editors are Workbench tabs
 

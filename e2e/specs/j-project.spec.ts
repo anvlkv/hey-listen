@@ -58,6 +58,9 @@ describe("H. Project file & multi-window", () => {
   });
 
   afterEach(async () => {
+    // A case may close the window it was driving (H3 closes its popout), which pins the
+    // session to a dead label; recover before touching the IPC seam.
+    await browser.tauri.switchWindow("main").catch(() => {});
     await restoreMocks();
     await mockReturn("confirm", true);
   });

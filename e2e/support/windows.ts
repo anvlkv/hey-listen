@@ -37,14 +37,20 @@ export async function openProjectWindow(): Promise<string> {
 /**
  * Close the window the test is currently focused on.
  *
- * Fire-and-forget: it runs the app's own `close_window` command (`window.destroy()`),
- * which tears the caller down before the IPC reply can be delivered — awaiting it
- * would hang. The frontend's `onCloseRequested` guard prevents a *native* close and
+ * It runs the app's own `close_window` command (`window.destroy()`), which tears the
+ * caller down — the frontend's `onCloseRequested` guard prevents a *native* close and
  * routes it through this command, so going through it is the supported path.
+ *
+ * The close is **scheduled**, not awaited: `destroy()` can kill the webview before the
+ * WebDriver script's reply is delivered, which timed out the call (and left the session
+ * pinned to a dead window) on Windows. Returning from the script first and destroying a
+ * beat later makes the close observable through [`windowLabels`] instead of a race.
  */
 export async function closeCurrentWindow(): Promise<void> {
   await browser.tauri.execute((tauri) => {
-    void tauri.core.invoke("close_window").catch(() => {});
+    setTimeout(() => {
+      void tauri.core.invoke("close_window").catch(() => {});
+    }, 250);
   });
 }
 

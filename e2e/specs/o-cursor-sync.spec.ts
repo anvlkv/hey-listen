@@ -14,9 +14,12 @@ import {
   openFixture,
   openTool,
   rowSignature,
+  stableRowSignature,
   waitFor,
   waitForAnalyzer,
   waitForApp,
+  waitForRowChange,
+  waitForShell,
 } from "../support/helpers.ts";
 import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
 
@@ -126,6 +129,14 @@ describe("N. Notes — cross-window cursor", () => {
     const series = `${analyzerPanel("spectralCentroid")} .u-over`;
     const seriesCanvas = series.replace(" .u-over", " canvas");
 
+    // The popout is a fresh webview: wait for it to mount and render the tool before
+    // using its canvas as the "idle" reference (a read on a not-yet-booted window is
+    // "none", and nothing later can be compared against it).
+    await browser.tauri.switchWindow(popout);
+    await waitForShell();
+    await waitForAnalyzer("spectrogram");
+    const heatmapIdle = await stableRowSignature(heatmap);
+
     // --- main → popout: hover the uPlot chart, the heatmap should follow ------------
     await browser.tauri.switchWindow("main");
     const cursorX = `${analyzerPanel("spectralCentroid")} .u-cursor-x`;
@@ -134,17 +145,31 @@ describe("N. Notes — cross-window cursor", () => {
     const cursorAfter = await cursorTransform(cursorX);
     const seriesAfter = await canvasSignature(seriesCanvas);
     await browser.tauri.switchWindow(popout);
-    const heatmapNear = await canvasSignature(heatmap);
+    // The cursor crosses to the other window over IPC, so wait for the repaint instead
+    // of assuming the gesture's pause covered the delivery.
+    const heatmapNear = await waitForRowChange(
+      heatmap,
+      heatmapIdle,
+      "the popout heatmap did not follow the series cursor",
+    );
     const leftMarker = heatmapNear;
     await browser.tauri.switchWindow("main");
     await hover(series, 0.8, 0.4);
     await browser.tauri.switchWindow(popout);
-    const heatmapFar = await canvasSignature(heatmap);
+    const heatmapFar = await waitForRowChange(
+      heatmap,
+      heatmapNear,
+      "the popout heatmap did not follow the second move",
+    );
 
     // --- popout → main: hover the heatmap, the uPlot chart should follow ------------
     await hover(heatmap, 0.25, 0.4);
     await browser.tauri.switchWindow("main");
-    const seriesFromPopout = await canvasSignature(seriesCanvas);
+    const seriesFromPopout = await waitForRowChange(
+      seriesCanvas,
+      seriesAfter,
+      "the series chart did not mirror the heatmap cursor",
+    );
 
     // …and it must keep up as that remote pointer *moves*. A watcher that tracked only
     // the message's tag (its group / sourceId — constant for one publisher) drew the
@@ -154,7 +179,11 @@ describe("N. Notes — cross-window cursor", () => {
     await browser.tauri.switchWindow(popout);
     await hover(heatmap, 0.7, 0.4);
     await browser.tauri.switchWindow("main");
-    const mirrorAfter = await rowSignature(seriesCanvas);
+    const mirrorAfter = await waitForRowChange(
+      seriesCanvas,
+      mirrorBefore,
+      "the series chart did not follow the second move",
+    );
 
     expect({
       // The hovered chart's own crosshair is the DOM cursor, so it moves locally too.
