@@ -4,8 +4,9 @@ use serde_json::{json, Value};
 
 use crate::audio::analysis::WindowKind;
 
-use super::shape::{compact, decimate};
 use super::HeadlessSession;
+
+mod shaping;
 
 #[test]
 fn ui_only_tools_require_the_app() {
@@ -157,54 +158,6 @@ fn shared_params_merge_partially() {
     assert!(matches!(session.params.window_fn, WindowKind::Blackman));
 }
 
-#[test]
-fn compact_collapses_long_numeric_arrays() {
-    let value = json!({ "values": (0..100).map(|n| n as f64).collect::<Vec<_>>() });
-    let out = compact(value);
-    assert_eq!(out["values"]["length"], 100);
-    assert_eq!(out["values"]["min"], 0.0);
-    assert_eq!(out["values"]["max"], 99.0);
-    assert_eq!(out["values"]["argmin"], 0);
-    assert_eq!(out["values"]["argmax"], 99);
-    assert!(out["values"].get("nulls").is_none());
-}
-
-#[test]
-fn compact_surfaces_gaps_in_a_long_array() {
-    // A pitch track with one voiced frame out of 511 must be visible at a glance.
-    let mut values: Vec<Value> = vec![Value::Null; 511];
-    values[300] = json!(220.0);
-    let out = compact(json!({ "values": values }));
-    assert_eq!(out["values"]["length"], 511);
-    assert_eq!(out["values"]["nulls"], 510);
-    assert_eq!(out["values"]["min"], 220.0);
-    assert_eq!(out["values"]["max"], 220.0);
-    assert_eq!(out["values"]["argmin"], 300);
-    assert_eq!(out["values"]["argmax"], 300);
-}
-
-#[test]
-fn compact_reduces_other_long_arrays_to_their_length() {
-    let values: Vec<Value> = (0..20).map(|n| json!(format!("f{n}"))).collect();
-    let out = compact(json!({ "labels": values }));
-    assert_eq!(out["labels"]["length"], 20);
-}
-
-#[test]
-fn decimate_strides_keeping_first_and_last() {
-    let value = json!({ "values": (0..100).map(|n| n as f64).collect::<Vec<_>>() });
-    let out = decimate(value, 10);
-    let values = out["values"].as_array().unwrap();
-    assert_eq!(values.len(), 10);
-    assert_eq!(values[0], 0.0);
-    assert_eq!(values[9], 99.0);
-    // A uniform stride of 11: index 1 lands on round(11) = 11.
-    assert_eq!(values[1], 11.0);
-    // Short arrays pass through untouched.
-    let short = decimate(json!({ "values": [1.0, 2.0, 3.0] }), 10);
-    assert_eq!(short["values"].as_array().unwrap().len(), 3);
-}
-
 /// A synth graph that renders a 440 Hz sine (`sine -> output`).
 fn sine_graph_value() -> Value {
     json!({
@@ -301,7 +254,15 @@ fn note_metrics_options_flow_through_the_headless_session() {
             "set_tool_options",
             json!({
                 "tool": "noteMetrics",
-                "options": { "gate_db": 40, "min_note_ms": 15, "envelope_points": 5 },
+                "options": {
+                    "gate_db": 40,
+                    "min_note_ms": 15,
+                    "envelope_points": 5,
+                    "pitch_frame_ms": 30,
+                    "pitch_hop_ms": 4,
+                    "min_f0_hz": 100,
+                    "max_f0_hz": 1000,
+                },
             }),
         )
         .expect("snake_case aliases are accepted");
@@ -334,6 +295,19 @@ fn note_metrics_options_flow_through_the_headless_session() {
     assert_eq!(metrics["options"]["gateDb"], 40.0);
     assert_eq!(metrics["options"]["minNoteMs"], 15.0);
     assert_eq!(metrics["options"]["envelopePoints"], 5);
+    assert_eq!(metrics["options"]["pitchFrameMs"], 30.0);
+    assert_eq!(metrics["options"]["pitchHopMs"], 4.0);
+    assert_eq!(metrics["options"]["minF0Hz"], 100.0);
+    assert_eq!(metrics["options"]["maxF0Hz"], 1000.0);
+    // M19's per-note proxies travel with the note records under `includeData`.
+    let note = &metrics["result"]["notes"][0];
+    assert!(note["voicedFraction"].as_f64().is_some_and(|f| f > 0.9));
+    assert!(note["f0MedianHz"]
+        .as_f64()
+        .is_some_and(|f| (f - 440.0).abs() < 5.0));
+    assert!(note["jitterProxyCents"].as_f64().is_some());
+    assert!(note["shimmerProxyDb"].as_f64().is_some());
+    assert!(note["hnrProxy"].as_f64().is_some_and(|v| v > 0.5));
 }
 
 #[test]

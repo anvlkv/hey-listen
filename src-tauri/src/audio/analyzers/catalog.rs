@@ -255,7 +255,7 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     AnalyzerInfo {
         id: "noteMetrics",
         title: "Note segments",
-        description: "Detected note spans, gaps, and per-note levels",
+        description: "Detected note spans, gaps, levels, and voice-quality proxies",
         section: "pitch",
         keywords: &[
             "note",
@@ -267,6 +267,11 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
             "level",
             "call",
             "bioacoustic",
+            "jitter",
+            "shimmer",
+            "hnr",
+            "voice quality",
+            "periodicity",
         ],
     },
     // Rhythm / tempo

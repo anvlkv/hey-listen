@@ -74,11 +74,28 @@ check("note-segmentation options are engine options with defaults", () => {
     minNoteMs: 20,
     minGapMs: 30,
     envelopePoints: 7,
+    pitchFrameMs: 40,
+    pitchHopMs: 5,
+    minF0Hz: 50,
+    maxF0Hz: 2000,
   });
   assertDeepEqual(applyOptionPatch("noteMetrics", { gate_db: 40, min_note_ms: 15 }), {
     gateDb: 40,
     minNoteMs: 15,
   });
+});
+
+check("note voice-quality options accept snake_case aliases", () => {
+  assertDeepEqual(
+    applyOptionPatch("noteMetrics", {
+      pitch_frame_ms: 30,
+      pitch_hop_ms: 2,
+      min_f0_hz: 80,
+      max_f0_hz: 1000,
+    }),
+    { pitchFrameMs: 30, pitchHopMs: 2, minF0Hz: 80, maxF0Hz: 1000 },
+  );
+  assertDeepEqual(engineOptions("noteMetrics"), optionDefaults("noteMetrics"));
 });
 
 check("loading an older project fills in new option defaults", () => {

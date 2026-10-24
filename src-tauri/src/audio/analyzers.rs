@@ -157,6 +157,11 @@ mod tests {
         assert_eq!(note["options"]["minNoteMs"], 20.0);
         assert_eq!(note["options"]["minGapMs"], 30.0);
         assert_eq!(note["options"]["envelopePoints"], 7.0);
+        // M19's per-note pitch grid and f0 range.
+        assert_eq!(note["options"]["pitchFrameMs"], 40.0);
+        assert_eq!(note["options"]["pitchHopMs"], 5.0);
+        assert_eq!(note["options"]["minF0Hz"], 50.0);
+        assert_eq!(note["options"]["maxF0Hz"], 2000.0);
     }
 
     #[test]

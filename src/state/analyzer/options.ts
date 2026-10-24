@@ -30,6 +30,8 @@ const ENGINE_KEYS = [
   "minNoteMs",
   "minGapMs",
   "envelopePoints",
+  "pitchFrameMs",
+  "pitchHopMs",
 ] as const;
 
 /** snake_case aliases accepted at the MCP / CLI boundary (mirrors the Rust side). */
@@ -53,6 +55,8 @@ const OPTION_ALIASES: Record<string, string> = {
   min_note_ms: "minNoteMs",
   min_gap_ms: "minGapMs",
   envelope_points: "envelopePoints",
+  pitch_frame_ms: "pitchFrameMs",
+  pitch_hop_ms: "pitchHopMs",
 };
 
 const ENGINE_KEY_SET = new Set<string>(ENGINE_KEYS);

@@ -129,9 +129,9 @@ audio (the window moves to fit the new source). See [`templates.md`](templates.m
 
 ## Analysis depth (M16–M20)
 
-The pitch-range fix, the **frame-RMS amplitude envelope**, and **note segmentation**
-are delivered (M16–M18); voice-quality proxies and AM/FM modulation spectra are planned
-as M19–M20. See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
+The pitch-range fix, the **frame-RMS amplitude envelope**, **note segmentation**, and the
+per-note **voice-quality proxies** are delivered (M16–M19); AM/FM modulation spectra are
+planned as M20. See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
 shapes, option defaults, and test plan. **M21** adds the shared MCP/CLI contract —
 per-result summaries, compact previews, tool annotations, and analyzer discovery — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
@@ -175,6 +175,16 @@ scrollable table. These are **detected audio notes**, not the project's user-aut
 is compacted by the normal rules: the summary counts (`noteCount`, `gapCount`, …) always
 survive, while the `notes` / `gaps` arrays collapse to `{length}` when long; request
 `includeData: true` / `--full` for the records.
+
+**Note voice-quality proxies (M19).** Every `noteMetrics` note also carries
+`voicedFraction`, `f0MedianHz`, `jitterProxyCents`, `shimmerProxyDb`, and `hnrProxy`,
+measured on the note's own fine YIN grid (`pitchFrameMs` 40 / `pitchHopMs` 5 by
+default). Jitter is the spread of the linearly detrended f0 track in cents; shimmer is
+the spread of the note's frame RMS in dB; the HNR figure is the mean 0–1
+`harmonic_ratio` — an **autocorrelation periodicity proxy**, not HNR in dB. They are
+**proxies**, not clinical measures, and are `null` when a note is too short (or too
+unvoiced) to measure. The table shows all five, and the per-tool `minF0Hz` / `maxF0Hz`
+bound the proxy grid just as they do for the pitch tools.
 
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the

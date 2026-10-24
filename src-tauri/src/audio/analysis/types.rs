@@ -9,9 +9,13 @@ use super::{
     AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DB_FLOOR, DEFAULT_BAR_LENGTH, DEFAULT_ENVELOPE_POINTS,
     DEFAULT_FRAME_MS, DEFAULT_GATE_DB, DEFAULT_GATE_FLOOR_DB, DEFAULT_HOP_MS,
     DEFAULT_HYSTERESIS_DB, DEFAULT_MIN_GAP_MS, DEFAULT_MIN_NOTE_MS, DEFAULT_N_BANDS,
-    DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0,
-    HARMONIC_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
+    DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_PITCH_FRAME_MS, DEFAULT_PITCH_HOP_MS, DEFAULT_ROLLOFF,
+    DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
 };
+
+mod wire;
+
+pub use wire::canonical_option_key;
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, ts_rs::TS)]
@@ -141,115 +145,8 @@ pub struct ToolOptions {
     pub min_note_ms: Option<f32>,
     pub min_gap_ms: Option<f32>,
     pub envelope_points: Option<usize>,
-}
-
-/// The wire form of [`ToolOptions`]. It lives apart from the exported type because
-/// ts-rs does not understand `serde(alias)` (it emits a warning per field), and the
-/// aliases are only needed when *reading* an external request.
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ToolOptionsWire {
-    #[serde(default, alias = "n_mels")]
-    n_mels: Option<usize>,
-    #[serde(default, alias = "n_mfcc")]
-    n_mfcc: Option<usize>,
-    #[serde(default, alias = "n_bands")]
-    n_bands: Option<usize>,
-    #[serde(default, alias = "rolloff_percent")]
-    rolloff_percent: Option<f32>,
-    #[serde(default, alias = "yin_threshold")]
-    yin_threshold: Option<f32>,
-    #[serde(default, alias = "min_f0_hz")]
-    min_f0_hz: Option<f32>,
-    #[serde(default, alias = "max_f0_hz")]
-    max_f0_hz: Option<f32>,
-    #[serde(default, alias = "bar_length")]
-    bar_length: Option<usize>,
-    #[serde(default, alias = "window_ms")]
-    window_ms: Option<u32>,
-    #[serde(default, alias = "f_min_hz")]
-    f_min_hz: Option<f32>,
-    #[serde(default, alias = "f_max_hz")]
-    f_max_hz: Option<f32>,
-    #[serde(default, alias = "frame_ms")]
-    frame_ms: Option<f32>,
-    #[serde(default, alias = "hop_ms")]
-    hop_ms: Option<f32>,
-    #[serde(default, alias = "gate_db")]
-    gate_db: Option<f32>,
-    #[serde(default, alias = "gate_floor_db")]
-    gate_floor_db: Option<f32>,
-    #[serde(default, alias = "hysteresis_db")]
-    hysteresis_db: Option<f32>,
-    #[serde(default, alias = "min_note_ms")]
-    min_note_ms: Option<f32>,
-    #[serde(default, alias = "min_gap_ms")]
-    min_gap_ms: Option<f32>,
-    #[serde(default, alias = "envelope_points")]
-    envelope_points: Option<usize>,
-}
-
-impl From<ToolOptionsWire> for ToolOptions {
-    fn from(wire: ToolOptionsWire) -> Self {
-        Self {
-            n_mels: wire.n_mels,
-            n_mfcc: wire.n_mfcc,
-            n_bands: wire.n_bands,
-            rolloff_percent: wire.rolloff_percent,
-            yin_threshold: wire.yin_threshold,
-            min_f0_hz: wire.min_f0_hz,
-            max_f0_hz: wire.max_f0_hz,
-            bar_length: wire.bar_length,
-            window_ms: wire.window_ms,
-            f_min_hz: wire.f_min_hz,
-            f_max_hz: wire.f_max_hz,
-            frame_ms: wire.frame_ms,
-            hop_ms: wire.hop_ms,
-            gate_db: wire.gate_db,
-            gate_floor_db: wire.gate_floor_db,
-            hysteresis_db: wire.hysteresis_db,
-            min_note_ms: wire.min_note_ms,
-            min_gap_ms: wire.min_gap_ms,
-            envelope_points: wire.envelope_points,
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for ToolOptions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        ToolOptionsWire::deserialize(deserializer).map(Self::from)
-    }
-}
-
-/// The canonical camelCase name for an engine option key, accepting its snake_case
-/// alias. `None` means the key is not a per-tool engine option. Keep the canonical
-/// names in step with [`ToolOptions`] and the analyzer catalog's option metadata.
-pub fn canonical_option_key(key: &str) -> Option<&'static str> {
-    Some(match key {
-        "nMels" | "n_mels" => "nMels",
-        "nMfcc" | "n_mfcc" => "nMfcc",
-        "nBands" | "n_bands" => "nBands",
-        "rolloffPercent" | "rolloff_percent" => "rolloffPercent",
-        "yinThreshold" | "yin_threshold" => "yinThreshold",
-        "minF0Hz" | "min_f0_hz" => "minF0Hz",
-        "maxF0Hz" | "max_f0_hz" => "maxF0Hz",
-        "barLength" | "bar_length" => "barLength",
-        "windowMs" | "window_ms" => "windowMs",
-        "fMinHz" | "f_min_hz" => "fMinHz",
-        "fMaxHz" | "f_max_hz" => "fMaxHz",
-        "frameMs" | "frame_ms" => "frameMs",
-        "hopMs" | "hop_ms" => "hopMs",
-        "gateDb" | "gate_db" => "gateDb",
-        "gateFloorDb" | "gate_floor_db" => "gateFloorDb",
-        "hysteresisDb" | "hysteresis_db" => "hysteresisDb",
-        "minNoteMs" | "min_note_ms" => "minNoteMs",
-        "minGapMs" | "min_gap_ms" => "minGapMs",
-        "envelopePoints" | "envelope_points" => "envelopePoints",
-        _ => return None,
-    })
+    pub pitch_frame_ms: Option<f32>,
+    pub pitch_hop_ms: Option<f32>,
 }
 
 impl ToolOptions {
@@ -382,5 +279,27 @@ impl ToolOptions {
         self.envelope_points
             .unwrap_or(DEFAULT_ENVELOPE_POINTS)
             .clamp(3, 16)
+    }
+
+    /// The frame length for the per-note pitch track, in ms (M19). The note's own grid
+    /// is raised to at least ~3 periods of the lowest f0 by the pitch helper.
+    pub(super) fn pitch_frame_ms(&self) -> f32 {
+        self.pitch_frame_ms
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .unwrap_or(DEFAULT_PITCH_FRAME_MS)
+            .clamp(5.0, 500.0)
+    }
+
+    /// The hop between per-note pitch frames, in ms (M19).
+    pub(super) fn pitch_hop_ms(&self) -> f32 {
+        self.pitch_hop_ms
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .unwrap_or(DEFAULT_PITCH_HOP_MS)
+            .clamp(1.0, 1_000.0)
+    }
+
+    /// The f0 search range for the per-note quality proxies (M19), defaulting to YIN's.
+    pub(super) fn note_pitch_range(&self) -> (f32, f32) {
+        self.f0_range(YIN_MIN_F0, YIN_MAX_F0)
     }
 }

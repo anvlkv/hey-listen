@@ -113,6 +113,8 @@ pub(super) fn merge_options(
             "minNoteMs" => entry.min_note_ms = Some(number as f32),
             "minGapMs" => entry.min_gap_ms = Some(number as f32),
             "envelopePoints" => entry.envelope_points = Some(number as usize),
+            "pitchFrameMs" => entry.pitch_frame_ms = Some(number as f32),
+            "pitchHopMs" => entry.pitch_hop_ms = Some(number as f32),
             other => return Err(format!("unknown option for {tool}: {other}")),
         }
     }
