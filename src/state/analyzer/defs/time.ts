@@ -1,6 +1,7 @@
+import { series } from "../view";
 import type { AnalyzerDef } from "../types";
 
-/** The `time` section of the registry (waveform, levels). */
+/** The `time` section of the registry (waveform, levels, amplitude envelope). */
 export const TIME_ANALYZERS: AnalyzerDef[] = [
   {
     id: "waveform",
@@ -39,5 +40,45 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
     keywords: ["level", "meter", "peak", "rms", "dbfs", "loudness", "amplitude"],
     section: "time",
     view: { kind: "readouts" },
+  },
+  {
+    id: "frameRms",
+    title: "Amplitude envelope",
+    description: "Frame RMS level over time (dBFS)",
+    about:
+      "**What it shows.** The signal's amplitude envelope: the RMS level of short " +
+      "consecutive frames, in dBFS.\n\n" +
+      "**Why use it.** Follow loudness through a call or a phrase without EBU R128's " +
+      "400 ms smoothing — useful for short notes, breaths, and level changes. Unlike " +
+      "*Loudness (momentary)* it is a plain amplitude measure (no K-weighting), so it " +
+      "agrees with the waveform's RMS.",
+    keywords: ["envelope", "amplitude", "rms", "dbfs", "level", "frame", "dynamics"],
+    section: "time",
+    view: series("level (dBFS)", (value) => `${value.toFixed(1)} dBFS`, { style: "area" }),
+    params: [
+      {
+        key: "frameMs",
+        label: "Frame",
+        kind: "number",
+        value: 10,
+        min: 1,
+        max: 1000,
+        step: 1,
+        suffix: "ms",
+        title:
+          "RMS window length — the envelope's smoothing. 10 ms resolves short notes; longer frames smooth the curve.",
+      },
+      {
+        key: "hopMs",
+        label: "Hop",
+        kind: "number",
+        value: 5,
+        min: 1,
+        max: 1000,
+        step: 1,
+        suffix: "ms",
+        title: "Step between frames — smaller values give a denser envelope.",
+      },
+    ],
   },
 ];

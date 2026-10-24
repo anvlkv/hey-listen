@@ -15,11 +15,11 @@ An audio analysis workbench: capture, filter, and analyze sound from files, live
   project = one source.
 - **Filter.** A Filter graph runs upstream of playback *and* every analyzer; a
   Synth tab renders fundsp synthesis into the timeline.
-- **Analyze.** ~26 analyzers, computed off the main thread so the UI stays live:
-  waveform and levels; spectrum, spectrogram, mel spectrogram, MFCC, chromagram,
-  and the spectral descriptors; pitch (pYIN / YIN / autocorrelation); tempo,
-  onsets, and downbeats; and EBU R128 loudness. Shared params stay synced across
-  tools; dockable tabs, no duplicates.
+- **Analyze.** ~27 analyzers, computed off the main thread so the UI stays live:
+  waveform, levels, and the frame-RMS amplitude envelope; spectrum, spectrogram, mel
+  spectrogram, MFCC, chromagram, and the spectral descriptors; pitch (pYIN / YIN /
+  autocorrelation); tempo, onsets, and downbeats; and EBU R128 loudness. Shared params
+  stay synced across tools; dockable tabs, no duplicates.
 - **Save.** Raw audio plus source, graphs, setup, and layout go into one binary
   `.heyl` project file.
 

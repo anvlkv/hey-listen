@@ -22,6 +22,8 @@ const ENGINE_KEYS = [
   "windowMs",
   "fMinHz",
   "fMaxHz",
+  "frameMs",
+  "hopMs",
 ] as const;
 
 /** snake_case aliases accepted at the MCP / CLI boundary (mirrors the Rust side). */
@@ -37,6 +39,8 @@ const OPTION_ALIASES: Record<string, string> = {
   window_ms: "windowMs",
   f_min_hz: "fMinHz",
   f_max_hz: "fMaxHz",
+  frame_ms: "frameMs",
+  hop_ms: "hopMs",
 };
 
 const ENGINE_KEY_SET = new Set<string>(ENGINE_KEYS);

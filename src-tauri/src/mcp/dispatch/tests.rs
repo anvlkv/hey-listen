@@ -261,6 +261,33 @@ fn run_analysis_echoes_settings_and_transient_does_not_write_back() {
 }
 
 #[test]
+fn frame_rms_options_flow_through_the_headless_session() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 1.0 }),
+        )
+        .unwrap();
+    session
+        .dispatch(
+            "set_tool_options",
+            json!({ "tool": "frameRms", "options": { "frame_ms": 20, "hop_ms": 10 } }),
+        )
+        .expect("snake_case aliases are accepted");
+
+    let envelope = session
+        .dispatch("run_analysis", json!({ "tool": "frameRms" }))
+        .unwrap();
+    assert_eq!(envelope["result"]["tool"], "frameRms");
+    // The configured frame and hop reach the result in samples.
+    assert_eq!(envelope["result"]["frameSize"], 960);
+    assert_eq!(envelope["result"]["hopSize"], 480);
+    assert_eq!(envelope["options"]["frameMs"], 20.0);
+    assert_eq!(envelope["options"]["hopMs"], 10.0);
+}
+
+#[test]
 fn analysis_times_are_rebased_onto_source_seconds() {
     let mut session = HeadlessSession::default();
     session

@@ -144,7 +144,7 @@ Options:
 | `--all` | Run every analyzer. |
 | `--start <SEC>` / `--end <SEC>` | Window (default `0` / full duration). |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable): `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
-| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable): `nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `fMinHz`/`fMaxHz`. Name the tool when running several (`-o mfcc.nMfcc=13`); bare `-o K=V` scopes to the sole `--tool`. |
+| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable): `nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `fMinHz`/`fMaxHz`. Name the tool when running several (`-o mfcc.nMfcc=13`); bare `-o K=V` scopes to the sole `--tool`. |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
 | `--full` | Include raw result arrays (default: compacted, as in MCP). |
 | `--pretty` | Pretty-print a single result instead of JSONL. |

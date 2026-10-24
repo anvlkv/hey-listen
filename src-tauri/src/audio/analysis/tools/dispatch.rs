@@ -9,7 +9,8 @@ use super::super::{
     DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
 };
 use super::{
-    chromagram, levels, mel_spectrogram, mfcc, spectral_contrast, spectrogram, spectrum, waveform,
+    chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, spectral_contrast, spectrogram,
+    spectrum, waveform,
 };
 
 /// Dispatch a tool id to its implementation.
@@ -37,6 +38,11 @@ pub fn run(
     match tool {
         "waveform" => Ok(AnalysisResult::Waveform(waveform(mono, sample_rate))),
         "levels" => Ok(AnalysisResult::Levels(levels(mono, sample_rate))),
+        "frameRms" => Ok(AnalysisResult::FrameRms(frame_rms_envelope(
+            mono,
+            sample_rate,
+            options,
+        ))),
         "spectrum" => Ok(AnalysisResult::Spectrum(spectrum(
             mono,
             sample_rate,

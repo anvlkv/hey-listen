@@ -105,6 +105,8 @@ pub(super) fn merge_options(
             "windowMs" => entry.window_ms = Some(number as u32),
             "fMinHz" => entry.f_min_hz = Some(number as f32),
             "fMaxHz" => entry.f_max_hz = Some(number as f32),
+            "frameMs" => entry.frame_ms = Some(number as f32),
+            "hopMs" => entry.hop_ms = Some(number as f32),
             other => return Err(format!("unknown option for {tool}: {other}")),
         }
     }

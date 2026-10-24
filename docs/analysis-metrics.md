@@ -1,8 +1,9 @@
 # Analysis metrics: pitch range, envelope, note metrics, modulation
 
 Design for **M16–M20**, the analysis-depth track that closes the gaps found while
-driving the app through MCP on a bioacoustic session. **M16 is delivered; M17–M20 are
-planned.** The milestones are ordered so each one is a self-contained, testable unit:
+driving the app through MCP on a bioacoustic session. **M16 and M17 are delivered;
+M18–M20 are planned.** The milestones are ordered so each one is a self-contained,
+testable unit:
 
 | MCP-session item | Milestone | Delivered by |
 | --- | --- | --- |
@@ -59,7 +60,7 @@ These helpers keep the three new tools from re-implementing the same DSP:
 
 - `frame_rms(mono, sample_rate, frame_ms, hop_ms) -> (times, values_db, frame, hop)` —
   frame-centred RMS in dBFS, floored at `DB_FLOOR`. Used by `frameRms`, `noteMetrics`,
-  and the AM half of `modulation`.
+  and the AM half of `modulation`. (Delivered in M17.)
 - `pitch_track(mono, sample_rate, frame_ms, hop_ms, range) -> Vec<PitchFrame>` — a thin
   wrapper over `oxiaudio::dsp::PitchTracker` (YIN) with a range. The frame size is
   raised to at least ~3 periods of the lowest f0, capped, so low-frequency calls still
@@ -131,7 +132,15 @@ range-limited YIN and by `harmonicRatio` with `maxF0Hz: 4000`; pYIN reports 50�
 snake_case aliases work; unknown keys fail; the shared spectral range does not change a
 pitch tool's f0 search.
 
-## M17 — Frame-RMS amplitude envelope (planned)
+## M17 — Frame-RMS amplitude envelope ✅
+
+> **Delivered.** `frameRms` (Time domain) returns a `SeriesResult` of frame-centred
+> dBFS values with `frameMs` 10 / `hopMs` 5 defaults, extended with an optional
+> `frameSize` in samples. The shared `frame_rms` helper is in
+> `audio/analysis/support.rs`; the frame count is capped at 8192 (the hop widens, and
+> the effective hop is what the result reports). The catalog entry, option metadata,
+> snake_case aliases, and CLI `-o` keys are wired on every path. Tests live in
+> `audio::analysis::tests::frame_rms` and `mcp::dispatch::tests`.
 
 **Problem.** The app has a min/max waveform envelope and window-level peak/RMS, but no
 frame-RMS series. `loudnessMomentary` is EBU R128 (K-weighted, 400 ms blocks) and is the

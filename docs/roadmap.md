@@ -170,9 +170,9 @@
 > through the system WebView with the **embedded** driver
 > (`tauri-plugin-wdio-webdriver`, registered in `lib.rs`) and `tauri-plugin-wdio`
 > for `browser.tauri.execute()`. `wdio.conf.ts` + `e2e/` (generated `.fixtures`,
-> `support` helpers, 9 spec files, gitignored `artifacts`) deliver **57 tests**:
+> `support` helpers, 9 spec files, gitignored `artifacts`) deliver **58 tests**:
 > the shell/layout, all source kinds, both graph editors, a **parametrized smoke
-> test over all 26 analyzers**, five correctness spot-checks, the cross-cutting
+> test over all 27 analyzers**, five correctness spot-checks, the cross-cutting
 > scenarios (search / no-duplicate / shared-param / zoom-sync / popovers), the
 > timeline, project save/load + popout, the five error/warning surfaces, and the
 > native-dialog-safe IPC mocking described below.
@@ -191,6 +191,67 @@
 > (`__heylisten_test__`); `wdio.conf.ts` never sets it, so production is unchanged.
 > See [`testing.md`](testing.md) → IPC mocking. The suite drives **one** app instance
 > for the whole run, so fixtures are duration-aware and the popout spec runs last.
+
+## M8.A Improvements iteration ✅ (delivered)
+
+Implemented after M6 as one batch. Where the delivered behaviour is narrower than
+originally scoped, a note follows the item.
+
+- **Undo / redo ✅.** App-level snapshot history (`src/state/history.ts`) over graph
+  edits, layout/tab changes, shared params, tool options, and the timeline window,
+  with native **Edit** menu items (`CmdOrCtrl+Z` / `Shift+CmdOrCtrl+Z`). Continuous
+  edits coalesce into one step; history resets on New / Open. *(Menu items stay
+  enabled; the handlers no-op on an empty stack.)*
+- **Full fundsp node coverage ✅.** The palette covers every filter family and their
+  control-input variants, dynamics, modulation, reverbs, **math**
+  (`add`/`subtract`/`multiply`/`divide`/`min`/`max`/`abs`/`invert`), and
+  panning/stereo nodes — see [`graph-editor.md`](graph-editor.md). The palette has a
+  **search box** and is **collapsible**; nodes can be **clicked or dragged** onto the
+  canvas, and a node dropped **onto a connector** is spliced in, splitting the edge;
+  every port carries a **tiny label** and every node a **hint**; `input`/`output` are
+  undeletable (and draggable). *(The `Sequencer`, an expander, and the remaining
+  fundsp nodes listed under "Remaining fundsp nodes" in `graph-editor.md` stay
+  deferred.)*
+- **Timeline filtered overlay ✅.** The filtered signal is drawn over the raw
+  waveform, with an on/bypassed badge (`render_filtered` streams the conditioned
+  mono signal). See [`ui-layout.md`](ui-layout.md).
+- **Stereo graphs ✅ + parameter smoothing ✅.** *(Delivered as graph-level stereo —
+  option B: the net's global I/O stays mono, but internal stereo/panning/`2→2` nodes
+  are supported. Smoothing applies `follow` to control-rate parameters **within** a
+  compiled net; click-free smoothing across a full rebuild and a fully stereo
+  preview/analysis chain remain deferred.)*
+- **Timeline window drag ✅.** Move the whole analysis window (keeping its width) via
+  a top handle.
+- **Axis label readability ✅.** Wider margins and tick formatters/units for the
+  charts and the Timeline ruler.
+- **UI font scale ✅.** A user-adjustable 0.8–1.4× scale for the whole interface,
+  persisted; lives in the toolbar **Appearance** popover (formerly **View**).
+- **Light / dark theme ✅.** An **auto / dark / light** setting that themes the UI
+  (CSS custom properties), the charts (uPlot strokes/axes, the spectrogram
+  background + colormap), and the dockview theme. Lives in the toolbar **Appearance**
+  popover. (Extended to exchangeable theme files in M11.)
+- **Explanatory tooltips ✅.** On the shared-param choices and the analyzer entries.
+- **Icon set, styled tooltips, and an About dialog ✅.** UI controls use a bundled
+  **Font Awesome 7 Free (Solid)** font (`src/lib/icons.ts` + `src/components/Icon.tsx`);
+  self-evident controls are compacted to **icon + tooltip**, and the native `title`
+  hints on controls became the app's own **`Tooltip`** component. A modal **About**
+  dialog (the Toolbar's `circle-question` button and native **Help → About**) carries
+  the app identity and the required **attributions** (Font Awesome + the runtime
+  dependencies). See [`ui-layout.md`](ui-layout.md) → "Icons, tooltips, and About".
+- **Spectrum layers ✅.** Toggleable **min / max / mean** magnitude layers in the
+  spectrum chart (per-tool params).
+- **Drag & drop file ✅.** Drop an audio file onto the window to open it.
+- **Prevent work loss ✅.** Prompts before replacing an existing source; a dirty `*`
+  in the project name/title and a prompt on close / New / Open.
+- **Reframing from charts ✅.** Right-click a time-domain chart to set the window
+  start/end (the default context menu is suppressed).
+- **Shared params ✅.** Moved to the main toolbar (an **Analysis params** popover).
+
+Also shipped alongside: the preview **filtered overlay**, a collapsible palette,
+sticky search boxes, similar custom scrollbars, and
+**`tauri-plugin-window-state`** (remembers window size/position across launches).
+The temporary **`Rust backend:`** toolbar status was removed.
+
 
 ## M9 — MCP server (agent access + UI following) ✅
 
@@ -220,7 +281,7 @@
 > timeline in the live window, and `get_state` reports the source, window, params,
 > open tabs, and project. See [`mcp.md`](mcp.md) (ADR-12).
 
-### M9 follow-up — control, headless CLI, multi-project ✅
+### M9.A control, headless CLI, multi-project ✅
 
 The first cut ships the server + UI following. The follow-up adds the user-facing
 control surface and the pieces that make the agent genuinely standalone:
@@ -266,7 +327,7 @@ control surface and the pieces that make the agent genuinely standalone:
 > because a background app has its timers throttled and can be suspended, and an agent
 > drives the app from another window by definition. See [`mcp.md`](mcp.md).
 
-### M9 follow-up 2 — analysis result fidelity + agent ergonomics ✅
+### M9.B analysis result fidelity + agent ergonomics ✅
 
 A dozen `run_analysis` calls to profile a single source is a realistic agent session,
 and it surfaced rough edges in **what `run_analysis` returns and what it changes** —
@@ -735,7 +796,7 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M16–M20 — Analysis depth I (M16 done, M17–M20 planned)
+## M16–M20 — Analysis depth I (M16–M17 done, M18–M20 planned)
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
 a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
@@ -785,7 +846,7 @@ silently doing nothing.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M16.
 
-## M17 — Frame-RMS amplitude envelope (planned)
+## M17 — Frame-RMS amplitude envelope ✅
 
 A plain amplitude envelope, independent of LUFS.
 
@@ -796,6 +857,18 @@ A plain amplitude envelope, independent of LUFS.
 - Available through the GUI, headless MCP, and `hey-listen analyze`.
 - **Not** `loudnessMomentary`: that stays EBU R128 and is unsuitable for short windows.
 - **Tests.** Sine level in dBFS, silence floor, sub-frame window, echoed frame/hop.
+
+> **Delivered:** a `frameRms` analyzer under **Time domain** returns frame-centred RMS
+> in dBFS at a 10 ms frame / 5 ms hop by default, with `frameMs` / `hopMs` as per-tool
+> options (canonical camelCase plus snake_case aliases). `SeriesResult` gained an
+> optional `frameSize` (samples), so the result is self-describing and the existing
+> series chart / readouts render it unchanged; the readouts add a **Frame** card when
+> present. The catalog entry, option metadata, and `-o` keys ship with it, so the tool
+> works in the GUI, the headless MCP server, and `hey-listen analyze`.
+>
+> Tests: a half-scale sine reads ≈ −9 dBFS per frame, a silent frame floors at
+> −120 dBFS, a sub-frame window still yields one value, the configured frame/hop are
+> echoed in samples (engine and headless MCP), and the snake_case aliases parse.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M17.
 
@@ -903,63 +976,3 @@ milestone over M16–M20, not another analyzer.
 > entries; **M21 owns the shared summary/compact/annotation contract**. It depends on M16
 > and can land before or after M17–M20. See
 > [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
-
-## Backlog ✅ (delivered)
-
-Implemented after M6 as one batch. Where the delivered behaviour is narrower than
-originally scoped, a note follows the item.
-
-- **Undo / redo ✅.** App-level snapshot history (`src/state/history.ts`) over graph
-  edits, layout/tab changes, shared params, tool options, and the timeline window,
-  with native **Edit** menu items (`CmdOrCtrl+Z` / `Shift+CmdOrCtrl+Z`). Continuous
-  edits coalesce into one step; history resets on New / Open. *(Menu items stay
-  enabled; the handlers no-op on an empty stack.)*
-- **Full fundsp node coverage ✅.** The palette covers every filter family and their
-  control-input variants, dynamics, modulation, reverbs, **math**
-  (`add`/`subtract`/`multiply`/`divide`/`min`/`max`/`abs`/`invert`), and
-  panning/stereo nodes — see [`graph-editor.md`](graph-editor.md). The palette has a
-  **search box** and is **collapsible**; nodes can be **clicked or dragged** onto the
-  canvas, and a node dropped **onto a connector** is spliced in, splitting the edge;
-  every port carries a **tiny label** and every node a **hint**; `input`/`output` are
-  undeletable (and draggable). *(The `Sequencer`, an expander, and the remaining
-  fundsp nodes listed under "Remaining fundsp nodes" in `graph-editor.md` stay
-  deferred.)*
-- **Timeline filtered overlay ✅.** The filtered signal is drawn over the raw
-  waveform, with an on/bypassed badge (`render_filtered` streams the conditioned
-  mono signal). See [`ui-layout.md`](ui-layout.md).
-- **Stereo graphs ✅ + parameter smoothing ✅.** *(Delivered as graph-level stereo —
-  option B: the net's global I/O stays mono, but internal stereo/panning/`2→2` nodes
-  are supported. Smoothing applies `follow` to control-rate parameters **within** a
-  compiled net; click-free smoothing across a full rebuild and a fully stereo
-  preview/analysis chain remain deferred.)*
-- **Timeline window drag ✅.** Move the whole analysis window (keeping its width) via
-  a top handle.
-- **Axis label readability ✅.** Wider margins and tick formatters/units for the
-  charts and the Timeline ruler.
-- **UI font scale ✅.** A user-adjustable 0.8–1.4× scale for the whole interface,
-  persisted; lives in the toolbar **Appearance** popover (formerly **View**).
-- **Light / dark theme ✅.** An **auto / dark / light** setting that themes the UI
-  (CSS custom properties), the charts (uPlot strokes/axes, the spectrogram
-  background + colormap), and the dockview theme. Lives in the toolbar **Appearance**
-  popover. (Extended to exchangeable theme files in M11.)
-- **Explanatory tooltips ✅.** On the shared-param choices and the analyzer entries.
-- **Icon set, styled tooltips, and an About dialog ✅.** UI controls use a bundled
-  **Font Awesome 7 Free (Solid)** font (`src/lib/icons.ts` + `src/components/Icon.tsx`);
-  self-evident controls are compacted to **icon + tooltip**, and the native `title`
-  hints on controls became the app's own **`Tooltip`** component. A modal **About**
-  dialog (the Toolbar's `circle-question` button and native **Help → About**) carries
-  the app identity and the required **attributions** (Font Awesome + the runtime
-  dependencies). See [`ui-layout.md`](ui-layout.md) → "Icons, tooltips, and About".
-- **Spectrum layers ✅.** Toggleable **min / max / mean** magnitude layers in the
-  spectrum chart (per-tool params).
-- **Drag & drop file ✅.** Drop an audio file onto the window to open it.
-- **Prevent work loss ✅.** Prompts before replacing an existing source; a dirty `*`
-  in the project name/title and a prompt on close / New / Open.
-- **Reframing from charts ✅.** Right-click a time-domain chart to set the window
-  start/end (the default context menu is suppressed).
-- **Shared params ✅.** Moved to the main toolbar (an **Analysis params** popover).
-
-Also shipped alongside: the preview **filtered overlay**, a collapsible palette,
-sticky search boxes, similar custom scrollbars, and
-**`tauri-plugin-window-state`** (remembers window size/position across launches).
-The temporary **`Rust backend:`** toolbar status was removed.

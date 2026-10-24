@@ -46,6 +46,27 @@ pub const ANALYZERS: &[AnalyzerInfo] = catalog::ANALYZERS;
 /// their own options are absent (the `list_analyzers` option map is then empty).
 const OPTIONS: &[(&str, &[OptionInfo])] = &[
     (
+        "frameRms",
+        &[
+            OptionInfo {
+                key: "frameMs",
+                label: "Frame",
+                default: 10.0,
+                min: 0.1,
+                max: 1_000.0,
+                help: "RMS frame length in ms — the envelope's time smoothing.",
+            },
+            OptionInfo {
+                key: "hopMs",
+                label: "Hop",
+                default: 5.0,
+                min: 0.05,
+                max: 1_000.0,
+                help: "Step between frames in ms; smaller values give a denser envelope.",
+            },
+        ],
+    ),
+    (
         "melSpectrogram",
         &[OptionInfo {
             key: "nMels",
@@ -243,6 +264,7 @@ mod tests {
         for id in [
             "waveform",
             "levels",
+            "frameRms",
             "spectrum",
             "spectrogram",
             "melSpectrogram",
@@ -299,6 +321,18 @@ mod tests {
                 assert!(!option.label.is_empty() && !option.help.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn list_carries_the_frame_rms_defaults() {
+        let items = list();
+        let frame_rms = items
+            .iter()
+            .find(|item| item["id"] == "frameRms")
+            .expect("frameRms is in the catalog");
+        assert_eq!(frame_rms["section"], "time");
+        assert_eq!(frame_rms["options"]["frameMs"], 10.0);
+        assert_eq!(frame_rms["options"]["hopMs"], 5.0);
     }
 
     #[test]

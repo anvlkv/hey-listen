@@ -54,6 +54,7 @@ label/min/max/help metadata is stored in the Rust catalog for M21's `get_analyze
 | --- | --- |
 | Waveform | `AudioBuffer` samples (peak/rms via `peak_amplitude`/`rms_amplitude`, `PeakMeter`/`RmsMeter`) |
 | Level meters | `peak_db`, `rms_db` |
+| Amplitude envelope | core frame-RMS helper (`audio/analysis/support.rs`) — plain amplitude, not EBU R128 (M17) |
 
 **Spectral**
 
@@ -125,13 +126,13 @@ open tools, filter / synth graphs, optional Workbench layout, and a **window pol
 that can be applied to any source so the same analysis setup is reused across different
 audio (the window moves to fit the new source). See [`templates.md`](templates.md).
 
-## Planned analysis depth (M16–M20)
+## Analysis depth (M16–M20)
 
-The pitch-range fix, frame-RMS envelope, note metrics, voice-quality proxies, and
-AM/FM modulation spectra are planned as M16–M20. See
-[`analysis-metrics.md`](analysis-metrics.md) for the designs, result shapes, option
-defaults, and test plan. **M21** adds the shared MCP/CLI contract — per-result summaries,
-compact previews, tool annotations, and analyzer discovery — see
+The pitch-range fix and the **frame-RMS amplitude envelope** are delivered (M16–M17);
+note metrics, voice-quality proxies, and AM/FM modulation spectra are planned as
+M18–M20. See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
+shapes, option defaults, and test plan. **M21** adds the shared MCP/CLI contract —
+per-result summaries, compact previews, tool annotations, and analyzer discovery — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 ## Implementation status
@@ -154,6 +155,15 @@ reports the effective window instead of pretending a wider request took effect. 
 pitch result carries `effectiveMinF0Hz`/`effectiveMaxF0Hz`, drawn as an **f0 range**
 readout on the chart and named in its empty-state copy. Use YIN or autocorrelation
 above 2 kHz.
+
+**Amplitude envelope (M17).** `frameRms` returns a plain frame-centred RMS series in
+dBFS (`frameMs` 10 / `hopMs` 5 by default), independent of EBU R128 loudness. Its
+`SeriesResult` carries an optional `frameSize` in samples, so the chart, the readouts
+(which add a **Frame** card), a note's values line, and an agent all see the resolution
+it was computed at. The frame count is capped (the hop widens for long windows, and the
+effective hop is reported). In MCP/CLI it is a normal series result: the compacted
+form keeps `{length, min, max, argmin, argmax}` (plus `frameSize`), and
+`includeData: true` / `--full` returns the full `values` array.
 
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the

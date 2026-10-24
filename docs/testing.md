@@ -190,16 +190,17 @@ whole workflow), **Manual** (documented steps, run by a human, not in CI).
 
 ### D. Analyzer tools — every tool
 
-One parametrized smoke test iterates over all 26 tool ids and, for each: opens the
+One parametrized smoke test iterates over all 27 tool ids and, for each: opens the
 tab from the Sidebar, waits for the result view to render non-empty, opens the
 **about** and **params** popovers, re-clicks to confirm **no duplicate tab**, then
-closes. This is what "cover every tool" means — a single, data-driven test, not 26
+closes. This is what "cover every tool" means — a single, data-driven test, not 27
 copies. The ids and view kinds come from `src/state/analyzer/`:
 
 | Tool | id | View | Smoke asserts |
 | --- | --- | --- | --- |
 | Waveform | `waveform` | waveform | envelope canvas non-empty |
 | Level meters | `levels` | readouts | peak/RMS readouts present |
+| Amplitude envelope | `frameRms` | series | envelope series rendered |
 | Spectrum | `spectrum` | spectrum | curve rendered |
 | Spectrogram | `spectrogram` | spectrogram | heatmap canvas non-empty |
 | Mel spectrogram | `melSpectrogram` | matrix | matrix cells non-empty |

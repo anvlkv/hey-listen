@@ -95,6 +95,6 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11, M14, M15 and M16 are done; M12/M13, the
-M17–M20 analysis-depth track, and M21 MCP/CLI ergonomics are planned). Deliver strictly
+`docs/roadmap.md` tracks progress (M11, M14, M15, M16 and M17 are done; M12/M13, the
+M18–M20 analysis-depth track, and M21 MCP/CLI ergonomics are planned). Deliver strictly
 one milestone at a time; confirm current status from that file before starting.
