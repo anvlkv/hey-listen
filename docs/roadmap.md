@@ -665,7 +665,7 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
 > `g-timeline` → G4 / G5, `n-notes`, `o-cursor-sync`, `p-notes-interactions`,
 > `q-transport`).
 
-## M15 — Code hygiene (the maid) ✅
+## M15 — Code hygiene ✅
 
 A **quality gate** so the invariants above stop being aspirations: files stay short
 enough to read, logic is not copy-pasted, nothing dead is left behind, and both
@@ -734,6 +734,165 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > are blocking (no advisory mode), the baselines are **ratchets that only tighten**,
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
+
+## M16–M20 — Analysis depth (planned)
+
+Five milestones that close the analysis gaps found while driving the app through MCP on
+a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
+level, voice-quality proxies, and AM/FM modulation spectra. They are independent of
+M12/M13 and can be scheduled after them. Dependency order: **M16 → M17 → M18 → M19**;
+M20 needs M16 + M17 and can ship after M19. The design, result shapes, option defaults,
+and test plan live in [`analysis-metrics.md`](analysis-metrics.md).
+
+## M16 — Pitch range + analyzer option integrity (planned)
+
+Make an f0 range actually reach the pitch tools, and stop unknown option keys from
+silently doing nothing.
+
+- **Per-tool f0 range.** Add `minF0Hz` / `maxF0Hz` to every pitch-related tool (YIN,
+  autocorrelation, harmonic ratio, and the new note / modulation tools). `pitchYin` uses
+  `PitchTracker::with_range`; the other two already accept the range. No new
+  `SharedParams` field: the project file is `postcard`-encoded, so that would need a
+  format bump. `freqMinHz` / `freqMaxHz` stays a **spectral band limit**, and the docs /
+  shared-params tooltip are corrected accordingly.
+- **Honest effective range.** Add `effectiveMinF0Hz` / `effectiveMaxF0Hz` to
+  `PitchResult`; pYIN reports its fixed **50–2000 Hz** window intersected with the
+  request.
+- **Option integrity.** Accept camelCase plus snake_case aliases, reject unknown keys in
+  the GUI path as the headless path already does, fix the snake_case examples in the
+  `set_tool_options` description, and expose option metadata from the catalog (compact
+  keys/defaults in `list_analyzers`, full detail in M21's `get_analyzer`).
+- **Defaults.** Align `harmonicRatio` with the intended wide range (proposed 50–4000).
+- **Upstream, not here.** pYIN's range is hardcoded to 50–2000 Hz in `oxiaudio 0.2.1`;
+  above 2 kHz use YIN/autocorrelation. No local DSP fork.
+- **Tests.** 75 Hz and 3 kHz detection, harmonic ratio at 3 kHz, per-tool range reaches
+  the detector, aliases, unknown-key rejection.
+
+> **MCP ownership:** M16 builds the generic option mechanism (key validation/aliases,
+> catalog option metadata, effective-range reporting). M17–M20 each add their analyzer's
+> catalog entry, option metadata, `includeData` note, and CLI `-o` keys. **M21** owns the
+> cross-cutting summary / compact / annotation contract.
+
+> See [`analysis-metrics.md`](analysis-metrics.md) → M16.
+
+## M17 — Frame-RMS amplitude envelope (planned)
+
+A plain amplitude envelope, independent of LUFS.
+
+- New **`frameRms`** analyzer (Time domain): frame-centred RMS in dBFS, with `frameMs`
+  (10) / `hopMs` (5).
+- Returns a `SeriesResult` (extended with an optional `frameSize`), so the existing
+  series chart and readouts render it with no new component.
+- Available through the GUI, headless MCP, and `hey-listen analyze`.
+- **Not** `loudnessMomentary`: that stays EBU R128 and is unsuitable for short windows.
+- **Tests.** Sine level in dBFS, silence floor, sub-frame window, echoed frame/hop.
+
+> See [`analysis-metrics.md`](analysis-metrics.md) → M17.
+
+## M18 — Note segmentation, gaps, and per-note level (planned)
+
+Explicit notes, ends, gaps, counts, and levels.
+
+- New **`noteMetrics`** analyzer: frame RMS (default 10 ms / 5 ms hop), gate it
+  (absolute floor + threshold relative to the window peak + hysteresis), merge short
+  gaps, drop short notes.
+- Result: per-note start/end/duration, gap before/after, RMS/peak dBFS, level relative
+  to the loudest note, and 5–7 normalized envelope points. Summary: note/gap counts,
+  total and longest gap, median note/gap duration, the reference note, and the threshold
+  used. Gaps are also returned explicitly.
+- New **`noteMetrics` table view** (summary cards + scrollable per-note table).
+- **MCP note:** `includeData: true` reads the note records; the compacted result keeps
+  the summary counts so an agent knows what to request.
+- **Tests.** Tone → gap → tone (2 notes, 1 gap), continuous tone (1 note, 0 gaps), short
+  gap merge, relative levels, silent input.
+
+> See [`analysis-metrics.md`](analysis-metrics.md) → M18.
+
+## M19 — Note voice-quality proxies (planned)
+
+Per-note jitter, shimmer, and HNR proxies, built on the M18 segments.
+
+- **Jitter proxy:** range-limited YIN f0 inside the note → cents → linear detrend →
+  population standard deviation of the residual. YIN, not pYIN: pYIN's semitone bins
+  would impose a large quantization floor.
+- **Shimmer proxy:** population standard deviation of the note's frame RMS in dB.
+- **HNR proxy:** mean `harmonic_ratio` over the note (0–1). Label it as the
+  autocorrelation periodicity proxy, not HNR in dB.
+- Also report `voicedFraction` and `f0MedianHz`; too few voiced frames yield `null`
+  proxies rather than misleading numbers.
+- **Tests.** Constant note ≈ zero jitter/shimmer; vibrato raises jitter; AM raises
+  shimmer; noise lowers the HNR proxy; short notes return `null`.
+
+> See [`analysis-metrics.md`](analysis-metrics.md) → M19.
+
+## M20 — AM/FM modulation spectra (planned)
+
+Full modulation spectra, not a single rate: slow breathing and a fast trill can coexist.
+
+- New **`modulation`** analyzer (Spectral).
+- **AM:** frame-RMS envelope → detrend → Hann → zero-padded FFT over `modMinHz`–
+  `modMaxHz` (0.5–100 Hz). Return the spectrum, the top peaks, the modulation index
+  depth, and peak-to-trough dB.
+- **FM:** range-limited YIN on the longest voiced run → cents → detrend → FFT on the
+  same grid. Return the run span, the top peaks, and peak-to-peak / std depth in cents.
+- New **`modulation` view** with both spectra and readouts; its own chart-sync group
+  (`mod`), not the audio-frequency group.
+- Clamp the modulation range to ~45% of the envelope sample rate to avoid aliasing.
+- **MCP:** the top peaks and depths survive compaction; request the full spectra with
+  `includeData`.
+- **Tests.** 10 Hz AM, 3 Hz + 40 Hz AM, 30 Hz FM, no-voiced-run FM, alias clamping.
+
+> See [`analysis-metrics.md`](analysis-metrics.md) → M20.
+
+> **Decision (proposed):** these are first-class analyzers, not MCP client-side math.
+> No `SharedParams` fields are added (postcard compatibility); the pitch range is a
+> per-tool option, and the shared frequency range stays spectral-only. pYIN's own range
+> stays upstream. New results are not persisted yet, so no container change; the
+> per-note measures are labelled as proxies.
+
+## M21 — MCP + CLI analysis ergonomics (cross-cutting, planned)
+
+Every analyzer call through MCP and the CLI becomes **compact by default, semantically
+summarized, and discoverable**. The MCP catalog gains titles and annotations, and the
+CLI gains per-analyzer discovery and a summary-only output mode. This is a cross-cutting
+milestone over M16–M20, not another analyzer.
+
+- **Canonical summary.** A Rust `ResultSummary` (a stable `text` line plus labelled,
+  unit-bearing items) for every result family, computed from the full result before
+  compaction. The MCP/CLI envelope gains `summary`; the GUI `run_analysis` returns
+  `{ result, summary }`. `run_analysis` gains `summaryOnly` (summary without `result`),
+  matching the CLI's `--summary`.
+- **Compact by structure.** Matrices/spectrograms keep dimensions and peak
+  time/freq/level; waveform/spectrum/series arrays keep meaningful stats; event and note
+  arrays get a bounded preview instead of `{ length }`. `includeData: true` / `--full`
+  still returns raw arrays.
+- **Catalog annotations.** `title` + `annotations` (`readOnlyHint`, `destructiveHint`,
+  `idempotentHint`, `openWorldHint`) for every MCP tool via a shared `ToolClass`;
+  clearer `run_analysis` / `set_tool_options` descriptions; headless `get_state` reports
+  per-tool option defaults.
+- **New `get_analyzer`.** One analyzer's `about` (GUI) / description (headless), option
+  metadata, and summary keys; `list_analyzers` stays the compact list. Option metadata
+  comes from M16.
+- **CLI discovery + output modes.** `analyzers <ID>` (human or JSON) explains options and
+  summary keys; `analyze --summary` emits `{ file, window, params, options, summary }`
+  without result arrays; `--summary` + `--full` is a usage error.
+- **Tool-output audit.** `list_notes` defaults to a compact summary (body excerpt + values
+  text; full body via `get_note` or `full: true`); `list_analyzers` stays compact with
+  `get_analyzer` for detail; the other list tools are checked for bounded responses.
+- **Consistency.** One Rust shaper builds the summary and the compact shape for every
+  result family; the GUI MCP handler forwards `shape`/`maxPoints`, the analyzer tabs
+  request `full`, and headless/CLI use the same function. The TS compactor is retired.
+- **Tests.** Summary for every result variant (including empty/silent), compact golden
+  fixtures, catalog title/annotation coverage, `get_analyzer`, CLI modes, and an
+  agent/CLI end-to-end sequence.
+- **Deferred.** Per-tool `outputSchema` (the result is a tagged union and the protocol
+  version is client-negotiated), a configurable preview length, and "did you mean?"
+  suggestions for unknown tools/options.
+
+> **Scope:** M16 owns the generic option mechanism; M17–M20 own their analyzer's catalog
+> entries; **M21 owns the shared summary/compact/annotation contract**. It depends on M16
+> and can land before or after M17–M20. See
+> [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 ## Backlog ✅ (delivered)
 

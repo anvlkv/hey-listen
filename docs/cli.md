@@ -74,10 +74,10 @@ hey-listen [OPTIONS] [FILE.heyl]
 hey-listen <COMMAND>
 
 Commands:
-  analyzers   List the analyzer catalog
-  analyze     Decode file(s) and run analyzer(s) over them
-  synth       Render a synth graph and (optionally) analyze the result
-  notes       List the notes in a project file (.heyl)
+  analyzers [ID]  List the analyzer catalog, or explain one analyzer
+  analyze         Decode file(s) and run analyzer(s) over them
+  synth           Render a synth graph and (optionally) analyze the result
+  notes           List the notes in a project file (.heyl)
 
 Options:
   -m, --mcp      Run the stdio MCP entry instead of the GUI
@@ -99,7 +99,8 @@ Decode each file and run one or more analyzers over a window.
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable), using the same keys MCP's `set_shared_params` takes: `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
 | `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `fMinHz`/`fMaxHz`). **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because the plugin's parsed matches do not preserve the order of flags on the command line. |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
-| `--full` | Include the raw result arrays (default: compacted — see below). |
+| `--full` | Include the raw result arrays (default: compacted — see below). The `summary` is present in both modes. |
+| `--summary` | Emit the summary only (`{ file, window, params, options, summary }`), without result arrays. Mutually exclusive with `--full`. **(M21, planned)** |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
 | `--fail-fast` | Stop at the first failing file/tool (default: run the whole batch and report). |
 | `--format <json\|csv>` | Output format (default `json`, the JSONL shape below); `--csv` is shorthand. CSV is a **wide matrix** for the 2D tools (M12, planned). |
@@ -113,11 +114,12 @@ A malformed `K=V`, an unknown param/option key, a missing file or `-t`, a bad
 `--seconds`/`--start`/`--end` value, or a `--pretty` stream that is not a single result is
 a **usage error** (printed to stderr, exit `2`) — it never falls through to the GUI.
 
-### `analyzers`
+### `analyzers [ID]`
 
 | Option | Meaning |
 | --- | --- |
-| `--json` | Emit the analyzer catalog as JSON (the same array MCP's `list_analyzers` returns). Otherwise a plain `id  section  title` table. |
+| `ID` | Optional analyzer id. With it, print the description, about copy, option metadata (defaults / ranges / help), and summary keys. **(M21, planned)** |
+| `--json` | Emit the analyzer catalog (or the one analyzer) as JSON, matching MCP's `list_analyzers` / `get_analyzer`. Otherwise a plain table. |
 
 ### `notes <FILE.heyl>`
 
@@ -144,7 +146,7 @@ the rendered source's summary as one line — `{"file": <GRAPH.json>, "source": 
 | Option | Meaning |
 | --- | --- |
 | `--seconds <SEC>` | Rendered length (default `5`). |
-| *(analyze options)* | `-t` / `-p` / `-o` / `--filter` / `--full` / `--pretty` / `--fail-fast` as above. |
+| *(analyze options)* | `-t` / `-p` / `-o` / `--filter` / `--full` / `--summary` / `--pretty` / `--fail-fast` as above. |
 
 The graph is the same `{ "nodes": [...], "edges": [...] }` `GraphSpec` the headless
 MCP `render_synth` takes — there is no graph *editor* here, so the graph is always
@@ -197,6 +199,22 @@ way. `--pretty` prints a single (human-readable) JSON object — for one file / 
 > A `Mapping` error (bad `K=V`, missing `-t`, an unknown `-o` key) is likewise an
 > `Entry::Usage`: printed and exited `2`.
 
+### M21 — ergonomics (planned)
+
+The batch output gains a canonical `summary` and a summary-only mode; analyzer discovery
+moves from the docs into the command. See
+[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
+
+- **Default:** compact `result` + `summary`.
+- **`--summary`:** `{ file, window, params, options, summary }` — no result arrays, so a
+  large sweep stays readable and `jq`-friendly. This is the CLI counterpart of MCP's
+  `summaryOnly`.
+- **`--full`:** raw arrays + `summary`.
+- **`analyzers <ID>`:** the per-analyzer option keys/defaults/help, so `-o` no longer
+  requires the docs.
+- **Compact previews:** event/note arrays keep a bounded preview rather than collapsing
+  to `{ length }`; matrices/spectrograms keep dimensions and peak location.
+
 ## Examples
 
 ```bash
@@ -217,6 +235,12 @@ hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o
 
 # Discover ids:
 hey-listen analyzers --json | jq -r '.[].id'
+
+# Explain one analyzer's options and summary keys (M21, planned):
+hey-listen analyzers noteMetrics
+
+# Sweep with summaries only (M21, planned):
+hey-listen analyze *.wav -t levels --summary | jq -c '{file, summary}'
 
 # Show the notes in a saved project (JSONL, full bodies):
 hey-listen notes mix.heyl --json --full | jq -c '{time: .timeSecs, tool, values: .values.text}'
@@ -240,6 +264,12 @@ Planned in the compute subset (M12/M13):
   `--template` to apply a saved setup before analysis. The **chart-PNG** export is
   GUI-only and is not offered here. See [`exports.md`](exports.md) and
   [`templates.md`](templates.md).
+
+Planned in the compute subset (M21):
+
+- **`analyzers <ID>` and `--summary`** — per-analyzer option/help discovery and a
+  summary-only output mode, plus the canonical `summary` in every envelope. See
+  [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 Deliberately out of scope:
 

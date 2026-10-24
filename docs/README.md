@@ -4,8 +4,12 @@ Index of the design/planning documentation. These docs are the source of truth f
 design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11, M14, and the
 post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — see
 [`exports.md`](exports.md) and [`templates.md`](templates.md); [`notes.md`](notes.md)
-(M14) is delivered, and **M15** (code hygiene — the format/lint/dead-code gate) is
-**in progress**: the gate has landed, the file splits have not.
+(M14) and **M15** (code hygiene — the format/lint/dead-code gate) are delivered.
+**M16–M20** (analysis depth: pitch range, frame-RMS envelope, note metrics,
+voice-quality proxies, AM/FM modulation) are **planned** — see
+[`analysis-metrics.md`](analysis-metrics.md). **M21** (MCP/CLI ergonomics: per-result
+summaries, compact results, catalog annotations, discovery) is also **planned** — see
+[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 | Doc | What it covers |
 | --- | --- |
@@ -16,6 +20,8 @@ post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — s
 | [data-model.md](data-model.md) | Domain entities and their relationships |
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
+| [analysis-metrics.md](analysis-metrics.md) | Planned analysis depth: pitch range, frame RMS, note metrics, voice-quality proxies, AM/FM modulation (M16–M20) |
+| [mcp-cli-ergonomics.md](mcp-cli-ergonomics.md) | Planned MCP/CLI ergonomics: result summaries, compact previews, tool annotations, analyzer discovery (M21) |
 | [theming.md](theming.md) | Exchangeable theme files: the `ThemeFile` model, built-ins + slots, the apply pipeline |
 | [exports.md](exports.md) | Analysis exports: the provenance envelope, JSON / CSV (wide matrix), chart-PNG capture |
 | [templates.md](templates.md) | Analysis templates: source-less JSON presets (setup + graphs + layout) and window policies |
