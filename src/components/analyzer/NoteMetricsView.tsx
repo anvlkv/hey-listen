@@ -19,12 +19,21 @@ const level = (value: number) => `${value.toFixed(1)} dBFS`;
 /** A relative level is never positive; show a clean 0 for the reference note. */
 const relative = (value: number) => `${Math.min(value, 0).toFixed(1)} dB`;
 
+/** Proxies are absent on short / unvoiced notes — show a dash, never a fake zero. */
+const percent = (value: number | null) => (value == null ? "—" : `${(value * 100).toFixed(0)}%`);
+const hz = (value: number | null) => (value == null ? "—" : `${Math.round(value)} Hz`);
+const cents = (value: number | null) => (value == null ? "—" : `${value.toFixed(1)} ¢`);
+const spread = (value: number | null) => (value == null ? "—" : `${value.toFixed(2)} dB`);
+const periodicity = (value: number | null) => (value == null ? "—" : value.toFixed(2));
+
 /**
  * The `noteMetrics` view (M18): summary cards over a scrollable per-note table.
  *
  * These are **detected audio note segments** — not the project's user-authored
  * annotations (`docs/notes.md`). The table is the point: start/end, the silence
- * around each note, its level, and its level against the loudest note.
+ * around each note, its level, and its level against the loudest note, plus the
+ * M19 voice-quality **proxies** (voicing, f0, jitter, shimmer, HNR) where the note
+ * is long enough to measure them.
  */
 export default function NoteMetricsView(props: {
   id: AnalyzerId;
@@ -92,6 +101,19 @@ export default function NoteMetricsView(props: {
                     <th>Peak</th>
                     <th>Δ RMS</th>
                     <th>Δ peak</th>
+                    <th title="Share of the note's own pitch frames with a detected pitch">
+                      Voiced
+                    </th>
+                    <th title="Median fundamental over the note's voiced frames">f0</th>
+                    <th title="Jitter proxy: spread of the detrended f0 track in cents — not clinical jitter">
+                      Jitter
+                    </th>
+                    <th title="Shimmer proxy: spread of the note's frame RMS in dB — not clinical shimmer">
+                      Shimmer
+                    </th>
+                    <th title="HNR proxy: mean 0–1 autocorrelation periodicity — not HNR in dB">
+                      HNR
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -111,6 +133,11 @@ export default function NoteMetricsView(props: {
                         <td>{level(note.peakDb)}</td>
                         <td>{relative(note.rmsDbRelLoudest)}</td>
                         <td>{relative(note.peakDbRelLoudest)}</td>
+                        <td>{percent(note.voicedFraction)}</td>
+                        <td>{hz(note.f0MedianHz)}</td>
+                        <td>{cents(note.jitterProxyCents)}</td>
+                        <td>{spread(note.shimmerProxyDb)}</td>
+                        <td>{periodicity(note.hnrProxy)}</td>
                       </tr>
                     )}
                   </For>

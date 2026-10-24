@@ -6,6 +6,7 @@
 
 use super::super::support::{db_or_floor, frame_rms};
 use super::super::{GapMetric, NoteMetric, NoteMetricsResult, ToolOptions, DB_FLOOR, MAX_NOTES};
+use super::note_quality;
 
 /// One active run above the gate, in source seconds relative to the window slice.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -121,6 +122,7 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         .iter()
         .map(|segment| {
             let (rms_db, peak_db) = segment_levels(mono, rate, segment.start, segment.end);
+            let proxies = note_quality::proxies(mono, rate, *segment, options, &times, &levels);
             NoteMetric {
                 start_secs: segment.start,
                 end_secs: segment.end,
@@ -132,6 +134,11 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
                 rms_db_rel_loudest: 0.0,
                 peak_db_rel_loudest: 0.0,
                 envelope_db: envelope_for(segment, &times, &levels, &envelope_positions),
+                voiced_fraction: proxies.voiced_fraction,
+                f0_median_hz: proxies.f0_median_hz,
+                jitter_proxy_cents: proxies.jitter_proxy_cents,
+                shimmer_proxy_db: proxies.shimmer_proxy_db,
+                hnr_proxy: proxies.hnr_proxy,
             }
         })
         .collect();
@@ -242,8 +249,8 @@ fn envelope_for(segment: &Segment, times: &[f32], levels: &[f32], positions: &[f
         .collect()
 }
 
-/// Median of a set of durations (0 for an empty set).
-fn median(values: &[f32]) -> f32 {
+/// Median of a set of values (0 for an empty set).
+pub(super) fn median(values: &[f32]) -> f32 {
     if values.is_empty() {
         return 0.0;
     }

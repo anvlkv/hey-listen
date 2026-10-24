@@ -3,7 +3,9 @@
 
 mod dispatch;
 mod features;
+mod note_quality;
 mod notes;
+mod pitch_track;
 mod spectrum;
 mod time;
 

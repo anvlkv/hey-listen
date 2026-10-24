@@ -113,6 +113,28 @@ fn snake_case_option_aliases_are_canonicalized() {
 }
 
 #[test]
+fn note_quality_option_aliases_are_canonicalized() {
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["noteMetrics"])),
+        (
+            "option",
+            json!(["pitch_frame_ms=30", "pitch_hop_ms=2", "max_f0_hz=3000"]),
+        ),
+    ]);
+    let request = build_request("analyze", &m).unwrap();
+    let keys: Vec<&str> = request
+        .options
+        .iter()
+        .map(|option| option.key.as_str())
+        .collect();
+    assert_eq!(keys, ["pitchFrameMs", "pitchHopMs", "maxF0Hz"]);
+    assert_eq!(request.options[0].value, json!(30));
+    assert_eq!(request.options[1].value, json!(2));
+    assert_eq!(request.options[2].value, json!(3000));
+}
+
+#[test]
 fn pretty_needs_a_single_result() {
     let m = matches(&[
         ("file", json!(["a.wav", "b.wav"])),

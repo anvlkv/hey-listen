@@ -796,7 +796,7 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M16–M20 — Analysis depth I (M16–M18 done, M19–M20 planned)
+## M16–M20 — Analysis depth I (M16–M19 done, M20 planned)
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
 a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
@@ -904,7 +904,7 @@ Explicit notes, ends, gaps, counts, and levels.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M18.
 
-## M19 — Note voice-quality proxies (planned)
+## M19 — Note voice-quality proxies ✅
 
 Per-note jitter, shimmer, and HNR proxies, built on the M18 segments.
 
@@ -918,6 +918,22 @@ Per-note jitter, shimmer, and HNR proxies, built on the M18 segments.
   proxies rather than misleading numbers.
 - **Tests.** Constant note ≈ zero jitter/shimmer; vibrato raises jitter; AM raises
   shimmer; noise lowers the HNR proxy; short notes return `null`.
+
+> **Delivered:** `noteMetrics` gives every note its own fine YIN pitch grid
+> (`pitchFrameMs` 40 / `pitchHopMs` 5, raised to ~3 periods of `minF0Hz`) and adds
+> `voicedFraction`, `f0MedianHz`, `jitterProxyCents` (population std of the linearly
+> detrended f0-in-cents residual), `shimmerProxyDb` (population std of the note's frame
+> RMS in dB), and `hnrProxy` (mean `harmonic_ratio`, 0–1). The HNR figure is labelled
+> the **autocorrelation periodicity proxy**, not HNR in dB, and all five are described
+> as proxies in the UI. The per-tool `minF0Hz` / `maxF0Hz` reach the proxy grid; notes
+> with too few voiced / harmonic frames return `null` rather than a misleading number.
+> The Note segments table shows the five columns, and the catalog entry + option
+> metadata make the pitch options available through the GUI, headless MCP, and
+> `hey-listen analyze` (snake_case aliases included).
+>
+> Tests: a steady note has near-zero jitter/shimmer and a high HNR proxy; vibrato
+> raises jitter; AM raises shimmer; noise lowers the HNR proxy; a short note returns
+> null pitch-derived proxies; the pitch option aliases parse (engine and headless).
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M19.
 

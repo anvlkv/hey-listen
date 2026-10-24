@@ -113,7 +113,7 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
   {
     id: "noteMetrics",
     title: "Note segments",
-    description: "Detected note spans, gaps, and per-note levels",
+    description: "Detected note spans, gaps, levels, and voice-quality proxies",
     about:
       "**What it shows.** The audio's **note segments**: each run above an amplitude " +
       "gate with its start, end, duration, the silence before and after, its RMS and " +
@@ -123,6 +123,11 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "compare levels between notes without reading an envelope by eye. The gate is " +
       "`max(gate floor, window peak − gate)` with hysteresis, so quiet background " +
       "noise does not split a note.\n\n" +
+      "**Voice-quality proxies (per note).** *Jitter* is the spread of the note's " +
+      "linearly detrended YIN f0 track in cents; *shimmer* is the spread of its " +
+      "frame RMS in dB; *HNR* is the mean 0–1 autocorrelation periodicity " +
+      "(`harmonic_ratio`), not HNR in dB. They are **proxies**, not clinical " +
+      "measures, and stay blank when a note is too short or too unvoiced to measure.\n\n" +
       "**Not annotations.** These are **detected audio notes**, not the project's " +
       "user-authored annotations (the right-hand rail's markdown notes).",
     keywords: [
@@ -135,6 +140,11 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "level",
       "call",
       "bioacoustic",
+      "jitter",
+      "shimmer",
+      "hnr",
+      "voice quality",
+      "periodicity",
     ],
     section: "pitch",
     view: { kind: "noteMetrics" },
@@ -225,6 +235,52 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
         max: 16,
         step: 1,
         title: "Envelope samples kept per note, at normalized positions.",
+      },
+      {
+        key: "pitchFrameMs",
+        label: "Pitch frame",
+        kind: "number",
+        value: 40,
+        min: 5,
+        max: 500,
+        step: 5,
+        suffix: "ms",
+        title:
+          "Window for the note's own YIN pitch track (jitter and f0). Raised to at least ~3 periods of the lowest f0.",
+      },
+      {
+        key: "pitchHopMs",
+        label: "Pitch hop",
+        kind: "number",
+        value: 5,
+        min: 1,
+        max: 100,
+        step: 1,
+        suffix: "ms",
+        title:
+          "Step between those pitch frames; fine values resolve intra-note jitter and vibrato.",
+      },
+      {
+        key: "minF0Hz",
+        label: "Min f0",
+        kind: "number",
+        value: 50,
+        min: 20,
+        max: 5000,
+        step: 5,
+        suffix: "Hz",
+        title: "Lowest expected fundamental for the per-note pitch track and periodicity proxy.",
+      },
+      {
+        key: "maxF0Hz",
+        label: "Max f0",
+        kind: "number",
+        value: 2000,
+        min: 40,
+        max: 8000,
+        step: 50,
+        suffix: "Hz",
+        title: "Highest expected fundamental for the per-note pitch track and periodicity proxy.",
       },
     ],
   },

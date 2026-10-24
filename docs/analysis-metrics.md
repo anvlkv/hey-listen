@@ -1,8 +1,8 @@
 # Analysis metrics: pitch range, envelope, note metrics, modulation
 
 Design for **M16–M20**, the analysis-depth track that closes the gaps found while
-driving the app through MCP on a bioacoustic session. **M16–M18 are delivered;
-M19–M20 are planned.** The milestones are ordered so each one is a self-contained,
+driving the app through MCP on a bioacoustic session. **M16–M19 are delivered;
+M20 is planned.** The milestones are ordered so each one is a self-contained,
 testable unit:
 
 | MCP-session item | Milestone | Delivered by |
@@ -61,10 +61,11 @@ These helpers keep the three new tools from re-implementing the same DSP:
 - `frame_rms(mono, sample_rate, frame_ms, hop_ms) -> (times, values_db, frame, hop)` —
   frame-centred RMS in dBFS, floored at `DB_FLOOR`. Used by `frameRms`, `noteMetrics`,
   and the AM half of `modulation`. (Delivered in M17.)
-- `pitch_track(mono, sample_rate, frame_ms, hop_ms, range) -> Vec<PitchFrame>` — a thin
-  wrapper over `oxiaudio::dsp::PitchTracker` (YIN) with a range. The frame size is
+- `pitch_track(mono, sample_rate, frame_ms, hop_ms, range) -> (Vec<PitchFrame>, frame, hop)` —
+  a thin wrapper over `oxiaudio::dsp::PitchTracker` (YIN) with a range. The frame size is
   raised to at least ~3 periods of the lowest f0, capped, so low-frequency calls still
-  have enough cycles.
+  have enough cycles; the effective grid is returned so the periodicity proxy runs on the
+  same one. (Delivered in M19.)
 - `segment_notes(frame_db, frame_ms, hop_ms, gate) -> (notes, gaps)` — the hysteresis
   gate, short-gap merge, and short-note drop used by `noteMetrics`.
 - `modulation_spectrum(values, hop_ms, detrend, min_hz, max_hz) -> (freqs, db, peaks)` —
@@ -249,7 +250,20 @@ struct NoteMetricsResult {
 tone yields 1 note and 0 gaps; a gap shorter than `minGapMs` merges; levels relative to
 the loudest note are correct; empty/silent input yields 0 notes.
 
-## M19 — Note voice-quality proxies (planned)
+## M19 — Note voice-quality proxies ✅
+
+> **Delivered.** Each note gets its own fine YIN pitch grid (`pitchFrameMs` 40 /
+> `pitchHopMs` 5 by default, raised to ~3 periods of the lowest f0 and capped), and
+> `noteMetrics` returns `voicedFraction`, `f0MedianHz`, `jitterProxyCents`,
+> `shimmerProxyDb`, and `hnrProxy` per note. The jitter proxy is the population
+> standard deviation of the linearly detrended f0 track in cents; shimmer is the
+> population standard deviation of the note's frame-RMS levels in dB; the HNR proxy is
+> the mean 0–1 `harmonic_ratio`, labelled as the autocorrelation periodicity proxy, not
+> HNR in dB. Notes with too few voiced / harmonic frames return `null` for the affected
+> proxy. The per-tool `minF0Hz` / `maxF0Hz` reach the proxy grid, and the catalog entry
+> + option metadata carry them through the GUI, headless MCP, and the CLI. Tests live in
+> `audio::analysis::tests::note_metrics`, `audio::analyzers::tests`, and
+> `mcp::dispatch::tests`.
 
 **Problem.** Jitter, shimmer, and HNR are only available by post-processing raw pitch
 and level series outside the app.
@@ -326,16 +340,17 @@ voiced run returns no FM spectrum; alias clamping is honored.
 
 ## Options summary
 
-| Tool | Options (proposed defaults) |
+| Tool | Options (current defaults) |
 | --- | --- |
 | `pitchYin` | `minF0Hz` 50, `maxF0Hz` 2000 (overridable), `yinThreshold` 0.12 |
 | `pitchAutocorr` | `minF0Hz` 60, `maxF0Hz` 1200 (overridable) |
 | `harmonicRatio` | `minF0Hz` 50, `maxF0Hz` 4000 (overridable) |
 | `frameRms` | `frameMs` 10, `hopMs` 5 |
-| `noteMetrics` | `frameMs` 10, `hopMs` 5, `gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20, `minGapMs` 30, `envelopePoints` 7, `minF0Hz` / `maxF0Hz` |
+| `noteMetrics` | `frameMs` 10, `hopMs` 5, `gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20, `minGapMs` 30, `envelopePoints` 7, `pitchFrameMs` 40, `pitchHopMs` 5, `minF0Hz` 50, `maxF0Hz` 2000 |
 | `modulation` | `frameMs` 10, `hopMs` 2.5, `modMinHz` 0.5, `modMaxHz` 100, `detrend` 1, `pitchFrameMs` 40, `pitchHopMs` 5, `minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` / `maxF0Hz` |
 
-`noteMetrics` gains its pitch options in M19; M18 uses only the RMS/segmentation options.
+M19 delivered `noteMetrics`' pitch options (`pitchFrameMs`, `pitchHopMs`, and the per-tool
+f0 range); M18 used only the RMS / segmentation options.
 
 ## Surfaces
 

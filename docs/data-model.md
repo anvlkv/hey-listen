@@ -55,14 +55,16 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   project file's `NOTES` section. See [`notes.md`](notes.md) → Terminology.
 - **Note segment** (not persisted) — a detected run of audio above an amplitude gate,
   returned by the `noteMetrics` analyzer: start/end, duration, the gaps around it, RMS /
-  peak level, and a normalized envelope. It is analysis output, not project content.
+  peak level, a normalized envelope, and the M19 voice-quality **proxies** (voiced
+  fraction, median f0, jitter in cents, shimmer in dB, and the 0–1 autocorrelation
+  periodicity used as the HNR proxy). It is analysis output, not project content.
 
 > **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md))
 > and `Note` in M14 (see [`notes.md`](notes.md)); `AnalysisTemplate` (M13) and the
 > export envelope (M12) are still planned — the export envelope is a view over an
 > existing `AnalysisResult`. See [`exports.md`](exports.md), [`templates.md`](templates.md).
-> The M16–M20 analysis-depth results carry `FrameRms` (delivered in M17) and the
-> planned `NoteMetricsResult` / `ModulationResult` — see
+> The M16–M20 analysis-depth results carry `FrameRms` (delivered in M17),
+> `NoteMetricsResult` (delivered in M18–M19), and the planned `ModulationResult` — see
 > [`analysis-metrics.md`](analysis-metrics.md).
 > M21 adds a `ResultSummary` (a `text` line plus labelled, unit-bearing items) and an
 > analysis response envelope carrying both `result` and `summary` — see

@@ -82,6 +82,12 @@ const DEFAULT_ENVELOPE_POINTS: usize = 7;
 /// Cap on the notes a single `noteMetrics` call returns (IPC size bound).
 const MAX_NOTES: usize = 2_048;
 
+// Note voice-quality proxy defaults (M19).
+/// The frame length for a note's own pitch track: long enough for a stable YIN f0.
+const DEFAULT_PITCH_FRAME_MS: f32 = 40.0;
+/// The hop between those pitch frames: fine enough to see intra-note jitter.
+const DEFAULT_PITCH_HOP_MS: f32 = 5.0;
+
 // --- signal conditioning -------------------------------------------------
 
 /// Run a tool over `start..end` of a project's source, synchronously.

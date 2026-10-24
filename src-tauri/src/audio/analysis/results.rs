@@ -208,7 +208,8 @@ pub struct LraResult {
     pub lra: f32,
 }
 
-/// One detected audio **note** (a segment above the gate) with its level summary.
+/// One detected audio **note** (a segment above the gate) with its level summary and
+/// per-note voice-quality proxies.
 ///
 /// A note here is an acoustic event found by `noteMetrics` — distinct from a project
 /// **annotation** (the M14 `Note` payload, user-authored commentary).
@@ -231,6 +232,21 @@ pub struct NoteMetric {
     pub peak_db_rel_loudest: f32,
     /// Frame-RMS envelope at `NoteMetricsResult::envelope_positions` (dBFS).
     pub envelope_db: Vec<f32>,
+    /// Fraction of the note's own pitch frames the detector found voiced (0…1).
+    /// `None` when the note is too short to yield a pitch frame.
+    pub voiced_fraction: Option<f32>,
+    /// Median f0 over the note's voiced pitch frames, in Hz.
+    pub f0_median_hz: Option<f32>,
+    /// **Jitter proxy**: population standard deviation of the note's linearly
+    /// detrended f0 track, in cents. Not clinical jitter rate; `None` when too few
+    /// voiced frames were found.
+    pub jitter_proxy_cents: Option<f32>,
+    /// **Shimmer proxy**: population standard deviation of the note's frame-RMS levels,
+    /// in dB. `None` when there are too few frames.
+    pub shimmer_proxy_db: Option<f32>,
+    /// **HNR proxy**: mean 0–1 autocorrelation periodicity over the note. This is the
+    /// `harmonic_ratio` score, **not** HNR in dB; near zero means noise-like.
+    pub hnr_proxy: Option<f32>,
 }
 
 /// A silence **gap** between two detected notes. Leading/trailing silence is not
