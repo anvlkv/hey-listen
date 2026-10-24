@@ -89,6 +89,8 @@ export const VIEW_ICONS: Record<AnalyzerView["kind"], IconName> = {
   spectrogram: "table-cells",
   /** A grid of numeric readouts, not a chart. */
   readouts: "table-list",
+  /** A per-note table (M18). */
+  noteMetrics: "table-list",
 };
 
 /** The icon for the two graph editors (a Sidebar row). */

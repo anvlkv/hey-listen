@@ -64,7 +64,7 @@ export function laneNotes(tool: AnalyzerId | string): Note[] {
 
 /** The focused note's marker label: its values line, else its heading. */
 export function noteMarkerLabel(note: Note): string {
-  return note.values?.text || noteHeading(note.body, 32) || "Note";
+  return note.values?.text || noteHeading(note.body, 32) || "Annotation";
 }
 
 const inRange = (x: number, geom: NoteGeom) =>

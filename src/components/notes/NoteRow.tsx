@@ -65,17 +65,17 @@ export function NoteRow(props: {
           type="button"
           class="note-title"
           onClick={() => selectNote(props.note.id)}
-          title="Select this note"
+          title="Select this annotation"
           data-testid={`note.heading.${props.note.id}`}
         >
-          {noteHeading(props.note.body) || "Note"}
+          {noteHeading(props.note.body) || "Annotation"}
         </button>
         <div class="note-titlebar-actions">
           <Tooltip label={props.note.range ? "Analyze this span" : "Analyze this moment"}>
             <Button
               class="note-icon"
               data-testid={`note.analyze.${props.note.id}`}
-              aria-label="Analyze this note"
+              aria-label="Analyze this annotation"
               onClick={() => analyzeNote(props.note.id)}
             >
               <Icon name="arrows-left-right-to-line" />
@@ -99,17 +99,17 @@ export function NoteRow(props: {
             <Button
               class="note-icon"
               data-testid={`note.edit.${props.note.id}`}
-              aria-label="Edit the note"
+              aria-label="Edit the annotation"
               onClick={() => setEditingNoteId(editing() ? null : props.note.id)}
             >
               <Icon name="pencil" />
             </Button>
           </Tooltip>
-          <Tooltip label="Open the note in its own window">
+          <Tooltip label="Open the annotation in its own window">
             <Button
               class="note-icon"
               data-testid={`note.popout.${props.note.id}`}
-              aria-label="Open the note in its own window"
+              aria-label="Open the annotation in its own window"
               onClick={() => props.onPopout()}
             >
               <Icon name="arrow-up-right-from-square" />
@@ -119,7 +119,7 @@ export function NoteRow(props: {
             <Button
               class="note-icon"
               data-testid={`note.delete.${props.note.id}`}
-              aria-label="Delete the note"
+              aria-label="Delete the annotation"
               onClick={() => deleteNote(props.note.id)}
             >
               <Icon name="trash" />

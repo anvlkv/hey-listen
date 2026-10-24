@@ -12,8 +12,8 @@ pub(super) fn tools() -> Vec<Value> {
             "Observe the current project: the source (name, rate, channels, duration), \
              the analysis window and viewport, the shared analysis params, the per-tool \
              options, the open Workbench tabs, the project name/path/dirty flag, the \
-             notes + focused note id, and the filter + output settings. Start here to see \
-             what the user is looking at.",
+             annotations + focused annotation id, and the filter + output settings. Start \
+             here to see what the user is looking at.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(

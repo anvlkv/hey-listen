@@ -252,6 +252,23 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
             "period",
         ],
     },
+    AnalyzerInfo {
+        id: "noteMetrics",
+        title: "Note segments",
+        description: "Detected note spans, gaps, and per-note levels",
+        section: "pitch",
+        keywords: &[
+            "note",
+            "notes",
+            "segment",
+            "syllable",
+            "gap",
+            "duration",
+            "level",
+            "call",
+            "bioacoustic",
+        ],
+    },
     // Rhythm / tempo
     AnalyzerInfo {
         id: "tempo",

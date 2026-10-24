@@ -9,8 +9,8 @@ use super::super::{
     DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
 };
 use super::{
-    chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, spectral_contrast, spectrogram,
-    spectrum, waveform,
+    chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, note_metrics, spectral_contrast,
+    spectrogram, spectrum, waveform,
 };
 
 /// Dispatch a tool id to its implementation.
@@ -169,6 +169,11 @@ pub fn run(
                 (min_f0, max_f0),
             )))
         }
+        "noteMetrics" => Ok(AnalysisResult::NoteMetrics(note_metrics(
+            mono,
+            sample_rate,
+            options,
+        ))),
         "tempo" => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;

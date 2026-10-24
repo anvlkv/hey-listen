@@ -233,6 +233,9 @@ hey-listen analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 1
 # Per-tool options are named: a 40-band mel spectrogram then MFCCs:
 hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o mfcc.nMfcc=13
 
+# Note segmentation with a tighter gate and the full note records:
+hey-listen analyze call.wav -t noteMetrics -o noteMetrics.gateDb=25 --full
+
 # Discover ids:
 hey-listen analyzers --json | jq -r '.[].id'
 
@@ -242,7 +245,7 @@ hey-listen analyzers noteMetrics
 # Sweep with summaries only (M21, planned):
 hey-listen analyze *.wav -t levels --summary | jq -c '{file, summary}'
 
-# Show the notes in a saved project (JSONL, full bodies):
+# Show the annotations in a saved project (JSONL, full bodies):
 hey-listen notes mix.heyl --json --full | jq -c '{time: .timeSecs, tool, values: .values.text}'
 
 # Filter, then analyze, over a whole folder:

@@ -35,6 +35,7 @@ export type {
   LufsResult,
   MatrixResult,
   MatrixView,
+  NoteMetricsResult,
   PitchResult,
   RhythmResult,
   RhythmView,

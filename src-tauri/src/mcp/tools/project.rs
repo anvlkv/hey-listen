@@ -1,11 +1,12 @@
-//! Project file operations and the note catalog (app-only: a note lives in a
-//! project).
+//! Project file operations and the annotation catalog (app-only: an annotation lives
+//! in a project). The tool ids keep the M14 `*_note` spelling; these are project
+//! annotations, not `noteMetrics`' detected note segments.
 
 use serde_json::{json, Value};
 
 use super::schema::tool;
 
-/// The project-file and note tools.
+/// The project-file and annotation tools.
 pub(super) fn tools() -> Vec<Value> {
     vec![
         tool(
@@ -44,14 +45,16 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "list_notes",
-            "List every note in the project: id, time (source seconds), optional range, tool \
-             (the analyzer it was taken from; absent = a Timeline note), title, markdown body, \
-             and the frozen values snapshot. App-only (a note lives in a project).",
+            "List every annotation in the project (stored as a note): id, time (source \
+             seconds), optional range, tool (the analyzer it was taken from; absent = a \
+             Timeline annotation), title, markdown body, and the frozen values snapshot. \
+             App-only (an annotation lives in a project). Not the detected note segments \
+             returned by the `noteMetrics` analyzer.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
             "get_note",
-            "Read one note by `id`.",
+            "Read one annotation by `id`.",
             json!({
                 "type": "object",
                 "properties": { "id": { "type": "string" } },
@@ -61,10 +64,10 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "create_note",
-            "Create a note anchored at `time` (source seconds), optionally a `range` span, and \
-             optionally tied to the analyzer `tool` it was taken from (omit for a Timeline \
-             note). `title` is plain text, `body` is markdown. The frozen `values` snapshot is \
-             captured from the target chart when it is open. App-only.",
+            "Create an annotation anchored at `time` (source seconds), optionally a `range` \
+             span, and optionally tied to the analyzer `tool` it was taken from (omit for a \
+             Timeline annotation). `title` is plain text, `body` is markdown. The frozen \
+             `values` snapshot is captured from the target chart when it is open. App-only.",
             json!({
                 "type": "object",
                 "properties": {
@@ -75,7 +78,7 @@ pub(super) fn tools() -> Vec<Value> {
                         "properties": { "startSecs": { "type": "number" }, "endSecs": { "type": "number" } },
                         "additionalProperties": false,
                     },
-                    "tool": { "type": "string", "description": "An analyzer id the note hangs off (default: a Timeline note)." },
+                    "tool": { "type": "string", "description": "An analyzer id the annotation hangs off (default: a Timeline annotation)." },
                     "title": { "type": "string" },
                     "body": { "type": "string", "description": "Markdown body." },
                 },
@@ -85,7 +88,7 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "update_note",
-            "Patch a note by `id`: `title` / `body` / `time` / `range` / `tool`. Pass \
+            "Patch an annotation by `id`: `title` / `body` / `time` / `range` / `tool`. Pass \
              `recomputeValues: true` to refresh the frozen values snapshot from the live \
              chart. Only the supplied keys change. App-only.",
             json!({
@@ -105,7 +108,7 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "delete_note",
-            "Remove a note by `id`. App-only.",
+            "Remove an annotation by `id`. App-only.",
             json!({
                 "type": "object",
                 "properties": { "id": { "type": "string" } },
@@ -115,8 +118,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "set_focused_note",
-            "Focus one note (`id`) or clear the focus (`null`). The focused note is drawn on \
-             every time-based chart. App-only.",
+            "Focus one annotation (`id`) or clear the focus (`null`). The focused annotation \
+             is drawn on every time-based chart. App-only.",
             json!({
                 "type": "object",
                 "properties": { "id": { "type": ["string", "null"] } },

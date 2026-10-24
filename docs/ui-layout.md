@@ -2,7 +2,7 @@
 
 ## The one rule
 
-**Timeline, Sidebar, Workbench, Source, and Notes are fixed regions — not tabs.** The
+**Timeline, Sidebar, Workbench, Source, and Annotations are fixed regions — not tabs.** The
 only tabs in the app are **Workbench tabs**: the **graph editors** (filter /
 synth) and, from M4, the **analyzer tabs**.
 
@@ -89,7 +89,7 @@ compact "Add audio" state has a fixed height).
   **Appearance** popover (UI scale + theme — see [Theming](#theming)), a **Templates**
   popover (save / apply / import / export analysis templates — see
   [`templates.md`](templates.md)), a **Notes** toggle (an icon button that shows /
-  hides the right rail — see [Notes panel](#notes-panel)), an **MCP** popover (the Model
+  hides the right rail — see [Annotations panel](#annotations-panel)), an **MCP** popover (the Model
   Context Protocol server's on/off, port, live status, and a copyable `mcpServers`
   snippet — see [`mcp.md`](mcp.md)), and an **About** button (app identity +
   attributions — see [Icons, tooltips, and About](#icons-tooltips-and-about)). The
@@ -170,7 +170,7 @@ popover. See [`theming.md`](theming.md).
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
-| **Notes** (right rail) | the project's annotations — a list of markdown notes anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
+| **Annotations** (right rail; code/test ids say `notes`) | the project's annotations — a list of markdown annotations anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
 
 None of these are closable, draggable, or tabbed.
 
@@ -195,7 +195,7 @@ None of these are closable, draggable, or tabbed.
   selecting it again opens a **tab**. A project load (or New Project) reconciles the
   windows (`sync_popouts`): the tools its layout records get exactly one window each, and
   popouts it does not record close.
-- A **note** pops out the same way (`open_note_window`, from the Notes rail's row): a
+- A **note** pops out the same way (`open_note_window`, from the Annotations rail's row): a
   real window that renders just that note's editor, aliased to the same project and
   raised rather than duplicated. A popout of either kind is never a project window:
   the MCP server routes its tool calls to the owning project, and `list_projects`
@@ -253,9 +253,9 @@ title, description, and keywords; the graph editors are always shown. Clicking a
 entry opens its tab in the Workbench (no-op if already open; selects the existing
 tab).
 
-## Notes panel
+## Annotations panel
 
-The **Notes** region is a **right rail** — a fixed region (not a tab), the mirror of the
+The **Annotations** region is a **right rail** — a fixed region (not a tab), the mirror of the
 Sidebar and the home of the project's annotations (M14; see
 [`notes.md`](notes.md)). It is **hidden by default** and toggled from the Toolbar
 (`note-sticky`) or its own header chevron; its width is draggable (clamped like the

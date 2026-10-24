@@ -288,6 +288,55 @@ fn frame_rms_options_flow_through_the_headless_session() {
 }
 
 #[test]
+fn note_metrics_options_flow_through_the_headless_session() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 1.0 }),
+        )
+        .unwrap();
+    session
+        .dispatch(
+            "set_tool_options",
+            json!({
+                "tool": "noteMetrics",
+                "options": { "gate_db": 40, "min_note_ms": 15, "envelope_points": 5 },
+            }),
+        )
+        .expect("snake_case aliases are accepted");
+
+    let metrics = session
+        .dispatch(
+            "run_analysis",
+            json!({ "tool": "noteMetrics", "includeData": true }),
+        )
+        .unwrap();
+    assert_eq!(metrics["result"]["tool"], "noteMetrics");
+    // A continuous 1 s tone is one note, and the configured options reach the result.
+    assert_eq!(metrics["result"]["noteCount"], 1);
+    assert_eq!(metrics["result"]["gapCount"], 0);
+    assert_eq!(metrics["result"]["referenceNoteIndex"], 0);
+    assert_eq!(
+        metrics["result"]["envelopePositions"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+    assert_eq!(
+        metrics["result"]["notes"][0]["envelopeDb"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+    assert_eq!(metrics["options"]["gateDb"], 40.0);
+    assert_eq!(metrics["options"]["minNoteMs"], 15.0);
+    assert_eq!(metrics["options"]["envelopePoints"], 5);
+}
+
+#[test]
 fn analysis_times_are_rebased_onto_source_seconds() {
     let mut session = HeadlessSession::default();
     session
@@ -327,4 +376,24 @@ fn analysis_times_are_rebased_onto_source_seconds() {
         )
         .unwrap();
     assert_eq!(envelope["result"]["windowStart"], 0.4);
+
+    // Note segments are re-based too: their spans and gaps are source seconds.
+    let metrics = session
+        .dispatch(
+            "run_analysis",
+            json!({
+                "tool": "noteMetrics",
+                "transient": true,
+                "start": 0.4,
+                "end": 0.9,
+                "includeData": true,
+            }),
+        )
+        .unwrap();
+    let result = &metrics["result"];
+    assert_eq!(result["windowStart"], 0.4);
+    let first = result["notes"][0]["startSecs"].as_f64().unwrap();
+    let last = result["notes"][0]["endSecs"].as_f64().unwrap();
+    assert!((first - 0.4).abs() < 0.01, "first note starts at {first}");
+    assert!((last - 0.9).abs() < 0.01, "last note ends at {last}");
 }

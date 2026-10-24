@@ -5,7 +5,14 @@
  */
 
 export type ViewKind =
-  "waveform" | "spectrum" | "spectrogram" | "matrix" | "series" | "readouts" | "events";
+  | "waveform"
+  | "spectrum"
+  | "spectrogram"
+  | "matrix"
+  | "series"
+  | "readouts"
+  | "noteMetrics"
+  | "events";
 
 export interface AnalyzerTool {
   id: string;
@@ -35,6 +42,7 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "pitchPyin", title: "Pitch (pYIN)", view: "series" },
   { id: "pitchYin", title: "Pitch (YIN)", view: "series" },
   { id: "pitchAutocorr", title: "Pitch (autocorrelation)", view: "series" },
+  { id: "noteMetrics", title: "Note segments", view: "noteMetrics" },
   { id: "tempo", title: "Tempo", view: "readouts" },
   { id: "onsets", title: "Onsets", view: "events" },
   { id: "downbeats", title: "Downbeats", view: "events" },

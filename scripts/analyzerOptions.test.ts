@@ -64,6 +64,23 @@ check("frame-RMS options are engine options with defaults", () => {
   });
 });
 
+check("note-segmentation options are engine options with defaults", () => {
+  assertDeepEqual(optionDefaults("noteMetrics"), {
+    frameMs: 10,
+    hopMs: 5,
+    gateDb: 35,
+    gateFloorDb: -60,
+    hysteresisDb: 3,
+    minNoteMs: 20,
+    minGapMs: 30,
+    envelopePoints: 7,
+  });
+  assertDeepEqual(applyOptionPatch("noteMetrics", { gate_db: 40, min_note_ms: 15 }), {
+    gateDb: 40,
+    minNoteMs: 15,
+  });
+});
+
 check("loading an older project fills in new option defaults", () => {
   loadToolOptions({ pitchYin: { yinThreshold: 0.2 } });
   assertEqual(toolOptions.pitchYin.minF0Hz, 50);

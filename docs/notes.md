@@ -1,21 +1,37 @@
-# Notes
+# Notes (project annotations)
 
-A **note** is an annotation on a project: a piece of **markdown** you attach to a
-point in the audio — optionally a span — and to the **analyzer chart** you were
-looking at when you wrote it. The note keeps the **values that chart showed** at
-that moment, so the observation stays meaningful even after the window or the
+An **annotation** (M14; stored as a `Note`) is a piece of **markdown** you attach to
+a point in the audio — optionally a span — and to the **analyzer chart** you were
+looking at when you wrote it. The annotation keeps the **values that chart showed**
+at that moment, so the observation stays meaningful even after the window or the
 params move on.
 
-Notes are the project's *commentary layer*: they sit beside the analysis rather
-than in it (they are not an analyzer tool and produce no `AnalysisResult`), and
-they are reachable from the UI, the MCP server, and the batch CLI.
+Annotations are the project's *commentary layer*: they sit beside the analysis rather
+than in it (they are not an analyzer tool and produce no `AnalysisResult`), and they
+are reachable from the UI, the MCP server, and the batch CLI.
+
+## Terminology: annotations vs. notes
+
+Two different things are easy to conflate:
+
+- **Annotation** (this doc, M14) — **you** write it: markdown anchored to a time and
+  a chart, with a frozen values snapshot. The UI labels the right rail
+  **Annotations** and the chart action **Add annotation here**.
+- **Note / note segment** (M18) — the **engine** detects it: a run of audio above an
+  amplitude gate, with a start, end, gaps, and per-note level. It is the
+  `noteMetrics` analyzer's result, shown as a table of *detected notes*.
+
+The data model and public surfaces keep the historical names for compatibility: the
+`Note` type, the `notes` store, the project file's `NOTES` section, and the MCP/CLI
+`*_note` / `notes` tools all mean **annotations**. Only the display copy distinguishes
+them.
 
 ## Goal
 
-- Attach a **markdown** note to an **audio time** (a point, optionally a range)
+- Attach a **markdown** annotation to an **audio time** (a point, optionally a range)
   and to the **chart it was taken from**.
-- Show every note on the **Timeline**, each note on **its own chart**, and the
-  **focused** note on **every time-based chart** — so a remark about one moment
+- Show every annotation on the **Timeline**, each one on **its own chart**, and the
+  **focused** one on **every time-based chart** — so a remark about one moment
   is visible wherever that moment is drawn.
 - Keep a **frozen snapshot** of the chart's values as the note's subtitle, which
   refreshes whenever the note is edited or dragged (there is no recompute button).
@@ -106,11 +122,13 @@ the note's time*, captured when the note was written.
 - The note's **title** and **values subtitle** are never markdown — they render
   as plain text everywhere (sidebar, chart label, timeline hover).
 
-## The Notes panel
+## The Annotations panel
 
-Notes live in a **right-hand panel** — a new **fixed region**, the mirror of the
-Sidebar (see [`ui-layout.md`](ui-layout.md)). It is **not** a Workbench tab: the
-only tabs are Workbench tabs, and a note panel is chrome, not content.
+Annotations live in a **right-hand panel** — a new **fixed region**, the mirror of the
+Sidebar (see [`ui-layout.md`](ui-layout.md)). The rail's heading reads
+**Annotations**; the code and test ids keep the `notes` names. It is **not** a
+Workbench tab: the only tabs are Workbench tabs, and an annotation panel is chrome,
+not content.
 
 - **Collapsible**, **hidden by default**. A Toolbar icon button (`note-sticky`)
   toggles it; while the rail is closed and notes exist, the button carries its
@@ -187,7 +205,7 @@ clears every chart's full-height overlay and the Timeline's stem; the lane ancho
 
 Three entry points, one model:
 
-- **Notes panel → Add note** — a **point** note at the analysis window's start, with
+- **Annotations panel → Add** — a **point** annotation at the analysis window's start, with
   `tool` = the focused analyzer tab if one is open. Values are captured from that chart.
 - **Note lane → drag a span** (the Timeline's or any time chart's) — a **range** note
   over the dragged span, owned by that chart (`null` on the Timeline). Dragging a

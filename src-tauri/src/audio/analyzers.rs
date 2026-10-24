@@ -10,10 +10,11 @@
 //! error, and an id `run` knows but this list omits is invisible to a headless
 //! agent. The ids are the same strings the GUI uses.
 //!
-//! The catalog data lives in [`catalog`]; the option metadata and the
-//! `list_analyzers` payload live here.
+//! The catalog data lives in [`catalog`]; the option metadata (split out to keep the
+//! files small) in [`options`]; the `list_analyzers` payload lives here.
 
 mod catalog;
+mod options;
 
 /// One analyzer's agent-facing metadata (mirrors `AnalyzerDef` in the frontend,
 /// minus the view/params detail the webview needs).
@@ -25,204 +26,8 @@ pub struct AnalyzerInfo {
     pub keywords: &'static [&'static str],
 }
 
-/// One per-tool **engine** option's metadata. `list_analyzers` carries the compact
-/// keys + defaults; the remaining fields are the full detail M21's `get_analyzer`
-/// returns, kept here so the catalog stays the one source of truth.
-#[allow(dead_code)] // the descriptive fields are read by `get_analyzer` (M21)
-pub struct OptionInfo {
-    /// Canonical camelCase key (matching `ToolOptions`).
-    pub key: &'static str,
-    pub label: &'static str,
-    pub default: f64,
-    pub min: f64,
-    pub max: f64,
-    pub help: &'static str,
-}
-
 /// Every analyzer, grouped by section, in the order the Sidebar shows them.
 pub const ANALYZERS: &[AnalyzerInfo] = catalog::ANALYZERS;
-
-/// Per-analyzer engine-option metadata, keyed by analyzer id. Analyzers without
-/// their own options are absent (the `list_analyzers` option map is then empty).
-const OPTIONS: &[(&str, &[OptionInfo])] = &[
-    (
-        "frameRms",
-        &[
-            OptionInfo {
-                key: "frameMs",
-                label: "Frame",
-                default: 10.0,
-                min: 0.1,
-                max: 1_000.0,
-                help: "RMS frame length in ms — the envelope's time smoothing.",
-            },
-            OptionInfo {
-                key: "hopMs",
-                label: "Hop",
-                default: 5.0,
-                min: 0.05,
-                max: 1_000.0,
-                help: "Step between frames in ms; smaller values give a denser envelope.",
-            },
-        ],
-    ),
-    (
-        "melSpectrogram",
-        &[OptionInfo {
-            key: "nMels",
-            label: "Mel bands",
-            default: 64.0,
-            min: 8.0,
-            max: 256.0,
-            help: "Number of mel bands; more bands give finer frequency detail.",
-        }],
-    ),
-    (
-        "mfcc",
-        &[
-            OptionInfo {
-                key: "nMfcc",
-                label: "Coefficients",
-                default: 13.0,
-                min: 1.0,
-                max: 64.0,
-                help: "Cepstral coefficients (rows); ~13 captures the spectral envelope.",
-            },
-            OptionInfo {
-                key: "nMels",
-                label: "Mel bands",
-                default: 64.0,
-                min: 8.0,
-                max: 256.0,
-                help: "Mel bands fed to the cepstral transform.",
-            },
-        ],
-    ),
-    (
-        "spectralRolloff",
-        &[OptionInfo {
-            key: "rolloffPercent",
-            label: "Energy share",
-            default: 0.85,
-            min: 0.01,
-            max: 0.99,
-            help: "Share of spectral energy below the rolloff frequency.",
-        }],
-    ),
-    (
-        "spectralContrast",
-        &[OptionInfo {
-            key: "nBands",
-            label: "Bands",
-            default: 6.0,
-            min: 2.0,
-            max: 16.0,
-            help: "Number of octave-spaced bands compared peak-to-valley.",
-        }],
-    ),
-    (
-        "harmonicRatio",
-        &[
-            OptionInfo {
-                key: "minF0Hz",
-                label: "Min f0",
-                default: 50.0,
-                min: 20.0,
-                max: 4_000.0,
-                help: "Lowest expected fundamental — the bottom of the autocorrelation search.",
-            },
-            OptionInfo {
-                key: "maxF0Hz",
-                label: "Max f0",
-                default: 4_000.0,
-                min: 40.0,
-                max: 8_000.0,
-                help: "Highest expected fundamental — the top of the autocorrelation search.",
-            },
-        ],
-    ),
-    (
-        "pitchYin",
-        &[
-            OptionInfo {
-                key: "yinThreshold",
-                label: "YIN threshold",
-                default: 0.12,
-                min: 0.01,
-                max: 0.9,
-                help: "Voiced/unvoiced threshold; lower is stricter.",
-            },
-            OptionInfo {
-                key: "minF0Hz",
-                label: "Min f0",
-                default: 50.0,
-                min: 20.0,
-                max: 5_000.0,
-                help: "Lowest expected fundamental — the bottom of the YIN search.",
-            },
-            OptionInfo {
-                key: "maxF0Hz",
-                label: "Max f0",
-                default: 2_000.0,
-                min: 40.0,
-                max: 8_000.0,
-                help: "Highest expected fundamental — YIN can search above 2 kHz.",
-            },
-        ],
-    ),
-    (
-        "pitchAutocorr",
-        &[
-            OptionInfo {
-                key: "minF0Hz",
-                label: "Min f0",
-                default: 60.0,
-                min: 20.0,
-                max: 2_000.0,
-                help: "Lowest expected fundamental — the bottom of the autocorrelation search.",
-            },
-            OptionInfo {
-                key: "maxF0Hz",
-                label: "Max f0",
-                default: 1_200.0,
-                min: 40.0,
-                max: 5_000.0,
-                help: "Highest expected fundamental — the top of the autocorrelation search.",
-            },
-        ],
-    ),
-    (
-        "downbeats",
-        &[OptionInfo {
-            key: "barLength",
-            label: "Beats per bar",
-            default: 4.0,
-            min: 2.0,
-            max: 12.0,
-            help: "Beats per bar — the time-signature numerator.",
-        }],
-    ),
-    (
-        "loudnessMomentary",
-        &[OptionInfo {
-            key: "windowMs",
-            label: "Window",
-            default: 0.0,
-            min: 0.0,
-            max: 1_000.0,
-            help: "Momentary window in ms; 0 uses the EBU R128 400 ms block.",
-        }],
-    ),
-];
-
-/// The engine options declared for `id` (empty for a tool without options).
-fn options_for(id: &str) -> &'static [OptionInfo] {
-    OPTIONS
-        .iter()
-        .find(|(tool, _)| *tool == id)
-        .map(|(_, options)| *options)
-        .unwrap_or(&[])
-}
 
 /// Whether `id` names an analyzer (so a headless `run_analysis` can fail fast with a
 /// helpful message instead of the engine's generic unknown-tool error).
@@ -237,10 +42,11 @@ pub fn list() -> Vec<serde_json::Value> {
     ANALYZERS
         .iter()
         .map(|analyzer| {
-            let options: serde_json::Map<String, serde_json::Value> = options_for(analyzer.id)
-                .iter()
-                .map(|option| (option.key.to_string(), serde_json::json!(option.default)))
-                .collect();
+            let options: serde_json::Map<String, serde_json::Value> =
+                options::options_for(analyzer.id)
+                    .iter()
+                    .map(|option| (option.key.to_string(), serde_json::json!(option.default)))
+                    .collect();
             serde_json::json!({
                 "id": analyzer.id,
                 "title": analyzer.title,
@@ -283,6 +89,7 @@ mod tests {
             "pitchPyin",
             "pitchYin",
             "pitchAutocorr",
+            "noteMetrics",
             "tempo",
             "onsets",
             "downbeats",
@@ -308,7 +115,7 @@ mod tests {
 
     #[test]
     fn option_metadata_names_known_canonical_keys() {
-        for (id, options) in OPTIONS {
+        for (id, options) in options::OPTIONS {
             assert!(is_analyzer(id), "option metadata for unknown analyzer {id}");
             for option in *options {
                 assert_eq!(
@@ -333,6 +140,23 @@ mod tests {
         assert_eq!(frame_rms["section"], "time");
         assert_eq!(frame_rms["options"]["frameMs"], 10.0);
         assert_eq!(frame_rms["options"]["hopMs"], 5.0);
+    }
+
+    #[test]
+    fn list_carries_the_note_metrics_defaults() {
+        let items = list();
+        let note = items
+            .iter()
+            .find(|item| item["id"] == "noteMetrics")
+            .expect("noteMetrics is in the catalog");
+        assert_eq!(note["section"], "pitch");
+        assert_eq!(note["options"]["frameMs"], 10.0);
+        assert_eq!(note["options"]["gateDb"], 35.0);
+        assert_eq!(note["options"]["gateFloorDb"], -60.0);
+        assert_eq!(note["options"]["hysteresisDb"], 3.0);
+        assert_eq!(note["options"]["minNoteMs"], 20.0);
+        assert_eq!(note["options"]["minGapMs"], 30.0);
+        assert_eq!(note["options"]["envelopePoints"], 7.0);
     }
 
     #[test]

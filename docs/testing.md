@@ -190,7 +190,7 @@ whole workflow), **Manual** (documented steps, run by a human, not in CI).
 
 ### D. Analyzer tools — every tool
 
-One parametrized smoke test iterates over all 27 tool ids and, for each: opens the
+One parametrized smoke test iterates over all 28 tool ids and, for each: opens the
 tab from the Sidebar, waits for the result view to render non-empty, opens the
 **about** and **params** popovers, re-clicks to confirm **no duplicate tab**, then
 closes. This is what "cover every tool" means — a single, data-driven test, not 27
@@ -219,6 +219,7 @@ copies. The ids and view kinds come from `src/state/analyzer/`:
 | Pitch (pYIN) | `pitchPyin` | series | pitch track rendered |
 | Pitch (YIN) | `pitchYin` | series | pitch track rendered |
 | Pitch (autocorr) | `pitchAutocorr` | series | pitch track rendered |
+| Note segments | `noteMetrics` | noteMetrics | summary cards + per-note table rows |
 | Tempo | `tempo` | readouts | BPM + confidence readouts |
 | Onsets | `onsets` | events | onset markers rendered |
 | Downbeats | `downbeats` | events | downbeat markers rendered |
@@ -240,6 +241,13 @@ One representative per computation family:
 | E5 | `tempo` (on `chirp_noise`) | BPM finite and within 40–240 | tempo/rhythm |
 
 The remaining tools are trusted through the parametrized smoke test.
+
+> **M18 note segmentation (Rust unit tests, not wdio):** `noteMetrics` is pinned by
+> `audio::analysis::tests::note_metrics` — tone → gap → tone (2 notes, 1 gap, the right
+> durations and levels), a continuous tone (1 note, 0 gaps), a short-gap merge, relative
+> levels against the loudest note, silent input (0 notes), and the snake_case aliases.
+> `audio::analyzers::tests` pins the catalog defaults and `mcp::dispatch::tests` runs the
+> tool through the headless session with its option patch.
 
 ### F. Cross-cutting analyzer behavior
 
@@ -351,18 +359,18 @@ launches, so the spec resets to a known state first and restores the defaults af
 > uniqueness). Import/export use native dialogs (mocked in the suite), so the file
 > round-trip is exercised by hand rather than in the wdio suite.
 
-### N. Notes (M14)
+### N. Annotations (M14)
 
-Drives the annotation layer end to end: add a note from the Notes rail (which captures
-the focused chart's frozen values), confirm the row + values, save the project, discard
-it, load it back and confirm the note survives, then delete it.
+Drives the annotation layer end to end: add an annotation from the Annotations rail
+(which captures the focused chart's frozen values), confirm the row + values, save the
+project, discard it, load it back and confirm the annotation survives, then delete it.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | N1 | Add from the rail | The rail opens from the Toolbar; `Add` creates a row whose frozen values line contains `peak` (from the focused spectrum chart); the count reads `1` | Scenario |
-| N2 | Persistence | The note survives `save_project` → `new_project` → `load_project` | Scenario |
-| N3 | Own window | The row's popout action opens a `note-*` Tauri window showing just that note's editor; saving there commits and closes it, and the rail shows the new heading | Scenario |
-| N4 | Delete | The row's delete button removes the note (the empty state returns) | Scenario |
+| N2 | Persistence | The annotation survives `save_project` → `new_project` → `load_project` | Scenario |
+| N3 | Own window | The row's popout action opens a `note-*` Tauri window showing just that annotation's editor; saving there commits and closes it, and the rail shows the new heading | Scenario |
+| N4 | Delete | The row's delete button removes the annotation (the empty state returns) | Scenario |
 
 ### O. Cross-window cursor sync (M14 follow-up)
 
@@ -400,8 +408,8 @@ tools where note creation used to throw.
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | P1 | Create / select ≠ reframe | `Add` opens the editor (keeping the frozen values line) and neither it nor selecting the row moves the analysis window | Scenario |
-| P2 | Analyze reframes | The row's `Analyze` is the only action that moves the window onto the note (a range becomes it) | Scenario |
-| P3 | Closing the rail | Closing unfocuses the note and the Toolbar button carries the count | Scenario |
+| P2 | Analyze reframes | The row's `Analyze` is the only action that moves the window onto the annotation (a range becomes it) | Scenario |
+| P3 | Closing the rail | Closing unfocuses the annotation and the Toolbar button carries the count | Scenario |
 | P4 | Matrix tools | A note is created on the mel spectrogram — the regression where a `MatrixResult` (which carries `times` *and* `bins`) was classified as a series and threw | Scenario |
 
 ### Q. Preview transport (M14 follow-up)

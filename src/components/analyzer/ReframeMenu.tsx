@@ -127,7 +127,7 @@ export default function ReframeMenu(props: {
               onPointerLeave={() => setHover(null)}
               onClick={addNote}
             >
-              Add note here
+              Add annotation here
             </button>
           </div>
         </Portal>

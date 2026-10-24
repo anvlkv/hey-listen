@@ -40,7 +40,7 @@ export default function NoteWindow(props: { noteId: string }): JSX.Element {
 
   return (
     <div class="note-window" data-testid="notes.window">
-      <Show when={note()} fallback={<div class="notes-empty">This note was deleted.</div>}>
+      <Show when={note()} fallback={<div class="notes-empty">This annotation was deleted.</div>}>
         {(current) => (
           <>
             <div class="note-popout-header">
