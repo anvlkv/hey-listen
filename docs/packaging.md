@@ -22,8 +22,8 @@ A manual `workflow_dispatch` run takes the tag as an input and republishes.
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
-| `ci.yml` | push to `main`, PRs | frontend `typecheck` + `build`; `cargo check` on the 3-OS matrix |
-| `pages.yml` | push to `main`, manual | regenerates the doc subpages + stamps the version, then deploys `site/` to GitHub Pages |
+| `ci.yml` | push to `main`, PRs | **code changes only** (docs-only skips the build/test jobs): frontend `typecheck` / `build` / maid, Rust fmt + clippy + tests on the 3-OS matrix, and the E2E suite |
+| `pages.yml` | push to `main`, manual | **always** (no paths filter): regenerates the doc subpages + stamps the version, then deploys `site/` to GitHub Pages |
 | `release.yml` | tags `v*`, manual | bundles the platform matrix and opens a GitHub Release |
 
 ## Artifacts

@@ -5,9 +5,55 @@ on:
     branches: [main]
   pull_request:
 
+# Read-only is enough for checkout and for `dorny/paths-filter` to read the PR file
+# list. No CI job writes anything back to the repository.
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  # A docs-only change should not spend the 3-OS build/test matrix. Keep this job
+  # unconditional so the workflow still reports a result (a workflow-level
+  # `paths-ignore` would leave required checks pending); the heavy jobs below skip.
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'src-tauri/**'
+              - 'e2e/**'
+              - 'scripts/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.json'
+              - 'tsconfig.node.json'
+              - 'vite.config.ts'
+              - 'index.html'
+              - 'preview.html'
+              - 'wdio.conf.ts'
+              - 'screenshots.wdio.conf.ts'
+              - 'eslint.config.js'
+              - 'lint-staged.config.mjs'
+              - '.prettierrc.json'
+              - '.prettierignore'
+              - '.jscpd.json'
+              - 'knip.jsonc'
+              - '.husky/**'
+              - '.github/workflows/ci.yml'
+
   frontend:
     name: Frontend
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +91,8 @@ jobs:
 
   rust:
     name: Rust check (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -116,6 +164,8 @@ jobs:
 
   e2e:
     name: E2E (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
