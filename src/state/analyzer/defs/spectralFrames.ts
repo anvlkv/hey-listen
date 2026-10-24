@@ -28,14 +28,15 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
     section: "spectral",
     view: { kind: "spectrum" },
     params: [
-      { key: "showMean", label: "Mean layer", kind: "toggle", value: 1 },
-      { key: "showMin", label: "Min layer", kind: "toggle", value: 1 },
-      { key: "showMax", label: "Max layer", kind: "toggle", value: 1 },
+      { key: "showMean", label: "Mean layer", kind: "toggle", value: 1, target: "view" },
+      { key: "showMin", label: "Min layer", kind: "toggle", value: 1, target: "view" },
+      { key: "showMax", label: "Max layer", kind: "toggle", value: 1, target: "view" },
       {
         key: "logFreq",
         label: "Log frequency",
         kind: "toggle",
         value: 1,
+        target: "view",
         title: "Plot frequency on a logarithmic (octave) axis instead of linear.",
       },
     ],
@@ -61,6 +62,7 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
         label: "Centroid",
         kind: "toggle",
         value: 1,
+        target: "view",
         title:
           "Overlay the spectral centroid (the spectrum's centre of mass) as a contour on the heatmap.",
       },
@@ -69,6 +71,7 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
         label: "Rolloff",
         kind: "toggle",
         value: 1,
+        target: "view",
         title:
           "Overlay the spectral rolloff frequency (85% of the energy lies below it) as a contour on the heatmap.",
       },

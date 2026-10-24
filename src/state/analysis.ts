@@ -142,7 +142,10 @@ export const ANALYSIS_RATES: { value: number | null; label: string; help: string
 ];
 export const [resampleTo, setResampleTo] = createSignal<number | null>(null);
 
-/** Band limit for spectral/pitch tools, in Hz. `0` max means "up to Nyquist". */
+/**
+ * Band limit for **spectral** tools, in Hz. `0` max means "up to Nyquist". Pitch
+ * tools have their own per-tool `minF0Hz` / `maxF0Hz` range instead.
+ */
 export const [freqMinHz, setFreqMinHz] = createSignal(0);
 export const [freqMaxHz, setFreqMaxHz] = createSignal(0);
 

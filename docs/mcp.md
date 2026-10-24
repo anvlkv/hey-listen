@@ -119,16 +119,16 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | Tool | Purpose |
 | --- | --- |
 | `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, and the **notes** + focused note id. |
-| `list_analyzers` | The compact analyzer catalog (id/title/description/section/keywords), plus the per-tool option keys/defaults from M16. |
+| `list_analyzers` | The compact analyzer catalog (id/title/description/section/keywords), plus each tool's per-tool option keys and defaults. **(M16)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy (GUI) / short description (headless), option metadata, and summary keys. **(M21, planned)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
-| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options`; `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. **(M21, planned)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
+| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. **(M21, planned)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
-| `set_tool_options` | Patch one analyzer's own options. |
+| `set_tool_options` | Patch one analyzer's own options. Keys are canonical camelCase (`nMels`, `yinThreshold`, `minF0Hz`); snake_case aliases are accepted; an unknown key or non-numeric value fails. See `list_analyzers` for each tool's keys/defaults. **(M16)** |
 | `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). |
 | `get_graph` | Read a graph editor's `{ nodes, edges }`. |
 | `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). In headless mode takes a `GraphSpec` directly. |
@@ -152,6 +152,12 @@ track is visible at a glance; and any other long array becomes `{ length }`. `ar
 `argmax` locate the peak without pulling every frame. Pass `includeData: true` for the
 raw result, and `maxPoints: N` to decimate the returned arrays to ≤ N points (by striding,
 keeping the first and last).
+
+**Option keys (M16).** Per-tool option keys are canonical **camelCase**; the snake_case
+aliases (`min_f0_hz`, `n_mels`, …) are accepted at every boundary. An **unknown key is an
+error**, not a silent no-op, on the GUI MCP path, headless, and the CLI. Chart-display
+toggles (`showMean`, `logFreq`, …) are not engine options and are never sent to the
+engine. `list_analyzers` carries each tool's compact option map (keys + defaults).
 
 **`target`.** Every tool accepts an optional `target` (a label from `list_projects`)
 to address a specific project window instead of the focused one. `get_state` reports
@@ -264,6 +270,12 @@ sample count).
 **`voicedFrames` / `voicedFraction`.** The three pitch tools now return a `PitchResult`
 (the f0 series plus a voiced-frame summary), so a tracker that finds almost no voiced
 frames (a near-empty track) is self-evident rather than looking like a normal success.
+
+**`effectiveMinF0Hz` / `effectiveMaxF0Hz` (M16).** Every pitch result reports the f0
+window the detector actually searched. YIN and autocorrelation resolve it from their
+`minF0Hz`/`maxF0Hz` options (defaults: YIN 50–2000, autocorrelation 60–1200, harmonic
+ratio 50–4000); pYIN reports its fixed 50–2000 Hz window, so a wider request is visible
+as a clamp rather than a silent lie. Use YIN or autocorrelation above 2 kHz.
 
 **pYIN spike (open).** `pitchPyin` returned a single voiced frame on the Blue-capped
 Ifrit clip while YIN and autocorrelation tracked normally. The detector itself lives in

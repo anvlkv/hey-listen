@@ -18,8 +18,9 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "list_analyzers",
-            "List every analyzer tool (id, title, description, section, keywords) so you \
-             know which `run_analysis` ids exist.",
+            "List every analyzer tool (id, title, description, section, keywords) plus \
+             its per-tool option keys and defaults, so you know which `run_analysis` ids \
+             and options exist.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
     ]

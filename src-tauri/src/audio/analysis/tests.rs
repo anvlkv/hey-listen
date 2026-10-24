@@ -25,6 +25,8 @@ fn params(fft_size: usize) -> SharedParams {
     }
 }
 
+mod pitch;
+
 #[test]
 fn waveform_reports_half_scale_sine() {
     let mono = sine(1_000.0, 0.5);

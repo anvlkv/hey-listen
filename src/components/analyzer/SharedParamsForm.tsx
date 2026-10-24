@@ -130,7 +130,7 @@ export default function SharedParamsForm() {
         </Tooltip>
       </div>
 
-      <Tooltip label="Band-limit spectral and pitch tools to this Hz range (0 Hz max means up to Nyquist).">
+      <Tooltip label="Band-limit spectral tools to this Hz range (0 Hz max means up to Nyquist). Pitch tools use their own Min f0 / Max f0 in the tool params.">
         <div class="params-field params-range">
           <span class="params-label">Frequency range</span>
           <div class="params-range-inputs">
@@ -170,7 +170,8 @@ export default function SharedParamsForm() {
       </Tooltip>
 
       <div class="params-note">
-        0 Hz max means up to Nyquist; the band limit applies to spectral tools.
+        0 Hz max means up to Nyquist; the band limit applies to spectral tools. Pitch tools have
+        their own Min f0 / Max f0 range.
       </div>
     </div>
   );

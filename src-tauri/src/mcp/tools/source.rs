@@ -63,7 +63,7 @@ pub(super) fn tools() -> Vec<Value> {
                     "start": { "type": "number", "description": "Analysis window start (source seconds)." },
                     "end": { "type": "number", "description": "Analysis window end (source seconds)." },
                     "params": { "type": "object", "description": "Partial shared params to apply first (written back unless `transient`)." },
-                    "options": { "type": "object", "description": "Per-tool option overrides (written back unless `transient`)." },
+                    "options": { "type": "object", "description": "Per-tool option overrides (written back unless `transient`). Keys are canonical camelCase; snake_case aliases are accepted, and an unknown key fails. `list_analyzers` reports each tool's option defaults." },
                     "display": { "type": "boolean", "description": "Open/focus the analyzer tab (default true). Set false to compute without touching the Workbench." },
                     "transient": { "type": "boolean", "description": "Apply `start`/`end`/`params`/`options` to this call only, without writing them back to the project (default false)." },
                     "includeData": { "type": "boolean", "description": "Return the full result arrays (default false, compacted)." },
@@ -119,7 +119,10 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "set_tool_options",
-            "Set one analyzer's own option values (e.g. n_mels, yin_threshold, bar_length).",
+            "Set one analyzer's own option values. Keys are canonical camelCase (e.g. \
+             `nMels`, `yinThreshold`, `minF0Hz` / `maxF0Hz`, `barLength`); snake_case \
+             aliases such as `n_mels` also work. Values must be numbers; an unknown key is \
+             an error. `list_analyzers` reports each tool's option keys and defaults.",
             json!({
                 "type": "object",
                 "properties": {

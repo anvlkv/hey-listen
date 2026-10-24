@@ -508,7 +508,7 @@ so the spec leaves one project window open instead of tearing that one down too.
 ## Running
 
 ```sh
-npm run test:unit             # pure-helper unit checks (theme model + notes; no app needed)
+npm run test:unit             # pure-helper unit checks (analyzer options + theme model + notes; no app needed)
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)

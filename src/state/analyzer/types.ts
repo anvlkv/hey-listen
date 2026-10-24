@@ -125,6 +125,12 @@ export interface ToolParamField {
   suffix?: string;
   title?: string;
   options?: { value: number; label: string }[];
+  /**
+   * What the value configures: the analysis engine (`"engine"`, the default) or only
+   * the chart's display (`"view"`). View-only values stay in the per-tool store but
+   * never cross IPC — the engine would reject them as unknown options (M16).
+   */
+  target?: "engine" | "view";
 }
 
 /** Registry entry: how the tool is listed, titled, charted, and explained. */

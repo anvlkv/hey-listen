@@ -102,6 +102,39 @@ fn get_state_reports_headless() {
 }
 
 #[test]
+fn set_tool_options_accepts_aliases_and_rejects_unknown_keys() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "set_tool_options",
+            json!({
+                "tool": "pitchYin",
+                "options": { "min_f0_hz": 50, "maxF0Hz": 4000 },
+            }),
+        )
+        .expect("aliases are accepted");
+    let state = session.dispatch("get_state", json!({})).unwrap();
+    assert_eq!(state["toolOptions"]["pitchYin"]["minF0Hz"], 50.0);
+    assert_eq!(state["toolOptions"]["pitchYin"]["maxF0Hz"], 4000.0);
+
+    let error = session
+        .dispatch(
+            "set_tool_options",
+            json!({ "tool": "pitchYin", "options": { "nope": 1 } }),
+        )
+        .unwrap_err();
+    assert!(error.contains("unknown option"), "{error}");
+
+    let error = session
+        .dispatch(
+            "set_tool_options",
+            json!({ "tool": "pitchYin", "options": { "minF0Hz": "low" } }),
+        )
+        .unwrap_err();
+    assert!(error.contains("must be a number"), "{error}");
+}
+
+#[test]
 fn run_analysis_without_a_source_fails() {
     let mut session = HeadlessSession::default();
     let err = session

@@ -44,8 +44,18 @@ const DEFAULT_N_MFCC: usize = 13;
 const DEFAULT_N_BANDS: usize = 6;
 const DEFAULT_ROLLOFF: f32 = 0.85;
 const DEFAULT_YIN_THRESHOLD: f32 = 0.12;
-const DEFAULT_MIN_F0: f32 = 60.0;
-const DEFAULT_MAX_F0: f32 = 1200.0;
+/// Autocorrelation's default f0 search range.
+const AUTOCORR_MIN_F0: f32 = 60.0;
+const AUTOCORR_MAX_F0: f32 = 1200.0;
+/// YIN's default range, matching `PitchTracker::default`.
+const YIN_MIN_F0: f32 = 50.0;
+const YIN_MAX_F0: f32 = 2_000.0;
+/// Harmonic-ratio's default: wide enough for calls above 2 kHz.
+const HARMONIC_MIN_F0: f32 = 50.0;
+const HARMONIC_MAX_F0: f32 = 4_000.0;
+/// The range `oxiaudio`'s pYIN detector hardcodes (reported as its effective range).
+const PYIN_MIN_F0: f32 = 50.0;
+const PYIN_MAX_F0: f32 = 2_000.0;
 /// Cap on frames for the O(frames × lags) pitch / harmonic-ratio tools, so a long
 /// window stays interactive (the hop widens to keep the frame count bounded).
 const MAX_PITCH_FRAMES: usize = 512;

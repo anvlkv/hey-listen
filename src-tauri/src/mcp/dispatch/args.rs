@@ -6,7 +6,7 @@
 
 use serde_json::Value;
 
-use crate::audio::analysis::{SharedParams, ToolOptions, WindowKind};
+use crate::audio::analysis::{canonical_option_key, SharedParams, ToolOptions, WindowKind};
 
 /// The default shared params, matching the frontend's initial store values
 /// (`src/state/analysis.ts`): 2048-point Hann, 75% overlap, no resample, full band.
@@ -79,18 +79,21 @@ pub(super) fn merge_params(params: &mut SharedParams, value: &Value) -> Result<(
     Ok(())
 }
 
-/// Merge per-tool option overrides into `entry`. Only numbers are applied (the GUI
-/// ignores non-numeric option values).
+/// Merge per-tool option overrides into `entry`. Keys are canonical camelCase,
+/// with their snake_case aliases accepted; a value must be a number and an unknown
+/// key is an error (never silent).
 pub(super) fn merge_options(
     entry: &mut ToolOptions,
     tool: &str,
     options: &serde_json::Map<String, Value>,
 ) -> Result<(), String> {
     for (key, value) in options {
-        let Some(number) = value.as_f64() else {
-            continue;
-        };
-        match key.as_str() {
+        let canonical =
+            canonical_option_key(key).ok_or_else(|| format!("unknown option for {tool}: {key}"))?;
+        let number = value
+            .as_f64()
+            .ok_or_else(|| format!("option {canonical} for {tool} must be a number"))?;
+        match canonical {
             "nMels" => entry.n_mels = Some(number as usize),
             "nMfcc" => entry.n_mfcc = Some(number as usize),
             "nBands" => entry.n_bands = Some(number as usize),

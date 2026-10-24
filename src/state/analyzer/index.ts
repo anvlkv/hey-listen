@@ -13,7 +13,16 @@ export { ANALYZERS, ANALYZER_SECTIONS } from "./defs";
 export { formatHz } from "./format";
 export { analyzerById, analyzersInSection, isAnalyzerId, matchesQuery } from "./lookup";
 export { latestResult } from "./results";
-export { resetToolOptions, setToolOption, setToolOptions, toolOptions } from "./options";
+export {
+  applyOptionPatch,
+  engineOptions,
+  loadToolOptions,
+  optionDefaults,
+  resetToolOptions,
+  setToolOption,
+  setToolOptions,
+  toolOptions,
+} from "./options";
 export { createAnalysis } from "./analysis";
 export type { AnalysisHandle } from "./analysis";
 export type {

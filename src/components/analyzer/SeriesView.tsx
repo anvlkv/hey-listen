@@ -77,6 +77,26 @@ function voicedShare(result: SeriesResult): number {
   return (result as Partial<PitchResult>).voicedFraction ?? coverage(result.values);
 }
 
+/** The f0 window the detector actually searched, or `null` for a non-pitch result. */
+function effectivePitchRange(result: SeriesResult): string | null {
+  const pitch = result as Partial<PitchResult>;
+  if (pitch.effectiveMinF0Hz == null || pitch.effectiveMaxF0Hz == null) return null;
+  return `${Math.round(pitch.effectiveMinF0Hz)}–${Math.round(pitch.effectiveMaxF0Hz)} Hz`;
+}
+
+/** Empty-state copy for a pitch chart: name the range that was actually searched. */
+function pitchEmptyHint(id: AnalyzerId, result: SeriesResult): string {
+  const range = effectivePitchRange(result) ?? "the detector's range";
+  const advice =
+    id === "pitchPyin"
+      ? "pYIN only searches that fixed window — use YIN or autocorrelation above 2 kHz."
+      : "Adjust Min f0 / Max f0 in the tool params to widen it.";
+  return (
+    "No voiced frames — the signal may be unpitched or polyphonic, or its fundamental " +
+    `may lie outside ${range}. ${advice}`
+  );
+}
+
 /**
  * Generic time-series view (M5): plots a tool's one-value-per-frame result against
  * time. The y-axis label / formatter and point style come from the tool's registry
@@ -132,6 +152,15 @@ export default function SeriesView(props: {
                 value={`${(voicedShare(r()) * 100).toFixed(0)}%`}
                 title="Share of analysed frames with a detected pitch"
               />
+              <Show when={effectivePitchRange(r())}>
+                {(range) => (
+                  <Readout
+                    label="f0 range"
+                    value={range()}
+                    title="The fundamental-frequency window the detector actually searched"
+                  />
+                )}
+              </Show>
             </Show>
           </div>
           <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
@@ -140,7 +169,7 @@ export default function SeriesView(props: {
               fallback={
                 <div class="analyzer-empty">
                   {isPitch(props.id)
-                    ? "No voiced frames — the signal may be unpitched or polyphonic, or its fundamental may lie outside the detector's range (pYIN/YIN: 50–2000 Hz). Adjust the f0 range or try another detector."
+                    ? pitchEmptyHint(props.id, r())
                     : "No values in this window — widen the analysis window or change the FFT size."}
                 </div>
               }

@@ -1,9 +1,8 @@
 # Analysis metrics: pitch range, envelope, note metrics, modulation
 
 Design for **M16–M20**, the analysis-depth track that closes the gaps found while
-driving the app through MCP on a bioacoustic session. **Status: planned — none of this
-is implemented yet.** The milestones are ordered so each one is a self-contained,
-testable unit:
+driving the app through MCP on a bioacoustic session. **M16 is delivered; M17–M20 are
+planned.** The milestones are ordered so each one is a self-contained, testable unit:
 
 | MCP-session item | Milestone | Delivered by |
 | --- | --- | --- |
@@ -73,7 +72,18 @@ These helpers keep the three new tools from re-implementing the same DSP:
 Caps: bound the number of frames (existing `MAX_*` style), the number of notes
 (proposed 2048), and the modulation bins (proposed 512) so an IPC result stays small.
 
-## M16 — Pitch range + analyzer option integrity (planned)
+## M16 — Pitch range + analyzer option integrity ✅
+
+> **Delivered.** YIN now takes `PitchTracker::with_range`; autocorrelation and harmonic
+> ratio already accepted the range and are now wired to per-tool defaults in the UI;
+> harmonic ratio defaults to 50–4000 Hz; `PitchResult` carries
+> `effectiveMinF0Hz`/`effectiveMaxF0Hz`; pYIN's fixed 50–2000 Hz window is reported (and
+> drawn as an f0-range readout, with the chart's empty state naming it); option keys are
+> canonical camelCase with snake_case aliases, unknown keys are rejected in the GUI MCP
+> path, headless, and the CLI, and `list_analyzers` carries compact keys/defaults. The
+> tests below all pass (`audio::analysis::tests::pitch`, `mcp::dispatch::tests`,
+> `cli::batch::tests`, and the frontend option checks in
+> `scripts/analyzerOptions.test.ts`). The design notes that follow are kept for context.
 
 **Problem.** `pitchYin` and `pitchPyin` call the oxiaudio detectors without an f0
 range (`tools/dispatch.rs`), while `pitchAutocorr` and `harmonicRatio` accept
@@ -293,7 +303,8 @@ voiced run returns no FM spectrum; alias clamping is honored.
 
 | Tool | Options (proposed defaults) |
 | --- | --- |
-| `pitchYin` | `minF0Hz` / `maxF0Hz` (tool default when absent), `yinThreshold` 0.12 |
+| `pitchYin` | `minF0Hz` 50, `maxF0Hz` 2000 (overridable), `yinThreshold` 0.12 |
+| `pitchAutocorr` | `minF0Hz` 60, `maxF0Hz` 1200 (overridable) |
 | `harmonicRatio` | `minF0Hz` 50, `maxF0Hz` 4000 (overridable) |
 | `frameRms` | `frameMs` 10, `hopMs` 5 |
 | `noteMetrics` | `frameMs` 10, `hopMs` 5, `gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20, `minGapMs` 30, `envelopePoints` 7, `minF0Hz` / `maxF0Hz` |

@@ -735,7 +735,7 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M16–M20 — Analysis depth I (planned)
+## M16–M20 — Analysis depth I (M16 done, M17–M20 planned)
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
 a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
@@ -744,7 +744,7 @@ M12/M13 and can be scheduled after them. Dependency order: **M16 → M17 → M18
 M20 needs M16 + M17 and can ship after M19. The design, result shapes, option defaults,
 and test plan live in [`analysis-metrics.md`](analysis-metrics.md).
 
-## M16 — Pitch range + analyzer option integrity (planned)
+## M16 — Pitch range + analyzer option integrity ✅
 
 Make an f0 range actually reach the pitch tools, and stop unknown option keys from
 silently doing nothing.
@@ -772,6 +772,16 @@ silently doing nothing.
 > catalog option metadata, effective-range reporting). M17–M20 each add their analyzer's
 > catalog entry, option metadata, `includeData` note, and CLI `-o` keys. **M21** owns the
 > cross-cutting summary / compact / annotation contract.
+
+> **Delivered:** per-tool `minF0Hz`/`maxF0Hz` reach YIN, autocorrelation, and harmonic
+> ratio (YIN via `PitchTracker::with_range`); harmonic-ratio defaults widened to
+> 50–4000 Hz; `PitchResult` reports `effectiveMinF0Hz`/`effectiveMaxF0Hz` (pYIN's fixed
+> 50–2000 Hz window is now visible in the chart and its empty-state copy); option keys are
+> canonical camelCase with snake_case aliases and **unknown keys fail** in the GUI MCP
+> path, the headless dispatcher, and the CLI; `list_analyzers` carries each tool's compact
+> option keys/defaults. Tests: 75 Hz and 3 kHz detection, harmonic ratio at 3 kHz, pYIN's
+> range, aliases, unknown-key rejection, and the spectral band not affecting a pitch
+> search.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M16.
 

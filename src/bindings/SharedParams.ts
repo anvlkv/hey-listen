@@ -29,6 +29,6 @@ channel: number | null,
  */
 resampleTo: number | null, 
 /**
- * Band limit for spectral/pitch tools, in Hz.
+ * Band limit for **spectral** tools, in Hz (pitch tools use their own f0 range).
  */
 freqMinHz: number, freqMaxHz: number, };

@@ -37,6 +37,15 @@ Per-tool params (not shared) stay in each tool's params popover and cross IPC in
 **min / max / mean** magnitude layers, mel band count, MFCC coefficient count,
 chroma bins, onset threshold, etc.
 
+**Option integrity (M16).** Engine options use canonical **camelCase** keys
+(`nMels`, `yinThreshold`, `minF0Hz`, `maxF0Hz`, …); the snake_case aliases
+(`n_mels`, `min_f0_hz`, …) are accepted at the MCP / CLI boundary. An unknown key is
+**an error** on every path — GUI MCP, headless MCP, and `hey-listen analyze -o` — rather
+than being silently ignored. Chart-display toggles (the spectrum layers, dB scale,
+contour overlays) are marked `target: "view"` in the registry and never cross IPC.
+`list_analyzers` reports each tool's compact option keys and defaults; the full
+label/min/max/help metadata is stored in the Rust catalog for M21's `get_analyzer`.
+
 ## Tool inventory (oxiaudio)
 
 **Time domain**
@@ -137,6 +146,14 @@ across tabs (`state/chartSync.ts`). The **spectrum** tool returns per-bin
 **min / max / mean** magnitudes and exposes each as a toggleable layer. The shared
 params now live in the app **Toolbar** (an “Analysis params” popover); a tool's own
 params popover holds only its non-shared options.
+
+**Pitch ranges (M16).** The three pitch tools expose an f0 range as a per-tool option:
+YIN and autocorrelation honour `minF0Hz`/`maxF0Hz` directly, and harmonic ratio does
+too. pYIN cannot — `oxiaudio 0.2.1` hardcodes it to **50–2000 Hz** — so its result
+reports the effective window instead of pretending a wider request took effect. Every
+pitch result carries `effectiveMinF0Hz`/`effectiveMaxF0Hz`, drawn as an **f0 range**
+readout on the chart and named in its empty-state copy. Use YIN or autocorrelation
+above 2 kHz.
 
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the

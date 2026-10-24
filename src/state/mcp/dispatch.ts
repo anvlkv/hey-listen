@@ -7,7 +7,15 @@ import {
   stop as stopPreviewAudio,
 } from "../../audio/preview";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
-import { ANALYZERS, isAnalyzerId, setToolOption, toolOptions, type AnalyzerId } from "../analyzer";
+import {
+  ANALYZERS,
+  applyOptionPatch,
+  isAnalyzerId,
+  optionDefaults,
+  setToolOption,
+  toolOptions,
+  type AnalyzerId,
+} from "../analyzer";
 import {
   applyGain,
   recording,
@@ -98,6 +106,7 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
         description: def.description,
         section: def.section,
         keywords: def.keywords,
+        options: optionDefaults(def.id),
       }));
 
     // --- source -------------------------------------------------------------
@@ -127,9 +136,8 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
       return { params: sharedParams() };
     case "set_tool_options": {
       const id = analyzerId(args);
-      for (const [key, value] of Object.entries(asArgs(args.options))) {
-        if (typeof value === "number") setToolOption(id, key, value);
-      }
+      const patch = applyOptionPatch(id, asArgs(args.options));
+      for (const [key, value] of Object.entries(patch)) setToolOption(id, key, value);
       return { tool: id, options: deepClone(toolOptions[id]) };
     }
 

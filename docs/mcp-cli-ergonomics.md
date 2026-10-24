@@ -5,8 +5,9 @@ analyzer call through MCP and the batch CLI **compact by default, semantically
 summarized, and discoverable**, and it annotates the MCP tool catalog so an agent can
 choose and call tools without guessing.
 
-**Status: planned — none of this is implemented yet.** It depends on M16's per-tool
-option metadata and can land before or after M17–M20. Landing it before the analyzers is
+**Status: M16 (the option metadata / canonical-key half) is delivered; the rest of M21 is
+planned.** It depends on M16's per-tool option metadata and can land before or after
+M17–M20. Landing it before the analyzers is
 fine: M21 covers the existing result variants, and each new analyzer adds its summary arm
 when it lands. The analyzer milestones own their tool-specific catalog entries; M21 owns
 the shared contract.
@@ -187,11 +188,13 @@ tagged union.
 
 ### Descriptions and metadata
 
-- `run_analysis`: describe the summary/compact/full modes (`summaryOnly`, default
-  compact, `includeData`), camelCase option keys, and point to `list_analyzers` /
-  `get_analyzer`.
-- `set_tool_options`: canonical camelCase keys, with a pointer to `get_analyzer`.
-- `list_analyzers`: keep the compact list; include the option keys/defaults (M16).
+- `run_analysis`: M16 corrected the option-key copy (canonical camelCase, snake_case
+  aliases, unknown keys fail) and pointed it at `list_analyzers`; M21 adds the
+  summary/compact/full modes (`summaryOnly`, default compact, `includeData`).
+- `set_tool_options`: M16 made the description canonical (camelCase + aliases, unknown
+  keys fail) and pointed it at `list_analyzers`; M21 points it at `get_analyzer`.
+- `list_analyzers`: **done in M16** — the compact list now carries each tool's option
+  keys and defaults.
 - **New `get_analyzer { id }`**: one analyzer's `id`, `title`, `description`, `about`,
   `section`, `keywords`, `options` (key/label/default/min/max/step/unit/help), and the
   summary item keys it produces. The GUI uses the frontend registry's full `about` copy;

@@ -13,7 +13,10 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "unvoiced moments are left blank.\n\n" +
       "**Why use it.** The most reliable of the three pitch tools and a good default " +
       "for monophonic melody or speech. Smoothing keeps it steadier and less prone " +
-      "to octave jumps than plain YIN.",
+      "to octave jumps than plain YIN.\n\n" +
+      "**Range.** pYIN searches a fixed **50–2000 Hz** window. Above 2 kHz use " +
+      "*Pitch (YIN)* or *Pitch (autocorrelation)*, whose f0 range you can set in " +
+      "their tool params.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
@@ -26,12 +29,36 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "**What it shows.** A pitch estimate for every moment, with no smoothing " +
       "between frames.\n\n" +
       "**Why use it.** Faster than pYIN and often similar on clean material, but it " +
-      "can jump an octave. Adjust the threshold below to trade sensitivity for " +
-      "stability.",
+      "can jump an octave. Adjust the f0 range and threshold below to trade " +
+      "sensitivity for stability; this detector is not limited to 2 kHz.",
     keywords: ["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
     params: [
+      {
+        key: "minF0Hz",
+        label: "Min f0",
+        kind: "number",
+        value: 50,
+        min: 20,
+        max: 5000,
+        step: 5,
+        suffix: "Hz",
+        title:
+          "Lowest expected fundamental — the bottom of the YIN search range. Lower it for deep voices or animal calls.",
+      },
+      {
+        key: "maxF0Hz",
+        label: "Max f0",
+        kind: "number",
+        value: 2000,
+        min: 40,
+        max: 8000,
+        step: 50,
+        suffix: "Hz",
+        title:
+          "Highest expected fundamental — YIN can search above 2 kHz, unlike pYIN. Raise it for high calls or harmonics.",
+      },
       {
         key: "yinThreshold",
         label: "YIN threshold",
