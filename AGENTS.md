@@ -16,8 +16,9 @@ save source + setup + results to a binary project file.
 
 1. **Read the plan first.** Start with `docs/roadmap.md` and the doc for the area
    you're touching (`architecture.md`, `ui-layout.md`, `source-model.md`,
-   `data-model.md`, `project-file-format.md`, `analysis-tools.md`). `docs/` is the
-   source of truth for design; keep it in sync when decisions change.
+   `data-model.md`, `project-file-format.md`, `analysis-tools.md`,
+   `analysis-metrics.md`, `mcp-cli-ergonomics.md`). `docs/` is the source of truth for
+   design; keep it in sync when decisions change.
 
 2. **Deliver one milestone at a time.** The roadmap is implemented incrementally.
    Do not jump ahead or build unplanned features. Treat each milestone as a
@@ -94,6 +95,6 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11, M14 and M15 are done; M12/M13 are planned).
-Deliver strictly one milestone at a time; confirm current status from that file before
-starting.
+`docs/roadmap.md` tracks progress (M11, M14 and M15 are done; M12/M13, the M16–M20
+analysis-depth track, and M21 MCP/CLI ergonomics are planned). Deliver strictly one
+milestone at a time; confirm current status from that file before starting.

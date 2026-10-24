@@ -30,7 +30,7 @@ uses it. Each `run_analysis` call carries them.
 | Window function | spectral, pitch | Hann / Hamming / Blackman / rectangular |
 | Channel selection | all tools | downmix (mono) / Left / Right / Channel N (0-based) |
 | Analysis sample rate | all tools | optional resample before analysis |
-| Frequency range (min/max Hz) | spectral, pitch | band-limit before spectral/pitch |
+| Frequency range (min/max Hz) | spectral | band-limit the STFT / mel tools; pitch tools have their own `minF0Hz` / `maxF0Hz` range |
 
 Per-tool params (not shared) stay in each tool's params popover and cross IPC in a
 `ToolOptions` object alongside the shared params: the spectrum/spectrogram's
@@ -115,6 +115,15 @@ A **template** is a named, source-less preset — the shared params, per-tool op
 open tools, filter / synth graphs, optional Workbench layout, and a **window policy** —
 that can be applied to any source so the same analysis setup is reused across different
 audio (the window moves to fit the new source). See [`templates.md`](templates.md).
+
+## Planned analysis depth (M16–M20)
+
+The pitch-range fix, frame-RMS envelope, note metrics, voice-quality proxies, and
+AM/FM modulation spectra are planned as M16–M20. See
+[`analysis-metrics.md`](analysis-metrics.md) for the designs, result shapes, option
+defaults, and test plan. **M21** adds the shared MCP/CLI contract — per-result summaries,
+compact previews, tool annotations, and analyzer discovery — see
+[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 ## Implementation status
 

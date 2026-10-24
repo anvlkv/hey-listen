@@ -119,11 +119,12 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | Tool | Purpose |
 | --- | --- |
 | `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, and the **notes** + focused note id. |
-| `list_analyzers` | The analyzer catalog (id/title/description/section/keywords). |
+| `list_analyzers` | The compact analyzer catalog (id/title/description/section/keywords), plus the per-tool option keys/defaults from M16. |
+| `get_analyzer` | One analyzer's metadata — `about` copy (GUI) / short description (headless), option metadata, and summary keys. **(M21, planned)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
-| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options`; `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. |
+| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options`; `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. **(M21, planned)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -268,6 +269,29 @@ frames (a near-empty track) is self-evident rather than looking like a normal su
 Ifrit clip while YIN and autocorrelation tracked normally. The detector itself lives in
 the external `oxiaudio` crate, so it cannot be fixed from here; the voiced-frame summary
 at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](roadmap.md).
+
+## M21 — MCP/CLI analysis ergonomics (planned)
+
+A cross-cutting follow-up that standardizes the compact/annotated contract for every
+analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
+
+- **Summary in the envelope.** `run_analysis` returns `{ window, params, options,
+  summary, result }`; `summary` is a stable `text` line plus labelled, unit-bearing items
+  computed from the full result. It is present in compact and `includeData` modes, and
+  `summaryOnly: true` returns just the summary (the MCP counterpart of `--summary`).
+- **Structurally compact results.** Matrices and spectrograms keep dimensions and peak
+  time/freq/level; event and note arrays get a bounded preview instead of `{ length }`;
+  raw arrays still require `includeData: true` (with `maxPoints` to decimate). One Rust
+  shaper serves the GUI MCP path, headless, and CLI: the GUI `run_analysis` command takes
+  `shape: full | compact | summary` and `maxPoints`, and the analyzer tabs request
+  `full`.
+- **Annotated tools.** Every tool gains a `title` and MCP `annotations`
+  (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`); `run_analysis`
+  and `set_tool_options` descriptions point at `get_analyzer` / `list_analyzers` for
+  canonical option keys.
+- **Discovery.** `get_analyzer` returns the about copy, option metadata, and summary
+  keys; headless `get_state` reports per-tool defaults. The CLI mirrors this with
+  `analyzers <ID>` and gains `analyze --summary`.
 
 ## Limitations / deferred
 
