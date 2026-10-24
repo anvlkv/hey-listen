@@ -735,7 +735,7 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M16–M20 — Analysis depth (planned)
+## M16–M20 — Analysis depth I (planned)
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
 a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
