@@ -4,6 +4,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { listenThisWindow } from "../../lib/windowEvents";
 import { createEffect, createRoot, on } from "solid-js";
 import { PeakAccumulator } from "../../lib/waveform";
+import { METER_FLOOR_LINEAR } from "../../lib/format";
 import type { CaptureInfo } from "../../bindings/CaptureInfo";
 import type { CaptureEvent } from "../../bindings/CaptureEvent";
 import { channel, channelFor } from "../analysis";
@@ -114,6 +115,16 @@ function chunkPeak(data: Float32Array): number {
   return peak;
 }
 
+/**
+ * One peak-hold release step. Snap to silence once the decay falls below the meter
+ * floor: otherwise the level keeps shrinking (and the dB readout keeps falling)
+ * through a quiet passage instead of reaching zero.
+ */
+function releaseLevel(previous: number, peak: number): number {
+  const next = Math.max(peak, previous * 0.6);
+  return next < METER_FLOOR_LINEAR ? 0 : next;
+}
+
 function handleChunk(data: Float32Array) {
   if (!session) {
     pendingChunks.push(data);
@@ -124,7 +135,7 @@ function handleChunk(data: Float32Array) {
 
 function appendChunk(target: Session, data: Float32Array) {
   // The meter always follows the live input, whether or not we are recording.
-  setLevel((previous) => Math.max(chunkPeak(data), previous * 0.6));
+  setLevel((previous) => releaseLevel(previous, chunkPeak(data)));
   if (!recording()) return;
 
   const frames = Math.floor(data.length / target.channels);
