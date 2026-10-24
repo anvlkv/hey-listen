@@ -107,6 +107,12 @@ pub(super) fn merge_options(
             "fMaxHz" => entry.f_max_hz = Some(number as f32),
             "frameMs" => entry.frame_ms = Some(number as f32),
             "hopMs" => entry.hop_ms = Some(number as f32),
+            "gateDb" => entry.gate_db = Some(number as f32),
+            "gateFloorDb" => entry.gate_floor_db = Some(number as f32),
+            "hysteresisDb" => entry.hysteresis_db = Some(number as f32),
+            "minNoteMs" => entry.min_note_ms = Some(number as f32),
+            "minGapMs" => entry.min_gap_ms = Some(number as f32),
+            "envelopePoints" => entry.envelope_points = Some(number as usize),
             other => return Err(format!("unknown option for {tool}: {other}")),
         }
     }

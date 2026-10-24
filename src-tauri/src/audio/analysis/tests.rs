@@ -26,6 +26,7 @@ fn params(fft_size: usize) -> SharedParams {
 }
 
 mod frame_rms;
+mod note_metrics;
 mod pitch;
 
 #[test]

@@ -208,6 +208,67 @@ pub struct LraResult {
     pub lra: f32,
 }
 
+/// One detected audio **note** (a segment above the gate) with its level summary.
+///
+/// A note here is an acoustic event found by `noteMetrics` — distinct from a project
+/// **annotation** (the M14 `Note` payload, user-authored commentary).
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NoteMetric {
+    pub start_secs: f32,
+    pub end_secs: f32,
+    pub duration_secs: f32,
+    /// Silence between the previous note and this one (leading silence for the first).
+    pub gap_before_secs: f32,
+    /// Silence between this note and the next one (trailing silence for the last).
+    pub gap_after_secs: f32,
+    pub rms_db: f32,
+    pub peak_db: f32,
+    /// `rms_db` relative to the reference (loudest) note — 0 for the reference.
+    pub rms_db_rel_loudest: f32,
+    /// `peak_db` relative to the reference (loudest) note.
+    pub peak_db_rel_loudest: f32,
+    /// Frame-RMS envelope at `NoteMetricsResult::envelope_positions` (dBFS).
+    pub envelope_db: Vec<f32>,
+}
+
+/// A silence **gap** between two detected notes. Leading/trailing silence is not
+/// listed here (it is reflected in the first / last note's gap fields).
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct GapMetric {
+    pub start_secs: f32,
+    pub end_secs: f32,
+    pub duration_secs: f32,
+}
+
+/// Note segmentation over the window: the detected notes, the gaps between them, and
+/// the summary an agent needs without reading every record (M18).
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NoteMetricsResult {
+    /// Source seconds where the window starts (all `*_secs` values are source seconds).
+    pub window_start: f64,
+    pub note_count: usize,
+    pub gap_count: usize,
+    /// Sum of the gaps **between** notes (leading/trailing silence excluded).
+    pub total_gap_secs: f32,
+    pub longest_gap_secs: f32,
+    pub median_note_secs: f32,
+    pub median_gap_secs: f32,
+    /// The gate actually used: `max(gateFloorDb, windowPeakDb − gateDb)`.
+    pub threshold_db: f32,
+    /// Normalized positions (0…1) of each note's `envelope_db` samples.
+    pub envelope_positions: Vec<f32>,
+    /// Index of the loudest note (the level reference), if any.
+    pub reference_note_index: Option<usize>,
+    pub notes: Vec<NoteMetric>,
+    pub gaps: Vec<GapMetric>,
+}
+
 /// A tool's result, tagged by the tool id that produced it.
 #[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(tag = "tool", rename_all = "camelCase")]
@@ -234,6 +295,7 @@ pub enum AnalysisResult {
     PitchPyin(PitchResult),
     PitchYin(PitchResult),
     PitchAutocorr(PitchResult),
+    NoteMetrics(NoteMetricsResult),
     Tempo(RhythmResult),
     Onsets(RhythmResult),
     Downbeats(RhythmResult),
@@ -283,6 +345,17 @@ impl AnalysisResult {
             | AnalysisResult::PitchAutocorr(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
+            }
+            AnalysisResult::NoteMetrics(result) => {
+                result.window_start = start;
+                for note in &mut result.notes {
+                    note.start_secs += shift;
+                    note.end_secs += shift;
+                }
+                for gap in &mut result.gaps {
+                    gap.start_secs += shift;
+                    gap.end_secs += shift;
+                }
             }
             AnalysisResult::Tempo(result)
             | AnalysisResult::Onsets(result)

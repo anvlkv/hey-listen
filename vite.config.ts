@@ -41,6 +41,7 @@ export default defineConfig(() => ({
           groups: [
             { name: "dockview", test: /node_modules[\\/]dockview/ },
             { name: "kobalte", test: /node_modules[\\/]@kobalte/ },
+            { name: "uplot", test: /node_modules[\\/](@dschz[\\/]solid-uplot|uplot)/ },
           ],
         },
       },

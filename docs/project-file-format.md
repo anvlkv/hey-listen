@@ -31,13 +31,15 @@ streaming for very large audio.
 | 0x04 | `SETUP` | postcard | `AnalysisSetup` (tools, configs, shared params) |
 | 0x05 | `LAYOUT` | serde_json | dockview JSON + solid-flow node positions |
 | 0x06 | `RESULTS` | postcard | cached `AnalysisResult` list |
-| 0x07 | `NOTES` | postcard | the project's notes (`Note` list: anchor time + optional range, tool, markdown body, frozen values) |
+| 0x07 | `NOTES` | postcard | the project's annotations (`Note` list: anchor time + optional range, tool, markdown body, frozen values) |
 
 ## Notes (M14)
 
-The `NOTES` section (id `0x07`) carries the project's annotations as a `postcard`
+The `NOTES` section (id `0x07`) carries the project's **annotations** as a `postcard`
 `Vec<Note>` — the same `Note` / `NoteValues` types the frontend and the MCP surface use
-(see [`notes.md`](notes.md)). It is written from the frontend's notes store through
+(see [`notes.md`](notes.md)). (The section and type keep the historical `notes` name;
+the UI labels the feature **Annotations** to distinguish it from M18's detected note
+segments.) It is written from the frontend's notes store through
 `save_project` and returned by `load_project`, exactly like `SETUP`. Because the header
 version governs the section set and readers skip unknown ids, a `NOTES` section is
 **forward-compatible**: an older build opens the project and simply ignores it, and a

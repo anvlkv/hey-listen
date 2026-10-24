@@ -796,7 +796,7 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M16–M20 — Analysis depth I (M16–M17 done, M18–M20 planned)
+## M16–M20 — Analysis depth I (M16–M18 done, M19–M20 planned)
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
 a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
@@ -872,7 +872,7 @@ A plain amplitude envelope, independent of LUFS.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M17.
 
-## M18 — Note segmentation, gaps, and per-note level (planned)
+## M18 — Note segmentation, gaps, and per-note level ✅
 
 Explicit notes, ends, gaps, counts, and levels.
 
@@ -888,6 +888,19 @@ Explicit notes, ends, gaps, counts, and levels.
   the summary counts so an agent knows what to request.
 - **Tests.** Tone → gap → tone (2 notes, 1 gap), continuous tone (1 note, 0 gaps), short
   gap merge, relative levels, silent input.
+
+> **Delivered:** `noteMetrics` (Pitch / melody) returns the note records, explicit gaps,
+> the summary counts/medians, the gate used, and a 7-point normalized envelope per note.
+> The **Note segments** view renders summary cards over a scrollable per-note table; the
+> catalog entry and option metadata make it available in the GUI, headless MCP, and
+> `hey-listen analyze`, and times are re-based onto source seconds like every result.
+> Tests: `audio::analysis::tests::note_metrics`, the catalog default checks, and the
+> headless option/result flow.
+>
+> **Terminology:** these are **detected audio notes**, distinct from the project's
+> user-authored **annotations** (M14, stored as `Note`). The right rail is now labelled
+> **Annotations** in the UI; the data model and MCP/CLI names are unchanged for
+> compatibility. See [`notes.md`](notes.md) → Terminology.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M18.
 

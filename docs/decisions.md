@@ -531,3 +531,30 @@ always one deliberate click. Costs: one more icon in the row, and "where is this
 is answered by Analyze rather than by the click itself. See [`notes.md`](notes.md).
 
 **Status: delivered (M14 follow-up).**
+
+## ADR-20 — Annotations and detected notes are distinct terms
+
+**Context:** M14 introduced user-authored **notes** (markdown anchored to a time and a
+chart). M18 adds **note segmentation**, whose result is a list of detected audio notes.
+Calling both "notes" makes the UI rail and the analyzer table ambiguous, and the M14
+docs already used "annotation" as a synonym for the commentary payload.
+
+**Decision:** reserve the terms by origin:
+
+- **Annotation** — what the user writes (M14). The UI labels the right rail
+  **Annotations**, the add action **Add annotation here**, and the row/window copy says
+  annotation.
+- **Note / note segment** — what the engine detects (M18, `noteMetrics`). The analyzer is
+  titled **Note segments** and its table is *detected notes*.
+
+**Compatibility:** the `Note` type, the frontend `notes` store, the project file's
+`NOTES` section, and the MCP/CLI `*_note` / `notes` names stay unchanged. Renaming them
+would break the project format and the public agent surface for a display-only gain; the
+glossary in [`notes.md`](notes.md) → Terminology maps the historical names to
+**annotation**.
+
+**Consequence:** every user-facing surface can say the precise thing without a schema,
+file-format, or MCP-tool break. The cost is that code names (`Note`, `notes`) are still
+the M14 spelling — documented at the type, store, and tool catalog.
+
+**Status: delivered (M18).**

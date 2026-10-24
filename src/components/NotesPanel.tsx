@@ -33,21 +33,26 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
   return (
     <aside class="app-notes" data-testid="region.notes" style={props.style}>
       <div class="notes-header">
-        <span class="notes-title">Notes</span>
+        <span class="notes-title">Annotations</span>
         <span class="notes-count" data-testid="notes.count">
           {notesSorted().length}
         </span>
         <div class="notes-header-actions">
-          <Tooltip label="Add a note at the analysis window">
-            <Button class="note-icon" data-testid="notes.add" aria-label="Add note" onClick={add}>
+          <Tooltip label="Add an annotation at the analysis window">
+            <Button
+              class="note-icon"
+              data-testid="notes.add"
+              aria-label="Add annotation"
+              onClick={add}
+            >
               <Icon name="plus" />
             </Button>
           </Tooltip>
-          <Tooltip label="Collapse the notes panel">
+          <Tooltip label="Collapse the annotations panel">
             <Button
               class="note-icon"
               data-testid="notes.collapse"
-              aria-label="Collapse the notes panel"
+              aria-label="Collapse the annotations panel"
               onClick={() => setNotesPanelOpen(false)}
             >
               <Icon name="angle-right" />
@@ -61,9 +66,9 @@ export default function NotesPanel(props: { style?: JSX.CSSProperties }) {
           when={notesSorted().length > 0}
           fallback={
             <div class="notes-empty" data-testid="notes.empty">
-              No notes yet. Add one with <strong>+</strong> at the analysis window, drag a span in
-              the Timeline's note lane to mark a range, or right-click a chart and choose “Add note
-              here”.
+              No annotations yet. Add one with <strong>+</strong> at the analysis window, drag a
+              span in the Timeline's annotation lane to mark a range, or right-click a chart and
+              choose “Add annotation here”.
             </div>
           }
         >

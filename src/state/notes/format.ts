@@ -12,6 +12,7 @@ import type {
   LufsResult,
   MatrixResult,
   MatrixView as MatrixViewConfig,
+  NoteMetricsResult,
   RhythmResult,
   SeriesResult,
   SeriesView as SeriesViewConfig,
@@ -97,6 +98,19 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
       return strength == null
         ? `t ${t} s · no onset`
         : `t ${t} s · onset strength ${strength.toFixed(4)}`;
+    }
+    case "noteMetrics": {
+      const r = result as NoteMetricsResult;
+      const noteIndex = r.notes.findIndex(
+        (note) => timeSecs >= note.startSecs && timeSecs <= note.endSecs,
+      );
+      if (noteIndex >= 0) {
+        const note = r.notes[noteIndex];
+        return `t ${t} s · note ${noteIndex + 1}/${r.noteCount} · RMS ${note.rmsDb.toFixed(1)} dBFS`;
+      }
+      const gap = r.gaps.find((span) => timeSecs >= span.startSecs && timeSecs <= span.endSecs);
+      if (gap) return `t ${t} s · gap ${(gap.durationSecs * 1000).toFixed(0)} ms`;
+      return `t ${t} s · no note`;
     }
     default:
       break;

@@ -6,9 +6,11 @@ use oxiaudio::dsp::spectral::WindowFn;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DEFAULT_BAR_LENGTH, DEFAULT_FRAME_MS, DEFAULT_HOP_MS,
-    DEFAULT_N_BANDS, DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD,
-    HARMONIC_MAX_F0, HARMONIC_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
+    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DB_FLOOR, DEFAULT_BAR_LENGTH, DEFAULT_ENVELOPE_POINTS,
+    DEFAULT_FRAME_MS, DEFAULT_GATE_DB, DEFAULT_GATE_FLOOR_DB, DEFAULT_HOP_MS,
+    DEFAULT_HYSTERESIS_DB, DEFAULT_MIN_GAP_MS, DEFAULT_MIN_NOTE_MS, DEFAULT_N_BANDS,
+    DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_ROLLOFF, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0,
+    HARMONIC_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
 };
 
 /// A window function for frame-based tools (`docs/analysis-tools.md`).
@@ -133,6 +135,12 @@ pub struct ToolOptions {
     pub f_max_hz: Option<f32>,
     pub frame_ms: Option<f32>,
     pub hop_ms: Option<f32>,
+    pub gate_db: Option<f32>,
+    pub gate_floor_db: Option<f32>,
+    pub hysteresis_db: Option<f32>,
+    pub min_note_ms: Option<f32>,
+    pub min_gap_ms: Option<f32>,
+    pub envelope_points: Option<usize>,
 }
 
 /// The wire form of [`ToolOptions`]. It lives apart from the exported type because
@@ -167,6 +175,18 @@ struct ToolOptionsWire {
     frame_ms: Option<f32>,
     #[serde(default, alias = "hop_ms")]
     hop_ms: Option<f32>,
+    #[serde(default, alias = "gate_db")]
+    gate_db: Option<f32>,
+    #[serde(default, alias = "gate_floor_db")]
+    gate_floor_db: Option<f32>,
+    #[serde(default, alias = "hysteresis_db")]
+    hysteresis_db: Option<f32>,
+    #[serde(default, alias = "min_note_ms")]
+    min_note_ms: Option<f32>,
+    #[serde(default, alias = "min_gap_ms")]
+    min_gap_ms: Option<f32>,
+    #[serde(default, alias = "envelope_points")]
+    envelope_points: Option<usize>,
 }
 
 impl From<ToolOptionsWire> for ToolOptions {
@@ -185,6 +205,12 @@ impl From<ToolOptionsWire> for ToolOptions {
             f_max_hz: wire.f_max_hz,
             frame_ms: wire.frame_ms,
             hop_ms: wire.hop_ms,
+            gate_db: wire.gate_db,
+            gate_floor_db: wire.gate_floor_db,
+            hysteresis_db: wire.hysteresis_db,
+            min_note_ms: wire.min_note_ms,
+            min_gap_ms: wire.min_gap_ms,
+            envelope_points: wire.envelope_points,
         }
     }
 }
@@ -216,6 +242,12 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "fMaxHz" | "f_max_hz" => "fMaxHz",
         "frameMs" | "frame_ms" => "frameMs",
         "hopMs" | "hop_ms" => "hopMs",
+        "gateDb" | "gate_db" => "gateDb",
+        "gateFloorDb" | "gate_floor_db" => "gateFloorDb",
+        "hysteresisDb" | "hysteresis_db" => "hysteresisDb",
+        "minNoteMs" | "min_note_ms" => "minNoteMs",
+        "minGapMs" | "min_gap_ms" => "minGapMs",
+        "envelopePoints" | "envelope_points" => "envelopePoints",
         _ => return None,
     })
 }
@@ -303,5 +335,52 @@ impl ToolOptions {
             .filter(|value| value.is_finite() && *value > 0.0)
             .unwrap_or(DEFAULT_HOP_MS)
             .clamp(0.05, 1_000.0)
+    }
+
+    /// How far below the window peak the note gate sits (M18).
+    pub(super) fn gate_db(&self) -> f32 {
+        self.gate_db
+            .filter(|value| value.is_finite())
+            .unwrap_or(DEFAULT_GATE_DB)
+            .clamp(0.0, 120.0)
+    }
+
+    /// The absolute note-gate floor in dBFS (M18).
+    pub(super) fn gate_floor_db(&self) -> f32 {
+        self.gate_floor_db
+            .filter(|value| value.is_finite())
+            .unwrap_or(DEFAULT_GATE_FLOOR_DB)
+            .clamp(DB_FLOOR, 0.0)
+    }
+
+    /// Hysteresis below the gate (M18): a note ends `hysteresisDb` under the threshold.
+    pub(super) fn hysteresis_db(&self) -> f32 {
+        self.hysteresis_db
+            .filter(|value| value.is_finite())
+            .unwrap_or(DEFAULT_HYSTERESIS_DB)
+            .clamp(0.0, 24.0)
+    }
+
+    /// The shortest note kept, in ms (M18).
+    pub(super) fn min_note_ms(&self) -> f32 {
+        self.min_note_ms
+            .filter(|value| value.is_finite() && *value >= 0.0)
+            .unwrap_or(DEFAULT_MIN_NOTE_MS)
+            .clamp(0.0, 10_000.0)
+    }
+
+    /// Gaps shorter than this are merged into one note (M18).
+    pub(super) fn min_gap_ms(&self) -> f32 {
+        self.min_gap_ms
+            .filter(|value| value.is_finite() && *value >= 0.0)
+            .unwrap_or(DEFAULT_MIN_GAP_MS)
+            .clamp(0.0, 10_000.0)
+    }
+
+    /// Normalized envelope points per note (M18).
+    pub(super) fn envelope_points(&self) -> usize {
+        self.envelope_points
+            .unwrap_or(DEFAULT_ENVELOPE_POINTS)
+            .clamp(3, 16)
     }
 }

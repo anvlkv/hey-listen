@@ -46,12 +46,16 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   filter / synth `GraphSpec`s + an optional layout + a **window / view policy**
   (`fractional` / `absolute` / `full` / `fixedLength`). Stored as JSON
   (`.heyltemplate`), not the binary project container.
-- **Note** — an annotation on the project: an audio **time** anchor (`timeSecs`) with an
-  optional `range`, an optional **analyzer tool id** it was taken from (absent = a
-  Timeline note), a markdown `body`, and a **frozen** `values` snapshot (the chart's
-  readout at that time, with its `window` / `params` / `options` provenance). The
-  note's heading is the **first line of the body**; the model's optional `title` field
-  is retained but no longer set or shown. Stored in the project file's `NOTES` section.
+- **Annotation** (stored as `Note`) — user-authored commentary on the project: an audio
+  **time** anchor (`timeSecs`) with an optional `range`, an optional **analyzer tool id**
+  it was taken from (absent = a Timeline annotation), a markdown `body`, and a **frozen**
+  `values` snapshot (the chart's readout at that time, with its `window` / `params` /
+  `options` provenance). The annotation's heading is the **first line of the body**; the
+  model's optional `title` field is retained but no longer set or shown. Stored in the
+  project file's `NOTES` section. See [`notes.md`](notes.md) → Terminology.
+- **Note segment** (not persisted) — a detected run of audio above an amplitude gate,
+  returned by the `noteMetrics` analyzer: start/end, duration, the gaps around it, RMS /
+  peak level, and a normalized envelope. It is analysis output, not project content.
 
 > **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md))
 > and `Note` in M14 (see [`notes.md`](notes.md)); `AnalysisTemplate` (M13) and the
@@ -122,8 +126,8 @@ struct Project {
     // SourceData is stored separately in the binary file's DATA section
 }
 
-// An annotation (M14): a time anchor (+ optional span) tied to an analyzer chart, with
-// a markdown body and a frozen snapshot of that chart's values at the note's time.
+// An annotation (M14; stored as `Note`): a time anchor (+ optional span) tied to an
+// analyzer chart, with a markdown body and a frozen snapshot of that chart's values.
 struct Note {
     id: String,                      // stable id (uuid)
     created_ms: u64,

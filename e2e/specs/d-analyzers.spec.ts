@@ -51,10 +51,15 @@ describe("D. Analyzer tools — smoke (every tool)", () => {
       try {
         // `tempo` is labelled "readouts" in the matrix, but the registry renders it
         // through the rhythm view (a canvas + a readout row), so treat it as a chart.
-        const isCardReadouts = tool.view === "readouts" && tool.id !== "tempo";
+        // `noteMetrics` is a card + table view with no canvas either.
+        const isCardReadouts =
+          tool.view === "noteMetrics" || (tool.view === "readouts" && tool.id !== "tempo");
         if (isCardReadouts) {
           await waitForReadouts(tool.id);
           expect(await $$(`${panel} .readout-card-value`).length).toBeGreaterThan(0);
+          if (tool.view === "noteMetrics") {
+            expect(await $$(`${panel} .note-metrics-table tbody tr`).length).toBeGreaterThan(0);
+          }
         } else {
           await waitForAnalyzer(tool.id);
           expect(await canvasHasInk(`${panel} canvas`)).toBe(true);

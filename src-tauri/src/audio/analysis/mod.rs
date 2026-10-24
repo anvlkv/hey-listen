@@ -69,6 +69,19 @@ const DEFAULT_BAR_LENGTH: usize = 4;
 const DEFAULT_FRAME_MS: f32 = 10.0;
 const DEFAULT_HOP_MS: f32 = 5.0;
 
+// Note-segmentation defaults (M18).
+/// Gate this far below the window's loudest frame.
+const DEFAULT_GATE_DB: f32 = 35.0;
+/// Absolute gate floor in dBFS.
+const DEFAULT_GATE_FLOOR_DB: f32 = -60.0;
+/// A note ends this far below the gate (after opening at the gate).
+const DEFAULT_HYSTERESIS_DB: f32 = 3.0;
+const DEFAULT_MIN_NOTE_MS: f32 = 20.0;
+const DEFAULT_MIN_GAP_MS: f32 = 30.0;
+const DEFAULT_ENVELOPE_POINTS: usize = 7;
+/// Cap on the notes a single `noteMetrics` call returns (IPC size bound).
+const MAX_NOTES: usize = 2_048;
+
 // --- signal conditioning -------------------------------------------------
 
 /// Run a tool over `start..end` of a project's source, synchronously.

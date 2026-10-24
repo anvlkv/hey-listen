@@ -15,7 +15,7 @@ import {
 import type { NoteValues } from "../src/bindings/NoteValues";
 // The *app's* result types, not the bindings': the runner tags every result with the
 // tool it came from (`tool`), and `valuesText` dispatches on it.
-import type { MatrixResult, SeriesResult } from "../src/state/analyzer/types";
+import type { MatrixResult, NoteMetricsResult, SeriesResult } from "../src/state/analyzer/types";
 import { valuesText } from "../src/state/notes/format";
 import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
@@ -165,6 +165,52 @@ check("reads a matrix tool's values line, not a series one", () => {
     maxValue: 220,
   };
   assertEqual(valuesText("spectralCentroid", series, 1), "t 1.000 s · centroid (Hz) 220 Hz");
+});
+
+check("reads a note segment's values line, or its gap", () => {
+  const result: NoteMetricsResult = {
+    tool: "noteMetrics",
+    windowStart: 0,
+    noteCount: 2,
+    gapCount: 1,
+    totalGapSecs: 0.1,
+    longestGapSecs: 0.1,
+    medianNoteSecs: 0.2,
+    medianGapSecs: 0.1,
+    thresholdDb: -44,
+    envelopePositions: [0, 1],
+    referenceNoteIndex: 0,
+    notes: [
+      {
+        startSecs: 0,
+        endSecs: 0.2,
+        durationSecs: 0.2,
+        gapBeforeSecs: 0,
+        gapAfterSecs: 0.1,
+        rmsDb: -9.03,
+        peakDb: -6.02,
+        rmsDbRelLoudest: 0,
+        peakDbRelLoudest: 0,
+        envelopeDb: [-9, -9],
+      },
+      {
+        startSecs: 0.3,
+        endSecs: 0.5,
+        durationSecs: 0.2,
+        gapBeforeSecs: 0.1,
+        gapAfterSecs: 0,
+        rmsDb: -15.05,
+        peakDb: -12.04,
+        rmsDbRelLoudest: -6.02,
+        peakDbRelLoudest: -6.02,
+        envelopeDb: [-15, -15],
+      },
+    ],
+    gaps: [{ startSecs: 0.2, endSecs: 0.3, durationSecs: 0.1 }],
+  };
+  assertEqual(valuesText("noteMetrics", result, 0.1), "t 0.100 s · note 1/2 · RMS -9.0 dBFS");
+  assertEqual(valuesText("noteMetrics", result, 0.25), "t 0.250 s · gap 100 ms");
+  assertEqual(valuesText("noteMetrics", result, 0.9), "t 0.900 s · no note");
 });
 
 const base = (overrides: Partial<NoteValues> = {}): NoteValues => ({

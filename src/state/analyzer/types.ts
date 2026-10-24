@@ -19,6 +19,7 @@ import type { MatrixResult as MatrixPayload } from "../../bindings/MatrixResult"
 import type { RhythmResult as RhythmPayload } from "../../bindings/RhythmResult";
 import type { LufsResult as LufsPayload } from "../../bindings/LufsResult";
 import type { LraResult as LraPayload } from "../../bindings/LraResult";
+import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
 
 export type AnalyzerId =
   | "waveform"
@@ -42,6 +43,7 @@ export type AnalyzerId =
   | "pitchPyin"
   | "pitchYin"
   | "pitchAutocorr"
+  | "noteMetrics"
   | "tempo"
   | "onsets"
   | "downbeats"
@@ -104,6 +106,11 @@ export interface RhythmView {
   markers: ("beats" | "onsets" | "downbeats")[];
 }
 
+/** Detected note segments: summary cards over a per-note table (M18). */
+export interface NoteMetricsView {
+  kind: "noteMetrics";
+}
+
 export type AnalyzerView =
   | SeriesView
   | MatrixView
@@ -111,7 +118,8 @@ export type AnalyzerView =
   | SpectrumView
   | SpectrogramView
   | ReadoutsView
-  | RhythmView;
+  | RhythmView
+  | NoteMetricsView;
 
 /** A per-tool param rendered in the params popover (below the shared params). */
 export interface ToolParamField {
@@ -190,6 +198,11 @@ export interface RhythmResult extends RhythmPayload {
   tool: "tempo" | "onsets" | "downbeats";
 }
 
+/** Detected audio notes, the gaps between them, and per-note levels (M18). */
+export interface NoteMetricsResult extends NoteMetricsPayload {
+  tool: "noteMetrics";
+}
+
 export interface LufsResult extends LufsPayload {
   tool: "loudnessIntegrated";
 }
@@ -208,5 +221,6 @@ export type AnyAnalysisResult =
   | MatrixResult
   | LevelsResult
   | RhythmResult
+  | NoteMetricsResult
   | LufsResult
   | LraResult;

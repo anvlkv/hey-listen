@@ -132,8 +132,8 @@ export default function App() {
             <Splitter
               orientation="vertical"
               testId="splitter.notes"
-              label="Drag to resize the notes panel"
-              ariaLabel="Resize the notes panel"
+              label="Drag to resize the annotations panel"
+              ariaLabel="Resize the annotations panel"
               handlers={notesSplitter}
             />
             <NotesPanel

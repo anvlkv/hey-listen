@@ -171,11 +171,11 @@ export default function Toolbar() {
 
         {/* The Notes rail toggle sits apart at the right end of the toolbar. */}
         <span class="toolbar-divider" aria-hidden="true" />
-        <Tooltip label="Notes panel">
+        <Tooltip label="Annotations panel">
           <Button
             class="toolbar-btn toolbar-btn-notes"
             data-testid="toolbar.notes"
-            aria-label="Toggle the notes panel"
+            aria-label="Toggle the annotations panel"
             aria-pressed={notesPanelOpen()}
             onClick={toggleNotesPanel}
           >

@@ -1,8 +1,8 @@
 # Analysis metrics: pitch range, envelope, note metrics, modulation
 
 Design for **M16–M20**, the analysis-depth track that closes the gaps found while
-driving the app through MCP on a bioacoustic session. **M16 and M17 are delivered;
-M18–M20 are planned.** The milestones are ordered so each one is a self-contained,
+driving the app through MCP on a bioacoustic session. **M16–M18 are delivered;
+M19–M20 are planned.** The milestones are ordered so each one is a self-contained,
 testable unit:
 
 | MCP-session item | Milestone | Delivered by |
@@ -160,14 +160,30 @@ wrong tool for short calls; it is not changed by this milestone.
 −120 dBFS; a window shorter than the frame still yields one value; the configured frame
 and hop are echoed.
 
-## M18 — Note segmentation, gaps, and per-note level (planned)
+## M18 — Note segmentation, gaps, and per-note level ✅
+
+> **Delivered.** `noteMetrics` (Pitch / melody) segments the frame-RMS envelope with
+> the documented gate, hysteresis, short-gap merge, and short-note drop, and returns
+> per-note spans, gaps, RMS / peak levels, levels relative to the loudest note, and a
+> 7-point normalized envelope. A **Note segments** view renders summary cards over a
+> scrollable per-note table. The catalog entry and option metadata ship with it, so it
+> works in the GUI, headless MCP, and `hey-listen analyze`; result times are re-based
+> onto source seconds like every other time-bearing result. Tests live in
+> `audio::analysis::tests::note_metrics`, `audio::analyzers::tests`, and
+> `mcp::dispatch::tests`.
+>
+> **Terminology:** a **note** here is a detected acoustic segment, not the project's
+> user-authored **annotation** (M14). The UI labels the right rail **Annotations**; the
+> data model and MCP/CLI keep the historical `Note` / `*_note` / `NOTES` names for
+> compatibility. See [`notes.md`](notes.md) → Terminology.
 
 **Problem.** `onsets` returns start times only, so note ends, gaps, and note count are
 implicit. There is no per-note level or envelope summary.
 
 **Changes.**
 
-- New `noteMetrics` analyzer (the name avoids colliding with project **Notes**).
+- New `noteMetrics` analyzer. Its records are detected audio **note segments**; they do
+  not collide with the project's **annotations** (the M14 `Note` payload).
 - Segmentation:
   - frame RMS from the shared helper;
   - gate at `max(gateFloorDb, windowPeakDb − gateDb)` with `hysteresisDb`;

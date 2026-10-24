@@ -83,6 +83,7 @@ label/min/max/help metadata is stored in the Rust catalog for M21's `get_analyze
 | Pitch (pYIN) | `dsp::detect_pitch` (default pYIN) |
 | Pitch (YIN) | `dsp::detect_pitch_yin` |
 | Pitch (autocorr) | `dsp::detect_pitch_autocorr` |
+| Note segments | core frame-RMS gate + segmentation (`audio/analysis/tools/notes.rs`) — M18 |
 
 **Rhythm / tempo**
 
@@ -128,9 +129,9 @@ audio (the window moves to fit the new source). See [`templates.md`](templates.m
 
 ## Analysis depth (M16–M20)
 
-The pitch-range fix and the **frame-RMS amplitude envelope** are delivered (M16–M17);
-note metrics, voice-quality proxies, and AM/FM modulation spectra are planned as
-M18–M20. See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
+The pitch-range fix, the **frame-RMS amplitude envelope**, and **note segmentation**
+are delivered (M16–M18); voice-quality proxies and AM/FM modulation spectra are planned
+as M19–M20. See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
 shapes, option defaults, and test plan. **M21** adds the shared MCP/CLI contract —
 per-result summaries, compact previews, tool annotations, and analyzer discovery — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
@@ -164,6 +165,16 @@ it was computed at. The frame count is capped (the hop widens for long windows, 
 effective hop is reported). In MCP/CLI it is a normal series result: the compacted
 form keeps `{length, min, max, argmin, argmax}` (plus `frameSize`), and
 `includeData: true` / `--full` returns the full `values` array.
+
+**Note segments (M18).** `noteMetrics` gates the frame-RMS envelope (absolute floor +
+threshold relative to the window peak + hysteresis), merges short gaps, drops short
+notes, and returns per-note spans, gaps, RMS/peak levels, levels relative to the loudest
+note, and a normalized envelope. The **Note segments** view is summary cards over a
+scrollable table. These are **detected audio notes**, not the project's user-authored
+**annotations** (M14) — see [`notes.md`](notes.md) → Terminology. In MCP/CLI the result
+is compacted by the normal rules: the summary counts (`noteCount`, `gapCount`, …) always
+survive, while the `notes` / `gaps` arrays collapse to `{length}` when long; request
+`includeData: true` / `--full` for the records.
 
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the
