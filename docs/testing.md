@@ -625,12 +625,13 @@ Platform environment:
 ## CI
 
 One GitHub Actions job (`e2e`) builds the release binary (`tauri build --no-bundle`)
-and runs the suite on the default matrix (macOS / Linux / Windows) on every PR. On
-Linux the runner is headless, so the suite runs under `xvfb-run -a` (with
-`WEBKIT_DISABLE_DMABUF_RENDERER=1`); without a display the app aborts on startup
-before the embedded WebDriver server binds. Capture is covered by the automated
-error-path test (B4); the granted happy path (B5) is a manual smoke against a signed
-bundle, not part of CI.
+and runs the suite on the default matrix (macOS / Linux / Windows) on every PR that
+changes code. A docs-only PR skips it (the CI workflow still runs its lightweight
+change-detection job; Pages deploys docs on `main`). On Linux the runner is headless,
+so the suite runs under `xvfb-run -a` (with `WEBKIT_DISABLE_DMABUF_RENDERER=1`);
+without a display the app aborts on startup before the embedded WebDriver server binds.
+Capture is covered by the automated error-path test (B4); the granted happy path (B5)
+is a manual smoke against a signed bundle, not part of CI.
 
 ## Deliberately out of scope (anti-overtesting)
 

@@ -1,5 +1,8 @@
 name: Deploy marketing page
 
+# Intentionally no paths filter: docs/ and ACKNOWLEDGEMENTS feed the generated site,
+# so a docs-only push to main must still rebuild and deploy it. Code-only pushes also
+# run it (harmless), which keeps the version stamp current when package.json changes.
 on:
   push:
     branches: [main]
