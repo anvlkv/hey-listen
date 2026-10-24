@@ -1,5 +1,17 @@
-import { For, Show } from "solid-js";
+import { For, createSignal, Show } from "solid-js";
 import { NoAudioState } from "./chartCommon";
+import NoteSegmentChart from "./NoteSegmentChart";
+import {
+  cents,
+  duration,
+  hz,
+  level,
+  percent,
+  periodicity,
+  relative,
+  span,
+  spread,
+} from "./noteMetricsFormat";
 import type {
   AnalysisHandle,
   AnyAnalysisResult,
@@ -7,39 +19,24 @@ import type {
   NoteMetricsResult,
 } from "../../state/analyzer";
 
-/** Seconds as a short, fixed-precision span. */
-const span = (value: number) => `${value.toFixed(3)} s`;
-
-/** Durations read better in ms for the short notes this tool targets. */
-const duration = (value: number) =>
-  value < 1 ? `${(value * 1000).toFixed(0)} ms` : `${value.toFixed(2)} s`;
-
-const level = (value: number) => `${value.toFixed(1)} dBFS`;
-
-/** A relative level is never positive; show a clean 0 for the reference note. */
-const relative = (value: number) => `${Math.min(value, 0).toFixed(1)} dB`;
-
-/** Proxies are absent on short / unvoiced notes — show a dash, never a fake zero. */
-const percent = (value: number | null) => (value == null ? "—" : `${(value * 100).toFixed(0)}%`);
-const hz = (value: number | null) => (value == null ? "—" : `${Math.round(value)} Hz`);
-const cents = (value: number | null) => (value == null ? "—" : `${value.toFixed(1)} ¢`);
-const spread = (value: number | null) => (value == null ? "—" : `${value.toFixed(2)} dB`);
-const periodicity = (value: number | null) => (value == null ? "—" : value.toFixed(2));
-
 /**
- * The `noteMetrics` view (M18): summary cards over a scrollable per-note table.
+ * The `noteMetrics` view (M18): summary cards, a segment chart, and a scrollable
+ * per-note table.
  *
  * These are **detected audio note segments** — not the project's user-authored
- * annotations (`docs/notes.md`). The table is the point: start/end, the silence
- * around each note, its level, and its level against the loudest note, plus the
- * M19 voice-quality **proxies** (voicing, f0, jitter, shimmer, HNR) where the note
- * is long enough to measure them.
+ * annotations (`docs/notes.md`). The chart places every note on the source timeline
+ * (its own envelope, with the gaps left empty); the table is the detail: start/end,
+ * the silence around each note, its level, its level against the loudest note, plus
+ * the M19 voice-quality **proxies** (voicing, f0, jitter, shimmer, HNR) where the
+ * note is long enough to measure them.
  */
 export default function NoteMetricsView(props: {
   id: AnalyzerId;
   analysis: AnalysisHandle<AnyAnalysisResult>;
 }) {
   const result = () => props.analysis.result() as NoteMetricsResult | null;
+  /** The note under the chart's pointer, so its table row is easy to find. */
+  const [hovered, setHovered] = createSignal<number | null>(null);
 
   return (
     <Show when={result()} fallback={<NoAudioState />}>
@@ -87,6 +84,8 @@ export default function NoteMetricsView(props: {
               </div>
             }
           >
+            <NoteSegmentChart id={props.id} result={result} onHover={setHovered} />
+
             <div class="note-metrics-scroll">
               <table class="note-metrics-table" data-testid="noteMetrics.table">
                 <thead>
@@ -120,7 +119,10 @@ export default function NoteMetricsView(props: {
                   <For each={value().notes}>
                     {(note, index) => (
                       <tr
-                        classList={{ "is-reference": index() === value().referenceNoteIndex }}
+                        classList={{
+                          "is-reference": index() === value().referenceNoteIndex,
+                          "is-hovered": index() === hovered(),
+                        }}
                         data-testid={`noteMetrics.row.${index()}`}
                       >
                         <td>{index() + 1}</td>

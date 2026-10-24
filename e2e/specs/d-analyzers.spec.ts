@@ -51,7 +51,7 @@ describe("D. Analyzer tools — smoke (every tool)", () => {
       try {
         // `tempo` is labelled "readouts" in the matrix, but the registry renders it
         // through the rhythm view (a canvas + a readout row), so treat it as a chart.
-        // `noteMetrics` is a card + table view with no canvas either.
+        // `noteMetrics` is a card + chart + table view; the table is the point here.
         const isCardReadouts =
           tool.view === "noteMetrics" || (tool.view === "readouts" && tool.id !== "tempo");
         if (isCardReadouts) {
@@ -59,6 +59,7 @@ describe("D. Analyzer tools — smoke (every tool)", () => {
           expect(await $$(`${panel} .readout-card-value`).length).toBeGreaterThan(0);
           if (tool.view === "noteMetrics") {
             expect(await $$(`${panel} .note-metrics-table tbody tr`).length).toBeGreaterThan(0);
+            expect(await $$(`${panel} .note-segments-chart canvas`).length).toBeGreaterThan(0);
           }
         } else {
           await waitForAnalyzer(tool.id);
