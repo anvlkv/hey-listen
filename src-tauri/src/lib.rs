@@ -126,7 +126,11 @@ pub fn run() {
             // Recent project files (loaded from the app config dir) — backs the menu.
             app.manage(recent::RecentProjects::load(app.handle()));
             // File-open requests from the command line / OS (drained by the frontend).
-            app.manage(commands::project::OpenedFiles::default());
+            // macOS can deliver the open-documents Apple Event before `setup` runs, so
+            // adopt anything that was queued before this state existed.
+            let opened_files = commands::project::OpenedFiles::default();
+            opened_files.adopt_early();
+            app.manage(opened_files);
             // MCP server (M9): in-flight tool calls forwarded to a window's frontend.
             app.manage(mcp::Pending::default());
             // MCP settings + server lifecycle: load the persisted config and, when it
@@ -240,7 +244,12 @@ pub fn run() {
 fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
     match event {
         // Stop the MCP server (and drop its advertisement) on exit.
-        tauri::RunEvent::Exit => app.state::<mcp::settings::McpController>().stop(app),
+        tauri::RunEvent::Exit => {
+            // `Exit` can also be emitted when the app stops before `setup` ran.
+            if let Some(mcp) = app.try_state::<mcp::settings::McpController>() {
+                mcp.stop(app);
+            }
+        }
         #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
         tauri::RunEvent::Opened { urls } => {
             let paths = commands::project::opened_paths_from_urls(urls);
