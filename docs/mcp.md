@@ -120,11 +120,11 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | --- | --- |
 | `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, and the **notes** + focused note id. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/keywords), plus each tool's per-tool option keys and defaults. **(M16)** |
-| `get_analyzer` | One analyzer's metadata — `about` copy (GUI) / short description (headless), option metadata, and summary keys. **(M21, planned)** |
+| `get_analyzer` | One analyzer's metadata — `about` copy (GUI) / short description (headless), option metadata (key/label/default/min/max/step/unit/help), and summary keys. **(M21)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
-| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. **(M21, planned)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
+| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. **(M21)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -139,19 +139,22 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
 | `save_project` / `open_project` / `new_project` | Project file actions. |
 | `list_projects` | List the open project windows (label, name, focused) — answered by the server. |
-| `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14)** |
+| `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
 | `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON / CSV) or chart (PNG), or every open tool to a folder. `export_analysis` is headless-capable; `export_chart` needs the rendered canvas. **(M12, planned)** |
 | `list_templates` / `apply_template` / `save_template` / `export_template` / `import_template` | Installed analysis templates; apply to the current project or the headless session. **(M13, planned)** |
 
-`run_analysis` **compacts** its result by default so a spectrogram does not blow the
-agent's context: a long numeric array becomes `{ length, min, max, argmin, argmax }`; a
-long array with gaps (`null`s, e.g. a pitch track's unvoiced frames) becomes
-`{ length, nulls, min, max, argmin, argmax }` over the present numbers, so a nearly-empty
-track is visible at a glance; and any other long array becomes `{ length }`. `argmin` /
-`argmax` locate the peak without pulling every frame. Pass `includeData: true` for the
-raw result, and `maxPoints: N` to decimate the returned arrays to ≤ N points (by striding,
-keeping the first and last).
+`run_analysis` **shapes** its result by default so a spectrogram does not blow the
+agent's context, and every mode carries the canonical `summary`. The Rust shaper keeps
+the result's **structure**: matrices and spectrograms keep their dimensions and peak
+time/freq/level; waveform/spectrum/series arrays become `{ length, min, max, argmin,
+argmax }` (with `nulls` when a series has gaps, e.g. unvoiced pitch frames); and
+event/note lists become `{ length, preview: [first 5], truncated }` instead of losing
+their records. Pass `includeData: true` for the raw result (with `maxPoints: N` to
+decimate the arrays), or `summaryOnly: true` for the summary alone. The two are mutually
+exclusive; `summary` is computed from the full result, so it is identical in all three
+modes. One implementation (`src-tauri/src/audio/analysis/shape.rs`) serves this server,
+the GUI handler, and the CLI.
 
 **Option keys (M16).** Per-tool option keys are canonical **camelCase**; the snake_case
 aliases (`min_f0_hz`, `n_mels`, …) are accepted at every boundary. An **unknown key is an
@@ -282,9 +285,9 @@ Ifrit clip while YIN and autocorrelation tracked normally. The detector itself l
 the external `oxiaudio` crate, so it cannot be fixed from here; the voiced-frame summary
 at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](roadmap.md).
 
-## M21 — MCP/CLI analysis ergonomics (planned)
+## M21 — MCP/CLI analysis ergonomics ✅
 
-A cross-cutting follow-up that standardizes the compact/annotated contract for every
+A cross-cutting follow-up that standardized the compact/annotated contract for every
 analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 - **Summary in the envelope.** `run_analysis` returns `{ window, params, options,
@@ -303,7 +306,7 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   canonical option keys.
 - **Discovery.** `get_analyzer` returns the about copy, option metadata, and summary
   keys; headless `get_state` reports per-tool defaults. The CLI mirrors this with
-  `analyzers <ID>` and gains `analyze --summary`.
+  `analyzers <ID>` and gained `analyze --summary`.
 
 ## Limitations / deferred
 

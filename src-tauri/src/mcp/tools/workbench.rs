@@ -3,13 +3,15 @@
 
 use serde_json::{json, Value};
 
-use super::schema::tool;
+use super::schema::{tool, ToolClass};
 
 /// The Workbench, graph, preview, and capture tools.
 pub(super) fn tools() -> Vec<Value> {
     vec![
         tool(
             "open_tool",
+            "Open tool",
+            ToolClass::SETTINGS,
             "Open (or focus) a Workbench tab: an analyzer id, or `filter` / `synth`.",
             json!({
                 "type": "object",
@@ -20,6 +22,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "close_tool",
+            "Close tool",
+            ToolClass::SETTINGS,
             "Close a Workbench tab by id.",
             json!({
                 "type": "object",
@@ -30,6 +34,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "get_graph",
+            "Get graph",
+            ToolClass::OBSERVE,
             "Read a graph editor's state (`filter` or `synth`) as editor nodes + edges.",
             json!({
                 "type": "object",
@@ -40,6 +46,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "set_filter_graph",
+            "Set filter graph",
+            ToolClass::SETTINGS,
             "Replace the filter graph and/or toggle whether it is applied. The graph runs \
              upstream of preview and every analyzer. In headless mode pass `graph` as a \
              `{ nodes, edges }` spec directly (there is no filter editor); a null or empty \
@@ -55,6 +63,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "set_synth_graph",
+            "Set synth graph",
+            ToolClass::SETTINGS,
             "Replace the synth graph editor layout ({ nodes, edges }).",
             json!({
                 "type": "object",
@@ -65,6 +75,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "preview",
+            "Preview",
+            ToolClass::PREVIEW,
             "Preview playback of a region (defaults to the analysis window) through the core.",
             json!({
                 "type": "object",
@@ -82,11 +94,15 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "stop_preview",
+            "Stop preview",
+            ToolClass::STOP,
             "Stop preview playback.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
             "set_output_gain",
+            "Set output gain",
+            ToolClass::SETTINGS,
             "Set the preview output gain (linear, ≥ 0).",
             json!({
                 "type": "object",
@@ -97,21 +113,29 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "list_output_devices",
+            "List output devices",
+            ToolClass::OBSERVE,
             "List the audio output devices preview can play through.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
             "list_input_devices",
+            "List input devices",
+            ToolClass::OBSERVE,
             "List the capture devices (microphones and system-output loopback).",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
             "list_processes",
+            "List processes",
+            ToolClass::OBSERVE,
             "List the processes available for per-process capture.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
             "start_capture",
+            "Start capture",
+            ToolClass::CAPTURE_START,
             "Start a live capture as the source: kind `mic` / `system` / `process` / `mix`.",
             json!({
                 "type": "object",
@@ -129,6 +153,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "stop_capture",
+            "Stop capture",
+            ToolClass::CAPTURE_STOP,
             "Stop the running capture.",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),

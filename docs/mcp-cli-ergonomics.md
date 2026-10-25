@@ -5,12 +5,10 @@ analyzer call through MCP and the batch CLI **compact by default, semantically
 summarized, and discoverable**, and it annotates the MCP tool catalog so an agent can
 choose and call tools without guessing.
 
-**Status: M16 (the option metadata / canonical-key half) is delivered; the rest of M21 is
-planned.** It depends on M16's per-tool option metadata and can land before or after
-M17–M20. Landing it before the analyzers is
-fine: M21 covers the existing result variants, and each new analyzer adds its summary arm
-when it lands. The analyzer milestones own their tool-specific catalog entries; M21 owns
-the shared contract.
+**Status: delivered (M21).** M16 delivered the option metadata / canonical-key half;
+M21 delivered the shared summary, compact, discovery, and annotation contract over the
+M17–M20 results. Every new analyzer adds its summary arm to
+`audio/analysis/summary/families.rs` when it lands.
 
 ## Goal
 
@@ -23,7 +21,7 @@ Every analyzer call returns:
 - **annotated MCP tools** (`title`, `annotations`, clear descriptions);
 - the same shape from the GUI MCP bridge, the headless server, and the CLI.
 
-## Current gaps
+## Gaps this milestone closed
 
 - `run_analysis` / CLI return a **generic** compaction: long numeric arrays become
   `{ length, min, max, argmin, argmax }`, long gapped arrays add `nulls`, and any other
@@ -152,14 +150,14 @@ answer. The compact result keeps the result's **structure**:
 | Modulation | top peaks preserved; spectra → stats; FM run span |
 | `includeData: true` | raw arrays (unchanged) |
 
-Object/event arrays get a **bounded preview** (proposed 5 records) instead of
-`{ length }`; `includeData: true` returns every record. Numeric arrays continue to use the
-stats shape, and `maxPoints` still decimates them when raw data is requested.
+Object/event arrays get a **bounded preview** (five records) instead of `{ length }`;
+`includeData: true` returns every record. Numeric arrays continue to use the stats shape,
+and `maxPoints` still decimates them when raw data is requested.
 
 > The canonical semantic layer is the Rust `ResultSummary`, and the compact shape is
 > built by the same Rust shaper. The GUI MCP handler forwards the requested mode instead
-> of compacting in TypeScript; the TS `compact`/`decimate` module is retired once no
-> caller needs it. Do not let the summary or compact logic be duplicated in TS.
+> of compacting in TypeScript; the TS `compact`/`decimate` module is retired (M21).
+> Do not let the summary or compact logic be duplicated in TS.
 
 ## MCP catalog annotations
 

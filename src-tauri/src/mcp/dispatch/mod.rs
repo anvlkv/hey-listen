@@ -15,12 +15,11 @@
 //! `GraphSpec` directly (there is no graph editor). See `docs/mcp.md`.
 //!
 //! The implementation is split into focused submodules: [`args`] applies the agent's
-//! patch objects, [`shape`] shrinks results for the wire, [`session`] holds the
-//! per-tool implementations, and [`tests`] covers the table.
+//! patch objects and [`session`] holds the per-tool implementations; [`tests`] covers
+//! the table.
 
 mod args;
 mod session;
-mod shape;
 
 #[cfg(test)]
 mod tests;
@@ -72,6 +71,13 @@ impl HeadlessSession {
         match tool {
             "get_state" => Ok(self.get_state()),
             "list_analyzers" => Ok(Value::Array(analyzers::list())),
+            "get_analyzer" => {
+                let id = args
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or("`id` is required")?;
+                analyzers::detail(id).ok_or_else(|| format!("unknown analyzer: {id}"))
+            }
             "open_audio_file" => self.open_audio_file(&args),
             "close_source" => {
                 self.state.audio.clear();
@@ -115,7 +121,7 @@ impl HeadlessSession {
                 merge_options(entry, tool, options)?;
                 Ok(json!({
                     "tool": tool,
-                    "options": serde_json::to_value(self.options.get(tool)).unwrap_or(Value::Null),
+                    "options": self.options_for(tool),
                 }))
             }
             "list_output_devices" => Ok(serde_json::to_value(

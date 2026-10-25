@@ -80,6 +80,9 @@ pub(super) fn run_tools(
         if request.full {
             args["includeData"] = json!(true);
         }
+        if request.summary {
+            args["summaryOnly"] = json!(true);
+        }
 
         match session.dispatch("run_analysis", args) {
             Ok(mut result) => {

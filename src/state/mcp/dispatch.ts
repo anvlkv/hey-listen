@@ -9,6 +9,7 @@ import {
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
 import {
   ANALYZERS,
+  analyzerById,
   applyOptionPatch,
   isAnalyzerId,
   optionDefaults,
@@ -92,7 +93,7 @@ import {
   toolId,
   type Args,
 } from "./args";
-import { getState, sourceSummary } from "./inspect";
+import { getState, noteSummary, sourceSummary } from "./inspect";
 
 /** Dispatch one tool by name. Throws (bubbled to the agent) on failure. */
 export async function run(tool: string, args: Args, target?: string): Promise<unknown> {
@@ -108,6 +109,14 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
         keywords: def.keywords,
         options: optionDefaults(def.id),
       }));
+    case "get_analyzer": {
+      const id = str(args, "id");
+      if (!isAnalyzerId(id)) throw new Error(`unknown analyzer: ${id}`);
+      // The Rust catalog owns the option metadata and summary keys (one source of
+      // truth with the headless server); the webview overlays the longer `about` copy.
+      const detail = await invoke<Record<string, unknown>>("analyzer_detail", { id });
+      return { ...detail, about: analyzerById(id).about };
+    }
 
     // --- source -------------------------------------------------------------
     case "open_audio_file":
@@ -235,7 +244,12 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
 
     // --- notes (app-only; a note lives in a project) ------------------------
     case "list_notes":
-      return { notes: notesSorted() };
+      // Compact by default (a body excerpt + values line); `full: true` returns the
+      // markdown bodies and frozen snapshots.
+      return {
+        notes:
+          (optionalBool(args, "full") ?? false) ? notesSorted() : notesSorted().map(noteSummary),
+      };
     case "get_note":
       return { note: requireNote(str(args, "id")) };
     case "create_note": {

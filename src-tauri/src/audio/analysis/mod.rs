@@ -16,11 +16,15 @@
 //! per-family tool implementations plus the [`run`] dispatcher.
 
 mod results;
+mod shape;
+mod summary;
 mod support;
 mod tools;
 mod types;
 
 pub use results::*;
+pub use shape::*;
+pub use summary::*;
 pub use tools::*;
 pub use types::*;
 
@@ -206,5 +210,7 @@ pub fn condition(
     Ok((mono, rate))
 }
 
+#[cfg(test)]
+pub(crate) mod fixtures;
 #[cfg(test)]
 mod tests;

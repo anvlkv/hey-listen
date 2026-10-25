@@ -16,6 +16,8 @@
 mod catalog;
 mod options;
 
+use serde_json::{json, Map, Value};
+
 /// One analyzer's agent-facing metadata (mirrors `AnalyzerDef` in the frontend,
 /// minus the view/params detail the webview needs).
 pub struct AnalyzerInfo {
@@ -35,25 +37,56 @@ pub fn is_analyzer(id: &str) -> bool {
     ANALYZERS.iter().any(|analyzer| analyzer.id == id)
 }
 
+/// An analyzer's human title (`"Spectrum"`), or `None` for an unknown id.
+pub fn title(id: &str) -> Option<&'static str> {
+    ANALYZERS
+        .iter()
+        .find(|analyzer| analyzer.id == id)
+        .map(|analyzer| analyzer.title)
+}
+
+/// A tool's compact option map: canonical camelCase keys to their defaults.
+pub fn option_defaults(id: &str) -> Map<String, Value> {
+    options::options_for(id)
+        .iter()
+        .map(|option| (option.key.to_string(), json!(option.default)))
+        .collect()
+}
+
+/// One analyzer's full detail, the shape `get_analyzer` returns. The `about` copy is
+/// the short description here — the GUI overlays the frontend registry's longer copy.
+pub fn detail(id: &str) -> Option<Value> {
+    let analyzer = ANALYZERS.iter().find(|analyzer| analyzer.id == id)?;
+    let options: Vec<Value> = options::options_for(id)
+        .iter()
+        .map(options::option_meta)
+        .collect();
+    Some(json!({
+        "id": analyzer.id,
+        "title": analyzer.title,
+        "description": analyzer.description,
+        "about": analyzer.description,
+        "section": analyzer.section,
+        "keywords": analyzer.keywords,
+        "options": options,
+        "summaryKeys": crate::audio::analysis::summary_keys(analyzer.id),
+    }))
+}
+
 /// The catalog in the shape `list_analyzers` returns (an array of objects). Each
 /// entry carries the analyzer's metadata plus a compact `options` map of its
 /// canonical option keys to their defaults.
-pub fn list() -> Vec<serde_json::Value> {
+pub fn list() -> Vec<Value> {
     ANALYZERS
         .iter()
         .map(|analyzer| {
-            let options: serde_json::Map<String, serde_json::Value> =
-                options::options_for(analyzer.id)
-                    .iter()
-                    .map(|option| (option.key.to_string(), serde_json::json!(option.default)))
-                    .collect();
-            serde_json::json!({
+            json!({
                 "id": analyzer.id,
                 "title": analyzer.title,
                 "description": analyzer.description,
                 "section": analyzer.section,
                 "keywords": analyzer.keywords,
-                "options": options,
+                "options": option_defaults(analyzer.id),
             })
         })
         .collect()

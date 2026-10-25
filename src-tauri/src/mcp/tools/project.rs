@@ -4,13 +4,15 @@
 
 use serde_json::{json, Value};
 
-use super::schema::tool;
+use super::schema::{tool, ToolClass};
 
 /// The project-file and annotation tools.
 pub(super) fn tools() -> Vec<Value> {
     vec![
         tool(
             "save_project",
+            "Save project",
+            ToolClass::SAVE,
             "Save the project. With `path`, saves there; without, saves to the current path \
              (or prompts, as the UI does).",
             json!({
@@ -23,6 +25,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "open_project",
+            "Open project",
+            ToolClass::REPLACE,
             "Open a .heyl project file, replacing the current project.",
             json!({
                 "type": "object",
@@ -33,11 +37,15 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "new_project",
+            "New project",
+            ToolClass::REPLACE,
             "Start a fresh project (drops the source, graphs, setup, and Workbench tabs).",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
             "list_projects",
+            "List projects",
+            ToolClass::OBSERVE,
             "List every open project window (label, display name, focused) so you can pass a \
              `target` to any other tool and address a specific project instead of the focused \
              one. Answered by the server itself.",
@@ -45,15 +53,26 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "list_notes",
-            "List every annotation in the project (stored as a note): id, time (source \
-             seconds), optional range, tool (the analyzer it was taken from; absent = a \
-             Timeline annotation), title, markdown body, and the frozen values snapshot. \
-             App-only (an annotation lives in a project). Not the detected note segments \
-             returned by the `noteMetrics` analyzer.",
-            json!({ "type": "object", "properties": {}, "additionalProperties": false }),
+            "List annotations",
+            ToolClass::OBSERVE,
+            "List every annotation in the project (stored as a note). By default each is a \
+             compact summary — id, time (source seconds), optional range, tool, title, the \
+             values text, and a one-line body excerpt. Pass `full: true` (or call `get_note`) \
+             for the full markdown body and frozen values snapshot. App-only (an annotation \
+             lives in a project). Not the detected note segments returned by the \
+             `noteMetrics` analyzer.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "full": { "type": "boolean", "description": "Return the full notes (markdown body + frozen values) instead of compact summaries." },
+                },
+                "additionalProperties": false,
+            }),
         ),
         tool(
             "get_note",
+            "Get annotation",
+            ToolClass::OBSERVE,
             "Read one annotation by `id`.",
             json!({
                 "type": "object",
@@ -64,6 +83,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "create_note",
+            "Create annotation",
+            ToolClass::NOTE_WRITE,
             "Create an annotation anchored at `time` (source seconds), optionally a `range` \
              span, and optionally tied to the analyzer `tool` it was taken from (omit for a \
              Timeline annotation). `title` is plain text, `body` is markdown. The frozen \
@@ -88,6 +109,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "update_note",
+            "Update annotation",
+            ToolClass::NOTE_WRITE,
             "Patch an annotation by `id`: `title` / `body` / `time` / `range` / `tool`. Pass \
              `recomputeValues: true` to refresh the frozen values snapshot from the live \
              chart. Only the supplied keys change. App-only.",
@@ -108,6 +131,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "delete_note",
+            "Delete annotation",
+            ToolClass::NOTE_DELETE,
             "Remove an annotation by `id`. App-only.",
             json!({
                 "type": "object",
@@ -118,6 +143,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "set_focused_note",
+            "Focus annotation",
+            ToolClass::SETTINGS,
             "Focus one annotation (`id`) or clear the focus (`null`). The focused annotation \
              is drawn on every time-based chart. App-only.",
             json!({

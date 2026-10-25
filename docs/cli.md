@@ -97,10 +97,10 @@ Decode each file and run one or more analyzers over a window.
 | `--start <SEC>` | Window start in seconds (default `0`). |
 | `--end <SEC>` | Window end in seconds (default: full duration). |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable), using the same keys MCP's `set_shared_params` takes: `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
-| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `fMinHz`/`fMaxHz`). Canonical camelCase is preferred; snake_case aliases (`min_f0_hz`, `n_mels`, …) are accepted and canonicalized. An unknown key fails. **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because the plugin's parsed matches do not preserve the order of flags on the command line. |
+| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `fMinHz`/`fMaxHz`). Canonical camelCase is preferred; snake_case aliases (`min_f0_hz`, `n_mels`, …) are accepted and canonicalized. An unknown key fails. **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because the plugin's parsed matches do not preserve the order of flags on the command line. Run `analyzers <ID>` to print a tool's keys, defaults, ranges, and help. |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
 | `--full` | Include the raw result arrays (default: compacted — see below). The `summary` is present in both modes. |
-| `--summary` | Emit the summary only (`{ file, window, params, options, summary }`), without result arrays. Mutually exclusive with `--full`. **(M21, planned)** |
+| `--summary` | Emit the summary only (`{ file, window, params, options, summary }`), without result arrays. Mutually exclusive with `--full`. **(M21)** |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
 | `--fail-fast` | Stop at the first failing file/tool (default: run the whole batch and report). |
 | `--format <json\|csv>` | Output format (default `json`, the JSONL shape below); `--csv` is shorthand. CSV is a **wide matrix** for the 2D tools (M12, planned). |
@@ -118,7 +118,7 @@ a **usage error** (printed to stderr, exit `2`) — it never falls through to th
 
 | Option | Meaning |
 | --- | --- |
-| `ID` | Optional analyzer id. With it, print the description, about copy, option metadata (defaults / ranges / help), and summary keys. **(M21, planned)** |
+| `ID` | Optional analyzer id. With it, print the description, about copy, option metadata (defaults / ranges / help), and summary keys. **(M21)** |
 | `--json` | Emit the analyzer catalog (or the one analyzer) as JSON, matching MCP's `list_analyzers` / `get_analyzer`. Otherwise a plain table. |
 
 ### `notes <FILE.heyl>`
@@ -157,15 +157,17 @@ given as a file.
 **JSONL by default** — one self-describing object per line, so `jq -c` streams it:
 
 ```json
-{"file":"a.wav","window":{"start":0.0,"end":2.5},"params":{"...":0},"options":{"...":0},"result":{"tool":"spectrum","peakHz":440.0,"...":0}}
+{"file":"a.wav","window":{"start":0.0,"end":2.5},"params":{"...":0},"options":{"...":0},"summary":{"tool":"spectrum","label":"Spectrum","text":"peak 440 Hz · level -6 dBFS · frames 43","items":[{"...":0}]},"result":{"tool":"spectrum","peakHz":440.0,"...":0}}
 ```
 
 The object is exactly what MCP's `run_analysis` returns (`window`, `params`, `options`,
-`result` — the `tool` tag rides on `result`) with the `file` added. Results are
-**compacted** by default: long numeric arrays → `{length,min,max,argmin,argmax}`, long
-arrays with gaps → `{length,nulls,min,max,argmin,argmax}`, other long arrays → their
-length. This is the same compaction MCP applies, so a spectrogram does not flood the
-terminal; `--full` returns the raw arrays.
+`summary`, `result` — the `tool` tag rides on `result`) with the `file` added. Every mode
+carries the canonical **`summary`** (a stable `text` line plus labelled, unit-bearing
+items). Results are **structurally compact** by default: matrices and spectrograms keep
+their dimensions and peak location, numeric series become `{length,min,max,argmin,argmax}`
+(with `nulls` for gaps), and event/note arrays keep a bounded five-record preview. This
+is the same Rust shaper MCP uses, so a spectrogram does not flood the terminal;
+`--full` returns the raw arrays and `--summary` drops them entirely.
 
 A failure is one line too, and does not abort the batch unless `--fail-fast`:
 
@@ -199,11 +201,10 @@ way. `--pretty` prints a single (human-readable) JSON object — for one file / 
 > A `Mapping` error (bad `K=V`, missing `-t`, an unknown `-o` key) is likewise an
 > `Entry::Usage`: printed and exited `2`.
 
-### M21 — ergonomics (planned)
+### M21 — ergonomics
 
-The batch output gains a canonical `summary` and a summary-only mode; analyzer discovery
-moves from the docs into the command. See
-[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
+The batch output carries a canonical `summary` in every mode, and analyzer discovery
+lives in the command. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 - **Default:** compact `result` + `summary`.
 - **`--summary`:** `{ file, window, params, options, summary }` — no result arrays, so a
@@ -242,10 +243,10 @@ hey-listen analyze call.wav -t modulation -o modulation.modMaxHz=80 --full
 # Discover ids:
 hey-listen analyzers --json | jq -r '.[].id'
 
-# Explain one analyzer's options and summary keys (M21, planned):
+# Explain one analyzer's options and summary keys:
 hey-listen analyzers noteMetrics
 
-# Sweep with summaries only (M21, planned):
+# Sweep with summaries only:
 hey-listen analyze *.wav -t levels --summary | jq -c '{file, summary}'
 
 # Show the annotations in a saved project (JSONL, full bodies):
@@ -273,9 +274,9 @@ Planned in the compute subset (M12/M13):
 
 Planned in the compute subset (M21):
 
-- **`analyzers <ID>` and `--summary`** — per-analyzer option/help discovery and a
-  summary-only output mode, plus the canonical `summary` in every envelope. See
-  [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
+- ~~`analyzers <ID>` and `--summary`~~ — delivered in M21: per-analyzer option/help
+  discovery and a summary-only output mode, plus the canonical `summary` in every
+  envelope. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 Deliberately out of scope:
 

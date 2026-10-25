@@ -78,7 +78,7 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
     }
 
     match &request.command {
-        Command::Analyzers { json } => run_analyzers(&mut session, *json, out),
+        Command::Analyzers { id, json } => run_analyzers(&mut session, id.as_deref(), *json, out),
         Command::Analyze => run_analyze(&mut session, request, out),
         Command::Notes { path, json, full } => run_notes(path, *json, *full, out),
         Command::Synth {

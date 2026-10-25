@@ -8,8 +8,8 @@ use crate::audio::graph::GraphSpec;
 /// The command the batch CLI runs.
 #[derive(Debug, Clone)]
 pub enum Command {
-    /// `analyzers [--json]` — list the catalog.
-    Analyzers { json: bool },
+    /// `analyzers [ID] [--json]` — list the catalog, or explain one analyzer.
+    Analyzers { id: Option<String>, json: bool },
     /// `analyze <FILE>...` — decode each file and run the tools over a window.
     Analyze,
     /// `synth <GRAPH.json> [--seconds SEC]` — render a synth graph, then analyze it.
@@ -53,7 +53,10 @@ pub struct Request {
     pub options: Vec<OptionPatch>,
     /// A filter graph to condition the signal before analysis (`--filter`).
     pub filter: Option<GraphSpec>,
+    /// Return the raw result arrays (`--full`).
     pub full: bool,
+    /// Return the summary only, without result arrays (`--summary`).
+    pub summary: bool,
     pub pretty: bool,
     pub fail_fast: bool,
 }

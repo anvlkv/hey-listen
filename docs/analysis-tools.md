@@ -44,7 +44,8 @@ chroma bins, onset threshold, etc.
 than being silently ignored. Chart-display toggles (the spectrum layers, dB scale,
 contour overlays) are marked `target: "view"` in the registry and never cross IPC.
 `list_analyzers` reports each tool's compact option keys and defaults; the full
-label/min/max/help metadata is stored in the Rust catalog for M21's `get_analyzer`.
+label/min/max/help metadata is stored in the Rust catalog and returned by M21's
+`get_analyzer`.
 
 ## Tool inventory (oxiaudio)
 
@@ -133,7 +134,7 @@ audio (the window moves to fit the new source). See [`templates.md`](templates.m
 The pitch-range fix, the **frame-RMS amplitude envelope**, **note segmentation**, the
 per-note **voice-quality proxies**, and **AM/FM modulation spectra** are delivered
 (M16–M20). See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
-shapes, option defaults, and test plan. **M21** adds the shared MCP/CLI contract —
+shapes, option defaults, and test plan. **M21** delivered the shared MCP/CLI contract —
 per-result summaries, compact previews, tool annotations, and analyzer discovery — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 

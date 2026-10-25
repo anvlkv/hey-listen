@@ -4,16 +4,15 @@
 //! reading the observable state, installing a filter, opening a source file,
 //! rendering a synth graph, and running an analyzer.
 
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
-use crate::audio::analysis;
+use crate::audio::analysis::{self, Shape};
 use crate::audio::analyzers;
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
 use crate::state::SourcePcm;
 
 use super::args::{clamp_span, merge_options, merge_params};
-use super::shape::{compact, decimate};
 use super::HeadlessSession;
 
 impl HeadlessSession {
@@ -38,11 +37,37 @@ impl HeadlessSession {
             "window": { "start": self.window.0, "end": self.window.1 },
             "view": { "start": self.view.0, "end": self.view.1 },
             "params": serde_json::to_value(&self.params).unwrap_or(Value::Null),
-            "toolOptions": serde_json::to_value(&self.options).unwrap_or(Value::Null),
+            "toolOptions": self.tool_options(),
             "openTools": [],
             "filter": { "enabled": filter_enabled, "error": Value::Null },
             "output": { "gain": 1.0, "device": Value::Null },
         })
+    }
+
+    /// One tool's effective options: its declared defaults overlaid with the values the
+    /// agent set. Unset fields (`null` in the stored `ToolOptions`) are omitted.
+    pub(super) fn options_for(&self, tool: &str) -> Value {
+        let mut options = analyzers::option_defaults(tool);
+        if let Some(overrides) = self.options.get(tool) {
+            if let Ok(Value::Object(values)) = serde_json::to_value(overrides) {
+                for (key, value) in values {
+                    if !value.is_null() {
+                        options.insert(key, value);
+                    }
+                }
+            }
+        }
+        Value::Object(options)
+    }
+
+    /// Every analyzer's effective options, so `get_state` reports the defaults (not just
+    /// the tools the agent touched) — mirroring the GUI's `toolOptions`.
+    fn tool_options(&self) -> Value {
+        let mut map = Map::new();
+        for analyzer in analyzers::ANALYZERS {
+            map.insert(analyzer.id.to_string(), self.options_for(analyzer.id));
+        }
+        Value::Object(map)
     }
 
     /// Install (or clear) the filter applied before analysis. In headless mode there is
@@ -240,31 +265,51 @@ impl HeadlessSession {
             self.window = (start, end);
         }
 
-        let result = analysis::run_window(&self.state, &tool, start, end, &params, &options)
-            .map_err(|err| err.to_string())?;
-        let value = serde_json::to_value(result).map_err(|err| err.to_string())?;
-
+        // Resolve the output mode before the (expensive) analysis so a bad request fails
+        // without computing anything.
+        let summary_only = args
+            .get("summaryOnly")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let include_data = args
             .get("includeData")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let value = if include_data {
-            match args.get("maxPoints").and_then(Value::as_u64) {
-                Some(points) => decimate(value, points as usize),
-                None => value,
-            }
+        if summary_only && include_data {
+            return Err("`summaryOnly` and `includeData` are mutually exclusive".to_string());
+        }
+        let shape = if summary_only {
+            Shape::Summary
+        } else if include_data {
+            Shape::Full
         } else {
-            compact(value)
+            Shape::Compact
         };
+        let max_points = args
+            .get("maxPoints")
+            .and_then(Value::as_u64)
+            .map(|points| points as usize);
+
+        let result = analysis::run_window(&self.state, &tool, start, end, &params, &options)
+            .map_err(|err| err.to_string())?;
+
+        // The summary is computed from the full result, before any shaping, so it is the
+        // same in all three modes.
+        let summary = analysis::summarize(&result);
+        let shaped = analysis::shape_result(&result, shape, max_points);
 
         // Echo the effective settings the call ran with. The result already carries the
         // `tool` tag, so it is not repeated here; `display` is a UI-only concern (a
         // no-op headless).
-        Ok(json!({
+        let mut envelope = json!({
             "window": { "start": start, "end": end },
             "params": serde_json::to_value(&params).unwrap_or(Value::Null),
             "options": serde_json::to_value(&options).unwrap_or(Value::Null),
-            "result": value,
-        }))
+            "summary": summary,
+        });
+        if let Some(value) = shaped {
+            envelope["result"] = value;
+        }
+        Ok(envelope)
     }
 }

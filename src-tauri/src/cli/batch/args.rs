@@ -40,6 +40,7 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
     match name {
         "analyzers" => {
             request.command = Command::Analyzers {
+                id: string(matches, "id"),
                 json: flag(matches, "json"),
             };
         }
@@ -95,6 +96,7 @@ fn common(matches: &Matches) -> Result<Request, String> {
             None => None,
         },
         full: flag(matches, "full"),
+        summary: flag(matches, "summary"),
         pretty: flag(matches, "pretty"),
         fail_fast: flag(matches, "fail-fast"),
     };
@@ -126,6 +128,9 @@ fn validate(request: &Request) -> Result<(), String> {
     }
     if request.pretty && result_count(request) != 1 {
         return Err("--pretty prints a single result; give exactly one file and one tool".into());
+    }
+    if request.summary && request.full {
+        return Err("--summary and --full are mutually exclusive".into());
     }
     Ok(())
 }

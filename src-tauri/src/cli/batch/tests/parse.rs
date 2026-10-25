@@ -147,10 +147,46 @@ fn pretty_needs_a_single_result() {
 }
 
 #[test]
-fn analyzers_reads_the_json_flag() {
+fn analyzers_reads_the_json_and_id() {
     let m = matches(&[("json", json!(true))]);
     let request = build_request("analyzers", &m).unwrap();
-    assert!(matches!(request.command, Command::Analyzers { json: true }));
+    match request.command {
+        Command::Analyzers {
+            id: None,
+            json: true,
+        } => {}
+        _ => panic!("expected the catalog with json"),
+    }
+
+    let m = matches(&[("id", json!("spectrum")), ("json", json!(true))]);
+    let request = build_request("analyzers", &m).unwrap();
+    match request.command {
+        Command::Analyzers {
+            id: Some(id),
+            json: true,
+        } => assert_eq!(id, "spectrum"),
+        _ => panic!("expected one analyzer with json"),
+    }
+}
+
+#[test]
+fn summary_and_full_are_mutually_exclusive() {
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("summary", json!(true)),
+        ("full", json!(true)),
+    ]);
+    assert!(build_request("analyze", &m)
+        .unwrap_err()
+        .contains("mutually exclusive"));
+
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("summary", json!(true)),
+    ]);
+    assert!(build_request("analyze", &m).unwrap().summary);
 }
 
 #[test]

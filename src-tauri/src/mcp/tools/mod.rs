@@ -19,6 +19,9 @@ mod source;
 mod themes;
 mod workbench;
 
+#[cfg(test)]
+mod tests;
+
 use serde_json::Value;
 
 use schema::add_target_property;

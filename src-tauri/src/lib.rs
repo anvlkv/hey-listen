@@ -201,6 +201,7 @@ pub fn run() {
             commands::playback::set_output_gain,
             commands::playback::preview_position,
             commands::playback::output_level,
+            commands::analysis::analyzer_detail,
             commands::analysis::run_analysis,
             commands::ui::get_ui_state,
             commands::ui::set_ui_state,
