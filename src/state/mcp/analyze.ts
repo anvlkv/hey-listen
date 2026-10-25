@@ -11,7 +11,12 @@ import { source } from "../source";
 import { setWindowEnd, setWindowStart, windowEnd, windowStart } from "../timeline";
 import { openTool } from "../workbench";
 import { asArgs, optionalBool, optionalNum, str, type Args } from "./args";
-import { compact, decimate } from "./shaping";
+
+/** The `run_analysis` response: the canonical summary beside the shaped result. */
+interface AnalysisReply {
+  summary: unknown;
+  result?: unknown;
+}
 
 /**
  * Run an analyzer, optionally applying window/params/options first.
@@ -21,14 +26,20 @@ import { compact, decimate } from "./shaping";
  * true` applies `start`/`end`/`params`/`options` to this call only instead of writing
  * them back to the shared stores. The result echoes the effective `params`/`options`.
  *
- * The result's `tool` tag is carried by the analysis result itself, so the envelope
- * does not repeat it.
+ * The core returns `{ summary, result }`; `shape` picks the amount of result —
+ * `compact` by default, `full` with `includeData`, or none with `summaryOnly`. The
+ * summary is always present, so an agent never has to read arrays to get the answer.
  */
 export async function runAnalysis(args: Args) {
   const tool = str(args, "tool");
   if (!isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
 
   const transient = optionalBool(args, "transient") ?? false;
+  const summaryOnly = optionalBool(args, "summaryOnly") ?? false;
+  const includeData = optionalBool(args, "includeData") ?? false;
+  if (summaryOnly && includeData) {
+    throw new Error("`summaryOnly` and `includeData` are mutually exclusive");
+  }
 
   // Effective params: a transient patch merges into a snapshot, otherwise it is
   // written back to the shared store and re-read.
@@ -72,19 +83,28 @@ export async function runAnalysis(args: Args) {
   // caller asked to compute without display.
   if (optionalBool(args, "display") ?? true) await openTool(tool);
 
-  const result = await invoke<unknown>("run_analysis", {
-    request: { tool, start: span.start, end: span.end, params, options: requestOptions },
+  const shape = summaryOnly ? "summary" : includeData ? "full" : "compact";
+  const maxPoints = optionalNum(args, "maxPoints");
+  const response = await invoke<AnalysisReply>("run_analysis", {
+    request: {
+      tool,
+      start: span.start,
+      end: span.end,
+      params,
+      options: requestOptions,
+      shape,
+      ...(maxPoints != null ? { maxPoints } : {}),
+    },
   });
 
-  let payload = result;
-  if (optionalBool(args, "includeData") ?? false) {
-    const maxPoints = optionalNum(args, "maxPoints");
-    if (maxPoints != null && maxPoints >= 0) payload = decimate(result, maxPoints);
-  } else {
-    payload = compact(result);
-  }
-
-  return { window: span, params, options, result: payload };
+  const envelope: Record<string, unknown> = {
+    window: span,
+    params,
+    options,
+    summary: response.summary,
+  };
+  if (response.result !== undefined) envelope.result = response.result;
+  return envelope;
 }
 
 /** Merge a shared-params patch over a base snapshot (mirrors `applySharedParams`). */

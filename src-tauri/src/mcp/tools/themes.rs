@@ -3,13 +3,15 @@
 
 use serde_json::{json, Value};
 
-use super::schema::tool;
+use super::schema::{tool, ToolClass};
 
 /// The theme tools.
 pub(super) fn tools() -> Vec<Value> {
     vec![
         tool(
             "list_themes",
+            "List themes",
+            ToolClass::OBSERVE,
             "List the available themes (id, name, description, base, builtin) and the active \
              theme preference (mode + dark/light slots), so you can reproduce the app's look. \
              Headless lists the bundled themes only.",
@@ -17,6 +19,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "get_theme",
+            "Get theme",
+            ToolClass::OBSERVE,
             "Read a theme's full definition (`id`), or the active theme when `id` is omitted. \
              Also reports the active preference (mode + slots).",
             json!({
@@ -27,6 +31,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "set_theme",
+            "Set theme",
+            ToolClass::SETTINGS,
             "Set the theme preference: `mode` (`auto` / `dark` / `light`) and/or the `darkThemeId` \
              / `lightThemeId` slots. Only the supplied keys change. Persisted app-level (not in \
              the project file).",
@@ -42,6 +48,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "import_theme",
+            "Import theme",
+            ToolClass::THEME_IMPORT,
             "Import a `.heyltheme` file into the themes store and return its summary (`path`).",
             json!({
                 "type": "object",
@@ -52,6 +60,8 @@ pub(super) fn tools() -> Vec<Value> {
         ),
         tool(
             "export_theme",
+            "Export theme",
+            ToolClass::THEME_EXPORT,
             "Write a theme (the active one, or `id`) to a `.heyltheme` file at `path`.",
             json!({
                 "type": "object",

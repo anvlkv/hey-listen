@@ -34,12 +34,14 @@ const DEFAULT_PARAMS = {
 
 /**
  * Call the real backend `run_analysis`. The Rust command takes a single `request`
- * argument, so the args object is `{ request: AnalysisRequest }`.
+ * argument (`{ request: AnalysisRequest }`) and answers `{ summary, result }`; the
+ * specs read the raw result, so unwrap `result` here.
  */
 async function runAnalysis<T>(tool: string, start: number, end: number): Promise<T> {
-  return invokeCore<T>("run_analysis", {
-    request: { tool, start, end, params: DEFAULT_PARAMS, options: {} },
+  const response = await invokeCore<{ result?: T }>("run_analysis", {
+    request: { tool, start, end, params: DEFAULT_PARAMS, options: {}, shape: "full" },
   });
+  return response.result as T;
 }
 
 /** Median of a numeric array (even counts average the two middle values). */

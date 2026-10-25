@@ -5,8 +5,10 @@
  * execution model"): a tab calls [`createAnalysis`], which watches the shared params,
  * its per-tool options, and the analysis window, and issues a **debounced**
  * `run_analysis` invoke (trailing ~200 ms), discarding stale responses
- * (latest-wins). Auto-run only happens while a tab is mounted, so closed tools are
- * never recomputed. See `docs/analysis-tools.md`.
+ * (latest-wins). The tabs request `shape: "full"` — precompaction is for the MCP/CLI
+ * callers — and unwrap the command's `{ summary, result }` response. Auto-run only
+ * happens while a tab is mounted, so closed tools are never recomputed. See
+ * `docs/analysis-tools.md`.
  */
 import { createEffect, createSignal, on, onCleanup } from "solid-js";
 import { invoke } from "../../lib/ipc";
@@ -75,13 +77,19 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
     const token = ++generation;
     setLoading(true);
     try {
-      const response = (await invoke<T>("run_analysis", {
-        request: { tool, start, end, params: sharedParams(), options: options() },
-      })) as T;
+      const response = await invoke<{ summary: unknown; result?: T }>("run_analysis", {
+        request: { tool, start, end, params: sharedParams(), options: options(), shape: "full" },
+      });
       if (token !== generation) return;
-      setResult(() => response);
+      const payload = response.result;
+      if (payload == null) {
+        setResult(null);
+        setLatestResult(tool, null);
+      } else {
+        setResult(() => payload);
+        setLatestResult(tool, payload as unknown as AnyAnalysisResult);
+      }
       setError(null);
-      setLatestResult(tool, response as AnyAnalysisResult);
     } catch (err) {
       if (token !== generation) return;
       setError(String(err));

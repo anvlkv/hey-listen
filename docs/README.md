@@ -1,14 +1,14 @@
 # Hey Listen — Planning Docs
 
 Index of the design/planning documentation. These docs are the source of truth for
-design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11, M14–M19, and the
+design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11, M14–M21, and the
 post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — see
 [`exports.md`](exports.md) and [`templates.md`](templates.md); [`notes.md`](notes.md)
 (M14) and **M15** (code hygiene — the format/lint/dead-code gate) are delivered.
 **M16–M20** (pitch range, the frame-RMS envelope, note segmentation, the per-note
 voice-quality proxies, and AM/FM modulation spectra) are delivered — see
 [`analysis-metrics.md`](analysis-metrics.md). **M21** (MCP/CLI ergonomics: per-result
-summaries, compact results, catalog annotations, discovery) is **planned** — see
+summaries, compact results, catalog annotations, discovery) is delivered — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 | Doc | What it covers |
@@ -21,7 +21,7 @@ summaries, compact results, catalog annotations, discovery) is **planned** — s
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
 | [analysis-metrics.md](analysis-metrics.md) | Analysis depth: pitch range, frame RMS, note segmentation (M16–M18), per-note voice-quality proxies (M19), and AM/FM modulation spectra (M20) — all delivered |
-| [mcp-cli-ergonomics.md](mcp-cli-ergonomics.md) | Planned MCP/CLI ergonomics: result summaries, compact previews, tool annotations, analyzer discovery (M21) |
+| [mcp-cli-ergonomics.md](mcp-cli-ergonomics.md) | MCP/CLI ergonomics: result summaries, compact previews, tool annotations, analyzer discovery (M21) |
 | [theming.md](theming.md) | Exchangeable theme files: the `ThemeFile` model, built-ins + slots, the apply pipeline |
 | [exports.md](exports.md) | Analysis exports: the provenance envelope, JSON / CSV (wide matrix), chart-PNG capture |
 | [templates.md](templates.md) | Analysis templates: source-less JSON presets (setup + graphs + layout) and window policies |

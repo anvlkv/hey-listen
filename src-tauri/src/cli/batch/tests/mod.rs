@@ -141,9 +141,31 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
         options: Vec::new(),
         filter: None,
         full: false,
+        summary: false,
         pretty: false,
         fail_fast: false,
     }
+}
+
+/// A `synth` request over the standard sine graph, with the given label / length / tools.
+pub(super) fn synth_request(path: &str, seconds: f64, tools: Vec<String>) -> Request {
+    Request {
+        command: Command::Synth {
+            graph: sine_graph(),
+            seconds,
+            path: path.to_string(),
+        },
+        ..analyze_request(Vec::new(), tools)
+    }
+}
+
+/// Run a request that must produce exactly one JSON line, and return that line.
+pub(super) fn run_single(request: &Request) -> Value {
+    let mut out = Vec::new();
+    assert_eq!(run(request, &mut out), 0);
+    let mut values = lines(&out);
+    assert_eq!(values.len(), 1);
+    values.remove(0)
 }
 
 pub(super) fn lines(output: &[u8]) -> Vec<Value> {

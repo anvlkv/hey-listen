@@ -66,8 +66,8 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 > The M16–M20 analysis-depth results carry `FrameRms` (delivered in M17),
 > `NoteMetricsResult` (delivered in M18–M19), and `ModulationResult` (delivered in M20)
 > — see [`analysis-metrics.md`](analysis-metrics.md).
-> M21 adds a `ResultSummary` (a `text` line plus labelled, unit-bearing items) and an
-> analysis response envelope carrying both `result` and `summary` — see
+> M21 delivered the `ResultSummary` (a `text` line plus labelled, unit-bearing items) and
+> the `AnalysisResponse` envelope carrying both `result` and `summary` — see
 > [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 ## Sketch (Rust)

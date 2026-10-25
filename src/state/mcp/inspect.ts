@@ -1,5 +1,6 @@
 import type { Note } from "../../bindings/Note";
 import { deepClone } from "../../lib/clone";
+import { noteExcerpt } from "../../lib/note";
 import { sharedParams } from "../analysis";
 import { toolOptions } from "../analyzer";
 import { filterEnabled, filterError } from "../graph";
@@ -33,8 +34,11 @@ export function getState(target?: string) {
   };
 }
 
-/** A compact note summary for `get_state` (id/time/tool/title + the values line). */
-function noteSummary(note: Note) {
+/**
+ * A compact note summary for `get_state` / `list_notes`: identity, anchor, the frozen
+ * values line, and a one-line body excerpt (the full body needs `get_note`).
+ */
+export function noteSummary(note: Note) {
   return {
     id: note.id,
     timeSecs: note.timeSecs,
@@ -42,6 +46,7 @@ function noteSummary(note: Note) {
     tool: note.tool,
     title: note.title,
     values: note.values?.text ?? null,
+    body: noteExcerpt(note.body),
   };
 }
 

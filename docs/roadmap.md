@@ -987,7 +987,7 @@ Full modulation spectra, not a single rate: slow breathing and a fast trill can 
 > stays upstream. New results are not persisted yet, so no container change; the
 > per-note measures are labelled as proxies.
 
-## M21 — MCP + CLI analysis ergonomics (cross-cutting, planned)
+## M21 — MCP + CLI analysis ergonomics (cross-cutting) ✅
 
 Every analyzer call through MCP and the CLI becomes **compact by default, semantically
 summarized, and discoverable**. The MCP catalog gains titles and annotations, and the
@@ -1030,3 +1030,25 @@ milestone over M16–M20, not another analyzer.
 > entries; **M21 owns the shared summary/compact/annotation contract**. It depends on M16
 > and can land before or after M17–M20. See
 > [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
+
+> **Delivered:** every analyzer call now carries a canonical Rust `ResultSummary` — a
+> stable `text` line plus labelled, unit-bearing items computed from the **full** result
+> before shaping — in the GUI command (`run_analysis` returns `{ summary, result }`),
+> headless MCP, and the CLI. One Rust shaper (`audio/analysis/shape.rs`) serves all
+> three: `Shape::Compact` keeps matrices/spectrograms' dimensions and peak
+> time/freq/level, collapses numeric series to min/max/argmin/argmax (with `nulls`), and
+> gives event/note lists a bounded five-record preview; `Shape::Full` returns the raw
+> arrays (optionally decimated by `maxPoints`); `Shape::Summary` returns no result.
+> `run_analysis` gains `summaryOnly` (mutually exclusive with `includeData`), the CLI
+> gains `--summary` (and rejects `--summary` + `--full`), and the TypeScript compactor
+> is retired. `list_analyzers` stays the compact catalog; the new `get_analyzer` returns
+> about/description, option metadata (key/label/default/min/max/step/unit/help), and the
+> summary keys (the GUI path overlays the registry's longer `about` via the
+> `analyzer_detail` command). Every MCP tool now carries a `title` and hints
+> (`readOnlyHint` / `destructiveHint` / `idempotentHint` / `openWorldHint`) from a shared
+> `ToolClass`; headless `get_state` reports every tool's option defaults; and
+> `list_notes` defaults to compact summaries (body excerpt + values text) with
+> `full: true` for the whole record. `analyzers <ID>` is the CLI's `-o` discovery path.
+> Tests cover every result variant's summary (including empty/silent), the compact
+> families, catalog title/annotation coverage, `get_analyzer`/`list_analyzers`
+> agreement, the three output modes, and the CLI conflict.

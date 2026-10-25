@@ -251,6 +251,61 @@ pub enum AnalysisResult {
 }
 
 impl AnalysisResult {
+    /// The analyzer id that produced this result — the same string the catalog and the
+    /// request use.
+    pub fn tool_id(&self) -> &'static str {
+        match self {
+            AnalysisResult::Waveform(_) => "waveform",
+            AnalysisResult::Spectrum(_) => "spectrum",
+            AnalysisResult::Spectrogram(_) => "spectrogram",
+            AnalysisResult::Levels(_) => "levels",
+            AnalysisResult::FrameRms(_) => "frameRms",
+            AnalysisResult::MelSpectrogram(_) => "melSpectrogram",
+            AnalysisResult::Mfcc(_) => "mfcc",
+            AnalysisResult::Chromagram(_) => "chromagram",
+            AnalysisResult::SpectralContrast(_) => "spectralContrast",
+            AnalysisResult::SpectralCentroid(_) => "spectralCentroid",
+            AnalysisResult::SpectralFlux(_) => "spectralFlux",
+            AnalysisResult::SpectralRolloff(_) => "spectralRolloff",
+            AnalysisResult::SpectralFlatness(_) => "spectralFlatness",
+            AnalysisResult::SpectralBandwidth(_) => "spectralBandwidth",
+            AnalysisResult::SpectralEntropy(_) => "spectralEntropy",
+            AnalysisResult::SpectralCrest(_) => "spectralCrest",
+            AnalysisResult::HarmonicRatio(_) => "harmonicRatio",
+            AnalysisResult::ZeroCrossingRate(_) => "zeroCrossingRate",
+            AnalysisResult::PitchPyin(_) => "pitchPyin",
+            AnalysisResult::PitchYin(_) => "pitchYin",
+            AnalysisResult::PitchAutocorr(_) => "pitchAutocorr",
+            AnalysisResult::NoteMetrics(_) => "noteMetrics",
+            AnalysisResult::Modulation(_) => "modulation",
+            AnalysisResult::Tempo(_) => "tempo",
+            AnalysisResult::Onsets(_) => "onsets",
+            AnalysisResult::Downbeats(_) => "downbeats",
+            AnalysisResult::LoudnessIntegrated(_) => "loudnessIntegrated",
+            AnalysisResult::LoudnessMomentary(_) => "loudnessMomentary",
+            AnalysisResult::LoudnessRange(_) => "loudnessRange",
+        }
+    }
+
+    /// The scalar-per-frame series this result carries, when the tool returns one
+    /// (every `SeriesResult` variant, including `frameRms` and momentary loudness).
+    pub fn series(&self) -> Option<&SeriesResult> {
+        match self {
+            AnalysisResult::SpectralCentroid(r)
+            | AnalysisResult::SpectralFlux(r)
+            | AnalysisResult::SpectralRolloff(r)
+            | AnalysisResult::SpectralFlatness(r)
+            | AnalysisResult::SpectralBandwidth(r)
+            | AnalysisResult::SpectralEntropy(r)
+            | AnalysisResult::SpectralCrest(r)
+            | AnalysisResult::HarmonicRatio(r)
+            | AnalysisResult::ZeroCrossingRate(r)
+            | AnalysisResult::LoudnessMomentary(r)
+            | AnalysisResult::FrameRms(r) => Some(r),
+            _ => None,
+        }
+    }
+
     /// Re-base a result produced over the sliced region `[start, start + span)` onto
     /// **source seconds**: shift every time it carries by `start` and record the
     /// origin.
