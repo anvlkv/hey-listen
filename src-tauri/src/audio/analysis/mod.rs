@@ -88,6 +88,30 @@ const DEFAULT_PITCH_FRAME_MS: f32 = 40.0;
 /// The hop between those pitch frames: fine enough to see intra-note jitter.
 const DEFAULT_PITCH_HOP_MS: f32 = 5.0;
 
+// AM/FM modulation-spectrum defaults (M20).
+/// The modulation-rate band the spectra cover, in Hz.
+const DEFAULT_MOD_MIN_HZ: f32 = 0.5;
+const DEFAULT_MOD_MAX_HZ: f32 = 100.0;
+/// The shortest voiced run the FM half analyses.
+const DEFAULT_MIN_VOICED_SECS: f32 = 0.2;
+/// How many ranked peaks each spectrum returns.
+const DEFAULT_TOP_PEAKS: usize = 3;
+/// `detrend` option value for a linear fit; `0` removes the mean only.
+const DEFAULT_DETREND: usize = 1;
+/// Cap on the modulation-spectrum bins kept in the result (IPC size bound).
+const MAX_MOD_BINS: usize = 512;
+/// Cap on the modulation FFT length, so zero-padding stays bounded.
+const MAX_MOD_FFT: usize = 65_536;
+/// Frame cap for the fine pitch pass that tracks the FM run. Much looser than the
+/// per-note grid, because a modulation run can span seconds.
+const MAX_MOD_PITCH_FRAMES: usize = 2_048;
+/// Frame cap for the coarse pass that only needs to find the longest voiced run: kept
+/// small because its frame is sized for the lowest expected f0 (so each frame is
+/// comparatively expensive).
+const MAX_COARSE_PITCH_FRAMES: usize = 256;
+/// Below this many voiced frames the FM depth figures are `None`.
+const MIN_FM_FRAMES: usize = 8;
+
 // --- signal conditioning -------------------------------------------------
 
 /// Run a tool over `start..end` of a project's source, synchronously.

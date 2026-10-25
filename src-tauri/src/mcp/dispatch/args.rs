@@ -115,6 +115,11 @@ pub(super) fn merge_options(
             "envelopePoints" => entry.envelope_points = Some(number as usize),
             "pitchFrameMs" => entry.pitch_frame_ms = Some(number as f32),
             "pitchHopMs" => entry.pitch_hop_ms = Some(number as f32),
+            "modMinHz" => entry.mod_min_hz = Some(number as f32),
+            "modMaxHz" => entry.mod_max_hz = Some(number as f32),
+            "detrend" => entry.detrend = Some(number.max(0.0) as usize),
+            "minVoicedSecs" => entry.min_voiced_secs = Some(number as f32),
+            "topPeaks" => entry.top_peaks = Some(number.max(0.0) as usize),
             other => return Err(format!("unknown option for {tool}: {other}")),
         }
     }

@@ -6,6 +6,7 @@ use crate::audio::analysis::WindowKind;
 
 use super::HeadlessSession;
 
+mod modulation;
 mod shaping;
 
 #[test]

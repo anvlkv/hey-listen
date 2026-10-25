@@ -98,6 +98,32 @@ check("note voice-quality options accept snake_case aliases", () => {
   assertDeepEqual(engineOptions("noteMetrics"), optionDefaults("noteMetrics"));
 });
 
+check("modulation options are engine options with defaults", () => {
+  assertDeepEqual(optionDefaults("modulation"), {
+    frameMs: 10,
+    hopMs: 2.5,
+    modMinHz: 0.5,
+    modMaxHz: 100,
+    detrend: 1,
+    pitchFrameMs: 40,
+    pitchHopMs: 5,
+    minVoicedSecs: 0.2,
+    topPeaks: 3,
+    minF0Hz: 50,
+    maxF0Hz: 2000,
+  });
+  assertDeepEqual(
+    applyOptionPatch("modulation", {
+      mod_max_hz: 60,
+      min_voiced_secs: 0.4,
+      top_peaks: 5,
+      pitch_hop_ms: 2,
+    }),
+    { modMaxHz: 60, minVoicedSecs: 0.4, topPeaks: 5, pitchHopMs: 2 },
+  );
+  assertDeepEqual(engineOptions("modulation"), optionDefaults("modulation"));
+});
+
 check("loading an older project fills in new option defaults", () => {
   loadToolOptions({ pitchYin: { yinThreshold: 0.2 } });
   assertEqual(toolOptions.pitchYin.minF0Hz, 50);

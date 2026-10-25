@@ -86,6 +86,7 @@ mod tests {
             "spectralCrest",
             "harmonicRatio",
             "zeroCrossingRate",
+            "modulation",
             "pitchPyin",
             "pitchYin",
             "pitchAutocorr",
@@ -162,6 +163,25 @@ mod tests {
         assert_eq!(note["options"]["pitchHopMs"], 5.0);
         assert_eq!(note["options"]["minF0Hz"], 50.0);
         assert_eq!(note["options"]["maxF0Hz"], 2000.0);
+    }
+
+    #[test]
+    fn list_carries_the_modulation_defaults() {
+        let items = list();
+        let modulation = items
+            .iter()
+            .find(|item| item["id"] == "modulation")
+            .expect("modulation is in the catalog");
+        assert_eq!(modulation["section"], "spectral");
+        assert_eq!(modulation["options"]["frameMs"], 10.0);
+        assert_eq!(modulation["options"]["hopMs"], 2.5);
+        assert_eq!(modulation["options"]["modMinHz"], 0.5);
+        assert_eq!(modulation["options"]["modMaxHz"], 100.0);
+        assert_eq!(modulation["options"]["detrend"], 1.0);
+        assert_eq!(modulation["options"]["minVoicedSecs"], 0.2);
+        assert_eq!(modulation["options"]["topPeaks"], 3.0);
+        assert_eq!(modulation["options"]["minF0Hz"], 50.0);
+        assert_eq!(modulation["options"]["maxF0Hz"], 2000.0);
     }
 
     #[test]
