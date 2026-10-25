@@ -47,8 +47,11 @@ pub fn export_theme_file(path: String, content: String) -> Result<(), ThemeError
 }
 
 /// Pick a `.heyltheme` file to import (native dialog).
+///
+/// Async so the blocking dialog runs off the main thread — a sync command would be
+/// polled on the main thread and deadlock the event loop while the dialog is open.
 #[tauri::command]
-pub fn pick_theme_import_path(app: AppHandle) -> Option<String> {
+pub async fn pick_theme_import_path(app: AppHandle) -> Option<String> {
     app.dialog()
         .file()
         .set_title("Import theme")
@@ -59,8 +62,10 @@ pub fn pick_theme_import_path(app: AppHandle) -> Option<String> {
 }
 
 /// Pick where to export a theme (native dialog), pre-filled with `defaultName`.
+///
+/// Async for the same reason as [`pick_theme_import_path`].
 #[tauri::command]
-pub fn pick_theme_export_path(app: AppHandle, default_name: String) -> Option<String> {
+pub async fn pick_theme_export_path(app: AppHandle, default_name: String) -> Option<String> {
     app.dialog()
         .file()
         .set_title("Export theme")
