@@ -558,3 +558,73 @@ file-format, or MCP-tool break. The cost is that code names (`Note`, `notes`) ar
 the M14 spelling — documented at the type, store, and tool catalog.
 
 **Status: delivered (M18).**
+
+## ADR-21 — Live synth: audition is a core loop; edits rewrite the source in place
+
+**Context:** the synth graph is only heard after **Render**, which renders the whole
+graph, streams it to the frontend and **replaces the source** (resetting the timeline and
+its analysis window). Building a graph means render → confirm → lose the window → repeat.
+The want is to hear the graph while editing it and to let the analysis follow the edits.
+
+**Decision:** split the two jobs.
+
+- **Audition** (`preview_synth`) renders a short loop in the core and plays it through the
+  window's existing `Playback`. It never touches the source, so it is safe while any file
+  is open, and it is fast enough to re-render on a trailing debounce.
+- **Live source** (`update_synth_source` / `live_synth`) renders the requested length and
+  overwrites the **synth source in place**: the window, view, annotations and analyzer tabs
+  stay put, and the analysis re-runs against the new PCM. The first write to a non-synth
+  source confirms the replacement (the one-source rule still holds); later writes do not.
+- Both facets render once per settle when they are used together. **Render once** remains
+  the long-form/one-shot path and is what headless MCP and the CLI use.
+
+**Consequence:** the timeline/analysis is live while composing, at the cost of a render per
+settled edit (capped at 10 s for Live; longer graphs use Render once). Undo/redo still works
+through the graph snapshots and re-renders as a consequence; the source PCM is not itself a
+history entry. A truly phase-continuous rebuild and a persistent net are deferred. See
+[`graph-editor.md`](graph-editor.md) and [`source-model.md`](source-model.md).
+
+**Status: proposed (M22).**
+
+## ADR-22 — The playhead is transport state, not a preview side effect
+
+**Context:** the playhead is computed from the last preview start and cleared on stop, so
+pausing is really stopping, the line vanishes, and every resume restarts at the region
+start. There is no pause or seek, and the core reports no position once it stops.
+
+**Decision:** make the transport explicit.
+
+- `Playback` owns the position and keeps it across pause and stop; `seek` moves it, and a
+  region reload can resume at an offset.
+- The frontend `transport` state owns `status`, `position`, `region`, `loop`, `speed` and
+  `owner`. **Play/Pause** is primary; **Stop** silences but leaves the line where it is;
+  **Return to start** is a separate action. The playhead is drawn whenever a position
+  exists (dimmed when paused) and is shared on the chart bus as `{ secs, playing }`.
+- The playhead and the analysis window are independent. A **reframe** frames the view and
+  may focus the Timeline, but it does not redefine the playhead; a window change clamps an
+  idle playhead into the new window rather than moving the window.
+
+**Consequence:** charts and the Timeline agree on what is being auditioned, pause/resume
+is meaningful, and a paused project still shows where it stopped. Source changes remain the
+only implicit reset. See [`notes.md`](notes.md) → Preview playback.
+
+**Status: proposed (M23).**
+
+## ADR-23 — One command registry drives keyboard, palette, and shortcut UI
+
+**Context:** keyboard behaviour is split between native menu accelerators, component-local
+handlers (note editor, scrollbar, context menus) and browser defaults. There is no
+inventory, no discoverability, and no way to rebind anything.
+
+**Decision:** a single **command registry** is the source of truth: each command declares
+an id, title, category, default binding, scope/`when`, handler, and whether it may run in a
+text field or repeat. The dispatcher, **command palette**, **Keyboard Shortcuts dialog**,
+tooltips and `aria-keyshortcuts` all read that registry. Bindings are app-level,
+versioned, persisted in `localStorage`, and rebindable with conflict detection.
+
+**Consequence:** new actions must register rather than attach an ad-hoc listener, which is
+the point. Native menu accelerators stay read-only for this milestone because Tauri would
+need the menu rebuilt on every binding change; making the menu itself data-driven is a
+follow-up. See [`hotkeys.md`](hotkeys.md).
+
+**Status: proposed (M24).**

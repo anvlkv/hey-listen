@@ -514,6 +514,22 @@ so the spec leaves one project window open instead of tearing that one down too.
 | --- | --- | --- | --- |
 | T1 | Close main | With two projects each holding a popout, closing `main` destroys main's popout, keeps the other project **and its popout** alive (which still renders a chart), and the app stays up | Scenario |
 
+### Planned coverage (M22–M24)
+
+Scheduled with their milestones. The spec names sort **before** `t-close-main`, which must
+stay the last suite file (closing `main` cannot be undone).
+
+| Milestone | Spec | Asserts |
+| --- | --- | --- |
+| M22 | `q2-synth-live` | Audition calls `preview_synth` (not `preview_region`) and stops on tab close; Live updates the source without resetting the window, view or annotations; a failed live render keeps the last good audio; a palette drag shows the ghost, the drop preview and the splice badge, and drops where previewed. |
+| M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; Shift-drag selects and frames a window; a lane selection paints full-height rules; hover shows the time readout; a burst of tiny wheel events pans by the accumulated delta (or zooms proportionally with `Ctrl`/`⌘`), not once per event, and a horizontal gesture never zooms. |
+| M24 | `q4-keyboard` | Space/arrows drive the transport; `N` annotates; `Mod+K` opens the palette and runs a command; `?` opens the explorer; a rebind takes effect and the old key goes inert; a conflict is rejected; text fields and focused buttons keep their keys; bindings survive a reload. |
+
+> Unit coverage for these milestones: `dropTarget` and the live-render scheduler, frame
+> math and annotation-rule geometry, the transport reducer, and the binding
+> parse/format/match/conflict/persistence helpers (see the milestone sections in
+> [`roadmap.md`](roadmap.md)).
+
 ## Running
 
 ```sh

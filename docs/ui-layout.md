@@ -215,9 +215,12 @@ None of these are closable, draggable, or tabbed.
   (nothing to show yet) spins in the **centre** of the tab; a **recompute** (params
   or window change while a result is on screen) spins in the **bottom-right corner**
   so the stale result stays visible.
-- Analyzer charts **zoom on scroll** and carry an on-chart **zoom control**
+- Analyzer charts **currently zoom on scroll** and carry an on-chart **zoom control**
   (zoom in / out / fit with a range readout); the spectrogram also **pans by
-  dragging** (wheel zooms time, Shift+wheel zooms frequency).
+  dragging** (wheel zooms time, Shift+wheel zooms frequency). **M23 planned:** a plain
+  wheel/trackpad scroll pans (time; frequency on 2-D views), pinch / `⌘`/Ctrl+wheel zooms
+  at the cursor, and a horizontal gesture never zooms. See
+  [`roadmap.md`](roadmap.md) → M23.
 - Axis labels stay **un-truncated** — sized margins and formatted ticks/units (the
   charts and the Timeline ruler).
 - **Zoom and cursor are synced across analyzer tabs** (where relevant): every

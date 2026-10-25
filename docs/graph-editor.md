@@ -86,6 +86,15 @@ smoothing across a net *rebuild* is out of scope.)
 - The **synth graph** is rendered to PCM by `render_synth` (48 kHz mono) and becomes
   the project source.
 
+### Live synth (planned, M22)
+
+- **Audition** renders a short loop in the core (`preview_synth`) and plays it through the
+  window's output stream while the graph is edited — the source is untouched.
+- **Live** re-renders the synth **source in place** on each settled edit, preserving the
+  analysis window, timeline zoom, annotations and open analyzer tabs, so the waveform and
+  analysis follow the graph. **Render once** stays for long/one-shot renders.
+- See [`roadmap.md`](roadmap.md) → M22 and ADR-21.
+
 ## Palette UX
 
 - **Search** — a search box at the top of the palette filters the nodes by label or
@@ -96,6 +105,11 @@ smoothing across a net *rebuild* is out of scope.)
   **pointer events**, not HTML5 drag-and-drop: Tauri's native file-drop handler
   consumes every drag over the WebView on macOS (so an HTML5 `drop` never fires) and
   shows its file-drop overlay mid-drag — see `src/state/dragdrop.ts`.
+- **Planned (M22)** — the drag shows a **ghost** of the node under the pointer, a
+  translucent **drop preview** at the landing position, and a **splice preview**
+  (highlighted connector + *Insert into link* badge) when it would split an edge.
+  Outside the canvas or when the drop is invalid it reads as not-allowed. See
+  [`roadmap.md`](roadmap.md) → M22.
 - **Anchors are undeletable** — `input` / `output` cannot be deleted
   (`deletable: false`, and the editor's `onDelete` skips them). They seed at the
   left / right edges but are **freely draggable**.
