@@ -236,6 +236,9 @@ hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o
 # Note segmentation with a tighter gate and the full note records:
 hey-listen analyze call.wav -t noteMetrics -o noteMetrics.gateDb=25 --full
 
+# AM/FM modulation spectra over a 0.5–80 Hz band (full spectra):
+hey-listen analyze call.wav -t modulation -o modulation.modMaxHz=80 --full
+
 # Discover ids:
 hey-listen analyzers --json | jq -r '.[].id'
 

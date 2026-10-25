@@ -3,9 +3,6 @@
 /**
  * One detected audio **note** (a segment above the gate) with its level summary and
  * per-note voice-quality proxies.
- *
- * A note here is an acoustic event found by `noteMetrics` — distinct from a project
- * **annotation** (the M14 `Note` payload, user-authored commentary).
  */
 export type NoteMetric = { startSecs: number, endSecs: number, durationSecs: number, 
 /**

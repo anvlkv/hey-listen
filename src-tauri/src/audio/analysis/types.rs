@@ -6,11 +6,13 @@ use oxiaudio::dsp::spectral::WindowFn;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DB_FLOOR, DEFAULT_BAR_LENGTH, DEFAULT_ENVELOPE_POINTS,
-    DEFAULT_FRAME_MS, DEFAULT_GATE_DB, DEFAULT_GATE_FLOOR_DB, DEFAULT_HOP_MS,
-    DEFAULT_HYSTERESIS_DB, DEFAULT_MIN_GAP_MS, DEFAULT_MIN_NOTE_MS, DEFAULT_N_BANDS,
+    AUTOCORR_MAX_F0, AUTOCORR_MIN_F0, DB_FLOOR, DEFAULT_BAR_LENGTH, DEFAULT_DETREND,
+    DEFAULT_ENVELOPE_POINTS, DEFAULT_FRAME_MS, DEFAULT_GATE_DB, DEFAULT_GATE_FLOOR_DB,
+    DEFAULT_HOP_MS, DEFAULT_HYSTERESIS_DB, DEFAULT_MIN_GAP_MS, DEFAULT_MIN_NOTE_MS,
+    DEFAULT_MIN_VOICED_SECS, DEFAULT_MOD_MAX_HZ, DEFAULT_MOD_MIN_HZ, DEFAULT_N_BANDS,
     DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_PITCH_FRAME_MS, DEFAULT_PITCH_HOP_MS, DEFAULT_ROLLOFF,
-    DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
+    DEFAULT_TOP_PEAKS, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0, YIN_MAX_F0,
+    YIN_MIN_F0,
 };
 
 mod wire;
@@ -147,6 +149,20 @@ pub struct ToolOptions {
     pub envelope_points: Option<usize>,
     pub pitch_frame_ms: Option<f32>,
     pub pitch_hop_ms: Option<f32>,
+    pub mod_min_hz: Option<f32>,
+    pub mod_max_hz: Option<f32>,
+    pub detrend: Option<usize>,
+    pub min_voiced_secs: Option<f32>,
+    pub top_peaks: Option<usize>,
+}
+
+/// How a modulation envelope is detrended before its spectrum is taken (M20).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Detrend {
+    /// Remove the mean only (DC).
+    Mean,
+    /// Remove a least-squares line.
+    Linear,
 }
 
 impl ToolOptions {
@@ -300,6 +316,49 @@ impl ToolOptions {
 
     /// The f0 search range for the per-note quality proxies (M19), defaulting to YIN's.
     pub(super) fn note_pitch_range(&self) -> (f32, f32) {
+        self.f0_range(YIN_MIN_F0, YIN_MAX_F0)
+    }
+
+    /// The requested modulation-rate band in Hz (M20), always ordered.
+    pub(super) fn mod_range(&self) -> (f32, f32) {
+        let min = self
+            .mod_min_hz
+            .filter(|value| value.is_finite())
+            .unwrap_or(DEFAULT_MOD_MIN_HZ)
+            .clamp(0.0, 10_000.0);
+        let max = self
+            .mod_max_hz
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .unwrap_or(DEFAULT_MOD_MAX_HZ)
+            .clamp(0.01, 20_000.0);
+        (min, max.max(min + 0.01))
+    }
+
+    /// How the modulation envelope is detrended before the FFT (M20); `0` keeps the
+    /// mean removal only, anything else is a linear fit (the default).
+    pub(super) fn detrend(&self) -> Detrend {
+        if self.detrend.unwrap_or(DEFAULT_DETREND) == 0 {
+            Detrend::Mean
+        } else {
+            Detrend::Linear
+        }
+    }
+
+    /// The shortest voiced run the FM spectrum analyses, in seconds (M20).
+    pub(super) fn min_voiced_secs(&self) -> f32 {
+        self.min_voiced_secs
+            .filter(|value| value.is_finite() && *value >= 0.0)
+            .unwrap_or(DEFAULT_MIN_VOICED_SECS)
+            .clamp(0.0, 60.0)
+    }
+
+    /// How many ranked peaks each spectrum returns (M20).
+    pub(super) fn top_peaks(&self) -> usize {
+        self.top_peaks.unwrap_or(DEFAULT_TOP_PEAKS).clamp(1, 12)
+    }
+
+    /// The f0 search range for the modulation pitch track (M20), defaulting to YIN's.
+    pub(super) fn mod_pitch_range(&self) -> (f32, f32) {
         self.f0_range(YIN_MIN_F0, YIN_MAX_F0)
     }
 }

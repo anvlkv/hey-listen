@@ -6,6 +6,7 @@ import MatrixView from "./MatrixView";
 import ReadoutsView from "./ReadoutsView";
 import RhythmView from "./RhythmView";
 import NoteMetricsView from "./NoteMetricsView";
+import ModulationView from "./ModulationView";
 import {
   analyzerById,
   createAnalysis,
@@ -45,6 +46,9 @@ export default function AnalyzerView(props: { id: AnalyzerId }) {
         </Match>
         <Match when={def().view.kind === "noteMetrics"}>
           <NoteMetricsView id={props.id} analysis={analysis} />
+        </Match>
+        <Match when={def().view.kind === "modulation"}>
+          <ModulationView id={props.id} analysis={analysis} />
         </Match>
         <Match when={def().view.kind === "readouts"}>
           <ReadoutsView analysis={analysis} />

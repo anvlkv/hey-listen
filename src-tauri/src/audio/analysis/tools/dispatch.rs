@@ -9,8 +9,8 @@ use super::super::{
     DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
 };
 use super::{
-    chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, note_metrics, spectral_contrast,
-    spectrogram, spectrum, waveform,
+    chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, modulation, note_metrics,
+    spectral_contrast, spectrogram, spectrum, waveform,
 };
 
 /// Dispatch a tool id to its implementation.
@@ -170,6 +170,11 @@ pub fn run(
             )))
         }
         "noteMetrics" => Ok(AnalysisResult::NoteMetrics(note_metrics(
+            mono,
+            sample_rate,
+            options,
+        ))),
+        "modulation" => Ok(AnalysisResult::Modulation(modulation(
             mono,
             sample_rate,
             options,

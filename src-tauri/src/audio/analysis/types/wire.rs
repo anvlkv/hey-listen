@@ -55,6 +55,16 @@ struct ToolOptionsWire {
     pitch_frame_ms: Option<f32>,
     #[serde(default, alias = "pitch_hop_ms")]
     pitch_hop_ms: Option<f32>,
+    #[serde(default, alias = "mod_min_hz")]
+    mod_min_hz: Option<f32>,
+    #[serde(default, alias = "mod_max_hz")]
+    mod_max_hz: Option<f32>,
+    #[serde(default)]
+    detrend: Option<usize>,
+    #[serde(default, alias = "min_voiced_secs")]
+    min_voiced_secs: Option<f32>,
+    #[serde(default, alias = "top_peaks")]
+    top_peaks: Option<usize>,
 }
 
 impl From<ToolOptionsWire> for ToolOptions {
@@ -81,6 +91,11 @@ impl From<ToolOptionsWire> for ToolOptions {
             envelope_points: wire.envelope_points,
             pitch_frame_ms: wire.pitch_frame_ms,
             pitch_hop_ms: wire.pitch_hop_ms,
+            mod_min_hz: wire.mod_min_hz,
+            mod_max_hz: wire.mod_max_hz,
+            detrend: wire.detrend,
+            min_voiced_secs: wire.min_voiced_secs,
+            top_peaks: wire.top_peaks,
         }
     }
 }
@@ -120,6 +135,11 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "envelopePoints" | "envelope_points" => "envelopePoints",
         "pitchFrameMs" | "pitch_frame_ms" => "pitchFrameMs",
         "pitchHopMs" | "pitch_hop_ms" => "pitchHopMs",
+        "modMinHz" | "mod_min_hz" => "modMinHz",
+        "modMaxHz" | "mod_max_hz" => "modMaxHz",
+        "detrend" => "detrend",
+        "minVoicedSecs" | "min_voiced_secs" => "minVoicedSecs",
+        "topPeaks" | "top_peaks" => "topPeaks",
         _ => return None,
     })
 }

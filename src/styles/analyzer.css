@@ -135,6 +135,15 @@
   pointer-events: none;
 }
 
+/* A one-line note under a chart (e.g. the modulation FM half is absent). */
+.analyzer-hint {
+  flex: none;
+  padding: 2px 12px 8px;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--fg-faint);
+}
+
 /* Spectrogram canvas (raster heatmap — the Timeline precedent, ADR-7). */
 .spectrogram-canvas {
   position: relative;

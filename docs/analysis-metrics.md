@@ -1,9 +1,8 @@
 # Analysis metrics: pitch range, envelope, note metrics, modulation
 
 Design for **M16–M20**, the analysis-depth track that closes the gaps found while
-driving the app through MCP on a bioacoustic session. **M16–M19 are delivered;
-M20 is planned.** The milestones are ordered so each one is a self-contained,
-testable unit:
+driving the app through MCP on a bioacoustic session. **M16–M20 are all delivered.**
+The milestones are ordered so each one is a self-contained, testable unit:
 
 | MCP-session item | Milestone | Delivered by |
 | --- | --- | --- |
@@ -295,7 +294,27 @@ affected proxy.
 vibrato note raises jitter; an AM note raises shimmer; a noisy/unvoiced note lowers the
 HNR proxy; short notes return `null` rather than a misleading number.
 
-## M20 — AM/FM modulation spectra (planned)
+## M20 — AM/FM modulation spectra ✅
+
+> **Delivered.** `modulation` (Spectral) returns the AM spectrum of the linear
+> frame-RMS envelope and the FM spectrum of the longest voiced run's cents residual,
+> both on one shared modulation-rate axis and both in dB **relative to their strongest
+> bin**. It also returns each spectrum's top `topPeaks` (default 3, with relative level
+> and prominence), the AM depth `(max − min)/(max + min)` and peak-to-trough dB, the
+> FM run span, its top rate, and its peak-to-peak / standard deviation in cents. A
+> spectrum is only reported when the modulation is meaningful (AM depth ≥ 2%, FM
+> spread ≥ 2 cents); below that the depth readout is still there but the spectrum and
+> peaks stay empty, so a steady carrier is never assigned an invented rate. The
+> analysable band is clamped to ~45% of the **lower** of the two analysis rates (the
+> envelope's and the FM run's), and `effectiveModMinHz` / `effectiveModMaxHz` report
+> what was actually used. The FM pitch grid caps its frame at ~3 periods of the run's
+> median f0 (bounded by `pitchFrameMs`), so a fast modulation is not smeared. The
+> **AM/FM modulation** view draws both spectra on a modulation-rate axis with readouts
+> and joins its own `mod` chart-sync group. Tests render real **synth graphs** (a sine
+> carrier × LFO multipliers for AM, a control-driven all-pass delay for FM) through
+> `graph::render_mono`, then assert the expected rates/depths; the catalog defaults and
+> the headless `render_synth` → `modulation` flow are covered too. The design notes
+> below are kept for context.
 
 **Problem.** There is no modulation-spectrum tool. A single rate is not enough: a call
 can contain slow breathing (e.g. 3 Hz) and a fast trill (e.g. 40 Hz) at the same time.
@@ -313,13 +332,15 @@ can contain slow breathing (e.g. 3 Hz) and a fast trill (e.g. 40 Hz) at the same
   modulation-frequency grid. Return the run's start/end, `fmRateHz`,
   `fmPeakToPeakCents`, `fmStdCents`, and the top peaks. Returning the run span makes it
   clear what was analyzed.
-- Clamp the usable modulation frequency to ~45% of the envelope sample rate to avoid
-  aliasing; the result reports the effective range.
+- Clamp the usable modulation frequency to ~45% of the **lower** of the two sample
+  rates (the envelope's and the FM run's) to avoid aliasing; the result reports the
+  effective range.
 - New `modulation` view with two spectra on one x-axis (AM and FM), plus readouts for
   the top rates/depths and the FM run span. Use its own chart-sync group (`mod`), not
   the audio-frequency `freq` group.
 
-**Result sketch.**
+**Result sketch.** The delivered result also carries `effectiveModMinHz` /
+`effectiveModMaxHz` (the anti-alias clamp) and `fmRateHz` (the top FM peak).
 
 ```rust
 struct ModulationPeak { rate_hz: f32, relative_db: f32, prominence_db: f32 }
@@ -328,7 +349,7 @@ struct ModulationResult {
     window_start: f64,
     mod_freqs: Vec<f32>,
     am_db: Vec<f32>,
-    fm_db: Vec<f32>,             // empty when no voiced run is long enough
+    fm_db: Vec<f32>,             // empty without a long voiced run, or negligible FM
     am_peaks: Vec<ModulationPeak>,
     fm_peaks: Vec<ModulationPeak>,
     am_depth: Option<f32>,
@@ -341,9 +362,11 @@ struct ModulationResult {
 }
 ```
 
-**Tests.** A 10 Hz AM sine produces an AM peak near 10 Hz; a 3 Hz AM plus a 40 Hz AM
-produces both peaks; a 30 Hz FM sweep produces an FM peak near 30 Hz; a window with no
-voiced run returns no FM spectrum; alias clamping is honored.
+**Tests.** Rendered from synth graphs: a 10 Hz AM produces an AM peak near 10 Hz; a
+3 Hz AM plus a 40 Hz AM produces both peaks; a 30 Hz FM sweep (a control-driven
+all-pass delay) produces an FM peak near 30 Hz; a steady carrier and a silent window
+return no spectra; a window with no voiced run returns no FM spectrum; alias clamping
+is honored.
 
 ## Options summary
 
@@ -357,7 +380,9 @@ voiced run returns no FM spectrum; alias clamping is honored.
 | `modulation` | `frameMs` 10, `hopMs` 2.5, `modMinHz` 0.5, `modMaxHz` 100, `detrend` 1, `pitchFrameMs` 40, `pitchHopMs` 5, `minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` / `maxF0Hz` |
 
 M19 delivered `noteMetrics`' pitch options (`pitchFrameMs`, `pitchHopMs`, and the per-tool
-f0 range); M18 used only the RMS / segmentation options.
+f0 range); M18 used only the RMS / segmentation options. M20 owns `modulation`'s options
+above; the frame is an upper bound (the FM half caps it at ~3 periods of the run's
+median f0).
 
 ## Surfaces
 

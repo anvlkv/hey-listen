@@ -64,8 +64,8 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 > export envelope (M12) are still planned — the export envelope is a view over an
 > existing `AnalysisResult`. See [`exports.md`](exports.md), [`templates.md`](templates.md).
 > The M16–M20 analysis-depth results carry `FrameRms` (delivered in M17),
-> `NoteMetricsResult` (delivered in M18–M19), and the planned `ModulationResult` — see
-> [`analysis-metrics.md`](analysis-metrics.md).
+> `NoteMetricsResult` (delivered in M18–M19), and `ModulationResult` (delivered in M20)
+> — see [`analysis-metrics.md`](analysis-metrics.md).
 > M21 adds a `ResultSummary` (a `text` line plus labelled, unit-bearing items) and an
 > analysis response envelope carrying both `result` and `summary` — see
 > [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).

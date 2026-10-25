@@ -20,6 +20,7 @@ import type { RhythmResult as RhythmPayload } from "../../bindings/RhythmResult"
 import type { LufsResult as LufsPayload } from "../../bindings/LufsResult";
 import type { LraResult as LraPayload } from "../../bindings/LraResult";
 import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
+import type { ModulationResult as ModulationPayload } from "../../bindings/ModulationResult";
 
 export type AnalyzerId =
   | "waveform"
@@ -40,6 +41,7 @@ export type AnalyzerId =
   | "spectralCrest"
   | "harmonicRatio"
   | "zeroCrossingRate"
+  | "modulation"
   | "pitchPyin"
   | "pitchYin"
   | "pitchAutocorr"
@@ -111,6 +113,11 @@ export interface NoteMetricsView {
   kind: "noteMetrics";
 }
 
+/** AM and FM modulation spectra on one modulation-rate axis (M20). */
+export interface ModulationView {
+  kind: "modulation";
+}
+
 export type AnalyzerView =
   | SeriesView
   | MatrixView
@@ -119,7 +126,8 @@ export type AnalyzerView =
   | SpectrogramView
   | ReadoutsView
   | RhythmView
-  | NoteMetricsView;
+  | NoteMetricsView
+  | ModulationView;
 
 /** A per-tool param rendered in the params popover (below the shared params). */
 export interface ToolParamField {
@@ -203,6 +211,11 @@ export interface NoteMetricsResult extends NoteMetricsPayload {
   tool: "noteMetrics";
 }
 
+/** AM/FM modulation spectra, their ranked peaks, and depth readouts (M20). */
+export interface ModulationResult extends ModulationPayload {
+  tool: "modulation";
+}
+
 export interface LufsResult extends LufsPayload {
   tool: "loudnessIntegrated";
 }
@@ -222,5 +235,6 @@ export type AnyAnalysisResult =
   | LevelsResult
   | RhythmResult
   | NoteMetricsResult
+  | ModulationResult
   | LufsResult
   | LraResult;

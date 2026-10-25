@@ -75,6 +75,7 @@ label/min/max/help metadata is stored in the Rust catalog for M21's `get_analyze
 | Spectral crest factor | `dsp::spectral_crest_factor` |
 | Harmonic ratio | `dsp::harmonic_ratio` |
 | Zero-crossing rate | `dsp::zero_crossing_rate` |
+| AM/FM modulation | core envelope + YIN residual spectra with a bounded radix-2 FFT (`audio/analysis/tools/modulation*`) — M20 |
 
 **Pitch / melody**
 
@@ -129,9 +130,9 @@ audio (the window moves to fit the new source). See [`templates.md`](templates.m
 
 ## Analysis depth (M16–M20)
 
-The pitch-range fix, the **frame-RMS amplitude envelope**, **note segmentation**, and the
-per-note **voice-quality proxies** are delivered (M16–M19); AM/FM modulation spectra are
-planned as M20. See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
+The pitch-range fix, the **frame-RMS amplitude envelope**, **note segmentation**, the
+per-note **voice-quality proxies**, and **AM/FM modulation spectra** are delivered
+(M16–M20). See [`analysis-metrics.md`](analysis-metrics.md) for the designs, result
 shapes, option defaults, and test plan. **M21** adds the shared MCP/CLI contract —
 per-result summaries, compact previews, tool annotations, and analyzer discovery — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
@@ -191,6 +192,23 @@ voiced, f0, jitter, shimmer, and the HNR proxy for the note under the pointer (a
 per-note median f0 is also drawn on a right-hand axis), and the per-tool `minF0Hz` /
 `maxF0Hz` bound the proxy grid just as they do for the pitch tools.
 
+**AM/FM modulation (M20).** `modulation` returns the AM spectrum of the linear
+frame-RMS envelope and the FM spectrum of the longest voiced run's pitch residual
+(cents), on **one shared modulation-rate axis** and in dB relative to each spectrum's
+strongest bin. Each spectrum carries its top `topPeaks` (default 3) with relative level
+and prominence; the summary adds the AM depth and peak-to-trough range, the FM run's
+span and top rate, and its peak-to-peak / standard deviation in cents. The band is
+clamped to ~45% of the **lower** of the two analysis rates and the effective range is
+reported, so an aliased request is visible instead of silent. A spectrum is only
+reported when the modulation is meaningful (AM depth ≥ 2%, FM spread ≥ 2 cents), so a
+steady carrier (or silence) shows small depth readouts and **empty** spectra rather
+than an invented rate; the FM half is also empty when no voiced run reaches
+`minVoicedSecs`. The **AM/FM modulation** view draws the two spectra with readouts and
+syncs on its own `mod` group.
+In MCP/CLI a spectrum array is compacted to its stats by the normal rules; the ranked
+peaks and depth fields survive compaction, and `includeData: true` / `--full` returns
+the full spectra.
+
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the
 > detected beats / onsets / downbeats marked on top, rather than a list of numbers.
@@ -235,6 +253,11 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
   segment on a right-hand axis. It joins the `"time"` sync group, hovering a note
   highlights its table row, and the hover card shows the whole record (span, gaps,
   RMS/peak, levels versus the loudest note, voiced, f0, jitter, shimmer, HNR proxy).
+- **modulation** — the **AM** and **FM** spectra as two lines against a
+  **modulation-rate** (Hz) x-axis, with a fixed relative-dB y-range so the two are
+  directly comparable and readout cards for the top rates, depths, and the FM run.
+  It joins its own `"mod"` sync group, because its x-unit is neither source time nor
+  audio frequency; the floor bins are drawn as gaps, so silence is not a flat line.
 - **readouts** — scalar cards; the `levels` tool draws **peak / RMS meter bars**.
 - **notes** — every time-axis chart also draws its project notes as anchors in a thin
   strip along the bottom (its own at full strength, other charts' muted, the focused

@@ -223,6 +223,25 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
             "rate",
         ],
     },
+    AnalyzerInfo {
+        id: "modulation",
+        title: "AM/FM modulation",
+        description: "Amplitude and pitch modulation spectra over time",
+        section: "spectral",
+        keywords: &[
+            "modulation",
+            "am",
+            "fm",
+            "tremolo",
+            "trill",
+            "vibrato",
+            "rate",
+            "spectrum",
+            "envelope",
+            "bioacoustic",
+            "breathing",
+        ],
+    },
     // Pitch / melody
     AnalyzerInfo {
         id: "pitchPyin",

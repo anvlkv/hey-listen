@@ -12,6 +12,7 @@ import type {
   LufsResult,
   MatrixResult,
   MatrixView as MatrixViewConfig,
+  ModulationResult,
   NoteMetricsResult,
   RhythmResult,
   SeriesResult,
@@ -111,6 +112,26 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
       const gap = r.gaps.find((span) => timeSecs >= span.startSecs && timeSecs <= span.endSecs);
       if (gap) return `t ${t} s · gap ${(gap.durationSecs * 1000).toFixed(0)} ms`;
       return `t ${t} s · no note`;
+    }
+    case "modulation": {
+      const r = result as ModulationResult;
+      // Inside the analysed FM run report the pitch modulation; elsewhere the AM one.
+      const inFmRun =
+        r.fmRunStartSecs != null &&
+        r.fmRunEndSecs != null &&
+        timeSecs >= r.fmRunStartSecs &&
+        timeSecs <= r.fmRunEndSecs;
+      const rate = inFmRun ? r.fmRateHz : r.amPeaks[0]?.rateHz;
+      if (rate == null) return `t ${t} s · no modulation`;
+      const depth = inFmRun
+        ? r.fmPeakToPeakCents != null
+          ? `${r.fmPeakToPeakCents.toFixed(0)} ¢ p–p`
+          : null
+        : r.amDepth != null
+          ? `${(r.amDepth * 100).toFixed(0)}% depth`
+          : null;
+      const kind = inFmRun ? "FM" : "AM";
+      return `t ${t} s · ${kind} ${rate.toFixed(1)} Hz${depth ? ` · ${depth}` : ""}`;
     }
     default:
       break;

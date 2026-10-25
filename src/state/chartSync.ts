@@ -22,8 +22,11 @@ import { windowEnd, windowStart } from "./timeline";
  * See `docs/ui-layout.md`.
  */
 
-/** Which shared axis a chart's x-range / cursor is synced on. */
-export type SyncGroup = "time" | "freq";
+/**
+ * Which shared axis a chart's x-range / cursor is synced on: time (most tools),
+ * audio frequency (spectrum), or modulation rate (the M20 modulation spectra).
+ */
+export type SyncGroup = "time" | "freq" | "mod";
 
 /** A published x-range for a group, tagged with the chart that set it. */
 export interface ViewMessage {

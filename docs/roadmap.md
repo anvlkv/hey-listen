@@ -796,7 +796,7 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M16–M20 — Analysis depth I (M16–M19 done, M20 planned)
+## M16–M20 — Analysis depth I ✅
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
 a bioacoustic session: pitch range, amplitude envelope, note segmentation and per-note
@@ -942,7 +942,7 @@ Per-note jitter, shimmer, and HNR proxies, built on the M18 segments.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M19.
 
-## M20 — AM/FM modulation spectra (planned)
+## M20 — AM/FM modulation spectra ✅
 
 Full modulation spectra, not a single rate: slow breathing and a fast trill can coexist.
 
@@ -957,11 +957,31 @@ Full modulation spectra, not a single rate: slow breathing and a fast trill can 
 - Clamp the modulation range to ~45% of the envelope sample rate to avoid aliasing.
 - **MCP:** the top peaks and depths survive compaction; request the full spectra with
   `includeData`.
-- **Tests.** 10 Hz AM, 3 Hz + 40 Hz AM, 30 Hz FM, no-voiced-run FM, alias clamping.
+
+> **Tests.** 10 Hz AM, 3 Hz + 40 Hz AM, 30 Hz FM, no-voiced-run FM, alias clamping.
+
+> **Delivered:** `modulation` (Spectral) returns two relative-dB spectra on one shared
+> modulation-rate axis — the frame-RMS **AM** envelope and the longest voiced run's
+> **FM** cents residual — plus each spectrum's ranked peaks (`topPeaks`, 3 by default),
+> the AM depth and peak-to-trough range, and the FM run's span, top rate, peak-to-peak
+> and standard deviation in cents. The range is clamped to ~45% of the lower of the two
+> analysis rates and the **effective** range is reported, so aliasing is visible rather
+> than silent. A spectrum is only reported when the modulation is meaningful (AM depth
+> ≥ 2%, FM spread ≥ 2 cents), so a steady carrier stays blank instead of reporting an
+> invented rate. The frame/hop, band, `detrend` (0 = mean only, 1 = linear), pitch grid,
+> `minVoicedSecs`, and f0 range are per-tool options (camelCase plus snake_case aliases);
+> the frame is capped at ~3 periods of the run's median f0 so a fast trill is not
+> smeared. The new **AM/FM modulation** view draws both spectra on a modulation-rate
+> axis with readouts, and syncs on its own `mod` group (not the audio-frequency one).
+> Tests render real **synth graphs** through `graph::render_mono` — a sine carrier ×
+> LFO multipliers for AM, and a control-driven all-pass delay (phase modulation) for
+> FM — and cover 10 Hz AM, simultaneous 3 Hz + 40 Hz AM, a 30 Hz FM sweep, a steady
+> carrier, silence, alias clamping, the aliases, the catalog defaults, and the headless
+> `render_synth` → `modulation` flow.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M20.
 
-> **Decision (proposed):** these are first-class analyzers, not MCP client-side math.
+> **Decision:** these are first-class analyzers, not MCP client-side math.
 > No `SharedParams` fields are added (postcard compatibility); the pitch range is a
 > per-tool option, and the shared frequency range stays spectral-only. pYIN's own range
 > stays upstream. New results are not persisted yet, so no container change; the

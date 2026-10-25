@@ -7,6 +7,7 @@
  * which the palette and the Sidebar's section grouping depend on.
  */
 import { LOUDNESS_ANALYZERS } from "./defs/loudness";
+import { MODULATION_ANALYZERS } from "./defs/modulation";
 import { PITCH_ANALYZERS } from "./defs/pitch";
 import { RHYTHM_ANALYZERS } from "./defs/rhythm";
 import { SPECTRAL_FRAME_ANALYZERS } from "./defs/spectralFrames";
@@ -28,6 +29,7 @@ export const ANALYZERS: AnalyzerDef[] = [
   ...TIME_ANALYZERS,
   ...SPECTRAL_FRAME_ANALYZERS,
   ...SPECTRAL_SERIES_ANALYZERS,
+  ...MODULATION_ANALYZERS,
   ...PITCH_ANALYZERS,
   ...RHYTHM_ANALYZERS,
   ...LOUDNESS_ANALYZERS,
