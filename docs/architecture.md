@@ -358,9 +358,10 @@ thread); analysis runs in Rust.
 ## Security
 
 - The window capability grants `core:default`, `core:window:allow-set-title`, and
-  `log:default` to the app's windows (`windows: ["main", "project-*", "popout-*"]` —
-  the label globs match every project window, every window opened via New Window, and
-  every **popout**). Every future command is registered and, if needed, gated by
+  `log:default` to the app's windows (`windows: ["main", "project-*", "popout-*",
+  "note-*"]` — the label globs match every project window, every window opened via New
+  Window, every **popout**, and every **note window**). Every future command is
+  registered and, if needed, gated by
   `allow-<command>` permissions in `capabilities/*.json`. A popout is a real Tauri
   window (not a `window.open` popup), so it has its own capability and runs its own
   frontend — see `ui-layout.md`.
