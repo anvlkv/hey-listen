@@ -611,9 +611,12 @@ it diagnosable instead of a bare timeout:
   `navigator.language` (e.g. `"C"`). uPlot builds an `Intl.NumberFormat` at **module
   scope**, and `new Intl.NumberFormat("C")` throws a `RangeError`, which aborts the whole
   bundle before the first paint — an empty `#root` that looks exactly like a slow one.
-  `boot.ts` (again, the app's first import) normalizes `language` to `en-US` when `Intl`
-  rejects it, so the Ubuntu CI job — which runs under the default `C` locale — exercises
-  this path.
+  `public/locale.js` normalizes `language` to `en-US` when `Intl` rejects it. It must be a
+  **classic** script in `index.html`'s `<head>` (also loaded by `preview.html`), because a
+  module script is deferred and its whole static import graph is evaluated first — uPlot
+  lives in its own vendor chunk, so an in-module fix (the old `boot.ts` approach) ran
+  *after* the throw. The Ubuntu CI job, which runs under the default `C` locale,
+  exercises this path.
 
 Before it launches the app, the suite **kills any stale Hey Listen instance** (whatever
 holds the embedded driver's port `4445`, plus any leftover `hey-listen` process) and

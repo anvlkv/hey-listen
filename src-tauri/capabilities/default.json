@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the project windows (the main window and any window opened via New Window)",
-  "windows": ["main", "project-*", "popout-*"],
+  "description": "Capability for the project windows (the main window, any window opened via New Window, and a tab or note popped out of one)",
+  "windows": ["main", "project-*", "popout-*", "note-*"],
   "permissions": [
     "core:default",
     "core:window:allow-set-title",
