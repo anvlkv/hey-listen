@@ -111,6 +111,11 @@ The envelope becomes:
 The GUI analyzer tabs keep using `result`; the summary is available to the MCP handler,
 the CLI, exports (M12), and future readouts without another analysis pass.
 
+`params` and `options` are the **effective** settings the call ran with: the tool's
+shared params and its declared defaults, overlaid with whatever the call set. Unset
+option fields are omitted rather than emitted as `null`, so a one-tool record stays
+small and identical across the GUI, headless MCP, and the CLI.
+
 ### Summary content by result family
 
 | Result | Summary items (representative) |

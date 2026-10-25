@@ -88,3 +88,41 @@ fn run_analysis_modes_summary_compact_and_full() {
         .unwrap_err();
     assert!(error.contains("mutually exclusive"), "{error}");
 }
+
+#[test]
+fn run_analysis_reports_effective_options_without_nulls() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 0.5 }),
+        )
+        .unwrap();
+
+    // Only the tool's own options, defaults included — not every key in the struct.
+    let frame = session
+        .dispatch("run_analysis", json!({ "tool": "frameRms" }))
+        .unwrap();
+    let options = frame["options"].as_object().unwrap();
+    assert_eq!(options.len(), 2);
+    assert_eq!(options["frameMs"], 10.0);
+    assert_eq!(options["hopMs"], 5.0);
+
+    // A set option overrides the default; a transient one is echoed but not stored.
+    let yin = session
+        .dispatch(
+            "run_analysis",
+            json!({
+                "tool": "pitchYin",
+                "options": { "yinThreshold": 0.3 },
+                "transient": true,
+            }),
+        )
+        .unwrap();
+    let echoed = yin["options"].as_object().unwrap();
+    assert!((echoed["yinThreshold"].as_f64().unwrap() - 0.3).abs() < 1e-6);
+    assert_eq!(echoed["minF0Hz"], 50.0);
+    assert!(!echoed.contains_key("frameMs"));
+    let state = session.dispatch("get_state", json!({})).unwrap();
+    assert_eq!(state["toolOptions"]["pitchYin"]["yinThreshold"], 0.12);
+}

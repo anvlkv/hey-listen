@@ -1013,6 +1013,9 @@ milestone over M16–M20, not another analyzer.
 - **CLI discovery + output modes.** `analyzers <ID>` (human or JSON) explains options and
   summary keys; `analyze --summary` emits `{ file, window, params, options, summary }`
   without result arrays; `--summary` + `--full` is a usage error.
+- **Effective settings echoed.** The envelope's `options` is the tool's declared defaults
+  overlaid with what the call set, with unset fields omitted — the same small object from
+  the GUI, headless, and CLI, instead of the all-`Option` struct's nulls.
 - **Tool-output audit.** `list_notes` defaults to a compact summary (body excerpt + values
   text; full body via `get_note` or `full: true`); `list_analyzers` stays compact with
   `get_analyzer` for detail; the other list tools are checked for bounded responses.

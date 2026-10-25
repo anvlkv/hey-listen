@@ -1,7 +1,7 @@
 {
   "context_servers": {
     "hey-listen": {
-      "command": "/Volumes/Hey Listen/Hey Listen.app/Contents/MacOS/hey-listen",
+      "command": "/Applications/Hey Listen.app/Contents/MacOS/hey-listen",
       "args": ["--mcp"]
     }
   },
