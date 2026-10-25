@@ -201,6 +201,13 @@ at its time), so both *creating* and *selecting* a note leave the analysis alone
 clears every chart's full-height overlay and the Timeline's stem; the lane anchors stay
 (they are the index of where the notes are) but are drawn **dull**.
 
+**Planned (M23) — full-height rules on the Timeline.** While a span is dragged in the
+lane, when a range is selected/focused, and when a note is hovered, the Timeline draws
+**vertical rules at the note's edges** across the waveform (plus a live `start → end (Δ)`
+chip while creating), not just the lane handles. Other notes keep the faint span tint and
+a short stem so the waveform stays readable. This makes the annotated area legible against
+the audio instead of only in the bottom strip. See [`roadmap.md`](roadmap.md) → M23.
+
 ## Creating a note
 
 Three entry points, one model:

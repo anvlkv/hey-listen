@@ -1055,3 +1055,307 @@ milestone over M16–M20, not another analyzer.
 > Tests cover every result variant's summary (including empty/silent), the compact
 > families, catalog title/annotation coverage, `get_analyzer`/`list_analyzers`
 > agreement, the three output modes, and the CLI conflict.
+
+## M22 — Synth workflow: live audition + in-place source (planned)
+
+Make the synth graph feel like an instrument: hear it while building it, let the
+analysis follow every edit, and show where a palette node will land.
+
+### Live audition
+
+- **New core command `preview_synth`.** Compile the `GraphSpec`, render a short mono
+  loop (default 2 s, max 8 s) on the blocking pool, resample it to the device rate, and
+  load it into the window's existing cpal `Playback` with `loop = true`. It **does not
+  touch the project source**, so auditioning cannot clobber a file.
+- **Audition toggle** in the synth tab (speaker). Starting stops a source preview (both
+  share the window's one output stream); stopping calls `stop_preview`. Closing the tab,
+  replacing the source, or starting a source preview stops it.
+- **Debounced, latest-wins.** Node/edge/param/Length changes re-render after ~160 ms of
+  quiet (a few updates per second during a drag, not one per pointermove). A render in
+  flight shows *auditioning…*; a stale render is discarded; a failed render keeps the last
+  good loop and reports inline (like Render).
+- **Loop hygiene.** Apply a 5 ms fade at the buffer edges and a ~10 ms equal-power
+  crossfade when reloading, resuming at the current position modulo the loop length, so
+  a knob turn does not click or restart the groove every time. A truly phase-continuous
+  rebuild (keeping oscillator state across a net change) is deferred.
+- **Not the project transport.** Audition time is synth time, not source time, so it
+  does **not** publish the shared playhead. When it also writes the source (below), the
+  normal transport can audition the updated source instead.
+
+### Continuous in-place source (the "overwrite the segment under analysis")
+
+- **New core command `update_synth_source`** (or a `render_synth` mode): render the
+  requested `Length`, install the PCM as the project source, stream it to the frontend,
+  and **do not reset the timeline**.
+- **Live toggle** in the synth tab. While on, every settled graph/Length change overwrites
+  the synth source **in place**, so the analysis window, timeline zoom, annotations and
+  open analyzer tabs stay exactly where the user put them while the audio under them is
+  re-rendered. The synth remains the project's one source; this is never a splice into a
+  file's audio.
+- **First activation** replaces the current source (confirm once if it is a file or a
+  live capture; stop capture first). `AudioSource` gains `origin: "synth"`, so later
+  renders are silent and no confirmation appears again. **Render once** shares the same
+  in-place path when the source is already the synth; only the first adoption defines a
+  new timeline (and resets the window/view). Headless/CLI keep using `render_synth`
+  unchanged.
+- **Length changes** grow/shrink the source in place. The same length preserves the
+  window and view exactly; shrinking clamps them and the annotations (reusing the note
+  clamping); growing preserves them. Update the local PCM, peaks and a `sourceRevision`
+  signal so the waveform and the debounced analyzer auto-run follow.
+- **One render per settle.** When both facets are on, a single command
+  (`live_synth(spec, length, auditionSecs, writeSource, audition, onChunk)`) renders
+  once, installs the source, loads the audition loop and streams the PCM only when the
+  source was written. Keep `preview_synth` for audition-only.
+- **Guard rail.** Live is capped at `LIVE_MAX_SECONDS = 10` for responsiveness; longer
+  renders use Render once. A failed live render keeps the last good source (no red
+  *Source failed* state).
+- **Defaults.** Both toggles start **off** (opening the tab never makes sound
+  unexpectedly); the choices are remembered app-level, like the annotations rail. The
+  first render/adoption can turn Live on for the user.
+
+### Palette drag affordance (filter *and* synth)
+
+- Today a palette drag only sets a `grabbing` cursor and a dashed canvas outline. Show
+  the node itself:
+  - a **drag ghost** (icon + label) portaled to `document.body`, following the pointer;
+  - a **drop preview** in flow coordinates — a translucent node outline where it will
+    land;
+  - over a connector, a **splice preview**: highlight the target bezier and show an
+    *Insert into link* badge (only when `canSplice` allows it);
+  - outside/invalid: muted ghost, `not-allowed` cursor, and a *Drop on the canvas* hint.
+- Factor `dropTarget(graph, flow, handle, def, point)` out of `placeNode`; the preview and
+  the real drop use the same result, so what is shown is what happens. Escape and
+  `pointercancel` cancel the drag. Both editors get it from the shared `GraphEditor`.
+
+> **Decision:** live preview and live source are facets of one editing mode: audition is
+> a core loop (fast feedback, no source change), and write-through overwrites the synth
+> source in place (analysis follows). See ADR-21.
+
+**Files:** `src-tauri/src/commands/graph.rs`, `src-tauri/src/audio/playback/{mod,stream}.rs`,
+`src/state/synth.ts`, `src/state/source.ts`, `src/audio/preview.ts`,
+`src/components/SynthGraphTab.tsx`,
+`src/components/graphEditor/{GraphPalette.tsx,placement.ts}`,
+`src/components/GraphEditor.tsx`, `src/styles/graph.css`.
+
+**Tests.** Rust: render + in-place source, crossfade/loop edges, failed render keeps the
+source. Unit: `dropTarget` (place/splice/invalid), live scheduler (latest-wins, cap,
+confirmation) with fake timers. E2E (`q2-synth-live`): audition calls `preview_synth` and
+not `preview_region`, Live updates the source without resetting the window/view/notes, a
+failed live render keeps the old audio, palette drag shows the ghost/splice badge and
+drops where previewed.
+
+**Deferred:** phase-continuous rebuilds, per-node solo/audition, parameter automation,
+MIDI, and live *input* graphs.
+
+## M23 — Timeline ergonomics (planned)
+
+The Timeline becomes the project's transport and navigator: a committed analysis window
+is brought into view and focused, the playhead is a real pause/resume position that stays
+on screen, and annotations are drawn where they apply.
+
+### Reframe → frame + focus
+
+- Add **`reframeWindow({ start, end, frame, focus, origin })`** to `state/timeline.ts`:
+  clamp and batch both ends, then expand the viewport to contain the window with ~12 %
+  padding. Leave the view alone when the window already fills ≥ ~55 % of it; otherwise
+  zoom/centre. Always ensure the window is fully visible.
+- Route **every** window writer through it: annotation **Analyze**, the chart **Reframe**
+  menu, the Timeline edge-drag release (fold in `maybeAutoZoom`), MCP `set_window` (frame
+  without stealing focus), and project load / template window policy. Ordinary **moves**
+  with the top handle do not re-frame: the user is already looking at the window.
+- **Autofocus.** The Timeline canvas becomes focusable (`tabindex=0`). A user reframe
+  focuses it (unless focus is in a text editor) and flashes its focus ring — which also
+  gives the keyboard transport a natural home. ADR-19 is unchanged: selecting an
+  annotation still never moves the window; only Analyze reframes, and it now frames and
+  focuses.
+- **Selection gesture.** A **`Shift`+drag** on the waveform (or the ruler) draws a new
+  window with a live `start → end` readout; release commits it and frames it. `Escape`
+  cancels. A plain ruler click/drag is seek (below), so the two gestures never compete.
+
+### Transport: play/pause, not start/stop
+
+- **Core.** `Playback` becomes a small state machine: `pause`, `resume`, `seek`, and a
+  `position()` that keeps returning the last position when stopped. `preview_region` takes
+  an `offset` so a reload resumes at the current playhead. New commands `pause_preview`,
+  `resume_preview`, `seek_preview`.
+- **Frontend `transport` store.** State: `status` (`idle` / `playing` / `paused`),
+  `position` (source seconds), `region`, `loop`, `speed`, `owner` (`source` / `synth`).
+  **Play/Pause** is the primary action; **Stop** silences but leaves the line at its
+  current position; **Return to start** (the toolbar action / `Home`) moves it to the
+  window start. Play resumes from the position when it is inside the window, else from the
+  window start.
+- **The position is authoritative in the core.** Poll `preview_position` at ~10–15 Hz and
+  interpolate locally for 60 fps drawing (no drift, still smooth). The playhead stays
+  visible while paused/idle (dimmed when paused) and rides the chart bus as
+  `{ secs, playing }`, so every time chart dims it too. Clear only on source change.
+- **Seek.** Click/drag in the ruler, or drag the playhead's ruler handle, sets the
+  position; plain waveform drag still pans. Draw a small handle in the ruler.
+- **Loop / follow.** A loop toggle (default on, window-following); off plays to the
+  window end and stops, leaving the playhead there. A *follow playhead* toggle pans the
+  view when the line nears the right edge; a manual pan/zoom disables it until the next
+  play.
+- **Window vs. playhead.** While paused/idle, a window change clamps the playhead into the
+  new window; while playing, the loop follows the window as today (one reload at the
+  settle, resumed at the equivalent position where possible).
+- **Toolbar.** Play/pause + stop + loop + position/duration readout, keeping speed. The
+  output meter follows `status`.
+- **Cross-window.** The transport is per project, not per webview: control and position
+  should be read from the same core state (or mirrored through `uiState`), so a popout's
+  playhead agrees. Mark the full cross-window control surface as a stretch.
+
+### Wheel and trackpad stability
+
+The current handlers use a fixed step per wheel event (`deltaY < 0 ? 0.8 : 1.25`) in the
+Timeline, the uPlot charts and the canvas heatmaps. A trackpad fires dozens of tiny events
+per gesture, so a two-finger scroll becomes a violent zoom, a horizontal swipe is read as
+"zoom out", and momentum keeps zooming after the fingers lift.
+
+- **One helper, every host.** Extract `lib/wheelGesture.ts` and use it in the Timeline
+  (`interaction.ts`), uPlot (`uplotZoom.ts`) and the canvas heatmaps
+  (`chartInteraction.ts`), so zoom/pan semantics agree everywhere (they are synchronized).
+- **Intent per gesture.** The first significant event in a burst (until ~150 ms of quiet)
+  decides the gesture: `Ctrl`/`⌘` + wheel (a trackpad pinch) → **zoom** anchored at the
+  pointer; otherwise → **pan**.
+- **What pans.** Timeline and 1-D charts pan time from the dominant delta. The 2-D
+  spectrogram/matrix pan time on `deltaX` and frequency on `deltaY`. A horizontal-dominant
+  gesture is **always** a pan, never a zoom. When a 2-D view is zoomed, `Shift` selects the
+  frequency axis (time otherwise), preserving today's Shift+wheel meaning.
+- **Normalized, continuous zoom.** Convert `deltaMode` (pixel / line / page) to pixels,
+  ignore sub-pixel jitter, and use a clamped exponential factor (e.g.
+  `exp(clamp(delta, -120, 120) * 0.002)` — a 100 px pinch is ~1.22×) instead of a fixed
+  0.8/1.25 step per event. Accumulate deltas and apply at most once per animation frame.
+- **Contain the gesture.** `touch-action: none` and `overscroll-behavior: contain` on the
+  canvas/plot wrappers, `preventDefault` on a consumable wheel, and reset the accumulator
+  and intent after the gesture ends so a momentum tail cannot re-trigger zoom.
+- **Mouse users** keep explicit zoom via the toolbar, `+`/`-` and pinch/`⌘`/Ctrl+wheel. A
+  *Wheel zooms* preference (restoring the old one-finger wheel zoom) is deferred; the
+  default is scroll-pan because it is predictable on both devices.
+- **No vertical waveform zoom.** Amplitude scaling stays out of scope; this only makes the
+  existing horizontal view predictable.
+
+### Annotation vertical rules
+
+- **While dragging a span** in the note lane, draw full-height vertical rules at **both**
+  edges, a translucent span, and a live `start → end (Δ)` chip; the lane keeps its
+  selection fill.
+- **Selected/focused annotation:** both edges of a range (or the one edge of a point) as
+  full-height rules, the range tinted, a small ruler flag and a label. **Hover** promotes
+  any annotation to the same rules + label. Other annotations keep the faint tint and a
+  short stem, so the waveform stays readable.
+- **While dragging a handle:** draw the moving edge full-height and the original edge as a
+  ghost, with the live time/delta. Rules sit under the window handles and the playhead.
+- Extract the geometry as a pure helper and unit-test it; reuse `chartTheme().note`
+  colours/dashes so the Timeline and charts agree.
+
+### Proposed additions (prioritized — confirm before building)
+
+| Priority | Improvement | Why |
+| --- | --- | --- |
+| P1 | Hover crosshair + time/sample readout | The Timeline has no time readout today; annotation precision needs one. |
+| P1 | Right-click menu: set start/end here, select window, zoom, seek, annotate | `notes.md` says the Timeline right-click sets the window; the implementation has no context menu. |
+| P2 | Snapping to playhead / annotations / window edges / a zoom-dependent grid (`Alt` overrides) | Repeatable windows; today every position is freehand. |
+| P2 | Numeric start/end/duration fields (type or drag) | Reproducible analysis windows and templates. |
+| P2 | Wider hit targets + cursor feedback for the window handles and move bar | The edge hit zone is 9 px and the move bar 8 px tall; both are easy to miss. |
+| P2 | Window history (back/forward) + previous/next annotation | Navigating analyses is manual today. |
+| P3 | Centre-on-playhead / page-follow modes | Long sources. |
+| P3 | Accessibility: focusable canvas, ARIA live announcements for transport/window | Keyboard/reader parity. |
+
+**Deferred:** waveform editing, spectral selection, multi-range selection,
+per-selection analysis, and a per-user *Wheel zooms* preference.
+
+> **Decision:** the playhead is transport state, not a preview side effect, and a reframe
+> frames the view without changing what the analysis window means. See ADR-22.
+
+**Files:** `src-tauri/src/audio/playback/{mod,stream}.rs`,
+`src-tauri/src/commands/playback.rs`, `src/audio/preview.ts`,
+`src/components/timeline/{preview,interaction,draw,constants}.ts`,
+`src/components/timeline/TimelineToolbar.tsx`, `src/components/Timeline.tsx`,
+`src/state/timeline.ts`, `src/state/notes/focus.ts`,
+`src/components/analyzer/ReframeMenu.tsx`, `src/components/notes/lane.ts`,
+`src/components/analyzer/{uplotZoom.ts,chartInteraction.ts}`,
+`src/lib/wheelGesture.ts`, `src/state/uiState.ts`.
+
+**Tests.** Rust: pause/resume/seek/position state machine (extract a pure state where a
+device is not available); `preview_region` offset. Unit: frame math (keep/zoom/clamp),
+snap candidates, annotation rule geometry, transport reducer, wheel intent/normalization
+(delta modes, gesture lock, exponential factor, no horizontal zoom). E2E
+(`q3-timeline-ergonomics`): Analyze from an annotation zooms the Timeline view and focuses
+it; chart Reframe does the same; Space pauses/resumes and the playhead persists while
+paused/stopped; ruler click seeks; loop off stops at the end; Shift-drag selects and
+frames a window; lane selection paints full-height rules; hover shows the time readout;
+a burst of tiny wheel events pans by the accumulated delta (or zooms proportionally with
+`Ctrl`/`⌘`), instead of stepping once per event, and a horizontal gesture never zooms.
+
+## M24 — Keyboard control (planned)
+
+Every important action becomes reachable from the keyboard, the app is navigable without
+the mouse, and the bindings are both discoverable and editable.
+
+### Command registry
+
+- One `state/keybindings/` module defines every command (`id`, title, category, default
+  binding, scope, `when`, handler, `allowInInput`, `allowRepeat`) and is the single source
+  of truth for the **dispatcher**, the **command palette**, the **shortcuts dialog**, and
+  tooltip / `aria-keyshortcuts` hints.
+- Bindings use a platform-neutral `Mod` (⌘ on macOS, Ctrl elsewhere); punctuation is
+  matched by key, arrows/space by their named keys. A binding is stored app-level in
+  `localStorage` (versioned), not in the project file; `storage` events keep a project's
+  windows in step.
+- One window-level `keydown` listener with explicit guards: never fire in a text field,
+  select, or contenteditable (unless the command opts in), never steal Space/Enter from a
+  focused button, ignore `repeat` unless allowed, and let dialogs own their keys.
+- Conflicts are detected **before** saving (including the read-only native menu
+  accelerators) and reported inline; the dispatcher always resolves to the first matching
+  binding in scope order.
+
+### Transport and navigation (first defaults)
+
+| Group | Keys |
+| --- | --- |
+| Transport | `Space` play/pause · `Shift+Space` stop (keep playhead) · `L` loop · `←/→` seek 100 ms · `Shift+←/→` 1 s · `Alt+←/→` one frame · `Home/End` playhead to window start/end |
+| Window | `[` / `]` set window start/end at the playhead · `Z` zoom to window · `0` fit all · `+`/`-` zoom · `F` follow playhead |
+| Annotations | `N` annotation at the playhead · `Mod+Shift+A` toggle the rail |
+| Navigate | `Mod+K` command palette · `?` shortcuts · `F6` / `Shift+F6` next/previous region · `Mod+Shift+F` analyzer search · `Ctrl+Tab` / `Ctrl+Shift+Tab` next/previous Workbench tab · `Mod+1…9` activate tab |
+| Canvas context | `Delete` delete selected graph nodes · `Mod+Enter` render once (synth) · `Mod+Shift+L` toggle Live · `Escape` cancel a palette drag / close an overlay |
+| Native (read-only) | `Mod+N/O/S`, `Shift+Mod+S`, `Shift+Mod+N`, `Mod+Z`, `Shift+Mod+Z`, `Mod+Q`, and the Help items |
+
+> **Confirmed:** `Space` is play/pause (the first suggested binding), with `Shift+Space`
+> as stop. It is available whenever the Timeline/canvas or page body has focus; text fields
+> and focused buttons keep their own Space.
+
+### Command palette + shortcut explorer
+
+- **Command palette (`Mod+K`)** — a fuzzy list over every registered command plus
+  **tools** (open/focus an analyzer or graph editor) and **open tabs**, with shortcut
+  chips and keyboard navigation. This is the *navigate the app quickly* surface; it
+  reuses Kobalte's dialog/combobox primitives.
+- **Keyboard Shortcuts dialog (`?`, and Help → Keyboard Shortcuts…)** — searchable,
+  grouped by category, showing scope, default and current binding, and a **record** action
+  per command: press a combination, see conflicts live, `Backspace` to unbind, `Escape` to
+  cancel, Reset / Reset all. Native menu accelerators appear read-only.
+- **Hints** — prominent controls gain a `<kbd>` chip in their tooltip and an
+  `aria-keyshortcuts` attribute; the palette and dialog show the same binding data.
+
+> **Decision:** one command registry drives keyboard, palette, and shortcut UI; the native
+> menu stays the owner of its OS accelerators for now. See ADR-23 and
+> [`hotkeys.md`](hotkeys.md).
+
+**Files:** `src/state/keybindings/` (registry, parse/format, dispatcher, store, palette
+ranking), `src/components/ShortcutsDialog.tsx`, `src/components/CommandPalette.tsx`,
+`src/components/Tooltip.tsx`, `src/components/timeline/TimelineToolbar.tsx`,
+`src/components/Toolbar.tsx`, `src-tauri/src/menu.rs` (Help item), `src/state/menu.ts`,
+`src/styles/*`.
+
+**Tests.** Unit: parse/format/match (`Mod` vs Ctrl), conflict detection, persistence +
+migration, palette ranking. E2E (`q4-keyboard`): Space toggles the transport, arrows
+seek, `N` annotates, `Mod+K` opens and runs a palette command, `?` opens the dialog,
+rebinding a command makes the old key inert and the new one work, a conflict is rejected,
+typing in a note/search field never triggers a shortcut, and bindings survive a reload.
+
+> **Order:** M22 is independent; M23 generalizes the transport M22's audition uses; M24
+> builds on M23's transport and window commands. Recommended order: **M22 → M23 → M24**.
+
+> **Confirmed in review:** live writes overwrite the synth-owned source in place (never a
+> splice into a file); ADR-19 selection semantics stay, so only **Analyze** frames and
+> focuses; `Live`/`Audition` start off and are remembered app-level; the M24 default table
+> is a starting point, with **`Space` confirmed as play/pause**.

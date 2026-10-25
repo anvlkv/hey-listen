@@ -18,7 +18,7 @@ Replacing an existing source is **confirmed first**, and unsaved work is tracked
 | **Input: System loopback** | flexaudio `SourceKind::SystemLoopback` | grows while recording |
 | **Input: Process loopback** | flexaudio `SourceKind::ProcessLoopback` + `target_pid` | grows while recording |
 | **Input: Mix** | flexaudio `SourceKind::Mix` (mic + system) | grows while recording |
-| **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source |
+| **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source; **Live** re-renders it in place (M22, planned) |
 
 ## Recordable inputs
 
@@ -46,11 +46,12 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 
 - Shows the whole recording plus the **analysis window** (`start..end`).
 - For extra-short windows the timeline **zooms in** on the window.
-- **Zoom / pan** — the wheel zooms around the cursor, dragging the waveform pans, and
-  the toolbar's zoom buttons fit / zoom-to-window. When the view is narrower than the
-  source a **horizontal scrollbar** appears along the bottom of the region (a
-  whole-file overview whose thumb *is* the visible span); drag its thumb to pan, click
-  the track to jump, or use the arrow keys. See `lib/timelineScroll.ts`.
+- **Zoom / pan** — the wheel zooms around the cursor (M23 changes this to a
+  trackpad-stable gesture: scroll pans, pinch / `⌘`/Ctrl+wheel zooms), dragging the
+  waveform pans, and the toolbar's zoom buttons fit / zoom-to-window. When the view is
+  narrower than the source a **horizontal scrollbar** appears along the bottom of the
+  region (a whole-file overview whose thumb *is* the visible span); drag its thumb to pan,
+  click the track to jump, or use the arrow keys. See `lib/timelineScroll.ts`.
 - The **filtered** signal (when a filter is active) is drawn as a translucent **overlay**
   over the raw waveform, so its effect reads as a tint on the signal rather than a
   replacement for it.
@@ -66,6 +67,22 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - For a **multichannel** source, a channel selector (in the Timeline toolbar) picks
   the channel to display/analyse, or downmixes to mono. It is the shared analysis
   param, so the waveform, preview playback and (M4+) analyzers all agree.
+
+### Planned — transport and framing (M23)
+
+- A committed reframe (annotation **Analyze**, a chart's **Reframe** menu, a
+  **`Shift`+drag** window selection) **frames the analysis window in the viewport** and
+  focuses the Timeline; selecting an annotation still never moves the window (ADR-19).
+- The transport becomes **play/pause** with a seekable playhead that persists when paused
+  or stopped; the ruler seeks, loop is a toggle, and the view can follow the playhead.
+- **Wheel/trackpad** handling is normalized and gesture-based: scroll pans (time, plus
+  frequency on 2-D views), pinch / `⌘`/Ctrl+wheel zooms at the cursor, and a horizontal
+  gesture never zooms. No vertical waveform zoom. See `lib/wheelGesture.ts` (planned).
+- Annotation ranges and live lane selections draw **full-height vertical rules** at their
+  edges in addition to the lane handles. See [`roadmap.md`](roadmap.md) → M23.
+
+For the synth's planned live mode (audition loop + in-place source rewrite) see
+[`roadmap.md`](roadmap.md) → M22 and ADR-21.
 
 ## OS permissions (macOS)
 

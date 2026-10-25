@@ -9,13 +9,16 @@ post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — s
 voice-quality proxies, and AM/FM modulation spectra) are delivered — see
 [`analysis-metrics.md`](analysis-metrics.md). **M21** (MCP/CLI ergonomics: per-result
 summaries, compact results, catalog annotations, discovery) is delivered — see
-[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
+[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md). **M22** (synth live workflow), **M23**
+(timeline ergonomics) and **M24** (keyboard control) are **planned** — see
+[`roadmap.md`](roadmap.md) and [`hotkeys.md`](hotkeys.md).
 
 | Doc | What it covers |
 | --- | --- |
 | [architecture.md](architecture.md) | System architecture, IPC boundary, Rust/TS module layout, data flow, threading |
 | [ui-layout.md](ui-layout.md) | The fixed-region + workbench-tabs layout rule and tab behaviors |
 | [graph-editor.md](graph-editor.md) | The fundsp graph editor: Net model, node palette, rules, planned coverage |
+| [hotkeys.md](hotkeys.md) | Keyboard control: the command registry, default bindings, command palette, and the shortcut explorer (M24) |
 | [source-model.md](source-model.md) | Audio sources (file / input / synth) and timeline behavior |
 | [data-model.md](data-model.md) | Domain entities and their relationships |
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
