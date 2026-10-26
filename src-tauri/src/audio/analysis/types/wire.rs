@@ -49,6 +49,8 @@ struct ToolOptionsWire {
     min_note_ms: Option<f32>,
     #[serde(default, alias = "min_gap_ms")]
     min_gap_ms: Option<f32>,
+    #[serde(default, alias = "syllable_gap_ms")]
+    syllable_gap_ms: Option<f32>,
     #[serde(default, alias = "envelope_points")]
     envelope_points: Option<usize>,
     #[serde(default, alias = "pitch_frame_ms")]
@@ -88,6 +90,7 @@ impl From<ToolOptionsWire> for ToolOptions {
             hysteresis_db: wire.hysteresis_db,
             min_note_ms: wire.min_note_ms,
             min_gap_ms: wire.min_gap_ms,
+            syllable_gap_ms: wire.syllable_gap_ms,
             envelope_points: wire.envelope_points,
             pitch_frame_ms: wire.pitch_frame_ms,
             pitch_hop_ms: wire.pitch_hop_ms,
@@ -132,6 +135,7 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "hysteresisDb" | "hysteresis_db" => "hysteresisDb",
         "minNoteMs" | "min_note_ms" => "minNoteMs",
         "minGapMs" | "min_gap_ms" => "minGapMs",
+        "syllableGapMs" | "syllable_gap_ms" => "syllableGapMs",
         "envelopePoints" | "envelope_points" => "envelopePoints",
         "pitchFrameMs" | "pitch_frame_ms" => "pitchFrameMs",
         "pitchHopMs" | "pitch_hop_ms" => "pitchHopMs",

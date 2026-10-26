@@ -190,6 +190,76 @@ fn summary_and_full_are_mutually_exclusive() {
 }
 
 #[test]
+fn analyze_reads_a_windows_file() {
+    let path = std::env::temp_dir().join("hey_listen_cli_windows.txt");
+    std::fs::write(
+        &path,
+        "# one window per line\n0,1\n 2 , 3, spectrum , levels\n\n4,5,levels\n",
+    )
+    .unwrap();
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("windows", json![path.to_string_lossy().into_owned()]),
+    ]);
+    let request = build_request("analyze", &m).unwrap();
+    assert_eq!(request.windows.len(), 3);
+    assert_eq!(request.windows[0].start, 0.0);
+    assert_eq!(request.windows[0].end, 1.0);
+    assert!(request.windows[0].tools.is_empty());
+    assert_eq!(request.windows[1].tools, ["spectrum", "levels"]);
+    assert_eq!(request.windows[2].start, 4.0);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn windows_can_carry_their_own_tools() {
+    let path = std::env::temp_dir().join("hey_listen_cli_windows_tools.txt");
+    std::fs::write(&path, "0,1,spectrum\n2,3,levels\n").unwrap();
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("windows", json![path.to_string_lossy().into_owned()]),
+    ]);
+    // Every line names its tool, so no `-t` is needed.
+    assert!(build_request("analyze", &m).is_ok());
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn windows_reject_bad_lines_and_conflicts() {
+    let run = |text: &str| {
+        let path = std::env::temp_dir().join("hey_listen_cli_windows_bad.txt");
+        std::fs::write(&path, text).unwrap();
+        let m = matches(&[
+            ("file", json!(["a.wav"])),
+            ("tool", json!(["levels"])),
+            ("windows", json![path.to_string_lossy().into_owned()]),
+        ]);
+        let result = build_request("analyze", &m);
+        let _ = std::fs::remove_file(&path);
+        result.map(|request| request.windows.len())
+    };
+    assert!(run("").unwrap_err().contains("no windows"));
+    assert!(run("0\n").unwrap_err().contains("start,end"));
+    assert!(run("0,x\n").unwrap_err().contains("invalid end"));
+    assert!(run("2,1\n").unwrap_err().contains("end > start"));
+    assert!(run("0,1,nope\n").unwrap_err().contains("unknown analyzer"));
+
+    let path = std::env::temp_dir().join("hey_listen_cli_windows_conflict.txt");
+    std::fs::write(&path, "0,1\n").unwrap();
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("windows", json![path.to_string_lossy().into_owned()]),
+        ("start", json!("0")),
+    ]);
+    assert!(build_request("analyze", &m)
+        .unwrap_err()
+        .contains("not both"));
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
 fn synth_reads_the_graph_and_seconds() {
     let path = write_synth_graph("hey_listen_cli_synth_graph.json");
     let m = matches(&[("graph", json!(path)), ("seconds", json!("2"))]);

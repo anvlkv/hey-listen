@@ -1,5 +1,6 @@
 import { series } from "../view";
 import type { AnalyzerDef } from "../types";
+import { GATE_PARAMS } from "./gate";
 
 /** The `time` section of the registry (waveform, levels, amplitude envelope). */
 export const TIME_ANALYZERS: AnalyzerDef[] = [
@@ -51,7 +52,8 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
       "**Why use it.** Follow loudness through a call or a phrase without EBU R128's " +
       "400 ms smoothing — useful for short notes, breaths, and level changes. Unlike " +
       "*Loudness (momentary)* it is a plain amplitude measure (no K-weighting), so it " +
-      "agrees with the waveform's RMS.",
+      "agrees with the waveform's RMS. Set **Gate** to turn frames far below the window " +
+      "peak into gaps (0 = off).",
     keywords: ["envelope", "amplitude", "rms", "dbfs", "level", "frame", "dynamics"],
     section: "time",
     view: series("level (dBFS)", (value) => `${value.toFixed(1)} dBFS`, { style: "area" }),
@@ -79,6 +81,7 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
         suffix: "ms",
         title: "Step between frames — smaller values give a denser envelope.",
       },
+      ...GATE_PARAMS,
     ],
   },
 ];

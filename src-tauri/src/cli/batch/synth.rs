@@ -39,7 +39,17 @@ pub(super) fn run_synth(
         return 0;
     }
     let tools = tools_for(request);
-    if run_tools(session, request, &tools, path, out).is_err() {
+    if run_tools(
+        session,
+        request,
+        &tools,
+        path,
+        request.start,
+        request.end,
+        out,
+    )
+    .is_err()
+    {
         return 1;
     }
     0

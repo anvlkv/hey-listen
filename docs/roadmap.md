@@ -1108,11 +1108,23 @@ the protocol instructions, and the skill.
 > an agent: what is returned, what an option means, and what can be scripted without a
 > window. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md) → “M21.A”.
 
-## M21.B — Measurement reliability + scale ergonomics (planned)
+## M21.B — Measurement reliability + scale ergonomics ✅
 
 Follow-up to M21.A, from the **A/B pass** and the **attempt-3 review** in the bird-vocals
 session. M21.A fixed the agent contract; M21.B fixes what the measurements *mean* and
 what they *omit*.
+
+> **Delivered.** The gated scalar series (`frameRms`, `harmonicRatio`,
+> `spectralCentroid`, `spectralRolloff`, `spectralFlatness`, `zeroCrossingRate`) accept
+> `gateDb` / `gateFloorDb`; gated frames become `null` and `SeriesResult.gate` plus the
+> summary echo the effective threshold and counts. `harmonicRatio` is documented as max
+> autocorrelation, not HNR in dB. `PitchResult.f0Reliable` (8 voiced frames) suppresses a
+> median from a handful of frames; `ModulationResult.fmReliable` suppresses an FM rate
+> from a short or quantized (staircase) run while still reporting the cents spread.
+> `noteMetrics.syllableGapMs` adds a `syllables` grouping (and `syllableCount`) beside
+> the unchanged notes. `hey-listen analyze --windows FILE` runs many
+> `start,end[,tool…]` windows in one process. No DSP was replaced: the gate is an
+> explicit mask, and the reliability flags gate what is *reported*.
 
 - **Window-level gating.** Add `gateDb` (relative to the window peak, plus an absolute
   floor) to the series analyzers (`harmonicRatio`, `spectralCentroid`,
@@ -1148,9 +1160,9 @@ what they *omit*.
   notes `analyze()` inside a per-note loop as the 1k bottleneck.
 
 **Tests:** gated series vs ungated on a tone+noise fixture; catalog/`about` coverage for
-`harmonicRatio`; pitch summary reliability at 0 / 1 / 3 voiced frames; modulation on a
-staircase track; `noteMetrics` syllable grouping across a short vs long gap; CLI
-multi-window (if implemented); docs/skill coverage.
+`harmonicRatio`; pitch summary reliability at 0 / 1 / 3 / 7 / 8 / 20 voiced frames;
+modulation on a staircase track and a short run; `noteMetrics` syllable grouping across a
+short vs long gap; CLI `--windows` parsing and a per-window run; docs/skill coverage.
 
 **Non-goals:** no new DSP and no renames of existing result fields. M12/M13 exports and
 templates still come later.

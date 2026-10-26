@@ -137,6 +137,7 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
         all: false,
         start: None,
         end: None,
+        windows: Vec::new(),
         params: Vec::new(),
         options: Vec::new(),
         filter: None,

@@ -146,6 +146,7 @@ pub struct ToolOptions {
     pub hysteresis_db: Option<f32>,
     pub min_note_ms: Option<f32>,
     pub min_gap_ms: Option<f32>,
+    pub syllable_gap_ms: Option<f32>,
     pub envelope_points: Option<usize>,
     pub pitch_frame_ms: Option<f32>,
     pub pitch_hop_ms: Option<f32>,
@@ -288,6 +289,32 @@ impl ToolOptions {
             .filter(|value| value.is_finite() && *value >= 0.0)
             .unwrap_or(DEFAULT_MIN_GAP_MS)
             .clamp(0.0, 10_000.0)
+    }
+
+    /// The gap under which adjacent notes merge into one **syllable** (M21.B): the
+    /// note spans stay as detected, and `syllables` groups them. `None` (or 0) leaves
+    /// grouping off, so the default result shape is unchanged.
+    pub(super) fn syllable_gap_ms(&self) -> Option<f32> {
+        self.syllable_gap_ms
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .map(|value| value.clamp(1.0, 10_000.0))
+    }
+
+    /// The window gate for a series measurement (M21.B), in dB below the window
+    /// peak. `None` disables gating, so a result is unchanged unless asked for.
+    pub(super) fn series_gate_db(&self) -> Option<f32> {
+        self.gate_db
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .map(|value| value.clamp(1.0, 120.0))
+    }
+
+    /// The absolute floor of that gate, in dBFS. Defaults to [`DB_FLOOR`] (no floor)
+    /// rather than the note gate's −60 dBFS, so a quiet recording is not gated away.
+    pub(super) fn series_gate_floor_db(&self) -> f32 {
+        self.gate_floor_db
+            .filter(|value| value.is_finite())
+            .unwrap_or(DB_FLOOR)
+            .clamp(DB_FLOOR, 0.0)
     }
 
     /// Normalized envelope points per note (M18).

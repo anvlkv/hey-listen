@@ -35,6 +35,18 @@ pub struct OptionPatch {
     pub value: Value,
 }
 
+/// One analysis window from `--windows FILE`: `start,end[,tool,tool…]` per line.
+///
+/// A window without tools falls back to the request's `-t` / `--all`, so a sweep can
+/// share one tool list or override it per window. This is what makes "1k windows in
+/// one file" one process instead of 1k process startups (M21.B).
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowSpec {
+    pub start: f64,
+    pub end: f64,
+    pub tools: Vec<String>,
+}
+
 /// A fully-resolved batch request — the plain input [`run`](super::run) works over.
 #[derive(Debug, Clone)]
 pub struct Request {
@@ -47,6 +59,8 @@ pub struct Request {
     pub all: bool,
     pub start: Option<f64>,
     pub end: Option<f64>,
+    /// Per-window analysis list (`--windows FILE`); empty for a single window.
+    pub windows: Vec<WindowSpec>,
     /// Shared-param patches (`-p K=V`).
     pub params: Vec<(String, Value)>,
     /// Per-tool option patches (`-o [TOOL.]K=V`).

@@ -15,14 +15,20 @@ pub struct OptionInfo {
     pub help: &'static str,
 }
 
+mod spectral;
 mod table;
 
-pub(crate) use table::OPTIONS;
+pub(crate) use spectral::OPTIONS as SPECTRAL_OPTIONS;
+pub(crate) use table::OPTIONS as BASE_OPTIONS;
+
+/// Every table, so validation and tests can iterate all declared options.
+pub(crate) fn tables() -> impl Iterator<Item = &'static (&'static str, &'static [OptionInfo])> {
+    BASE_OPTIONS.iter().chain(SPECTRAL_OPTIONS.iter())
+}
 
 /// The engine options declared for `id` (empty for a tool without options).
 pub(super) fn options_for(id: &str) -> &'static [OptionInfo] {
-    OPTIONS
-        .iter()
+    tables()
         .find(|(tool, _)| *tool == id)
         .map(|(_, options)| *options)
         .unwrap_or(&[])

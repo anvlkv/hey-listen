@@ -52,6 +52,10 @@ pub struct ModulationResult {
     /// Peak-to-peak and standard-deviation depth of the detrended cents track.
     pub fm_peak_to_peak_cents: Option<f32>,
     pub fm_std_cents: Option<f32>,
+    /// Whether the FM half's voiced run is long enough, and its cents track fine
+    /// enough, to trust a rate (M21.B). False means the spectrum and peaks are empty:
+    /// a short or quantized run must not be dressed up as a vibrato.
+    pub fm_reliable: bool,
     /// Share of the window's pitch frames the detector found voiced (0…1).
     pub voiced_fraction: f32,
 }

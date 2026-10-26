@@ -5,15 +5,28 @@ use super::super::support::{
     pitch_grid, pitch_series, series_from_vec,
 };
 use super::super::{
-    AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SharedParams, ToolOptions,
-    DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
+    AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SeriesResult, SharedParams,
+    ToolOptions, DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
 };
+use super::gate::apply_gate;
 use super::{
     chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, modulation, note_metrics,
     spectral_contrast, spectrogram, spectrum, waveform,
 };
 
-/// Dispatch a tool id to its implementation.
+/// Build a scalar series and apply the window gate on `mono` (the unpadded signal).
+fn gated_series(
+    values: Vec<f32>,
+    hop: usize,
+    frame: usize,
+    mono: &[f32],
+    sample_rate: u32,
+    options: &ToolOptions,
+) -> SeriesResult {
+    let mut result = series_from_vec(values, hop, sample_rate);
+    result.gate = apply_gate(&mut result, mono, frame, hop, options);
+    result
+}
 pub fn run(
     tool: &str,
     mono: &[f32],
@@ -76,17 +89,20 @@ pub fn run(
             params,
             options,
         )?)),
-        "spectralCentroid" => Ok(AnalysisResult::SpectralCentroid(series_from_vec(
+        "spectralCentroid" => Ok(AnalysisResult::SpectralCentroid(gated_series(
             oxiaudio::dsp::spectral::spectral_centroid(&lib_buf(), fft, hop),
             hop,
+            fft,
+            mono,
             sample_rate,
+            options,
         ))),
         "spectralFlux" => Ok(AnalysisResult::SpectralFlux(series_from_vec(
             oxiaudio::dsp::spectral::spectral_flux(&lib_buf(), fft, hop),
             hop,
             sample_rate,
         ))),
-        "spectralRolloff" => Ok(AnalysisResult::SpectralRolloff(series_from_vec(
+        "spectralRolloff" => Ok(AnalysisResult::SpectralRolloff(gated_series(
             oxiaudio::dsp::spectral::spectral_rolloff(
                 &lib_buf(),
                 fft,
@@ -94,12 +110,18 @@ pub fn run(
                 options.rolloff_percent(),
             ),
             hop,
+            fft,
+            mono,
             sample_rate,
+            options,
         ))),
-        "spectralFlatness" => Ok(AnalysisResult::SpectralFlatness(series_from_vec(
+        "spectralFlatness" => Ok(AnalysisResult::SpectralFlatness(gated_series(
             oxiaudio::dsp::spectral::spectral_flatness(&lib_buf(), fft, hop),
             hop,
+            fft,
+            mono,
             sample_rate,
+            options,
         ))),
         "spectralBandwidth" => Ok(AnalysisResult::SpectralBandwidth(series_from_vec(
             oxiaudio::dsp::spectral::spectral_bandwidth(&lib_buf(), fft, hop),
@@ -118,7 +140,7 @@ pub fn run(
         ))),
         "harmonicRatio" => {
             let (min_f0, max_f0) = options.harmonic_range();
-            Ok(AnalysisResult::HarmonicRatio(series_from_vec(
+            Ok(AnalysisResult::HarmonicRatio(gated_series(
                 oxiaudio::dsp::spectral::harmonic_ratio(
                     &lib_buf(),
                     pitch_fft,
@@ -127,13 +149,19 @@ pub fn run(
                     max_f0,
                 ),
                 pitch_hop,
+                pitch_fft,
+                mono,
                 sample_rate,
+                options,
             )))
         }
-        "zeroCrossingRate" => Ok(AnalysisResult::ZeroCrossingRate(series_from_vec(
+        "zeroCrossingRate" => Ok(AnalysisResult::ZeroCrossingRate(gated_series(
             oxiaudio::dsp::spectral::zero_crossing_rate(&lib_buf(), fft, hop),
             hop,
+            fft,
+            mono,
             sample_rate,
+            options,
         ))),
         "pitchPyin" => Ok(AnalysisResult::PitchPyin(pitch_series(
             oxiaudio::dsp::detect_pitch_pyin(&lib_buf(), pitch_fft, pitch_hop),

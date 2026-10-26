@@ -162,6 +162,16 @@ noteMetrics  # gate + hysteresis + min note/gap; spans, levels, f0, voice qualit
 
 - `noteMetrics` compact already returns `bounds` for every event; then run the
   per-event analyzers (`spectrum`, `pitchPyin`, `modulation`, …) over each span.
+- Set `syllableGapMs` on `noteMetrics` to also get `syllables` (adjacent notes merged
+  across a short gap, each with its own RMS/peak over the merged span). Amplitude
+  belongs to the syllable, not the note.
+- Gate a scalar series with `gateDb` (0 = off) to leave pre-roll/background out of a
+  measurement instead of post-filtering `frameRms` (`gateDb`/`gateFloorDb` work on
+  `frameRms`, `spectralCentroid`, `spectralRolloff`, `spectralFlatness`,
+  `zeroCrossingRate`, and `harmonicRatio`).
+- Trust pitch medians only when `voicedFrames` ≥ 8 (`f0Reliable: 1`), and an FM rate only
+  when `fmReliable: 1`. `harmonicRatio` is **max autocorrelation, not HNR in dB**; use
+  `spectralFlatness` for noisiness.
 - `onsets` and `spectralFlux` are **ungated**: they can fire in noise and are a
   cross-check, not a segmenter.
 - `loudnessMomentary` is a 400 ms EBU R128 block by default; it smears short calls.
@@ -216,8 +226,9 @@ Options:
 | `-t, --tool <ID>` | Analyzer id; repeatable; required unless `--all`. |
 | `--all` | Run every analyzer. |
 | `--start <SEC>` / `--end <SEC>` | Window (default `0` / full duration). |
+| `--windows <FILE>` | Run many windows in one process: one `start,end[,tool,tool…]` per line (`#` comments allowed). A line without tools uses `-t`/`--all`. Not with `--start`/`--end`. |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable): `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
-| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable): `nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `fMinHz`/`fMaxHz`. Name the tool when running several (`-o mfcc.nMfcc=13`); bare `-o K=V` scopes to the sole `--tool`. **Run `analyzers <ID>` for the exact keys, defaults, and ranges.** |
+| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable): `nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `gateDb`/`gateFloorDb`, `hysteresisDb`, `minNoteMs`/`minGapMs`, `syllableGapMs`, `fMinHz`/`fMaxHz`. Name the tool when running several (`-o mfcc.nMfcc=13`); bare `-o K=V` scopes to the sole `--tool`. **Run `analyzers <ID>` for the exact keys, defaults, and ranges.** |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
 | `--summary` | Emit `{ file, window, params, options, summary }` only (no `result`). Mutually exclusive with `--full`. |
 | `--full` | Include the raw result arrays (default: compacted, exactly as in MCP). |
@@ -232,6 +243,10 @@ exact keys `-o` accepts. An unknown ID writes to stderr and exits `1`.
 
 `synth <GRAPH.json>` renders the `GraphSpec` to PCM (mono, 48 kHz,
 `--seconds`, default 5) then behaves like `analyze` on the rendered source.
+
+**Scale:** many **files** → the batch CLI (one process, JSONL). Many **windows in one
+file** → one headless MCP session or `analyze --windows FILE`, so the 1k-window cost is
+not 1k process startups.
 
 `notes <FILE.heyl>` lists a project's notes sorted by time (`--json` = JSONL,
 `--full` = full markdown body). Read-only.
@@ -274,6 +289,12 @@ hey-listen analyze mix.wav -t spectrum --full --pretty
 
 # 4 s window at 10 s, big FFT, two tools:
 hey-listen analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
+
+# Many windows in one file, one process (one `start,end[,tool…]` per line):
+hey-listen analyze call.wav -t noteMetrics --windows windows.txt > call.jsonl
+
+# Gate a series to drop the recording's background:
+hey-listen analyze call.wav -t spectralCentroid -o spectralCentroid.gateDb=20 --full
 
 # Named per-tool options:
 hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o mfcc.nMfcc=13

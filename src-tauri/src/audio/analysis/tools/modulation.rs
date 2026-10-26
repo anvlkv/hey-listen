@@ -10,7 +10,8 @@
 
 use super::super::support::frame_rms;
 use super::super::{
-    ModulationResult, ToolOptions, MAX_COARSE_PITCH_FRAMES, MAX_MOD_PITCH_FRAMES, MIN_FM_FRAMES,
+    ModulationResult, ToolOptions, MAX_COARSE_PITCH_FRAMES, MAX_MOD_PITCH_FRAMES,
+    MIN_FM_DISTINCT_CENTS, MIN_FM_FRAMES,
 };
 use super::modulation_dsp::{
     cents_track, depth, detrended, linear_envelope, longest_voiced_run, peaks, rate_grid, spectrum,
@@ -76,6 +77,12 @@ pub fn modulation(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> Modu
     let fm = run
         .and_then(|run| fm_part(mono, rate, run, &coarse, coarse_hop_secs, options, range))
         .filter(|part| part.cents.len() >= MIN_FM_FRAMES);
+    // A short or quantized run cannot support a rate. Its spread is still reported (it
+    // is a real measurement), but `fm_reliable` says the rate is not, and no spectrum
+    // or peak is invented (M21.B).
+    let fm_reliable = fm
+        .as_ref()
+        .is_some_and(|part| fm_is_reliable(part, options.min_voiced_secs()));
 
     // The shared band is clamped by whichever half samples more slowly, so neither
     // spectrum aliases. The result reports what was actually analysed.
@@ -104,6 +111,7 @@ pub fn modulation(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> Modu
         fm_rate_hz: None,
         fm_peak_to_peak_cents: fm.as_ref().map(|part| part.peak_to_peak_cents),
         fm_std_cents: fm.as_ref().map(|part| part.std_cents),
+        fm_reliable,
         voiced_fraction,
     };
 
@@ -119,7 +127,7 @@ pub fn modulation(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> Modu
         result.am_peaks = peaks(&freqs, &result.am_db, options.top_peaks());
     }
     if let Some(part) = &fm {
-        if part.std_cents >= MIN_FM_STD_CENTS {
+        if fm_reliable && part.std_cents >= MIN_FM_STD_CENTS {
             result.fm_db = spectrum(&part.cents, part.sample_rate, mode, &freqs);
             result.fm_peaks = peaks(&freqs, &result.fm_db, options.top_peaks());
             result.fm_rate_hz = result.fm_peaks.first().map(|peak| peak.rate_hz);
@@ -130,6 +138,27 @@ pub fn modulation(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> Modu
         result.mod_freqs = freqs;
     }
     result
+}
+
+/// Whether the FM residual can support a rate: the run is long enough, and a track
+/// with real spread visits enough distinct cents values that it is not a staircase of
+/// two or three quantized levels. A steady run (under [`MIN_FM_STD_CENTS`]) is a
+/// trustworthy answer too — it says there is no modulation — so it is not rejected
+/// for having a single value.
+fn fm_is_reliable(part: &FmPart, min_voiced_secs: f32) -> bool {
+    let run_secs = part.cents.len() as f32 / part.sample_rate.max(1.0);
+    if part.cents.len() < MIN_FM_FRAMES || run_secs < min_voiced_secs {
+        return false;
+    }
+    part.std_cents < MIN_FM_STD_CENTS || distinct_cents(&part.cents) >= MIN_FM_DISTINCT_CENTS
+}
+
+/// How many distinct levels a cents track visits (a staircase has very few).
+fn distinct_cents(values: &[f32]) -> usize {
+    let mut sorted = values.to_vec();
+    sorted.sort_by(f32::total_cmp);
+    sorted.dedup_by(|a, b| *a == *b);
+    sorted.len()
 }
 
 /// Track the chosen run on a modulation-friendly grid and measure its cents depth.
@@ -228,4 +257,57 @@ fn peak_to_trough(levels: &[f32]) -> Option<f32> {
         max = max.max(level);
     }
     Some((max - min).max(0.0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A run's cents track at `sample_rate` samples per second, with its measured depth.
+    fn part(cents: Vec<f32>, sample_rate: f32) -> FmPart {
+        let (peak_to_peak_cents, std_cents) = depth(&cents);
+        let end_secs = cents.len() as f32 / sample_rate.max(1.0);
+        FmPart {
+            cents,
+            sample_rate,
+            start_secs: 0.0,
+            end_secs,
+            peak_to_peak_cents,
+            std_cents,
+        }
+    }
+
+    #[test]
+    fn a_quantized_staircase_is_not_a_reliable_fm_rate() {
+        // The Snowy Owl case: four levels over 13 frames. A spectrum fit invents a
+        // 31.5 Hz vibrato; the reliability guard must reject it (M21.B).
+        let pattern = [392.0f32, 415.0, 392.0, 370.0];
+        let cents: Vec<f32> = (0..13).map(|index| pattern[index % 4] - 392.0).collect();
+        let part = part(cents, 200.0);
+        assert!(part.std_cents > MIN_FM_STD_CENTS);
+        assert!(!fm_is_reliable(&part, 0.05));
+    }
+
+    #[test]
+    fn a_smooth_vibrato_is_reliable() {
+        let cents: Vec<f32> = (0..200)
+            .map(|index| 25.0 * (index as f32 * 0.08).sin())
+            .collect();
+        assert!(fm_is_reliable(&part(cents, 200.0), 0.2));
+    }
+
+    #[test]
+    fn a_steady_run_is_reliable_and_has_no_rate() {
+        let part = part(vec![0.0; 200], 200.0);
+        assert!(fm_is_reliable(&part, 0.2));
+        assert!(part.std_cents < MIN_FM_STD_CENTS);
+    }
+
+    #[test]
+    fn a_run_shorter_than_min_voiced_secs_is_not_reliable() {
+        let cents: Vec<f32> = (0..13)
+            .map(|index| 25.0 * (index as f32 * 0.5).sin())
+            .collect();
+        assert!(!fm_is_reliable(&part(cents, 200.0), 0.2));
+    }
 }

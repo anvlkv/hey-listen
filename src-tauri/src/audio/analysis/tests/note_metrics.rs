@@ -119,6 +119,8 @@ fn tone_gap_tone_yields_two_notes_and_one_gap() {
     assert!((result.total_gap_secs - result.gaps[0].duration_secs).abs() < 1e-6);
     assert!((result.longest_gap_secs - result.gaps[0].duration_secs).abs() < 1e-6);
     assert!((result.median_note_secs - 0.2).abs() < 0.03);
+    // Grouping is opt-in: no syllables unless `syllableGapMs` is set (M21.B).
+    assert!(result.syllables.is_none());
     // The envelope describes each note at the same normalized positions.
     assert_eq!(result.envelope_positions.len(), 7);
     assert_eq!(result.envelope_positions[0], 0.0);
@@ -188,15 +190,45 @@ fn a_silent_window_has_no_notes() {
 }
 
 #[test]
+fn syllable_grouping_merges_short_gaps_only() {
+    // Three notes: a 20 ms gap (a syllable break) and a 200 ms gap (a real pause).
+    let mut mono = tone(440.0, 0.5, 0.15);
+    mono.extend(silence(0.02));
+    mono.extend(tone(440.0, 0.5, 0.15));
+    mono.extend(silence(0.2));
+    mono.extend(tone(440.0, 0.5, 0.15));
+    let options = ToolOptions {
+        min_gap_ms: Some(0.0),
+        syllable_gap_ms: Some(50.0),
+        ..ToolOptions::default()
+    };
+    let result = run_notes(&mono, &options);
+
+    assert_eq!(result.note_count, 3, "notes: {:?}", result.notes);
+    let syllables = result.syllables.as_ref().expect("syllable grouping");
+    assert_eq!(syllables.len(), 2, "syllables: {syllables:?}");
+    assert_eq!(syllables[0].note_count, 2);
+    assert_eq!(syllables[1].note_count, 1);
+    assert!((syllables[0].start_secs - result.notes[0].start_secs).abs() < 1e-4);
+    assert!((syllables[0].end_secs - result.notes[1].end_secs).abs() < 1e-4);
+    // Amplitude is measured over the merged syllable, not a gate-closed note.
+    assert!(syllables[0].rms_db.is_finite() && syllables[0].rms_db < -6.0);
+    assert!(syllables[0].peak_db >= syllables[0].rms_db);
+    // The note spans themselves are unchanged by grouping.
+    assert!(result.notes[0].end_secs < result.notes[1].start_secs);
+}
+
+#[test]
 fn note_options_accept_snake_case_aliases() {
     let options: ToolOptions = serde_json::from_str(
-        r#"{ "gate_db": 40, "gate_floor_db": -55, "min_note_ms": 15, "min_gap_ms": 25 }"#,
+        r#"{ "gate_db": 40, "gate_floor_db": -55, "min_note_ms": 15, "min_gap_ms": 25, "syllable_gap_ms": 60 }"#,
     )
     .expect("aliases parse");
     assert_eq!(options.gate_db, Some(40.0));
     assert_eq!(options.gate_floor_db, Some(-55.0));
     assert_eq!(options.min_note_ms, Some(15.0));
     assert_eq!(options.min_gap_ms, Some(25.0));
+    assert_eq!(options.syllable_gap_ms, Some(60.0));
 }
 
 #[test]

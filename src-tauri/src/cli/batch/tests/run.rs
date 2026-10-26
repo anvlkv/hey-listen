@@ -234,6 +234,39 @@ fn run_explains_one_analyzer() {
 }
 
 #[test]
+fn run_sweeps_a_windows_file_in_one_process() {
+    let path = std::env::temp_dir().join("hey_listen_cli_windows_run.wav");
+    write_sine_wav(&path, 8_000, 8_000);
+    let mut request = analyze_request(
+        vec![path.to_string_lossy().into_owned()],
+        vec!["levels".into()],
+    );
+    request.windows = vec![
+        WindowSpec {
+            start: 0.0,
+            end: 0.25,
+            tools: Vec::new(),
+        },
+        WindowSpec {
+            start: 0.5,
+            end: 0.75,
+            tools: Vec::new(),
+        },
+    ];
+
+    let mut out = Vec::new();
+    assert_eq!(run(&request, &mut out), 0);
+    let values = lines(&out);
+    assert_eq!(values.len(), 2);
+    for (index, value) in values.iter().enumerate() {
+        assert_eq!(value["result"]["tool"], "levels");
+        let expected = if index == 0 { 0.0 } else { 0.5 };
+        assert_eq!(value["window"]["start"].as_f64(), Some(expected));
+    }
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
 fn run_renders_a_synth() {
     let path = write_synth_graph("hey_listen_cli_synth_run.json");
     let request = synth_request(&path, 0.5, vec!["levels".into()]);

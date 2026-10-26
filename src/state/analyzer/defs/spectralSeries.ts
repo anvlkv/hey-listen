@@ -1,6 +1,7 @@
 import { fmtDb, fmtPlain, fmtRatio, formatHz } from "../format";
 import { series } from "../view";
 import type { AnalyzerDef } from "../types";
+import { GATE_PARAMS } from "./gate";
 
 /** Octave-band counts offered by the spectral-contrast tool. */
 const CONTRAST_BANDS = [4, 5, 6, 7, 8].map((value) => ({ value, label: `${value}` }));
@@ -16,10 +17,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "of mass* — as a single frequency over time.\n\n" +
       "**Why use it.** A quick brightness and timbre track: it rises for cymbals, " +
       "fricatives, and bright mixes, and falls for bass and dark material. Useful " +
-      "for comparing the tone of two takes.",
+      "for comparing the tone of two takes. Set **Gate** to leave silent pre-roll and " +
+      "background out of the measurement (0 = off).",
     keywords: ["centroid", "brightness", "timbre", "spectral", "center of mass"],
     section: "spectral",
     view: series("centroid (Hz)", formatHz, { style: "area", yScale: "log" }),
+    params: [...GATE_PARAMS],
   },
   {
     id: "spectralFlux",
@@ -62,6 +65,7 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
         title:
           "Share of spectral energy below the rolloff frequency. 85% is the usual default; 95–99% reaches further into the high-frequency tail.",
       },
+      ...GATE_PARAMS,
     ],
   },
   {
@@ -76,6 +80,7 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
     keywords: ["flatness", "wiener", "entropy", "tonal", "noise", "tonality"],
     section: "spectral",
     view: series("flatness", fmtPlain, { style: "area", yRange: [0, 1] }),
+    params: [...GATE_PARAMS],
   },
   {
     id: "spectralContrast",
@@ -148,13 +153,18 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
     id: "harmonicRatio",
     title: "Harmonic ratio",
-    description: "How periodic the sound is",
+    description: "Max normalized autocorrelation over time (not HNR in dB)",
     about:
-      "**What it shows.** A 0–1 estimate of how much of the sound is *harmonic* " +
-      "(periodic) rather than noise.\n\n" +
-      "**Why use it.** Near 1 for sustained pitched notes and vowels, near 0 for " +
-      "hiss, fricatives, and unvoiced speech. Set the expected fundamental range " +
-      "below so the estimate stays useful.",
+      "**What it shows.** The **maximum normalized autocorrelation** over the f0 " +
+      "search range, from 0 to 1 — how strongly the signal repeats at its best-matching " +
+      "lag.\n\n" +
+      "**What it is not.** It is *not* HNR in dB. Broadband noise can still score high " +
+      "(some lag correlates), and per-cycle jitter or detune barely move it. Use " +
+      "*Spectral flatness* for noisiness, and treat the per-note *HNR* proxy as the same " +
+      "correlation score rather than a dB ratio.\n\n" +
+      "**Why use it.** Near 1 for sustained pitched notes and vowels, near 0 for hiss " +
+      "and unvoiced speech. Set the expected fundamental range below, and **Gate** to " +
+      "leave background frames out.",
     keywords: ["harmonic", "ratio", "hnr", "periodicity", "autocorrelation", "noise"],
     section: "spectral",
     view: series("harmonic ratio", fmtRatio, { style: "area", yRange: [0, 1] }),
@@ -182,6 +192,7 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
         title:
           "Highest expected fundamental — the default 50–4000 Hz range covers calls above 2 kHz.",
       },
+      ...GATE_PARAMS,
     ],
   },
   {
@@ -196,5 +207,6 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
     keywords: ["zero crossing", "zcr", "sign", "voiced", "percussive", "rate"],
     section: "spectral",
     view: series("zero-crossing rate", fmtRatio, { style: "area", yRange: [0, 1] }),
+    params: [...GATE_PARAMS],
   },
 ];

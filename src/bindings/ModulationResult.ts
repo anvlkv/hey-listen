@@ -55,6 +55,12 @@ fmRateHz: number | null,
  */
 fmPeakToPeakCents: number | null, fmStdCents: number | null, 
 /**
+ * Whether the FM half's voiced run is long enough, and its cents track fine
+ * enough, to trust a rate (M21.B). False means the spectrum and peaks are empty:
+ * a short or quantized run must not be dressed up as a vibrato.
+ */
+fmReliable: boolean, 
+/**
  * Share of the window's pitch frames the detector found voiced (0…1).
  */
 voicedFraction: number, };

@@ -115,6 +115,14 @@ const MAX_MOD_PITCH_FRAMES: usize = 2_048;
 const MAX_COARSE_PITCH_FRAMES: usize = 256;
 /// Below this many voiced frames the FM depth figures are `None`.
 const MIN_FM_FRAMES: usize = 8;
+/// Distinct cents values an FM residual needs before its rate is trusted. A pYIN
+/// track that visits only a handful of levels (`392, 415, 392, 370`, repeated) is a
+/// staircase, not a vibrato, and its spectrum invents a rate (M21.B).
+const MIN_FM_DISTINCT_CENTS: usize = 5;
+/// Voiced frames a pitch track needs before its median is called a pitch (M21.B).
+/// Below this the track is reported (with `f0Reliable: false`) but the summary omits
+/// a median, so a handful of frames is never presented as an f0.
+const MIN_RELIABLE_VOICED_FRAMES: usize = 8;
 
 // --- signal conditioning -------------------------------------------------
 
