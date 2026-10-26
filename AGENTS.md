@@ -95,6 +95,6 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11, M14–M21, and M21.A are done; M12/M13 exports and
-templates are planned). Deliver strictly one milestone at a time; confirm current status
-from that file before starting.
+`docs/roadmap.md` tracks progress (M11, M14–M21, and M21.A are done; M21.B measurement
+reliability and M12/M13 exports and templates are planned). Deliver strictly one
+milestone at a time; confirm current status from that file before starting.

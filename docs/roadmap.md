@@ -1108,6 +1108,53 @@ the protocol instructions, and the skill.
 > an agent: what is returned, what an option means, and what can be scripted without a
 > window. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md) → “M21.A”.
 
+## M21.B — Measurement reliability + scale ergonomics (planned)
+
+Follow-up to M21.A, from the **A/B pass** and the **attempt-3 review** in the bird-vocals
+session. M21.A fixed the agent contract; M21.B fixes what the measurements *mean* and
+what they *omit*.
+
+- **Window-level gating.** Add `gateDb` (relative to the window peak, plus an absolute
+  floor) to the series analyzers (`harmonicRatio`, `spectralCentroid`,
+  `spectralRolloff`, `spectralFlatness`, `zeroCrossingRate`, `frameRms`), so a
+  measurement can exclude a recording's pre-roll/background without a Python post-pass.
+  Echo the effective gate in `options` and the summary; keep the compact/full shapes
+  unchanged. **Trigger:** the A/B had to gate source frames to within 20 dB of the
+  window peak (Cattle Egret HNR 0.43→0.82; Herring Gull centroid +67 %→+2 %).
+- **`harmonicRatio` is not HNR.** It is the **max autocorrelation over all lags**: it
+  can be high for broadband noise, and per-cycle jitter/detune do not move it. Keep the
+  id for compatibility; make the one-line description and `about` say “max
+  autocorrelation, not HNR in dB; use `spectralFlatness` for noisiness.” Add a true HNR
+  tool only if the measurement is actually implemented. **Trigger:** the A/B matched
+  HNR with broadband noise and inflated flatness/centroid (Mallard +299 % centroid).
+- **Pitch reliability.** Add `voicedFrames` and a derived `f0Reliable` (or a documented
+  threshold) to the pitch summary; a `medianF0` from a handful of voiced frames is not a
+  pitch. **Trigger:** the Mallard is 0 % voiced and its “median f0” was a formant; the
+  A/B gated at 30 % manually.
+- **Modulation reliability.** Guard the FM fit against short/quantized pitch runs:
+  expose `fmReliable` (the voiced run is long enough and the residual is not a
+  staircase) and state it in the summary/`about`; never silently report a 31.5 Hz
+  vibrato from a 13-frame staircase. **Trigger:** the Snowy Owl's pYIN track was
+  `392, 415, 392, 370` and `modulation` fit ±215 cents at 31.5 Hz.
+- **Notes vs syllables.** `noteMetrics` already returns `gapAfterSecs`; add an explicit
+  grouping so a consumer can ask for **syllables** (`syllableGapMs`, or a `syllables`
+  array with the merged spans) instead of gate-closed notes. **Trigger:** the attempt-3
+  regression came from driving amplitude per note; amplitude belongs to the syllable.
+- **Many windows, one process.** Add a CLI multi-window input (e.g.
+  `analyze --windows FILE`, one `start,end[,tool…]` per line) or document the headless
+  MCP session as the supported path for many windows in one file. Per-window process
+  startup is the dominant 1k cost. Either way, the skill/docs get the rule: **many files
+  → batch CLI; many windows in one file → one headless session.** **Trigger:** the plan
+  notes `analyze()` inside a per-note loop as the 1k bottleneck.
+
+**Tests:** gated series vs ungated on a tone+noise fixture; catalog/`about` coverage for
+`harmonicRatio`; pitch summary reliability at 0 / 1 / 3 voiced frames; modulation on a
+staircase track; `noteMetrics` syllable grouping across a short vs long gap; CLI
+multi-window (if implemented); docs/skill coverage.
+
+**Non-goals:** no new DSP and no renames of existing result fields. M12/M13 exports and
+templates still come later.
+
 ## M22 — Synth workflow: live audition + in-place source (planned)
 
 Make the synth graph feel like an instrument: hear it while building it, let the
