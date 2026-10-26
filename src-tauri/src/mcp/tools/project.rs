@@ -14,11 +14,29 @@ pub(super) fn tools() -> Vec<Value> {
             "Save project",
             ToolClass::SAVE,
             "Save the project. With `path`, saves there; without, saves to the current path \
-             (or prompts, as the UI does).",
+             (or prompts, as the UI does). In headless mode `path` is required and the file \
+             is built from the session's source + setup + the `notes` you pass (there is no \
+             Workbench layout). `embedSource: false` writes a reference project instead of \
+             embedding the audio.",
             json!({
                 "type": "object",
                 "properties": {
                     "path": { "type": "string", "description": "Destination .heyl path." },
+                    "name": { "type": "string", "description": "Project name (default: the file stem)." },
+                    "notes": {
+                        "type": "array",
+                        "description": "Headless: annotations to write (id/createdMs/updatedMs are filled when omitted). Default: none.",
+                        "items": { "type": "object" },
+                    },
+                    "openTools": {
+                        "type": "array",
+                        "description": "Headless: analyzer ids to restore as Workbench tabs when the app opens the file.",
+                        "items": { "type": "string" },
+                    },
+                    "embedSource": {
+                        "type": "boolean",
+                        "description": "Embed the source PCM in DATA (default true). false writes a reference project for a file source: the SOURCE path is kept and the loader decodes it again. Ignored for synth sources.",
+                    },
                 },
                 "additionalProperties": false,
             }),
@@ -27,7 +45,9 @@ pub(super) fn tools() -> Vec<Value> {
             "open_project",
             "Open project",
             ToolClass::REPLACE,
-            "Open a .heyl project file, replacing the current project.",
+            "Open a .heyl project file, replacing the current project. Works headless too \
+             (installs the source, shared params, options, and window; there is no Workbench \
+             layout to restore).",
             json!({
                 "type": "object",
                 "properties": { "path": { "type": "string" } },
@@ -39,7 +59,8 @@ pub(super) fn tools() -> Vec<Value> {
             "new_project",
             "New project",
             ToolClass::REPLACE,
-            "Start a fresh project (drops the source, graphs, setup, and Workbench tabs).",
+            "Start a fresh project (drops the source, graphs, setup, and Workbench tabs). \
+             Works headless too (clears the session's source, options, and window).",
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(

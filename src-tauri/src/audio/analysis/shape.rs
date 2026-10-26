@@ -14,9 +14,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::{
-    AnalysisResult, MatrixResult, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult,
-    SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, MatrixResult, NoteMetric, NoteMetricsResult, PitchResult, RhythmResult,
+    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
+
+mod decimate;
 
 /// How much of a result to return.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ts_rs::TS)]
@@ -35,19 +37,36 @@ pub enum Shape {
 /// Records kept in a bounded preview of an object/event list.
 const PREVIEW_RECORDS: usize = 5;
 
+/// How a `Shape::Full` result spells its time axes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Axis {
+    /// Every frame time is an array entry (the GUI charts read this).
+    #[default]
+    Array,
+    /// A uniform time axis becomes `{ start, hop, length, end }`; values are unchanged.
+    Compact,
+}
+
 /// Shape a result for the wire, or `None` when only the summary is wanted.
-pub fn shape_result(
+///
+/// `axis` picks how a `full` result spells its time axes: as arrays (the GUI charts)
+/// or, for MCP/CLI callers that opt in, as `{ start, hop, length, end }`.
+pub fn shape_result_with(
     result: &AnalysisResult,
     shape: Shape,
     max_points: Option<usize>,
+    axis: Axis,
 ) -> Option<Value> {
     match shape {
         Shape::Summary => None,
         Shape::Full => {
-            let value = serde_json::to_value(result).ok()?;
-            Some(match max_points {
-                Some(points) => decimate(value, points),
-                None => value,
+            let value = match max_points {
+                Some(points) => decimate::decimate_result(result, points),
+                None => serde_json::to_value(result).ok()?,
+            };
+            Some(match axis {
+                Axis::Array => value,
+                Axis::Compact => decimate::compact_time_axes(value),
             })
         }
         Shape::Compact => Some(compact(result)),
@@ -151,6 +170,19 @@ fn compact_rhythm(object: &mut Map<String, Value>, r: &RhythmResult) {
 fn compact_notes(object: &mut Map<String, Value>, r: &NoteMetricsResult) {
     insert(object, "notes", preview(&r.notes));
     insert(object, "gaps", preview(&r.gaps));
+    // The event spans are the answer to "where are the events?" — keep them all, even
+    // when the heavy per-note records are previewed. Without this an agent must switch
+    // to a full result (and must not pass `maxPoints`, which would drop notes).
+    let bounds: Vec<Value> = r.notes.iter().map(compact_note_bounds).collect();
+    insert(object, "bounds", Value::Array(bounds));
+}
+
+fn compact_note_bounds(note: &NoteMetric) -> Value {
+    serde_json::json!({
+        "startSecs": note.start_secs,
+        "endSecs": note.end_secs,
+        "gapAfterSecs": note.gap_after_secs,
+    })
 }
 
 // --- compact shapes -------------------------------------------------------
@@ -167,13 +199,20 @@ fn preview<T: Serialize>(items: &[T]) -> Value {
     })
 }
 
-/// The extent of a time axis: `{ length, start, end }`.
+/// The extent of a time axis: `{ length, start, hop, end }`.
+///
+/// `hop` lets an agent turn the `argmin`/`argmax` index of a compact series into a
+/// time without fetching the full `times` array.
 fn time_axis(times: &[f32]) -> Value {
     let mut map = Map::new();
     map.insert("length".to_string(), Value::from(times.len()));
     if let (Some(first), Some(last)) = (times.first(), times.last()) {
         map.insert("start".to_string(), Value::from(f64::from(*first)));
         map.insert("end".to_string(), Value::from(f64::from(*last)));
+        if times.len() > 1 {
+            let hop = (f64::from(*last) - f64::from(*first)) / (times.len() - 1) as f64;
+            map.insert("hop".to_string(), Value::from(hop));
+        }
     }
     Value::Object(map)
 }
@@ -262,35 +301,4 @@ pub(super) fn spectrogram_peak(r: &SpectrogramResult) -> Option<(usize, usize, f
     let bin = index % bins;
     let time = r.window_start + frame as f64 * r.hop_size as f64 / f64::from(r.sample_rate.max(1));
     Some((frame, bin, time, level))
-}
-
-/// Decimate every array longer than `max_points` to at most `max_points` entries by
-/// striding (keeping the first and last), so a bounded full result returns a
-/// representative series instead of every frame. Objects recurse.
-pub fn decimate(value: Value, max_points: usize) -> Value {
-    let max_points = max_points.max(2);
-    match value {
-        Value::Array(items) if items.len() > max_points => {
-            let last = items.len() - 1;
-            let step = last as f64 / (max_points - 1) as f64;
-            let mut out = Vec::with_capacity(max_points);
-            for index in 0..max_points {
-                let source = (index as f64 * step).round() as usize;
-                out.push(decimate(items[source].clone(), max_points));
-            }
-            Value::Array(out)
-        }
-        Value::Array(items) => Value::Array(
-            items
-                .into_iter()
-                .map(|item| decimate(item, max_points))
-                .collect(),
-        ),
-        Value::Object(map) => Value::Object(
-            map.into_iter()
-                .map(|(key, value)| (key, decimate(value, max_points)))
-                .collect(),
-        ),
-        other => other,
-    }
 }

@@ -26,7 +26,7 @@ mod write;
 
 pub use error::ProjectError;
 pub use read::{read_project, LoadedProject};
-pub use sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
+pub use sections::{AnalysisSetup, AnalysisWindow, Meta, Note, SourceDescriptor, StoredResult};
 pub use write::{write_project, SaveProject};
 
 /// File magic at offset 0 (`"HEYL"`).
@@ -69,6 +69,29 @@ pub const DATA_INDEX_ENTRY_LEN: u64 = 16;
 pub const DATA_FOOTER_LEN: u64 = 16;
 /// Sample-format tag for interleaved little-endian `f32` (the only format today).
 pub const PCM_FORMAT_F32: u8 = 0;
+
+/// Decode a **reference** project's file source again (a project saved with
+/// `embedSource: false` has no `DATA` section; the `SOURCE` descriptor keeps the path).
+/// Returns `None` when the source is not a file or the file cannot be decoded, so a
+/// project with a missing external recording still opens (with an empty timeline).
+pub fn decode_reference(source: Option<&SourceDescriptor>) -> Option<crate::state::SourcePcm> {
+    let source = source?;
+    if source.kind != "file" {
+        return None;
+    }
+    let path = source.path.as_deref()?;
+    let mut samples = Vec::new();
+    let summary = crate::audio::decode::decode_file(path, |chunk| {
+        samples.extend_from_slice(chunk);
+        Ok(())
+    })
+    .ok()?;
+    Some(crate::state::SourcePcm {
+        samples,
+        sample_rate: summary.sample_rate.max(1),
+        channels: summary.channels.max(1),
+    })
+}
 
 // --- checksum ----------------------------------------------------------------
 
@@ -329,6 +352,22 @@ mod tests {
             read_project(&mut Cursor::new(bytes)),
             Err(ProjectError::Corrupt(_))
         ));
+    }
+
+    #[test]
+    fn reference_sources_fall_back_cleanly() {
+        let missing = SourceDescriptor {
+            kind: "file".to_string(),
+            path: Some("/nonexistent/hey-listen.wav".to_string()),
+            ..Default::default()
+        };
+        assert!(decode_reference(Some(&missing)).is_none());
+        let synth = SourceDescriptor {
+            kind: "synth".to_string(),
+            ..Default::default()
+        };
+        assert!(decode_reference(Some(&synth)).is_none());
+        assert!(decode_reference(None).is_none());
     }
 
     #[test]

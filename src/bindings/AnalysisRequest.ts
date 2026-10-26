@@ -16,4 +16,10 @@ shape: Shape,
 /**
  * Decimate the raw arrays of a `full` result to at most this many points.
  */
-maxPoints?: number, };
+maxPoints?: number, 
+/**
+ * Spell a uniform `times` axis as `{ start, hop, length }` instead of an array.
+ * The analyzer tabs leave this false (they read the arrays); MCP/CLI callers can
+ * opt in to cut a full result's payload.
+ */
+compactAxis?: boolean, };

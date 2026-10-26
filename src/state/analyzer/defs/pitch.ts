@@ -122,7 +122,9 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "**Why use it.** Count calls or syllables, measure how long the gaps are, and " +
       "compare levels between notes without reading an envelope by eye. The gate is " +
       "`max(gate floor, window peak − gate)` with hysteresis, so quiet background " +
-      "noise does not split a note.\n\n" +
+      "noise does not split a note. Pair it with **Amplitude envelope** (`frameRms`) " +
+      "to see what the gate sees; *Loudness (momentary)* is a 400 ms R128 block and " +
+      "smears short calls.\n\n" +
       "**Voice-quality proxies (per note).** *Jitter* is the spread of the note's " +
       "linearly detrended YIN f0 track in cents; *shimmer* is the spread of its " +
       "frame RMS in dB; *HNR* is the mean 0–1 autocorrelation periodicity " +

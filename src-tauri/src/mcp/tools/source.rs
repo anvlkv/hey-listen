@@ -58,14 +58,17 @@ pub(super) fn tools() -> Vec<Value> {
             "Run an analyzer over the analysis window. The envelope always carries a \
              canonical `summary` (a `text` line plus labelled, unit-bearing items). The \
              result is **compact by default** — structured stats, dimensions, and bounded \
-             previews rather than raw arrays; `includeData: true` returns the raw arrays \
-             (with `maxPoints` to decimate them), and `summaryOnly: true` returns just the \
-             summary. By default the call also opens (and focuses) the analyzer tab so the \
-             user's window follows; pass `display: false` to compute without opening a tab. \
-             Optionally overrides the window (`start`/`end`, source seconds), the shared \
-             params, or the tool's own options — these are written back to the project \
-             unless `transient: true`. Call `get_analyzer` for the option keys, their \
-             ranges, and the summary keys the tool returns.",
+             previews rather than raw arrays (including `noteMetrics.bounds`, every detected \
+             event span, so you do not need a full result to segment). `includeData: true` \
+             returns the raw arrays (with `maxPoints` to thin them), and `summaryOnly: true` \
+             returns just the summary. `maxPoints` only thins series/matrix families; it never \
+             removes events from `noteMetrics`/`onsets` lists. `axis: \"compact\"` replaces a \
+             uniform `times` array with `{ start, hop, length, end }`. By default the call also \
+             opens (and focuses) the analyzer tab so the user's window follows; pass \
+             `display: false` to compute without opening a tab. Optionally overrides the window \
+             (`start`/`end`, source seconds), the shared params, or the tool's own options — \
+             these are written back to the project unless `transient: true`. Call `get_analyzer` \
+             for the option keys, their ranges, the result family, and the summary keys.",
             json!({
                 "type": "object",
                 "properties": {
@@ -78,7 +81,8 @@ pub(super) fn tools() -> Vec<Value> {
                     "transient": { "type": "boolean", "description": "Apply `start`/`end`/`params`/`options` to this call only, without writing them back to the project (default false)." },
                     "summaryOnly": { "type": "boolean", "description": "Return only the summary, without `result` (default false). Mutually exclusive with `includeData`." },
                     "includeData": { "type": "boolean", "description": "Return the full result arrays (default false, compacted). Mutually exclusive with `summaryOnly`." },
-                    "maxPoints": { "type": "integer", "minimum": 2, "description": "With `includeData`, decimate each returned array to at most this many points (striding, keeping the first and last)." },
+                    "maxPoints": { "type": "integer", "minimum": 2, "description": "With `includeData`, thin series/matrix arrays to at most this many points (keeping first/last). Event and note lists are never thinned; scalars are unchanged." },
+                    "axis": { "type": "string", "enum": ["array", "compact"], "description": "With `includeData`, `compact` turns a uniform `times` array into `{ start, hop, length, end }` (default `array`)." },
                 },
                 "required": ["tool"],
                 "additionalProperties": false,

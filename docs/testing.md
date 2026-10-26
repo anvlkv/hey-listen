@@ -338,7 +338,10 @@ the resulting server state.
 > code for an unknown tool; the `Matches` → request mapping is unit-tested with
 > synthetic `Matches`. The end-to-end `hey-listen analyze …` invocation needs the
 > platform event loop (a display), like the app and the `--mcp` path, so it is verified
-> by hand rather than in the wdio suite. See [`cli.md`](cli.md).
+> by hand rather than in the wdio suite. **M21.A:** stdout is JSONL-only (logs go to
+> stderr; the WebDriver plugins are not registered for a CLI invocation), which the
+> batch unit tests cannot see because they inject `out` — check it by hand with
+> `hey-listen analyzers --json | jq` after changing the logger. See [`cli.md`](cli.md).
 
 ### M. Exchangeable themes (M11)
 

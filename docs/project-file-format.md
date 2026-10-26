@@ -5,7 +5,8 @@ streaming for very large audio.
 
 ## Goals
 
-- Embed raw audio data (no external file references).
+- Embed raw audio data by default (no external file references), with an explicit
+  opt-in **reference** mode for large annotation sets (M21.A).
 - Good performance for large audio (chunked, streamable, append-friendly).
 - Compact structured data (postcard); JSON only where it's already JSON (layout).
 
@@ -46,6 +47,21 @@ version governs the section set and readers skip unknown ids, a `NOTES` section 
 file with no `NOTES` section loads with zero notes. Keeping notes in their own section
 (rather than inside `SETUP`) keeps the analysis setup a pure `AnalysisSetup` and lets the
 CLI read just the notes (`hey-listen notes <FILE.heyl>`).
+
+## Reference projects (M21.A)
+
+`DATA` is optional. `save_project { embedSource: false }` (or the headless tool's
+`embedSource`) writes the `SOURCE` descriptor — including the original `path` for a
+file source — and **no samples**. Both loaders (`load_project` in the GUI and the
+headless `open_project`) then call `project::decode_reference`: if the path still
+decodes, the audio comes back exactly as if it had been embedded. If the file is
+missing, the project still opens with an empty timeline; the setup and annotations are
+intact, and opening the recording again re-links it.
+
+The flag only applies to **file** sources. A synth or a live capture still embeds its
+rendered/recorded PCM, because there is no path to re-derive it from. The `.heyl`
+stays self-contained for the common case and small for the batch case: one project per
+recording would otherwise duplicate every recording's raw `f32` (4.4 MB for 25 s).
 
 ## `DATA` section and streaming
 

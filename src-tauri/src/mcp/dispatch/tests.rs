@@ -8,6 +8,7 @@ use super::HeadlessSession;
 
 mod analysis;
 mod modulation;
+mod project;
 mod shaping;
 
 #[test]
@@ -17,7 +18,6 @@ fn ui_only_tools_require_the_app() {
         "open_tool",
         "get_graph",
         "set_synth_graph",
-        "save_project",
         "preview",
         "set_theme",
         "import_theme",

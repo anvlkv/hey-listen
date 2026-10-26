@@ -8,11 +8,9 @@ import {
 } from "../../audio/preview";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
 import {
-  ANALYZERS,
   analyzerById,
   applyOptionPatch,
   isAnalyzerId,
-  optionDefaults,
   setToolOption,
   toolOptions,
   type AnalyzerId,
@@ -101,14 +99,9 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "get_state":
       return getState(target);
     case "list_analyzers":
-      return ANALYZERS.map((def) => ({
-        id: def.id,
-        title: def.title,
-        description: def.description,
-        section: def.section,
-        keywords: def.keywords,
-        options: optionDefaults(def.id),
-      }));
+      // The Rust catalog is the one source of truth (ids, options, result family), so
+      // the bridge and headless report the same shape.
+      return invoke("analyzer_catalog");
     case "get_analyzer": {
       const id = str(args, "id");
       if (!isAnalyzerId(id)) throw new Error(`unknown analyzer: ${id}`);
@@ -226,9 +219,14 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
 
     // --- project ------------------------------------------------------------
     case "save_project": {
+      if ("notes" in args || "openTools" in args) {
+        throw new Error(
+          "`notes` and `openTools` are headless-only; in the app the live annotations and Workbench tabs are saved",
+        );
+      }
       const path = optionalStr(args, "path");
       if (path) {
-        const ok = await saveProjectTo(path);
+        const ok = await saveProjectTo(path, optionalBool(args, "embedSource") ?? true);
         if (!ok) throw new Error("could not save the project");
       } else {
         await saveProject();

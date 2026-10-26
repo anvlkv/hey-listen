@@ -46,14 +46,20 @@ pub fn run_mcp(headless: bool) -> std::io::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        // File + stdout logging. A fresh file is started on every launch and the
-        // file is rotated once it exceeds `max_file_size`, keeping the last few.
+    // A CLI invocation (`--mcp`, `analyzers`, `analyze`, …) must not register the
+    // WebDriver server: it binds a fixed port and prints a preamble, which would
+    // contaminate the batch CLI's JSONL and slow every headless call. Resolve it from
+    // argv before the builder is assembled (the plugin's own parse runs later, in
+    // `setup`).
+    let cli_invocation = cli::is_cli_invocation();
+    let mut builder = tauri::Builder::default()
+        // File + **stderr** logging. The batch CLI writes JSONL to stdout, so logs must
+        // never share that stream (the file target keeps the GUI's history).
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
                 .targets([
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stderr),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
                         file_name: Some("hey-listen".to_string()),
                     }),
@@ -70,12 +76,18 @@ pub fn run() {
         .plugin(tauri_plugin_cli::init())
         // MCP control persistence (`mcp-settings.json`) and the popover's Copy button.
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        // E2E testing (M8): the embedded WebDriver server + the execute/mocking
-        // plugin. Inert unless a WebDriver session drives the app (the server only
-        // binds when `TAURI_WEBDRIVER_PORT` is set). See `docs/testing.md`.
-        .plugin(tauri_plugin_wdio::init())
-        .plugin(tauri_plugin_wdio_webdriver::init())
+        .plugin(tauri_plugin_clipboard_manager::init());
+
+    // E2E testing (M8): the embedded WebDriver server + the execute/mocking plugin.
+    // GUI only — a CLI process must stay a plain stdout/stderr program. See
+    // `docs/testing.md`.
+    if !cli_invocation {
+        builder = builder
+            .plugin(tauri_plugin_wdio::init())
+            .plugin(tauri_plugin_wdio_webdriver::init());
+    }
+
+    builder
         .setup(|app| {
             log::info!("hey-listen {} starting", env!("CARGO_PKG_VERSION"));
 
@@ -202,6 +214,7 @@ pub fn run() {
             commands::playback::preview_position,
             commands::playback::output_level,
             commands::analysis::analyzer_detail,
+            commands::analysis::analyzer_catalog,
             commands::analysis::run_analysis,
             commands::ui::get_ui_state,
             commands::ui::set_ui_state,

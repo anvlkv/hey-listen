@@ -118,13 +118,13 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, and the **notes** + focused note id. |
-| `list_analyzers` | The compact analyzer catalog (id/title/description/section/keywords), plus each tool's per-tool option keys and defaults. **(M16)** |
-| `get_analyzer` | One analyzer's metadata — `about` copy (GUI) / short description (headless), option metadata (key/label/default/min/max/step/unit/help), and summary keys. **(M21)** |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. |
+| `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. **(M16, M21.A)** |
+| `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
-| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` decimates them. **(M21)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
+| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a uniform `times` as `{ start, hop, length, end }`. **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -137,7 +137,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_output_gain` | Preview output gain. |
 | `list_output_devices` / `list_input_devices` / `list_processes` | Enumerate devices / processes. |
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
-| `save_project` / `open_project` / `new_project` | Project file actions. |
+| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` (no Workbench layout); `embedSource: false` writes a reference project for a file source. **(M21.A)** |
 | `list_projects` | List the open project windows (label, name, focused) — answered by the server. |
 | `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
@@ -148,13 +148,17 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 agent's context, and every mode carries the canonical `summary`. The Rust shaper keeps
 the result's **structure**: matrices and spectrograms keep their dimensions and peak
 time/freq/level; waveform/spectrum/series arrays become `{ length, min, max, argmin,
-argmax }` (with `nulls` when a series has gaps, e.g. unvoiced pitch frames); and
-event/note lists become `{ length, preview: [first 5], truncated }` instead of losing
-their records. Pass `includeData: true` for the raw result (with `maxPoints: N` to
-decimate the arrays), or `summaryOnly: true` for the summary alone. The two are mutually
-exclusive; `summary` is computed from the full result, so it is identical in all three
-modes. One implementation (`src-tauri/src/audio/analysis/shape.rs`) serves this server,
-the GUI handler, and the CLI.
+argmax }` (with `nulls` when a series has gaps, e.g. unvoiced pitch frames, and `hop`
+so an index maps to a time); and event/note lists become `{ length, preview: [first 5],
+truncated }` instead of losing their records. `noteMetrics` also carries `bounds` —
+every `{ startSecs, endSecs, gapAfterSecs }` — so segmenting does not need a full
+result. Pass `includeData: true` for the raw result (with `maxPoints: N` to thin
+series/matrices; event lists are never thinned), `axis: "compact"` to replace a
+uniform `times` array, or `summaryOnly: true` for the summary alone. `summary` and
+`summaryOnly` are mutually exclusive with `includeData`; `summary` is computed from the
+full result, so it is identical in all three modes. One implementation
+(`src-tauri/src/audio/analysis/shape.rs` + `shape/decimate.rs`) serves this server, the
+GUI handler, and the CLI.
 
 **Option keys (M16).** Per-tool option keys are canonical **camelCase**; the snake_case
 aliases (`min_f0_hz`, `n_mels`, …) are accepted at every boundary. An **unknown key is an
@@ -169,8 +173,20 @@ server answers the compute subset (the rest return "requires the app").
 
 ## Protocol notes
 
-- JSON-RPC 2.0, newline-delimited, over loopback TCP (after a token handshake) —
-  the same framing MCP uses over stdio, so the bridge is a byte pump.
+- JSON-RPC 2.0, newline-delimited, over loopback TCP. The **first line is the token**
+  from `mcp.json`; after it, the stream is ordinary MCP framing (the same framing the
+  bridge pumps over stdio). A minimal client is:
+
+  ```python
+  sock = socket.create_connection(("127.0.0.1", info["port"]))
+  sock.sendall(info["token"].encode() + b"\n")
+  rpc("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
+                    "clientInfo": {"name": "my-agent", "version": "1"}})
+  notify("notifications/initialized")
+  ```
+
+  Read the endpoint/token/pid/version from `mcp.json`; check the pid is alive before
+  connecting (a stale file is removed when the server stops, but a crash can leave it).
 - `initialize` echoes the client's requested `protocolVersion` (so newer clients
   negotiate their own revision) and advertises the `tools` capability only.
 - `tools/call` returns a `CallToolResult`: the payload as `content[0].text` (pretty
@@ -219,15 +235,16 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    - Otherwise → a **core-native** MCP server over stdio (no TCP, no window).
    - `--headless` forces the headless mode (skips the probe).
    - The headless subset is the **engine-backed compute surface**: `get_state`,
-     `list_analyzers`, `open_audio_file`, `close_source`, `render_synth` (with an
-     explicit `graph`), `set_filter_graph` (with an explicit `GraphSpec`),
-     `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`,
-     `set_tool_options`, and the `list_*` enumerations — plus the **data** halves of
-     the export / template tools (`export_analysis`, `list_templates`,
-     `apply_template`) once M12/M13 land.
+     `list_analyzers`, `get_analyzer`, `open_audio_file`, `close_source`,
+     `render_synth` (with an explicit `graph`), `set_filter_graph` (with an explicit
+     `GraphSpec`), `run_analysis`, `set_analysis_window`, `set_view`,
+     `set_shared_params`, `set_tool_options`, the `list_*` enumerations, and
+     `save_project` / `open_project` / `new_project` (source + setup + notes; no
+     Workbench layout) — plus the **data** halves of the export / template tools
+     (`export_analysis`, `list_templates`, `apply_template`) once M12/M13 land.
      UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
-     `set_synth_graph`), project save/load, and live preview/capture (real device I/O
-     with no UI to configure it) — answer "requires the app".
+     `set_synth_graph`), and live preview/capture (real device I/O with no UI to
+     configure it) — answer "requires the app".
    - One shared engine path: the GUI command and the headless dispatcher both call
      `analysis::run_window` (the slice + condition + run logic that used to live in
      `commands/analysis.rs`), and the other engines (`audio::decode`, `audio::graph`,
@@ -313,10 +330,11 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 - **One app instance per data dir.** The advertised port is a single file, so two
   simultaneously running instances would race for it (last writer wins). The bridge
   connects to whoever last advertised.
-- **Headless is the compute subset.** `heylisten-mcp --headless` runs analyzers over
-  files, enumerates devices, and can install a compute filter (`set_filter_graph` with a
-  `GraphSpec`), but cannot open Workbench tabs, edit the editor-layout graphs
-  (`get_graph` / `set_synth_graph`), save/load projects, or drive live preview/capture —
+- **Headless is the compute + project subset.** `heylisten-mcp --headless` runs
+  analyzers over files, enumerates devices, installs a compute filter
+  (`set_filter_graph` with a `GraphSpec`), and saves/opens projects (source + setup +
+  notes; there is no Workbench layout), but cannot open Workbench tabs, edit the
+  editor-layout graphs (`get_graph` / `set_synth_graph`), or drive live preview/capture —
   those need the app. The headless orchestration is a second (thin) dispatcher that must
   stay in step with the GUI handlers for the tools it covers. For scripting without an
   MCP client at all, use the batch CLI instead — [`cli.md`](cli.md) (`hey-listen

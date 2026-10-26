@@ -40,6 +40,8 @@ export interface SaveProjectArgs {
   setup: AnalysisSetupDto;
   layout: LayoutDto;
   notes: Note[];
+  /** Embed the source PCM (default). `false` writes a reference project. */
+  embedSource?: boolean;
 }
 
 /** What `load_project` returns (the `DATA` samples stream separately). */

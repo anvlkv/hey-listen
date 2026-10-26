@@ -9,16 +9,19 @@
 //! is the engine, not the webview.
 //!
 //! UI-only tools — Workbench tabs (`open_tool` / `close_tool`), editor-layout graph
-//! editing (`get_graph` / `set_synth_graph`), project save/load,
-//! and live preview/capture (real device I/O with no UI to configure it) — answer
-//! "requires the app". `set_filter_graph` is supported headless too, but takes a
-//! `GraphSpec` directly (there is no graph editor). See `docs/mcp.md`.
+//! editing (`get_graph` / `set_synth_graph`), and live preview/capture (real device
+//! I/O with no UI to configure it) — answer "requires the app". Project save/load is
+//! supported headless from the session's own state (source, setup, notes); it writes
+//! no Workbench layout, because there is no webview. `set_filter_graph` is supported
+//! headless too, but takes a `GraphSpec` directly (there is no graph editor). See
+//! `docs/mcp.md`.
 //!
 //! The implementation is split into focused submodules: [`args`] applies the agent's
-//! patch objects and [`session`] holds the per-tool implementations; [`tests`] covers
-//! the table.
+//! patch objects, [`session`] holds the per-tool implementations, [`project`] the
+//! headless project-file tools, and [`tests`] covers the table.
 
 mod args;
+mod project;
 mod session;
 
 #[cfg(test)]
@@ -48,6 +51,11 @@ pub struct HeadlessSession {
     view: (f64, f64),
     /// The last synth graph rendered (so a second `render_synth` can reuse it).
     synth: Option<GraphSpec>,
+    /// The file the current source was decoded from (for a project `SOURCE` section).
+    source_path: Option<String>,
+    /// The .heyl path and project name once the session has saved/opened a project.
+    project_path: Option<String>,
+    project_name: Option<String>,
     name: String,
 }
 
@@ -60,6 +68,9 @@ impl Default for HeadlessSession {
             window: (0.0, 0.0),
             view: (0.0, 0.0),
             synth: None,
+            source_path: None,
+            project_path: None,
+            project_name: None,
             name: String::new(),
         }
     }
@@ -82,11 +93,16 @@ impl HeadlessSession {
             "close_source" => {
                 self.state.audio.clear();
                 self.name.clear();
+                self.source_path = None;
+                self.synth = None;
                 self.window = (0.0, 0.0);
                 self.view = (0.0, 0.0);
                 Ok(json!({ "source": null }))
             }
             "render_synth" => self.render_synth(&args),
+            "save_project" => self.save_project(&args),
+            "open_project" => self.open_project(&args),
+            "new_project" => self.new_project(),
             "set_filter_graph" => self.set_filter_graph(&args),
             "run_analysis" => self.run_analysis(&args),
             "set_analysis_window" => {

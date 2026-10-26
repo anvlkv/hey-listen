@@ -15,8 +15,13 @@ interface McpRequest {
 /** Subscribe to tool calls from the MCP server. Call once per project window. */
 export async function initMcp(): Promise<void> {
   try {
+    // Tool calls mutate shared stores (window, params, tabs, notes). Run them one at a
+    // time so a parallel batch (e.g. several `open_tool` calls) cannot interleave and
+    // answer from a half-applied state; `handle` never throws, so the chain survives a
+    // failed tool.
+    let queue: Promise<void> = Promise.resolve();
     await listenThisWindow<McpRequest>("mcp:request", (event) => {
-      void handle(event.payload);
+      queue = queue.then(() => handle(event.payload));
     });
     // Tell the core the listener is live, so forwarded calls are not attempted
     // before this window can answer them.

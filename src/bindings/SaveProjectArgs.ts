@@ -16,4 +16,10 @@ createdMs: number | null, source: SourceDescriptor | null, setup: AnalysisSetup,
 /**
  * The project's notes (M14).
  */
-notes: Array<Note>, };
+notes: Array<Note>, 
+/**
+ * Embed the source PCM in `DATA` (default). `false` writes a **reference**
+ * project: the `SOURCE` descriptor keeps the file path and the loader decodes it
+ * again. Useful when many annotation projects would otherwise duplicate audio.
+ */
+embedSource: boolean, };

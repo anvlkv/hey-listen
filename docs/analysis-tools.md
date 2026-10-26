@@ -178,8 +178,10 @@ chart over the analysis window (each note as a **peak/RMS block** over its envel
 its row. These are **detected audio notes**, not the project's user-authored
 **annotations** (M14) — see [`notes.md`](notes.md) → Terminology. In MCP/CLI the result
 is compacted by the normal rules: the summary counts (`noteCount`, `gapCount`, …) always
-survive, while the `notes` / `gaps` arrays collapse to `{length}` when long; request
-`includeData: true` / `--full` for the records.
+survive, the `notes` / `gaps` arrays keep a five-record preview, and **`bounds`** keeps
+every detected span (`startSecs`, `endSecs`, `gapAfterSecs`) so an agent can segment
+without a full result. `includeData: true` / `--full` returns the records; note that
+`maxPoints` is family-aware and **never thins the note list** (it would drop events).
 
 **Note voice-quality proxies (M19).** Every `noteMetrics` note also carries
 `voicedFraction`, `f0MedianHz`, `jitterProxyCents`, `shimmerProxyDb`, and `hnrProxy`,
@@ -213,6 +215,8 @@ the full spectra.
 > The rhythm tools (tempo / onsets / downbeats) return the **onset-strength
 > envelope** plus their event times, so their tabs draw the envelope with the
 > detected beats / onsets / downbeats marked on top, rather than a list of numbers.
+> `onsets` is **ungated** spectral-flux peaks and can fire in noise; for gated sound
+> segments with start/end/duration use `noteMetrics` (M18).
 > Long-window analysis is kept interactive by padding short windows (so the
 > library's frame-based features always yield a frame) and by bounding the
 > frame count of the O(frames × lags) pitch / harmonic-ratio tools.

@@ -17,7 +17,6 @@ export {
   applyOptionPatch,
   engineOptions,
   loadToolOptions,
-  optionDefaults,
   resetToolOptions,
   setToolOption,
   setToolOptions,

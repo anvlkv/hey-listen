@@ -40,6 +40,12 @@ pub struct AnalysisRequest {
     #[serde(default)]
     #[ts(optional)]
     pub max_points: Option<usize>,
+    /// Spell a uniform `times` axis as `{ start, hop, length }` instead of an array.
+    /// The analyzer tabs leave this false (they read the arrays); MCP/CLI callers can
+    /// opt in to cut a full result's payload.
+    #[serde(default)]
+    #[ts(optional)]
+    pub compact_axis: Option<bool>,
 }
 
 /// The command's response: the canonical summary beside the shaped result (absent in
@@ -61,6 +67,13 @@ pub fn analyzer_detail(id: String) -> Result<Value, String> {
     crate::audio::analyzers::detail(&id).ok_or_else(|| format!("unknown analyzer: {id}"))
 }
 
+/// The analyzer catalog (the GUI MCP `list_analyzers` path), from the Rust catalog so
+/// the bridge and the headless server agree on ids, options, and result families.
+#[tauri::command]
+pub fn analyzer_catalog() -> Vec<Value> {
+    crate::audio::analyzers::list()
+}
+
 /// Run an analysis tool over `start..end` and return its summary + result.
 ///
 /// The slice + condition + run work lives in [`analysis::run_window`], shared with
@@ -79,13 +92,19 @@ pub async fn run_analysis(
         options,
         shape,
         max_points,
+        compact_axis,
     } = request;
     let state = window_state(&window);
 
     tauri::async_runtime::spawn_blocking(move || {
         let result = analysis::run_window(&state, &tool, start, end, &params, &options)?;
         let summary = analysis::summarize(&result);
-        let result = analysis::shape_result(&result, shape, max_points);
+        let axis = if compact_axis.unwrap_or(false) {
+            analysis::Axis::Compact
+        } else {
+            analysis::Axis::Array
+        };
+        let result = analysis::shape_result_with(&result, shape, max_points, axis);
         Ok(AnalysisResponse { summary, result })
     })
     .await
