@@ -368,21 +368,62 @@ all-pass delay) produces an FM peak near 30 Hz; a steady carrier and a silent wi
 return no spectra; a window with no voiced run returns no FM spectrum; alias clamping
 is honored.
 
+## M21.B — Measurement reliability + scale ergonomics ✅
+
+> **Delivered.** The measurement tools now say when a number is trustworthy, and a
+> series can exclude a recording's pre-roll/background without a post-pass.
+>
+> - **Window gate.** The gated scalar series — `frameRms`, `spectralCentroid`,
+>   `spectralRolloff`, `spectralFlatness`, `zeroCrossingRate`, and `harmonicRatio` —
+>   accept `gateDb` (0 = off; otherwise dB below the window's loudest frame) and
+>   `gateFloorDb` (absolute dBFS floor, default −120, i.e. none). Gated frames become
+>   `null` `values` entries. `SeriesResult.gate` echoes `{ gateDb, gateFloorDb,
+>   thresholdDb, gatedFrames, keptFrames }`, and the summary carries `gateDb`,
+>   `gateFloorDb`, `gateThresholdDb`, `gatedFrames`, and `keptFrames`. Results produced
+>   without gating are unchanged (the field is absent).
+> - **`harmonicRatio` is not HNR.** It is the **maximum normalized autocorrelation** over
+>   the f0 search range: broadband noise can score high, and per-cycle jitter/detune do
+>   not move it. The catalog description and `about` say so and point at
+>   `spectralFlatness` for noisiness; the id is unchanged.
+> - **Pitch reliability.** `PitchResult.f0Reliable` is true at **8 voiced frames** or
+>   more. When false, the summary omits `medianF0Hz`/`meanF0Hz` and reports
+>   `voicedFrames`, `voicedFraction`, and `f0Reliable: 0` instead; the track itself is
+>   still returned so a caller can inspect it.
+> - **Modulation reliability.** `ModulationResult.fmReliable` is true only when the
+>   voiced run is at least `minVoicedSecs` long **and** a residual with real spread
+>   visits at least **5 distinct cents values**. A short or quantized staircase (the
+>   Snowy Owl's `392, 415, 392, 370`) reports `fmReliable: 0` and no FM spectrum, peaks,
+>   or rate; the cents spread is still reported. A steady run is reliable and reports no
+>   rate.
+> - **Notes vs syllables.** `noteMetrics` accepts `syllableGapMs` (0 = off). Above 0 it
+>   returns `syllables` (merged spans with `noteCount` and their own `rmsDb`/`peakDb`
+>   over the merged span) in addition to the unchanged note spans, and the summary adds
+>   `syllableCount`. Amplitude belongs to the syllable, not an individual note.
+> - **Many windows, one process.** `hey-listen analyze --windows FILE` runs one
+>   `start,end[,tool…]` line per window in a single process (the rule: **many files →
+>   batch CLI; many windows in one file → one headless session or `--windows`**).
+>
+> **Tests.** Gated vs ungated series on a tone+background fixture, the absolute floor,
+> gated spectral centroid, the `harmonicRatio`/HNR wording, pitch reliability at
+> 0/1/3/7/8/20 voiced frames, the FM staircase/duration guards, syllable grouping across
+> a short vs long gap, and CLI `--windows` parsing plus a per-window run.
+
 ## Options summary
 
 | Tool | Options (current defaults) |
 | --- | --- |
 | `pitchYin` | `minF0Hz` 50, `maxF0Hz` 2000 (overridable), `yinThreshold` 0.12 |
 | `pitchAutocorr` | `minF0Hz` 60, `maxF0Hz` 1200 (overridable) |
-| `harmonicRatio` | `minF0Hz` 50, `maxF0Hz` 4000 (overridable) |
-| `frameRms` | `frameMs` 10, `hopMs` 5 |
-| `noteMetrics` | `frameMs` 10, `hopMs` 5, `gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20, `minGapMs` 30, `envelopePoints` 7, `pitchFrameMs` 40, `pitchHopMs` 5, `minF0Hz` 50, `maxF0Hz` 2000 |
+| `harmonicRatio` | `minF0Hz` 50, `maxF0Hz` 4000 (overridable), `gateDb` 0, `gateFloorDb` −120 |
+| `frameRms` | `frameMs` 10, `hopMs` 5, `gateDb` 0, `gateFloorDb` −120 |
+| Gated series (`spectralCentroid`, `spectralRolloff`, `spectralFlatness`, `zeroCrossingRate`) | their own option (if any) plus `gateDb` 0, `gateFloorDb` −120 |
+| `noteMetrics` | `frameMs` 10, `hopMs` 5, `gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20, `minGapMs` 30, `syllableGapMs` 0, `envelopePoints` 7, `pitchFrameMs` 40, `pitchHopMs` 5, `minF0Hz` 50, `maxF0Hz` 2000 |
 | `modulation` | `frameMs` 10, `hopMs` 2.5, `modMinHz` 0.5, `modMaxHz` 100, `detrend` 1, `pitchFrameMs` 40, `pitchHopMs` 5, `minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` / `maxF0Hz` |
 
 M19 delivered `noteMetrics`' pitch options (`pitchFrameMs`, `pitchHopMs`, and the per-tool
 f0 range); M18 used only the RMS / segmentation options. M20 owns `modulation`'s options
 above; the frame is an upper bound (the FM half caps it at ~3 periods of the run's
-median f0).
+median f0). M21.B adds the series window gate and `syllableGapMs`.
 
 ## Surfaces
 
@@ -432,9 +473,10 @@ contract:
 - Segmentation is heuristic; defaults are starting points, not species-specific
   tuning. Expose the gate/duration options and validate against real clips.
 - AM/FM results depend on what the analysis window contains. If the window includes
-  silence, the AM spectrum also contains the note/gap pattern; select the call, or add a
-  gate/mask (and a per-note modulation option reusing the M18 segments) in a follow-up.
-  The FM result reports its run span; the UI should make the window obvious.
+  silence, the AM spectrum also contains the note/gap pattern; select the call, or gate
+  the region. M21.B's `gateDb` covers the scalar series; a per-note modulation option
+  reusing the M18 segments is still deferred. The FM result reports its run span, and
+  `fmReliable` says whether its rate can be trusted.
 - pYIN remains 50–2000 Hz until `oxiaudio` exposes a range; M16 reports the effective
   range and points callers to YIN/autocorrelation.
 - A shared **pitch range** control (one setting for every pitch tool) is a UX

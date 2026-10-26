@@ -20,6 +20,7 @@ pub(crate) fn series() -> SeriesResult {
         min_value: 1.0,
         max_value: 3.0,
         frame_size: None,
+        gate: None,
     }
 }
 
@@ -44,6 +45,7 @@ pub(crate) fn pitch() -> PitchResult {
         effective_max_f0_hz: 2_000.0,
         voiced_frames: 3,
         voiced_fraction: 0.75,
+        f0_reliable: false,
     }
 }
 
@@ -126,6 +128,7 @@ pub(crate) fn notes() -> NoteMetricsResult {
             end_secs: 1.05,
             duration_secs: 0.25,
         }],
+        syllables: None,
     }
 }
 
@@ -151,6 +154,7 @@ pub(crate) fn modulation() -> ModulationResult {
         fm_rate_hz: Some(6.0),
         fm_peak_to_peak_cents: Some(40.0),
         fm_std_cents: Some(9.0),
+        fm_reliable: true,
         voiced_fraction: 0.6,
     }
 }

@@ -11,9 +11,11 @@ use serde::Serialize;
 
 mod modulation;
 mod notes;
+mod series;
 
 pub use modulation::*;
 pub use notes::*;
+pub use series::*;
 
 /// Shift every entry of a result's time axis by `shift` (source seconds).
 fn shift_times(times: &mut [f32], shift: f32) {
@@ -101,29 +103,6 @@ pub struct LevelsResult {
     pub rms_db: f32,
 }
 
-/// One scalar value per analysis frame, plotted against time. `values` may contain
-/// gaps (`None`) — e.g. unvoiced pitch frames or silent loudness blocks.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct SeriesResult {
-    pub sample_rate: u32,
-    pub hop_size: usize,
-    pub frames: usize,
-    /// Frame times in **source seconds**.
-    pub times: Vec<f32>,
-    /// Source seconds where the window starts (`times[0]` is at or after this).
-    pub window_start: f64,
-    pub values: Vec<Option<f32>>,
-    pub min_value: f32,
-    pub max_value: f32,
-    /// The RMS frame length in samples, for tools that measure per frame (`frameRms`).
-    /// Absent for tools whose frames are defined by the shared FFT size.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub frame_size: Option<usize>,
-}
-
 /// A pitch track: the f0 series over time plus a voiced-frame summary, so a
 /// near-empty track (almost no voiced frames) is self-evident without scanning
 /// every `values` entry. Unvoiced frames are gaps (`null`).
@@ -150,6 +129,10 @@ pub struct PitchResult {
     pub voiced_frames: usize,
     /// `voiced_frames / frames` (0…1; 0 when there are no frames).
     pub voiced_fraction: f32,
+    /// Whether enough voiced frames were found to call their median a pitch (M21.B).
+    /// A summary omits `medianF0Hz` / `meanF0Hz` when this is false; the track itself
+    /// is still returned so the caller can inspect it.
+    pub f0_reliable: bool,
 }
 
 /// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast).
@@ -356,6 +339,10 @@ impl AnalysisResult {
                 for gap in &mut result.gaps {
                     gap.start_secs += shift;
                     gap.end_secs += shift;
+                }
+                for syllable in result.syllables.iter_mut().flatten() {
+                    syllable.start_secs += shift;
+                    syllable.end_secs += shift;
                 }
             }
             AnalysisResult::Modulation(result) => {

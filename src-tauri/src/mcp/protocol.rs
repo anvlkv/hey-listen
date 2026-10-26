@@ -109,10 +109,17 @@ fn initialize_result(params: &Value) -> Value {
                          `display: false` and `transient: true` for sweeps that must not move the \
                          user's window or persist overrides. To find sound events use \
                          `frameRms` plus `noteMetrics` (gated spans), not `onsets` / \
-                         `spectralFlux` (ungated spectral-flux peaks). Tool calls are serialized \
+                         `spectralFlux` (ungated spectral-flux peaks). Gate a series with \
+                         `gateDb` (0 = off) to exclude background frames; `noteMetrics` can \
+                         group spans into `syllables` with `syllableGapMs`. Trust measured \
+                         rates only when `voicedFrames` / `f0Reliable` (pitch) or `fmReliable` \
+                         (FM modulation) say so, and remember `harmonicRatio` is max \
+                         autocorrelation, not HNR in dB. Tool calls are serialized \
                          per window, but shared params/window still persist unless transient. \
                          For many files use the app binary's batch CLI (`hey-listen analyze \
-                         FILE -t ID`, JSONL on stdout). When no app is running this server runs \
+                         FILE -t ID`, JSONL on stdout); for many windows in one file use one \
+                         headless session or `analyze --windows FILE`. When no app is running \
+                         this server runs \
                          headless: it also supports `save_project` / `open_project` / \
                          `new_project` (source + setup + notes, no Workbench layout) plus the \
                          compute tools.",

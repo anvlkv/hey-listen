@@ -3,6 +3,7 @@
 
 use super::super::support::{build_series, db_or_floor, envelope, frame_rms, mono_buffer, seconds};
 use super::super::{LevelsResult, SeriesResult, ToolOptions, WaveformResult, MAX_ENVELOPE};
+use super::gate::apply_gate;
 
 /// Time-domain waveform: peak/RMS levels (via `oxiaudio`) and a min/max envelope.
 pub fn waveform(mono: &[f32], sample_rate: u32) -> WaveformResult {
@@ -56,5 +57,7 @@ pub fn frame_rms_envelope(mono: &[f32], sample_rate: u32, options: &ToolOptions)
         sample_rate,
     );
     result.frame_size = Some(frame);
+    // The envelope's own RMS values are the gate's levels, so the gate is exact (M21.B).
+    result.gate = apply_gate(&mut result, mono, frame, hop, options);
     result
 }

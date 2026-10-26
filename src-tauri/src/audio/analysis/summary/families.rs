@@ -116,6 +116,27 @@ fn frame_rms(b: &mut SummaryBuilder, r: &SeriesResult) {
     }
     b.count("hopSize", "hop", r.hop_size);
     b.count("frames", "frames", r.frames);
+    gate(b, r.gate.as_ref());
+}
+
+/// The window gate a series ran with, when gating was on (M21.B).
+fn gate(b: &mut SummaryBuilder, gate: Option<&crate::audio::analysis::SeriesGate>) {
+    let Some(gate) = gate else { return };
+    b.push("gateDb", "gate", f64::from(gate.gate_db), Some("dB"));
+    b.push(
+        "gateFloorDb",
+        "gate floor",
+        f64::from(gate.gate_floor_db),
+        Some("dBFS"),
+    );
+    b.push(
+        "gateThresholdDb",
+        "gate threshold",
+        f64::from(gate.threshold_db),
+        Some("dBFS"),
+    );
+    b.count("gatedFrames", "gated frames", gate.gated_frames);
+    b.count("keptFrames", "kept frames", gate.kept_frames);
 }
 
 /// Every scalar-per-frame tool. The unit comes from the tool, so an agent never has to
@@ -152,23 +173,36 @@ fn series(b: &mut SummaryBuilder, tool: &str, r: &SeriesResult) {
     if let Some((_, time)) = max {
         b.push("maxTime", "at", time, Some("s"));
     }
+    gate(b, r.gate.as_ref());
 }
 
 fn pitch(b: &mut SummaryBuilder, r: &PitchResult) {
     b.count("frames", "frames", r.frames);
     let present: Vec<f64> = r.values.iter().flatten().map(|v| f64::from(*v)).collect();
-    if let Some(median) = median(&present) {
-        b.push("medianF0Hz", "median f0", median, Some("Hz"));
+    // A median from a handful of voiced frames is not a pitch (M21.B): the summary
+    // omits it and reports `f0Reliable: 0` plus the voiced-frame count instead. The
+    // track itself is untouched, so a caller can still inspect the frames.
+    if r.f0_reliable {
+        if let Some(median) = median(&present) {
+            b.push("medianF0Hz", "median f0", median, Some("Hz"));
+        }
+        if !present.is_empty() {
+            let mean = present.iter().sum::<f64>() / present.len() as f64;
+            b.push("meanF0Hz", "mean f0", mean, Some("Hz"));
+        }
     }
-    if !present.is_empty() {
-        let mean = present.iter().sum::<f64>() / present.len() as f64;
-        b.push("meanF0Hz", "mean f0", mean, Some("Hz"));
-    }
+    b.count("voicedFrames", "voiced frames", r.voiced_frames);
     b.push(
         "voicedFraction",
         "voiced",
         f64::from(r.voiced_fraction) * 100.0,
         Some("%"),
+    );
+    b.push(
+        "f0Reliable",
+        "f0 reliable",
+        if r.f0_reliable { 1.0 } else { 0.0 },
+        None,
     );
     b.push(
         "effectiveMinF0Hz",
@@ -263,6 +297,9 @@ fn notes(b: &mut SummaryBuilder, r: &NoteMetricsResult) {
             Some("s"),
         );
     }
+    if let Some(syllables) = &r.syllables {
+        b.count("syllableCount", "syllables", syllables.len());
+    }
 }
 
 fn modulation(b: &mut SummaryBuilder, r: &ModulationResult) {
@@ -294,6 +331,12 @@ fn modulation(b: &mut SummaryBuilder, r: &ModulationResult) {
     if let (Some(start), Some(end)) = (r.fm_run_start_secs, r.fm_run_end_secs) {
         b.push("fmRunSecs", "FM run", f64::from(end - start), Some("s"));
     }
+    b.push(
+        "fmReliable",
+        "FM reliable",
+        if r.fm_reliable { 1.0 } else { 0.0 },
+        None,
+    );
     b.push(
         "voicedFraction",
         "voiced",

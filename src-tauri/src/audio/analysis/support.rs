@@ -9,6 +9,7 @@ use oxiaudio::{AudioBuffer, ChannelLayout, SampleFormat};
 use super::{
     AnalysisError, MatrixResult, PitchResult, SeriesResult, SharedParams, WindowKind, DB_FLOOR,
     MAX_FRAME_RMS_FRAMES, MAX_PITCH_FRAMES, MAX_RHYTHM_FRAMES, MAX_STFT_CELLS,
+    MIN_RELIABLE_VOICED_FRAMES,
 };
 
 /// Build a mono `oxiaudio` buffer view over `samples`.
@@ -154,6 +155,7 @@ pub(super) fn build_series(
         min_value: if min.is_finite() { min } else { 0.0 },
         max_value: if max.is_finite() { max } else { 0.0 },
         frame_size: None,
+        gate: None,
     }
 }
 
@@ -214,6 +216,7 @@ pub(super) fn pitch_series(
         } else {
             voiced_frames as f32 / frames_count as f32
         },
+        f0_reliable: voiced_frames >= MIN_RELIABLE_VOICED_FRAMES,
     }
 }
 

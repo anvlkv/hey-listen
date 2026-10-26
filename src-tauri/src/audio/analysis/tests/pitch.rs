@@ -143,3 +143,33 @@ fn the_spectral_band_does_not_change_the_pitch_search() {
     let mean = mean_f0(&result);
     assert!((mean - 440.0).abs() < 8.0, "mean f0 = {mean}");
 }
+
+#[test]
+fn f0_reliability_needs_enough_voiced_frames() {
+    use oxiaudio::dsp::PitchFrame;
+
+    let track = |voiced: usize, total: usize| -> Vec<PitchFrame> {
+        (0..total)
+            .map(|index| PitchFrame {
+                time_seconds: index as f64 * 0.01,
+                frequency_hz: if index < voiced { 440.0 } else { 0.0 },
+                confidence: if index < voiced { 1.0 } else { 0.0 },
+                is_voiced: index < voiced,
+            })
+            .collect()
+    };
+
+    for (voiced, reliable) in [
+        (0usize, false),
+        (1, false),
+        (3, false),
+        (7, false),
+        (8, true),
+        (20, true),
+    ] {
+        let result =
+            super::super::support::pitch_series(track(voiced, 24), 480, RATE, (50.0, 2_000.0));
+        assert_eq!(result.voiced_frames, voiced);
+        assert_eq!(result.f0_reliable, reliable, "voiced frames = {voiced}");
+    }
+}

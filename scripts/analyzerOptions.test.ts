@@ -57,7 +57,12 @@ check("the compact option defaults are engine-only", () => {
 });
 
 check("frame-RMS options are engine options with defaults", () => {
-  assertDeepEqual(optionDefaults("frameRms"), { frameMs: 10, hopMs: 5 });
+  assertDeepEqual(optionDefaults("frameRms"), {
+    frameMs: 10,
+    hopMs: 5,
+    gateDb: 0,
+    gateFloorDb: -120,
+  });
   assertDeepEqual(applyOptionPatch("frameRms", { frame_ms: 20, hop_ms: 10 }), {
     frameMs: 20,
     hopMs: 10,
@@ -73,6 +78,7 @@ check("note-segmentation options are engine options with defaults", () => {
     hysteresisDb: 3,
     minNoteMs: 20,
     minGapMs: 30,
+    syllableGapMs: 0,
     envelopePoints: 7,
     pitchFrameMs: 40,
     pitchHopMs: 5,

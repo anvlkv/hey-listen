@@ -198,7 +198,7 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     AnalyzerInfo {
         id: "harmonicRatio",
         title: "Harmonic ratio",
-        description: "Harmonic (periodic) content over time",
+        description: "Max normalized autocorrelation over time (not HNR in dB)",
         section: "spectral",
         keywords: &[
             "harmonic",

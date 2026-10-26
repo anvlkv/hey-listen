@@ -360,7 +360,29 @@ to file sources; synths and captures keep their audio.
 - CLI stdout purity is checked by hand: the batch unit tests inject `out`, so they cannot
   see the process stream.
 
-> **Follow-up:** M21.B (planned) covers **measurement reliability** — window-level
-> gating for series metrics, the `harmonicRatio`/HNR distinction, pitch and modulation
-> reliability flags, syllable grouping, and multi-window CLI input. See
-> [`roadmap.md`](roadmap.md) → M21.B.
+## M21.B — Measurement reliability + scale ergonomics ✅
+
+Follow-up to M21.A: the contract was right, but some measurements still *meant* less
+than they appeared to, and a 1k-window sweep paid one process per window.
+
+- **Gate a series.** `gateDb` / `gateFloorDb` on `frameRms`, `harmonicRatio`,
+  `spectralCentroid`, `spectralRolloff`, `spectralFlatness`, and `zeroCrossingRate`.
+  `0` is off (the default). Gated frames are `null`; `result.gate` and the summary echo
+  the effective threshold, gated count, and kept count. Use it instead of a post-pass
+  over `frameRms` to drop pre-roll/background.
+- **Reliability is explicit.** Pitch results carry `voicedFrames` and `f0Reliable` (true
+  at 8 voiced frames); an unreliable summary omits the median. `modulation` carries
+  `fmReliable` (long enough run, non-staircase cents track); an unreliable FM half has
+  no spectrum, peaks, or rate.
+- **`harmonicRatio` is max autocorrelation, not HNR.** The catalog description, `about`,
+  and the GUI copy say so; `spectralFlatness` is the noisiness tool.
+- **Syllables.** `noteMetrics` accepts `syllableGapMs`; above 0 it returns a `syllables`
+  array of merged spans (with `noteCount` and per-syllable RMS/peak) beside the unchanged
+  notes. The summary adds `syllableCount`.
+- **Many windows, one process.** `hey-listen analyze --windows FILE` reads one
+  `start,end[,tool…]` per line and runs them in one process. The rule: **many files →
+  batch CLI; many windows in one file → one headless session or `--windows`**.
+
+**Tests:** gated/ungated series, the absolute floor, gated centroid,
+`harmonicRatio`/HNR wording, pitch reliability at 0/1/3/7/8/20 voiced frames, the FM
+staircase and short-run guards, syllable grouping, and CLI `--windows` parsing/run.

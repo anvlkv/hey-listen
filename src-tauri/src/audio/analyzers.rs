@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn option_metadata_names_known_canonical_keys() {
-        for (id, options) in options::OPTIONS {
+        for (id, options) in options::tables() {
             assert!(is_analyzer(id), "option metadata for unknown analyzer {id}");
             for option in *options {
                 assert_eq!(
@@ -198,6 +198,7 @@ mod tests {
         assert_eq!(note["options"]["hysteresisDb"], 3.0);
         assert_eq!(note["options"]["minNoteMs"], 20.0);
         assert_eq!(note["options"]["minGapMs"], 30.0);
+        assert_eq!(note["options"]["syllableGapMs"], 0.0);
         assert_eq!(note["options"]["envelopePoints"], 7.0);
         // M19's per-note pitch grid and f0 range.
         assert_eq!(note["options"]["pitchFrameMs"], 40.0);
@@ -234,5 +235,22 @@ mod tests {
         assert_eq!(find("pitchYin")["options"]["yinThreshold"], 0.12);
         assert_eq!(find("harmonicRatio")["options"]["maxF0Hz"], 4000.0);
         assert!(find("pitchPyin")["options"].as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn gated_series_tools_declare_the_window_gate() {
+        let items = list();
+        for id in [
+            "frameRms",
+            "harmonicRatio",
+            "spectralCentroid",
+            "spectralRolloff",
+            "spectralFlatness",
+            "zeroCrossingRate",
+        ] {
+            let item = items.iter().find(|item| item["id"] == id).unwrap();
+            assert_eq!(item["options"]["gateDb"], 0.0, "{id}: gateDb");
+            assert_eq!(item["options"]["gateFloorDb"], -120.0, "{id}: gateFloorDb");
+        }
     }
 }

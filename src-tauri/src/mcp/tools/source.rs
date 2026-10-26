@@ -67,7 +67,10 @@ pub(super) fn tools() -> Vec<Value> {
              opens (and focuses) the analyzer tab so the user's window follows; pass \
              `display: false` to compute without opening a tab. Optionally overrides the window \
              (`start`/`end`, source seconds), the shared params, or the tool's own options — \
-             these are written back to the project unless `transient: true`. Call `get_analyzer` \
+             these are written back to the project unless `transient: true`. The gated series \
+             tools accept `gateDb`/`gateFloorDb` (0 = off); `noteMetrics` accepts \
+             `syllableGapMs`; pitch results carry `voicedFrames`/`f0Reliable` and modulation \
+             carries `fmReliable`. Call `get_analyzer` \
              for the option keys, their ranges, the result family, and the summary keys.",
             json!({
                 "type": "object",

@@ -8,7 +8,7 @@ use crate::audio::analysis::canonical_option_key;
 use crate::audio::analyzers;
 use crate::audio::graph::{self, GraphSpec};
 
-use super::types::{Command, OptionPatch, Request};
+use super::types::{Command, OptionPatch, Request, WindowSpec};
 
 /// The batch subcommands, matching the `plugins.cli` definitions in `tauri.conf.json`.
 const SUBCOMMANDS: [&str; 4] = ["analyzers", "analyze", "synth", "notes"];
@@ -89,6 +89,10 @@ fn common(matches: &Matches) -> Result<Request, String> {
         all: flag(matches, "all"),
         start: optional_number(matches, "start")?,
         end: optional_number(matches, "end")?,
+        windows: match string(matches, "windows") {
+            Some(path) => read_windows(&path)?,
+            None => Vec::new(),
+        },
         params: parse_params(&strings(matches, "param"))?,
         options: parse_option_patches(&strings(matches, "option"), &strings(matches, "tool"))?,
         filter: match string(matches, "filter") {
@@ -113,7 +117,12 @@ fn validate(request: &Request) -> Result<(), String> {
                     "analyze needs at least one file: `hey-listen analyze <FILE>...`".into(),
                 );
             }
-            if request.tools.is_empty() && !request.all {
+            if !request.windows.is_empty() && (request.start.is_some() || request.end.is_some()) {
+                return Err("use either `--windows FILE` or `--start`/`--end`, not both".into());
+            }
+            let needs_tools = request.windows.is_empty()
+                || request.windows.iter().any(|window| window.tools.is_empty());
+            if needs_tools && request.tools.is_empty() && !request.all {
                 return Err("analyze needs `-t <TOOL>` (or `--all`)".into());
             }
         }
@@ -139,7 +148,7 @@ fn validate(request: &Request) -> Result<(), String> {
 fn result_count(request: &Request) -> usize {
     match &request.command {
         Command::Analyzers { .. } => 0,
-        Command::Analyze => request.files.len() * tool_count(request),
+        Command::Analyze => request.files.len() * window_result_count(request),
         Command::Synth { .. } => tool_count(request),
         Command::Notes { .. } => 0,
     }
@@ -152,6 +161,25 @@ fn tool_count(request: &Request) -> usize {
     } else {
         request.tools.len()
     }
+}
+
+/// The result lines one file produces: the sum over `--windows`, each falling back to
+/// the request's tool list when the line names none.
+fn window_result_count(request: &Request) -> usize {
+    if request.windows.is_empty() {
+        return tool_count(request);
+    }
+    request
+        .windows
+        .iter()
+        .map(|window| {
+            if window.tools.is_empty() {
+                tool_count(request)
+            } else {
+                window.tools.len()
+            }
+        })
+        .sum()
 }
 
 // --- parsing helpers -----------------------------------------------------
@@ -293,6 +321,53 @@ fn parse_option_patches(tokens: &[String], tools: &[String]) -> Result<Vec<Optio
 fn read_graph(path: &str) -> Result<GraphSpec, String> {
     let text = std::fs::read_to_string(path).map_err(|err| format!("cannot read {path}: {err}"))?;
     serde_json::from_str::<GraphSpec>(&text).map_err(|err| format!("invalid graph {path}: {err}"))
+}
+
+/// Read a `--windows` list: one `start,end[,tool…]` per line, `#` comments allowed.
+fn read_windows(path: &str) -> Result<Vec<WindowSpec>, String> {
+    let text = std::fs::read_to_string(path).map_err(|err| format!("cannot read {path}: {err}"))?;
+    let mut windows = Vec::new();
+    for (index, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let line_number = index + 1;
+        let fields: Vec<&str> = line.split(',').map(str::trim).collect();
+        if fields.len() < 2 {
+            return Err(format!(
+                "{path}:{line_number}: expected `start,end[,tool…]`, got `{line}`"
+            ));
+        }
+        let start = fields[0]
+            .parse::<f64>()
+            .map_err(|_| format!("{path}:{line_number}: invalid start `{}`", fields[0]))?;
+        let end = fields[1]
+            .parse::<f64>()
+            .map_err(|_| format!("{path}:{line_number}: invalid end `{}`", fields[1]))?;
+        if !start.is_finite() || !end.is_finite() || end <= start {
+            return Err(format!(
+                "{path}:{line_number}: the window must be finite with end > start ({start}, {end})"
+            ));
+        }
+        let tools: Vec<String> = fields[2..]
+            .iter()
+            .filter(|name| !name.is_empty())
+            .map(|name| (*name).to_string())
+            .collect();
+        for tool in &tools {
+            if !analyzers::is_analyzer(tool) {
+                return Err(format!("{path}:{line_number}: unknown analyzer: {tool}"));
+            }
+        }
+        windows.push(WindowSpec { start, end, tools });
+    }
+    if windows.is_empty() {
+        return Err(format!(
+            "{path}: no windows (one `start,end[,tool…]` per line)"
+        ));
+    }
+    Ok(windows)
 }
 
 /// Read a `--filter` graph and check that it compiles as a filter (one global input).

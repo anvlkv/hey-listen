@@ -16,7 +16,10 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "to octave jumps than plain YIN.\n\n" +
       "**Range.** pYIN searches a fixed **50–2000 Hz** window. Above 2 kHz use " +
       "*Pitch (YIN)* or *Pitch (autocorrelation)*, whose f0 range you can set in " +
-      "their tool params.",
+      "their tool params.\n\n" +
+      "**Reliability.** A median from only a handful of voiced frames is not a pitch: " +
+      "below **8 voiced frames** the result's `f0Reliable` is false and the summary " +
+      "omits the median. Read `voicedFrames` / `voicedFraction` before trusting a track.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
@@ -30,7 +33,9 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "between frames.\n\n" +
       "**Why use it.** Faster than pYIN and often similar on clean material, but it " +
       "can jump an octave. Adjust the f0 range and threshold below to trade " +
-      "sensitivity for stability; this detector is not limited to 2 kHz.",
+      "sensitivity for stability; this detector is not limited to 2 kHz.\n\n" +
+      "**Reliability.** Below **8 voiced frames** `f0Reliable` is false and the summary " +
+      "omits the median; check `voicedFrames` / `voicedFraction` first.",
     keywords: ["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
@@ -81,7 +86,9 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "copy of itself.\n\n" +
       "**Why use it.** Cheap and dependable on strongly periodic sounds, but " +
       "sensitive to the range you expect. Set that range below, and prefer pYIN on " +
-      "noisy or changing material.",
+      "noisy or changing material.\n\n" +
+      "**Reliability.** Below **8 voiced frames** `f0Reliable` is false and the summary " +
+      "omits the median; check `voicedFrames` / `voicedFraction` first.",
     keywords: ["pitch", "autocorrelation", "acf", "f0", "fundamental", "period"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
@@ -122,7 +129,9 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "**Why use it.** Count calls or syllables, measure how long the gaps are, and " +
       "compare levels between notes without reading an envelope by eye. The gate is " +
       "`max(gate floor, window peak − gate)` with hysteresis, so quiet background " +
-      "noise does not split a note. Pair it with **Amplitude envelope** (`frameRms`) " +
+      "noise does not split a note. Set **Syllable gap** to also group notes into " +
+      "`syllables` across short gaps; amplitude belongs to the syllable, not an " +
+      "individual note. Pair it with **Amplitude envelope** (`frameRms`) " +
       "to see what the gate sees; *Loudness (momentary)* is a 400 ms R128 block and " +
       "smears short calls.\n\n" +
       "**Voice-quality proxies (per note).** *Jitter* is the spread of the note's " +
@@ -227,6 +236,18 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
         step: 5,
         suffix: "ms",
         title: "Gaps shorter than this merge two runs into one note.",
+      },
+      {
+        key: "syllableGapMs",
+        label: "Syllable gap",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 10000,
+        step: 5,
+        suffix: "ms",
+        title:
+          "0 leaves notes ungrouped. Above 0, notes separated by less than this are also grouped into syllables (amplitude belongs to the syllable, not an individual note).",
       },
       {
         key: "envelopePoints",

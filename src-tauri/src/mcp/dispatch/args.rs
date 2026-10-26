@@ -112,6 +112,7 @@ pub(super) fn merge_options(
             "hysteresisDb" => entry.hysteresis_db = Some(number as f32),
             "minNoteMs" => entry.min_note_ms = Some(number as f32),
             "minGapMs" => entry.min_gap_ms = Some(number as f32),
+            "syllableGapMs" => entry.syllable_gap_ms = Some(number as f32),
             "envelopePoints" => entry.envelope_points = Some(number as usize),
             "pitchFrameMs" => entry.pitch_frame_ms = Some(number as f32),
             "pitchHopMs" => entry.pitch_hop_ms = Some(number as f32),

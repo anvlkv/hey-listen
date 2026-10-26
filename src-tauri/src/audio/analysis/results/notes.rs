@@ -55,6 +55,25 @@ pub struct GapMetric {
     pub duration_secs: f32,
 }
 
+/// A **syllable**: one or more adjacent notes whose separating gap is shorter than
+/// the requested `syllableGapMs` (M21.B). Grouping is separate from detection, so the
+/// note spans are never changed by it; amplitude belongs to the syllable, not a note.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SyllableMetric {
+    pub start_secs: f32,
+    pub end_secs: f32,
+    pub duration_secs: f32,
+    /// How many detected notes this syllable merges.
+    pub note_count: usize,
+    /// RMS and peak level over the whole syllable, in dBFS. Measuring amplitude once
+    /// per syllable — not per gate-closed note — is what the bird-vocals regression
+    /// asked for.
+    pub rms_db: f32,
+    pub peak_db: f32,
+}
+
 /// Note segmentation over the window: the detected notes, the gaps between them, and
 /// the summary an agent needs without reading every record (M18).
 #[derive(Debug, Clone, Serialize, ts_rs::TS)]
@@ -78,4 +97,9 @@ pub struct NoteMetricsResult {
     pub reference_note_index: Option<usize>,
     pub notes: Vec<NoteMetric>,
     pub gaps: Vec<GapMetric>,
+    /// Notes grouped into syllables when `syllableGapMs` is set (M21.B). Absent when
+    /// grouping is off, so the default result shape is unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub syllables: Option<Vec<SyllableMetric>>,
 }

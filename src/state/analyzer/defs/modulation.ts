@@ -21,7 +21,10 @@ export const MODULATION_ANALYZERS: AnalyzerDef[] = [
       "from the **longest voiced run**: range-limited YIN, converted to cents around " +
       "its median, then the same detrend and FFT. The analysable rate is clamped to " +
       "~45% of the slower analysis rate, so the effective range is reported rather " +
-      "than silently aliased; the FM half is blank when no run is long enough.",
+      "than silently aliased; the FM half is blank when no run is long enough. The FM " +
+      "half also needs a *non-staircase* cents track: a run that visits only a few " +
+      "quantized levels reports `fmReliable: 0` and no FM rate, instead of inventing a " +
+      "vibrato. A steady run is reliable and simply reports no rate.",
     keywords: [
       "modulation",
       "am",

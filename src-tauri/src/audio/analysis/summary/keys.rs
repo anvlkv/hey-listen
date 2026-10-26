@@ -14,13 +14,38 @@ const MATRIX: &[&str] = &[
     "peakValue",
     "peakTime",
 ];
-const SERIES: &[&str] = &["frames", "min", "max", "minTime", "maxTime"];
-const FRAME_RMS: &[&str] = &["minDb", "maxDb", "meanDb", "frameSize", "hopSize", "frames"];
+const SERIES: &[&str] = &[
+    "frames",
+    "min",
+    "max",
+    "minTime",
+    "maxTime",
+    "gateDb",
+    "gateFloorDb",
+    "gateThresholdDb",
+    "gatedFrames",
+    "keptFrames",
+];
+const FRAME_RMS: &[&str] = &[
+    "minDb",
+    "maxDb",
+    "meanDb",
+    "frameSize",
+    "hopSize",
+    "frames",
+    "gateDb",
+    "gateFloorDb",
+    "gateThresholdDb",
+    "gatedFrames",
+    "keptFrames",
+];
 const PITCH: &[&str] = &[
     "frames",
     "medianF0Hz",
     "meanF0Hz",
+    "voicedFrames",
     "voicedFraction",
+    "f0Reliable",
     "effectiveMinF0Hz",
     "effectiveMaxF0Hz",
 ];
@@ -43,6 +68,7 @@ const NOTES: &[&str] = &[
     "thresholdDb",
     "loudestNoteDb",
     "loudestNoteTime",
+    "syllableCount",
 ];
 const MODULATION: &[&str] = &[
     "amRateHz",
@@ -51,6 +77,7 @@ const MODULATION: &[&str] = &[
     "fmRateHz",
     "fmPeakToPeakCents",
     "fmRunSecs",
+    "fmReliable",
     "voicedFraction",
 ];
 

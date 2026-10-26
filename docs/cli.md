@@ -96,8 +96,9 @@ Decode each file and run one or more analyzers over a window.
 | `--all` | Run every analyzer in the catalog. |
 | `--start <SEC>` | Window start in seconds (default `0`). |
 | `--end <SEC>` | Window end in seconds (default: full duration). |
+| `--windows <FILE>` | Run a **list of windows** in one process: one `start,end[,tool,tool…]` per line, `#` comments allowed. A line without tools uses `-t` / `--all`. Mutually exclusive with `--start`/`--end`. **(M21.B)** |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable), using the same keys MCP's `set_shared_params` takes: `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
-| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `fMinHz`/`fMaxHz`). Canonical camelCase is preferred; snake_case aliases (`min_f0_hz`, `n_mels`, …) are accepted and canonicalized. An unknown key fails. **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because the plugin's parsed matches do not preserve the order of flags on the command line. Run `analyzers <ID>` to print a tool's keys, defaults, ranges, and help. |
+| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `gateDb`/`gateFloorDb`, `hysteresisDb`, `minNoteMs`/`minGapMs`, `syllableGapMs`, `fMinHz`/`fMaxHz`). Canonical camelCase is preferred; snake_case aliases (`min_f0_hz`, `n_mels`, …) are accepted and canonicalized. An unknown key fails. **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because the plugin's parsed matches do not preserve the order of flags on the command line. Run `analyzers <ID>` to print a tool's keys, defaults, ranges, and help. |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
 | `--full` | Include the raw result arrays (default: compacted — see below). The `summary` is present in both modes. |
 | `--summary` | Emit the summary only (`{ file, window, params, options, summary }`), without result arrays. Mutually exclusive with `--full`. **(M21)** |
@@ -113,6 +114,11 @@ an unknown id produces one `error` line and exit `1` (`{"file":…,"tool":…,"e
 A malformed `K=V`, an unknown param/option key, a missing file or `-t`, a bad
 `--seconds`/`--start`/`--end` value, or a `--pretty` stream that is not a single result is
 a **usage error** (printed to stderr, exit `2`) — it never falls through to the GUI.
+
+**Scale.** Use the batch CLI for **many files**; use one headless MCP session or
+`analyze --windows FILE` for **many windows in one file**, so a 1k-window run pays one
+process startup, not 1k. `--windows` keeps the JSONL contract: one line per
+file/window/tool, and the envelope's `window` says which span each line covers.
 
 ### `analyzers [ID]`
 
@@ -241,6 +247,12 @@ hey-listen analyze mix.wav -t spectrum --full --pretty > spectrum.json
 
 # A 4 s window at 10 s with a big FFT, two tools, one file:
 hey-listen analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
+
+# Many windows in one file, one process (one `start,end[,tool…]` per line):
+hey-listen analyze call.wav -t noteMetrics --windows windows.txt > call.jsonl
+
+# Gate a series to drop the recording's background before measuring it:
+hey-listen analyze call.wav -t spectralCentroid -o spectralCentroid.gateDb=20 --full
 
 # Per-tool options are named: a 40-band mel spectrogram then MFCCs:
 hey-listen analyze a.wav -t melSpectrogram -o melSpectrogram.nMels=40 -t mfcc -o mfcc.nMfcc=13

@@ -30,4 +30,10 @@ voicedFrames: number,
 /**
  * `voiced_frames / frames` (0…1; 0 when there are no frames).
  */
-voicedFraction: number, };
+voicedFraction: number, 
+/**
+ * Whether enough voiced frames were found to call their median a pitch (M21.B).
+ * A summary omits `medianF0Hz` / `meanF0Hz` when this is false; the track itself
+ * is still returned so the caller can inspect it.
+ */
+f0Reliable: boolean, };

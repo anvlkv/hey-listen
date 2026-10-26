@@ -302,6 +302,16 @@ Ifrit clip while YIN and autocorrelation tracked normally. The detector itself l
 the external `oxiaudio` crate, so it cannot be fixed from here; the voiced-frame summary
 at least surfaces the undercount. Tracked as a separate spike in [`roadmap.md`](roadmap.md).
 
+**Reliability and gating (M21.B).** `PitchResult.f0Reliable` is true at 8 voiced
+frames; when false the summary omits `medianF0Hz`/`meanF0Hz` and reports the frame count
+instead. `ModulationResult.fmReliable` is true only for a long enough, non-staircase
+cents run; otherwise `fmDb`/`fmPeaks`/`fmRateHz` are empty (the spread is still there).
+`harmonicRatio` is the **max normalized autocorrelation**, not HNR in dB — use
+`spectralFlatness` for noisiness. The gated series (`frameRms`, `harmonicRatio`, and the
+four scalar spectral tools) accept `gateDb`/`gateFloorDb`; the result echoes the
+effective gate and `null`s the excluded frames. `noteMetrics` accepts `syllableGapMs` and
+returns `syllables` beside the unchanged notes.
+
 ## M21 — MCP/CLI analysis ergonomics ✅
 
 A cross-cutting follow-up that standardized the compact/annotated contract for every

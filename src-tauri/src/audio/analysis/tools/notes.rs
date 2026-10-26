@@ -5,7 +5,9 @@
 //! (the M14 `Note` payload). See `docs/analysis-metrics.md` → M18.
 
 use super::super::support::{db_or_floor, frame_rms};
-use super::super::{GapMetric, NoteMetric, NoteMetricsResult, ToolOptions, DB_FLOOR, MAX_NOTES};
+use super::super::{
+    GapMetric, NoteMetric, NoteMetricsResult, SyllableMetric, ToolOptions, DB_FLOOR, MAX_NOTES,
+};
 use super::note_quality;
 
 /// One active run above the gate, in source seconds relative to the window slice.
@@ -184,6 +186,12 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
 
     let note_durations: Vec<f32> = notes.iter().map(|note| note.duration_secs).collect();
     let gap_durations: Vec<f32> = gaps.iter().map(|gap| gap.duration_secs).collect();
+    // Syllables are a grouping of the detected notes, never a change to their spans:
+    // adjacent notes whose gap is shorter than `syllableGapMs` merge into one syllable
+    // (M21.B). Off by default, so the result shape is unchanged.
+    let syllables = options
+        .syllable_gap_ms()
+        .map(|gap_ms| group_syllables(&notes, gap_ms / 1_000.0, mono, rate));
 
     NoteMetricsResult {
         // Filled in by `run_window` — the tool only sees the sliced region.
@@ -199,7 +207,44 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         reference_note_index,
         notes,
         gaps,
+        syllables,
     }
+}
+
+/// Group adjacent notes whose separating gap is at most `gap_secs` into syllables.
+/// The notes keep their own spans; only the grouping is new, and each syllable's level
+/// is measured over the merged span (amplitude belongs to the syllable).
+fn group_syllables(
+    notes: &[NoteMetric],
+    gap_secs: f32,
+    mono: &[f32],
+    sample_rate: u32,
+) -> Vec<SyllableMetric> {
+    let mut out: Vec<SyllableMetric> = Vec::new();
+    for note in notes {
+        match out.last_mut() {
+            Some(last) if note.start_secs - last.end_secs <= gap_secs => {
+                last.end_secs = note.end_secs;
+                last.duration_secs = last.end_secs - last.start_secs;
+                last.note_count += 1;
+            }
+            _ => out.push(SyllableMetric {
+                start_secs: note.start_secs,
+                end_secs: note.end_secs,
+                duration_secs: note.duration_secs,
+                note_count: 1,
+                rms_db: DB_FLOOR,
+                peak_db: DB_FLOOR,
+            }),
+        }
+    }
+    for syllable in &mut out {
+        let (rms_db, peak_db) =
+            segment_levels(mono, sample_rate, syllable.start_secs, syllable.end_secs);
+        syllable.rms_db = rms_db;
+        syllable.peak_db = peak_db;
+    }
+    out
 }
 
 /// RMS and peak levels, in dBFS, over `[start, end)` of the raw samples.

@@ -3,6 +3,7 @@
 
 mod dispatch;
 mod features;
+mod gate;
 mod modulation;
 mod modulation_dsp;
 mod note_quality;

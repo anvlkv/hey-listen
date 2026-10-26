@@ -82,14 +82,39 @@ pub fn about(id: &str) -> Option<&'static str> {
         "noteMetrics" => Some(
             "Gated sound events: contiguous above-threshold runs with hysteresis, a \
              minimum note/gap, per-note level and envelope, f0, and voice-quality \
-             proxies. This is the segmentation tool for calls/syllables; pair it with \
-             `frameRms` (a 10 ms/5 ms linear envelope) to see what the gate sees.",
+             proxies. This is the segmentation tool for calls/syllables. Set \
+             `syllableGapMs` to also return `syllables` (adjacent notes merged across a \
+             short gap); the note spans are unchanged, and amplitude belongs to the \
+             syllable rather than an individual note. Pair it with `frameRms` (a 10 ms/\
+             5 ms linear envelope) to see what the gate sees.",
         ),
         "frameRms" => Some(
             "A linear amplitude envelope in dBFS at a fine hop (default 10 ms frame / \
              5 ms hop). Use this to inspect or threshold sound events; \
              `loudnessMomentary` is a 400 ms EBU R128 block by default and smears short \
-             calls.",
+             calls. Set `gateDb` (with an optional `gateFloorDb`) to turn frames far below \
+             the window peak into gaps, so pre-roll and background are excluded.",
+        ),
+        "harmonicRatio" => Some(
+            "Max normalized autocorrelation over the f0 search range — **not HNR in dB**. \
+             It measures periodicity at the best-matching lag, so broadband noise can \
+             score high, and per-cycle jitter or detune barely move it. Use \
+             `spectralFlatness` for noisiness and the per-note `hnrProxy` only as the \
+             same correlation proxy. Set `gateDb` to exclude background frames.",
+        ),
+        "pitchPyin" | "pitchYin" | "pitchAutocorr" => Some(
+            "A median f0 is only a pitch when enough frames are voiced: below **8 voiced \
+             frames** `f0Reliable` is 0 and the summary omits `medianF0Hz`/`meanF0Hz` \
+             (the track itself is still returned). Read `voicedFrames` and \
+             `voicedFraction` before trusting a track, especially for noisy or \
+             intermittent recordings.",
+        ),
+        "modulation" => Some(
+            "AM and FM spectra over the same rate axis. The FM half needs a voiced run at \
+             least `minVoicedSecs` long whose cents track is not a staircase of a few \
+             quantized levels; otherwise `fmReliable` is 0 and `fmDb`/`fmPeaks`/\
+             `fmRateHz` stay empty (the cents spread is still reported). A steady run is \
+             reliable and simply reports no rate.",
         ),
         "loudnessMomentary" => Some(
             "EBU R128 momentary loudness over time. The default 400 ms block is useful \
@@ -132,5 +157,24 @@ mod tests {
         assert!(about("onsets").is_some_and(|text| text.contains("noteMetrics")));
         assert!(about("noteMetrics").is_some_and(|text| text.contains("frameRms")));
         assert!(about("spectrum").is_none());
+    }
+
+    #[test]
+    fn harmonic_ratio_is_not_described_as_hnr_in_db() {
+        let text = about("harmonicRatio").expect("harmonicRatio guidance");
+        assert!(text.contains("not HNR in dB"), "{text}");
+        assert!(text.contains("spectralFlatness"), "{text}");
+    }
+
+    #[test]
+    fn pitch_and_modulation_explain_their_reliability_flags() {
+        for id in ["pitchPyin", "pitchYin", "pitchAutocorr"] {
+            let text = about(id).expect("pitch guidance");
+            assert!(text.contains("f0Reliable"), "{id}: {text}");
+        }
+        let modulation = about("modulation").expect("modulation guidance");
+        assert!(modulation.contains("fmReliable"), "{modulation}");
+        let notes = about("noteMetrics").expect("note guidance");
+        assert!(notes.contains("syllableGapMs"), "{notes}");
     }
 }
