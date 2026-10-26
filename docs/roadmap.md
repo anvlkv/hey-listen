@@ -1056,6 +1056,58 @@ milestone over M16–M20, not another analyzer.
 > families, catalog title/annotation coverage, `get_analyzer`/`list_analyzers`
 > agreement, the three output modes, and the CLI conflict.
 
+## M21.A — MCP/CLI agent hardening (cross-cutting) ✅
+
+Follow-up to M21, driven by a real agent session against the analysis engine. It fixes
+the defects that session exposed and writes the resulting workflow into the catalog,
+the protocol instructions, and the skill.
+
+- **CLI stdout is JSONL-only.** The log plugin targets **stderr** (the file target is
+  unchanged), and the WebDriver plugins are registered only for a GUI launch. A CLI
+  invocation no longer prints the `[WDIO]` / `hey-listen x.y.z starting` preamble into
+  the stream `jq` reads. The batch runner still writes JSONL to stdout.
+- **Family-aware `maxPoints`.** Decimation follows the result family instead of
+  striding every array: series/time axes move together, a matrix is thinned by whole
+  frames (with `sourceFrames`, and a scaled `hopSize` for a spectrogram), and **event
+  and note lists are never thinned**. `list_analyzers`/`get_analyzer` report `family`
+  and `decimatable` so an agent can tell before asking.
+- **Every detected span in compact `noteMetrics`.** `bounds` carries
+  `{ startSecs, endSecs, gapAfterSecs }` for every note while the heavy per-note
+  records stay a five-record preview. Segmenting no longer requires a full result.
+- **Compact time axis.** A compact series reports `{ length, start, hop, end }`, so an
+  `argmax` index maps to a time without the array. `run_analysis` gains
+  `axis: "compact"` for a full result (uniform `times` → `{ start, hop, length, end }`).
+- **Serialized bridge.** MCP tool calls run one at a time per project window, so a
+  parallel `open_tool` batch cannot answer from a half-applied state.
+- **Headless project files.** `save_project` / `open_project` / `new_project` work in
+  the headless session: they build `META`/`SETUP` (source, params, options, window,
+  view, filter) and the supplied `notes`; `LAYOUT` is empty because there is no
+  Workbench. A 1k-recording annotation pipeline no longer needs a live GUI window.
+- **Reference projects.** `save_project { embedSource: false }` writes no `DATA` for a
+  file source; `load_project` (GUI and headless) decodes the `SOURCE` path again. Use
+  it when hundreds of projects would otherwise duplicate the recordings.
+- **Version/mode in `get_state`.** Both bridge and headless report
+  `server: { mode, version }`, so an agent can detect a stale app instead of silently
+  driving an old catalog.
+- **Catalog guidance.** `about` explains the three segmentation tools: `onsets` are
+  ungated spectral-flux peaks, `noteMetrics` are gated spans, and `frameRms` is the
+  fine envelope (`loudnessMomentary` is a 400 ms R128 block). `onsets`' one-line
+  description now says so too.
+- **Instructions, handshake, skill.** `initialize.instructions` carries the canonical
+  sequence; `mcp.md` spells out the token handshake and the `structuredContent`
+  fallback; the `audio-analysis` skill carries the workflow (discover → summary →
+  `frameRms`/`noteMetrics` → per-segment tools), the sweep flags, and the batch-CLI
+  caveats.
+- **Tests.** Family-aware shaping (matrix grid, untouched events), note bounds, axis
+  `hop`, compact-axis full results, catalog `family`/`about`, and a headless
+  `save_project` → `open_project` round-trip (source, setup, notes). CLI stdout purity
+  is verified by hand (the batch unit tests inject `out` and cannot see the process
+  stream).
+
+> **Scope:** no analyzer changed its DSP. M21.A is the contract between the engine and
+> an agent: what is returned, what an option means, and what can be scripted without a
+> window. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md) → “M21.A”.
+
 ## M22 — Synth workflow: live audition + in-place source (planned)
 
 Make the synth graph feel like an instrument: hear it while building it, let the

@@ -142,6 +142,12 @@ export function engineOptions(
 }
 
 /** A tool's engine option defaults — the compact `list_analyzers` option map. */
+
+/**
+ * Restore the per-tool store from a saved project, filling in each tool's declared
+ * defaults for keys the file predates (M16 added the pitch f0 options). Unknown tool
+ * ids / keys are kept so a round-trip through a newer file does not lose them.
+ */
 export function optionDefaults(id: AnalyzerId): Record<string, number> {
   const out: Record<string, number> = {};
   for (const field of analyzerById(id).params ?? []) {
@@ -150,11 +156,6 @@ export function optionDefaults(id: AnalyzerId): Record<string, number> {
   return out;
 }
 
-/**
- * Restore the per-tool store from a saved project, filling in each tool's declared
- * defaults for keys the file predates (M16 added the pitch f0 options). Unknown tool
- * ids / keys are kept so a round-trip through a newer file does not lose them.
- */
 export function loadToolOptions(loaded: ToolOptionsState) {
   const defaults = initialToolOptions();
   const next: ToolOptionsState = {};

@@ -19,14 +19,24 @@ export const RHYTHM_ANALYZERS: AnalyzerDef[] = [
   {
     id: "onsets",
     title: "Onsets",
-    description: "When new sounds begin",
+    description: "Spectral-flux onset peaks (not gated sound events)",
     about:
-      "**What it shows.** The start times of detected events, marked on the onset " +
-      "envelope.\n\n" +
-      "**Why use it.** Find attacks, note boundaries, and transients — handy for " +
-      "trimming, slicing, or checking timing. The shared FFT size and hop set the " +
-      "time resolution.",
-    keywords: ["onset", "attack", "transient", "event", "note", "detection"],
+      "**What it shows.** Peaks in the spectral-flux envelope: moments where the " +
+      "spectrum changed sharply. The detector is **not gated**, so noise can produce " +
+      "events (roughly nine per second on a quiet field recording).\n\n" +
+      "**Why use it.** A quick cross-check for attacks and transients. For gated sound " +
+      "segments with start/end/duration use **Note segments** (`noteMetrics`), and for " +
+      "the fine envelope itself use **Amplitude envelope** (`frameRms`).",
+    keywords: [
+      "onset",
+      "attack",
+      "transient",
+      "event",
+      "note",
+      "detection",
+      "spectral flux",
+      "novelty",
+    ],
     section: "rhythm",
     view: { kind: "rhythm", markers: ["onsets"] },
   },

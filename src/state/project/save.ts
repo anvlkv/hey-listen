@@ -21,7 +21,7 @@ import type { SaveProjectArgs } from "./types";
  * the frontend supplies `SOURCE`/`SETUP`/`LAYOUT` and the core fills in `META` + `DATA`.
  */
 
-async function write(path: string): Promise<boolean> {
+async function write(path: string, embedSource = true): Promise<boolean> {
   setProjectStatus("saving");
   setProjectError(null);
   try {
@@ -32,6 +32,7 @@ async function write(path: string): Promise<boolean> {
       setup: currentSetup(),
       layout: await currentLayout(),
       notes: deepClone(notes()),
+      embedSource,
     };
     await invoke("save_project", { path, project: args });
     setProjectPath(path);
@@ -73,6 +74,6 @@ export async function saveProjectAs(): Promise<void> {
 }
 
 /** Save to a specific path without a dialog (used by the MCP server). */
-export async function saveProjectTo(path: string): Promise<boolean> {
-  return write(path);
+export async function saveProjectTo(path: string, embedSource = true): Promise<boolean> {
+  return write(path, embedSource);
 }

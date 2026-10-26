@@ -161,7 +161,7 @@ fn dispatch<R: Runtime>(
         .map_err(|err| format!("could not reach the project window: {err}"))?;
 
     match rx.recv_timeout(RESPONSE_TIMEOUT) {
-        Ok(result) => result,
+        Ok(result) => result.map(|result| with_server_info(tool, result)),
         Err(RecvTimeoutError::Timeout) => {
             Err("the project window did not respond in time".to_string())
         }
@@ -169,6 +169,22 @@ fn dispatch<R: Runtime>(
             Err("the project window could not run the tool".to_string())
         }
     }
+}
+
+/// Stamp `get_state` with the server's mode and version, so an agent can tell a stale
+/// app from the build it expects without reading `mcp.json` or the log preamble.
+fn with_server_info(tool: &str, result: Value) -> Value {
+    if tool != "get_state" {
+        return result;
+    }
+    let mut result = result;
+    if let Value::Object(object) = &mut result {
+        object.insert(
+            "server".to_string(),
+            json!({ "mode": "bridge", "version": env!("CARGO_PKG_VERSION") }),
+        );
+    }
+    result
 }
 
 /// The project window a tool call should drive by default: the focused window's

@@ -85,6 +85,9 @@ export async function runAnalysis(args: Args) {
 
   const shape = summaryOnly ? "summary" : includeData ? "full" : "compact";
   const maxPoints = optionalNum(args, "maxPoints");
+  // A uniform time axis can be echoed as `{ start, hop, length }` instead of an array.
+  // Only meaningful with `includeData`; the default keeps arrays for compatibility.
+  const compactAxis = args.axis === "compact";
   const response = await invoke<AnalysisReply>("run_analysis", {
     request: {
       tool,
@@ -94,6 +97,7 @@ export async function runAnalysis(args: Args) {
       options: requestOptions,
       shape,
       ...(maxPoints != null ? { maxPoints } : {}),
+      ...(compactAxis ? { compactAxis: true } : {}),
     },
   });
 
@@ -101,6 +105,7 @@ export async function runAnalysis(args: Args) {
     window: span,
     params,
     options,
+    axis: compactAxis ? "compact" : "array",
     summary: response.summary,
   };
   if (response.result !== undefined) envelope.result = response.result;

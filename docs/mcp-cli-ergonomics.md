@@ -271,10 +271,91 @@ list-style tools so "all tools" is not just an analyzer claim:
   TypeScript. The GUI command returns `{ result, summary }`; the analyzer tabs unwrap
   `result`, and the MCP handler forwards the requested `shape`.
 - **One shaper.** The headless server, CLI, and GUI MCP path all use the same Rust
-  `shape_result` function. Retire the TS `compact`/`decimate` module once no non-MCP
-  caller needs it.
+  `shape_result_with` function (`shape_result` is its `Axis::Array` spelling). Retire
+  the TS `compact`/`decimate` module once no non-MCP caller needs it.
 - **Annotations are hints.** Do not use them to replace the app's prompts or the
   `transient` semantics.
 - **Deferred:** per-tool `outputSchema`, a general structured-event contract, a
   configurable preview length, "did you mean?" suggestions for unknown tools/options, and
   summary-aware note snapshots.
+
+## M21.A — agent hardening
+
+M21 made results compact and discoverable. A real agent session then exposed the
+places where the contract still lied or ran out of road. M21.A is the follow-up; it
+does not change any analyzer's DSP.
+
+### The result contract fixes
+
+| Symptom | Fix |
+| --- | --- |
+| `analyze` stdout mixed the `[WDIO]`/`hey-listen … starting` preamble with the JSONL | The log plugin targets **stderr**; the WebDriver plugins register only for a GUI launch (`cli::is_cli_invocation`) |
+| `maxPoints` strided *every* array, flattening matrices and dropping notes/onsets | Decimation is family-aware: series and `times` move together; a matrix is thinned by whole frames (`sourceFrames`, spectrogram `hopSize` scaled); event/note lists are untouched |
+| The compact `noteMetrics` preview showed only five notes | `bounds` keeps every `{ startSecs, endSecs, gapAfterSecs }`; the heavy records stay previewed |
+| An `argmax` index could not be turned into a time without the array | Compact axes carry `hop` (and `end`); `run_analysis` gains `axis: "compact"`, which spells a uniform `times` as `{ start, hop, length, end }` |
+| Parallel tool calls raced on the project stores | The bridge runs MCP calls through a per-window promise queue |
+
+`list_analyzers` entries now carry `family` (`series`, `matrix`, `spectrum`,
+`spectrogram`, `events`, `notes`, `scalar`), and `get_analyzer` adds `decimatable`.
+That is the machine-readable form of "is `maxPoints` safe here?".
+
+### Segmentation guidance (the one that mattered)
+
+The session's first pipeline used `loudnessMomentary` (400 ms R128 block) and hand-read
+875-value `spectralFlux` arrays to find call boundaries, and misread `onsets`'
+frame-grid `times` as its detected events. The catalog now says the distinction out
+loud, in the one-line description and in `about`:
+
+- `onsets` — **ungated** spectral-flux peaks; noise can produce them.
+- `noteMetrics` — gated spans with hysteresis, min note/gap, level, f0, voice quality.
+- `frameRms` — the fine linear envelope (10 ms frame / 5 ms hop) to threshold.
+- `loudnessMomentary` — programme loudness, not boundary detection.
+
+The canonical agent sequence lives in `initialize.instructions` and the
+`audio-analysis` skill:
+
+```text
+get_state → get_analyzer → summaryOnly run
+          → frameRms + noteMetrics (events)
+          → per-segment/per-note analyzers
+```
+
+For a sweep: `display: false` + `transient: true`. `includeData` only when arrays are
+actually needed; `maxPoints` for series/matrices; `axis: "compact"` to cut the time
+arrays.
+
+### Projects without a window
+
+`save_project` / `open_project` / `new_project` now run in the headless session. They
+build `META`/`SETUP` from the session's source, shared params, per-tool options,
+window/view, and filter, and write the caller-supplied `notes`. `LAYOUT` is empty
+(there is no Workbench to restore). This is what makes a 1k-recording annotation run
+scriptable without keeping a GUI window alive.
+
+`save_project { embedSource: false }` writes a **reference** project for a file
+source: the `SOURCE` descriptor keeps the path and no `DATA` is written. Both loaders
+(GUI `load_project` and headless `open_project`) decode the path again. It only applies
+to file sources; synths and captures keep their audio.
+
+### Observability and documentation
+
+- `get_state` reports `server: { mode: "bridge" | "headless", version }`. A stale app
+  now announces itself instead of silently serving an old catalog.
+- `initialize.instructions` carries the sequence above and the batch-CLI pointer.
+- `docs/mcp.md` documents the exact token handshake (`connect → token + newline →
+  initialize → notifications/initialized`), a minimal Python client, and the
+  `structuredContent` / `content[0].text` fallback.
+- `docs/cli.md` states that logs are on stderr and stdout is JSONL-only.
+- The `audio-analysis` skill carries the workflow, the pitch-range warning (defaults are
+  60–1200 Hz; birds need e.g. 50–4000 Hz), and the project-write recipe.
+
+### Tests
+
+- Shaping: matrix thinning keeps `values.len() == frames * bins`, series `times` and
+  `values` stay aligned, event lists survive, `noteMetrics.bounds`, axis `hop`, and
+  `axis: "compact"`.
+- Headless: `save_project` writes `SOURCE`/`SETUP`/`NOTES`, a fresh session's
+  `open_project` restores them, `new_project` clears the session.
+- Catalog: every analyzer has a family; the segmentation tools have `about` copy.
+- CLI stdout purity is checked by hand: the batch unit tests inject `out`, so they cannot
+  see the process stream.

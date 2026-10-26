@@ -274,7 +274,7 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     AnalyzerInfo {
         id: "noteMetrics",
         title: "Note segments",
-        description: "Detected note spans, gaps, levels, and voice-quality proxies",
+        description: "Gated sound events with spans, gaps, level, and voice quality",
         section: "pitch",
         keywords: &[
             "note",
@@ -304,9 +304,18 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     AnalyzerInfo {
         id: "onsets",
         title: "Onsets",
-        description: "Detected note / event start times",
+        description: "Spectral-flux onset peaks (not gated sound events)",
         section: "rhythm",
-        keywords: &["onset", "attack", "transient", "event", "note", "detection"],
+        keywords: &[
+            "onset",
+            "attack",
+            "transient",
+            "event",
+            "note",
+            "detection",
+            "spectral flux",
+            "novelty",
+        ],
     },
     AnalyzerInfo {
         id: "downbeats",

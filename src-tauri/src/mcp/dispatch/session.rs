@@ -26,11 +26,20 @@ impl HeadlessSession {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())
             .is_some();
+        let project_name = self
+            .project_name
+            .clone()
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| self.name.clone());
         json!({
             "headless": true,
+            "server": {
+                "mode": "headless",
+                "version": env!("CARGO_PKG_VERSION"),
+            },
             "project": {
-                "name": if self.name.is_empty() { Value::Null } else { Value::String(self.name.clone()) },
-                "path": Value::Null,
+                "name": if project_name.is_empty() { Value::Null } else { Value::String(project_name) },
+                "path": self.project_path.clone().map(Value::String).unwrap_or(Value::Null),
                 "dirty": false,
             },
             "source": self.source_summary(),
@@ -133,6 +142,11 @@ impl HeadlessSession {
             .and_then(Value::as_str)
             .ok_or("`path` is required")?
             .to_string();
+        // Keep an absolute path so a reference project can decode the source again from
+        // any working directory.
+        let path = std::fs::canonicalize(&path)
+            .map(|resolved| resolved.to_string_lossy().into_owned())
+            .unwrap_or(path);
 
         let mut samples: Vec<f32> = Vec::new();
         let summary = decode::decode_file(&path, |chunk| {
@@ -148,6 +162,8 @@ impl HeadlessSession {
             sample_rate: rate,
             channels,
         }));
+        self.source_path = Some(path.clone());
+        self.synth = None;
         self.name = std::path::Path::new(&path)
             .file_name()
             .and_then(|name| name.to_str())
@@ -190,6 +206,7 @@ impl HeadlessSession {
             channels: 1,
         }));
         self.synth = Some(spec);
+        self.source_path = None;
         self.name = "Synth".to_string();
 
         let duration = self.duration();
@@ -279,6 +296,11 @@ impl HeadlessSession {
             .get("maxPoints")
             .and_then(Value::as_u64)
             .map(|points| points as usize);
+        // Full results can spell uniform time axes compactly; the default keeps arrays.
+        let axis = match args.get("axis").and_then(Value::as_str) {
+            Some("compact") => analysis::Axis::Compact,
+            _ => analysis::Axis::Array,
+        };
 
         let result = analysis::run_window(&self.state, &tool, start, end, &params, &options)
             .map_err(|err| err.to_string())?;
@@ -286,7 +308,7 @@ impl HeadlessSession {
         // The summary is computed from the full result, before any shaping, so it is the
         // same in all three modes.
         let summary = analysis::summarize(&result);
-        let shaped = analysis::shape_result(&result, shape, max_points);
+        let shaped = analysis::shape_result_with(&result, shape, max_points, axis);
 
         // Echo the effective settings the call ran with. The result already carries the
         // `tool` tag, so it is not repeated here; `display` is a UI-only concern (a

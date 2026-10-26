@@ -14,7 +14,11 @@
 //! files small) in [`options`]; the `list_analyzers` payload lives here.
 
 mod catalog;
+mod family;
 mod options;
+
+#[allow(unused_imports)]
+pub use family::{about, family_of, Family};
 
 use serde_json::{json, Map, Value};
 
@@ -65,8 +69,10 @@ pub fn detail(id: &str) -> Option<Value> {
         "id": analyzer.id,
         "title": analyzer.title,
         "description": analyzer.description,
-        "about": analyzer.description,
+        "about": about(analyzer.id).unwrap_or(analyzer.description),
         "section": analyzer.section,
+        "family": family_of(analyzer.id).as_str(),
+        "decimatable": family_of(analyzer.id).decimatable(),
         "keywords": analyzer.keywords,
         "options": options,
         "summaryKeys": crate::audio::analysis::summary_keys(analyzer.id),
@@ -85,6 +91,7 @@ pub fn list() -> Vec<Value> {
                 "title": analyzer.title,
                 "description": analyzer.description,
                 "section": analyzer.section,
+                "family": family_of(analyzer.id).as_str(),
                 "keywords": analyzer.keywords,
                 "options": option_defaults(analyzer.id),
             })
@@ -142,6 +149,7 @@ mod tests {
         for item in items {
             assert!(item["id"].as_str().is_some_and(|id| !id.is_empty()));
             assert!(item["title"].as_str().is_some_and(|t| !t.is_empty()));
+            assert!(item["family"].as_str().is_some_and(|f| !f.is_empty()));
             assert!(item["keywords"].as_array().is_some());
             assert!(item["options"].is_object());
         }

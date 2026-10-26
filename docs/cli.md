@@ -160,14 +160,25 @@ given as a file.
 {"file":"a.wav","window":{"start":0.0,"end":2.5},"params":{"...":0},"options":{"...":0},"summary":{"tool":"spectrum","label":"Spectrum","text":"peak 440 Hz · level -6 dBFS · frames 43","items":[{"...":0}]},"result":{"tool":"spectrum","peakHz":440.0,"...":0}}
 ```
 
+**stdout is only the JSONL.** Logs (including the app's start-up line and the E2E
+WebDriver preamble) go to **stderr** and the log file; a pipe can parse every line.
+
+> **M21.A:** the log target used to be stdout, so a `[WDIO]` / `hey-listen x.y.z
+> starting` preamble preceded the JSON and every consumer had to filter lines starting
+> with `{`. That is fixed; the batch unit tests inject `out` and cannot see the process
+> stream, so the guarantee is also checked by hand (`hey-listen analyzers | jq`).
+
 The object is exactly what MCP's `run_analysis` returns (`window`, `params`, `options`,
 `summary`, `result` — the `tool` tag rides on `result`) with the `file` added. Every mode
 carries the canonical **`summary`** (a stable `text` line plus labelled, unit-bearing
 items). Results are **structurally compact** by default: matrices and spectrograms keep
-their dimensions and peak location, numeric series become `{length,min,max,argmin,argmax}`
-(with `nulls` for gaps), and event/note arrays keep a bounded five-record preview. This
+their dimensions and peak location, numeric series become `{length,min,max,argmin,argmax,hop}`
+(with `nulls` for gaps), and event/note arrays keep a bounded five-record preview
+(`noteMetrics` also carries `bounds`, every detected span). This
 is the same Rust shaper MCP uses, so a spectrogram does not flood the terminal;
-`--full` returns the raw arrays and `--summary` drops them entirely.
+`--full` returns the raw arrays and `--summary` drops them entirely. `--full` always
+spells time axes as arrays (use MCP's `axis: "compact"` for the compact form, or
+`--summary` when only the answer matters).
 
 A failure is one line too, and does not abort the batch unless `--fail-fast`:
 
@@ -280,9 +291,11 @@ Planned in the compute subset (M21):
 
 Deliberately out of scope:
 
-- **UI-only tools** — Workbench tabs, editor-layout graph editing, project
-  save/load, and live preview/capture. These need the app's windows
-  (see [`mcp.md`](mcp.md) → Limitations).
+- **UI-only tools** — Workbench tabs, editor-layout graph editing, and live
+  preview/capture. These need the app's windows (see [`mcp.md`](mcp.md) →
+  Limitations). Project save/open is **not** a CLI subcommand, but it is available
+  through the headless MCP server (`heylisten-mcp --headless`), which writes the
+  session's source + setup + notes.
 - **Device/process enumeration** (`devices`) — deferred. On macOS enumerating
   outputs goes through the same `supports_output` → AudioUnit path that makes the
   GUI picker prompt for microphone/audio-capture permission; a batch CLI must never

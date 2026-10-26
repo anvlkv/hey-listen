@@ -83,6 +83,18 @@ pub fn parse<R: Runtime>(app: &AppHandle<R>) -> Entry {
     Entry::Gui
 }
 
+/// Whether the process was launched as a **non-GUI** entry: `--mcp` / `--headless` or
+/// a batch subcommand (`analyzers` / `analyze` / `synth` / `notes`).
+///
+/// Used before the Tauri builder is assembled to skip GUI-only plugins (the WebDriver
+/// server binds a port and logs a preamble; that must not reach the CLI's stdout).
+pub fn is_cli_invocation() -> bool {
+    std::env::args()
+        .skip(1)
+        .any(|arg| arg == "--mcp" || arg == "--headless")
+        || subcommand_in_argv()
+}
+
 /// Whether the first positional token in `argv` names a batch subcommand.
 ///
 /// The top-level flags (`--mcp` / `--headless`) take no values, so the first

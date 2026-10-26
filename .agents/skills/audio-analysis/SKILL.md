@@ -87,15 +87,16 @@ Compute (works headless and bridged): `get_state`, `list_analyzers`, `get_analyz
 `open_audio_file`, `close_source`, `render_synth`, `run_analysis`,
 `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`,
 `set_filter_graph` (headless takes a `GraphSpec` directly), `list_output_devices`,
-`list_input_devices`, `list_processes`.
+`list_input_devices`, `list_processes`, and the project tools `save_project` /
+`open_project` / `new_project` (source + setup + notes; no Workbench layout).
 
 UI-only ("requires the app" headless): `open_tool` / `close_tool`, `get_graph`,
 `set_synth_graph`, `preview` / `stop_preview`, `set_output_gain`,
-`start_capture` / `stop_capture`, `save_project` / `open_project` / `new_project`,
-`list_projects` (server), the note tools (`list_notes`, `get_note`, `create_note`,
-`update_note`, `delete_note`, `set_focused_note`), and `set_theme` (installed themes).
+`start_capture` / `stop_capture`, `list_projects` (server), the note tools (`list_notes`,
+`get_note`, `create_note`, `update_note`, `delete_note`, `set_focused_note`), and
+`set_theme` (installed themes).
 
-### Results: summary, modes, and discovery (M21)
+### Results: summary, modes, and discovery
 
 Every `run_analysis` call (and every CLI `analyze` record) carries:
 
@@ -115,15 +116,24 @@ Every `run_analysis` call (and every CLI `analyze` record) carries:
 | full | `includeData: true` | `--full` | raw arrays |
 
 - `summaryOnly` + `includeData` (and `--summary` + `--full`) are **mutually exclusive**.
-- `maxPoints: N` decimates a `full` result to ≤ N points, keeping the first and last.
+- `maxPoints: N` thins a `full` result to ≤ N points. It is **family-aware** (M21.A):
+  series/time axes move together, a matrix is thinned by whole frames (`sourceFrames`,
+  spectrogram `hopSize` scaled), and **event/note lists are never thinned**. Check
+  `decimatable` from `get_analyzer` before relying on it.
+- `axis: "compact"` (M21.A) replaces a uniform `times` array with
+  `{ start, hop, length, end }`; the values are unchanged. Use it when a full result is
+  actually needed but the repeated time grid is not.
 - Compact is **structural per family**, not generic: matrices/spectrograms keep dimensions
   and peak location (each array → `{length,min,max,argmin,argmax}`, plus
-  `peakTime`/`peakHz`/`peakDb`); numeric series become stats (with `nulls` for gaps);
-  event/note arrays keep counts plus a **five-record preview**.
+  `peakTime`/`peakHz`/`peakDb`); numeric series become stats (with `nulls` for gaps and
+  `hop` so an index maps to a time); event/note arrays keep counts plus a **five-record
+  preview**, and `noteMetrics` also carries **`bounds`** — every detected span — so
+  segmenting never needs a full result.
 - `display: false` computes without opening/focusing a tab (default `true`).
 - `transient: true` applies `start`/`end`/`params`/`options` for that call only, without
   writing them back (default `false`). Without it they **persist**, so parallel calls can
-  inherit each other's window.
+  inherit each other's window. (Tool calls are serialized per window since M21.A, but the
+  persisted state is still shared — use `transient` for independent calls.)
 
 **Discover before you guess.** `list_analyzers` is the compact catalog
 (id/title/description/section/keywords); `get_analyzer { id }` is the detail call:
@@ -135,11 +145,29 @@ mirrors both. The full tool inventory is in
 A reliable agent sequence:
 
 ```text
-get_state                         # what source/window/params am I working with?
-get_analyzer { id: "pitchYin" }    # options, ranges, summary keys
-run_analysis { tool: "pitchYin" }  # compact result + summary (display:false to stay quiet)
-→ read summary.text, then result only if you need the series
+get_state                         # source/window/params/project + server mode/version
+get_analyzer { id: "pitchYin" }    # options, ranges, family, decimatable, summary keys
+run_analysis { tool: "pitchYin", summaryOnly: true }   # one-line answer first
+→ read summary.text; request result only if you need the series
 ```
+
+### Finding events (calls, syllables, notes)
+
+Use the **gated segmenter plus the fine envelope**, not flux peaks:
+
+```text
+frameRms     # 10 ms frame / 5 ms hop, linear envelope in dBFS
+noteMetrics  # gate + hysteresis + min note/gap; spans, levels, f0, voice quality
+```
+
+- `noteMetrics` compact already returns `bounds` for every event; then run the
+  per-event analyzers (`spectrum`, `pitchPyin`, `modulation`, …) over each span.
+- `onsets` and `spectralFlux` are **ungated**: they can fire in noise and are a
+  cross-check, not a segmenter.
+- `loudnessMomentary` is a 400 ms EBU R128 block by default; it smears short calls.
+- Set `minF0Hz`/`maxF0Hz` per corpus. The defaults (60–1200 Hz for pitch, 50–2000 for
+  `noteMetrics`) are speech/music ranges; a penguin at 75 Hz or a swift at ~3 kHz needs
+  an explicit range (e.g. 50–4000).
 
 `list_notes` returns compact note summaries (body excerpt + values text) by default;
 pass `full: true` (or use `get_note`) for the full markdown body. That mirrors the CLI's
@@ -211,7 +239,9 @@ exact keys `-o` accepts. An unknown ID writes to stderr and exits `1`.
 ### Output, exit codes, examples
 
 **JSONL by default** — one self-describing object per line, streamable with `jq`.
-Every record carries the canonical `summary` and no null-padded options:
+Every record carries the canonical `summary` and no null-padded options. **Logs go to
+stderr**, so stdout is pure JSONL (M21.A); you do not need to filter the app's start-up
+line.
 
 ```json
 {"file":"a.wav","window":{"start":0.0,"end":2.5},"params":{"fftSize":2048},"options":{},"summary":{"tool":"spectrum","text":"peak 440 Hz · level -6 dBFS","items":[]},"result":{"tool":"spectrum","peakHz":440.0}}
@@ -262,7 +292,10 @@ hey-listen notes mix.heyl --json --full
 ## What is *not* scriptable headless
 
 UI-only work — Workbench tabs, editor-layout graph editing (`get_graph` /
-`set_synth_graph`), project save/load, and live preview/capture — needs the app
-(bridged MCP). The CLI is file/synth sources only and never opens a window or
-bridges to a running app. See `docs/mcp.md` → "Limitations / deferred" and
+`set_synth_graph`), and live preview/capture — needs the app (bridged MCP).
+**Project files are scriptable headless**: `save_project` (with `notes`,
+`openTools`, and `embedSource: false` for a file source), `open_project`, and
+`new_project` work in `heylisten-mcp --headless`; they write source + setup + notes and
+skip the Workbench layout. The CLI is file/synth sources only and never opens a window
+or bridges to a running app. See `docs/mcp.md` → "Limitations / deferred" and
 `docs/cli.md` → "Scope and non-goals" for the full boundaries.

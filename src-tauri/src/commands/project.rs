@@ -46,6 +46,15 @@ pub struct SaveProjectArgs {
     /// The project's notes (M14).
     #[serde(default)]
     pub notes: Vec<Note>,
+    /// Embed the source PCM in `DATA` (default). `false` writes a **reference**
+    /// project: the `SOURCE` descriptor keeps the file path and the loader decodes it
+    /// again. Useful when many annotation projects would otherwise duplicate audio.
+    #[serde(default = "embed_source_default")]
+    pub embed_source: bool,
+}
+
+fn embed_source_default() -> bool {
+    true
 }
 
 /// What [`load_project`] returns. The `DATA` samples stream separately over the
@@ -81,6 +90,13 @@ pub async fn save_project(
 
     tauri::async_runtime::spawn_blocking(move || {
         let guard = source.lock().unwrap_or_else(|poison| poison.into_inner());
+        // A reference project only makes sense for a file source: the loader can
+        // decode the path again. Synths and live captures keep their audio.
+        let reference = !project.embed_source
+            && project
+                .source
+                .as_ref()
+                .is_some_and(|source| source.kind == "file" && source.path.is_some());
         let save = SaveProject {
             name: project.name,
             created_ms: project.created_ms,
@@ -89,7 +105,7 @@ pub async fn save_project(
             layout: project.layout,
             results: Vec::new(),
             notes: project.notes,
-            pcm: guard.as_ref(),
+            pcm: if reference { None } else { guard.as_ref() },
         };
         let file = File::create(&path)?;
         write_project(BufWriter::new(file), &save, crate::recent::now_ms())
@@ -108,7 +124,13 @@ pub async fn load_project(
 ) -> Result<LoadedProjectDto, ProjectError> {
     let loaded = tauri::async_runtime::spawn_blocking(move || {
         let mut file = File::open(&path)?;
-        read_project(&mut file)
+        let mut loaded = read_project(&mut file)?;
+        // A reference project has no `DATA`; decode its file source in the same
+        // blocking task (a long recording must not stall the async runtime).
+        if loaded.pcm.is_none() {
+            loaded.pcm = crate::project::decode_reference(loaded.source.as_ref());
+        }
+        Ok::<_, ProjectError>(loaded)
     })
     .await
     .map_err(join_error)??;

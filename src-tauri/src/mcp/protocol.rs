@@ -96,11 +96,26 @@ fn initialize_result(params: &Value) -> Value {
         },
         "instructions": "Drive the running Hey Listen project: open a source, run analysis \
                          tools, edit the filter/synth graphs, preview playback, and save/load \
-                         projects. Call `get_state` first to see the current source, analysis \
-                         window, shared params, and open Workbench tabs; call `list_projects` \
-                         to target a specific project window. When no app is running this \
-                         server runs headless and serves the compute tools (open a source, \
-                         run analyzers, render synth).",
+                         projects. Start with `get_state` (source, analysis window, params, open \
+                         tabs, project, and the server mode/version). Use `list_projects` with the \
+                         optional `target` argument to address a specific project window. Call \
+                         `list_analyzers` for \
+                         the ids and `get_analyzer` before guessing option keys, ranges, or \
+                         summary keys. For a quick answer run `run_analysis` with \
+                         `summaryOnly: true`; the default result is compact, and `includeData` \
+                         returns raw arrays (`maxPoints` thins series only — never pass it for \
+                         `noteMetrics`, which would drop events; `axis: \"compact\"` replaces a \
+                         uniform `times` array with `{ start, hop, length }`). Set \
+                         `display: false` and `transient: true` for sweeps that must not move the \
+                         user's window or persist overrides. To find sound events use \
+                         `frameRms` plus `noteMetrics` (gated spans), not `onsets` / \
+                         `spectralFlux` (ungated spectral-flux peaks). Tool calls are serialized \
+                         per window, but shared params/window still persist unless transient. \
+                         For many files use the app binary's batch CLI (`hey-listen analyze \
+                         FILE -t ID`, JSONL on stdout). When no app is running this server runs \
+                         headless: it also supports `save_project` / `open_project` / \
+                         `new_project` (source + setup + notes, no Workbench layout) plus the \
+                         compute tools.",
     })
 }
 
