@@ -359,3 +359,8 @@ to file sources; synths and captures keep their audio.
 - Catalog: every analyzer has a family; the segmentation tools have `about` copy.
 - CLI stdout purity is checked by hand: the batch unit tests inject `out`, so they cannot
   see the process stream.
+
+> **Follow-up:** M21.B (planned) covers **measurement reliability** — window-level
+> gating for series metrics, the `harmonicRatio`/HNR distinction, pitch and modulation
+> reliability flags, syllable grouping, and multi-window CLI input. See
+> [`roadmap.md`](roadmap.md) → M21.B.
