@@ -119,16 +119,17 @@ the UI: `log stream --predicate 'process == "tccd"'` shows the `AUTHREQ_PROMPTIN
 (and its `service=`), which is the ground truth for *what* was requested.
 
 Without the grant, a blocked capture surfaces as an **error**, not as silence — but
-`flexaudio` 0.5 asks for consent itself instead of leaving it to the backend's error
+`flexaudio` 0.8 asks for consent itself instead of leaving it to the backend's error
 text. At `start`, a `NotDetermined` status raises the OS prompt, and `Denied` /
 `Restricted` returns `Error::PermissionDenied { permission, detail }`; a revocation
 *after* startup arrives as a `PermissionDenied` **event**. The app maps both onto its
-existing `source_status` kinds — `permission` (the crate's own explanation becomes the
-banner text) and `recovered` (a late `PermissionGranted` clears it). The advisory
-`PermissionPending` (consent still undecided; capture continues) is deliberately not
-surfaced, and `Permission::guidance()` — the per-platform fix, e.g. "Allow access in
-macOS System Settings > Privacy & Security > Microphone …" — is available but not wired
-into the UI yet.
+existing `source_status` kind `permission`, so the crate's own explanation becomes the
+banner text. Since 0.5.3 the crate's built-in backends emit neither `PermissionPending`
+(consent still undecided; capture continues) nor a grant event, so the banner is cleared
+by restarting the session or by a `recovered` (`StreamRecovered`) event instead.
+`Permission::guidance()`
+— the per-platform fix, e.g. "Allow access in macOS System Settings > Privacy &
+Security > Microphone …" — is available but not wired into the UI yet.
 
 You can check the engine directly with `cargo run --example capture_probe` (from
 `src-tauri/`), which prints the peak of a short mic + system capture. Reset and retry

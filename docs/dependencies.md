@@ -12,7 +12,7 @@
 | `tauri-plugin-clipboard-manager` | 2 | write the copyable MCP config to the clipboard (M9) | MIT / Apache-2.0 |
 | `tauri-plugin-log` | 2 | file + stdout logging (rotated per session / size) | MIT / Apache-2.0 |
 | `log` | 0.4 | log facade (Rust `log::info!` etc.) | MIT / Apache-2.0 |
-| `flexaudio` | 0.3 | capture (mic/system/process/mix) | see crates.io |
+| `flexaudio` | 0.8 | capture (mic/system/process/mix) | see crates.io |
 | `symphonia` | 0.6 (`all`) | file decode / demux | MPL-2.0 |
 | `fundsp` | 0.23 | filtering + synthesis nets | see crates.io |
 | `cpal` | 0.16 | preview playback (output) | Apache-2.0 |
