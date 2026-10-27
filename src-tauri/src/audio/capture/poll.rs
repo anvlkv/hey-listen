@@ -72,11 +72,11 @@ pub(super) fn poll_loop(
 
 /// Apply one control message; returns `true` if the loop should stop.
 ///
-/// `pause` is infallible, but `resume` and `set_gain` report a failure by `Err` (0.5:
-/// a successful `resume` can still return the stored permission error once capture has
-/// terminally failed). The command layer cannot see that — it only hands this thread a
-/// message — so a failed control is surfaced as a capture error event instead of being
-/// dropped.
+/// `pause` is infallible, but `resume` and `set_gain` report a failure by `Err` (a
+/// successful `resume` can still return the stored terminal error once capture has
+/// failed, e.g. a revoked permission). The command layer cannot see that — it only
+/// hands this thread a message — so a failed control is surfaced as a capture error
+/// event instead of being dropped.
 fn apply(stream: &Stream, message: Control, sink: &mut impl FnMut(CaptureMessage)) -> bool {
     match message {
         Control::Pause => {
@@ -111,17 +111,21 @@ fn report_failure(
 
 /// Map a flexaudio event to the frontend-facing shape.
 ///
-/// The event vocabulary is the pre-0.5 one (`dropped` | `stalled` | `recovered` |
-/// `permission` | `device-lost` | `error`), so the frontend's `STATUS_TEXT` still
-/// covers every kind. 0.5 split the old `Error(String)` failure signal into
-/// `TerminalError` / `RecoverableError` and gave the permission events fields, so
-/// those map onto the existing kinds: a denial carries the backend's own explanation
-/// (it is a full sentence, far better than a generic label), a late grant clears the
-/// banner the way `recovered` does, and errors carry their message either way.
+/// The event vocabulary is the `dropped` | `stalled` | `recovered` | `permission` |
+/// `device-lost` | `error` set, so the frontend's `STATUS_TEXT` still covers every
+/// kind. `Error(String)` is the legacy failure signal (terminal at the facade
+/// boundary) and 0.5 split it into `TerminalError` / `RecoverableError`; both map onto
+/// `error`. A denial carries the backend's own explanation (it is a full sentence, far
+/// better than a generic label). Since 0.5.3 the built-in backends emit neither
+/// `PermissionPending` nor a grant event, so `permission` is only ever raised by a
+/// denial.
 ///
-/// The advisory variants (`PermissionPending`, `SilenceWhileSourceActive`, `Clipped`,
-/// `AudioLoss`) are deliberately dropped: capture continues through them, and the
-/// frontend has no surface that would not present them as failures.
+/// The advisory variants (`SilenceWhileSourceActive`, `Clipped`, `AudioLoss`) and the
+/// informational ones (`SilenceProbe*`, `ClassicLoopbackKeepalive*`,
+/// `StartupSamplesDropped`) are deliberately dropped: capture continues through them,
+/// and the frontend has no surface that would not present them as failures.
+/// `ShutdownError` is dropped too — it only reports teardown failures, never replaces
+/// the capture's primary result, and arrives as the session is being torn down.
 fn map_event(event: FlexEvent) -> Option<CaptureEvent> {
     match event {
         FlexEvent::ChunkDropped { count } => Some(CaptureEvent {
@@ -139,10 +143,6 @@ fn map_event(event: FlexEvent) -> Option<CaptureEvent> {
         FlexEvent::PermissionDenied { detail, .. } => Some(CaptureEvent {
             kind: "permission".to_string(),
             message: Some(detail),
-        }),
-        FlexEvent::PermissionGranted => Some(CaptureEvent {
-            kind: "recovered".to_string(),
-            message: None,
         }),
         FlexEvent::DeviceLost => Some(CaptureEvent {
             kind: "device-lost".to_string(),
