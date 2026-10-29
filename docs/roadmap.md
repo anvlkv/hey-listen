@@ -1470,3 +1470,149 @@ typing in a note/search field never triggers a shortcut, and bindings survive a 
 > splice into a file); ADR-19 selection semantics stay, so only **Analyze** frames and
 > focuses; `Live`/`Audition` start off and are remembered app-level; the M24 default table
 > is a starting point, with **`Space` confirmed as play/pause**.
+
+## M25 — Cross-project comparison (planned)
+
+Diff **the same analysis tool** across two independently open projects. This is the
+"symmetric independent tracks" answer to diffs: each project keeps its own source,
+filter, synth, timeline, analysis window and params (ADR-3/ADR-9 unchanged), and a
+transient **compare view** overlays the two results. See [`comparison.md`](comparison.md).
+
+### Model
+
+- **A** (owner) and **B** (reference) are two project windows; a comparison is bound to
+  one **tool id** (the same chart of another project) and to A's Workbench.
+- The compare view is a **transient tab** (`compare:<tool>`) that **pops out like any
+  other tab** (right-click → *Pop out to window*). One per tool per project, as a tab or
+  its popout; choosing another reference retargets it. Never in the Sidebar; never a
+  project window.
+- Requires two projects open. With one, the picker explains how to open another.
+
+### Entry points
+
+- Workbench **tab context menu** → *Compare with…* on an analyzer tab.
+- Native **Analysis → Compare with…** on the focused analyzer tab (`app:menu` id
+  `compare`).
+- MCP **`compare_analysis`** (app-only); CLI **`compare A.heyl B.heyl -t TOOL`**.
+
+### Compute
+
+- **`run_comparison`** computes both sides in the core: A from the caller's
+  `WindowState`, B from the reference label's, each through the existing
+  `analysis::run_window` (own PCM + own filter). The frontend supplies each side's
+  window/params/options; B's via **`compare_peer_setup`**.
+- **Read-only B.** The compare never changes B's audio, filter, window, params,
+  transport or tabs.
+- **`compare_live`** supplies **both** playheads (from each project's core `Playback`),
+  B's time/frequency cursor (shared UI state; `cursor:mod` / `view:mod` are added for
+  modulation charts) plus a **revision**; polled at ~20 Hz while visible, and a revision
+  change re-runs the comparison (debounced, latest-wins). Reading both playheads from the
+  core is what lets the **popout** show them: it has no Timeline of its own. Peer reads
+  resolve **live** windows only — a closed reference is an error/banner, never a lazily
+  created empty `WindowState`.
+- **Comparability is explicit**: a grid signature decides whether a numeric delta exists
+  (rate, channel, FFT/hop/window, band, dimensions, grid-changing options). Differing
+  windows diff over their absolute-time overlap; a differing grid shows both results side
+  by side (no interpolation); mismatches and a differing filter are reported, never
+  silently normalised.
+
+### Diff and view
+
+- Delta by family: series/spectrum (B−A + stats), matrix/heatmap (per frame×band),
+  rhythm (envelope + paired events), events (`onsets`/`downbeats`/`noteMetrics` paired by
+  nearest time), modulation (rate bins), waveform (identical windows only), readouts
+  (field deltas). Default output is **stats**, arrays only on `includeData` / `--full`.
+- The compare view shows **both cursors** (A's crosshair + B's dashed read-only rule) and
+  **both playheads** (A's and B's, from `compare_live`) on time charts, B's analysis
+  window as a faint band, a comparability badge, and `Swap A/B`.
+- A's compare chart joins A's sync group; it never publishes to B.
+- **M25 views:** series, spectrum and readouts (pitch, spectral series, momentary
+  loudness, level/LUFS/LRA cards). The core delta for **every** family ships in M25, so
+  MCP/CLI compare any tool; the remaining views are **M25.A**.
+
+### Transient by construction
+
+- No project-file change **for the comparison**: `LAYOUT` is sanitised to remove compare
+  panels, `SETUP.openTools` excludes them, and `popout_tools_of` never returns a compare
+  popout; no `RESULTS`, undo, dirty, Recent entry.
+- Saving while open writes the project as if it were closed; loading never restores it.
+  `close_popouts` closes compare popouts on load / New Project; `sync_popouts` never
+  opens them.
+- Closing B leaves the last result with a **Reference project closed** banner and stops
+  live updates. New/Open closes tabs **and** popouts; undo closes the tab (layout
+  restore), while a compare popout survives like a tool popout.
+
+### Surfaces
+
+- **MCP** `compare_analysis { tool, with, target? }` returns `{ a, b, comparability,
+  diff }`, with the same `includeData` / `maxPoints` / `axis` / `summaryOnly` shaping as
+  `run_analysis`. Headless answers *requires the app*. `list_projects` gains each
+  project's source shape, window and filter presence.
+- **CLI** `compare <A.heyl> <B.heyl> -t TOOL` uses each project's saved setup and
+  `LAYOUT.filterSpec`; per-side window overrides and `--overlap`; JSONL one line per
+  tool. Non-project audio files are out of scope (save a project first).
+- **Project format**: additive `LAYOUT.filterSpec` (the compiled filter `GraphSpec`) so
+  the CLI can condition each side like the app. Older files warn and compare unfiltered.
+
+**Files:** `src-tauri/src/audio/analysis/compare/`,
+`src-tauri/src/commands/{compare,window}.rs`, `src-tauri/src/state/{mod,window}.rs`,
+`src-tauri/src/menu.rs`, `src-tauri/src/mcp/`, `src-tauri/src/cli/batch/`,
+`src/state/compare/`, `src/components/compare/`, `src/lib/dockviewLayout.ts`,
+`src/state/{workbench,uiState,menu,history,snapshot}.ts`,
+`src/state/project/{snapshot,types}.ts` (`filterSpec`), `src/index.tsx`,
+`src/PopoutApp.tsx`, `src/lib/themeFile.ts`, `src/state/themes/chart.ts`,
+`src/styles/compare.css`.
+
+**Tests.** Rust: grid signature, delta per family, event pairing, overlap/no-overlap,
+reference resolution, shaping. Unit: layout sanitiser, compare id parsing, peer poll
+latest-wins. E2E (`r2-compare`, before `t-close-main`): two projects, overlay + both
+cursors/playheads, mismatch badge, peer-close banner, save/reopen has no compare tab,
+retarget reuses the tab; **popout**: Pop out to window keeps the overlay and the live
+markers, closing it forgets the view, and a load does not restore it. MCP/CLI contract
+tests as in [`comparison.md`](comparison.md).
+
+**Non-goals:** no second track in one project; no time alignment/warping; no
+simultaneous mixed playback; no dual waveform Timeline in the compare view (each project
+keeps its own); no different-tool or 3+ project compares; no notes in the compare view;
+no parameter normalisation; no persistence or export of a comparison. The matrix /
+event / modulation / waveform **views** are M25.A, not M25.
+
+> **Order:** M25 depends on M23 only for the peer playhead's *paused* position; without
+> M23 it reads the core's playing position. M25 is otherwise independent of M22/M24.
+
+> **Decision:** a comparison is a transient, read-only view over two project states
+> computed by the core — not a second track and not saved. See ADR-24.
+
+## M25.A — Comparison views: heatmaps, events, modulation (planned)
+
+Complete the compare view's chart coverage. The **core comparison and the MCP/CLI
+surfaces already handle every family** in M25; this milestone adds the remaining views
+and enables *Compare with…* for every tool.
+
+- **Matrix / spectrogram** (mel, MFCC, chroma, spectral contrast): a segmented **A / B /
+  Δ** control, the Δ on a diverging ramp with a zero-centred legend; reuse
+  `MatrixView` / `spectrogramRender` / `chartCanvas`. Aligned grids only; a differing
+  grid shows A and B side by side (no interpolation).
+- **Rhythm** (tempo, onsets, downbeats): the onset-strength envelope overlaid, with A's
+  markers above the axis and B's below; matched pairs linked, unmatched events marked.
+- **Note segments** (`noteMetrics`): paired note blocks, a matched/unmatched summary, and
+  the per-note table showing A, B and Δ.
+- **Modulation**: AM/FM lines aligned by modulation-rate bin, with the peer cursor on the
+  rate axis.
+- **Waveform**: the envelope overlay only when both windows are identical (bucket *i*
+  covers the same span); otherwise two side-by-side plots.
+- **Enable the action everywhere**: the *Compare with…* tab-menu item and the Analysis
+  menu cover every analyzer, and the tab/popout lifecycle matches M25.
+
+**Files:** `CompareMatrix`, `CompareEvents` (rhythm + `noteMetrics`), `CompareModulation`
+and `CompareWaveform` under `src/components/compare/`, plus `src/styles/compare.css` and
+`src/state/compare/id.ts` (the family gate).
+
+**Tests.** One E2E per added view on the `r2-compare` fixtures: the matrix A/B/Δ switch
+and the no-interpolation case, event pairing (matched/only-A/only-B), `noteMetrics`
+table deltas, modulation rate-axis cursors, and the waveform identical-window rule.
+
+**Non-goals:** no cross-grid interpolation, no 3+ project compare, no persistence.
+
+> **Order:** M25.A is UI-only and follows M25; it can be delivered family by family
+> (matrix → events → modulation → waveform) with the action enabled as each lands.

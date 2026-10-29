@@ -111,7 +111,12 @@ commands in `src-tauri/src/commands/project.rs` bridge it to the frontend, with
   `graph`, …) are optional.
 - **`LAYOUT`** carries the dockview `toJSON()` snapshot, both graph editors'
   nodes/edges (with positions), and the list of **popped-out tools** (`popouts`) as
-  `serde_json`. On load the popped tools' windows are re-created (ADR-11).
+  `serde_json`. On load the popped tools' windows are re-created (ADR-11). **M25,
+  planned:** it also carries `filterSpec` — the compiled filter `GraphSpec` — so the
+  batch CLI's `compare` can condition each project like the app. It is additive JSON:
+  the app ignores it on load (the editor state is authoritative), old files simply lack
+  it, and the CLI then compares unfiltered with a warning. Compare panels are stripped
+  from the dockview snapshot before it is written (see [`comparison.md`](comparison.md)).
 - **`RESULTS`** is a `postcard` `Vec<StoredResult>`; it is written **empty** today
   (result caching is deferred — see below). The type is defined now so the format
   stays forward-compatible.

@@ -88,7 +88,9 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
   note-segments **f0** overlay), `select` the drag-to-zoom tint, and `hover` / `mirror` /
   `playhead` / `note` the cursors and note anchors (see `state/themes/chart.ts` for the
   full role list — a theme that changes one must keep it distinct from the rest it shares
-  a chart with).
+  a chart with). **M25 (planned)** adds `compareA` / `compareB` for the two sides of a
+  cross-project comparison (B's read-only cursor and playhead use `compareB`); built-in
+  themes inherit the base values, and a theme may overlay them like any other role.
 - **Meter colours** (the `levels` tool) are the `ui` variables `--meter-low` /
   `--meter-mid` / `--meter-high` / `--meter-peak` / `--meter-unlit`.
 - **`meta.id`** is the stable key used for the slots and persistence. Built-ins are
