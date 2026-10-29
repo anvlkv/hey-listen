@@ -22,6 +22,7 @@ mod app_activity;
 mod audio;
 mod cli;
 mod commands;
+mod export;
 mod mcp;
 mod menu;
 mod project;
@@ -216,6 +217,12 @@ pub fn run() {
             commands::analysis::analyzer_detail,
             commands::analysis::analyzer_catalog,
             commands::analysis::run_analysis,
+            commands::export::export_analysis,
+            commands::export::export_all,
+            commands::export::pick_save_path,
+            commands::export::pick_directory,
+            commands::export::write_text,
+            commands::export::write_bytes,
             commands::ui::get_ui_state,
             commands::ui::set_ui_state,
             commands::project::save_project,

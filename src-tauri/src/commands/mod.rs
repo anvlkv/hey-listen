@@ -8,6 +8,7 @@ pub mod analysis;
 pub mod app;
 pub mod capture;
 pub mod decode;
+pub mod export;
 pub mod graph;
 pub mod mcp;
 pub mod playback;

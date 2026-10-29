@@ -1,5 +1,6 @@
 import { createResource, createSignal, Show, type JSX } from "solid-js";
 import Popover from "../Popover";
+import ExportMenu from "./ExportMenu";
 import { markdownSummary, renderMarkdown } from "../../lib/markdown";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 
@@ -87,6 +88,7 @@ export default function AnalyzerTab(props: {
               )}
             </Show>
           </Popover>
+          <ExportMenu id={props.id} />
         </div>
       </div>
       <div class="analyzer-body" data-testid="analyzer.body">

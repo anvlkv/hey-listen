@@ -5,6 +5,7 @@ use std::io::Write;
 use serde_json::json;
 
 use crate::audio::analyzers;
+use crate::export::ExportFormat;
 use crate::mcp::dispatch::HeadlessSession;
 
 use super::output::emit;
@@ -104,6 +105,15 @@ pub(super) fn run_tools(
 ) -> Result<(), ()> {
     let mut failed = false;
     for tool in tools {
+        if request.out.is_some() || request.format == ExportFormat::Csv {
+            if super::export::run_export(session, request, tool, label, start, end, out).is_err() {
+                failed = true;
+                if request.fail_fast {
+                    return Err(());
+                }
+            }
+            continue;
+        }
         let mut args = json!({ "tool": tool });
         if let Some(start) = start {
             args["start"] = json!(start);

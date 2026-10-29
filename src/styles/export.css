@@ -1,0 +1,54 @@
+/* --- Export popover (M12) ------------------------------------------------ */
+
+.pop-panel-export {
+  width: 268px;
+}
+
+.export-title {
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.export-actions .toolbar-btn {
+  justify-content: flex-start;
+  width: 100%;
+  text-align: left;
+}
+
+.export-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.export-check input {
+  accent-color: var(--accent);
+}
+
+.export-error {
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--danger-fg);
+}
+
+.export-status {
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--accent-soft-fg);
+  overflow-wrap: anywhere;
+}

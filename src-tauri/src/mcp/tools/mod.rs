@@ -12,6 +12,7 @@
 //! (project files + notes), and [`themes`] — assembled here. [`schema`] holds the
 //! shared constructors.
 
+mod export;
 mod observe;
 mod project;
 mod schema;
@@ -32,6 +33,7 @@ pub fn list() -> Vec<Value> {
     tools.extend(source::tools());
     tools.extend(workbench::tools());
     tools.extend(project::tools());
+    tools.extend(export::tools());
     tools.extend(themes::tools());
 
     // Every tool takes an optional `target` (a label from `list_projects`); inject it

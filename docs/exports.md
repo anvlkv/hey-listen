@@ -1,5 +1,12 @@
 # Analysis exports (chart image + data)
 
+> **Implemented (M12).** The provenance envelope and the wide-matrix CSV renderer live
+> in `src-tauri/src/export/` and are shared by the app, the MCP server, and the batch
+> CLI. The frontend (`src/lib/export.ts`) gathers the current source/window/settings,
+> picks a path, writes the files, and captures the rendered chart canvas. Data exports
+> **re-run** the tool at the current settings rather than shipping a result back over
+> IPC, so the file always matches the live project.
+
 Every analyzer computes a typed result (`AnyAnalysisResult`) over the analysis window.
 Today it is only ever *shown*: there is no way to save the numbers or the picture. This
 document adds two exports per analyzer — the **data** (JSON / CSV) and the **chart
@@ -61,8 +68,11 @@ frame, one column per frequency band.
 | `pitch` | `time_s,f0_hz` (blank cell for an unvoiced frame) |
 | `spectrum` | `freq_hz,mean_db,min_db,max_db` |
 | `spectrogram` / `matrix` | wide: first column `time_s`, then one column per bin, header row = bin centre frequencies (`440.0` … or band index for index-axis matrices such as MFCC/chroma) |
+| `waveform` | `time_s,min,max` (one row per envelope bucket) |
 | `readouts` (`levels` / `lufs` / `lra`) | `key,value` |
 | `rhythm` (`tempo` / `onsets` / `downbeats`) | `time_s,onset_strength` for the envelope, then a blank line + an `events` block (`time_s,type`) |
+| `noteMetrics` | one row per **detected** note: span, gaps, levels, levels relative to the loudest note, the voice-quality proxies, and the note's `envelope_db` samples (`|`-joined; they share `envelopePositions`) |
+| `modulation` | `rate_hz,am_db,fm_db` (an absent spectrum leaves its column blank) |
 
 - **Wide, not long**, for the 2D tools (a spectrogram is `frames × bins`, written rows =
   frames). This matches what a spreadsheet/`pandas` user expects; very wide files are the
@@ -96,10 +106,13 @@ answers "requires the app".
 ## Where the actions live
 
 - **Per tab** — an **Export** popover in `AnalyzerTab`'s toolbar (next to Params /
-  About): *Data → JSON*, *Data → CSV*, *Chart → PNG*, and *Copy CSV* / *Copy image*
-  (the clipboard plugin is already wired).
-- **Tab context menu** — `Workbench.getTabContextMenuItems` gains an **Export ▸** entry
-  (alongside *Pop out to window*).
+  About): *Data → JSON*, *Data → CSV*, *Chart → PNG*, and *Copy CSV* (the clipboard
+  plugin is already wired). Copying the chart image is deferred: the clipboard plugin
+  wants raw RGBA, while the canvas capture is a PNG blob, and PNG file export covers the
+  use case.
+- **Tab context menu** — `Workbench.getTabContextMenuItems` gains flat export entries
+  (JSON / CSV / PNG, plus *Export all open analyses…*) alongside *Pop out to window*;
+  dockview's context menu has no submenu support.
 - **All open tools** — an *Export all open analyses…* action exports every open analyzer
   tab to a chosen folder (JSON + CSV per tab).
 - Exports are **not** stored in the project; they are one-shot writes to a user path.
@@ -144,25 +157,25 @@ The **data** exports are pure compute over a result, so headless covers them ful
 
 | Path | Role |
 | --- | --- |
-| `src/lib/export.ts` | Provenance envelope + per-view CSV renderer (frontend). |
+| `src/lib/export.ts` | The interactive half: request rendering, pick a path, write text/bytes, capture the chart canvas. |
 | `src/state/exportRegistry.ts` | Charts register `image(toolId)` providers (canvas capture). |
-| `src/components/analyzer/AnalyzerTab.tsx` | The per-tab Export popover. |
-| `src/components/Workbench.tsx` | The tab-context **Export ▸** entry. |
-| `src/components/analyzer/{SpectrumTab,WaveformTab,SeriesView,RhythmView,MatrixView,SpectrogramTab}.tsx` | Register their chart/image provider. |
-| `src-tauri/src/commands/export.rs` (planned) | `pick_save_path` / `write_text` / `write_bytes`. |
-| `src-tauri/src/audio/analysis/` (or a new `export.rs`) | The Rust CSV renderer shared with the CLI. |
+| `src/components/analyzer/AnalyzerTab.tsx` | The per-tab Export popover (`ExportMenu.tsx`). |
+| `src/components/Workbench.tsx` | The tab-context export entries (JSON / CSV / PNG, and export all). |
+| `src/components/analyzer/{SpectrumTab,WaveformTab,SeriesView,RhythmView,MatrixView,SpectrogramTab,ModulationView,NoteSegmentChart}.tsx` | Register their chart/image provider. |
+| `src-tauri/src/commands/export.rs` | `export_analysis` / `export_all`, `pick_save_path` / `pick_directory`, `write_text` / `write_bytes`. |
+| `src-tauri/src/export/` | The envelope + wide-matrix CSV renderer shared with the CLI and MCP. |
 | `src-tauri/src/cli/batch/` | `--format` / `--out`. |
 | `src-tauri/src/mcp/tools/`, `src/state/mcp/` | The `export_*` tools. |
 
 ## Testing
 
 - **CSV renderer** — Rust unit tests over each result type (wide matrix header/rows,
-  gaps for pitch, readouts, rhythm events); the frontend renderer is kept in step
-  (shared fixtures) or delegated to the same rule set.
+  gaps for pitch, readouts, rhythm events, note rows). The renderer is Rust-only, so
+  the UI, MCP, and CLI cannot drift.
 - **Envelope** — a JSON export round-trips: applying its `window`/`params`/`options` to
   the same source reproduces the result.
-- **Chart capture** — provider returns a non-null blob for each view kind; a headless
-  `export_chart` reports "requires the app".
+- **Chart capture** — a provider returns a non-null blob for each chart view; a headless
+  `export_chart` reports that it needs the rendered canvas.
 - **E2E (wdio)** — export CSV + PNG for a tab, assert the files exist and the CSV parses
   with the expected column count.
 

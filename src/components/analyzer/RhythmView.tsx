@@ -1,6 +1,14 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { createEffect, createMemo, createRoot, createSignal, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createRoot,
+  createSignal,
+  onCleanup,
+  Show,
+  untrack,
+} from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
@@ -18,6 +26,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
@@ -193,6 +202,19 @@ export default function RhythmView(props: {
   const result = () => props.analysis.result() as RhythmResult | null;
   const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
+
+  // Export the rendered onset-strength chart (M12).
+  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
+  registerChartImage(
+    untrack(() => props.id),
+    imageProvider,
+  );
+  onCleanup(() =>
+    unregisterChartImage(
+      untrack(() => props.id),
+      imageProvider,
+    ),
+  );
 
   /** Right-click the envelope: reframe the timeline window, or add a note here. */
   const openMenu = createUplotReframeHandler(zoom, setMenu);

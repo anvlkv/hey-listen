@@ -4,6 +4,15 @@
 use serde_json::Value;
 
 use crate::audio::graph::GraphSpec;
+use crate::export::ExportFormat;
+
+/// Where `--out` writes: one explicit file (a single result) or a directory (one file
+/// per result).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OutputTarget {
+    File(String),
+    Dir(String),
+}
 
 /// The command the batch CLI runs.
 #[derive(Debug, Clone)]
@@ -71,6 +80,10 @@ pub struct Request {
     pub full: bool,
     /// Return the summary only, without result arrays (`--summary`).
     pub summary: bool,
+    /// Data export format: JSONL to stdout (the default) or CSV / envelope files.
+    pub format: ExportFormat,
+    /// Write results to a file or directory instead of stdout (`--out`).
+    pub out: Option<OutputTarget>,
     pub pretty: bool,
     pub fail_fast: bool,
 }

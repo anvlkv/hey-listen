@@ -4,6 +4,7 @@
 //! ([`parse`] for matches → request mapping, [`run`] for execution, [`notes`]).
 
 use super::*;
+use crate::export::ExportFormat;
 
 use std::path::Path;
 
@@ -143,6 +144,8 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
         filter: None,
         full: false,
         summary: false,
+        format: ExportFormat::Json,
+        out: None,
         pretty: false,
         fail_fast: false,
     }

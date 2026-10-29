@@ -1,9 +1,9 @@
 # Hey Listen — Planning Docs
 
 Index of the design/planning documentation. These docs are the source of truth for
-design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M11, M14–M21, and the
-post-M6 backlog are done). M12–M13 (exports / templates) are **planned** — see
-[`exports.md`](exports.md) and [`templates.md`](templates.md); [`notes.md`](notes.md)
+design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M12, M14–M21, and the
+post-M6 backlog are done). M13 (templates) is **planned** — see
+[`templates.md`](templates.md); [`notes.md`](notes.md)
 (M14) and **M15** (code hygiene — the format/lint/dead-code gate) are delivered.
 **M16–M20** (pitch range, the frame-RMS envelope, note segmentation, the per-note
 voice-quality proxies, and AM/FM modulation spectra) are delivered — see

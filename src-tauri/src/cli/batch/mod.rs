@@ -18,6 +18,8 @@
 mod analyze;
 mod analyzers;
 mod args;
+mod export;
+mod export_args;
 mod notes;
 mod output;
 mod synth;

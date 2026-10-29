@@ -1,5 +1,6 @@
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
+import { exportAllOpenAnalyses, exportAnalysis, exportChart } from "../../lib/export";
 import {
   previewRegion,
   previewSpeed,
@@ -92,6 +93,7 @@ import {
   type Args,
 } from "./args";
 import { getState, noteSummary, sourceSummary } from "./inspect";
+import { exportFormat, exportFormats, exportTools } from "./export";
 
 /** Dispatch one tool by name. Throws (bubbled to the agent) on failure. */
 export async function run(tool: string, args: Args, target?: string): Promise<unknown> {
@@ -125,6 +127,30 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     // --- analysis -----------------------------------------------------------
     case "run_analysis":
       return runAnalysis(args);
+    case "export_analysis": {
+      const id = analyzerId(args);
+      const format = exportFormat(args);
+      const outcome = await exportAnalysis(id, format, {
+        path: optionalStr(args, "path") ?? undefined,
+        includeSidecar: optionalBool(args, "includeSidecar") ?? true,
+      });
+      return outcome ?? { cancelled: true };
+    }
+    case "export_chart": {
+      const id = analyzerId(args);
+      const path = await exportChart(id, optionalStr(args, "path") ?? undefined);
+      return { tool: id, format: "png", path, cancelled: path == null };
+    }
+    case "export_all": {
+      const dir = optionalStr(args, "dir");
+      if (!dir) throw new Error("`dir` is required");
+      const result = await exportAllOpenAnalyses({
+        dir,
+        formats: exportFormats(args),
+        tools: exportTools(args),
+      });
+      return result ?? { cancelled: true };
+    }
     case "set_analysis_window": {
       const span = setAnalysisWindow(num(args, "start"), num(args, "end"));
       return { window: span };

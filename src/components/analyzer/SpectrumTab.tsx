@@ -1,6 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { Show } from "solid-js";
+import { Show, onCleanup } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import ChartTooltip from "./ChartTooltip";
@@ -18,6 +18,7 @@ import {
 import { chartAxisStyle, frequencyRangeLabel, NoAudioState } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
 
 const Tooltip = (props: TooltipProps) => (
@@ -66,6 +67,11 @@ function logXRange(_u: unknown, min: number, max: number): [number, number] {
 export default function SpectrumTab() {
   const analysis = createAnalysis<SpectrumResult>("spectrum");
   const zoom = createUplotZoom("freq");
+
+  // Export the rendered spectrum (M12).
+  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
+  registerChartImage("spectrum", imageProvider);
+  onCleanup(() => unregisterChartImage("spectrum", imageProvider));
 
   /** A layer switch is a 0/1 select; default on when unset (e.g. an older project). */
   const layerOn = (key: LayerKey) => (toolOptions.spectrum?.[key] ?? 1) !== 0;

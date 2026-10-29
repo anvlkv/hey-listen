@@ -221,9 +221,9 @@ None of these are closable, draggable, or tabbed.
   re-created on project load.
 - Each analyzer tab has a **params popover** and an **about popover**.
 - Each analyzer tab has an **Export** popover — **data** (JSON / CSV), **chart** (PNG),
-  and copy-to-clipboard — and the tab context menu carries **Export ▸** (M12, planned);
-  an *Export all open analyses…* action writes every open tab to a folder. See
-  [`exports.md`](exports.md).
+  and copy-to-clipboard — and the tab context menu carries the same export entries
+  plus *Export all open analyses…*, which writes every open tab to a folder (M12).
+  See [`exports.md`](exports.md).
 - A **busy indicator** shows progress without blocking: the **first** computation
   (nothing to show yet) spins in the **centre** of the tab; a **recompute** (params
   or window change while a result is on screen) spins in the **bottom-right corner**

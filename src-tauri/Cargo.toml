@@ -34,6 +34,7 @@ tauri-plugin-clipboard-manager = "2" # write the copyable MCP config to the clip
 # capabilities — so the release binary the E2E suite drives is the shipped one.
 tauri-plugin-wdio = "1"
 tauri-plugin-wdio-webdriver = "1"
+base64 = "0.22"          # chart PNG bytes cross IPC base64-encoded (exports, M12)
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -22,6 +22,8 @@ pub use family::{about, family_of, Family};
 
 use serde_json::{json, Map, Value};
 
+use crate::audio::analysis::ToolOptions;
+
 /// One analyzer's agent-facing metadata (mirrors `AnalyzerDef` in the frontend,
 /// minus the view/params detail the webview needs).
 pub struct AnalyzerInfo {
@@ -55,6 +57,24 @@ pub fn option_defaults(id: &str) -> Map<String, Value> {
         .iter()
         .map(|option| (option.key.to_string(), json!(option.default)))
         .collect()
+}
+
+/// One tool's **effective** options: its declared defaults overlaid with the non-`null`
+/// fields set on `overrides`. Shared by `get_state`, `run_analysis`, and exports so
+/// every surface reports the same values — and so none leaks the all-`Option`
+/// [`ToolOptions`] struct, which would print every other tool's keys as `null`.
+pub fn effective_options(id: &str, overrides: Option<&ToolOptions>) -> Map<String, Value> {
+    let mut options = option_defaults(id);
+    if let Some(overrides) = overrides {
+        if let Ok(Value::Object(values)) = serde_json::to_value(overrides) {
+            for (key, value) in values {
+                if !value.is_null() {
+                    options.insert(key, value);
+                }
+            }
+        }
+    }
+    options
 }
 
 /// One analyzer's full detail, the shape `get_analyzer` returns. The `about` copy is

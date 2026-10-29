@@ -179,6 +179,7 @@ Add a `title` and `annotations` to every catalog entry. The `tool()` helper gain
 | Preview | `preview` / `stop_preview` | false | false | `preview` false, `stop_preview` true | false |
 | Source / project replace | `open_audio_file`, `render_synth`, `open_project`, `new_project`, `close_source` | false | true | false | true |
 | Project save | `save_project` | false | false | true | true |
+| Export files | `export_analysis`, `export_chart`, `export_all` | false | false | true | true |
 | Note mutation | `create_note`, `update_note`, `delete_note` | false | `delete_note` only | update/delete true | false |
 | Capture | `start_capture` / `stop_capture` | false | false | `start_capture` false, `stop_capture` true | true |
 | Theme / template I/O | `import_theme`, `export_theme`, `import_template`, `export_template` | false | import may overwrite | true | true |

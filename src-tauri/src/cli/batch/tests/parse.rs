@@ -1,6 +1,7 @@
 //! `Matches` → [`Request`] mapping (`build_request`).
 
 use super::*;
+use crate::export::ExportFormat;
 
 // --- Matches -> Request mapping --------------------------------------
 
@@ -187,6 +188,66 @@ fn summary_and_full_are_mutually_exclusive() {
         ("summary", json!(true)),
     ]);
     assert!(build_request("analyze", &m).unwrap().summary);
+}
+
+#[test]
+fn export_flags_are_parsed_and_validated() {
+    let dir = std::env::temp_dir();
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("format", json!("csv")),
+        ("out", json![dir.to_string_lossy().into_owned()]),
+    ]);
+    let request = build_request("analyze", &m).unwrap();
+    assert_eq!(request.format, ExportFormat::Csv);
+    assert!(matches!(request.out, Some(OutputTarget::Dir(_))));
+
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("csv", json!(true)),
+    ]);
+    let request = build_request("analyze", &m).unwrap();
+    assert_eq!(request.format, ExportFormat::Csv);
+
+    // CSV on stdout can only be one result.
+    let m = matches(&[
+        ("file", json!(["a.wav", "b.wav"])),
+        ("tool", json!(["levels"])),
+        ("csv", json!(true)),
+    ]);
+    assert!(build_request("analyze", &m)
+        .unwrap_err()
+        .contains("exactly one result"));
+
+    // A single output file likewise.
+    let m = matches(&[
+        ("file", json!(["a.wav", "b.wav"])),
+        ("tool", json!(["levels"])),
+        ("out", json!("out.csv")),
+    ]);
+    assert!(build_request("analyze", &m)
+        .unwrap_err()
+        .contains("exactly one result"));
+
+    // An export needs the data, not a summary.
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("summary", json!(true)),
+        ("out", json!("out.json")),
+    ]);
+    assert!(build_request("analyze", &m).is_err());
+
+    // `--format json --csv` is ambiguous.
+    let m = matches(&[
+        ("file", json!(["a.wav"])),
+        ("tool", json!(["levels"])),
+        ("format", json!("json")),
+        ("csv", json!(true)),
+    ]);
+    assert!(build_request("analyze", &m).is_err());
 }
 
 #[test]

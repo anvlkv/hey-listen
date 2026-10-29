@@ -412,12 +412,12 @@ export needs the rendered canvas and is **GUI-only** (`export_chart` answers "re
 app").
 
 **Consequence:** results become portable and reproducible across the UI, MCP and the
-batch CLI, with one serialisation rule instead of three. Costs: the CSV renderer must be
-kept in step between the Rust (headless/CLI) and frontend (UI) paths, and very wide
-matrices (high FFT / bin counts) are the format's nature, not a quirk. See
-[`exports.md`](exports.md).
+batch CLI, with one serialisation rule instead of three. The CSV renderer is **Rust-only**
+(the UI asks the core to render, then writes the returned text), so the app, MCP, and CLI
+cannot drift; very wide matrices (high FFT / bin counts) are the format's nature, not a
+quirk. See [`exports.md`](exports.md).
 
-**Status: planned (M12).**
+**Status: implemented (M12).**
 
 ## ADR-17 — Templates are source-less JSON presets with a window policy
 
