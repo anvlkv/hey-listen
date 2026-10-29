@@ -668,3 +668,50 @@ The CLI needs the compiled filter spec in `LAYOUT` to reproduce the app's condit
 See [`comparison.md`](comparison.md).
 
 **Status: proposed (M25).**
+
+## ADR-25 — Psychoacoustic analyzers are a calibrated, standards-honest layer over dBFS
+
+**Context:** perceptual descriptors (loudness, sharpness, roughness, fluctuation
+strength, masking) are defined over an **absolute sound-pressure axis (dB SPL)**, while
+the analysis engine conditions and reports every window in **dBFS**. The existing EBU
+R128 tools measure programme **level** in LUFS, not perceived loudness. Adding a
+perceptual layer therefore needs (a) an explicit dBFS → dB SPL mapping, (b) a choice of
+model per descriptor, and (c) an honest line between a standardized model, a published
+approximation of one, and a physical proxy.
+
+**Decision:**
+
+- Psychoacoustics is a **new layer** (`audio/analysis/psychoacoustics/`) that consumes
+the existing STFT / frame-RMS output. No fork of `oxiaudio` and no machine-learning
+models.
+- **Calibration is a per-tool option** `calibrationDbSpl` (the dB SPL of a full-scale
+sine). `0` means **uncalibrated**: the engine still runs the model, but the summary and
+readouts label the result relative, so a sone value is never presented as absolute
+without a reference. Nothing is added to `SharedParams` (postcard compatibility, ADR-6).
+- **One committed model per descriptor, named in the UI and docs:** ISO 532-2
+(Moore–Glasberg, stationary) for loudness, DIN 45692 for sharpness, a Daniel–Weber-style
+model for roughness, the Osses–García–Kohlrausch family for fluctuation strength, an
+MPEG-style tonal/non-tonal spread for masking, and ISO 226 tabulated contours for the
+equal-loudness overlay. Bark and ERB scales are both supported and are never treated as
+interchangeable.
+- **No conformance claims.** The published approximations implement the model families;
+the normative coefficients and conformance procedures may require purchase, so the copy
+says “model” / “proxy”, never “ISO-compliant”. The tonality ratio and the stereo cues are
+labelled **physical proxies**, not perceptual metrics, and no single “perceptual score”
+is assembled from these tools.
+- **Stereo is the one exception to channel selection.** `spatial` reads `Left`/`Right`
+before the shared channel param is applied (every other tool conditions to mono first),
+and returns no result for a mono source.
+- **Result families reuse the existing shapers:** `criticalBands` / `specificLoudness`
+are matrices, `masking` is a spectrum overlay, the rest are series. MCP/CLI catalog,
+option metadata, compaction, and CLI `-o` follow the M21 contract unchanged.
+
+**Consequence:** the perceptual tools are honest about their assumptions (calibration
+and model choice are explicit), land without a project-file schema bump, and reuse the
+chart and MCP/CLI plumbing. The cost is a per-tool calibration knob duplicated across
+the loudness family (like the per-tool f0 range in M16), a documented stereo bypass, and
+a heavier `roughness`/`fluctuationStrength` pipeline. A shared app-level calibration
+control can fan out to the per-tool options later without a schema change. See
+[`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
+
+**Status: proposed (M26–M31).**
