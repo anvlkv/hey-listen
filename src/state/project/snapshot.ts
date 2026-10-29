@@ -5,7 +5,7 @@ import { invoke } from "../../lib/ipc";
 import { sharedParams } from "../analysis";
 import { toolOptions } from "../analyzer";
 import { choice, deviceId, gain, mixMicDeviceId, mixSystemDeviceId, targetPid } from "../capture";
-import { filterEnabled, graphLayout, SYNTH_GRAPH } from "../graph";
+import { filterActive, filterEnabled, graphLayout, FILTER_GRAPH, SYNTH_GRAPH } from "../graph";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { layoutJson, openTools } from "../workbench";
@@ -71,6 +71,10 @@ export async function currentLayout(): Promise<LayoutDto> {
     dockview: layoutJson(),
     graphs: { filter: graphLayout("filter"), synth: graphLayout("synth") },
     popouts,
+    // The **compiled** filter, so the CLI's `compare` conditions each side exactly like
+    // the app (M25). `null` when no filter is applied. Older files lack the key and
+    // compare unfiltered, with a warning.
+    filterSpec: filterActive() ? toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges) : null,
   };
 }
 

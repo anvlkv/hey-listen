@@ -281,7 +281,7 @@ Both windows drive the same core state:
   for source/UI state, but it is never recorded in `LAYOUT.popouts` and is closed with
   the project's other views (`close_popouts`).
 
-### Two projects, one comparison (M25, planned)
+### Two projects, one comparison (M25)
 
 A comparison is the only cross-project **audio** read in the core. The owner window (A) calls
 `run_comparison` with a reference **label** (B) and each side's setup; the core resolves
@@ -289,7 +289,8 @@ both `WindowState`s and runs the tool twice through `analysis::run_window`, so e
 uses its own PCM and filter. Nothing is written to either project and B's UI state is
 never changed. `compare_peer_setup` / `compare_live` are the narrow reads (B's
 window/params/options, both playheads, B's cursor and a revision) that let A follow B
-while the compare view is open. See [`comparison.md`](comparison.md) and ADR-24.
+while the compare view is open. The engine itself (`audio/analysis/compare/`) is
+`tauri`-free and unit-tested. See [`comparison.md`](comparison.md) and ADR-24.
 
 > **Not a second track.** ADR-3/ADR-9 stay as they are: the second analysis setup is a
 > second **project**, not a second source in one project.

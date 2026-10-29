@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
 import AboutDialog from "./components/AboutDialog";
+import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
 import NotesPanel from "./components/NotesPanel";
 import Sidebar from "./components/Sidebar";
 import SourcePanel from "./components/SourcePanel";
@@ -196,6 +197,8 @@ export default function App() {
         </div>
       </Show>
       <AboutDialog open={aboutOpen()} onOpenChange={setAboutOpen} />
+      <ComparePicker />
+      <CompareNotice />
     </div>
   );
 }

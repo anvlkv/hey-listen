@@ -6,28 +6,13 @@ use tauri_plugin_cli::Matches;
 
 use crate::audio::analysis::canonical_option_key;
 use crate::audio::analyzers;
-use crate::audio::graph::{self, GraphSpec};
 
 use super::export_args;
-use super::types::{Command, OptionPatch, Request, WindowSpec};
+use super::inputs::{parse_params, read_filter_graph, read_synth_graph, read_windows, split_kv};
+use super::types::{Command, OptionPatch, Request};
 
 /// The batch subcommands, matching the `plugins.cli` definitions in `tauri.conf.json`.
-const SUBCOMMANDS: [&str; 4] = ["analyzers", "analyze", "synth", "notes"];
-
-/// The shared-param keys `-p` accepts (the same keys MCP's `set_shared_params` takes).
-const SHARED_PARAM_KEYS: [&str; 8] = [
-    "fftSize",
-    "hop",
-    "randomizedOverlap",
-    "windowFn",
-    "channel",
-    "resampleTo",
-    "freqMinHz",
-    "freqMaxHz",
-];
-
-/// The values `windowFn` accepts (`docs/analysis-tools.md`).
-const WINDOW_FNS: [&str; 4] = ["hann", "hamming", "blackman", "rectangular"];
+const SUBCOMMANDS: [&str; 5] = ["analyzers", "analyze", "synth", "notes", "compare"];
 
 /// Whether `name` is a batch subcommand (used to tell a real usage error from a
 /// `.heyl` file path that the plugin's parser rejected).
@@ -74,6 +59,15 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 full: flag(matches, "full"),
             };
         }
+        "compare" => {
+            let a = string(matches, "a").ok_or(
+                "compare needs two project files: `hey-listen compare A.heyl B.heyl -t TOOL`",
+            )?;
+            let b = string(matches, "b").ok_or(
+                "compare needs two project files: `hey-listen compare A.heyl B.heyl -t TOOL`",
+            )?;
+            request.command = Command::Compare { a, b };
+        }
         other => return Err(format!("unknown subcommand: {other}")),
     }
     validate(&request)?;
@@ -90,6 +84,11 @@ fn common(matches: &Matches) -> Result<Request, String> {
         all: flag(matches, "all"),
         start: optional_number(matches, "start")?,
         end: optional_number(matches, "end")?,
+        a_start: optional_number(matches, "a-start")?,
+        a_end: optional_number(matches, "a-end")?,
+        b_start: optional_number(matches, "b-start")?,
+        b_end: optional_number(matches, "b-end")?,
+        overlap: flag(matches, "overlap"),
         windows: match string(matches, "windows") {
             Some(path) => read_windows(&path)?,
             None => Vec::new(),
@@ -137,6 +136,14 @@ fn validate(request: &Request) -> Result<(), String> {
             }
         }
         Command::Notes { .. } => {}
+        Command::Compare { .. } => {
+            if request.tools.is_empty() && !request.all {
+                return Err("compare needs `-t <TOOL>` (or `--all`)".into());
+            }
+            if !request.windows.is_empty() {
+                return Err("compare does not take `--windows`; use --start/--end".into());
+            }
+        }
     }
     if request.pretty && result_count(request) != 1 {
         return Err("--pretty prints a single result; give exactly one file and one tool".into());
@@ -154,6 +161,7 @@ pub(super) fn result_count(request: &Request) -> usize {
         Command::Analyze => request.files.len() * window_result_count(request),
         Command::Synth { .. } => tool_count(request),
         Command::Notes { .. } => 0,
+        Command::Compare { .. } => tool_count(request),
     }
 }
 
@@ -228,67 +236,6 @@ fn optional_number(matches: &Matches, name: &str) -> Result<Option<f64>, String>
     }
 }
 
-/// Split a `K=V` token, parsing `V` into a JSON value.
-fn split_kv(token: &str) -> Result<(String, Value), String> {
-    let (key, value) = token
-        .split_once('=')
-        .ok_or_else(|| format!("expected K=V, got `{token}`"))?;
-    if key.is_empty() {
-        return Err(format!("empty key in `{token}`"));
-    }
-    Ok((key.to_string(), parse_value(value)))
-}
-
-/// Parse a flag/value string into JSON: `true`/`false` → bool, `none`/`null` → null,
-/// an integer → number, a float → number, anything else → string.
-fn parse_value(text: &str) -> Value {
-    match text {
-        "true" => Value::Bool(true),
-        "false" => Value::Bool(false),
-        "none" | "null" => Value::Null,
-        _ => {
-            if let Ok(int) = text.parse::<i64>() {
-                Value::from(int)
-            } else if let Ok(float) = text.parse::<f64>() {
-                Value::from(float)
-            } else {
-                Value::String(text.to_string())
-            }
-        }
-    }
-}
-
-fn parse_params(tokens: &[String]) -> Result<Vec<(String, Value)>, String> {
-    let mut params = Vec::new();
-    for token in tokens {
-        let (key, value) = split_kv(token)?;
-        if !SHARED_PARAM_KEYS.contains(&key.as_str()) {
-            return Err(format!("unknown shared param: {key}"));
-        }
-        validate_param(&key, &value)?;
-        params.push((key, value));
-    }
-    Ok(params)
-}
-
-fn validate_param(key: &str, value: &Value) -> Result<(), String> {
-    let ok = match key {
-        "fftSize" => value.as_u64().is_some(),
-        "hop" | "freqMinHz" | "freqMaxHz" => value.as_f64().is_some(),
-        "randomizedOverlap" => value.is_boolean(),
-        "windowFn" => value
-            .as_str()
-            .is_some_and(|name| WINDOW_FNS.contains(&name)),
-        "channel" | "resampleTo" => value.is_null() || value.as_u64().is_some(),
-        _ => false,
-    };
-    if ok {
-        Ok(())
-    } else {
-        Err(format!("bad value for shared param {key}: {value}"))
-    }
-}
-
 /// Parse `-o` patches. A token is `[TOOL.]KEY=VALUE`; a bare `KEY=VALUE` is scoped to
 /// the sole `--tool` (there is no other way to tell which tool it belongs to, since the
 /// plugin's matches do not preserve the order of flags on the command line).
@@ -319,73 +266,4 @@ fn parse_option_patches(tokens: &[String], tools: &[String]) -> Result<Vec<Optio
         });
     }
     Ok(patches)
-}
-
-fn read_graph(path: &str) -> Result<GraphSpec, String> {
-    let text = std::fs::read_to_string(path).map_err(|err| format!("cannot read {path}: {err}"))?;
-    serde_json::from_str::<GraphSpec>(&text).map_err(|err| format!("invalid graph {path}: {err}"))
-}
-
-/// Read a `--windows` list: one `start,end[,tool…]` per line, `#` comments allowed.
-fn read_windows(path: &str) -> Result<Vec<WindowSpec>, String> {
-    let text = std::fs::read_to_string(path).map_err(|err| format!("cannot read {path}: {err}"))?;
-    let mut windows = Vec::new();
-    for (index, raw) in text.lines().enumerate() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let line_number = index + 1;
-        let fields: Vec<&str> = line.split(',').map(str::trim).collect();
-        if fields.len() < 2 {
-            return Err(format!(
-                "{path}:{line_number}: expected `start,end[,tool…]`, got `{line}`"
-            ));
-        }
-        let start = fields[0]
-            .parse::<f64>()
-            .map_err(|_| format!("{path}:{line_number}: invalid start `{}`", fields[0]))?;
-        let end = fields[1]
-            .parse::<f64>()
-            .map_err(|_| format!("{path}:{line_number}: invalid end `{}`", fields[1]))?;
-        if !start.is_finite() || !end.is_finite() || end <= start {
-            return Err(format!(
-                "{path}:{line_number}: the window must be finite with end > start ({start}, {end})"
-            ));
-        }
-        let tools: Vec<String> = fields[2..]
-            .iter()
-            .filter(|name| !name.is_empty())
-            .map(|name| (*name).to_string())
-            .collect();
-        for tool in &tools {
-            if !analyzers::is_analyzer(tool) {
-                return Err(format!("{path}:{line_number}: unknown analyzer: {tool}"));
-            }
-        }
-        windows.push(WindowSpec { start, end, tools });
-    }
-    if windows.is_empty() {
-        return Err(format!(
-            "{path}: no windows (one `start,end[,tool…]` per line)"
-        ));
-    }
-    Ok(windows)
-}
-
-/// Read a `--filter` graph and check that it compiles as a filter (one global input).
-fn read_filter_graph(path: &str) -> Result<GraphSpec, String> {
-    let spec = read_graph(path)?;
-    if !spec.is_empty() {
-        graph::build(&spec, 1, 48_000)
-            .map_err(|err| format!("invalid filter graph {path}: {err}"))?;
-    }
-    Ok(spec)
-}
-
-/// Read a `synth` graph and check that it compiles as a synth (no global input).
-fn read_synth_graph(path: &str) -> Result<GraphSpec, String> {
-    let spec = read_graph(path)?;
-    graph::build(&spec, 0, 48_000).map_err(|err| format!("invalid synth graph {path}: {err}"))?;
-    Ok(spec)
 }

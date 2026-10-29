@@ -1,7 +1,11 @@
 import { createSignal } from "solid-js";
 import { invoke } from "../lib/ipc";
+import { sanitizeLayout } from "../lib/dockviewLayout";
 import type { DockviewApi, SerializedDockview } from "dockview";
-import { ANALYZERS, isAnalyzerId, type AnalyzerId } from "./analyzer";
+import { ANALYZERS } from "./analyzer/defs";
+import { isAnalyzerId } from "./analyzer/lookup";
+import type { AnalyzerId } from "./analyzer/types";
+import { isCompareId } from "./compare/id";
 
 /**
  * Workbench tab registry.
@@ -57,10 +61,10 @@ export function toolById(id: ToolId): ToolDef {
 export const [dockApi, setDockApi] = createSignal<DockviewApi | null>(null);
 export const [openTools, setOpenTools] = createSignal<ToolId[]>([]);
 
-/** The focused Workbench tool id, or `null` when nothing is focused. */
+/** The focused Workbench tool id, or `null` when nothing (or a compare view) is focused. */
 export function focusedTool(): ToolId | null {
   const id = dockApi()?.activePanel?.id;
-  return id ? (id as ToolId) : null;
+  return id && !isCompareId(id) ? (id as ToolId) : null;
 }
 
 /** The focused **analyzer** tab, or `null` (a graph tab, or nothing focused). */
@@ -125,14 +129,22 @@ export async function popoutTool(id: ToolId) {
   }
 }
 
-/** The open Workbench tab ids, in dockview order. */
+/** The open Workbench **tool** tab ids, in dockview order (compare views excluded). */
 function syncOpenTools(api: DockviewApi) {
-  setOpenTools(api.panels.map((panel) => panel.id as ToolId));
+  setOpenTools(
+    api.panels.filter((panel) => !isCompareId(panel.id)).map((panel) => panel.id as ToolId),
+  );
 }
 
-/** Snapshot the Workbench (dockview) layout for the project file, or `null`. */
+/**
+ * Snapshot the Workbench (dockview) layout for the project file, or `null`.
+ *
+ * **Compare panels are stripped here**, so every consumer of the layout — the saved
+ * project, the undo history and the dirty signature — sees the project as if no
+ * comparison were open (M25, ADR-24). This is the one place that enforces it.
+ */
 export function layoutJson(): SerializedDockview | null {
-  return dockApi()?.toJSON() ?? null;
+  return sanitizeLayout(dockApi()?.toJSON() ?? null, isCompareId);
 }
 
 /** Restore the Workbench layout from a saved project (`null` clears it). */

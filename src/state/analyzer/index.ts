@@ -9,7 +9,7 @@
  * `results` (latest-result signals), `options` (per-tool options), and `analysis`
  * (the debounced runner).
  */
-export { ANALYZERS, ANALYZER_SECTIONS } from "./defs";
+export { ANALYZER_SECTIONS } from "./defs";
 export { formatHz } from "./format";
 export { analyzerById, analyzersInSection, isAnalyzerId, matchesQuery } from "./lookup";
 export { latestResult } from "./results";

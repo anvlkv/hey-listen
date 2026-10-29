@@ -42,6 +42,43 @@ fn analyze_maps_files_tools_params_and_window() {
 }
 
 #[test]
+fn compare_maps_two_projects_its_tools_and_window_overrides() {
+    let m = matches(&[
+        ("a", json!("a.heyl")),
+        ("b", json!("b.heyl")),
+        ("tool", json!(["spectrum"])),
+        ("a-start", json!("1")),
+        ("b-end", json!("2")),
+        ("overlap", json!(true)),
+    ]);
+    let request = build_request("compare", &m).unwrap();
+    assert!(
+        matches!(&request.command, Command::Compare { a, b } if a == "a.heyl" && b == "b.heyl")
+    );
+    assert_eq!(request.tools, ["spectrum"]);
+    assert_eq!(request.a_start, Some(1.0));
+    assert_eq!(request.b_end, Some(2.0));
+    assert!(request.overlap);
+}
+
+#[test]
+fn compare_needs_both_projects_and_a_tool() {
+    let one_file = matches(&[("a", json!("a.heyl")), ("tool", json!(["levels"]))]);
+    assert!(build_request("compare", &one_file).is_err());
+
+    let no_tool = matches(&[("a", json!("a.heyl")), ("b", json!("b.heyl"))]);
+    assert!(build_request("compare", &no_tool).is_err());
+
+    // `--all` satisfies the tool requirement.
+    let all = matches(&[
+        ("a", json!("a.heyl")),
+        ("b", json!("b.heyl")),
+        ("all", json!(true)),
+    ]);
+    assert!(build_request("compare", &all).is_ok());
+}
+
+#[test]
 fn analyze_needs_a_file_and_a_tool() {
     assert!(build_request("analyze", &matches(&[])).is_err());
 

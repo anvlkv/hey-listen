@@ -34,6 +34,12 @@ export interface ChartTheme {
   seriesMax: string;
   /** Spectrum "mean" layer stroke. */
   seriesMean: string;
+  /** Comparison series A (the owner project). */
+  compareA: string;
+  /** Comparison series B (the reference project). */
+  compareB: string;
+  /** The comparison's Δ line / bars. */
+  compareDelta: string;
   /** Waveform envelope band fill / area fill for series. */
   waveFill: string;
   /** Horizontal reference line on a chart (targets such as −14 LUFS, or 0 dBFS). */

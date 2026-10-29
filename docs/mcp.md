@@ -125,7 +125,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
 | `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a uniform `times` as `{ start, hop, length, end }`. **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
-| `compare_analysis` | Compare **the same tool** on two open projects: `with` names the reference window, `target` the owner (default: focused). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, and `diff` is omitted when the grids differ. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the transient compare view. App-only. **(M25, planned)** See [`comparison.md`](comparison.md). |
+| `compare_analysis` | Compare **the same tool** on two open projects: `with` names the reference window, `target` the owner (default: focused). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, and `diff` is omitted when the grids differ. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the transient compare view. App-only. **(M25)** See [`comparison.md`](comparison.md). |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -178,8 +178,9 @@ window/params/options/filter, and the response reports `comparability` (`aligned
 `overlap`, `mismatches`, `filtersDiffer`) so an agent can tell whether `diff` is
 numerically meaningful. The core compares **every** analyzer family in M25; the GUI's
 compare *views* for matrix/event/modulation/waveform land in M25.A, so an agent can diff
-them before a chart exists. The comparison view is **not** saved. Headless mode answers
-*requires the app*; use the CLI `compare` on two project files instead.
+them before a chart exists. The comparison view is **not** saved: `get_state` reports it
+as `compare: [{ tool, with }]` (never in `openTools`). Headless mode answers *requires
+the app*; use the CLI `compare` on two project files instead.
 
 ## Protocol notes
 

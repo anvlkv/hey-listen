@@ -4,6 +4,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { redo, undo } from "./history";
 import { openPath } from "./source";
+import { chooseCompareReference, showCompareNotice } from "./compare/picker";
+import { focusedAnalyzer } from "./workbench";
 import {
   dirty,
   isEmptyProject,
@@ -109,6 +111,19 @@ export async function initMenu() {
         case "about":
           setAboutOpen(true);
           break;
+        case "compare": {
+          // Analysis → Compare with… acts on the focused analyzer tab; with none, a
+          // transient hint instead of a dialog (M25).
+          const tool = focusedAnalyzer();
+          if (!tool) {
+            showCompareNotice(
+              "Focus an analyzer tab (Spectrum, a series tool, or a readout), then compare.",
+            );
+            break;
+          }
+          void chooseCompareReference(tool);
+          break;
+        }
       }
     });
 

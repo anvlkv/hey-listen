@@ -68,7 +68,7 @@ registerUiState("focusedNoteId", (value) => {
   setFocusedNoteId((value as string | null) ?? null);
 });
 
-for (const group of ["time", "freq"] as const) {
+for (const group of ["time", "freq", "mod"] as const) {
   registerUiState(`view:${group}`, (value) => {
     analyzerBus.setData(
       "view",
@@ -81,7 +81,7 @@ for (const group of ["time", "freq"] as const) {
 // mirrors the pointer in a popped-out one and back. Tagged per group like the views, so
 // a frequency cursor never lands on a time chart. The local publishes come from the
 // charts (`chartInteraction` / `mirrorCursor`); this only carries them across windows.
-for (const group of ["time", "freq"] as const) {
+for (const group of ["time", "freq", "mod"] as const) {
   registerUiState(`cursor:${group}`, (value) => {
     analyzerBus.setData("cursorSync", {
       sourceId: REMOTE_VIEW,
@@ -116,7 +116,7 @@ export async function initUiState(): Promise<void> {
         pushUiState("project", { name: projectDisplayName() } satisfies ProjectState),
       );
     }
-    for (const group of ["time", "freq"] as const) {
+    for (const group of ["time", "freq", "mod"] as const) {
       createEffect(() => {
         // Read every field of the message in every run (`readBusMessage`): returning early
         // on a constant tag would drop the position from this effect's dependencies.

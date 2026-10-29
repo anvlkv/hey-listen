@@ -34,6 +34,8 @@ pub enum Command {
         json: bool,
         full: bool,
     },
+    /// `compare <A.heyl> <B.heyl> -t TOOL` — diff one tool across two project files.
+    Compare { a: String, b: String },
 }
 
 /// One per-tool option patch, scoped to a tool.
@@ -68,6 +70,13 @@ pub struct Request {
     pub all: bool,
     pub start: Option<f64>,
     pub end: Option<f64>,
+    /// Per-side window overrides for `compare` (`--a-start` / `--b-end`, …).
+    pub a_start: Option<f64>,
+    pub a_end: Option<f64>,
+    pub b_start: Option<f64>,
+    pub b_end: Option<f64>,
+    /// Clip both sides to their absolute-time intersection (`compare --overlap`).
+    pub overlap: bool,
     /// Per-window analysis list (`--windows FILE`); empty for a single window.
     pub windows: Vec<WindowSpec>,
     /// Shared-param patches (`-p K=V`).

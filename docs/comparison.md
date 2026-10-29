@@ -1,4 +1,4 @@
-# Cross-project comparison (M25, planned)
+# Cross-project comparison (M25)
 
 Compare **the same analysis tool** on two independently open projects. Each project
 keeps its own source, filter, synth, timeline, analysis window, shared params and tool
@@ -372,3 +372,23 @@ completes the visual matrix.
 
 > **Decision:** comparisons are transient cross-project views computed by the core, not a
 > second track and not project content. See ADR-24.
+
+> **Delivered (M25).** The contract above is implemented end to end; the remaining
+> views (matrix, rhythm/events, `noteMetrics`, modulation, waveform) are M25.A. Notes
+> from delivery:
+>
+> - `aligned` is `mismatches.is_empty()` **and** (for series/events/notes) an overlap.
+>   A mismatch therefore suppresses the delta for **every** family, including a scalar
+>   readout — a readout comparison is numeric only when rate, channel and the tool's
+>   grid options agree.
+> - `filtersDiffer` is reported but does not suppress the delta: each side runs with
+>   its own filter, as processed.
+> - The two runs execute sequentially on the blocking pool.
+> - The compare tab starts as `Compare: <Tool>`; its title gains the two project names
+>   when the first comparison resolves.
+> - The reference picker is a modal dialog (tab menu → *Compare with…*, Analysis menu →
+>   *Compare with…*), and the header carries a reference select for retargeting.
+> - A compare popout's window label is `compare-<n>`; it is registered with
+>   `(tool, reference)` and never appears in `popout_tools_of`.
+> - `LAYOUT.filterSpec` is written on save whenever a filter is applied; the CLI falls
+>   back to an unfiltered comparison (with a stderr warning) when it is absent.

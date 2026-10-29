@@ -12,6 +12,7 @@
 //! (project files + notes), and [`themes`] — assembled here. [`schema`] holds the
 //! shared constructors.
 
+mod compare;
 mod export;
 mod observe;
 mod project;
@@ -31,6 +32,7 @@ use schema::add_target_property;
 pub fn list() -> Vec<Value> {
     let mut tools = observe::tools();
     tools.extend(source::tools());
+    tools.extend(compare::tools());
     tools.extend(workbench::tools());
     tools.extend(project::tools());
     tools.extend(export::tools());

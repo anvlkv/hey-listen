@@ -5,6 +5,7 @@
 //! project rather than a project of its own (ADR-11). See `docs/decisions.md`.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tauri::Manager;
@@ -12,6 +13,10 @@ use tauri::Manager;
 use crate::audio::capture::CaptureHandle;
 
 use super::AudioState;
+
+mod compare;
+
+pub use compare::CompareView;
 
 // ---------------------------------------------------------------------------
 // Per-window state (one window = one project = one source, ADR-3)
@@ -29,9 +34,12 @@ pub struct WindowState {
     pub capture: Mutex<Option<CaptureHandle>>,
     /// The project's shared **UI state** (timeline window/view, analysis params,
     /// per-tool options and chart views, project name, popped-out tools). The
-    /// frontend owns the shape; the core just stores and broadcasts it, so every
+    /// The frontend owns the shape; the core just stores and broadcasts it, so every
     /// window of a project (the main window and its popouts) stays in sync.
     pub ui: Mutex<HashMap<String, serde_json::Value>>,
+    /// Bumped on every UI-state change, so a peer comparison can tell that a project
+    /// moved without polling its whole setup (M25).
+    ui_revision: AtomicU64,
 }
 
 impl WindowState {
@@ -40,6 +48,7 @@ impl WindowState {
             audio: AudioState::new(),
             capture: Mutex::new(None),
             ui: Mutex::new(HashMap::new()),
+            ui_revision: AtomicU64::new(0),
         }
     }
 
@@ -50,7 +59,14 @@ impl WindowState {
             return false;
         }
         ui.insert(key.to_string(), value);
+        self.ui_revision.fetch_add(1, Ordering::Relaxed);
         true
+    }
+
+    /// The project's revision: UI plus audio changes, monotonic within a process.
+    /// A comparison polls it and re-runs when it moves (M25).
+    pub fn revision(&self) -> u64 {
+        self.ui_revision.load(Ordering::Relaxed) + self.audio.revision()
     }
 
     /// Snapshot the whole UI state (what a freshly opened window pulls on load).
@@ -88,6 +104,9 @@ struct RegistryInner {
     popout_tools: HashMap<String, String>,
     /// Popout label → note id shown in that popout.
     popout_notes: HashMap<String, String>,
+    /// Popout label → the **compare** view it shows (M25). Kept apart from the tool
+    /// map so a compare popout is never saved, restored or raised as a tool popout.
+    popout_compares: HashMap<String, CompareView>,
 }
 
 #[derive(Default)]
@@ -109,6 +128,19 @@ impl WindowRegistry {
             .entry(current)
             .or_insert_with(|| Arc::new(WindowState::new()))
             .clone()
+    }
+
+    /// The existing state for `label`, **without** creating one.
+    ///
+    /// Peer reads (a comparison's reference project) must resolve against live state:
+    /// a closed project is an error, never a lazily created empty window (M25).
+    pub fn peek(&self, label: &str) -> Option<Arc<WindowState>> {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let current = resolve_root(&inner.aliases, label);
+        inner.states.get(&current).cloned()
     }
 
     /// Follow the popout alias chain to the owning (project) window label.
@@ -254,6 +286,7 @@ impl WindowRegistry {
             inner.aliases.remove(label);
             inner.popout_tools.remove(label);
             inner.popout_notes.remove(label);
+            inner.popout_compares.remove(label);
             inner.aliases.retain(|_, parent| parent != label);
             inner.states.remove(label)
         };

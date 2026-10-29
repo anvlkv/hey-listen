@@ -106,6 +106,11 @@ impl HeadlessSession {
             "new_project" => self.new_project(),
             "set_filter_graph" => self.set_filter_graph(&args),
             "run_analysis" => self.run_analysis(&args),
+            "compare_analysis" => Err(
+                "`compare_analysis` requires the app — a comparison needs two live project \
+                 windows. Use the CLI `compare A.heyl B.heyl -t TOOL` for a windowless diff."
+                    .to_string(),
+            ),
             "export_analysis" => self.export_analysis(&args),
             "export_all" => self.export_all(&args),
             "export_chart" => Err(

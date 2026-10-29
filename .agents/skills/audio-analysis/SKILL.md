@@ -92,7 +92,8 @@ Compute (works headless and bridged): `get_state`, `list_analyzers`, `get_analyz
 
 UI-only ("requires the app" headless): `open_tool` / `close_tool`, `get_graph`,
 `set_synth_graph`, `preview` / `stop_preview`, `set_output_gain`,
-`start_capture` / `stop_capture`, `list_projects` (server), the note tools (`list_notes`,
+`start_capture` / `stop_capture`, `list_projects` (server), `compare_analysis`,
+the note tools (`list_notes`,
 `get_note`, `create_note`, `update_note`, `delete_note`, `set_focused_note`), and
 `set_theme` (installed themes).
 
@@ -213,6 +214,7 @@ Commands:
   analyze                   Decode file(s) and run analyzer(s) over them
   synth                     Render a synth graph and (optionally) analyze the result
   notes                     List the notes in a project file (.heyl)
+  compare A.heyl B.heyl     Diff one analyzer across two saved projects
 
 Options:
   -m, --mcp      Run the stdio MCP entry instead of the GUI
@@ -250,6 +252,31 @@ not 1k process startups.
 
 `notes <FILE.heyl>` lists a project's notes sorted by time (`--json` = JSONL,
 `--full` = full markdown body). Read-only.
+
+### `compare <A.heyl> <B.heyl>`
+
+Diff **the same analyzer** across two saved projects (M25). Each side uses its saved
+window, shared params, tool options and `LAYOUT.filterSpec`; the reference project is
+never modified.
+
+```bash
+hey-listen compare before.heyl after.heyl -t spectrum --summary
+hey-listen compare a.heyl b.heyl -t levels -t loudnessIntegrated --overlap
+```
+
+| Option | Meaning |
+| --- | --- |
+| `-t, --tool <ID>` | Analyzer id; repeatable, one line per tool. Required unless `--all`. |
+| `--all` | Every analyzer. |
+| `--start` / `--end` | Override both sides' windows. |
+| `--a-start` / `--a-end` / `--b-start` / `--b-end` | Override one side's window. |
+| `--overlap` | Clip both sides to their absolute-time intersection. |
+| `-p` / `-o` / `--filter` | Patch params/options, or override the saved filters, on both sides. |
+| `--full` / `--summary` | Delta arrays, or summaries + diff stats only. |
+
+Each line is `{tool, a, b, comparability, diff}`; `diff` is **absent** when the grids
+differ (`comparability.mismatches` says why). Only project files — `analyze` covers raw
+audio.
 
 ### Output, exit codes, examples
 
