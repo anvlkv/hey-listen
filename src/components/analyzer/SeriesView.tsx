@@ -1,7 +1,7 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
-import { createSignal, For, Show, untrack } from "solid-js";
+import { createSignal, For, Show, untrack, onCleanup } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -27,6 +27,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
@@ -112,6 +113,20 @@ export default function SeriesView(props: {
   const result = () => props.analysis.result() as SeriesResult | null;
   const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
+
+  // Export the rendered chart (M12). Re-evaluated on demand, so a resize/zoom is
+  // captured exactly as it is on screen.
+  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
+  registerChartImage(
+    untrack(() => props.id),
+    imageProvider,
+  );
+  onCleanup(() =>
+    unregisterChartImage(
+      untrack(() => props.id),
+      imageProvider,
+    ),
+  );
 
   // The registry's formatter is static for a tool, so build the tooltip once.
   const Tooltip = timeTooltip(untrack(() => view().formatY));

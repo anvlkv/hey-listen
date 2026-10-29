@@ -105,8 +105,8 @@ Decode each file and run one or more analyzers over a window.
 | `--summary` | Emit the summary only (`{ file, window, params, options, summary }`), without result arrays. Mutually exclusive with `--full`. **(M21)** |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
 | `--fail-fast` | Stop at the first failing file/tool (default: run the whole batch and report). |
-| `--format <json\|csv>` | Output format (default `json`, the JSONL shape below); `--csv` is shorthand. CSV is a **wide matrix** for the 2D tools (M12, planned). |
-| `--out <FILE\|DIR>` | Write to a file (a single result) or a directory (one file per result) instead of stdout (M12, planned). |
+| `--format <json\|csv>` | Output format. `json` (the default) keeps the JSONL shape below on stdout; with `--out` it writes a **provenance envelope** per result. `csv` is a **wide matrix** for the 2D tools, plus a `.meta.json` sidecar. `--csv` is shorthand. **(M12)** |
+| `--out <FILE\|DIR>` | Write to a file (exactly one result) or a directory (one file per result, `<source>.<tool>.<ext>`) instead of stdout. **(M12)** |
 | `--template <FILE.heyltemplate>` | Apply a template's shared params, per-tool options, filter graph, and window policy before running (M13, planned). |
 
 Analyzer ids are **not** enumerated in `plugins.cli` (that would duplicate the catalog
@@ -324,13 +324,17 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
   graph, list the catalog, with shared params / per-tool options / a filter graph.
 - `notes` — read a saved project's notes (M14; read-only).
 
-Planned in the compute subset (M12/M13):
+Planned in the compute subset (M13):
 
-- **Data export formats** — `--format csv` and `--out`, sharing the **same wide-matrix
-  renderer** the UI uses (so the CLI and the app emit byte-identical CSV), and
-  `--template` to apply a saved setup before analysis. The **chart-PNG** export is
-  GUI-only and is not offered here. See [`exports.md`](exports.md) and
-  [`templates.md`](templates.md).
+- `--template` to apply a saved setup before analysis. The **chart-PNG** export is
+  GUI-only and is not offered here. See [`templates.md`](templates.md).
+
+Delivered in the compute subset (M12):
+
+- **Data exports** — `--format csv` / `--out` share the **same Rust renderer** the UI
+  uses, so the CLI and the app emit byte-identical CSV and JSON envelopes. A CSV
+  written by `--out` also writes its `<name>.meta.json` sidecar. See
+  [`exports.md`](exports.md).
 
 Planned in the compute subset (M21):
 

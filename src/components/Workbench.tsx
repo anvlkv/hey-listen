@@ -9,6 +9,8 @@ import "dockview/dist/styles/dockview.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
 import ToolContent from "./ToolContent";
+import { exportAllOpenAnalyses, exportAnalysis, exportChart } from "../lib/export";
+import { isAnalyzerId } from "../state/analyzer";
 import { source } from "../state/source";
 import { resolvedTheme } from "../state/themes";
 import { setDockApi, setOpenTools, popoutTool, type ToolId } from "../state/workbench";
@@ -22,6 +24,11 @@ import { setDockApi, setOpenTools, popoutTool, type ToolId } from "../state/work
  * dockview unmounts it (the graph state lives in `state/graph.ts` and analyzer
  * results are re-derived, so closing a tab is safe).
  */
+
+/** A tab-menu export has no panel to report into; log rather than swallow it. */
+function reportExportError(error: unknown): void {
+  console.error("export failed", error);
+}
 
 /** The watermark (no Workbench tabs open) — it guides toward the next step. */
 function WatermarkHint() {
@@ -106,8 +113,31 @@ export default function Workbench() {
         if (id === "filter" || id === "synth") {
           return [{ label: "Close tab", action: () => panel.api.close() }];
         }
+        const tool = isAnalyzerId(id) ? id : null;
         return [
           { label: "Pop out to window", action: () => void popoutTool(id) },
+          // Exports (M12): the same actions as the tab's Export popover. Errors are
+          // reported in the popover; a menu action has nowhere to show them, so log.
+          ...(tool
+            ? [
+                {
+                  label: "Export data (JSON)…",
+                  action: () => void exportAnalysis(tool, "json").catch(reportExportError),
+                },
+                {
+                  label: "Export data (CSV)…",
+                  action: () => void exportAnalysis(tool, "csv").catch(reportExportError),
+                },
+                {
+                  label: "Export chart (PNG)…",
+                  action: () => void exportChart(tool).catch(reportExportError),
+                },
+                {
+                  label: "Export all open analyses…",
+                  action: () => void exportAllOpenAnalyses().catch(reportExportError),
+                },
+              ]
+            : []),
           "separator",
           { label: "Close tab", action: () => panel.api.close() },
         ];

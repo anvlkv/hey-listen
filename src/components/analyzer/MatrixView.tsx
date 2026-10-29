@@ -1,4 +1,4 @@
-import { createEffect, createMemo, Show, untrack } from "solid-js";
+import { createEffect, createMemo, onCleanup, Show, untrack } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -23,6 +23,7 @@ import {
   type PlotBox,
 } from "./chartGeometry";
 import { activeThemeId, chartTheme } from "../../state/themes";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import {
   analyzerById,
   formatHz,
@@ -99,6 +100,19 @@ export default function MatrixView(props: {
       };
     },
   });
+
+  // Export the rendered heatmap (M12).
+  const imageProvider = () => chart.canvas() ?? null;
+  registerChartImage(
+    untrack(() => props.id),
+    imageProvider,
+  );
+  onCleanup(() =>
+    unregisterChartImage(
+      untrack(() => props.id),
+      imageProvider,
+    ),
+  );
 
   /** Offscreen frames×bins image (time ×, band ↑), rebuilt on data change. */
   const image = createMemo<HTMLCanvasElement | null>(() => {

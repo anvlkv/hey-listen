@@ -1,6 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
@@ -30,6 +30,7 @@ import { chartAxisStyle, createUplotReframeHandler, timeRangeLabel } from "./cha
 import { gapAt, noteAt, segmentEnvelope } from "../../lib/noteSegments";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import type { AnalyzerId, NoteMetricsResult } from "../../state/analyzer";
 
 /**
@@ -57,6 +58,19 @@ export default function NoteSegmentChart(props: {
 }) {
   const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
+
+  // Export the per-note segment chart (M12).
+  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
+  registerChartImage(
+    untrack(() => props.id),
+    imageProvider,
+  );
+  onCleanup(() =>
+    unregisterChartImage(
+      untrack(() => props.id),
+      imageProvider,
+    ),
+  );
 
   const notes = () => props.result()?.notes ?? [];
   const hasF0 = () => notes().some((note) => note.f0MedianHz != null);

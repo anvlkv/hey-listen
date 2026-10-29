@@ -536,7 +536,7 @@ driven throughout — no per-tool chart components.
 > `MatrixView` (note grid), `RhythmView` (tempogram), `ReadoutsView` +
 > `LevelMeters.tsx`; the shared axis formatters now hide uPlot's `null` minor splits.
 
-## M12 — Analysis exports: chart image + data (planned)
+## M12 — Analysis exports: chart image + data ✅
 
 Save what an analyzer shows: the numbers (JSON / CSV) and the picture (PNG), built so
 the same surface is reachable from the UI, MCP, and the batch CLI.
@@ -559,6 +559,14 @@ the same surface is reachable from the UI, MCP, and the batch CLI.
 > **wide-matrix** for 2D data; the image is a capture of the rendered chart (no
 > DOM-screenshot dependency); data exports are headless-capable, the image is GUI-only.
 See [`exports.md`](exports.md) (ADR-16).
+
+> **Implemented (M12):** `src-tauri/src/export/` holds the envelope + wide-matrix CSV
+> renderer (shared by the app, MCP, and the CLI), `commands/export.rs` adds
+> `export_analysis` / `export_all` plus the save-path / write plumbing, the analyzer
+> tab has an **Export** popover (JSON / CSV / PNG / Copy CSV) and the Workbench tab
+> menu carries the same entries, and the batch CLI accepts `--format` / `--out` (with
+> `--csv` shorthand). Data exports **re-run** the tool at the current settings, and a
+> CSV writes its `.meta.json` provenance sidecar.
 
 ## M13 — Analysis templates (planned)
 

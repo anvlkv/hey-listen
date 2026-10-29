@@ -8,6 +8,7 @@ use crate::audio::analysis::canonical_option_key;
 use crate::audio::analyzers;
 use crate::audio::graph::{self, GraphSpec};
 
+use super::export_args;
 use super::types::{Command, OptionPatch, Request, WindowSpec};
 
 /// The batch subcommands, matching the `plugins.cli` definitions in `tauri.conf.json`.
@@ -101,6 +102,8 @@ fn common(matches: &Matches) -> Result<Request, String> {
         },
         full: flag(matches, "full"),
         summary: flag(matches, "summary"),
+        format: export_args::parse_format(matches)?,
+        out: string(matches, "out").map(export_args::output_target),
         pretty: flag(matches, "pretty"),
         fail_fast: flag(matches, "fail-fast"),
     };
@@ -141,11 +144,11 @@ fn validate(request: &Request) -> Result<(), String> {
     if request.summary && request.full {
         return Err("--summary and --full are mutually exclusive".into());
     }
-    Ok(())
+    export_args::validate(request)
 }
 
 /// How many result lines a request produces (for the `--pretty` check).
-fn result_count(request: &Request) -> usize {
+pub(super) fn result_count(request: &Request) -> usize {
     match &request.command {
         Command::Analyzers { .. } => 0,
         Command::Analyze => request.files.len() * window_result_count(request),
@@ -199,7 +202,7 @@ fn strings(matches: &Matches, name: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn string(matches: &Matches, name: &str) -> Option<String> {
+pub(super) fn string(matches: &Matches, name: &str) -> Option<String> {
     matches
         .args
         .get(name)
@@ -207,7 +210,7 @@ fn string(matches: &Matches, name: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-fn flag(matches: &Matches, name: &str) -> bool {
+pub(super) fn flag(matches: &Matches, name: &str) -> bool {
     matches
         .args
         .get(name)

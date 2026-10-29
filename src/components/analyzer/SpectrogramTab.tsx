@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
@@ -12,6 +12,7 @@ import {
   type SpectrogramResult,
 } from "../../state/analyzer";
 import { activeThemeId } from "../../state/themes";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { clamp01 } from "./colormap";
 import { NoAudioState } from "./chartCommon";
 import { createChartInteraction } from "./chartInteraction";
@@ -145,6 +146,10 @@ export default function SpectrogramTab() {
   });
 
   const image = createMemo(() => spectrogramImage(analysis.result(), dbRange()));
+  // Export the rendered heatmap (M12).
+  const imageProvider = () => chart.canvas() ?? null;
+  registerChartImage(SPECTROGRAM_ID, imageProvider);
+  onCleanup(() => unregisterChartImage(SPECTROGRAM_ID, imageProvider));
   const overlays = createMemo(() => spectrogramOverlays(analysis.result()));
 
   function draw() {

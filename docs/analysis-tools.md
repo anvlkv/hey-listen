@@ -149,13 +149,14 @@ one. MCP `compare_analysis` and the CLI `compare` expose the same operation for 
 tool; the GUI's compare views for series, spectrum and readouts ship in M25, and the
 matrix/event/modulation/waveform views in M25.A.
 
-## Exporting results (M12, planned)
+## Exporting results (M12)
 
 Each analyzer tab can export its **data** — JSON (a provenance envelope around the typed
-`AnalysisResult`) or CSV (a **wide matrix** for the 2D tools) — and its **chart** (PNG),
-and can copy either to the clipboard; an *Export all open analyses…* action writes every
-open tab. Data exports are also available headless (MCP `export_analysis`, batch CLI
-`--format` / `--out`). See [`exports.md`](exports.md).
+`AnalysisResult`) or CSV (a **wide matrix** for the 2D tools, with a `.meta.json`
+provenance sidecar) — and its **chart** (PNG), and can copy the CSV to the clipboard; an
+*Export all open analyses…* action writes every open tab. Data exports are also available
+headless (MCP `export_analysis`, batch CLI `--format` / `--out`). See
+[`exports.md`](exports.md).
 
 ## Analysis templates (M13, planned)
 

@@ -1,6 +1,7 @@
 //! Running a resolved request through the headless session (no Tauri app, no display).
 
 use super::*;
+use crate::export::ExportFormat;
 use crate::mcp::dispatch::HeadlessSession;
 use serde_json::Value;
 
@@ -124,6 +125,65 @@ fn run_defaults_to_a_compact_structurally_shaped_result() {
     assert!(result["peakHz"].as_f64().is_some_and(|hz| hz > 0.0));
     assert!(result["magDb"]["length"].as_u64().is_some_and(|n| n > 0));
     assert!(result["magDb"].get("min").is_some());
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn run_exports_csv_to_a_directory() {
+    let path = std::env::temp_dir().join("hey_listen_cli_export_csv.wav");
+    write_sine_wav(&path, 8_000, 8_000);
+    let dir = std::env::temp_dir().join("hey_listen_cli_export_csv_dir");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let mut request = analyze_request(
+        vec![path.to_string_lossy().into_owned()],
+        vec!["levels".into()],
+    );
+    request.format = ExportFormat::Csv;
+    request.out = Some(OutputTarget::Dir(dir.to_string_lossy().into_owned()));
+
+    let mut out = Vec::new();
+    assert_eq!(run(&request, &mut out), 0);
+    let values = lines(&out);
+    assert_eq!(values[0]["format"], "csv");
+    let exported = values[0]["path"].as_str().unwrap().to_string();
+    assert!(exported.ends_with("hey_listen_cli_export_csv.levels.csv"));
+    let text = std::fs::read_to_string(&exported).unwrap();
+    assert!(text.starts_with("key,value\n"), "{text}");
+
+    let sidecar = values[0]["sidecarPath"].as_str().unwrap().to_string();
+    let meta: Value = serde_json::from_str(&std::fs::read_to_string(&sidecar).unwrap()).unwrap();
+    assert_eq!(meta["kind"], "hey-listen.analysis");
+    assert_eq!(meta["tool"], "levels");
+    assert!(meta.get("result").is_none());
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn run_exports_a_json_envelope_to_a_file() {
+    let path = std::env::temp_dir().join("hey_listen_cli_export_json.wav");
+    write_sine_wav(&path, 8_000, 8_000);
+    let target = std::env::temp_dir().join("hey_listen_cli_export.json");
+    let _ = std::fs::remove_file(&target);
+
+    let mut request = analyze_request(
+        vec![path.to_string_lossy().into_owned()],
+        vec!["spectrum".into()],
+    );
+    request.out = Some(OutputTarget::File(target.to_string_lossy().into_owned()));
+
+    let mut out = Vec::new();
+    assert_eq!(run(&request, &mut out), 0);
+    let envelope: Value = serde_json::from_str(&std::fs::read_to_string(&target).unwrap()).unwrap();
+    assert_eq!(envelope["kind"], "hey-listen.analysis");
+    assert_eq!(envelope["tool"], "spectrum");
+    assert_eq!(envelope["result"]["tool"], "spectrum");
+    assert!(envelope["source"]["sampleRate"].as_u64().is_some());
+    assert!(envelope["window"]["endSecs"].as_f64().is_some());
+
+    let _ = std::fs::remove_file(&target);
     let _ = std::fs::remove_file(&path);
 }
 

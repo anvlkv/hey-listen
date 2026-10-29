@@ -142,7 +142,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `list_projects` | List the open project windows (label, name, focused; plus each project's source shape, analysis window and filter presence) — answered by the server. **(M25)** |
 | `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
-| `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON / CSV) or chart (PNG), or every open tool to a folder. `export_analysis` is headless-capable; `export_chart` needs the rendered canvas. **(M12, planned)** |
+| `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON provenance envelope / wide-matrix CSV) or chart (PNG), or every open analysis to a folder. `export_analysis` recomputes the tool at the current window and is **headless-capable**; `export_chart` needs the rendered canvas. **(M12)** |
 | `list_templates` / `apply_template` / `save_template` / `export_template` / `import_template` | Installed analysis templates; apply to the current project or the headless session. **(M13, planned)** |
 
 `run_analysis` **shapes** its result by default so a spectrogram does not blow the
@@ -250,8 +250,8 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
      `GraphSpec`), `run_analysis`, `set_analysis_window`, `set_view`,
      `set_shared_params`, `set_tool_options`, the `list_*` enumerations, and
      `save_project` / `open_project` / `new_project` (source + setup + notes; no
-     Workbench layout) — plus the **data** halves of the export / template tools
-     (`export_analysis`, `list_templates`, `apply_template`) once M12/M13 land.
+     Workbench layout) — plus the **data** halves of the export tools
+     (`export_analysis`, `export_all`; `export_chart` needs the canvas).
      UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
      `set_synth_graph`), and live preview/capture (real device I/O with no UI to
      configure it) — answer "requires the app".
@@ -409,7 +409,7 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src-tauri/src/themes.rs`, `src-tauri/src/commands/themes.rs` | the theme-file store + commands (M11). |
 | `src/lib/themeFile.ts`, `src/state/themes/` | the `ThemeFile` model + the theme registry / apply pipeline, and the GUI theme MCP handlers (in `src/state/mcp/`) (M11). |
 | `src-tauri/src/templates.rs`, `src-tauri/src/commands/templates.rs` | the template store + commands (M13, planned). |
-| `src-tauri/src/commands/export.rs` | output plumbing (`pick_save_path` / `write_text` / `write_bytes`) (M12, planned). |
+| `src-tauri/src/commands/export.rs` | `export_analysis` / `export_all` + output plumbing (`pick_save_path` / `pick_directory` / `write_text` / `write_bytes`), and `src-tauri/src/export/` for the envelope + CSV renderer (M12). |
 | `src/components/McpPopover.tsx` | the Toolbar MCP popover. |
 | `e2e/specs/k-mcp.spec.ts` | end-to-end coverage over the real endpoint. |
 | `e2e/specs/l-mcp-ui.spec.ts` | the popover: toggle, status, port, busy-port note, copy. |

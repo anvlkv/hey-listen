@@ -6,7 +6,7 @@
 
 use serde_json::{json, Map, Value};
 
-use crate::audio::analysis::{self, Shape, ToolOptions};
+use crate::audio::analysis::{self, Shape};
 use crate::audio::analyzers;
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
@@ -56,7 +56,7 @@ impl HeadlessSession {
     /// One tool's effective options: its declared defaults overlaid with the values the
     /// agent set. Unset fields (`null` in the stored `ToolOptions`) are omitted.
     pub(super) fn options_for(&self, tool: &str) -> Value {
-        effective_options(tool, self.options.get(tool))
+        Value::Object(analyzers::effective_options(tool, self.options.get(tool)))
     }
 
     /// Every analyzer's effective options, so `get_state` reports the defaults (not just
@@ -316,7 +316,7 @@ impl HeadlessSession {
         let mut envelope = json!({
             "window": { "start": start, "end": end },
             "params": serde_json::to_value(&params).unwrap_or(Value::Null),
-            "options": effective_options(&tool, Some(&options)),
+            "options": Value::Object(analyzers::effective_options(&tool, Some(&options))),
             "summary": summary,
         });
         if let Some(value) = shaped {
@@ -324,23 +324,4 @@ impl HeadlessSession {
         }
         Ok(envelope)
     }
-}
-
-/// One tool's declared defaults overlaid with the non-`null` fields set on it.
-///
-/// Shared by `get_state` and the `run_analysis` envelope so both report the same
-/// "effective options" — and so neither leaks the all-`Option` [`ToolOptions`] struct,
-/// which would print every other tool's keys as `null`.
-fn effective_options(tool: &str, overrides: Option<&ToolOptions>) -> Value {
-    let mut options = analyzers::option_defaults(tool);
-    if let Some(overrides) = overrides {
-        if let Ok(Value::Object(values)) = serde_json::to_value(overrides) {
-            for (key, value) in values {
-                if !value.is_null() {
-                    options.insert(key, value);
-                }
-            }
-        }
-    }
-    Value::Object(options)
 }

@@ -104,6 +104,20 @@
               "description": "Emit the summary only, without result arrays (mutually exclusive with --full)"
             },
             {
+              "name": "format",
+              "takesValue": true,
+              "description": "Data export format: json (JSONL / provenance envelope) or csv (wide matrix). Default json"
+            },
+            {
+              "name": "csv",
+              "description": "Shorthand for --format csv"
+            },
+            {
+              "name": "out",
+              "takesValue": true,
+              "description": "Write results to a file (one result) or a directory (one file per result) instead of stdout"
+            },
+            {
               "name": "pretty",
               "description": "Pretty-print a single result instead of one JSON line per result"
             },
@@ -173,7 +187,21 @@
             },
             {
               "name": "summary",
-              "description": "Emit the summary only, without result arrays (mutually exclusive with --full)"
+              "description": "Emit the summary only, without result arrays"
+            },
+            {
+              "name": "format",
+              "takesValue": true,
+              "description": "Data export format: json (JSONL / provenance envelope) or csv (wide matrix). Default json"
+            },
+            {
+              "name": "csv",
+              "description": "Shorthand for --format csv"
+            },
+            {
+              "name": "out",
+              "takesValue": true,
+              "description": "Write results to a file (one result) or a directory (one file per result) instead of stdout"
             },
             {
               "name": "pretty",

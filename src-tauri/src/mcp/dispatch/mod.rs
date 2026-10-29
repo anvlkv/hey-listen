@@ -21,6 +21,7 @@
 //! headless project-file tools, and [`tests`] covers the table.
 
 mod args;
+mod export;
 mod project;
 mod session;
 
@@ -105,6 +106,13 @@ impl HeadlessSession {
             "new_project" => self.new_project(),
             "set_filter_graph" => self.set_filter_graph(&args),
             "run_analysis" => self.run_analysis(&args),
+            "export_analysis" => self.export_analysis(&args),
+            "export_all" => self.export_all(&args),
+            "export_chart" => Err(
+                "`export_chart` needs the rendered canvas — start Hey Listen and point the \
+                 bridge at it, or use `export_analysis` for the data"
+                    .to_string(),
+            ),
             "set_analysis_window" => {
                 let start = number(&args, "start")?;
                 let end = number(&args, "end")?;

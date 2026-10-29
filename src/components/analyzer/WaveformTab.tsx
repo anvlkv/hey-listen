@@ -1,6 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
@@ -26,6 +26,7 @@ import {
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { createAnalysis, toolOptions, type WaveformResult } from "../../state/analyzer";
 
 /** A ~72 dB window anchored on the frame peak, never above 0 dBFS. */
@@ -49,6 +50,11 @@ export default function WaveformTab() {
   const analysis = createAnalysis<WaveformResult>("waveform");
   const zoom = createUplotZoom("time");
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
+
+  // Export the rendered waveform (M12).
+  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
+  registerChartImage("waveform", imageProvider);
+  onCleanup(() => unregisterChartImage("waveform", imageProvider));
 
   const dbMode = () => (toolOptions.waveform?.dbScale ?? 0) !== 0;
 

@@ -1,6 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { Show } from "solid-js";
+import { Show, onCleanup, untrack } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ZoomControls from "./ZoomControls";
@@ -9,6 +9,7 @@ import { mirrorCursor, syncView } from "./syncPlugins";
 import { FREQ_AXIS_SPACE, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import { chartAxisStyle, NoAudioState } from "./chartCommon";
 import { analyzerBus, type SyncGroup } from "../../state/chartSync";
+import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import type {
   AnalysisHandle,
@@ -82,6 +83,19 @@ export default function ModulationView(props: {
 }) {
   const result = () => props.analysis.result() as ModulationResult | null;
   const zoom = createUplotZoom(MOD_GROUP);
+
+  // Export the rendered AM/FM spectrum (M12).
+  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
+  registerChartImage(
+    untrack(() => props.id),
+    imageProvider,
+  );
+  onCleanup(() =>
+    unregisterChartImage(
+      untrack(() => props.id),
+      imageProvider,
+    ),
+  );
 
   const data = (): [number[], (number | null)[], (number | null)[]] => {
     const r = result();

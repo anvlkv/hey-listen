@@ -506,6 +506,16 @@ own popout.
 | S2 | Drop a project | Dropping a `.heyl` file loads that project (through the same discard guard as File → Open), while an audio drop still replaces the source | Scenario |
 | S3 | Filter switch | It lives in the Timeline toolbar, reads off on the identity seed, enabling with an empty graph opens the filter view, composing a node turns it on, and clearing the graph turns it off again | Scenario |
 
+### S2. Analysis exports (M12)
+
+The per-tab **Export** popover against the real core: the native save dialog is stubbed, but
+`export_analysis`, `write_text`, and `write_bytes` run for real, so the test reads the
+files back from disk. Sorts before `t-close-main` (which must stay last).
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| U1 | Export CSV + PNG | A spectrum's CSV has the expected header and rows, its `.meta.json` sidecar is the envelope without `result`, and the chart PNG is written with a valid signature | Scenario |
+
 ### T. Closing the main window (M7 multi-window)
 
 `main` is a project window like any other, so closing it must close its own popouts and

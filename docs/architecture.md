@@ -52,7 +52,7 @@ src-tauri/src/
 │   ├── mcp.rs       # MCP tool-call replies + settings            ✅ (M9: mcp_respond, mcp_ready, get_mcp_status, set_mcp_config)
 │   ├── themes.rs    # theme file store (list/write/delete + import/export) ✅ (M11: list_themes, write_theme, delete_theme, theme_dir, import_theme_file, export_theme_file, pick_theme_*_path, reveal_theme_dir)
 │   ├── templates.rs # template store (list/read/write/import/…)   (M13, planned)
-│   └── export.rs    # output plumbing (pick_save_path, write_*)   (M12, planned)
+│   └── export.rs    # export_analysis / export_all + save/write plumbing ✅ (M12)
 ├── audio/           # engines (not commands)
 │   ├── mod.rs       # ✅
 │   ├── decode.rs    # symphonia demux/decode -> PCM            ✅
@@ -170,7 +170,7 @@ The commands and channels below are all implemented; milestone notes record the 
 | MCP | `get_mcp_status`, `set_mcp_config` | the MCP server's status / config (on-off + port), owned by `mcp::settings::McpController` (M9) ✅ |
 | Theme | `list_themes`, `write_theme`, `delete_theme`, `theme_dir`, `import_theme_file`, `export_theme_file`, `pick_theme_import_path`, `pick_theme_export_path`, `reveal_theme_dir` | installed theme files (M11) ✅ |
 | App | `open_external_url` | open an `http(s)` URL (the About dialog's license links) in the system browser ✅ |
-| Export | `pick_save_path`, `write_text`, `write_bytes`, `reveal_in_folder` | output plumbing shared by exports + templates (M12, planned) |
+| Export | `export_analysis`, `export_all`, `pick_save_path`, `pick_directory`, `write_text`, `write_bytes` | data + chart exports and output plumbing shared by exports + templates (M12) ✅ |
 | Template | `list_templates`, `read_template`, `save_template`, `delete_template`, `rename_template`, `templates_dir`, `import_template_file`, `export_template_file` | installed analysis templates (M13, planned) |
 
 > **Implemented (M9 follow-up):** `get_mcp_status` / `set_mcp_config` expose the
