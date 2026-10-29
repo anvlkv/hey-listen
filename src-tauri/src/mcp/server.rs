@@ -224,7 +224,9 @@ fn resolve_target<R: Runtime>(app: &AppHandle<R>, requested: &str) -> Result<Str
 
 /// Every project window in the process: one entry per **project** (a popout is a view
 /// of its project, not a project of its own). Each carries its label, its display
-/// name (from the shared UI state), and whether it is the focused project.
+/// name (from the shared UI state), whether it is the focused project, and — for a
+/// comparison (M25) — its source shape, analysis window and filter presence, so an
+/// agent can pick a reference and predict comparability.
 fn list_projects<R: Runtime>(app: &AppHandle<R>) -> Vec<Value> {
     let registry = app.state::<WindowRegistry>();
     let focused = crate::commands::focused_label(app).map(|label| registry.root_label(&label));
@@ -236,9 +238,9 @@ fn list_projects<R: Runtime>(app: &AppHandle<R>) -> Vec<Value> {
     labels
         .into_iter()
         .map(|label| {
-            let name = registry
-                .get(&label)
-                .ui_snapshot()
+            let state = registry.get(&label);
+            let ui = state.ui_snapshot();
+            let name = ui
                 .get("project")
                 .and_then(|value| value.get("name"))
                 .and_then(Value::as_str)
@@ -249,9 +251,28 @@ fn list_projects<R: Runtime>(app: &AppHandle<R>) -> Vec<Value> {
                 "label": label,
                 "name": name,
                 "focused": focused.as_deref() == Some(label.as_str()),
+                "source": crate::audio::analysis::compare::source_shape(&state).ok(),
+                "window": project_window(&ui),
+                "hasFilter": state
+                    .audio
+                    .filter
+                    .lock()
+                    .unwrap_or_else(|poison| poison.into_inner())
+                    .is_some(),
             })
         })
         .collect()
+}
+
+/// The project's analysis window from its shared UI state (`null` when unset).
+fn project_window(ui: &std::collections::HashMap<String, Value>) -> Value {
+    let timeline = ui.get("timeline");
+    let start = timeline.and_then(|value| value.get("windowStart"));
+    let end = timeline.and_then(|value| value.get("windowEnd"));
+    match (start, end) {
+        (Some(start), Some(end)) => json!({ "start": start, "end": end }),
+        _ => Value::Null,
+    }
 }
 
 // --- advertisement ---------------------------------------------------------

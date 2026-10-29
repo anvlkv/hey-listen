@@ -12,6 +12,7 @@ import { invoke } from "./lib/ipc";
 import { attachConsole } from "@tauri-apps/plugin-log";
 import App from "./App";
 import PopoutApp from "./PopoutApp";
+import type { CompareViewDto } from "./state/compare/types";
 
 /**
  * How long the popout query may take before the project window is rendered instead.
@@ -43,6 +44,7 @@ async function start(): Promise<void> {
           <PopoutApp
             toolId={target.kind === "tool" ? target.id : undefined}
             noteId={target.kind === "note" ? target.id : undefined}
+            compare={target.kind === "compare" ? target.view : undefined}
           />
         ) : (
           <App />
@@ -54,25 +56,31 @@ async function start(): Promise<void> {
   }
 }
 
-/** What this window pops out: a Workbench **tool** or a **note**, each with its id. */
-type PopoutTarget = { kind: "tool"; id: string } | { kind: "note"; id: string };
+/** What this window pops out: a Workbench **tool**, a **note**, or a **comparison**. */
+type PopoutTarget =
+  | { kind: "tool"; id: string }
+  | { kind: "note"; id: string }
+  | { kind: "compare"; view: CompareViewDto };
 
 /**
- * The tool or note this window pops out, or `null` for a regular project window.
+ * The tool, note or comparison this window pops out, or `null` for a regular project
+ * window.
  *
- * Rust registers which kind a popout is (ADR-11), so the window asks for both and takes
- * whichever answers (only one can). The first paint must never be gated on a command
- * that can fail or never answer: a rejected query renders the project window (and is
- * reported), and so does one that does not come back within [`POPOUT_QUERY_TIMEOUT_MS`]
- * — a blank window is not a useful failure mode, and on a wedged command it is otherwise
- * all the user ever sees.
+ * Rust registers which kind a popout is (ADR-11), so the window asks for all three and
+ * takes whichever answers (only one can). The first paint must never be gated on a
+ * command that can fail or never answer: a rejected query renders the project window
+ * (and is reported), and so does one that does not come back within
+ * [`POPOUT_QUERY_TIMEOUT_MS`] — a blank window is not a useful failure mode, and on a
+ * wedged command it is otherwise all the user ever sees.
  */
 async function popoutTarget(): Promise<PopoutTarget | null> {
   const query = Promise.all([
     invoke<string | null>("popout_tool"),
     invoke<string | null>("popout_note"),
+    invoke<CompareViewDto | null>("popout_compare"),
   ])
-    .then(([tool, note]): PopoutTarget | null => {
+    .then(([tool, note, compare]): PopoutTarget | null => {
+      if (compare != null) return { kind: "compare", view: compare };
       if (tool != null) return { kind: "tool", id: tool };
       if (note != null) return { kind: "note", id: note };
       return null;

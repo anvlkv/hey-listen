@@ -61,7 +61,7 @@ pub(super) fn validate(request: &Request) -> Result<(), String> {
                 return Err("--out needs `-t <TOOL>` (or `--all`) to export an analysis".into());
             }
         }
-        Command::Analyzers { .. } | Command::Notes { .. } => {
+        Command::Analyzers { .. } | Command::Notes { .. } | Command::Compare { .. } => {
             return Err("--out is only for `analyze` and `synth`".into());
         }
     }

@@ -1,5 +1,6 @@
 import type { AnalysisSetup } from "../../bindings/AnalysisSetup";
 import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
+import type { GraphSpec } from "../../bindings/GraphSpec";
 import type { Meta } from "../../bindings/Meta";
 import type { Note } from "../../bindings/Note";
 import type { SourceDescriptor } from "../../bindings/SourceDescriptor";
@@ -30,6 +31,12 @@ export interface LayoutDto {
   graphs: { filter?: GraphLayout; synth?: GraphLayout };
   /** Tools popped out into their own windows (recreated on load). */
   popouts?: string[];
+  /**
+   * The compiled filter applied to preview/analysis (M25). Additive: a file saved
+   * before it existed has no key, and the CLI then compares **unfiltered** (with a
+   * warning) because the saved editor graph cannot be compiled without its param order.
+   */
+  filterSpec?: GraphSpec | null;
 }
 
 /** The frontend-supplied project data for `save_project`; the core adds `META` + `DATA`. */

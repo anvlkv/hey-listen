@@ -26,7 +26,7 @@ pub fn next_label(prefix: &str) -> String {
 }
 
 /// Bring a window to the front (un-minimize first: `set_focus` alone can leave it behind).
-fn raise(window: &tauri::WebviewWindow) {
+pub(crate) fn raise(window: &tauri::WebviewWindow) {
     let _ = window.unminimize();
     let _ = window.set_focus();
 }

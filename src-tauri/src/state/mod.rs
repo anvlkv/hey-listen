@@ -6,7 +6,7 @@
 //! The frontend keeps its own copy only for rendering the waveform (a transitional
 //! duplication — see `docs/decisions.md` → ADR-9).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::audio::graph::GraphSpec;
@@ -30,6 +30,9 @@ pub struct AudioState {
     pub recording: Arc<AtomicBool>,
     /// The active filter graph, applied before preview (and, from M4, analysis).
     pub filter: Arc<Mutex<Option<GraphSpec>>>,
+    /// Bumped whenever the audio (its source or filter) changes, so a comparison can
+    /// tell that a peer project moved without polling its whole setup (M25).
+    pub revision: Arc<AtomicU64>,
     pub playback: Playback,
 }
 
@@ -63,6 +66,7 @@ impl AudioState {
             source: Arc::new(Mutex::new(None)),
             recording: Arc::new(AtomicBool::new(false)),
             filter: Arc::new(Mutex::new(None)),
+            revision: Arc::new(AtomicU64::new(0)),
             playback: Playback::new(),
         }
     }
@@ -82,6 +86,7 @@ impl AudioState {
             .source
             .lock()
             .unwrap_or_else(|poison| poison.into_inner()) = source;
+        self.touch();
     }
 
     /// Replace the filter graph; `None` bypasses filtering.
@@ -90,6 +95,17 @@ impl AudioState {
             .filter
             .lock()
             .unwrap_or_else(|poison| poison.into_inner()) = spec;
+        self.touch();
+    }
+
+    /// The audio's revision (monotonic within a process).
+    pub fn revision(&self) -> u64 {
+        self.revision.load(Ordering::Relaxed)
+    }
+
+    /// Mark the audio as changed.
+    fn touch(&self) {
+        self.revision.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Begin a fresh recording buffer (called when Record starts).
@@ -104,6 +120,7 @@ impl AudioState {
             channels,
         });
         self.recording.store(true, Ordering::Relaxed);
+        self.touch();
     }
 
     /// Stop appending capture chunks (the recorded audio is kept).
@@ -119,6 +136,7 @@ impl AudioState {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner()) = None;
         self.playback.stop();
+        self.touch();
     }
 }
 
@@ -130,4 +148,4 @@ impl Default for AudioState {
 
 mod window;
 
-pub use window::{window_state, WindowRegistry, WindowState};
+pub use window::{window_state, CompareView, WindowRegistry, WindowState};

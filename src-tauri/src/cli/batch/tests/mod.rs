@@ -13,6 +13,7 @@ use tauri_plugin_cli::Matches;
 
 use crate::audio::graph::{GraphEdge, GraphNode, GraphSpec};
 
+mod compare;
 mod notes;
 mod parse;
 mod run;
@@ -138,6 +139,11 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
         all: false,
         start: None,
         end: None,
+        a_start: None,
+        a_end: None,
+        b_start: None,
+        b_end: None,
+        overlap: false,
         windows: Vec::new(),
         params: Vec::new(),
         options: Vec::new(),

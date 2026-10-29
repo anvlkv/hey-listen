@@ -60,6 +60,20 @@ fn observe_tools_are_read_only_and_replacing_tools_are_destructive() {
 }
 
 #[test]
+fn run_analysis_is_not_destructive_and_compare_is_read_only() {
+    let tools = super::list();
+    let find = |name: &str| tools.iter().find(|tool| tool["name"] == name).unwrap();
+    assert_eq!(
+        find("compare_analysis")["annotations"]["readOnlyHint"],
+        true
+    );
+    let schema = &find("compare_analysis")["inputSchema"];
+    assert_eq!(schema["required"], serde_json::json!(["tool", "with"]));
+    // Every tool carries the shared `target` property (multi-project addressing).
+    assert_eq!(schema["properties"]["target"]["type"], "string");
+}
+
+#[test]
 fn get_analyzer_agrees_with_list_analyzers() {
     for item in analyzers::list() {
         let id = item["id"].as_str().unwrap();

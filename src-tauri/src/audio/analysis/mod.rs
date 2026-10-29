@@ -15,6 +15,7 @@
 //! hold the data types, [`support`] the shared signal helpers, and [`tools`] the
 //! per-family tool implementations plus the [`run`] dispatcher.
 
+pub mod compare;
 mod results;
 mod shape;
 mod summary;

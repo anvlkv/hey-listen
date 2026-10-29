@@ -30,6 +30,9 @@ const EDIT_ACTIONS: [&str; 2] = ["undo", "redo"];
 /// App-level actions the frontend handles (the in-app **About** dialog).
 const APP_ACTIONS: [&str; 1] = ["about"];
 
+/// Analysis-menu actions the frontend handles (M25).
+const ANALYSIS_ACTIONS: [&str; 1] = ["compare"];
+
 /// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
 const RECENT_PREFIX: &str = "recent:";
 /// Id of the "Open Recent → Clear Menu" item.
@@ -86,6 +89,11 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         &[&PredefinedMenuItem::fullscreen(app, None)?],
     )?;
 
+    // Analysis → Compare with… acts on the focused analyzer tab (M25). The item is
+    // emitted to the frontend, which owns the Workbench and the target picker.
+    let compare = MenuItem::with_id(app, "compare", "Compare with…", true, None::<&str>)?;
+    let analysis = Submenu::with_items(app, "Analysis", true, &[&compare])?;
+
     let window = Submenu::with_items(
         app,
         "Window",
@@ -125,9 +133,12 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     )?;
 
     #[cfg(target_os = "macos")]
-    let menu = Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window, &help])?;
+    let menu = Menu::with_items(
+        app,
+        &[&app_menu, &file, &edit, &view, &analysis, &window, &help],
+    )?;
     #[cfg(not(target_os = "macos"))]
-    let menu = Menu::with_items(app, &[&file, &edit, &view, &window, &help])?;
+    let menu = Menu::with_items(app, &[&file, &edit, &view, &analysis, &window, &help])?;
 
     Ok(menu)
 }
@@ -165,7 +176,11 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
         return;
     }
 
-    if FILE_ACTIONS.contains(&id) || EDIT_ACTIONS.contains(&id) || APP_ACTIONS.contains(&id) {
+    if FILE_ACTIONS.contains(&id)
+        || EDIT_ACTIONS.contains(&id)
+        || APP_ACTIONS.contains(&id)
+        || ANALYSIS_ACTIONS.contains(&id)
+    {
         // Emit only to the focused window: with N project windows, a File/Edit action
         // must apply to the project the user is looking at (M7), not broadcast.
         if let Some(label) = focused_label(app) {

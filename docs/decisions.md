@@ -667,7 +667,10 @@ cursors/playheads are polled read-only, so the compare view never drives B's tra
 The CLI needs the compiled filter spec in `LAYOUT` to reproduce the app's conditioning.
 See [`comparison.md`](comparison.md).
 
-**Status: proposed (M25).**
+**Status: implemented (M25).** `audio/analysis/compare/` computes the diff for every
+family; `commands/compare.rs` owns the IPC/lifecycle surface; the frontend's
+`state/compare/` + `components/compare/` render series/spectrum/readouts (the rest are
+M25.A); the CLI's `compare` reads `LAYOUT.filterSpec`.
 
 ## ADR-25 — Psychoacoustic analyzers are a calibrated, standards-honest layer over dBFS
 

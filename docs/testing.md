@@ -498,6 +498,22 @@ own popout.
 > points at a live label. `windowLabels()` therefore falls back to plain WebDriver window
 > handles for exactly this case.
 
+### R2. Cross-project comparison (M25)
+
+A comparison needs **two project windows**, so this spec opens (and closes) its own. It
+sorts after `r-multi-project` and before `s-project-ux`; the **last** suite file must stay
+`t-close-main`. Helpers: `e2e/support/compare.ts` (tab menu → *Compare with…* / *Change
+reference…* / *Pop out to window*).
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| R2.1 | Compare with… | Two projects: the tab menu opens a `compare:spectrum` tab, both sides overlay on one chart, the badge reads **Aligned**, and the view is separate from the analyzer tab | Scenario |
+| R2.2 | Grid mismatch | A differing FFT size flips the badge to **Grids differ** and drops the Δ readouts; restoring it realigns | Scenario |
+| R2.3 | Peer closes | Closing the reference project shows the banner, keeps the last result, and `compare_live` reports `open: false` | Scenario |
+| R2.4 | Transient save | Saving while the compare tab is open, then reopening, restores the analyzer tab and **no** compare tab | Scenario |
+| R2.5 | Retarget | *Change reference…* points the same tab at another project — one compare tab before and after | Scenario |
+| R2.6 | Popout | *Pop out to window* closes the tab and opens a `compare-*` window with the same view; closing it forgets the view (no tab, no `compare_popouts`) | Scenario |
+
 ### S. Project UX
 
 | # | Test | Asserts | Kind |
@@ -537,7 +553,6 @@ stay the last suite file (closing `main` cannot be undone).
 | M22 | `q2-synth-live` | Audition calls `preview_synth` (not `preview_region`) and stops on tab close; Live updates the source without resetting the window, view or annotations; a failed live render keeps the last good audio; a palette drag shows the ghost, the drop preview and the splice badge, and drops where previewed. |
 | M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; Shift-drag selects and frames a window; a lane selection paints full-height rules; hover shows the time readout; a burst of tiny wheel events pans by the accumulated delta (or zooms proportionally with `Ctrl`/`⌘`), not once per event, and a horizontal gesture never zooms. |
 | M24 | `q4-keyboard` | Space/arrows drive the transport; `N` annotates; `Mod+K` opens the palette and runs a command; `?` opens the explorer; a rebind takes effect and the old key goes inert; a conflict is rejected; text fields and focused buttons keep their keys; bindings survive a reload. |
-| M25 | `r2-compare` | Two projects: Compare with… from Spectrum overlays both results; B's cursor and playhead appear and follow B; a differing FFT size shows the mismatch badge and omits the delta; closing B shows the "reference closed" banner; saving A and reopening has no compare tab; retargeting another project reuses the same compare tab; **Pop out to window** keeps the overlay and live markers, and a load does not restore the popout. |
 | M25.A | `r2-compare` (extended) | Matrix A/B/Δ and the no-interpolation case; rhythm/event pairing (matched / only-A / only-B); `noteMetrics` table deltas; modulation rate-axis cursors; the waveform identical-window rule; *Compare with…* is available for every tool. |
 
 > Unit coverage for these milestones: `dropTarget` and the live-render scheduler, frame
@@ -549,7 +564,7 @@ stay the last suite file (closing `main` cannot be undone).
 ## Running
 
 ```sh
-npm run test:unit             # pure-helper unit checks (analyzer options + theme model + notes; no app needed)
+npm run test:unit             # pure-helper unit checks (analyzer options, themes, notes, comparison ids/layout; no app needed)
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)

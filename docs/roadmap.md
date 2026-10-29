@@ -1479,7 +1479,7 @@ typing in a note/search field never triggers a shortcut, and bindings survive a 
 > focuses; `Live`/`Audition` start off and are remembered app-level; the M24 default table
 > is a starting point, with **`Space` confirmed as play/pause**.
 
-## M25 — Cross-project comparison (planned)
+## M25 — Cross-project comparison ✅
 
 Diff **the same analysis tool** across two independently open projects. This is the
 "symmetric independent tracks" answer to diffs: each project keeps its own source,
@@ -1590,6 +1590,35 @@ event / modulation / waveform **views** are M25.A, not M25.
 
 > **Decision:** a comparison is a transient, read-only view over two project states
 > computed by the core — not a second track and not saved. See ADR-24.
+
+> **Delivered:** the engine (`audio/analysis/compare/`: `align` grid signature and
+> comparability, `diff` + `diff/families` per-family deltas, `events` pairing, `stats`),
+> the per-window revision and compare-popout registry (`state/window/{mod,compare}.rs`),
+> the commands (`commands/compare.rs`: `run_comparison`, `compare_peer_setup`,
+> `compare_live`, `compare_targets`, `open_compare_popout`, `retarget_compare_popout`,
+> `popout_compare`, `compare_popouts`), the **Analysis** menu item, the enriched
+> `list_projects`, MCP `compare_analysis` (app-only) with `get_state.compare`, the CLI
+> `compare` subcommand and `LAYOUT.filterSpec`, and the frontend (`state/compare/`,
+> `components/compare/`, the `lib/dockviewLayout.ts` sanitiser, the picker dialog, the
+> compare-popout boot). The M25 **views** are series, spectrum and readouts; the core
+> delta — and therefore MCP/CLI — covers every family, and the remaining views are
+> M25.A.
+
+> **Deviations (kept explicit):** `aligned` requires **no** mismatch, so a differing
+> rate / channel / FFT / hop / window / band / bin count / grid-changing option
+> suppresses the delta even for a scalar readout (a readout diff is numeric only when
+> the settings match). The compare tab opens as `Compare: <Tool>` and gains
+> `— <A> ↔ <B>` once the comparison resolves (its id stays `compare:<tool>`). `--all` is
+> accepted alongside `-t`. The reference picker is a modal Kobalte dialog plus a header
+> select, and a compare popout's label is `compare-<n>`. A filter difference is reported
+> (`filtersDiffer`) but does **not** suppress the delta — both sides are compared as
+> processed, as specified.
+
+> **Tests:** `compare/tests.rs` (grid signature, per-family delta, event pairing,
+> overlap/no-overlap, shaping), `cli/batch/tests/{compare,parse}.rs`, the unit script
+> `scripts/compare.test.ts` (panel ids, layout sanitiser, poll gate, overlay alignment),
+> and E2E `e2e/specs/r2-compare.spec.ts` (overlay + badge + mismatch, peer-close banner,
+> save/reopen with no compare tab, retarget reuse, popout lifecycle).
 
 ## M25.A — Comparison views: heatmaps, events, modulation (planned)
 

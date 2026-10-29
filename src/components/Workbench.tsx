@@ -1,19 +1,17 @@
-import {
-  DockviewComponent,
-  themeDark,
-  themeLight,
-  type ContextMenuItem,
-  type DockviewApi,
-} from "dockview";
+import { DockviewComponent, themeDark, themeLight, type ContextMenuItem } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
 import ToolContent from "./ToolContent";
+import { scheduleStampTabIds } from "./workbenchTabIds";
 import { exportAllOpenAnalyses, exportAnalysis, exportChart } from "../lib/export";
 import { isAnalyzerId } from "../state/analyzer";
 import { source } from "../state/source";
 import { resolvedTheme } from "../state/themes";
 import { setDockApi, setOpenTools, popoutTool, type ToolId } from "../state/workbench";
+import { chooseCompareReference } from "../state/compare/picker";
+import { parseCompareTool, compareViewable } from "../state/compare/id";
+import { popoutCompare, closeCompare } from "../state/compare/views";
 
 /**
  * Workbench (fixed region): hosts the Workbench tabs, and is the **only** tabbed
@@ -49,48 +47,14 @@ function WatermarkHint() {
 }
 
 /**
- * Stamp `data-testid="tab.<panelId>"` on each dockview tab so a test can address
- * an individual Workbench tab (`selectors.ts` → `tab(id)`). Dockview gives tabs no
- * stable hook of their own, so we match each `.dv-tab` to its panel by title.
+ * Stamp tab test ids once the tab DOM has settled (see `workbenchTabIds.ts`).
  */
-function stampTabIds(api: DockviewApi) {
-  const tabs = Array.from(document.querySelectorAll<HTMLElement>(".dv-tabs-container .dv-tab"));
-  for (const panel of api.panels) {
-    const title = panel.title ?? panel.id;
-    for (const el of tabs) {
-      const content = el.querySelector(".dv-default-tab-content");
-      const label = (content?.textContent ?? el.textContent ?? "")
-        .replace(/[\s\u00d7]+$/, "")
-        .trim();
-      if (label === title) {
-        el.dataset.testid = `tab.${panel.id}`;
-        break;
-      }
-    }
-  }
-}
 
 /**
- * Stamp tab test ids once the tab DOM has settled, retrying briefly.
- *
- * This must **not** use `requestAnimationFrame`: WebKit throttles animation frames —
- * and can pause them entirely — while the window is occluded, which is the norm under
- * E2E/CI (a headless display: macOS runners and Linux `xvfb`). `requestAnimationFrame`
- * would then never run, leaving every tab unstamped and every tab-addressing test
- * failing. `setTimeout` still fires when occluded.
+ * Stamp `data-testid="tab.<panelId>"` on each dockview tab so a test can address
+ * an individual Workbench tab (`selectors.ts` → `tab(id)`). Kept in `workbenchTabIds`
+ * because a compare tab re-stamps after its title gains the project names.
  */
-function scheduleStampTabIds(api: DockviewApi) {
-  let attempts = 0;
-  const tick = () => {
-    stampTabIds(api);
-    attempts += 1;
-    const missing = api.panels.some(
-      (panel) => !document.querySelector(`[data-testid="tab.${panel.id}"]`),
-    );
-    if (missing && attempts < 40) window.setTimeout(tick, 25);
-  };
-  window.setTimeout(tick, 0);
-}
 
 export default function Workbench() {
   // The workbench mounts dockview into the `<section>` host (an `HTMLElement`).
@@ -107,15 +71,41 @@ export default function Workbench() {
       // HTML5 drag reliably, which left split/join (edge drops) inoperative.
       dndStrategy: "pointer",
       // Our own tab context menu (dockview shows none unless asked). Analyzers can
-      // be popped out into a native window; graph editors stay in the workbench.
+      // be popped out into a native window; a compare tab is retargeted or popped out
+      // (M25). Graph editors stay in the workbench.
       getTabContextMenuItems: ({ panel }): ContextMenuItem[] => {
-        const id = panel.id as ToolId;
+        const id = panel.id;
+        const compareTool = parseCompareTool(id);
+        if (compareTool) {
+          return [
+            {
+              label: "Change reference…",
+              action: () => void chooseCompareReference(compareTool),
+            },
+            {
+              label: "Pop out to window",
+              action: () => void popoutCompare(compareTool),
+            },
+            "separator",
+            { label: "Close tab", action: () => closeCompare(compareTool) },
+          ];
+        }
         if (id === "filter" || id === "synth") {
           return [{ label: "Close tab", action: () => panel.api.close() }];
         }
         const tool = isAnalyzerId(id) ? id : null;
         return [
-          { label: "Pop out to window", action: () => void popoutTool(id) },
+          // A comparison is offered for the families M25 can chart; the rest still
+          // compare through MCP/CLI (their views arrive with M25.A).
+          ...(tool && compareViewable(tool)
+            ? [
+                {
+                  label: "Compare with…",
+                  action: () => void chooseCompareReference(tool),
+                },
+              ]
+            : []),
+          { label: "Pop out to window", action: () => void popoutTool(id as ToolId) },
           // Exports (M12): the same actions as the tab's Export popover. Errors are
           // reported in the popover; a menu action has nowhere to show them, so log.
           ...(tool

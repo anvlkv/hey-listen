@@ -1,5 +1,6 @@
 import type { Note } from "../../bindings/Note";
 import { deepClone } from "../../lib/clone";
+import { invoke } from "../../lib/ipc";
 import { noteExcerpt } from "../../lib/note";
 import { sharedParams } from "../analysis";
 import { toolOptions } from "../analyzer";
@@ -10,9 +11,14 @@ import { dirty, projectDisplayName, projectPath } from "../project";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { openTools } from "../workbench";
+import { openCompareTabs } from "../compare/views";
+import type { CompareViewDto } from "../compare/types";
 
 /** The observable project state an agent reads to follow the user. */
-export function getState(target?: string) {
+export async function getState(target?: string) {
+  // Compare views are **transient** (M25): they are reported separately, never as
+  // `openTools`, because they are not project content.
+  const popouts = await invoke<CompareViewDto[]>("compare_popouts").catch(() => []);
   return {
     project: {
       name: projectDisplayName(),
@@ -27,6 +33,7 @@ export function getState(target?: string) {
     params: sharedParams(),
     toolOptions: deepClone(toolOptions),
     openTools: openTools(),
+    compare: [...openCompareTabs(), ...popouts],
     filter: { enabled: filterEnabled(), error: filterError() },
     output: { gain: outputGain(), device: outputDeviceId() },
     notes: notesSorted().map(noteSummary),

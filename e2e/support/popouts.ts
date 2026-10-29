@@ -14,7 +14,7 @@ import { windowLabels } from "./windows.ts";
 const POPOUT_ITEM = "Pop out to window";
 
 /** Right-click an element (the WebView won't synthesise `contextmenu` from a click). */
-async function rightClick(selector: string): Promise<void> {
+export async function rightClick(selector: string): Promise<void> {
   const el = await $(selector);
   await el.waitForExist();
   await browser.execute((sel: string) => {

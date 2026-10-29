@@ -173,7 +173,7 @@ Add a `title` and `annotations` to every catalog entry. The `tool()` helper gain
 
 | Class | Examples | `readOnlyHint` | `destructiveHint` | `idempotentHint` | `openWorldHint` |
 | --- | --- | --- | --- | --- | --- |
-| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_notes`, `get_note`, `list_projects`, `list_themes`, `get_theme`, `get_graph` | true | false | true | false |
+| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_notes`, `get_note`, `list_projects`, `compare_analysis`, `list_themes`, `get_theme`, `get_graph` | true | false | true | false |
 | Analysis compute | `run_analysis` | false | false | true | false |
 | Analysis settings | `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `open_tool`, `close_tool`, `set_filter_graph`, `set_synth_graph`, `set_output_gain`, `set_focused_note` | false | false | true | false |
 | Preview | `preview` / `stop_preview` | false | false | `preview` false, `stop_preview` true | false |

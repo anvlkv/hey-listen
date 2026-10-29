@@ -94,6 +94,7 @@ import {
 } from "./args";
 import { getState, noteSummary, sourceSummary } from "./inspect";
 import { exportFormat, exportFormats, exportTools } from "./export";
+import { compareAnalysis } from "./compare";
 
 /** Dispatch one tool by name. Throws (bubbled to the agent) on failure. */
 export async function run(tool: string, args: Args, target?: string): Promise<unknown> {
@@ -127,6 +128,8 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     // --- analysis -----------------------------------------------------------
     case "run_analysis":
       return runAnalysis(args);
+    case "compare_analysis":
+      return compareAnalysis(args);
     case "export_analysis": {
       const id = analyzerId(args);
       const format = exportFormat(args);

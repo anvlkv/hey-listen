@@ -231,6 +231,103 @@
               "description": "Include the full markdown body (default: a one-line excerpt)"
             }
           ]
+        },
+        "compare": {
+          "description": "Diff one analyzer across two project files",
+          "args": [
+            {
+              "name": "a",
+              "index": 1,
+              "takesValue": true,
+              "description": "Owner project file (.heyl)"
+            },
+            {
+              "name": "b",
+              "index": 2,
+              "takesValue": true,
+              "description": "Reference project file (.heyl)"
+            },
+            {
+              "name": "tool",
+              "short": "t",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Analyzer id to compare (repeatable, one line per tool); required unless --all"
+            },
+            {
+              "name": "all",
+              "description": "Compare every analyzer in the catalog"
+            },
+            {
+              "name": "start",
+              "takesValue": true,
+              "description": "Window start for both sides (seconds)"
+            },
+            {
+              "name": "end",
+              "takesValue": true,
+              "description": "Window end for both sides (seconds)"
+            },
+            {
+              "name": "a-start",
+              "takesValue": true,
+              "description": "Window start for side A only"
+            },
+            {
+              "name": "a-end",
+              "takesValue": true,
+              "description": "Window end for side A only"
+            },
+            {
+              "name": "b-start",
+              "takesValue": true,
+              "description": "Window start for side B only"
+            },
+            {
+              "name": "b-end",
+              "takesValue": true,
+              "description": "Window end for side B only"
+            },
+            {
+              "name": "overlap",
+              "description": "Clip both sides to their absolute-time intersection"
+            },
+            {
+              "name": "param",
+              "short": "p",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Shared param patch K=V applied to both sides (repeatable)"
+            },
+            {
+              "name": "option",
+              "short": "o",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Per-tool option patch [TOOL.]K=V applied to both sides (repeatable)"
+            },
+            {
+              "name": "filter",
+              "takesValue": true,
+              "description": "Override both saved filters with this GraphSpec (JSON file)"
+            },
+            {
+              "name": "full",
+              "description": "Include the raw result and delta arrays (default: compact + stats)"
+            },
+            {
+              "name": "summary",
+              "description": "Emit the side summaries and diff summary only"
+            },
+            {
+              "name": "pretty",
+              "description": "Pretty-print a single result instead of one JSON line per tool"
+            },
+            {
+              "name": "fail-fast",
+              "description": "Stop at the first failing tool"
+            }
+          ]
         }
       }
     }

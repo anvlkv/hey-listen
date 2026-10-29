@@ -18,8 +18,10 @@
 mod analyze;
 mod analyzers;
 mod args;
+mod compare;
 mod export;
 mod export_args;
+mod inputs;
 mod notes;
 mod output;
 mod synth;
@@ -39,6 +41,7 @@ use crate::mcp::dispatch::HeadlessSession;
 
 use analyze::run_analyze;
 use analyzers::run_analyzers;
+use compare::run_compare;
 use notes::run_notes;
 use synth::run_synth;
 
@@ -46,6 +49,11 @@ use synth::run_synth;
 /// to `out`. Returns the process exit code: `0` when every file/tool succeeded, `1`
 /// when at least one failed. Usage errors are caught in [`build_request`] (exit `2`).
 pub fn run(request: &Request, out: &mut impl Write) -> i32 {
+    // A comparison loads two project files itself (each side's setup + filter); it does
+    // not use the headless session the other subcommands share.
+    if matches!(request.command, Command::Compare { .. }) {
+        return run_compare(request, out);
+    }
     let mut session = HeadlessSession::default();
 
     // The --filter graph conditions the signal before analysis, through the same
@@ -83,6 +91,7 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
         Command::Analyzers { id, json } => run_analyzers(&mut session, id.as_deref(), *json, out),
         Command::Analyze => run_analyze(&mut session, request, out),
         Command::Notes { path, json, full } => run_notes(path, *json, *full, out),
+        Command::Compare { .. } => run_compare(request, out),
         Command::Synth {
             graph,
             seconds,
