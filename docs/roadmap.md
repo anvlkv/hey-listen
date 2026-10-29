@@ -1616,3 +1616,106 @@ table deltas, modulation rate-axis cursors, and the waveform identical-window ru
 
 > **Order:** M25.A is UI-only and follows M25; it can be delivered family by family
 > (matrix → events → modulation → waveform) with the action enabled as each lands.
+
+## M26–M31 — Psychoacoustic analysis (planned)
+
+A perceptual layer on top of the existing signal features: model-based descriptors that
+answer “how loud / bright / rough / tonal / spacious does this seem”, distinct from the
+physical descriptors in [`analysis-tools.md`](analysis-tools.md). The reference material
+(libraries, equations, model recommendations) is in
+[`psychoacoustics-references.md`](psychoacoustics-references.md); the milestone plan,
+result shapes, option defaults, and test plan live in
+[`analysis-psychoacoustics.md`](analysis-psychoacoustics.md). Dependency order:
+**M26 → M27 → M28** (sharpness needs specific loudness); **M29** and **M30** each need
+only M26; **M31** needs M26 for the band basis and M27 only for the contour comparison.
+
+## M26 — Auditory scales + critical-band energy (planned)
+
+Bark and ERB scales, and a critical-band energy matrix that the loudness / masking models
+build on.
+
+- New `psychoacoustics/scales.rs`: Bark and ERB conversions (both directions) plus the
+  ERB-rate (Cam) scale, with the equations from
+  [`psychoacoustics-references.md`](psychoacoustics-references.md).
+- New **`criticalBands`** analyzer (Perception): integrate the shared STFT magnitude into
+  Bark or ERB bands; option `scale` (`bark` default, `erb`); returns a frame × band
+  matrix with band centres/edges.
+- Reuses the matrix heatmap; no new chart component.
+- **Tests.** Monotonic band edges; a 1 kHz sine lands in the band containing 1 kHz; Bark
+  vs ERB band counts differ; a narrow frequency range clamps without panicking.
+
+> See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M26.
+
+## M27 — Loudness (sone/phon) + specific-loudness map (planned)
+
+Perceived loudness, distinct from the EBU R128 LUFS tools.
+
+- New **`loudness`** (series) and **`specificLoudness`** (matrix) analyzers (Perception).
+- Commit to **ISO 532-2 (Moore–Glasberg) stationary** loudness on the ERB-rate axis;
+  `specificLoudness` returns `N'(z)` per frame, `loudness` returns `N` (sones) and `LN`
+  (phons) per frame with an `N5`/mean/max summary.
+- Option `calibrationDbSpl` (default `0` = **uncalibrated**, labelled; a positive value
+  is the dB SPL of a full-scale sine). The R128 tools are unchanged.
+- **Tests.** A calibrated sine yields the expected sones; uncalibrated input is labelled;
+  a louder copy raises `loudness_sone`; silence floors; the band sum approximates `N`.
+
+> See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M27.
+
+## M28 — Sharpness (DIN 45692) (planned)
+
+Perceptual high-frequency emphasis from the specific-loudness distribution.
+
+- New **`sharpness`** analyzer (Perception): `S = k ∫ N'(z) g(z) z dz / ∫ N'(z) dz` with
+  the DIN 45692 `g(z)` weighting and `k ≈ 0.11`; unit **acum**. Needs M27.
+- Option `calibrationDbSpl` (inherited).
+- **Tests.** High-frequency-heavy beats low-frequency-heavy at equal loudness; a 1 kHz /
+  60 dB SPL reference reads ~1 acum.
+
+> See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M28.
+
+## M29 — Roughness + fluctuation strength (planned)
+
+Model-based harshness (asper) and slow pulsing (vacil), sharing one modulation pipeline.
+
+- New **`roughness`** and **`fluctuationStrength`** analyzers (Perception): band envelopes
+  → modulation filter (roughness ~70 Hz, fluctuation ~4 Hz) → weighted sum, calibrated to
+  1 asper / 1 vacil reference tones. Full signal-processing models, **not** FFT-peak
+  beating sums. Needs M26.
+- Option `calibrationDbSpl` (shared).
+- **Tests.** Synth-graph AM: 70 Hz reads ~1 asper, 4 Hz reads ~1 vacil; a steady carrier
+  reads near zero for both.
+
+> See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M29.
+
+## M30 — Tonality, masking, and audibility (planned)
+
+A masking threshold, a signal-to-mask ratio, and a defined tonal-energy ratio.
+
+- New **`masking`** (spectrum overlay) and **`tonality`** (series) analyzers
+  (Perception). `masking` computes `Tq` (ATH), tonal/non-tonal maskers, the Bark-spread
+  global threshold `Tg`, and `SMR(i) = L(i) - Tg(i)`. `tonality` returns
+  `H = E_tonal / E_total` (0–1) as a **documented proxy**. Needs M26.
+- Option `calibrationDbSpl` (shared).
+- **Tests.** A masked quiet tone has negative `SMR`; `Tg` never falls below `Tq`; a sine
+  has high `tonality`, white noise low.
+
+> See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M30.
+
+## M31 — Equal-loudness contour overlay + spatial (stereo) cues (planned)
+
+An ISO 226 reference over the spectrum, and mid/side + inter-channel correlation.
+
+- **ISO 226 contours** are a **chart overlay** on the spectrum/spectrogram (selectable
+  phon level, interpolation of the tabulated coefficients), not a new result family;
+  meaningful only when the spectrum is calibrated.
+- New **`spatial`** analyzer (Perception): reads `Left`/`Right` **before** the channel
+  param (a documented exception), returns mid/side levels and normalized inter-channel
+  correlation over time; no result for a mono source. Acoustic cues, not a width model.
+
+> See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M31.
+
+> **Decision:** psychoacoustic analyzers are a calibrated, standards-honest layer over
+> dBFS — model-based descriptors (ISO 532-2 loudness, DIN 45692 sharpness, roughness /
+> fluctuation, masking, ISO 226) plus labelled physical proxies (tonality, stereo), with
+> `calibrationDbSpl` as a per-tool option and no `SharedParams` change. See ADR-25 and
+> [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).

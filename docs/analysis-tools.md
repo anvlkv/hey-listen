@@ -103,6 +103,26 @@ label/min/max/help metadata is stored in the Rust catalog and returned by M21's
 | Momentary / windowed | `dsp::loudness_momentary`, `loudness_momentary_windowed` |
 | Loudness range | `dsp::loudness_range` |
 
+**Psychoacoustics (M26–M31, planned)**
+
+| Tool | Source |
+| --- | --- |
+| Critical bands | core `psychoacoustics/bands.rs` over the shared STFT (Bark / ERB) — M26 |
+| Loudness (sone/phon) | ISO 532-2 Moore–Glasberg stationary model (`specific_loudness.rs`) — M27 |
+| Specific loudness | the `N'(z)` distribution from the same model (matrix) — M27 |
+| Sharpness | DIN 45692 from the specific-loudness distribution — M28 |
+| Roughness | Daniel–Weber-style band-envelope modulation model (asper) — M29 |
+| Fluctuation strength | Osses–García–Kohlrausch-family model (vacil) — M29 |
+| Masking | ATH + MPEG-style spread + signal-to-mask ratio — M30 |
+| Tonality | tonal-energy ratio proxy — M30 |
+| Spatial | mid/side + inter-channel correlation (pre-channel-selection stereo) — M31 |
+
+These are a **perceptual** layer, distinct from the physical spectral descriptors above
+and from the EBU R128 **LUFS** tools in the Loudness section (programme level, not
+perceived loudness). They commit to one named model each, honour a per-tool
+`calibrationDbSpl` (dBFS → dB SPL), and are labelled as models/proxies, never as
+ISO/DIN-conformant. See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
+
 ## Filtering before analysis
 
 Audio can be filtered before analysis: the user builds a **fundsp graph** in the
