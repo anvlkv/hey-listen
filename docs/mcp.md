@@ -118,13 +118,14 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Open **compare views** are reported separately as `compare: [{ tool, with }]` (M25, planned) — they are not in `openTools`. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
 | `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a uniform `times` as `{ start, hop, length, end }`. **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
+| `compare_analysis` | Compare **the same tool** on two open projects: `with` names the reference window, `target` the owner (default: focused). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, and `diff` is omitted when the grids differ. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the transient compare view. App-only. **(M25, planned)** See [`comparison.md`](comparison.md). |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -138,7 +139,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `list_output_devices` / `list_input_devices` / `list_processes` | Enumerate devices / processes. |
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
 | `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` (no Workbench layout); `embedSource: false` writes a reference project for a file source. **(M21.A)** |
-| `list_projects` | List the open project windows (label, name, focused) — answered by the server. |
+| `list_projects` | List the open project windows (label, name, focused; plus each project's source shape, analysis window and filter presence) — answered by the server. **(M25)** |
 | `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
 | `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON / CSV) or chart (PNG), or every open tool to a folder. `export_analysis` is headless-capable; `export_chart` needs the rendered canvas. **(M12, planned)** |
@@ -170,6 +171,15 @@ engine. `list_analyzers` carries each tool's compact option map (keys + defaults
 to address a specific project window instead of the focused one. `get_state` reports
 the window it is looking at as `project.window`. With no app running, the headless
 server answers the compute subset (the rest return "requires the app").
+
+**Comparisons (M25).** `compare_analysis` takes `with` (the reference label) on top of
+`target`; both must be open project windows (not popouts). Each side runs with its own
+window/params/options/filter, and the response reports `comparability` (`aligned`,
+`overlap`, `mismatches`, `filtersDiffer`) so an agent can tell whether `diff` is
+numerically meaningful. The core compares **every** analyzer family in M25; the GUI's
+compare *views* for matrix/event/modulation/waveform land in M25.A, so an agent can diff
+them before a chart exists. The comparison view is **not** saved. Headless mode answers
+*requires the app*; use the CLI `compare` on two project files instead.
 
 ## Protocol notes
 

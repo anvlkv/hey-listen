@@ -628,3 +628,43 @@ need the menu rebuilt on every binding change; making the menu itself data-drive
 follow-up. See [`hotkeys.md`](hotkeys.md).
 
 **Status: proposed (M24).**
+
+## ADR-24 — Comparison is a transient, read-only view over two projects
+
+**Context:** diffing two audio sources needs two independent analysis setups (source,
+filter, synth, window, params). Adding a second *track* to a project would duplicate the
+source/filter/window model inside `AudioState` and contradict ADR-3 and ADR-9, and would
+make every store, the project file and the Workbench track-aware. The app already runs
+independent project windows, so the second analysis setup exists — what is missing is a
+view that spans two of them.
+
+**Decision:**
+
+- A comparison binds **(owner project A, reference project B, one analyzer tool)**. Both
+  are ordinary project windows; no popout and no second source is involved.
+- The **core** computes both sides through the existing `analysis::run_window`, each from
+  its own `WindowState` (own PCM and own filter). A's setup is sent by its frontend; B's
+  is read from B's shared UI state. B is **read-only** — the comparison never mutates it.
+- The compare view is a **transient Workbench tab** in A that **pops out like any tab**.
+  It is **not project content**: excluded from `LAYOUT` (sanitised), `SETUP.openTools`,
+  `RESULTS`, undo history, the dirty signature and Recent; a compare popout is registered
+  with its `(tool, reference)` but never returned by `popout_tools_of` and never restored
+  on load. Saving while it is open writes the project as if it were closed.
+- Comparability is **explicit**: a grid signature gates the numeric delta, differing
+  windows diff over their absolute-time overlap, and every differing setting is reported.
+  There is no silent normalisation.
+- The same operation is exposed by the native **Analysis** menu and a tab context menu,
+  by MCP `compare_analysis` (app-only), and by the CLI `compare` subcommand (two project
+  files, each with its saved setup).
+
+**Consequence:** the diff is available without changing ADR-3, the source model, or the
+project file's audio layout. The cost is a second set of peer-read commands, a revision
+counter, a compare-view chart layer, and a **third popout kind** (a compare window is
+still a view of A, registered with its tool + reference, but never saved). Because each
+side keeps its own settings, a diff is only numerically meaningful when the grids match;
+the badge and mismatch list are part of the contract, not a nicety. Peer
+cursors/playheads are polled read-only, so the compare view never drives B's transport.
+The CLI needs the compiled filter spec in `LAYOUT` to reproduce the app's conditioning.
+See [`comparison.md`](comparison.md).
+
+**Status: proposed (M25).**

@@ -77,8 +77,9 @@ compact "Add audio" state has a fixed height).
   attributions) rather than the native panel. File actions are emitted to the
   frontend via `app:menu`; the rest are native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
   (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
-  [`roadmap.md`](roadmap.md) → Backlog). See `src-tauri/src/menu.rs`. The
-  **Toolbar shows the current project name** — the file actions live in the File
+  [`roadmap.md`](roadmap.md) → Backlog). An **Analysis** menu carries **Compare
+  with…** (M25, planned; acts on the focused analyzer tab). See `src-tauri/src/menu.rs`.
+  The **Toolbar shows the current project name** — the file actions live in the File
   menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
   status only. No hero/header like a website. It carries the app-level audio
@@ -179,7 +180,13 @@ None of these are closable, draggable, or tabbed.
 - Managed by `dockview` (mounted **only** in the Workbench region).
 - Two kinds: the **graph editors** (`filter`, `synth` — see ADR-10) and the
   **analyzer tabs** (M4+).
-- **No duplicate tabs** — a tool/editor can be open at most once.
+- **No duplicate tabs** — a tool/editor can be open at most once. A **compare view**
+  (M25, planned) is a second, *transient* tab per tool (`compare:<tool>`): right-click an
+  analyzer tab → **Compare with…** to overlay the same tool from another open project.
+  It is one per tool per project — as a tab **or** its popout — and choosing another
+  reference retargets it. It is never in the Sidebar and **not saved** — the dockview
+  layout is sanitised when it is written, and compare popouts are never recorded as tool
+  popouts, so save/load or New Project closes them. See [`comparison.md`](comparison.md).
 - Tabs are dragged to reorder / **split / join** groups. The drag runs on
   dockview's **pointer** strategy (`dndStrategy: "pointer"`): the system WebView
   does not drive HTML5 drag-and-drop reliably, which left edge drops inoperative.
@@ -188,13 +195,19 @@ None of these are closable, draggable, or tabbed.
   `tauri://…` (the custom URL-scheme handler is only wired for a full wry webview), so
   the popout is a **real Tauri window** created by `open_popout_window` — the frontend
   only renders (ADR-11). It shows just that tool (no tab strip), is a *view* of the
-  same project, and its title is `<tool> — <project>`. Selecting that tool in the
-  Sidebar **raises** the popout (`focus_popout`) rather than opening a duplicate tab,
+  same project, and its title is `<tool> — <project>`. For a normal tool, selecting it in
+  the Sidebar **raises** the popout (`focus_popout`) rather than opening a duplicate tab,
   and a *new* tool always opens in the main window. There is **one window per tool per
   project**: popping it out again raises the window, and closing it forgets the tool, so
   selecting it again opens a **tab**. A project load (or New Project) reconciles the
   windows (`sync_popouts`): the tools its layout records get exactly one window each, and
   popouts it does not record close.
+- A **compare** tab pops out the same way, through `open_compare_popout_window`, but is
+  registered with its tool and reference rather than as a tool popout: its title is
+  `Compare: <tool> — <A> ↔ <B>`, choosing it again raises it, another reference retargets
+  it, and it is **never** recorded in `LAYOUT.popouts` or restored on load
+  (`close_popouts` closes it with the old project's views). See
+  [`comparison.md`](comparison.md).
 - A **note** pops out the same way (`open_note_window`, from the Annotations rail's row): a
   real window that renders just that note's editor, aliased to the same project and
   raised rather than duplicated. A popout of either kind is never a project window:

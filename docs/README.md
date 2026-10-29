@@ -10,8 +10,9 @@ voice-quality proxies, and AM/FM modulation spectra) are delivered — see
 [`analysis-metrics.md`](analysis-metrics.md). **M21** (MCP/CLI ergonomics: per-result
 summaries, compact results, catalog annotations, discovery) is delivered — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md). **M22** (synth live workflow), **M23**
-(timeline ergonomics) and **M24** (keyboard control) are **planned** — see
-[`roadmap.md`](roadmap.md) and [`hotkeys.md`](hotkeys.md).
+(timeline ergonomics), **M24** (keyboard control), **M25** (cross-project comparison) and
+**M25.A** (its remaining chart views) are **planned** — see [`roadmap.md`](roadmap.md),
+[`hotkeys.md`](hotkeys.md) and [`comparison.md`](comparison.md).
 
 | Doc | What it covers |
 | --- | --- |
@@ -23,6 +24,7 @@ summaries, compact results, catalog annotations, discovery) is delivered — see
 | [data-model.md](data-model.md) | Domain entities and their relationships |
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
+| [comparison.md](comparison.md) | Cross-project diffs: the A/B model, comparability, the compare view (+ popout), MCP/CLI surfaces (M25 / M25.A) |
 | [analysis-metrics.md](analysis-metrics.md) | Analysis depth: pitch range, frame RMS, note segmentation (M16–M18), per-note voice-quality proxies (M19), and AM/FM modulation spectra (M20) — all delivered |
 | [mcp-cli-ergonomics.md](mcp-cli-ergonomics.md) | MCP/CLI ergonomics: result summaries, compact previews, tool annotations, analyzer discovery (M21) |
 | [theming.md](theming.md) | Exchangeable theme files: the `ThemeFile` model, built-ins + slots, the apply pipeline |

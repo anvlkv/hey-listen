@@ -76,6 +76,7 @@ hey-listen <COMMAND>
 Commands:
   analyzers [ID]  List the analyzer catalog, or explain one analyzer
   analyze         Decode file(s) and run analyzer(s) over them
+  compare         Diff one analyzer across two project files
   synth           Render a synth graph and (optionally) analyze the result
   notes           List the notes in a project file (.heyl)
 
@@ -119,6 +120,42 @@ a **usage error** (printed to stderr, exit `2`) — it never falls through to th
 `analyze --windows FILE` for **many windows in one file**, so a 1k-window run pays one
 process startup, not 1k. `--windows` keeps the JSONL contract: one line per
 file/window/tool, and the envelope's `window` says which span each line covers.
+
+### `compare <A.heyl> <B.heyl>` (M25, planned)
+
+Run the **same analyzer** over two saved projects and emit the two results plus an
+explicit comparison (see [`comparison.md`](comparison.md)). Each side uses its own
+saved setup — analysis window, shared params, tool options, `filterEnabled` and
+`LAYOUT.filterSpec` — so the diff is "the projects as saved".
+
+| Option | Meaning |
+| --- | --- |
+| `-t, --tool <ID>` | Analyzer id (repeatable; one output line per tool). Required. |
+| `--start` / `--end` | Override **both** sides' windows. |
+| `--a-start` / `--a-end` / `--b-start` / `--b-end` | Override one side's window. |
+| `--overlap` | Clip both sides to their absolute-time intersection. |
+| `-p, --param <K=V>` | Patch a shared param on **both** sides. |
+| `-o, --option [TOOL.]K=V` | Patch a per-tool option on **both** sides. |
+| `--filter <FILE>` | Override both saved filters with this `GraphSpec`. |
+| `--full` / `--summary` | Raw result/delta arrays, or summaries + diff stats only. |
+| `--pretty` / `--fail-fast` | As in `analyze`. |
+
+One JSONL object per tool (the `analyze` result envelope per side plus the comparison):
+
+```json
+{"tool":"spectrum",
+ "a":{"file":"a.heyl","window":{},"params":{},"options":{},"summary":{},"result":{}},
+ "b":{"file":"b.heyl","…":"…"},
+ "comparability":{"aligned":true,"overlap":{},"mismatches":[],"filtersDiffer":false},
+ "diff":{"kind":"spectrum","summary":"…","maxAbs":4.2}}
+```
+
+`diff` is absent when the grids differ (a mismatch list explains why); the two results
+are still emitted. Every analyzer id compares in M25 (the GUI's matrix/event views
+follow in M25.A). Exit `0` when every tool ran, `1` when either side failed, `2` on a
+usage error. A project saved before `LAYOUT.filterSpec` existed compares unfiltered with
+a one-line stderr warning. **Only project files** are accepted — `analyze` covers raw
+audio files.
 
 ### `analyzers [ID]`
 

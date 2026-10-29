@@ -158,11 +158,13 @@ The commands and channels below are all implemented; milestone notes record the 
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅. `preview_region` takes a **varispeed** `speed` (M14 follow-up) — preview only, analysis is always 1×. |
 | Analysis | `run_analysis` | tool id + window + params → result |
+| Comparison | `run_comparison`, `list_comparison_targets`, `compare_peer_setup`, `compare_live` | transient A/B comparison over two project `WindowState`s (M25, planned); `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only |
 | Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14 ✅. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 | Window | `open_project_window` | open a new, independent project window (M7) ✅ |
 | Window | `open_popout_window`, `sync_popouts`, `popout_tool`, `popout_tools` | open/raise a popout window for a tool, reconcile a project's popouts on load (M7) ✅ |
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
+| Comparison | `open_compare_popout_window`, `popout_compare`, `focus_compare_popout`, `retarget_compare_popout` | a compare view popped out like any tab: aliased to A, registered with `(tool, reference)`, raised/retargeted rather than duplicated, and never recorded as a tool popout (M25, planned) |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 | MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
 | MCP | `get_mcp_status`, `set_mcp_config` | the MCP server's status / config (on-off + port), owned by `mcp::settings::McpController` (M9) ✅ |
@@ -205,8 +207,8 @@ The commands and channels below are all implemented; milestone notes record the 
 - `source_status` — device lost, stall, permission, etc. (flexaudio `Event`).
 - `analysis_progress` — long-running analysis updates.
 - `app:menu` — a File-menu action id (`new` / `newWindow` / `open` / `save` /
-  `saveAs`) or an Edit action (`undo` / `redo`) from the native menu (M6, M7); the
-  frontend runs the matching project action. Emitted to the **focused window**
+  `saveAs`), an Edit action (`undo` / `redo`), or the Analysis action `compare` (M25,
+  planned) from the native menu (M6, M7); the frontend runs the matching project action. Emitted to the **focused window**
   (multiple windows, M7); choosing an **Open Recent** entry is re-emitted as
   `app:open-project`.
 - `app:open-project` — opened `.heyl` paths (file association); routed to the focused
@@ -274,6 +276,23 @@ Both windows drive the same core state:
 - A UI edit in either window calls `set_ui_state`, which stores the value and emits
   `ui-state` to the other windows, which apply it — so the timeline window, params,
   chart zoom, and project name stay in lockstep.
+- A popout is a **tool**, a **note**, or a **compare view** (M25). A compare popout
+  carries its own `(tool, reference)` in the registry; it is still aliased to the project
+  for source/UI state, but it is never recorded in `LAYOUT.popouts` and is closed with
+  the project's other views (`close_popouts`).
+
+### Two projects, one comparison (M25, planned)
+
+A comparison is the only cross-project **audio** read in the core. The owner window (A) calls
+`run_comparison` with a reference **label** (B) and each side's setup; the core resolves
+both `WindowState`s and runs the tool twice through `analysis::run_window`, so each side
+uses its own PCM and filter. Nothing is written to either project and B's UI state is
+never changed. `compare_peer_setup` / `compare_live` are the narrow reads (B's
+window/params/options, both playheads, B's cursor and a revision) that let A follow B
+while the compare view is open. See [`comparison.md`](comparison.md) and ADR-24.
+
+> **Not a second track.** ADR-3/ADR-9 stay as they are: the second analysis setup is a
+> second **project**, not a second source in one project.
 
 **Scoping is two-sided.** `emit_to(label, …)` only *filters* a global emit: Tauri checks a
 listener's own target **before** applying that filter (`match_any_or_filter` in

@@ -114,6 +114,21 @@ its identity seed (nothing to apply).
 The node palette is a focused subset of fundsp today; covering the full node set is
 tracked in the [roadmap](roadmap.md) backlog.
 
+## Comparing two projects (M25, planned)
+
+A comparison is **per tool**: the same analyzer id is run against two independently
+open projects (A, the owner, and B, the reference), each over its own analysis window,
+with its own shared params, tool options and filter. The core computes both sides and
+the frontend overlays them in a transient compare view; the delta is explicit and is
+omitted when the grids (rate, channel, FFT/hop/window, band, dimensions) differ. See
+[`comparison.md`](comparison.md).
+
+This is not a second track: ADR-3's one-window / one-project / one-source rule still
+holds, so "independent filters + synth + timeline" means two projects, not two sources in
+one. MCP `compare_analysis` and the CLI `compare` expose the same operation for **every**
+tool; the GUI's compare views for series, spectrum and readouts ship in M25, and the
+matrix/event/modulation/waveform views in M25.A.
+
 ## Exporting results (M12, planned)
 
 Each analyzer tab can export its **data** — JSON (a provenance envelope around the typed
