@@ -130,7 +130,7 @@ export async function popoutTool(id: ToolId) {
 }
 
 /** The open Workbench **tool** tab ids, in dockview order (compare views excluded). */
-function syncOpenTools(api: DockviewApi) {
+export function syncOpenTools(api: DockviewApi) {
   setOpenTools(
     api.panels.filter((panel) => !isCompareId(panel.id)).map((panel) => panel.id as ToolId),
   );

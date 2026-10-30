@@ -98,12 +98,42 @@ check("a group left empty by the compare panel is pruned", () => {
     activeGroup: "g1",
   } as unknown as SerializedDockview;
   const sanitized = sanitizeLayout(original, isCompareId)!;
-  // The lone surviving child is lifted out of the branch.
-  const root = sanitized.grid.root as unknown as { type: string; data: { id: string } };
-  assertEqual(root.type, "leaf");
-  assertEqual(root.data.id, "g2");
+  // The root **stays a branch** — `fromJSON` rejects a leaf root — with the surviving
+  // group as its only child; dockview flattens that once the layout is live.
+  const root = sanitized.grid.root as unknown as {
+    type: string;
+    data: { type: string; data: { id: string; views: string[] } }[];
+  };
+  assertEqual(root.type, "branch");
+  assertEqual(root.data.length, 1);
+  assertEqual(root.data[0].data.id, "g2");
+  assertDeepEqual(root.data[0].data.views, ["mfcc"]);
   // The active group pointed at the removed group, so it is dropped.
   assertEqual(sanitized.activeGroup, undefined);
+});
+
+check("a floating group keeps only its project views", () => {
+  const original = {
+    grid: layout(["spectrum"]).grid,
+    panels: { spectrum: { id: "spectrum" }, "compare:spectrum": { id: "compare:spectrum" } },
+    floatingGroups: [
+      {
+        data: { id: "f1", views: ["spectrum", "compare:spectrum"], activeView: "compare:spectrum" },
+        position: { top: 0, left: 0, width: 100, height: 100 },
+      },
+      {
+        data: { id: "f2", views: ["compare:spectrum"] },
+        position: { top: 0, left: 0, width: 100, height: 100 },
+      },
+    ],
+  } as unknown as SerializedDockview;
+  const sanitized = sanitizeLayout(original, isCompareId)!;
+  type Float = { data: { id: string; views: string[]; activeView?: string } };
+  const groups = sanitized.floatingGroups as unknown as Float[];
+  // The group left with nothing is dropped; the other keeps its pruned view list.
+  assertEqual(groups.length, 1);
+  assertDeepEqual(groups[0].data.views, ["spectrum"]);
+  assertEqual(groups[0].data.activeView, undefined);
 });
 
 check("a layout that is only a compare panel sanitizes to nothing", () => {

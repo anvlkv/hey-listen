@@ -6,8 +6,8 @@ import type { DockviewApi } from "dockview";
  *
  * Dockview gives tabs no stable hook of their own, so each `.dv-tab` is matched to its
  * panel by title. A panel whose title changes at runtime (a compare tab gains its two
- * project names) re-runs [`scheduleStampTabIds`] after the change, so the matcher and the
- * DOM agree again.
+ * project names) is re-stamped by the observer installed through
+ * [`observeTabIds`], so the matcher and the DOM agree again.
  */
 export function stampTabIds(api: DockviewApi) {
   const tabs = Array.from(document.querySelectorAll<HTMLElement>(".dv-tabs-container .dv-tab"));
@@ -46,4 +46,27 @@ export function scheduleStampTabIds(api: DockviewApi) {
     if (missing && attempts < 40) window.setTimeout(tick, 25);
   };
   window.setTimeout(tick, 0);
+}
+
+/**
+ * Keep the stamps correct for the Workbench's lifetime.
+ *
+ * A layout restore (`fromJSON`) and a runtime title change both re-render dockview's
+ * tabs *after* the panel events fire, so the retry loop above can finish too early —
+ * leaving a tab with no stamp, which the suite then cannot address (e.g. a tab restored
+ * by opening a project). Watching the Workbench subtree for **child and text** changes
+ * (deliberately not attributes, so writing the stamp cannot re-trigger the observer)
+ * stamps each tab whenever the DOM settles.
+ *
+ * Returns a disposer.
+ */
+export function observeTabIds(api: DockviewApi, root: HTMLElement): () => void {
+  if (typeof MutationObserver === "undefined") {
+    scheduleStampTabIds(api);
+    return () => {};
+  }
+  const observer = new MutationObserver(() => stampTabIds(api));
+  observer.observe(root, { childList: true, subtree: true, characterData: true });
+  scheduleStampTabIds(api);
+  return () => observer.disconnect();
 }

@@ -55,7 +55,7 @@ export function sanitizeLayout(
   }
   if (Object.keys(panels).length === 0) return null;
 
-  const root = pruneNode(layout.grid?.root as SerializedNode | undefined, drop);
+  const root = pruneNode(layout.grid?.root as SerializedNode | undefined, drop, true);
   if (!root) return null;
   const grid = { ...layout.grid, root } as SerializedDockview["grid"];
 
@@ -74,10 +74,19 @@ export function sanitizeLayout(
   return next;
 }
 
-/** Prune one node: leaves whose views are all dropped disappear; a lone child is lifted. */
+/**
+ * Prune one node: leaves whose views are all dropped disappear; a nested lone child
+ * is lifted.
+ *
+ * The **root** must stay a branch, whatever survives: `fromJSON` rejects a leaf root
+ * outright (`dockview: root must be of type branch`), and restoring one tab after
+ * stripping a compare tab is exactly that case. Dockview flattens the single-child
+ * branch itself once the layout is live, so keeping it is free.
+ */
 function pruneNode(
   node: SerializedNode | undefined,
   drop: (id: string) => boolean,
+  isRoot = false,
 ): SerializedNode | null {
   if (!node) return null;
   if (node.type === "leaf") {
@@ -88,7 +97,7 @@ function pruneNode(
     .map((child) => pruneNode(child, drop))
     .filter((child): child is SerializedNode => child != null);
   if (children.length === 0) return null;
-  if (children.length === 1) return children[0];
+  if (children.length === 1 && !isRoot) return children[0];
   return { ...node, data: children };
 }
 
@@ -109,13 +118,15 @@ function pruneGroups(
   if (!groups) return groups;
   const kept: SerializedGroup[] = [];
   for (const group of groups) {
-    if (group.grid) {
+    if (group.data) {
+      // Keep the *pruned* group: the original still lists the dropped view.
+      const data = pruneGroup(group.data, drop);
+      if (data) kept.push({ ...group, data });
+    } else if (group.grid) {
       const root = pruneNode(group.grid.root, drop);
       if (root) kept.push({ ...group, grid: { ...group.grid, root } });
-    } else if (group.data && pruneGroup(group.data, drop)) {
-      kept.push(group);
-    } else if (!group.data) {
-      kept.push(group);
+    } else {
+      kept.push(group); // no group state to prune
     }
   }
   return kept;

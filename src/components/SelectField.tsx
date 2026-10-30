@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js";
 import SelectTrigger, { type SelectOption } from "./SelectTrigger";
 
 export type { SelectOption };
@@ -17,8 +18,11 @@ export default function SelectField<T>(props: {
   ariaLabel?: string;
   disabled?: boolean;
 }) {
-  const current = () =>
-    props.options.find((option) => option.value === props.value) ?? props.options[0];
+  // A memo, not a plain function, so the lookup (and the option the `Select` receives as
+  // its value) keeps its identity between unrelated re-renders.
+  const current = createMemo(
+    () => props.options.find((option) => option.value === props.value) ?? props.options[0],
+  );
 
   return (
     <SelectTrigger
