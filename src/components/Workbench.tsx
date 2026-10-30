@@ -3,12 +3,18 @@ import "dockview/dist/styles/dockview.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
 import ToolContent from "./ToolContent";
-import { scheduleStampTabIds } from "./workbenchTabIds";
+import { scheduleStampTabIds, observeTabIds } from "./workbenchTabIds";
 import { exportAllOpenAnalyses, exportAnalysis, exportChart } from "../lib/export";
 import { isAnalyzerId } from "../state/analyzer";
 import { source } from "../state/source";
 import { resolvedTheme } from "../state/themes";
-import { setDockApi, setOpenTools, popoutTool, type ToolId } from "../state/workbench";
+import {
+  setDockApi,
+  setOpenTools,
+  syncOpenTools,
+  popoutTool,
+  type ToolId,
+} from "../state/workbench";
 import { chooseCompareReference } from "../state/compare/picker";
 import { parseCompareTool, compareViewable } from "../state/compare/id";
 import { popoutCompare, closeCompare } from "../state/compare/views";
@@ -46,20 +52,12 @@ function WatermarkHint() {
   );
 }
 
-/**
- * Stamp tab test ids once the tab DOM has settled (see `workbenchTabIds.ts`).
- */
-
-/**
- * Stamp `data-testid="tab.<panelId>"` on each dockview tab so a test can address
- * an individual Workbench tab (`selectors.ts` → `tab(id)`). Kept in `workbenchTabIds`
- * because a compare tab re-stamps after its title gains the project names.
- */
-
 export default function Workbench() {
   // The workbench mounts dockview into the `<section>` host (an `HTMLElement`).
   let host!: HTMLElement;
   let dockview: DockviewComponent | undefined;
+  /** Stops the tab-stamp observer (see `workbenchTabIds.ts`). */
+  let stopObservingTabIds: (() => void) | undefined;
 
   /** The dockview theme matching the active [`resolvedTheme`]. */
   const dockTheme = () => (resolvedTheme() === "light" ? themeLight : themeDark);
@@ -161,9 +159,12 @@ export default function Workbench() {
 
     const api = dockview.api;
     setDockApi(api);
-    // Stamp the tab test ids once the tab DOM exists (see `scheduleStampTabIds`).
+    // Keep every tab addressable by `data-testid` (see `workbenchTabIds.ts`): the
+    // initial pass, plus an observer because a layout restore and a title change both
+    // touch the tab DOM after the panel events fire.
+    stopObservingTabIds = observeTabIds(api, host);
     const sync = () => {
-      setOpenTools(api.panels.map((panel) => panel.id as ToolId));
+      syncOpenTools(api);
       scheduleStampTabIds(api);
     };
     api.onDidAddPanel(sync);
@@ -177,6 +178,7 @@ export default function Workbench() {
   onCleanup(() => {
     setDockApi(null);
     setOpenTools([]);
+    stopObservingTabIds?.();
     dockview?.dispose();
   });
 

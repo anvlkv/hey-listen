@@ -59,12 +59,50 @@ export async function compareFromTabMenu(toolId: string, targetLabel: string): P
   );
 }
 
+/**
+ * Record page-level errors from now on.
+ *
+ * A click whose effect never appears usually means a render threw (Solid reports it as
+ * an unhandled rejection, which WebDriver otherwise swallows) — so the failure below
+ * can say *why* instead of just timing out.
+ */
+async function watchErrors(): Promise<void> {
+  await browser.execute(() => {
+    const w = window as unknown as { __compareErrors?: string[] };
+    w.__compareErrors = [];
+    const record = (text: string) => w.__compareErrors?.push(text);
+    window.addEventListener("unhandledrejection", (event) =>
+      record(`unhandled rejection: ${String((event as PromiseRejectionEvent).reason)}`),
+    );
+    window.addEventListener("error", (event) => record(`error: ${event.message}`));
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      record(`console.error: ${args.map(String).join(" ")}`);
+      original(...args);
+    };
+  });
+}
+
+/** The errors recorded since [`watchErrors`]. */
+async function watchedErrors(): Promise<string[]> {
+  return (await browser.execute(
+    () => (window as unknown as { __compareErrors?: string[] }).__compareErrors ?? [],
+  )) as string[];
+}
+
 /** Change an open compare tab's reference through its own tab menu. */
 export async function changeReference(toolId: string, targetLabel: string): Promise<void> {
+  await watchErrors();
   await rightClick(tab(compareTab(toolId)));
   await clickTabMenuItem(CHANGE_REFERENCE_ITEM);
   const dialog = await $('[data-testid="compare.picker"]');
-  await dialog.waitForExist();
+  try {
+    await dialog.waitForExist();
+  } catch (error) {
+    const errors = await watchedErrors();
+    const why = errors.length > 0 ? `: ${errors.join("; ")}` : "";
+    throw new Error(`the reference picker never opened${why}`, { cause: error });
+  }
   await pickTarget(targetLabel);
 }
 

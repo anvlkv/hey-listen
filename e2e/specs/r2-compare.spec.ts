@@ -13,7 +13,7 @@
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SEL, analyzerPanel, tab } from "../support/selectors.ts";
+import { SEL, tab } from "../support/selectors.ts";
 import { canvasHasInk } from "../support/analyzers.ts";
 import {
   count,
@@ -59,6 +59,27 @@ async function waitForCompareChart(tool: string): Promise<void> {
   await waitFor(() => canvasHasInk(chart), `the ${tool} compare chart never drew`);
 }
 
+/** The comparability badge: its text and the mismatch list it carries as a tooltip. */
+async function badge(): Promise<{ text: string; title: string }> {
+  return (await browser.execute((selector: string) => {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    return { text: (el?.textContent ?? "").trim(), title: el?.title ?? "" };
+  }, BADGE)) as { text: string; title: string };
+}
+
+/** Wait for a badge text, reporting the mismatch list when it never arrives. */
+async function waitForBadge(expected: string): Promise<void> {
+  try {
+    await waitFor(
+      async () => (await badge()).text === expected,
+      `the compare badge never read "${expected}"`,
+    );
+  } catch (error) {
+    const info = await badge();
+    throw new Error(`${error}\nbadge="${info.text}" mismatches="${info.title}"`, { cause: error });
+  }
+}
+
 /** Set the shared FFT size through the current window's Toolbar popover. */
 async function setFft(value: string): Promise<void> {
   await (await $(SEL.toolbarParams)).click();
@@ -70,11 +91,7 @@ async function setFft(value: string): Promise<void> {
   await dismissPopovers();
 }
 
-/** The badge text in the current window. */
-async function badgeText(): Promise<string> {
-  return (await textOf(BADGE)).trim();
-}
-
+/** Set the shared FFT size through the current window's Toolbar popover. */
 describe("R2. Comparison", () => {
   /** The reference project window this spec drives. */
   let second = "";
@@ -116,7 +133,7 @@ describe("R2. Comparison", () => {
 
     expect(await count(compareView("spectrum"))).toBe(1);
     // The same tool, window, params and FFT on both sides ⇒ aligned, with a delta.
-    await waitFor(async () => (await badgeText()) === "Aligned", "the compare badge never aligned");
+    await waitForBadge("Aligned");
     expect(await textOf(compareView("spectrum"))).toContain("Δ mean");
     // The compare view is its own tab, next to the analyzer it compares.
     const titles = await openTabTitles();
@@ -127,18 +144,12 @@ describe("R2. Comparison", () => {
 
   it("R2.2 — a differing grid shows the mismatch badge and no delta", async () => {
     await setFft("1024");
-    await waitFor(
-      async () => (await badgeText()) === "Grids differ",
-      "the compare badge did not report the FFT mismatch",
-    );
+    await waitForBadge("Grids differ");
     const readouts = await textOf(compareView("spectrum"));
     expect(readouts).toContain("—"); // the Δ readouts have no value
     // Restore the shared grid so the later tests compare like with like.
     await setFft("2048");
-    await waitFor(
-      async () => (await badgeText()) === "Aligned",
-      "the compare badge did not realign",
-    );
+    await waitForBadge("Aligned");
   });
 
   it("R2.3 — closing the reference keeps the last result and stops live updates", async () => {
@@ -182,8 +193,19 @@ describe("R2. Comparison", () => {
       "main did not load the saved project",
       30_000,
     );
-    expect(await count(tab(compareTab("spectrum")))).toBe(0);
-    expect(await count(analyzerPanel("spectrum"))).toBe(1);
+    // The compare tab is transient: it is never written to the project file, so reopening
+    // does not restore it. The project name updates first and the Workbench layout a
+    // moment later, so this is polled rather than read once.
+    await waitFor(
+      async () => (await openTabTitles()).every((title) => !title.startsWith("Compare:")),
+      "the compare tab was restored",
+    );
+    // The analyzer tab it was opened from is restored…
+    await waitFor(
+      async () => (await count(tab("spectrum"))) > 0,
+      "the spectrum tab was not restored",
+    );
+    await waitForAnalyzer("spectrum");
   });
 
   it("R2.5 — retargeting reuses the same compare tab", async () => {
@@ -203,9 +225,17 @@ describe("R2. Comparison", () => {
     await browser.tauri.switchWindow("main");
     await waitForShell();
 
+    // Both reference projects are offerable, so the picker has something to show.
+    const targets = await invokeCore<{ label: string }[]>("compare_targets");
+    expect(targets.map((target) => target.label)).toEqual(
+      expect.arrayContaining([reference, other]),
+    );
+
     await changeReference("spectrum", other);
+    // Absence is polled in-page: awaiting `$(sel)` for a missing element throws, so
+    // `isExisting()` can never settle a "is gone" wait.
     await waitFor(
-      async () => !(await $(BANNER)).isExisting(),
+      async () => (await count(BANNER)) === 0,
       "the retargeted comparison never came back",
     );
     expect((await openTabTitles()).length).toBe(before);

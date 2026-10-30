@@ -94,8 +94,16 @@ for (const group of ["time", "freq", "mod"] as const) {
 /**
  * Pull the project's shared state and start pushing local edits. Call once per
  * window, after the stores exist.
+ *
+ * Order matters: the pull **must** finish before the push effects are created.
+ * `pushUiState` is dropped until the initial sync has completed (`synced`), so an
+ * effect created first would run once, be dropped, and never run again unless the user
+ * happened to change that state — leaving a fresh project window with an empty shared
+ * state. A peer read (the comparison, M25) would then see defaults for its reference.
  */
 export async function initUiState(): Promise<void> {
+  await initUiSync();
+
   createRoot(() => {
     createEffect(() =>
       pushUiState("timeline", {
@@ -141,6 +149,4 @@ export async function initUiState(): Promise<void> {
       });
     }
   });
-
-  await initUiSync();
 }

@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
 import Button from "../Button";
 import SelectField from "../SelectField";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
@@ -25,7 +25,10 @@ export default function CompareHeader(props: {
   const [ready, setReady] = createSignal(false);
   onMount(() => void refreshCompareTargets().finally(() => setReady(true)));
 
-  const options = () => {
+  // The reference select's options. Memoized so the array (and the option objects) keep
+  // their identity between the view's frequent re-renders (the live poll), and so the
+  // `keyed` Show below remounts the select only when the list really changed.
+  const options = createMemo(() => {
     const targets = compareTargets().map((target) => ({
       value: target.label,
       label: `${target.name}${target.ready ? "" : " (no source)"}`,
@@ -37,7 +40,7 @@ export default function CompareHeader(props: {
       return [{ value: props.reference, label: `${props.reference} (closed)` }, ...targets];
     }
     return targets;
-  };
+  });
 
   const a = () => (props.swapped ? props.comparison.b : props.comparison.a);
   const b = () => (props.swapped ? props.comparison.a : props.comparison.b);
@@ -90,14 +93,20 @@ export default function CompareHeader(props: {
             Reference closed
           </span>
         </Show>
-        <Show when={ready() && options().length > 0}>
-          <SelectField
-            class="compare-reference-select"
-            ariaLabel="Reference project"
-            options={options()}
-            value={props.reference}
-            onChange={(value) => props.onReferenceChange(value)}
-          />
+        {/* Remounted (`keyed`) when the target list changes: an in-place `options` update
+            makes Kobalte's list state and selection invalidate each other until the stack
+            overflows — which aborts the update that caused it (the reference picker,
+            M25) — while a fresh mount settles. */}
+        <Show when={ready() && options().length > 0 ? options() : null} keyed>
+          {(list) => (
+            <SelectField
+              class="compare-reference-select"
+              ariaLabel="Reference project"
+              options={list}
+              value={props.reference}
+              onChange={(value) => props.onReferenceChange(value)}
+            />
+          )}
         </Show>
         <Show when={!props.live.open()}>
           <Button class="compare-btn" onClick={props.onRetry}>

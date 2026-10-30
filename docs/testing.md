@@ -505,6 +505,16 @@ sorts after `r-multi-project` and before `s-project-ux`; the **last** suite file
 `t-close-main`. Helpers: `e2e/support/compare.ts` (tab menu → *Compare with…* / *Change
 reference…* / *Pop out to window*).
 
+Two harness rules the spec follows, both learned the hard way:
+
+- **Poll absence in-page.** `await $(sel)` for a missing element throws, so
+  `waitFor(() => !(await $(sel)).isExisting())` retries until it times out even though the
+  element is gone. Use `count(sel) === 0` (the same reason every other probe here is a
+  `browser.execute` DOM read).
+- **A restored layout lands after the project name.** After File → Open the name updates
+  first and `dockview` replaces the tabs a moment later, so anything about the restored
+  tabs (no `Compare:` tab, then the analyzer tab back) is polled, never read once.
+
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | R2.1 | Compare with… | Two projects: the tab menu opens a `compare:spectrum` tab, both sides overlay on one chart, the badge reads **Aligned**, and the view is separate from the analyzer tab | Scenario |

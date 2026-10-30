@@ -1620,6 +1620,13 @@ event / modulation / waveform **views** are M25.A, not M25.
 > and E2E `e2e/specs/r2-compare.spec.ts` (overlay + badge + mismatch, peer-close banner,
 > save/reopen with no compare tab, retarget reuse, popout lifecycle).
 
+> **Found while validating (all fixed):** the per-window shared-state push effects were
+> created *before* `initUiSync()` resolved, so a fresh project window never pushed its
+> timeline/params and a peer read the defaults; `sanitizeLayout` lifted a lone child to
+> the grid root, which `fromJSON` rejects (`root must be of type branch`), so reopening a
+> project with one tab restored **nothing**; and the header reference `Select` fed itself
+> in Kobalte when its options changed in place (it is now remounted on a change).
+
 ## M25.A — Comparison views: heatmaps, events, modulation (planned)
 
 Complete the compare view's chart coverage. The **core comparison and the MCP/CLI
