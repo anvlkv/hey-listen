@@ -13,6 +13,7 @@ import {
   Y_AXIS_SPACE,
 } from "../analyzer/axisFormat";
 import { compareMarkers } from "./peerPlugins";
+import { compareSides, liveMarkers } from "./sides";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
 import { toolOptions, formatHz, type AnalyzerId, type SpectrumResult } from "../../state/analyzer";
@@ -27,6 +28,21 @@ function logXRange(_u: unknown, min: number, max: number): [number, number] {
 }
 
 const dB = (value: number) => `${value.toFixed(1)} dB`;
+
+/** The shared frequency / level axes (used by the overlay and each side's plot). */
+const freqAxis = () => ({
+  ...chartAxisStyle(),
+  label: "frequency (Hz)",
+  size: X_AXIS_SIZE,
+  space: FREQ_AXIS_SPACE,
+  values: frequencyAxisValues,
+});
+const levelAxis = () => ({
+  ...chartAxisStyle(),
+  label: "level (dB)",
+  size: Y_AXIS_SIZE,
+  space: Y_AXIS_SPACE,
+});
 
 /** The compare spectrum's tooltip (frequency × dB), shared by both layouts. */
 const Tip = (props: TooltipProps) => (
@@ -50,25 +66,28 @@ export default function CompareSpectrum(props: {
   live: CompareLiveHandle;
   bWindow: () => Span | null;
 }) {
-  const sideA = () => (props.swapped ? props.comparison.b : props.comparison.a);
-  const sideB = () => (props.swapped ? props.comparison.a : props.comparison.b);
-  const spectrumA = () => sideA().result as SpectrumResult | undefined;
-  const spectrumB = () => sideB().result as SpectrumResult | undefined;
+  /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
+  const sides = compareSides<SpectrumResult>(
+    () => props.comparison,
+    () => props.swapped,
+  );
+  /* eslint-enable solid/reactivity */
   const diff = (): SpectrumDiffDto | null =>
     props.comparison.diff?.kind === "spectrum" ? props.comparison.diff : null;
-  const aligned = () => props.comparison.comparability.aligned;
+  const aligned = sides.aligned;
 
   /** The spectrum's log-frequency toggle is a per-tool display option. */
   const logFreq = () => (toolOptions.spectrum?.logFreq ?? 1) !== 0;
 
   const markers = () =>
-    compareMarkers({
-      // Follow the displayed A/B (see CompareSeries).
-      a: () => (props.swapped ? props.live.b() : props.live.a()),
-      b: () => (props.swapped ? props.live.a() : props.live.b()),
-      window: props.bWindow,
-      axis: "freq",
-    });
+    compareMarkers(
+      liveMarkers({
+        live: props.live,
+        swapped: () => props.swapped,
+        window: props.bWindow,
+        axis: "freq",
+      }),
+    );
 
   const xScale = (): uPlot.Scale =>
     logFreq() ? { time: false, distr: 3, log: 10, range: logXRange } : { time: false };
@@ -82,8 +101,8 @@ export default function CompareSpectrum(props: {
   };
 
   const overlay = () => {
-    const a = spectrumA();
-    const b = spectrumB();
+    const a = sides.resultA();
+    const b = sides.resultB();
     if (!a || !b) return null;
     const bins = Math.min(a.freqs.length, a.magDb.length, b.magDb.length);
     const delta = diff();
@@ -148,7 +167,7 @@ export default function CompareSpectrum(props: {
             <SideSpectrum
               label={props.swapped ? "B" : "A"}
               color={chartTheme().compareA}
-              spectrum={spectrumA()}
+              spectrum={sides.resultA()}
               xScale={xScale()}
               yScale={yScale}
               markers={markers}
@@ -156,7 +175,7 @@ export default function CompareSpectrum(props: {
             <SideSpectrum
               label={props.swapped ? "A" : "B"}
               color={chartTheme().compareB}
-              spectrum={spectrumB()}
+              spectrum={sides.resultB()}
               xScale={xScale()}
               yScale={yScale}
               markers={markers}
@@ -173,21 +192,7 @@ export default function CompareSpectrum(props: {
               data={chartData()}
               series={series()}
               scales={{ x: xScale(), y: yScale }}
-              axes={[
-                {
-                  ...chartAxisStyle(),
-                  label: "frequency (Hz)",
-                  size: X_AXIS_SIZE,
-                  space: FREQ_AXIS_SPACE,
-                  values: frequencyAxisValues,
-                },
-                {
-                  ...chartAxisStyle(),
-                  label: "level (dB)",
-                  size: Y_AXIS_SIZE,
-                  space: Y_AXIS_SPACE,
-                },
-              ]}
+              axes={[freqAxis(), levelAxis()]}
             />
           </Show>
         </div>
@@ -223,21 +228,7 @@ function SideSpectrum(props: {
               data={[spectrum().freqs, spectrum().magDb]}
               series={[{}, { label: props.label, stroke: props.color, width: 1.2 }]}
               scales={{ x: props.xScale, y: props.yScale }}
-              axes={[
-                {
-                  ...chartAxisStyle(),
-                  label: "frequency (Hz)",
-                  size: X_AXIS_SIZE,
-                  space: FREQ_AXIS_SPACE,
-                  values: frequencyAxisValues,
-                },
-                {
-                  ...chartAxisStyle(),
-                  label: "level (dB)",
-                  size: Y_AXIS_SIZE,
-                  space: Y_AXIS_SPACE,
-                },
-              ]}
+              axes={[freqAxis(), levelAxis()]}
             />
           </Show>
         )}

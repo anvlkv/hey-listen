@@ -2,9 +2,14 @@ import { createEffect, Match, Show, Switch, createSignal, untrack } from "solid-
 import Button from "../Button";
 import EmptyState from "../EmptyState";
 import CompareHeader from "./CompareHeader";
+import CompareEvents from "./CompareEvents";
+import CompareMatrix from "./CompareMatrix";
+import CompareModulation from "./CompareModulation";
+import CompareNotes from "./CompareNotes";
 import CompareReadouts from "./CompareReadouts";
 import CompareSeries from "./CompareSeries";
 import CompareSpectrum from "./CompareSpectrum";
+import CompareWaveform from "./CompareWaveform";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import { createComparison } from "../../state/compare/run";
 import { createCompareLive } from "../../state/compare/live";
@@ -145,14 +150,53 @@ export default function CompareTab(props: {
                       bWindow={bWindow}
                     />
                   </Match>
+                  <Match when={["matrix", "spectrogram"].includes(compareFamily(props.tool))}>
+                    <CompareMatrix
+                      tool={props.tool}
+                      comparison={comparison()}
+                      swapped={swapped()}
+                      live={live}
+                      bWindow={bWindow}
+                    />
+                  </Match>
+                  <Match when={compareFamily(props.tool) === "events"}>
+                    <CompareEvents
+                      tool={props.tool}
+                      comparison={comparison()}
+                      swapped={swapped()}
+                      live={live}
+                      bWindow={bWindow}
+                    />
+                  </Match>
+                  <Match when={compareFamily(props.tool) === "notes"}>
+                    <CompareNotes
+                      tool={props.tool}
+                      comparison={comparison()}
+                      swapped={swapped()}
+                      live={live}
+                      bWindow={bWindow}
+                    />
+                  </Match>
+                  <Match when={compareFamily(props.tool) === "modulation"}>
+                    <CompareModulation
+                      tool={props.tool}
+                      comparison={comparison()}
+                      swapped={swapped()}
+                      live={live}
+                      bWindow={bWindow}
+                    />
+                  </Match>
+                  <Match when={compareFamily(props.tool) === "waveform"}>
+                    <CompareWaveform
+                      tool={props.tool}
+                      comparison={comparison()}
+                      swapped={swapped()}
+                      live={live}
+                      bWindow={bWindow}
+                    />
+                  </Match>
                   <Match when={compareFamily(props.tool) === "scalar"}>
                     <CompareReadouts comparison={comparison()} swapped={swapped()} />
-                  </Match>
-                  <Match when={true}>
-                    <div class="analyzer-empty">
-                      The {compareFamily(props.tool)} comparison chart arrives with M25.A — the
-                      delta is available through `compare_analysis` and the CLI.
-                    </div>
                   </Match>
                 </Switch>
               </div>

@@ -78,13 +78,16 @@ interface DiffHeader {
   maxAbs?: number;
 }
 
-export interface SeriesDiffDto extends DiffHeader {
-  kind: "series";
+export interface SeriesDeltaDto extends DiffHeader {
   stats: DeltaStatsDto;
   times: number[];
   values: (number | null)[];
   a: (number | null)[];
   b: (number | null)[];
+}
+
+export interface SeriesDiffDto extends SeriesDeltaDto {
+  kind: "series";
 }
 
 export interface SpectrumDiffDto extends DiffHeader {
@@ -114,13 +117,88 @@ export interface ScalarDiffDto extends DiffHeader {
   fields: FieldDeltaDto[];
 }
 
-/** A delta variant the M25 view does not chart (M25.A renders it). */
-export interface OtherDiffDto extends DiffHeader {
-  kind: "events" | "notes" | "modulation" | "waveform";
+/** One matched event pair. */
+export interface EventPairDto {
+  a: number;
+  b: number;
+  /** `B − A`, in seconds. */
+  dt: number;
+}
+
+/** How two event lists line up (matched by nearest time). */
+export interface EventPairingDto {
+  matched: number;
+  onlyA: number;
+  onlyB: number;
+  meanAbsDt?: number;
+  pairs: EventPairDto[];
+  onlyATimes: number[];
+  onlyBTimes: number[];
+}
+
+export interface EventsDiffDto extends DiffHeader {
+  kind: "events";
+  /** The onset-strength envelope delta; absent when the frame grids differ. */
+  envelope?: SeriesDeltaDto;
+  onsets: EventPairingDto;
+  beats: EventPairingDto;
+  downbeats: EventPairingDto;
+}
+
+/** One matched note pair, with the span / level deltas. */
+export interface NotePairDto {
+  aStart: number;
+  bStart: number;
+  dt: number;
+  aDuration: number;
+  bDuration: number;
+  durationDelta: number;
+  aRmsDb: number;
+  bRmsDb: number;
+  rmsDeltaDb: number;
+}
+
+export interface NotesDiffDto extends DiffHeader {
+  kind: "notes";
+  matched: number;
+  onlyA: number;
+  onlyB: number;
+  meanAbsDt?: number;
+  pairs: NotePairDto[];
+  onlyAStarts: number[];
+  onlyBStarts: number[];
+}
+
+/** One modulation line's per-bin delta. */
+export interface LineDeltaDto {
+  stats: DeltaStatsDto;
+  values: number[];
+}
+
+export interface ModulationDiffDto extends DiffHeader {
+  kind: "modulation";
+  /** The shared modulation-rate axis (Hz). */
+  rateHz: number[];
+  am: LineDeltaDto;
+  fm: LineDeltaDto;
+}
+
+export interface WaveformDiffDto extends DiffHeader {
+  kind: "waveform";
+  /** Envelope buckets compared (0 when the windows differ). */
+  buckets: number;
+  values: number[];
 }
 
 export type ComparisonDiffDto =
-  SeriesDiffDto | SpectrumDiffDto | MatrixDiffDto | ScalarDiffDto | OtherDiffDto;
+  | SeriesDiffDto
+  | SpectrumDiffDto
+  | MatrixDiffDto
+  | EventsDiffDto
+  | NotesDiffDto
+  | ModulationDiffDto
+  | WaveformDiffDto
+  | ScalarDiffDto;
 
 /** The `run_comparison` response. */
 export interface ComparisonDto {

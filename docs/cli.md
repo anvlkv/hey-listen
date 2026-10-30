@@ -152,8 +152,8 @@ One JSONL object per tool (the `analyze` result envelope per side plus the compa
 ```
 
 `diff` is absent when the grids differ (a mismatch list explains why); the two results
-are still emitted. Every analyzer id compares in M25 (the GUI's matrix/event views
-follow in M25.A). Exit `0` when every tool ran, `1` when either side failed, `2` on a
+are still emitted. Every analyzer id compares, and the GUI charts every family too
+(M25.A). Exit `0` when every tool ran, `1` when either side failed, `2` on a
 usage error. A project saved before `LAYOUT.filterSpec` existed compares unfiltered with
 a one-line stderr warning. **Only project files** are accepted — `analyze` covers raw
 audio files.

@@ -78,7 +78,7 @@ compact "Add audio" state has a fixed height).
   frontend via `app:menu`; the rest are native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
   (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
   [`roadmap.md`](roadmap.md) → Backlog). An **Analysis** menu carries **Compare
-  with…** (M25, planned; acts on the focused analyzer tab). See `src-tauri/src/menu.rs`.
+  with…** (M25; acts on the focused analyzer tab). See `src-tauri/src/menu.rs`.
   The **Toolbar shows the current project name** — the file actions live in the File
   menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and

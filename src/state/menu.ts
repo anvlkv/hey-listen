@@ -116,9 +116,7 @@ export async function initMenu() {
           // transient hint instead of a dialog (M25).
           const tool = focusedAnalyzer();
           if (!tool) {
-            showCompareNotice(
-              "Focus an analyzer tab (Spectrum, a series tool, or a readout), then compare.",
-            );
+            showCompareNotice("Focus an analyzer tab, then compare.");
             break;
           }
           void chooseCompareReference(tool);

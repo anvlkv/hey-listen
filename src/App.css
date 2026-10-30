@@ -16,6 +16,7 @@
 @import "./styles/graph.css";
 @import "./styles/analyzer.css";
 @import "./styles/compare.css";
+@import "./styles/compareViews.css";
 @import "./styles/noteMetrics.css";
 @import "./styles/popover.css";
 @import "./styles/export.css";

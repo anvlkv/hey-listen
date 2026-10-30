@@ -16,7 +16,7 @@ import {
   type ToolId,
 } from "../state/workbench";
 import { chooseCompareReference } from "../state/compare/picker";
-import { parseCompareTool, compareViewable } from "../state/compare/id";
+import { parseCompareTool } from "../state/compare/id";
 import { popoutCompare, closeCompare } from "../state/compare/views";
 
 /**
@@ -93,9 +93,8 @@ export default function Workbench() {
         }
         const tool = isAnalyzerId(id) ? id : null;
         return [
-          // A comparison is offered for the families M25 can chart; the rest still
-          // compare through MCP/CLI (their views arrive with M25.A).
-          ...(tool && compareViewable(tool)
+          // Every analyzer can be compared (M25.A completes the chart matrix).
+          ...(tool
             ? [
                 {
                   label: "Compare with…",

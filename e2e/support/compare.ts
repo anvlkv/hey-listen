@@ -6,8 +6,10 @@
  * popout — owned by the **project window the session is in**, so every helper here
  * runs against the current window.
  */
-import { tab } from "./selectors.ts";
+import { SEL, tab } from "./selectors.ts";
 import { waitFor } from "./dom.ts";
+import { canvasHasInk } from "./analyzers.ts";
+import { dismissPopovers, openSelect, pickOption } from "./popups.ts";
 import { rightClick } from "./popouts.ts";
 import { windowLabels } from "./windows.ts";
 
@@ -37,9 +39,53 @@ async function pickTarget(targetLabel: string): Promise<void> {
   await target.click();
 }
 
+/** The compare view's root (the header + chart), per tool. */
+export const compareView = (tool: string) => `[data-testid="compare.${tool}"]`;
+
 /** The compare tab's panel id for a tool. */
 export function compareTab(toolId: string): string {
   return `compare:${toolId}`;
+}
+
+/** The comparability badge. */
+export const BADGE = '[data-testid="compare.badge"]';
+
+/** Wait until a compare view has a live comparison and its chart has drawn ink. */
+export async function waitForCompareChart(tool: string): Promise<void> {
+  const chart = `${compareView(tool)} canvas`;
+  await waitFor(() => canvasHasInk(chart), `the ${tool} compare chart never drew`);
+}
+
+/** The comparability badge: its text and the mismatch list it carries as a tooltip. */
+export async function badge(): Promise<{ text: string; title: string }> {
+  return (await browser.execute((selector: string) => {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    return { text: (el?.textContent ?? "").trim(), title: el?.title ?? "" };
+  }, BADGE)) as { text: string; title: string };
+}
+
+/** Wait for a badge text, reporting the mismatch list when it never arrives. */
+export async function waitForBadge(expected: string): Promise<void> {
+  try {
+    await waitFor(
+      async () => (await badge()).text === expected,
+      `the compare badge never read "${expected}"`,
+    );
+  } catch (error) {
+    const info = await badge();
+    throw new Error(`${error}\nbadge="${info.text}" mismatches="${info.title}"`, { cause: error });
+  }
+}
+
+/** Set the shared FFT size through the current window's Toolbar popover. */
+export async function setFft(value: string): Promise<void> {
+  await (await $(SEL.toolbarParams)).click();
+  await browser.waitUntil(async () => (await $(".pop-panel")).isExisting(), {
+    timeoutMsg: "the shared analysis-params popover did not open",
+  });
+  await openSelect('[aria-label="FFT size"]');
+  await pickOption(value);
+  await dismissPopovers();
 }
 
 /**

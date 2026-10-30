@@ -3,7 +3,7 @@ import { invoke } from "../../lib/ipc";
 import { analyzerById } from "../analyzer/lookup";
 import type { AnalyzerId } from "../analyzer/types";
 import { dockApi, openTools } from "../workbench";
-import { comparePanelId, compareViewable, isCompareId, parseCompareTool } from "./id";
+import { comparePanelId, isCompareId, parseCompareTool } from "./id";
 import type { CompareViewDto } from "./types";
 
 /**
@@ -56,7 +56,6 @@ export function openCompareTabs(): CompareViewDto[] {
  * is raised/retargeted by the core; otherwise a new tab opens in the main grid.
  */
 export async function openCompare(tool: AnalyzerId, reference: string) {
-  if (!compareViewable(tool)) return;
   const panel = dockApi()?.getPanel(comparePanelId(tool));
   if (panel) {
     setReference(tool, reference);
