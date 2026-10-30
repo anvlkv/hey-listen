@@ -11,8 +11,9 @@ voice-quality proxies, and AM/FM modulation spectra) are delivered — see
 summaries, compact results, catalog annotations, discovery) is delivered — see
 [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md). **M22** (synth live workflow), **M23**
 (timeline ergonomics), **M24** (keyboard control), **M25** (cross-project comparison) and
-**M25.A** (its remaining chart views) are **planned** — see [`roadmap.md`](roadmap.md),
-[`hotkeys.md`](hotkeys.md) and [`comparison.md`](comparison.md). **M26–M31** (the
+**M25.A** (its remaining chart views — every family now has one) are **delivered** — see
+[`roadmap.md`](roadmap.md), [`hotkeys.md`](hotkeys.md) and
+[`comparison.md`](comparison.md). **M26–M31** (the
 psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation,
 masking / tonality, equal-loudness + spatial cues) are **planned** — see
 [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).

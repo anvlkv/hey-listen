@@ -3,26 +3,20 @@ import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
 import { createMemo, createSignal, Show, untrack } from "solid-js";
 import Readout from "../analyzer/Readout";
-import ZoomControls from "../analyzer/ZoomControls";
 import { createUplotZoom } from "../analyzer/uplotZoom";
 import { mirrorCursor, syncView } from "../analyzer/syncPlugins";
-import { chartAxisStyle, timeRangeLabel, timeTooltip } from "../analyzer/chartCommon";
-import {
-  TIME_AXIS_SPACE,
-  timeAxisValues,
-  X_AXIS_SIZE,
-  Y_AXIS_SIZE,
-  Y_AXIS_SPACE,
-} from "../analyzer/axisFormat";
+import { timeTooltip } from "../analyzer/chartCommon";
 import { paddedYRange } from "../analyzer/range";
 import { compareMarkers } from "./peerPlugins";
+import ComparePlot from "./ComparePlot";
+import { timeAxis, valueAxis } from "./axes";
+import { compareSides, liveMarkers } from "./sides";
 import { mergeSeries, toUplotData, type MergedSeries } from "./align";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
 import {
   analyzerById,
   type AnalyzerId,
-  type AnyAnalysisResult,
   type SeriesResult,
   type SeriesView as SeriesViewConfig,
 } from "../../state/analyzer";
@@ -36,15 +30,6 @@ export interface CompareSeriesProps {
   live: CompareLiveHandle;
   /** The reference's analysis window (the band the chart draws). */
   bWindow: () => Span | null;
-}
-
-/** The series payload of a result (a series or pitch tool), or `null`. */
-function asSeries(result: AnyAnalysisResult | undefined): SeriesResult | null {
-  const candidate = result as Partial<SeriesResult> | undefined;
-  if (!candidate || !Array.isArray(candidate.times) || !Array.isArray(candidate.values)) {
-    return null;
-  }
-  return candidate as SeriesResult;
 }
 
 /** A log-scale y-range with headroom, clamped so it never reaches 0. */
@@ -62,19 +47,21 @@ function logYRange(_u: unknown, min: number, max: number): [number, number] {
  */
 export default function CompareSeries(props: CompareSeriesProps) {
   const view = () => analyzerById(props.tool).view as SeriesViewConfig;
-  const sideA = () => (props.swapped ? props.comparison.b : props.comparison.a);
-  const sideB = () => (props.swapped ? props.comparison.a : props.comparison.b);
-  const seriesA = () => asSeries(sideA().result);
-  const seriesB = () => asSeries(sideB().result);
+  /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
+  const sides = compareSides<SeriesResult>(
+    () => props.comparison,
+    () => props.swapped,
+  );
+  /* eslint-enable solid/reactivity */
   const diff = (): SeriesDiffDto | null =>
     props.comparison.diff?.kind === "series" ? props.comparison.diff : null;
   const [showDelta, setShowDelta] = createSignal(false);
 
-  const aligned = () => props.comparison.comparability.aligned;
+  const aligned = sides.aligned;
 
   const merged = createMemo(() => {
-    const a = seriesA();
-    const b = seriesB();
+    const a = sides.resultA();
+    const b = sides.resultB();
     if (!a || !b) return null;
     const d = diff();
     const values = d?.values ?? [];
@@ -86,14 +73,14 @@ export default function CompareSeries(props: CompareSeriesProps) {
   const zoom = createUplotZoom("time");
   const Tooltip = timeTooltip(untrack(() => view().formatY));
   const markers = () =>
-    compareMarkers({
-      // Both playheads and the reference's cursor follow the **displayed** A/B, so a
-      // swap never leaves a marker labelled B on the A series' project.
-      a: () => (props.swapped ? props.live.b() : props.live.a()),
-      b: () => (props.swapped ? props.live.a() : props.live.b()),
-      window: props.bWindow,
-      axis: "time",
-    });
+    compareMarkers(
+      liveMarkers({
+        live: props.live,
+        swapped: () => props.swapped,
+        window: props.bWindow,
+        axis: "time",
+      }),
+    );
 
   const yScale = (): uPlot.Scale =>
     view().yScale === "log"
@@ -136,7 +123,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
             <SidePlot
               label={props.swapped ? "B" : "A"}
               color={chartTheme().compareA}
-              series={seriesA()}
+              series={sides.resultA()}
               view={view()}
               scale={yScale()}
               markers={markers}
@@ -144,7 +131,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
             <SidePlot
               label={props.swapped ? "A" : "B"}
               color={chartTheme().compareB}
-              series={seriesB()}
+              series={sides.resultB()}
               view={view()}
               scale={yScale()}
               markers={markers}
@@ -153,13 +140,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
         }
       >
         {(data) => (
-          <div class="analyzer-plot" onWheel={zoom.wheel}>
-            <ZoomControls
-              onZoomIn={zoom.zoomIn}
-              onZoomOut={zoom.zoomOut}
-              onFit={zoom.fit}
-              label={timeRangeLabel(zoom.range())}
-            />
+          <ComparePlot zoom={zoom}>
             <Show when={`${activeThemeId()}|${showDelta()}`} keyed>
               <SolidUplot
                 autoResize
@@ -197,24 +178,10 @@ export default function CompareSeries(props: CompareSeriesProps) {
                     : []),
                 ]}
                 scales={{ x: { time: false }, y: yScale() }}
-                axes={[
-                  {
-                    ...chartAxisStyle(),
-                    label: "time (s)",
-                    size: X_AXIS_SIZE,
-                    space: TIME_AXIS_SPACE,
-                    values: timeAxisValues,
-                  },
-                  {
-                    ...chartAxisStyle(),
-                    label: view().yLabel,
-                    size: Y_AXIS_SIZE,
-                    space: Y_AXIS_SPACE,
-                  },
-                ]}
+                axes={[timeAxis(), valueAxis(view().yLabel)]}
               />
             </Show>
-          </div>
+          </ComparePlot>
         )}
       </Show>
     </div>
@@ -225,7 +192,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
 function SidePlot(props: {
   label: string;
   color: string;
-  series: SeriesResult | null;
+  series: SeriesResult | undefined;
   view: SeriesViewConfig;
   scale: uPlot.Scale;
   markers: () => ReturnType<typeof compareMarkers>;
@@ -248,21 +215,7 @@ function SidePlot(props: {
               data={[series().times, series().values]}
               series={[{}, { label: props.label, stroke: props.color, width: 1.2 }]}
               scales={{ x: { time: false }, y: props.scale }}
-              axes={[
-                {
-                  ...chartAxisStyle(),
-                  label: "time (s)",
-                  size: X_AXIS_SIZE,
-                  space: TIME_AXIS_SPACE,
-                  values: timeAxisValues,
-                },
-                {
-                  ...chartAxisStyle(),
-                  label: props.view.yLabel,
-                  size: Y_AXIS_SIZE,
-                  space: Y_AXIS_SPACE,
-                },
-              ]}
+              axes={[timeAxis(), valueAxis(props.view.yLabel)]}
             />
           </Show>
         )}

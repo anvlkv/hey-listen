@@ -14,30 +14,31 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { SEL, tab } from "../support/selectors.ts";
-import { canvasHasInk } from "../support/analyzers.ts";
 import {
   count,
-  dismissPopovers,
   invokeCore,
   menuActionIn,
   mockReturn,
   openFixture,
-  openSelect,
   openTabTitles,
   openTool,
-  pickOption,
   textOf,
   waitFor,
   waitForAnalyzer,
   waitForApp,
   waitForShell,
   closeAllTabs,
+  click,
 } from "../support/helpers.ts";
 import {
   changeReference,
   compareFromTabMenu,
   compareTab,
+  compareView,
   popOutCompareTab,
+  setFft,
+  waitForBadge,
+  waitForCompareChart,
 } from "../support/compare.ts";
 import {
   closeCurrentWindow,
@@ -46,52 +47,9 @@ import {
   windowLabels,
 } from "../support/windows.ts";
 
-/** The compare view's root (the header + chart), per tool. */
-const compareView = (tool: string) => `[data-testid="compare.${tool}"]`;
-/** The comparability badge. */
-const BADGE = '[data-testid="compare.badge"]';
 /** The "reference project closed" banner. */
 const BANNER = '[data-testid="compare.banner"]';
 
-/** A compare view that has a live comparison shows a chart with ink. */
-async function waitForCompareChart(tool: string): Promise<void> {
-  const chart = `${compareView(tool)} canvas`;
-  await waitFor(() => canvasHasInk(chart), `the ${tool} compare chart never drew`);
-}
-
-/** The comparability badge: its text and the mismatch list it carries as a tooltip. */
-async function badge(): Promise<{ text: string; title: string }> {
-  return (await browser.execute((selector: string) => {
-    const el = document.querySelector(selector) as HTMLElement | null;
-    return { text: (el?.textContent ?? "").trim(), title: el?.title ?? "" };
-  }, BADGE)) as { text: string; title: string };
-}
-
-/** Wait for a badge text, reporting the mismatch list when it never arrives. */
-async function waitForBadge(expected: string): Promise<void> {
-  try {
-    await waitFor(
-      async () => (await badge()).text === expected,
-      `the compare badge never read "${expected}"`,
-    );
-  } catch (error) {
-    const info = await badge();
-    throw new Error(`${error}\nbadge="${info.text}" mismatches="${info.title}"`, { cause: error });
-  }
-}
-
-/** Set the shared FFT size through the current window's Toolbar popover. */
-async function setFft(value: string): Promise<void> {
-  await (await $(SEL.toolbarParams)).click();
-  await browser.waitUntil(async () => (await $(".pop-panel")).isExisting(), {
-    timeoutMsg: "the shared analysis-params popover did not open",
-  });
-  await openSelect('[aria-label="FFT size"]');
-  await pickOption(value);
-  await dismissPopovers();
-}
-
-/** Set the shared FFT size through the current window's Toolbar popover. */
 describe("R2. Comparison", () => {
   /** The reference project window this spec drives. */
   let second = "";
@@ -279,5 +237,144 @@ describe("R2. Comparison", () => {
     await waitFor(async () => !(await windowLabels()).includes(popout), `${popout} did not close`);
     expect(await invokeCore<{ tool: string }[]>("compare_popouts")).toEqual([]);
     expect(await count(tab(compareTab("spectrum")))).toBe(0);
+  });
+
+  // --- M25.A: the remaining chart families ---------------------------------
+
+  /** Open one analyzer in main and compare it with `reference` through the tab menu. */
+  async function compareTool(tool: string, reference: string): Promise<void> {
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await openTool(tool);
+    // Not `waitForAnalyzer`: a family's analyzer view legitimately shows its empty state
+    // for one fixture (no notes / no modulation), which is not a failure here.
+    await waitFor(async () => (await count(tab(tool))) === 1, `the ${tool} tab did not open`);
+    await compareFromTabMenu(tool, reference);
+    await waitFor(
+      async () => (await count(compareView(tool))) === 1,
+      `the ${tool} compare view did not open`,
+    );
+  }
+
+  it("R2.7 — the matrix view switches A / B / Δ and never interpolates", async () => {
+    const reference = await secondProject();
+    await compareTool("mfcc", reference);
+    await waitForCompareChart("mfcc");
+    expect(await count('[data-testid="compare.matrix"]')).toBe(1);
+
+    // A / B / Δ: Δ adds the zero-centred legend and paints a diverging ramp.
+    await click('[data-testid="compare.matrix.mode.b"]');
+    await click('[data-testid="compare.matrix.mode.delta"]');
+    await waitFor(
+      async () => (await count('[data-testid="compare.matrix.legend"]')) === 1,
+      "the Δ legend never appeared",
+    );
+    expect(await textOf('[data-testid="compare.matrix.legend"]')).toContain("B − A");
+
+    // A differing grid: two side-by-side heatmaps, and no Δ switch.
+    await setFft("1024");
+    await waitForBadge("Grids differ");
+    await waitFor(
+      async () => (await count('[data-testid="compare.matrix.side"]')) === 1,
+      "the side-by-side heatmaps never appeared",
+    );
+    expect(await count('[data-testid="compare.matrix.mode"]')).toBe(0);
+
+    await setFft("2048");
+    await waitForBadge("Aligned");
+    await waitFor(
+      async () => (await count('[data-testid="compare.matrix.mode"]')) === 1,
+      "the A/B/Δ switch never came back",
+    );
+  });
+
+  it("R2.8 — the rhythm view pairs events and marks one-sided ones", async () => {
+    const reference = await secondProject();
+    await compareTool("onsets", reference);
+    await waitForCompareChart("onsets");
+    const summary = await textOf('[data-testid="compare.events.summary"]');
+    expect(summary).toContain("matched");
+    expect(summary).toContain("only A");
+    expect(summary).toContain("only B");
+  });
+
+  it("R2.9 — the note view pairs notes and shows A / B / Δ rows", async () => {
+    const reference = await secondProject();
+    await compareTool("noteMetrics", reference);
+    await waitFor(
+      async () => (await count('[data-testid="compare.notes.table"]')) === 1,
+      "the note compare table never appeared",
+    );
+    const table = await textOf('[data-testid="compare.notes.table"]');
+    expect(table).toContain("A start");
+    expect(table).toContain("Δ RMS");
+    expect(await count('[data-testid^="compare.notes.row."]')).toBeGreaterThan(0);
+    await waitForCompareChart("noteMetrics");
+  });
+
+  it("R2.10 — the modulation view switches AM / FM on the rate axis", async () => {
+    // A steady tone has no modulation spectrum, so both sides use the chirp here — the
+    // view is exercised with data on both sides rather than its (correct) empty state.
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await openFixture("chirpNoise");
+    const reference = await secondProject();
+    await compareTool("modulation", reference);
+    await waitForCompareChart("modulation");
+    await click('[data-testid="compare.modulation.mode.fm"]');
+    expect(await count('[data-testid="compare.modulation.mode"]')).toBe(1);
+    const pressed = await browser.execute(
+      () =>
+        document
+          .querySelector('[data-testid="compare.modulation.mode.fm"]')
+          ?.getAttribute("aria-pressed") ?? "",
+    );
+    expect(pressed).toBe("true");
+    expect(await textOf('[data-testid="compare.modulation"]')).toContain("Δ AM mean");
+
+    // Restore main's source for the waveform test's identical-window case.
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await openFixture("sine440");
+  });
+
+  it("R2.11 — the waveform overlays only an identical window", async () => {
+    // A third project with the **same** source as main (sine440), so the two analysis
+    // windows start out identical — the rule under test.
+    const same = await openProjectWindow();
+    await browser.tauri.switchWindow(same);
+    await waitForShell();
+    await mockReturn("confirm", true);
+    await openFixture("sine440");
+
+    await compareTool("waveform", same);
+    await waitForCompareChart("waveform");
+    expect(await count('[data-testid="compare.waveform.side"]')).toBe(0);
+    expect(await textOf('[data-testid="compare.waveform"]')).toContain("Buckets");
+
+    // Move the reference's analysis window: bucket i now covers a different span, so
+    // the envelopes are drawn side by side and no envelope delta is claimed.
+    await browser.tauri.switchWindow(same);
+    await waitForShell();
+    await invokeCore("set_ui_state", {
+      key: "timeline",
+      value: { windowStart: 0.5, windowEnd: 2, viewStart: 0.5, viewEnd: 2 },
+    });
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await waitFor(
+      async () => (await count('[data-testid="compare.waveform.side"]')) === 1,
+      "the differing windows never switched to side-by-side",
+    );
+    await waitFor(
+      async () => (await count('[data-testid="compare.waveform.note"]')) === 1,
+      "the differing-window note never appeared",
+    );
+
+    await browser.tauri.switchWindow(same);
+    await waitForShell();
+    await closeCurrentWindow();
+    await browser.tauri.switchWindow("main").catch(() => {});
+    await waitFor(async () => !(await windowLabels()).includes(same), `${same} did not close`);
   });
 });

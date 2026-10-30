@@ -67,12 +67,3 @@ export function compareFamily(tool: AnalyzerId): CompareFamily {
       return "scalar";
   }
 }
-
-/**
- * Whether M25's compare view can chart this tool. M25 covers **series, spectrum and
- * readouts**; the core delta and MCP/CLI work for every family. M25.A adds matrix,
- * events, `noteMetrics`, modulation and waveform.
- */
-export function compareViewable(tool: AnalyzerId): boolean {
-  return ["series", "spectrum", "scalar"].includes(compareFamily(tool));
-}

@@ -158,13 +158,13 @@ The commands and channels below are all implemented; milestone notes record the 
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅. `preview_region` takes a **varispeed** `speed` (M14 follow-up) — preview only, analysis is always 1×. |
 | Analysis | `run_analysis` | tool id + window + params → result |
-| Comparison | `run_comparison`, `list_comparison_targets`, `compare_peer_setup`, `compare_live` | transient A/B comparison over two project `WindowState`s (M25, planned); `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only |
+| Comparison | `run_comparison`, `list_comparison_targets`, `compare_peer_setup`, `compare_live` | transient A/B comparison over two project `WindowState`s (M25) ✅; `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only |
 | Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14 ✅. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 | Window | `open_project_window` | open a new, independent project window (M7) ✅ |
 | Window | `open_popout_window`, `sync_popouts`, `popout_tool`, `popout_tools` | open/raise a popout window for a tool, reconcile a project's popouts on load (M7) ✅ |
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
-| Comparison | `open_compare_popout_window`, `popout_compare`, `focus_compare_popout`, `retarget_compare_popout` | a compare view popped out like any tab: aliased to A, registered with `(tool, reference)`, raised/retargeted rather than duplicated, and never recorded as a tool popout (M25, planned) |
+| Comparison | `open_compare_popout_window`, `popout_compare`, `focus_compare_popout`, `retarget_compare_popout` | a compare view popped out like any tab: aliased to A, registered with `(tool, reference)`, raised/retargeted rather than duplicated, and never recorded as a tool popout (M25) ✅ |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 | MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
 | MCP | `get_mcp_status`, `set_mcp_config` | the MCP server's status / config (on-off + port), owned by `mcp::settings::McpController` (M9) ✅ |

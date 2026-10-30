@@ -1,7 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "../../lib/ipc";
 import type { AnalyzerId } from "../analyzer";
-import { compareViewable } from "./id";
 import type { CompareTargetDto } from "./types";
 import { openCompare } from "./views";
 
@@ -48,12 +47,6 @@ export async function refreshCompareTargets(): Promise<CompareTargetDto[]> {
  * point behind both the tab menu and the native Analysis menu.
  */
 export async function chooseCompareReference(tool: AnalyzerId) {
-  if (!compareViewable(tool)) {
-    showCompareNotice(
-      "This tool's comparison chart arrives with M25.A — use compare_analysis or the CLI.",
-    );
-    return;
-  }
   const targets = await refreshCompareTargets();
   if (targets.length === 0) {
     showCompareNotice(

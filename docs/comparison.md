@@ -135,12 +135,10 @@ series/matrices. Event lists are never thinned. Each side keeps the existing can
 `summary`; the comparison adds a `diff.summary` line (e.g. `Δ rms −1.2 dB · Δ peak
 0.8 dB`).
 
-**M25 vs M25.A.** The core delta for **every** family ships in M25, so MCP and the CLI
-can compare any tool. The **views** ship in two steps: M25 covers **series, spectrum and
-readouts** (which includes pitch, every spectral series, momentary loudness and the
-level/LUFS/LRA cards); **M25.A** adds matrix/spectrogram, rhythm/events, `noteMetrics`,
-modulation and waveform. Until M25.A, *Compare with…* is offered only for the tools M25
-can chart; the rest still compare through MCP/CLI.
+**Views.** The core delta ships for **every** family, and the compare view charts all of
+them: **series, spectrum and readouts** (pitch, every spectral series, momentary loudness,
+the level/LUFS/LRA cards) plus **matrix/spectrogram, rhythm/events, `noteMetrics`,
+modulation and waveform** (M25.A). *Compare with…* is offered for every analyzer.
 
 ## The compare view
 
@@ -151,10 +149,10 @@ can chart; the rest still compare through MCP/CLI.
   - series / spectrum: A and B overlaid in `compareA` / `compareB`, with an optional Δ
     line (default off); a differing grid switches to two side-by-side plots rather than
     interpolating;
-  - matrix / spectrogram (M25.A): a segmented control **A / B / Δ** (Δ uses a diverging
+  - matrix / spectrogram: a segmented control **A / B / Δ** (Δ uses a diverging
     ramp);
-  - events / rhythm (M25.A): A's markers above the axis, B's below, matched pairs linked;
-  - modulation / waveform (M25.A): overlaid lines / envelope, or side by side when the
+  - events / rhythm: A's markers above the axis, B's below, matched pairs linked;
+  - modulation / waveform: overlaid lines / envelope, or side by side when the
     windows differ;
   - readouts: three columns (A, B, Δ).
 - **Both cursors.** A's cursor is the normal crosshair (and mirrors A's other charts);
@@ -234,9 +232,8 @@ Returns:
 - `target` selects A (focused by default); `with` selects B.
 - `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`, applied to
   both sides and to the delta.
-- `display` (default true) opens / focuses the compare view when that tool's family has
-  one (M25: series/spectrum/readouts; M25.A adds the rest). For an unsupported family the
-  call still returns both results, the comparability and the diff, without a view.
+- `display` (default true) opens / focuses the compare view. Every family now has one
+  (`Compare with…` is offered for every analyzer).
 - Headless answers **requires the app** — a comparison needs two live windows. Use the
   CLI for a windowless diff.
 
@@ -300,7 +297,8 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 - No dual waveform Timeline in the compare view — each project keeps its own Timeline;
   the compare chart shows B's analysis window as a band.
 - **M25 only:** the matrix/spectrogram, rhythm/event, `noteMetrics`, modulation and
-  waveform **views** are M25.A (their core deltas and MCP/CLI results ship in M25).
+  waveform **views** were M25.A; they are delivered (their core deltas and MCP/CLI results
+  shipped in M25).
 
 ## Files
 
@@ -311,15 +309,16 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 
 **Frontend** — `src/state/compare/` (`targets`, `run`, `live`, `id`, `picker`,
 `popout`), `src/components/compare/` (`CompareTab`, `CompareHeader`, `CompareSeries`,
-`CompareSpectrum`, `CompareReadouts`, `peerPlugins`), `src/lib/dockviewLayout.ts`
-(sanitiser: drop compare panels, prune empty groups, re-point `activeGroup` /
-`activeView` if they were one),
+`CompareSpectrum`, `CompareReadouts`, `CompareMatrix`, `CompareEvents`, `CompareNotes`,
+`CompareModulation`, `CompareWaveform`, plus the shared chart parts `CompareCanvas`,
+`ComparePlot`, `axes`, `canvasOverlays`, `peerPlugins`, `sides` and the pure helpers
+`align`, `matrix`, `events`, `notes`, `waveform`),
+`src/lib/dockviewLayout.ts` (sanitiser: drop compare panels, prune empty groups,
+re-point `activeGroup` / `activeView` if they were one),
 `src/state/{workbench,uiState,menu,history,snapshot}.ts`,
 `src/state/project/{snapshot,types}.ts` (`filterSpec`),
 `src/components/{Workbench,ToolContent,App}.tsx`, `src/index.tsx`, `src/PopoutApp.tsx`,
-`src/lib/themeFile.ts`, `src/state/themes/chart.ts`, `src/styles/compare.css`.
-**M25.A** adds `CompareMatrix`, `CompareEvents`, `CompareModulation` and `CompareWaveform`
-under `src/components/compare/`.
+`src/lib/themeFile.ts`, `src/state/themes/chart.ts`, `src/styles/{compare,compareViews}.css`.
 
 **Surfaces** — `src-tauri/src/mcp/tools/` (`mod` + `compare`),
 `src/state/mcp/` (`dispatch`, `analyze`), `src-tauri/src/cli/batch/` (`compare`, `args`,
@@ -338,6 +337,10 @@ under `src/components/compare/`.
   shows both series and the legend; B's cursor and B's playhead appear on the compare
   chart and follow B; a differing FFT size shows the badge and no delta; closing B shows
   the banner; saving A and reopening has no compare tab; retargeting reuses the tab.
+- **E2E compare views (M25.A)** — R2.7–R2.11: the matrix A/B/Δ switch and the
+  no-interpolation case, event pairing (matched / only-A / only-B), the `noteMetrics`
+  table's A/B/Δ rows, the modulation AM/FM toggle, and the waveform identical-window
+  rule (overlay when identical, side by side when not).
 - **E2E popout** — *Pop out to window* closes the compare tab and shows a window titled
   `Compare: Spectrum — <B>` with the same overlay; B's cursor/playhead still follow; A's
   hover in the popout moves A's cursor in the project window; closing the popout forgets
@@ -347,8 +350,8 @@ under `src/components/compare/`.
   app" answer.
 - **CLI** — `compare a.heyl b.heyl -t spectrum --summary`, mismatch, no overlap, a
   reference project, a missing `filterSpec` warning, and the exit codes.
-- **M25.A** — one view test per added family (matrix A/B/Δ, rhythm/event pairing,
-  `noteMetrics` pairing, modulation, waveform’s identical-window rule).
+- **M25.A** — the view helpers: Δ limit/span, identical windows and bucket times,
+  event-pairing summary, note-table rows, and one E2E per added family (see above).
 
 ## Delivery order
 
@@ -367,14 +370,13 @@ under `src/components/compare/`.
 4. **Matrix / spectrogram, rhythm / events, `noteMetrics`, modulation and waveform**
    views, then enable *Compare with…* for every tool and add the per-family view tests.
 
-M25 is fully usable for the common charts and fully scriptable for every tool; M25.A
-completes the visual matrix.
+M25 made the common charts usable and every tool scriptable; M25.A completes the visual
+matrix, so every analyzer compares in the view as well as through MCP/CLI.
 
 > **Decision:** comparisons are transient cross-project views computed by the core, not a
 > second track and not project content. See ADR-24.
 
-> **Delivered (M25).** The contract above is implemented end to end; the remaining
-> views (matrix, rhythm/events, `noteMetrics`, modulation, waveform) are M25.A. Notes
+> **Delivered (M25).** The contract above is implemented end to end. Notes
 > from delivery:
 >
 > - `aligned` is `mismatches.is_empty()` **and** (for series/events/notes) an overlap.
@@ -392,3 +394,30 @@ completes the visual matrix.
 >   `(tool, reference)` and never appears in `popout_tools_of`.
 > - `LAYOUT.filterSpec` is written on save whenever a filter is applied; the CLI falls
 >   back to an unfiltered comparison (with a stderr warning) when it is absent.
+
+> **Delivered (M25.A).** Every family now has a compare view, and *Compare with…* is
+> offered for every analyzer. Notes from delivery:
+>
+> - **Matrix / spectrogram** is read-only: the plain-canvas heatmap has no zoom or note
+>   lane (so it does not join a sync group), and follows the union of the two analysis
+>   windows. A and B share one colour range (so switching sides never rescales); the Δ
+>   image is symmetric around its largest absolute value and uses a diverging ramp sampled
+>   from the theme (`compareA` → background → `compareB`). A differing grid shows both
+>   heatmaps side by side.
+> - **Rhythm** marks the **core's** pairings (A above the midpoint, B below, matched
+>   pairs linked, one-sided events dashed over the full height), so the chart and the
+>   MCP/CLI summaries always agree.
+> - **`noteMetrics`** uses the core's note pairs for both the paired blocks and the
+>   table; a note only one side has is still a row. Its canvas is read-only like the
+>   heatmaps.
+> - **Modulation** has an **AM / FM** toggle (one line per side) and joins the `"mod"`
+>   sync group; B's cursor is a rate-axis rule.
+> - **Waveform** overlays the peak envelopes only when the core produced an envelope
+>   delta (`buckets > 0`, i.e. identical windows); otherwise it draws each side's min/max
+>   envelope separately and says why.
+> - `peerPlugins` draws playheads only on time-axis charts: a source-second playhead on a
+>   frequency or rate axis was meaningless (and wrong).
+>
+> Deviations kept explicit: the matrix view does not zoom (the other families keep their
+> normal zoom / sync); the Δ heatmap's limit is the largest absolute Δ rather than a
+> percentile.

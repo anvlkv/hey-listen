@@ -1,13 +1,19 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import { Show, onCleanup, untrack } from "solid-js";
-import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { FREQ_AXIS_SPACE, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import { chartAxisStyle, NoAudioState } from "./chartCommon";
+import {
+  formatRate,
+  MOD_Y_RANGE,
+  ModulationTooltip,
+  rateAxisValues,
+  visibleLevels,
+} from "./modulationCommon";
 import { analyzerBus, type SyncGroup } from "../../state/chartSync";
 import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
 import { activeThemeId, chartTheme } from "../../state/themes";
@@ -20,30 +26,6 @@ import type {
 
 /** The modulation spectra are on their own rate axis, so they sync separately. */
 const MOD_GROUP: SyncGroup = "mod";
-
-/** The levels below this are the analysis floor (silence), not a real spectrum. */
-const SPECTRUM_FLOOR = -119.5;
-/** A fixed y-range so AM and FM are directly comparable and silence stays flat. */
-const MOD_Y_RANGE: [number, number] = [-60, 5];
-
-/** A modulation rate, short enough for an axis tick. */
-function formatRate(hz: number): string {
-  const decimals = Math.abs(hz) < 10 ? 1 : 0;
-  return `${hz.toFixed(decimals)} Hz`;
-}
-
-function rateAxisValues(_self: unknown, ticks: (number | null)[]): string[] {
-  return ticks.map((tick) => (tick == null ? "" : formatRate(tick)));
-}
-
-const ModTooltip = (props: TooltipProps) => (
-  <ChartTooltip
-    {...props}
-    xLabel="rate"
-    formatX={(value) => formatRate(value)}
-    formatY={(value) => `${value.toFixed(1)} dB`}
-  />
-);
 
 /** A legend swatch drawn inline, so the view needs no extra stylesheet rules. */
 const Swatch = (props: { color: string }) => (
@@ -62,11 +44,6 @@ const Swatch = (props: { color: string }) => (
 const percent = (value: number | null) => (value == null ? "—" : `${(value * 100).toFixed(0)}%`);
 const readout = (value: number | null, unit: string, decimals = 1) =>
   value == null ? "—" : `${value.toFixed(decimals)} ${unit}`;
-
-/** Keep real bins; the floor means "silence", which should read as a gap. */
-function visible(db: number[]): (number | null)[] {
-  return db.map((value) => (value > SPECTRUM_FLOOR ? value : null));
-}
 
 /**
  * The `modulation` view (M20): the AM and FM spectra on one modulation-rate axis,
@@ -104,7 +81,7 @@ export default function ModulationView(props: {
     // needs every column the same length, so an absent one becomes a column of gaps.
     const freqs = r.modFreqs;
     const column = (db: number[]) =>
-      db.length === freqs.length ? visible(db) : freqs.map(() => null);
+      db.length === freqs.length ? visibleLevels(db) : freqs.map(() => null);
     return [freqs, column(r.amDb), column(r.fmDb)];
   };
 
@@ -211,7 +188,7 @@ export default function ModulationView(props: {
                   pluginBus={analyzerBus}
                   plugins={[
                     cursor(),
-                    tooltip(ModTooltip),
+                    tooltip(ModulationTooltip),
                     mirrorCursor(MOD_GROUP),
                     syncView(MOD_GROUP),
                   ]}

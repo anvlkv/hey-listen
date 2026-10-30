@@ -1536,7 +1536,8 @@ transient **compare view** overlays the two results. See [`comparison.md`](compa
 - A's compare chart joins A's sync group; it never publishes to B.
 - **M25 views:** series, spectrum and readouts (pitch, spectral series, momentary
   loudness, level/LUFS/LRA cards). The core delta for **every** family ships in M25, so
-  MCP/CLI compare any tool; the remaining views are **M25.A**.
+  MCP/CLI compare any tool; **M25.A** adds the remaining views (matrix/spectrogram,
+  rhythm/events, `noteMetrics`, modulation, waveform).
 
 ### Transient by construction
 
@@ -1583,7 +1584,7 @@ tests as in [`comparison.md`](comparison.md).
 simultaneous mixed playback; no dual waveform Timeline in the compare view (each project
 keeps its own); no different-tool or 3+ project compares; no notes in the compare view;
 no parameter normalisation; no persistence or export of a comparison. The matrix /
-event / modulation / waveform **views** are M25.A, not M25.
+event / modulation / waveform **views** followed in M25.A, not M25.
 
 > **Order:** M25 depends on M23 only for the peer playhead's *paused* position; without
 > M23 it reads the core's playing position. M25 is otherwise independent of M22/M24.
@@ -1601,8 +1602,8 @@ event / modulation / waveform **views** are M25.A, not M25.
 > `compare` subcommand and `LAYOUT.filterSpec`, and the frontend (`state/compare/`,
 > `components/compare/`, the `lib/dockviewLayout.ts` sanitiser, the picker dialog, the
 > compare-popout boot). The M25 **views** are series, spectrum and readouts; the core
-> delta — and therefore MCP/CLI — covers every family, and the remaining views are
-> M25.A.
+> delta — and therefore MCP/CLI — covers every family, and M25.A adds the remaining
+> views.
 
 > **Deviations (kept explicit):** `aligned` requires **no** mismatch, so a differing
 > rate / channel / FFT / hop / window / band / bin count / grid-changing option
@@ -1627,16 +1628,16 @@ event / modulation / waveform **views** are M25.A, not M25.
 > project with one tab restored **nothing**; and the header reference `Select` fed itself
 > in Kobalte when its options changed in place (it is now remounted on a change).
 
-## M25.A — Comparison views: heatmaps, events, modulation (planned)
+## M25.A — Comparison views: heatmaps, events, modulation ✅
 
 Complete the compare view's chart coverage. The **core comparison and the MCP/CLI
 surfaces already handle every family** in M25; this milestone adds the remaining views
 and enables *Compare with…* for every tool.
 
 - **Matrix / spectrogram** (mel, MFCC, chroma, spectral contrast): a segmented **A / B /
-  Δ** control, the Δ on a diverging ramp with a zero-centred legend; reuse
-  `MatrixView` / `spectrogramRender` / `chartCanvas`. Aligned grids only; a differing
-  grid shows A and B side by side (no interpolation).
+  Δ** control, the Δ on a diverging ramp with a zero-centred legend; reuse the heatmap
+  primitives in `chartCanvas` / `chartGeometry` (image build, blit, time axis). Aligned
+  grids only; a differing grid shows A and B side by side (no interpolation).
 - **Rhythm** (tempo, onsets, downbeats): the onset-strength envelope overlaid, with A's
   markers above the axis and B's below; matched pairs linked, unmatched events marked.
 - **Note segments** (`noteMetrics`): paired note blocks, a matched/unmatched summary, and
@@ -1648,8 +1649,10 @@ and enables *Compare with…* for every tool.
 - **Enable the action everywhere**: the *Compare with…* tab-menu item and the Analysis
   menu cover every analyzer, and the tab/popout lifecycle matches M25.
 
-**Files:** `CompareMatrix`, `CompareEvents` (rhythm + `noteMetrics`), `CompareModulation`
-and `CompareWaveform` under `src/components/compare/`, plus `src/styles/compare.css` and
+**Files:** `CompareMatrix`, `CompareEvents` (rhythm), `CompareNotes` (`noteMetrics`),
+`CompareModulation` and `CompareWaveform` under `src/components/compare/`, plus their
+shared chart parts (`CompareCanvas`, `ComparePlot`, `axes`, `canvasOverlays`), the pure
+helpers (`matrix`, `notes`, `waveform`, `sides`), `src/styles/compareViews.css` and
 `src/state/compare/id.ts` (the family gate).
 
 **Tests.** One E2E per added view on the `r2-compare` fixtures: the matrix A/B/Δ switch
@@ -1657,6 +1660,27 @@ and the no-interpolation case, event pairing (matched/only-A/only-B), `noteMetri
 table deltas, modulation rate-axis cursors, and the waveform identical-window rule.
 
 **Non-goals:** no cross-grid interpolation, no 3+ project compare, no persistence.
+
+> **Delivered:** the five views (`CompareMatrix`, `CompareEvents`, `CompareNotes`,
+> `CompareModulation`, `CompareWaveform`), the A/B/Δ and AM/FM segmented controls, the
+> diverging Δ ramp sampled from the active theme, the event pairing marks (A above / B
+> below, linked pairs, dashed one-sided events), the note table built from the core's
+> `NotesDelta`, the identical-window waveform rule (the core's `buckets > 0`), and the
+> family gate removed — *Compare with…* and the Analysis menu now cover every tool.
+> `peerPlugins` no longer draws a playhead on frequency / rate charts (it was a
+> source-second rule on a non-time axis).
+
+> **Deviations (kept explicit):** a Δ heatmap's ramp is symmetric around its largest
+> absolute value and sampled from the theme (`compareA` → background → `compareB`); the
+> matrix compare is read-only (no zoom, no note lane, no sync-group membership) and
+> follows the union of the two windows; the note view's canvas is read-only in the same
+> way. The rhythm and note views draw the *core's* pairings (tolerance
+> `max(20 ms, 2 hops)`; 50 ms for notes), so the chart and MCP/CLI always agree.
+
+> **Tests:** `scripts/compare.test.ts` (Δ limit/span, identical windows, bucket times,
+> event-pairing summary, note-table rows) and E2E `r2-compare` R2.7–R2.11 (matrix A/B/Δ
+> and no interpolation, rhythm pairing, `noteMetrics` table, modulation AM/FM, waveform
+> identical-window rule).
 
 > **Order:** M25.A is UI-only and follows M25; it can be delivered family by family
 > (matrix → events → modulation → waveform) with the action enabled as each lands.

@@ -44,8 +44,10 @@ export function compareMarkers(props: {
           });
         },
         draw: (u) => {
-          if (props.axis === "time") drawBand(u, props.window());
-          drawPlayheads(u, props.a(), props.b(), props.axis === "time");
+          if (props.axis === "time") {
+            drawBand(u, props.window());
+            drawPlayheads(u, props.a(), props.b());
+          }
           drawPeerCursor(u, props.b(), props.axis);
         },
         destroy: () => dispose?.(),
@@ -79,10 +81,10 @@ function drawBand(u: Uplot, span: Span | null) {
   ctx.restore();
 }
 
-/** Both transports: A solid in the playhead colour, B dashed in its series colour. */
-function drawPlayheads(u: Uplot, a: LiveSideDto, b: LiveSideDto, onTimeAxis: boolean) {
+/** Both transports, on a time-axis chart: A solid, B dashed in its series colour. */
+function drawPlayheads(u: Uplot, a: LiveSideDto, b: LiveSideDto) {
   drawRule(u, a.playhead, chartTheme().playhead, [], "A");
-  if (onTimeAxis) drawRule(u, b.playhead, chartTheme().compareB, [5, 4], "B");
+  drawRule(u, b.playhead, chartTheme().compareB, [5, 4], "B");
 }
 
 /** B's dashed read-only cursor, on the axis its chart has. */

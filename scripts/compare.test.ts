@@ -3,13 +3,17 @@ import { sanitizeLayout } from "../src/lib/dockviewLayout";
 import {
   compareFamily,
   comparePanelId,
-  compareViewable,
   isCompareId,
   parseCompareTool,
 } from "../src/state/compare/id";
 import { createPollGate } from "../src/state/compare/live";
 import { mergeSeries, nearestColumn, unionTimes } from "../src/components/compare/align";
+import { deltaLimit, deltaSpan } from "../src/components/compare/matrix";
+import { identicalWindows, bucketTimes } from "../src/components/compare/waveform";
+import { pairingSummary } from "../src/components/compare/events";
+import { noteRows } from "../src/components/compare/notes";
 import { shapeLabel } from "../src/state/compare/picker";
+import type { MatrixDiffDto, NotesDiffDto } from "../src/state/compare/types";
 import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
 /**
@@ -30,18 +34,16 @@ check("a non-compare or unknown tool id is not a compare panel", () => {
   assertEqual(isCompareId("spectrum"), false);
 });
 
-check("the family gate charts series, spectrum and readouts in M25", () => {
+check("the family gate maps every chart kind to a compare family", () => {
   assertEqual(compareFamily("spectralCentroid"), "series");
   assertEqual(compareFamily("spectrum"), "spectrum");
   assertEqual(compareFamily("levels"), "scalar");
   assertEqual(compareFamily("mfcc"), "matrix");
+  assertEqual(compareFamily("spectrogram"), "spectrogram");
   assertEqual(compareFamily("onsets"), "events");
   assertEqual(compareFamily("noteMetrics"), "notes");
   assertEqual(compareFamily("modulation"), "modulation");
   assertEqual(compareFamily("waveform"), "waveform");
-  assertEqual(compareViewable("spectralCentroid"), true);
-  assertEqual(compareViewable("levels"), true);
-  assertEqual(compareViewable("mfcc"), false);
 });
 
 /** A serialized layout with one group (or a caller-built grid), cast for the sanitiser. */
@@ -172,6 +174,75 @@ check("a source shape label is human-readable", () => {
     "48.0 kHz · stereo · 12.3 s",
   );
   assertEqual(shapeLabel(null), "no source");
+});
+
+// --- M25.A view helpers -----------------------------------------------------
+
+check("a Δ heatmap is symmetric around zero", () => {
+  assertEqual(deltaLimit([1, -4, 2]), 4);
+  assertEqual(deltaLimit([]), 0.001);
+  const diff = { times: [0, 0.5, 1] } as MatrixDiffDto;
+  // One hop past the last matched frame, so the image covers the last column.
+  assertDeepEqual(deltaSpan(diff), { start: 0, end: 1.5 });
+  assertEqual(deltaSpan({ times: [] } as unknown as MatrixDiffDto), null);
+});
+
+check("a waveform only overlays on an identical window", () => {
+  const span = { start: 0.5, end: 1.5 };
+  assertEqual(identicalWindows(span, { ...span }, 128, 128), true);
+  assertEqual(identicalWindows(span, { start: 0.5, end: 1.6 }, 128, 128), false);
+  assertEqual(identicalWindows(span, { ...span }, 128, 256), false);
+  assertEqual(identicalWindows(span, { ...span }, 0, 0), false);
+  assertDeepEqual(bucketTimes(10, 2, 4), [10, 10.5, 11, 11.5]);
+  assertDeepEqual(bucketTimes(0, 2, 0), []);
+});
+
+check("an event pairing summarizes both sides", () => {
+  assertEqual(
+    pairingSummary({
+      matched: 2,
+      onlyA: 1,
+      onlyB: 0,
+      meanAbsDt: 0.01,
+      pairs: [],
+      onlyATimes: [],
+      onlyBTimes: [],
+    }),
+    "2 matched · 1 only A · 0 only B · mean |Δt| 10.0 ms",
+  );
+});
+
+check("the note table pairs matches and keeps one-sided notes", () => {
+  const diff = {
+    matched: 1,
+    onlyA: 1,
+    onlyB: 1,
+    meanAbsDt: 0.002,
+    pairs: [
+      {
+        aStart: 0.2,
+        bStart: 0.22,
+        dt: 0.02,
+        aDuration: 0.1,
+        bDuration: 0.12,
+        durationDelta: 0.02,
+        aRmsDb: -20,
+        bRmsDb: -18,
+        rmsDeltaDb: 2,
+      },
+    ],
+    onlyAStarts: [0.5],
+    onlyBStarts: [0.1],
+  } as NotesDiffDto;
+  const rows = noteRows(diff);
+  assertDeepEqual(
+    rows.map((row) => row.kind),
+    ["onlyB", "pair", "onlyA"],
+  );
+  assertEqual(rows[1].aStart, 0.2);
+  assertEqual(rows[1].rmsDeltaDb, 2);
+  assertEqual(rows[0].aStart, null);
+  assertEqual(rows[2].bStart, null);
 });
 
 report("compare");

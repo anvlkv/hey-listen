@@ -1,0 +1,105 @@
+/* --- M25.A: heatmaps, events, notes, modulation, waveform -------------------- */
+
+/* A plain-canvas compare chart (heatmap / note blocks): fills the body like a uPlot. */
+.compare-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 160px;
+  padding: 4px 0 0;
+}
+
+.compare-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* A segmented A / B / Δ (or AM / FM) switch in the readout bar. */
+.compare-segmented {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel-2);
+}
+
+.compare-segment {
+  font-size: 0.6875rem;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.compare-segment:hover {
+  color: var(--fg);
+}
+
+.compare-segment.on {
+  color: var(--accent-soft-fg);
+  background: var(--chip-bg);
+}
+
+/* A one-line explainer under a side-by-side layout ("grids differ — no Δ"). */
+.compare-side-note {
+  flex-basis: 100%;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+/* The Δ heatmap's zero-centred legend (A ← 0 → B). */
+.compare-diverging-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 4px 12px 8px;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.compare-diverging-ramp {
+  flex: 1 1 auto;
+  max-width: 220px;
+  height: 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border-soft);
+}
+
+.compare-diverging-note {
+  margin-left: auto;
+}
+
+/* A / B colour keys used by the event and note readouts. */
+.compare-legend-a,
+.compare-event-legend-a {
+  color: var(--accent-2);
+}
+
+.compare-legend-b,
+.compare-event-legend-b {
+  color: var(--warn);
+}
+
+.compare-event-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: var(--fg-muted);
+}
+
+.compare-event-legend-a,
+.compare-event-legend-b {
+  font-weight: 600;
+}
+
+/* The per-note compare table reuses the note-metrics table's styling. */
+.compare-notes-table td:first-child {
+  color: var(--fg-muted);
+}

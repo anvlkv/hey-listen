@@ -7,7 +7,6 @@ import {
   toolOptions,
 } from "../analyzer";
 import { sharedParams } from "../analysis";
-import { compareViewable } from "../compare/id";
 import type { CompareSetupDto, PeerSetupDto } from "../compare/types";
 import { openCompare } from "../compare/views";
 import { source } from "../source";
@@ -61,9 +60,8 @@ export async function compareAnalysis(args: Args) {
   const maxPoints = optionalNum(args, "maxPoints");
   const compactAxis = args.axis === "compact";
 
-  // UI following: open/focus the compare view when the family has one (M25: series,
-  // spectrum, readouts). An unsupported family still returns both results and the delta.
-  if ((optionalBool(args, "display") ?? true) && compareViewable(tool)) {
+  // UI following: open/focus the compare view, which now charts every family (M25.A).
+  if (optionalBool(args, "display") ?? true) {
     await openCompare(tool, reference);
   }
 

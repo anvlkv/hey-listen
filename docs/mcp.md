@@ -118,7 +118,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Open **compare views** are reported separately as `compare: [{ tool, with }]` (M25, planned) — they are not in `openTools`. |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Open **compare views** are reported separately as `compare: [{ tool, with }]` (M25) — they are not in `openTools`. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
@@ -176,11 +176,11 @@ server answers the compute subset (the rest return "requires the app").
 `target`; both must be open project windows (not popouts). Each side runs with its own
 window/params/options/filter, and the response reports `comparability` (`aligned`,
 `overlap`, `mismatches`, `filtersDiffer`) so an agent can tell whether `diff` is
-numerically meaningful. The core compares **every** analyzer family in M25; the GUI's
-compare *views* for matrix/event/modulation/waveform land in M25.A, so an agent can diff
-them before a chart exists. The comparison view is **not** saved: `get_state` reports it
-as `compare: [{ tool, with }]` (never in `openTools`). Headless mode answers *requires
-the app*; use the CLI `compare` on two project files instead.
+numerically meaningful. The core compares **every** analyzer family, and the GUI charts
+all of them (M25.A): series, spectrum, readouts, matrix/spectrogram, rhythm/events,
+`noteMetrics`, modulation and waveform. The comparison view is **not** saved: `get_state`
+reports it as `compare: [{ tool, with }]` (never in `openTools`). Headless mode answers
+*requires the app*; use the CLI `compare` on two project files instead.
 
 ## Protocol notes
 

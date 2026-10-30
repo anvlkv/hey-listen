@@ -498,7 +498,7 @@ own popout.
 > points at a live label. `windowLabels()` therefore falls back to plain WebDriver window
 > handles for exactly this case.
 
-### R2. Cross-project comparison (M25)
+### R2. Cross-project comparison (M25 / M25.A)
 
 A comparison needs **two project windows**, so this spec opens (and closes) its own. It
 sorts after `r-multi-project` and before `s-project-ux`; the **last** suite file must stay
@@ -523,6 +523,11 @@ Two harness rules the spec follows, both learned the hard way:
 | R2.4 | Transient save | Saving while the compare tab is open, then reopening, restores the analyzer tab and **no** compare tab | Scenario |
 | R2.5 | Retarget | *Change reference…* points the same tab at another project — one compare tab before and after | Scenario |
 | R2.6 | Popout | *Pop out to window* closes the tab and opens a `compare-*` window with the same view; closing it forgets the view (no tab, no `compare_popouts`) | Scenario |
+| R2.7 | Matrix A/B/Δ | The segmented control switches heatmaps; Δ adds the zero-centred legend; a differing FFT shows two side-by-side heatmaps and no Δ switch, and restoring it brings the switch back | Scenario |
+| R2.8 | Rhythm pairing | The onsets compare view names matched / only-A / only-B events and draws the envelope + markers | Scenario |
+| R2.9 | Note pairing | `noteMetrics` shows the A/B/Δ table and at least one note row, over the paired-block chart | Scenario |
+| R2.10 | Modulation | The AM/FM toggle drives the rate-axis chart and the Δ readouts (both sides use the chirp, which has a spectrum; a steady tone correctly shows the empty state) | Scenario |
+| R2.11 | Waveform rule | With the same source and window on both sides the peak envelopes overlay; moving the reference's window switches to side-by-side plots with the no-delta note | Scenario |
 
 ### S. Project UX
 
@@ -553,7 +558,7 @@ so the spec leaves one project window open instead of tearing that one down too.
 | --- | --- | --- | --- |
 | T1 | Close main | With two projects each holding a popout, closing `main` destroys main's popout, keeps the other project **and its popout** alive (which still renders a chart), and the app stays up | Scenario |
 
-### Planned coverage (M22–M25.A)
+### Planned coverage (M22–M24)
 
 Scheduled with their milestones. The spec names sort **before** `t-close-main`, which must
 stay the last suite file (closing `main` cannot be undone).
@@ -563,13 +568,13 @@ stay the last suite file (closing `main` cannot be undone).
 | M22 | `q2-synth-live` | Audition calls `preview_synth` (not `preview_region`) and stops on tab close; Live updates the source without resetting the window, view or annotations; a failed live render keeps the last good audio; a palette drag shows the ghost, the drop preview and the splice badge, and drops where previewed. |
 | M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; Shift-drag selects and frames a window; a lane selection paints full-height rules; hover shows the time readout; a burst of tiny wheel events pans by the accumulated delta (or zooms proportionally with `Ctrl`/`⌘`), not once per event, and a horizontal gesture never zooms. |
 | M24 | `q4-keyboard` | Space/arrows drive the transport; `N` annotates; `Mod+K` opens the palette and runs a command; `?` opens the explorer; a rebind takes effect and the old key goes inert; a conflict is rejected; text fields and focused buttons keep their keys; bindings survive a reload. |
-| M25.A | `r2-compare` (extended) | Matrix A/B/Δ and the no-interpolation case; rhythm/event pairing (matched / only-A / only-B); `noteMetrics` table deltas; modulation rate-axis cursors; the waveform identical-window rule; *Compare with…* is available for every tool. |
 
 > Unit coverage for these milestones: `dropTarget` and the live-render scheduler, frame
 > math and annotation-rule geometry, the transport reducer, the binding
 > parse/format/match/conflict/persistence helpers, and the comparison grid signature /
-> delta / event-pairing plus the dockview sanitiser and compare-panel id parsing (see the
-> milestone sections in [`roadmap.md`](roadmap.md)).
+> delta / event-pairing plus the view helpers (Δ limit/span, identical windows, bucket
+> times, pairing summary, note-table rows) and the dockview sanitiser / compare-panel id
+> parsing (see the milestone sections in [`roadmap.md`](roadmap.md)).
 
 ## Running
 
