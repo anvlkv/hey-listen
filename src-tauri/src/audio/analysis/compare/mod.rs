@@ -233,7 +233,8 @@ fn filter_fingerprint(state: &WindowState) -> Option<Value> {
 impl Comparison {
     /// The wire shape: both sides (shaped like `run_analysis`), the comparability, and
     /// the delta. `shape` controls how much of each **result** is returned; the delta's
-    /// raw arrays follow `includeData` (i.e. `Shape::Full`).
+    /// raw arrays follow `includeData` (i.e. `Shape::Full`), are thinned by `max_points`
+    /// and share `axis` with the side results (MCP/CLI parity).
     pub fn to_value(&self, shape: Shape, max_points: Option<usize>, axis: Axis) -> Value {
         let a = self.side_value(&self.a, shape, max_points, axis);
         let b = self.side_value(&self.b, shape, max_points, axis);
@@ -244,11 +245,7 @@ impl Comparison {
             "comparability": self.comparability,
         });
         if let Some(diff) = &self.diff {
-            let mut diff_value = serde_json::to_value(diff).unwrap_or(Value::Null);
-            if shape != Shape::Full {
-                strip_delta_arrays(&mut diff_value);
-            }
-            value["diff"] = diff_value;
+            value["diff"] = delta_value(diff, shape, max_points, axis);
         }
         value
     }
@@ -271,6 +268,31 @@ impl Comparison {
         if let Some(result) = analysis::shape_result_with(&side.result, shape, max_points, axis) {
             value["result"] = result;
         }
+        value
+    }
+}
+
+/// Shape the delta for the wire: full (optionally thinned and compacted), or stats +
+/// summary with the raw arrays cleared.
+fn delta_value(
+    diff: &ComparisonDiff,
+    shape: Shape,
+    max_points: Option<usize>,
+    axis: Axis,
+) -> Value {
+    if shape == Shape::Full {
+        let mut full = diff.clone();
+        if let Some(points) = max_points {
+            full.thin(points);
+        }
+        let value = serde_json::to_value(&full).unwrap_or(Value::Null);
+        match axis {
+            Axis::Array => value,
+            Axis::Compact => super::shape::compact_time_axes(value),
+        }
+    } else {
+        let mut value = serde_json::to_value(diff).unwrap_or(Value::Null);
+        strip_delta_arrays(&mut value);
         value
     }
 }

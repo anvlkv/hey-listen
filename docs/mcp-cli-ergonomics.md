@@ -246,6 +246,10 @@ list-style tools so "all tools" is not just an analyzer claim:
   full markdown body and frozen snapshot. This mirrors the CLI's `notes --full`.
 - `get_state` keeps its bounded project/analysis summary; option defaults are small
   numbers, not free-form data.
+- Array-valued list tools also answer `structuredContent` (the 2025-06-18 revision
+  requires an object): `list_analyzers` → `{ analyzers }`, the device enumerations →
+  `{ devices }`, `list_processes` → `{ processes }`. The text form is unchanged, so the
+  CLI and older clients keep parsing it.
 - `get_graph`, `get_theme`, and `get_note` remain explicit full-object reads; they are
   the "detail" calls for their list counterparts.
 
@@ -293,7 +297,7 @@ does not change any analyzer's DSP.
 | `analyze` stdout mixed the `[WDIO]`/`hey-listen … starting` preamble with the JSONL | The log plugin targets **stderr**; the WebDriver plugins register only for a GUI launch (`cli::is_cli_invocation`) |
 | `maxPoints` strided *every* array, flattening matrices and dropping notes/onsets | Decimation is family-aware: series and `times` move together; a matrix is thinned by whole frames (`sourceFrames`, spectrogram `hopSize` scaled); event/note lists are untouched |
 | The compact `noteMetrics` preview showed only five notes | `bounds` keeps every `{ startSecs, endSecs, gapAfterSecs }`; the heavy records stay previewed |
-| An `argmax` index could not be turned into a time without the array | Compact axes carry `hop` (and `end`); `run_analysis` gains `axis: "compact"`, which spells a uniform `times` as `{ start, hop, length, end }` |
+| An `argmax` index could not be turned into a time without the array | Compact axes carry `hop` (and `end`); `run_analysis` gains `axis: "compact"`, which spells a `times` array as `{ start, hop, length, end }`. An overlap-add edge frame is carried as `firstHop` / `lastHop`, so the axis stays lossless for hop-based series |
 | Parallel tool calls raced on the project stores | The bridge runs MCP calls through a per-window promise queue |
 
 `list_analyzers` entries now carry `family` (`series`, `matrix`, `spectrum`,

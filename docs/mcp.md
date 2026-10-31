@@ -119,12 +119,12 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | Tool | Purpose |
 | --- | --- |
 | `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
-| `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. **(M16, M21.A)** |
+| `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. The list is mirrored under `structuredContent.analyzers` (the 2025-06-18 revision), while `content[0].text` keeps the JSON array. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
-| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a uniform `times` as `{ start, hop, length, end }`. **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
+| `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a `times` array as `{ start, hop, length, end }` (plus `firstHop`/`lastHop` for a differing edge frame). **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
 | `compare_analysis` | Compare **the same tool** on two project sides: `with` names the live reference window, `target` the owner (default: focused); `bOffset` (seconds) is the fine-tune offset (M25.B); `saved: true` uses the owner's saved snapshot instead of `with` (M25.C). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, `comparability.alignment` reports the relative extents/common span, and `diff` is omitted when the grids differ or the shifted windows do not meet. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the compare view. App-only. **(M25, M25.B, M25.C)** See [`comparison.md`](comparison.md). |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
@@ -155,7 +155,8 @@ truncated }` instead of losing their records. `noteMetrics` also carries `bounds
 every `{ startSecs, endSecs, gapAfterSecs }` — so segmenting does not need a full
 result. Pass `includeData: true` for the raw result (with `maxPoints: N` to thin
 series/matrices; event lists are never thinned), `axis: "compact"` to replace a
-uniform `times` array, or `summaryOnly: true` for the summary alone. `summary` and
+`times` array (edge frames carried as `firstHop`/`lastHop`), or `summaryOnly: true` for
+the summary alone. `summary` and
 `summaryOnly` are mutually exclusive with `includeData`; `summary` is computed from the
 full result, so it is identical in all three modes. One implementation
 (`src-tauri/src/audio/analysis/shape.rs` + `shape/decimate.rs`) serves this server, the

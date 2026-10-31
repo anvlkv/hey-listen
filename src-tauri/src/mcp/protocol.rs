@@ -105,7 +105,7 @@ fn initialize_result(params: &Value) -> Value {
                          `summaryOnly: true`; the default result is compact, and `includeData` \
                          returns raw arrays (`maxPoints` thins series only — never pass it for \
                          `noteMetrics`, which would drop events; `axis: \"compact\"` replaces a \
-                         uniform `times` array with `{ start, hop, length }`). Set \
+                         `times` array with `{ start, hop, length, end }`). Set \
                          `display: false` and `transient: true` for sweeps that must not move the \
                          user's window or persist overrides. To find sound events use \
                          `frameRms` plus `noteMetrics` (gated spans), not `onsets` / \
@@ -145,16 +145,18 @@ fn call_tool(
         .unwrap_or_else(|| json!({}));
 
     match dispatch(&name, arguments) {
-        Ok(value) => Ok(call_result(value, false)),
-        Err(message) => Ok(call_result(Value::String(message), true)),
+        Ok(value) => Ok(call_result(&name, value, false)),
+        Err(message) => Ok(call_result(&name, Value::String(message), true)),
     }
 }
 
 /// Shape a tool's return value as a `CallToolResult`.
 ///
 /// Objects also carry `structuredContent` (the 2025-06-18 revision) alongside the
-/// human-readable text, so newer clients can read the typed payload directly.
-fn call_result(value: Value, is_error: bool) -> Value {
+/// human-readable text, so newer clients can read the typed payload directly. The
+/// revision requires `structuredContent` to be an **object**, so an array-valued tool
+/// (the catalog/enumerations) is wrapped under its natural key instead of being dropped.
+fn call_result(tool: &str, value: Value, is_error: bool) -> Value {
     let text = match &value {
         Value::String(text) => text.clone(),
         other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
@@ -164,11 +166,28 @@ fn call_result(value: Value, is_error: bool) -> Value {
         "isError": is_error,
     });
     if !is_error {
-        if let Value::Object(object) = value {
-            result["structuredContent"] = Value::Object(object);
+        match value {
+            Value::Object(object) => result["structuredContent"] = Value::Object(object),
+            Value::Array(items) => {
+                if let Some(key) = structured_array_key(tool) {
+                    result["structuredContent"] = json!({ key: Value::Array(items) });
+                }
+            }
+            _ => {}
         }
     }
     result
+}
+
+/// The object key an array-valued tool's payload is wrapped under, so `list_analyzers`
+/// and the device/process enumerations are readable via `structuredContent` too.
+fn structured_array_key(tool: &str) -> Option<&'static str> {
+    match tool {
+        "list_analyzers" => Some("analyzers"),
+        "list_output_devices" | "list_input_devices" => Some("devices"),
+        "list_processes" => Some("processes"),
+        _ => None,
+    }
 }
 
 fn success_response(id: Value, result: Value) -> Value {
@@ -249,6 +268,32 @@ mod tests {
             "/tmp/a.wav"
         );
         assert_eq!(response["result"]["content"][0]["type"], "text");
+    }
+
+    #[test]
+    fn tools_call_wraps_an_array_payload_under_its_key() {
+        // `structuredContent` must be an object (2025-06-18), so the array-valued tools
+        // expose their list under its natural key instead of only as text.
+        let mut dispatch = |tool: &str, _arguments: Value| -> Result<Value, String> {
+            assert_eq!(tool, "list_analyzers");
+            Ok(json!([{ "id": "spectrum" }]))
+        };
+        let response = handle_message(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": { "name": "list_analyzers", "arguments": {} },
+            })
+            .to_string(),
+            &mut dispatch,
+        )
+        .expect("expected a response");
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["analyzers"][0]["id"],
+            "spectrum"
+        );
     }
 
     #[test]

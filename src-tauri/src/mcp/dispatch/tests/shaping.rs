@@ -152,6 +152,40 @@ fn compact_axis_replaces_a_uniform_time_array_with_start_hop_length() {
     assert_eq!(value["values"].as_array().unwrap().len(), 4);
 }
 
+#[test]
+fn compact_axis_keeps_an_overlap_add_edge_frame() {
+    // Every hop-based series ends with one short frame; it must not defeat compaction
+    // and must stay reconstructible through `lastHop`.
+    let mut result = series();
+    result.times = vec![0.0, 0.01, 0.02, 0.025];
+    let value = shape_result_with(
+        &AnalysisResult::SpectralCentroid(result),
+        Shape::Full,
+        None,
+        Axis::Compact,
+    )
+    .expect("full returns a result");
+    assert_eq!(value["times"]["length"], 4);
+    assert!((value["times"]["hop"].as_f64().unwrap() - 0.01).abs() < 1e-9);
+    assert!((value["times"]["lastHop"].as_f64().unwrap() - 0.005).abs() < 1e-9);
+    assert!((value["times"]["end"].as_f64().unwrap() - 0.025).abs() < 1e-6);
+    assert!(value["times"].get("firstHop").is_none());
+}
+
+#[test]
+fn compact_axis_leaves_a_non_uniform_interior_as_an_array() {
+    let mut result = series();
+    result.times = vec![0.0, 0.01, 0.03, 0.04];
+    let value = shape_result_with(
+        &AnalysisResult::SpectralCentroid(result),
+        Shape::Full,
+        None,
+        Axis::Compact,
+    )
+    .expect("full returns a result");
+    assert!(value["times"].is_array());
+}
+
 fn matrix_4x2() -> MatrixResult {
     MatrixResult {
         sample_rate: 48_000,

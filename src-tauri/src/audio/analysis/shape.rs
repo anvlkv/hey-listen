@@ -20,6 +20,8 @@ use super::{
 
 mod decimate;
 
+pub(crate) use decimate::{compact_time_axes, indices};
+
 /// How much of a result to return.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]

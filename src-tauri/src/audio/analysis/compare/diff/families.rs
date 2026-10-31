@@ -5,8 +5,8 @@
 //! delta".
 
 use crate::audio::analysis::{
-    AnalysisResult, LevelsResult, LraResult, LufsResult, MatrixResult, SeriesResult,
-    SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, LevelsResult, LraResult, LufsResult, MatrixResult, SpectrogramResult,
+    SpectrumResult, WaveformResult,
 };
 
 use super::super::align::Span;
@@ -18,26 +18,28 @@ use super::{hop_of, in_span, nearest, FieldDelta, LineDelta, MatrixDelta, Modula
 
 /// A series delta over the frames present in the common span (all frames when `None`).
 ///
-/// `a_times` / `b_times` are the sides' frame times on the relative axis.
+/// `a_times` / `b_times` are the sides' frame times on the relative axis; the value
+/// tracks are the `Option<f32>` series (pitch and rhythm envelopes use this too, which
+/// is why the values arrive by slice rather than as a `SeriesResult`).
 pub fn series_delta(
-    a: &SeriesResult,
+    a_values: &[Option<f32>],
     a_times: &[f32],
-    b: &SeriesResult,
+    b_values: &[Option<f32>],
     b_times: &[f32],
     span: Option<Span>,
 ) -> SeriesDelta {
     let tol = hop_of(a_times).max(hop_of(b_times)).max(1e-4) * 0.6;
     let mut times = Vec::new();
     let mut values = Vec::new();
-    let mut a_values = Vec::new();
-    let mut b_values = Vec::new();
+    let mut a_out = Vec::new();
+    let mut b_out = Vec::new();
     let mut pairs = Vec::new();
     let mut cursor = 0usize;
     for (index, &time) in a_times.iter().enumerate() {
         if !in_span(time, span) {
             continue;
         }
-        let Some(value_a) = a.values.get(index).copied().flatten() else {
+        let Some(value_a) = a_values.get(index).copied().flatten() else {
             continue;
         };
         let Some(b_index) = nearest(b_times, time, &mut cursor) else {
@@ -46,10 +48,10 @@ pub fn series_delta(
         if (b_times[b_index] - time).abs() > tol {
             continue;
         }
-        let value_b = b.values.get(b_index).copied().flatten();
+        let value_b = b_values.get(b_index).copied().flatten();
         times.push(time);
-        a_values.push(Some(value_a));
-        b_values.push(value_b);
+        a_out.push(Some(value_a));
+        b_out.push(value_b);
         if let Some(value_b) = value_b {
             values.push(Some(value_b - value_a));
             pairs.push((value_a, value_b));
@@ -64,8 +66,8 @@ pub fn series_delta(
         stats,
         times,
         values,
-        a: a_values,
-        b: b_values,
+        a: a_out,
+        b: b_out,
     }
 }
 
@@ -263,6 +265,7 @@ pub(super) fn waveform_delta(
     WaveformDelta {
         header: DeltaHeader::new(summary, &stats),
         buckets: matched,
+        source_buckets: None,
         times,
         values,
     }

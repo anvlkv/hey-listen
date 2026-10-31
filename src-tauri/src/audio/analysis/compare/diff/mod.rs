@@ -12,13 +12,17 @@ use crate::audio::analysis::AnalysisResult;
 
 use super::align::{Side, Span};
 use super::events;
-use super::stats::{DeltaHeader, DeltaStats};
 
 mod families;
+mod types;
 
 pub use families::series_delta;
 use families::{
     matrix_delta, modulation_delta, scalar_delta, spectrogram_delta, spectrum_delta, waveform_delta,
+};
+pub use types::{
+    FieldDelta, LineDelta, MatrixDelta, ModulationDelta, ScalarDelta, SeriesDelta, SpectrumDelta,
+    WaveformDelta,
 };
 
 /// The per-family delta of two results.
@@ -40,103 +44,25 @@ pub enum ComparisonDiff {
     Scalar(ScalarDelta),
 }
 
-/// A series delta over the matched frames in the common span.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SeriesDelta {
-    #[serde(flatten)]
-    pub header: DeltaHeader,
-    pub stats: DeltaStats,
-    /// Matched frame times on the relative axis (A's frame times).
-    pub times: Vec<f32>,
-    /// `B − A` per matched frame (`null` where either side is a gap).
-    pub values: Vec<Option<f32>>,
-    pub a: Vec<Option<f32>>,
-    pub b: Vec<Option<f32>>,
-}
-
-/// A spectrum delta, one value per shared bin.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SpectrumDelta {
-    #[serde(flatten)]
-    pub header: DeltaHeader,
-    pub stats: DeltaStats,
-    /// Bin centre frequencies (Hz), shared by both sides.
-    pub freqs: Vec<f32>,
-    /// `B − A` per bin, in dB.
-    pub values: Vec<f32>,
-}
-
-/// A frame × band delta over the matched frames in the common span.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MatrixDelta {
-    #[serde(flatten)]
-    pub header: DeltaHeader,
-    pub stats: DeltaStats,
-    /// Frame times on the relative axis (A's frame times).
-    pub times: Vec<f32>,
-    /// One flag per column: `false` means A has a frame there but B has no counterpart
-    /// within tolerance, so the column is a **null** column (M25.B).
-    pub columns: Vec<bool>,
-    pub bins: usize,
-    /// Frame-major `frames × bins` delta (`0` in a null column; ignored by the stats).
-    pub values: Vec<f32>,
-}
-
-/// A modulation-spectrum delta, aligned by modulation-rate bin.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ModulationDelta {
-    #[serde(flatten)]
-    pub header: DeltaHeader,
-    /// The shared modulation-rate axis (Hz).
-    pub rate_hz: Vec<f32>,
-    pub am: LineDelta,
-    pub fm: LineDelta,
-}
-
-/// One modulation line's per-bin delta.
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LineDelta {
-    pub stats: DeltaStats,
-    /// `B − A` per rate bin; empty when one side has no spectrum.
-    pub values: Vec<f32>,
-}
-
-/// A waveform envelope delta over the common span (M25.B).
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WaveformDelta {
-    #[serde(flatten)]
-    pub header: DeltaHeader,
-    /// Buckets compared (A's bucket times sampled against B's envelope).
-    pub buckets: usize,
-    /// The sampled bucket times on the relative axis.
-    pub times: Vec<f32>,
-    /// `B − A` per sampled bucket of the upper envelope.
-    pub values: Vec<f32>,
-}
-
-/// A scalar readout's field-by-field delta.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ScalarDelta {
-    #[serde(flatten)]
-    pub header: DeltaHeader,
-    pub fields: Vec<FieldDelta>,
-}
-
-/// One numeric field of a scalar result.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FieldDelta {
-    pub key: String,
-    pub a: f64,
-    pub b: f64,
-    pub delta: f64,
+impl ComparisonDiff {
+    /// Thin the per-frame arrays to at most `max_points` (family-aware).
+    ///
+    /// Series and waveform `times` / `values` (and a series' `a`/`b`) stay aligned; a
+    /// matrix is thinned by whole frames so `times`, `columns` and the `frames × bins`
+    /// `values` remain consistent. Event and note lists are never thinned, and the
+    /// spectrum / modulation / scalar deltas are single-axis readouts that stay whole.
+    /// Stats, `summary` and the compared counts keep describing the **full** comparison
+    /// (`sourceBuckets` records a thinned waveform's original count, mirroring
+    /// `sourceFrames` on a decimated result).
+    pub fn thin(&mut self, max_points: usize) {
+        let max = max_points.max(2);
+        match self {
+            ComparisonDiff::Series(delta) => delta.thin(max),
+            ComparisonDiff::Matrix(delta) => delta.thin(max),
+            ComparisonDiff::Waveform(delta) => delta.thin(max),
+            _ => {}
+        }
+    }
 }
 
 /// Compute the delta for two results that the comparability check accepted.
@@ -188,11 +114,32 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, b_offset: f64, common: Option<Span>) -> 
             let times_b = relative(&waveform_times(b_r), origin_b, b_offset);
             ComparisonDiff::Waveform(waveform_delta(a_r, &times_a, b_r, &times_b, common))
         }
+        // Pitch is a gapped series, not a scalar readout: diff the f0 track so the
+        // meaningful per-frame change is visible instead of a list of constant fields.
+        (AnalysisResult::PitchPyin(a_r), AnalysisResult::PitchPyin(b_r))
+        | (AnalysisResult::PitchYin(a_r), AnalysisResult::PitchYin(b_r))
+        | (AnalysisResult::PitchAutocorr(a_r), AnalysisResult::PitchAutocorr(b_r)) => {
+            let times_a = relative(&a_r.times, origin_a, 0.0);
+            let times_b = relative(&b_r.times, origin_b, b_offset);
+            ComparisonDiff::Series(series_delta(
+                &a_r.values,
+                &times_a,
+                &b_r.values,
+                &times_b,
+                common,
+            ))
+        }
         _ => match (a.result.series(), b.result.series()) {
             (Some(a_r), Some(b_r)) => {
                 let times_a = relative(&a_r.times, origin_a, 0.0);
                 let times_b = relative(&b_r.times, origin_b, b_offset);
-                ComparisonDiff::Series(series_delta(a_r, &times_a, b_r, &times_b, common))
+                ComparisonDiff::Series(series_delta(
+                    &a_r.values,
+                    &times_a,
+                    &b_r.values,
+                    &times_b,
+                    common,
+                ))
             }
             _ => ComparisonDiff::Scalar(scalar_delta(a.result, b.result)),
         },

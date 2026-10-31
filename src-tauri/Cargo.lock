@@ -375,7 +375,7 @@ dependencies = [
  "bitflags 2.13.2",
  "cexpr",
  "clang-sys",
- "itertools",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -2167,6 +2167,7 @@ dependencies = [
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "tauri-plugin-log",
+ "tauri-plugin-prevent-default",
  "tauri-plugin-store",
  "tauri-plugin-wdio",
  "tauri-plugin-wdio-webdriver",
@@ -2487,6 +2488,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
@@ -5434,6 +5444,20 @@ dependencies = [
  "tauri-plugin",
  "thiserror 2.0.21",
  "time",
+]
+
+[[package]]
+name = "tauri-plugin-prevent-default"
+version = "6.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb6b60e3155d15435cea31fd5cdc363de96782646c4b465d874d09746e3032d1"
+dependencies = [
+ "bitflags 2.13.2",
+ "itertools 0.15.0",
+ "serde",
+ "strum",
+ "tauri",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
