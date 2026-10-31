@@ -12,8 +12,11 @@ import { deltaLimit, deltaSpan } from "../src/components/compare/matrix";
 import { identicalWindows, bucketTimes } from "../src/components/compare/waveform";
 import { pairingSummary } from "../src/components/compare/events";
 import { noteRows } from "../src/components/compare/notes";
+import { clipSeries, compareTime, displayTimes } from "../src/components/compare/time";
 import { shapeLabel } from "../src/state/compare/picker";
-import type { MatrixDiffDto, NotesDiffDto } from "../src/state/compare/types";
+import { openCompareTabs, pruneReferences, setCompareRefs } from "../src/state/compare/views";
+import { setOpenCompareIds, setOpenTools } from "../src/state/workbench";
+import type { ComparisonDto, MatrixDiffDto, NotesDiffDto } from "../src/state/compare/types";
 import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
 
 /**
@@ -243,6 +246,97 @@ check("the note table pairs matches and keeps one-sided notes", () => {
   assertEqual(rows[1].rmsDeltaDb, 2);
   assertEqual(rows[0].aStart, null);
   assertEqual(rows[2].bStart, null);
+});
+
+/** A comparison shaped just enough for the relative-time helpers. */
+const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
+
+function comparisonFor(
+  aStart: number,
+  aDuration: number,
+  bStart: number,
+  bDuration: number,
+  bOffset: number,
+): ComparisonDto {
+  const side = (project: string, start: number) =>
+    ({
+      project,
+      source: null,
+      window: { start, end: start + 1 },
+      params: {},
+      options: {},
+      summary: {},
+      result: { tool: "frameRms", windowStart: start },
+    }) as never;
+  return {
+    tool: "frameRms",
+    a: side("A", aStart),
+    b: side("B", bStart),
+    comparability: {
+      aligned: true,
+      alignment: {
+        aDuration,
+        bDuration,
+        bOffset,
+        common: { start: Math.max(0, bOffset), end: Math.min(aDuration, bOffset + bDuration) },
+      },
+      overlap: null,
+      mismatches: [],
+      filtersDiffer: false,
+    },
+  } as ComparisonDto;
+}
+
+check("each side starts at 0 and the reference is shifted by the offset", () => {
+  const time = compareTime(
+    () => comparisonFor(2, 1, 5, 0.6, 0.1),
+    () => false,
+  );
+  assertEqual(time.originA(), 2);
+  assertEqual(time.originB(), 5);
+  assertEqual(time.extent(), 1);
+  assertEqual(time.a(2.5), 0.5);
+  assertEqual(round6(time.b(5.2)), 0.3); // 0.2 into B's window, +0.1 δ
+  assertDeepEqual(time.bWindow(), { start: 0.1, end: 0.7 });
+  assertEqual(time.clipped(), true);
+  assertEqual(time.toSource(0.5), 2.5);
+  assertEqual(time.fromSource(2.5), 0.5);
+});
+
+check("Swap A/B swaps the extent, clipping and the offset sign", () => {
+  const swapped = compareTime(
+    () => comparisonFor(2, 1, 5, 0.6, 0.1),
+    () => true,
+  );
+  assertEqual(swapped.originA(), 5);
+  assertEqual(swapped.extent(), 0.6);
+  assertEqual(round6(swapped.a(5.2)), 0.2);
+  assertEqual(round6(swapped.b(2.5)), 0.4); // A's 0.5 into its window, −0.1 δ
+  assertDeepEqual(swapped.bWindow(), { start: -0.1, end: 0.9 });
+  assertEqual(round6(swapped.delta(0.2)), 0.1);
+  assertEqual(round6(swapped.toSource(0.2)), 2.3);
+});
+
+check("relative times and clipping trim a side at the axis end", () => {
+  assertDeepEqual(displayTimes([2, 2.5], 2, 0.1).map(round6), [0.1, 0.6]);
+  const clipped = clipSeries([0, 1, 2, 3], [10, 11, 12, 13], 0, 2);
+  assertDeepEqual(clipped.times, [0, 1, 2]);
+  assertDeepEqual(clipped.values, [10, 11, 12]);
+});
+
+check("a compare tab keeps its reference when a tool tab changes", () => {
+  // The M25.B regression: deriving compare tabs from `openTools` dropped every
+  // reference on any panel add/remove, because `openTools` excludes compare ids.
+  const ids = ["compare:spectrum"];
+  const refs = { spectrum: "project-1" };
+  setCompareRefs(refs);
+  setOpenCompareIds(ids);
+  setOpenTools(["spectrum", "mfcc"]);
+  assertDeepEqual(openCompareTabs(), [{ tool: "spectrum", with: "project-1" }]);
+  // A tool-tab change no longer prunes the compare reference …
+  assertEqual(pruneReferences(refs, ids), refs);
+  // … while closing the compare tab does.
+  assertDeepEqual(pruneReferences(refs, []), {});
 });
 
 report("compare");

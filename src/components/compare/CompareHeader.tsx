@@ -5,6 +5,7 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import { compareTargets, refreshCompareTargets, shapeLabel } from "../../state/compare/picker";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, MismatchDto } from "../../state/compare/types";
+import type { CompareTime } from "./time";
 
 /**
  * A compare view's header (M25): the tab's title, both projects by name with their
@@ -17,6 +18,13 @@ export default function CompareHeader(props: {
   swapped: boolean;
   reference: string;
   live: CompareLiveHandle;
+  /** The relative display transform (M25.B). */
+  time: CompareTime;
+  /** Whether the family has a time axis (and so shows the fine-tune slider). */
+  timeAxis: boolean;
+  /** The fine-tune offset δ in seconds. */
+  offset: number;
+  onOffset: (seconds: number) => void;
   onSwap: () => void;
   onReferenceChange: (label: string) => void;
   onRetry: () => void;
@@ -52,15 +60,16 @@ export default function CompareHeader(props: {
     return { text: "Aligned", cls: "ok" };
   };
 
-  /** The overlap line, when it differs from both windows (so it is worth naming). */
-  const overlapNote = () => {
-    const overlap = props.comparison.comparability.overlap;
-    if (!overlap) return null;
-    const same = (span: { start: number; end: number }) =>
-      Math.abs(span.start - overlap.start) < 1e-6 && Math.abs(span.end - overlap.end) < 1e-6;
-    const differs = !same(props.comparison.a.window) || !same(props.comparison.b.window);
-    if (!differs) return null;
-    return `Delta over the overlap ${overlap.start.toFixed(2)}–${overlap.end.toFixed(2)} s`;
+  /** The common-span line, when the relative windows do not line up exactly. */
+  const spanNote = () => {
+    if (!comparability().aligned) return null;
+    const common = props.comparison.comparability.alignment.common;
+    if (!common) return "The shifted windows do not meet — adjust the fine-tune offset";
+    const start = props.time.delta(common.start);
+    const end = props.time.delta(common.end);
+    const extent = props.time.extent();
+    if (start <= 1e-6 && end >= extent - 1e-6) return null;
+    return `Delta over the common span ${start.toFixed(2)}–${end.toFixed(2)} s`;
   };
 
   return (
@@ -118,7 +127,41 @@ export default function CompareHeader(props: {
         </Button>
       </div>
 
-      <Show when={overlapNote()}>{(text) => <div class="compare-overlap">{text()}</div>}</Show>
+      <Show when={props.timeAxis}>
+        <div class="compare-offset" data-testid="compare.offset.row">
+          <span class="compare-offset-label">Fine-tune B</span>
+          <input
+            class="compare-offset-slider"
+            data-testid="compare.offset"
+            type="range"
+            min="-1"
+            max="1"
+            step="0.001"
+            value={props.offset}
+            aria-label="Fine-tune B"
+            onInput={(event) => props.onOffset(Number(event.currentTarget.value))}
+          />
+          <span class="compare-offset-value" data-testid="compare.offset.value">
+            {props.offset >= 0 ? "+" : ""}
+            {(props.offset * 1000).toFixed(0)} ms
+          </span>
+          <Button
+            class="compare-btn compare-offset-reset"
+            data-testid="compare.offset.reset"
+            onClick={() => props.onOffset(0)}
+          >
+            Reset
+          </Button>
+        </div>
+      </Show>
+
+      <Show when={spanNote()}>
+        {(text) => (
+          <div class="compare-overlap" data-testid="compare.span">
+            {text()}
+          </div>
+        )}
+      </Show>
     </header>
   );
 }

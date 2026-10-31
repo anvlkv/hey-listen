@@ -43,6 +43,8 @@ export function createComparison(
   tool: AnalyzerId,
   reference: () => string | null,
   revision: () => number | null,
+  /** The fine-tune offset δ: positive moves the reference later (M25.B). */
+  bOffset: () => number = () => 0,
 ): CompareHandle {
   const [comparison, setComparison] = createSignal<ComparisonDto | null>(null);
   const [error, setError] = createSignal<string | null>(null);
@@ -82,6 +84,7 @@ export function createComparison(
           params: peer.params,
           options: peer.options,
         },
+        bOffset: bOffset(),
         shape: "full",
       };
       const reply = await invoke<ComparisonDto>("run_comparison", { request });
@@ -123,6 +126,7 @@ export function createComparison(
         () => engineOptions(tool),
         reference,
         revision,
+        bOffset,
       ],
       () => schedule(),
     ),

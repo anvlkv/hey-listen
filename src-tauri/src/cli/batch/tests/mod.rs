@@ -144,6 +144,7 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
         b_start: None,
         b_end: None,
         overlap: false,
+        b_offset: 0.0,
         windows: Vec::new(),
         params: Vec::new(),
         options: Vec::new(),

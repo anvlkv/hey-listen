@@ -59,6 +59,7 @@ export async function compareAnalysis(args: Args) {
   const shape = summaryOnly ? "summary" : includeData ? "full" : "compact";
   const maxPoints = optionalNum(args, "maxPoints");
   const compactAxis = args.axis === "compact";
+  const bOffset = optionalNum(args, "bOffset") ?? 0;
 
   // UI following: open/focus the compare view, which now charts every family (M25.A).
   if (optionalBool(args, "display") ?? true) {
@@ -71,6 +72,7 @@ export async function compareAnalysis(args: Args) {
       reference,
       a,
       b,
+      bOffset,
       shape,
       ...(maxPoints != null ? { maxPoints } : {}),
       ...(compactAxis ? { compactAxis: true } : {}),

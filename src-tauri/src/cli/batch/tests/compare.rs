@@ -139,6 +139,43 @@ fn compare_emits_one_line_per_tool_and_shape_follows_the_flags() {
 }
 
 #[test]
+fn compare_matches_relative_windows_and_honours_the_offset() {
+    let a = write_project_file("hey_compare_relative_a.heyl", 1.0, (0.0, 0.5));
+    let b = write_project_file("hey_compare_relative_b.heyl", 0.5, (0.25, 0.75));
+    let mut request = compare_request(a.clone(), b.clone(), vec!["frameRms".to_string()]);
+
+    let mut out = Vec::new();
+    assert_eq!(run(&request, &mut out), 0);
+    let values = lines(&out);
+    let comparability = &values[0]["comparability"];
+    assert_eq!(comparability["aligned"], true);
+    assert_eq!(comparability["alignment"]["aDuration"].as_f64(), Some(0.5));
+    assert_eq!(comparability["alignment"]["bDuration"].as_f64(), Some(0.5));
+    assert_eq!(
+        comparability["alignment"]["common"]["start"].as_f64(),
+        Some(0.0)
+    );
+    assert_eq!(
+        comparability["alignment"]["common"]["end"].as_f64(),
+        Some(0.5)
+    );
+    assert_eq!(values[0]["diff"]["kind"], "series");
+
+    // A δ that pushes B past A leaves no common span, so a time delta cannot exist.
+    request.b_offset = 0.5;
+    let mut shifted = Vec::new();
+    assert_eq!(run(&request, &mut shifted), 0);
+    let values = lines(&shifted);
+    assert!(values[0]["comparability"]["alignment"]
+        .get("common")
+        .is_none());
+    assert!(values[0].get("diff").is_none());
+
+    let _ = std::fs::remove_file(&a);
+    let _ = std::fs::remove_file(&b);
+}
+
+#[test]
 fn compare_fails_cleanly_when_a_project_cannot_be_read() {
     let a = write_project_file("hey_compare_missing_a.heyl", 1.0, (0.0, 0.25));
     let request = compare_request(

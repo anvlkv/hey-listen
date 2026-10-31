@@ -16,11 +16,12 @@ import {
 import { compareMarkers } from "./peerPlugins";
 import { compareSides, liveMarkers } from "./sides";
 import { rateAxis, valueAxis } from "./axes";
+import type { CompareTime } from "./time";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import type { AnalyzerId, ModulationResult } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
-import type { ComparisonDto, ModulationDiffDto, Span } from "../../state/compare/types";
+import type { ComparisonDto, ModulationDiffDto } from "../../state/compare/types";
 
 type Band = "am" | "fm";
 
@@ -44,7 +45,8 @@ export default function CompareModulation(props: {
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  bWindow: () => Span | null;
+  /** The relative display transform; a rate chart only uses it for the swap. */
+  time: CompareTime;
 }) {
   const [band, setBand] = createSignal<Band>("am");
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
@@ -63,7 +65,7 @@ export default function CompareModulation(props: {
       liveMarkers({
         live: props.live,
         swapped: () => props.swapped,
-        window: props.bWindow,
+        time: props.time,
         axis: "rate",
       }),
     );

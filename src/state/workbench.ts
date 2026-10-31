@@ -60,6 +60,15 @@ export function toolById(id: ToolId): ToolDef {
 
 export const [dockApi, setDockApi] = createSignal<DockviewApi | null>(null);
 export const [openTools, setOpenTools] = createSignal<ToolId[]>([]);
+/**
+ * The open **compare** panel ids, in dockview order.
+ *
+ * `openTools` deliberately excludes them (they are not project content), but the
+ * compare views still need to know which are open: deriving that from `openTools`
+ * dropped every reference on any panel add/remove (M25.B). `syncOpenTools` is the one
+ * place a layout change funnels through, so both signals are set there.
+ */
+export const [openCompareIds, setOpenCompareIds] = createSignal<string[]>([]);
 
 /** The focused Workbench tool id, or `null` when nothing (or a compare view) is focused. */
 export function focusedTool(): ToolId | null {
@@ -129,11 +138,12 @@ export async function popoutTool(id: ToolId) {
   }
 }
 
-/** The open Workbench **tool** tab ids, in dockview order (compare views excluded). */
+/** The open Workbench tab ids, in dockview order: tools and (separately) compare views. */
 export function syncOpenTools(api: DockviewApi) {
   setOpenTools(
     api.panels.filter((panel) => !isCompareId(panel.id)).map((panel) => panel.id as ToolId),
   );
+  setOpenCompareIds(api.panels.filter((panel) => isCompareId(panel.id)).map((panel) => panel.id));
 }
 
 /**
@@ -167,4 +177,5 @@ export function closeAllTools() {
   if (!api) return;
   api.clear();
   setOpenTools([]);
+  setOpenCompareIds([]);
 }

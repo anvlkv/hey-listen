@@ -2,8 +2,8 @@ import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { invoke } from "../../lib/ipc";
 import { analyzerById } from "../analyzer/lookup";
 import type { AnalyzerId } from "../analyzer/types";
-import { dockApi, openTools } from "../workbench";
-import { comparePanelId, isCompareId, parseCompareTool } from "./id";
+import { dockApi, openCompareIds } from "../workbench";
+import { comparePanelId, parseCompareTool } from "./id";
 import type { CompareViewDto } from "./types";
 
 /**
@@ -40,13 +40,11 @@ export function clearReference(tool: AnalyzerId) {
 
 /** The open compare **tabs**, as `{ tool, with }` (the popouts come from the core). */
 export function openCompareTabs(): CompareViewDto[] {
-  return openTools()
-    .filter((id) => isCompareId(id))
-    .flatMap((id) => {
-      const tool = parseCompareTool(id);
-      if (!tool) return [];
-      return [{ tool, with: compareRefs()[tool] ?? "" }];
-    });
+  return openCompareIds().flatMap((id) => {
+    const tool = parseCompareTool(id);
+    if (!tool) return [];
+    return [{ tool, with: compareRefs()[tool] ?? "" }];
+  });
 }
 
 /**
@@ -110,19 +108,37 @@ function addCompareTab(tool: AnalyzerId) {
 
 // Drop a stale reference when its compare tab is closed (dockview's own close button,
 // a layout restore, or `closeCompare`). Popping out clears it explicitly.
+//
+// Prune against the **live API** on the next microtask: dockview can emit a
+// remove+add pair while it moves a panel, and pruning on the transient empty signal
+// would drop a reference that is still bound.
 createRoot(() => {
   createEffect(
-    on(openTools, (ids) => {
-      const open = new Set<string>(ids.filter((id) => isCompareId(id)));
-      setCompareRefs((refs) => {
-        const next: Record<string, string> = {};
-        for (const [tool, reference] of Object.entries(refs)) {
-          if (open.has(comparePanelId(tool as AnalyzerId))) next[tool] = reference;
-        }
-        // Keep the same object when nothing was dropped (a new identity would repaint
-        // every consumer of the refs).
-        return Object.keys(next).length === Object.keys(refs).length ? refs : next;
+    on(openCompareIds, () => {
+      queueMicrotask(() => {
+        const open = (dockApi()?.panels ?? []).map((panel) => panel.id);
+        setCompareRefs((refs) => pruneReferences(refs, open));
       });
     }),
   );
 });
+
+/**
+ * Keep only the references whose compare tab is still open.
+ *
+ * Tracks the **compare** panel ids, not `openTools` — compare ids are deliberately
+ * excluded from `openTools`, and reading them there dropped every reference on any
+ * panel add/remove (M25.B). Returns the same object when nothing was dropped, so the
+ * refs' consumers do not repaint for nothing.
+ */
+export function pruneReferences(
+  refs: Record<string, string>,
+  open: readonly string[],
+): Record<string, string> {
+  const openIds = new Set(open);
+  const next: Record<string, string> = {};
+  for (const [tool, reference] of Object.entries(refs)) {
+    if (openIds.has(comparePanelId(tool as AnalyzerId))) next[tool] = reference;
+  }
+  return Object.keys(next).length === Object.keys(refs).length ? refs : next;
+}

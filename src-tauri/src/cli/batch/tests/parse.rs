@@ -49,6 +49,7 @@ fn compare_maps_two_projects_its_tools_and_window_overrides() {
         ("tool", json!(["spectrum"])),
         ("a-start", json!("1")),
         ("b-end", json!("2")),
+        ("b-offset", json!("0.125")),
         ("overlap", json!(true)),
     ]);
     let request = build_request("compare", &m).unwrap();
@@ -58,6 +59,7 @@ fn compare_maps_two_projects_its_tools_and_window_overrides() {
     assert_eq!(request.tools, ["spectrum"]);
     assert_eq!(request.a_start, Some(1.0));
     assert_eq!(request.b_end, Some(2.0));
+    assert_eq!(request.b_offset, 0.125);
     assert!(request.overlap);
 }
 

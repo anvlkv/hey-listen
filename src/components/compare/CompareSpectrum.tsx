@@ -14,11 +14,12 @@ import {
 } from "../analyzer/axisFormat";
 import { compareMarkers } from "./peerPlugins";
 import { compareSides, liveMarkers } from "./sides";
+import type { CompareTime } from "./time";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
 import { toolOptions, formatHz, type AnalyzerId, type SpectrumResult } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
-import type { ComparisonDto, Span, SpectrumDiffDto } from "../../state/compare/types";
+import type { ComparisonDto, SpectrumDiffDto } from "../../state/compare/types";
 
 /** Keep a log x-axis strictly positive (band-limited data may start at 0 Hz). */
 function logXRange(_u: unknown, min: number, max: number): [number, number] {
@@ -64,7 +65,8 @@ export default function CompareSpectrum(props: {
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  bWindow: () => Span | null;
+  /** The relative display transform; a frequency chart only uses it for the swap. */
+  time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
   const sides = compareSides<SpectrumResult>(
@@ -84,7 +86,7 @@ export default function CompareSpectrum(props: {
       liveMarkers({
         live: props.live,
         swapped: () => props.swapped,
-        window: props.bWindow,
+        time: props.time,
         axis: "freq",
       }),
     );
@@ -110,7 +112,9 @@ export default function CompareSpectrum(props: {
       freqs: a.freqs.slice(0, bins),
       a: a.magDb.slice(0, bins),
       b: b.magDb.slice(0, bins),
-      delta: delta ? delta.values.slice(0, bins) : [],
+      delta: delta
+        ? delta.values.slice(0, bins).map((value) => (props.swapped ? -value : value))
+        : [],
     };
   };
 

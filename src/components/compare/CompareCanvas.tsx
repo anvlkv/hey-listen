@@ -5,6 +5,7 @@ import { activeThemeId } from "../../state/themes";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { Span } from "../../state/compare/types";
 import { drawLiveMarkers, drawWindowBand } from "./canvasOverlays";
+import type { CompareTime } from "./time";
 
 /**
  * A lightweight time-axis canvas for the compare heatmap and note views (M25.A).
@@ -19,14 +20,13 @@ export default function CompareCanvas(props: {
   class?: string;
   /** A test hook on the wrapper (the canvas itself is found under it). */
   testid?: string;
-  /** The visible source-second span. */
+  /** The visible span on the relative axis. */
   span: () => Span;
   /** Paint the plot content; the frame, marks and axis are handled here. */
   paint: (ctx: CanvasRenderingContext2D, box: PlotBox, span: Span) => void;
   live?: CompareLiveHandle;
-  /** The reference's analysis window (the band), if the view has one. */
-  bWindow?: () => Span | null;
-  swapped?: boolean;
+  /** The relative display transform (M25.B) — markers and B's band follow it. */
+  time?: CompareTime;
 }) {
   const [wrap, setWrap] = createSignal<HTMLDivElement>();
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>();
@@ -58,8 +58,8 @@ export default function CompareCanvas(props: {
     if (!ctx || !(span.end > span.start)) return;
     const box = plotBox(size());
     props.paint(ctx, box, span);
-    if (props.bWindow) drawWindowBand(ctx, box, span, props.bWindow());
-    drawLiveMarkers(ctx, box, span, props.live, props.swapped ?? false);
+    if (props.time) drawWindowBand(ctx, box, span, props.time.bWindow());
+    drawLiveMarkers(ctx, box, span, props.live, props.time);
     drawTimeAxis(ctx, { t0: span.start, t1: span.end }, box);
   });
 

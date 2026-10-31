@@ -34,7 +34,9 @@ import {
   changeReference,
   compareFromTabMenu,
   compareTab,
+  compareToolFromMain,
   compareView,
+  openProjectWithFixture,
   popOutCompareTab,
   setFft,
   waitForBadge,
@@ -57,13 +59,7 @@ describe("R2. Comparison", () => {
   /** Open a second project window with a distinct source; leave the session in main. */
   async function secondProject(): Promise<string> {
     if (second && (await windowLabels()).includes(second)) return second;
-    second = await openProjectWindow();
-    await browser.tauri.switchWindow(second);
-    await waitForShell();
-    await mockReturn("confirm", true);
-    await openFixture("chirpNoise");
-    await browser.tauri.switchWindow("main");
-    await waitForShell();
+    second = await openProjectWithFixture("chirpNoise");
     return second;
   }
 
@@ -243,17 +239,7 @@ describe("R2. Comparison", () => {
 
   /** Open one analyzer in main and compare it with `reference` through the tab menu. */
   async function compareTool(tool: string, reference: string): Promise<void> {
-    await browser.tauri.switchWindow("main");
-    await waitForShell();
-    await openTool(tool);
-    // Not `waitForAnalyzer`: a family's analyzer view legitimately shows its empty state
-    // for one fixture (no notes / no modulation), which is not a failure here.
-    await waitFor(async () => (await count(tab(tool))) === 1, `the ${tool} tab did not open`);
-    await compareFromTabMenu(tool, reference);
-    await waitFor(
-      async () => (await count(compareView(tool))) === 1,
-      `the ${tool} compare view did not open`,
-    );
+    await compareToolFromMain(tool, reference);
   }
 
   it("R2.7 — the matrix view switches A / B / Δ and never interpolates", async () => {
@@ -332,49 +318,9 @@ describe("R2. Comparison", () => {
     expect(pressed).toBe("true");
     expect(await textOf('[data-testid="compare.modulation"]')).toContain("Δ AM mean");
 
-    // Restore main's source for the waveform test's identical-window case.
+    // Leave main on sine440, the source the relative-alignment spec starts from.
     await browser.tauri.switchWindow("main");
     await waitForShell();
     await openFixture("sine440");
-  });
-
-  it("R2.11 — the waveform overlays only an identical window", async () => {
-    // A third project with the **same** source as main (sine440), so the two analysis
-    // windows start out identical — the rule under test.
-    const same = await openProjectWindow();
-    await browser.tauri.switchWindow(same);
-    await waitForShell();
-    await mockReturn("confirm", true);
-    await openFixture("sine440");
-
-    await compareTool("waveform", same);
-    await waitForCompareChart("waveform");
-    expect(await count('[data-testid="compare.waveform.side"]')).toBe(0);
-    expect(await textOf('[data-testid="compare.waveform"]')).toContain("Buckets");
-
-    // Move the reference's analysis window: bucket i now covers a different span, so
-    // the envelopes are drawn side by side and no envelope delta is claimed.
-    await browser.tauri.switchWindow(same);
-    await waitForShell();
-    await invokeCore("set_ui_state", {
-      key: "timeline",
-      value: { windowStart: 0.5, windowEnd: 2, viewStart: 0.5, viewEnd: 2 },
-    });
-    await browser.tauri.switchWindow("main");
-    await waitForShell();
-    await waitFor(
-      async () => (await count('[data-testid="compare.waveform.side"]')) === 1,
-      "the differing windows never switched to side-by-side",
-    );
-    await waitFor(
-      async () => (await count('[data-testid="compare.waveform.note"]')) === 1,
-      "the differing-window note never appeared",
-    );
-
-    await browser.tauri.switchWindow(same);
-    await waitForShell();
-    await closeCurrentWindow();
-    await browser.tauri.switchWindow("main").catch(() => {});
-    await waitFor(async () => !(await windowLabels()).includes(same), `${same} did not close`);
   });
 });

@@ -10,6 +10,8 @@ use super::*;
 use crate::audio::analysis::{Axis, RhythmResult, Shape, SharedParams, ToolOptions, WindowKind};
 use crate::state::{SourcePcm, WindowState};
 
+mod relative;
+
 const RATE: u32 = 48_000;
 
 fn state_with(samples: Vec<f32>) -> WindowState {
@@ -60,6 +62,15 @@ fn compare_pair(
     a: (&WindowState, CompareSetup),
     b: (&WindowState, CompareSetup),
 ) -> Comparison {
+    compare_pair_at(tool, a, b, 0.0)
+}
+
+fn compare_pair_at(
+    tool: &str,
+    a: (&WindowState, CompareSetup),
+    b: (&WindowState, CompareSetup),
+    b_offset: f64,
+) -> Comparison {
     let (a_state, a_setup) = a;
     let (b_state, b_setup) = b;
     compare(
@@ -74,6 +85,7 @@ fn compare_pair(
             state: b_state,
             setup: b_setup,
         },
+        b_offset,
     )
     .expect("comparison")
 }
@@ -125,37 +137,6 @@ fn a_differing_fft_size_is_a_mismatch() {
         crate::audio::analysis::AnalysisResult::Spectrum(_)
     ));
 }
-
-#[test]
-fn differing_windows_diff_over_their_overlap() {
-    let a = state_with(tone(2.0, 440.0, 1.0));
-    let b = state_with(tone(2.0, 440.0, 0.5));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.0)), (&b, setup(0.5, 1.5)));
-
-    assert!(comparison.comparability.aligned);
-    let overlap = comparison.comparability.overlap.expect("overlap");
-    assert!((overlap.start - 0.5).abs() < 1e-6);
-    assert!((overlap.end - 1.0).abs() < 1e-6);
-    let Some(ComparisonDiff::Series(diff)) = &comparison.diff else {
-        panic!("expected a series delta");
-    };
-    for time in &diff.times {
-        assert!(f64::from(*time) >= overlap.start - 1e-4);
-        assert!(f64::from(*time) <= overlap.end + 1e-4);
-    }
-    assert!((diff.stats.mean.unwrap() + 6.02).abs() < 0.5);
-}
-
-#[test]
-fn no_time_overlap_has_no_time_delta() {
-    let a = state_with(tone(2.0, 440.0, 1.0));
-    let b = state_with(tone(2.0, 440.0, 1.0));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.0)), (&b, setup(1.0, 2.0)));
-    assert!(!comparison.comparability.aligned);
-    assert!(comparison.comparability.overlap.is_none());
-    assert!(comparison.diff.is_none());
-}
-
 #[test]
 fn a_spectrum_compares_without_time_overlap() {
     let a = state_with(tone(2.0, 440.0, 1.0));
@@ -212,6 +193,9 @@ fn events_are_paired_by_nearest_time() {
     let delta = events_delta(
         &a,
         &b,
+        0.0,
+        0.0,
+        0.0,
         Some(Span {
             start: 0.0,
             end: 1.0,
@@ -228,12 +212,15 @@ fn events_are_paired_by_nearest_time() {
 }
 
 #[test]
-fn events_outside_the_overlap_are_ignored() {
+fn events_outside_the_common_span_are_ignored() {
     let a = rhythm(&[0.10, 0.90]);
     let b = rhythm(&[0.90]);
     let delta = events_delta(
         &a,
         &b,
+        0.0,
+        0.0,
+        0.0,
         Some(Span {
             start: 0.5,
             end: 1.0,

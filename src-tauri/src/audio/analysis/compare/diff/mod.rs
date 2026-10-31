@@ -1,8 +1,10 @@
-//! The delta per result family (M25).
+//! The delta per result family (M25; relative matching in M25.B).
 //!
-//! Every family gets a delta in M25, so MCP and the CLI can compare any tool; the
-//! **views** for matrix/event/notes/modulation/waveform land in M25.A. See
-//! `docs/comparison.md` → "The delta".
+//! Every family gets a delta, so MCP and the CLI can compare any tool. Since M25.B the
+//! frames and events are matched on a **relative** axis: each side starts at 0 at its
+//! own window start, and the reference is shifted by the fine-tune offset. The delta
+//! therefore carries relative `times`, not source seconds. See `docs/comparison.md` →
+//! "The delta".
 
 use serde::Serialize;
 
@@ -38,14 +40,14 @@ pub enum ComparisonDiff {
     Scalar(ScalarDelta),
 }
 
-/// A series delta over the matched frames in the overlap.
+/// A series delta over the matched frames in the common span.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SeriesDelta {
     #[serde(flatten)]
     pub header: DeltaHeader,
     pub stats: DeltaStats,
-    /// Matched frame times (A's frame times).
+    /// Matched frame times on the relative axis (A's frame times).
     pub times: Vec<f32>,
     /// `B − A` per matched frame (`null` where either side is a gap).
     pub values: Vec<Option<f32>>,
@@ -66,17 +68,20 @@ pub struct SpectrumDelta {
     pub values: Vec<f32>,
 }
 
-/// A frame × band delta over the matched frames in the overlap.
+/// A frame × band delta over the matched frames in the common span.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MatrixDelta {
     #[serde(flatten)]
     pub header: DeltaHeader,
     pub stats: DeltaStats,
-    /// Matched frame times (A's frame times).
+    /// Frame times on the relative axis (A's frame times).
     pub times: Vec<f32>,
+    /// One flag per column: `false` means A has a frame there but B has no counterpart
+    /// within tolerance, so the column is a **null** column (M25.B).
+    pub columns: Vec<bool>,
     pub bins: usize,
-    /// Frame-major `frames × bins` delta.
+    /// Frame-major `frames × bins` delta (`0` in a null column; ignored by the stats).
     pub values: Vec<f32>,
 }
 
@@ -101,15 +106,17 @@ pub struct LineDelta {
     pub values: Vec<f32>,
 }
 
-/// A waveform envelope delta — only when both windows are identical.
+/// A waveform envelope delta over the common span (M25.B).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WaveformDelta {
     #[serde(flatten)]
     pub header: DeltaHeader,
-    /// Envelope buckets compared (0 when the windows differ).
+    /// Buckets compared (A's bucket times sampled against B's envelope).
     pub buckets: usize,
-    /// `B − A` per bucket of the upper envelope.
+    /// The sampled bucket times on the relative axis.
+    pub times: Vec<f32>,
+    /// `B − A` per sampled bucket of the upper envelope.
     pub values: Vec<f32>,
 }
 
@@ -133,22 +140,32 @@ pub struct FieldDelta {
 }
 
 /// Compute the delta for two results that the comparability check accepted.
-pub fn diff(a: &Side<'_>, b: &Side<'_>, overlap: Option<Span>) -> ComparisonDiff {
+///
+/// `b_offset` is the fine-tune offset δ and `common` the span (in owner coordinates)
+/// the delta covers.
+pub fn diff(a: &Side<'_>, b: &Side<'_>, b_offset: f64, common: Option<Span>) -> ComparisonDiff {
+    let (origin_a, origin_b) = (result_origin(a.result), result_origin(b.result));
     match (a.result, b.result) {
         (AnalysisResult::Spectrum(a_r), AnalysisResult::Spectrum(b_r)) => {
             ComparisonDiff::Spectrum(spectrum_delta(a_r, b_r))
         }
         (AnalysisResult::Spectrogram(a_r), AnalysisResult::Spectrogram(b_r)) => {
-            ComparisonDiff::Matrix(spectrogram_delta(a_r, b_r, overlap))
+            let times_a = relative(&spectrogram_frames(a_r), origin_a, 0.0);
+            let times_b = relative(&spectrogram_frames(b_r), origin_b, b_offset);
+            ComparisonDiff::Matrix(spectrogram_delta(a_r, &times_a, b_r, &times_b, common))
         }
         (AnalysisResult::MelSpectrogram(a_r), AnalysisResult::MelSpectrogram(b_r))
         | (AnalysisResult::Mfcc(a_r), AnalysisResult::Mfcc(b_r))
         | (AnalysisResult::Chromagram(a_r), AnalysisResult::Chromagram(b_r))
         | (AnalysisResult::SpectralContrast(a_r), AnalysisResult::SpectralContrast(b_r)) => {
-            ComparisonDiff::Matrix(matrix_delta(a_r, b_r, overlap))
+            let times_a = relative(&a_r.times, origin_a, 0.0);
+            let times_b = relative(&b_r.times, origin_b, b_offset);
+            ComparisonDiff::Matrix(matrix_delta(a_r, &times_a, b_r, &times_b, common))
         }
         (AnalysisResult::NoteMetrics(a_r), AnalysisResult::NoteMetrics(b_r)) => {
-            ComparisonDiff::Notes(events::notes_delta(a_r, b_r, overlap))
+            ComparisonDiff::Notes(events::notes_delta(
+                a_r, b_r, origin_a, origin_b, b_offset, common,
+            ))
         }
         (AnalysisResult::Tempo(a_r), AnalysisResult::Tempo(b_r))
         | (AnalysisResult::Onsets(a_r), AnalysisResult::Onsets(b_r))
@@ -156,7 +173,10 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, overlap: Option<Span>) -> ComparisonDiff
             ComparisonDiff::Events(events::events_delta(
                 a_r,
                 b_r,
-                overlap,
+                origin_a,
+                origin_b,
+                b_offset,
+                common,
                 hop_secs(a.result, a.rate).max(hop_secs(b.result, b.rate)),
             ))
         }
@@ -164,20 +184,77 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, overlap: Option<Span>) -> ComparisonDiff
             ComparisonDiff::Modulation(modulation_delta(a_r, b_r))
         }
         (AnalysisResult::Waveform(a_r), AnalysisResult::Waveform(b_r)) => {
-            ComparisonDiff::Waveform(waveform_delta(a_r, b_r, a.setup.span(), b.setup.span()))
+            let times_a = relative(&waveform_times(a_r), origin_a, 0.0);
+            let times_b = relative(&waveform_times(b_r), origin_b, b_offset);
+            ComparisonDiff::Waveform(waveform_delta(a_r, &times_a, b_r, &times_b, common))
         }
         _ => match (a.result.series(), b.result.series()) {
-            (Some(a_r), Some(b_r)) => ComparisonDiff::Series(series_delta(a_r, b_r, overlap)),
+            (Some(a_r), Some(b_r)) => {
+                let times_a = relative(&a_r.times, origin_a, 0.0);
+                let times_b = relative(&b_r.times, origin_b, b_offset);
+                ComparisonDiff::Series(series_delta(a_r, &times_a, b_r, &times_b, common))
+            }
             _ => ComparisonDiff::Scalar(scalar_delta(a.result, b.result)),
         },
     }
 }
 
+// --- relative coordinates ---------------------------------------------------
+
+/// The source second a time-based result's frame 0 refers to.
+pub fn result_origin(result: &AnalysisResult) -> f64 {
+    match result {
+        AnalysisResult::Waveform(r) => r.window_start,
+        AnalysisResult::Spectrogram(r) => r.window_start,
+        AnalysisResult::MelSpectrogram(r)
+        | AnalysisResult::Mfcc(r)
+        | AnalysisResult::Chromagram(r)
+        | AnalysisResult::SpectralContrast(r) => r.window_start,
+        AnalysisResult::PitchPyin(r)
+        | AnalysisResult::PitchYin(r)
+        | AnalysisResult::PitchAutocorr(r) => r.window_start,
+        AnalysisResult::NoteMetrics(r) => r.window_start,
+        AnalysisResult::Modulation(r) => r.window_start,
+        AnalysisResult::Tempo(r) | AnalysisResult::Onsets(r) | AnalysisResult::Downbeats(r) => {
+            r.window_start
+        }
+        other => other.series().map(|r| r.window_start).unwrap_or(0.0),
+    }
+}
+
+/// Move absolute frame times onto the relative axis (`t − origin + shift`).
+pub fn relative(times: &[f32], origin: f64, shift: f64) -> Vec<f32> {
+    times
+        .iter()
+        .map(|time| (f64::from(*time) - origin + shift) as f32)
+        .collect()
+}
+
+/// A spectrogram's frame times are implicit (`window_start + frame · hop / rate`).
+fn spectrogram_frames(r: &crate::audio::analysis::SpectrogramResult) -> Vec<f32> {
+    let hop = r.hop_size as f64 / f64::from(r.sample_rate.max(1));
+    (0..r.frames)
+        .map(|frame| (r.window_start + frame as f64 * hop) as f32)
+        .collect()
+}
+
+/// A waveform result's bucket start times (one bucket per envelope point).
+fn waveform_times(r: &crate::audio::analysis::WaveformResult) -> Vec<f32> {
+    let buckets = r.max.len();
+    if buckets == 0 {
+        return Vec::new();
+    }
+    let step = r.duration.max(0.0) / buckets as f64;
+    (0..buckets)
+        .map(|index| (r.window_start + index as f64 * step) as f32)
+        .collect()
+}
+
 // --- shared helpers ---------------------------------------------------------
 
-/// Whether an instant lies in the overlap (all instants when there is no overlap).
-fn in_overlap(time: f32, overlap: Option<Span>) -> bool {
-    overlap.is_none_or(|span| span.contains(time))
+/// Whether an instant lies in the span (all instants when there is none).
+fn in_span(time: f32, span: Option<Span>) -> bool {
+    span.is_none_or(|span| span.contains(time))
 }
 
 /// The index in `times` nearest to `time`, advancing `cursor` monotonically.

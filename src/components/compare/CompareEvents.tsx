@@ -1,7 +1,7 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
-import { createEffect, createMemo, createRoot, For, Show } from "solid-js";
+import { createEffect, createMemo, createRoot, For, Show, untrack } from "solid-js";
 import Readout from "../analyzer/Readout";
 import { createUplotZoom } from "../analyzer/uplotZoom";
 import { mirrorCursor, syncView } from "../analyzer/syncPlugins";
@@ -12,6 +12,7 @@ import ComparePlot from "./ComparePlot";
 import { compareSides, liveMarkers } from "./sides";
 import { timeAxis, valueAxis } from "./axes";
 import { mergeSeries } from "./align";
+import { clipSeries, displayTimes, type CompareTime } from "./time";
 import { pairingSets, pairingSummary, type EventKind, type PairingSet } from "./events";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
@@ -22,7 +23,7 @@ import {
   type RhythmView as RhythmViewConfig,
 } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
-import type { ComparisonDto, EventsDiffDto, Span } from "../../state/compare/types";
+import type { ComparisonDto, EventsDiffDto } from "../../state/compare/types";
 
 /**
  * The **rhythm** compare view (M25.A): A and B's onset-strength envelopes overlaid on
@@ -38,7 +39,8 @@ export default function CompareEvents(props: {
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  bWindow: () => Span | null;
+  /** The relative display transform (M25.B). */
+  time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
   const sides = compareSides<RhythmResult>(
@@ -53,24 +55,50 @@ export default function CompareEvents(props: {
   const kinds = () => (analyzerById(props.tool).view as RhythmViewConfig).markers as EventKind[];
   const sets = (): PairingSet[] => {
     const d = diff();
-    return d ? pairingSets(kinds(), d) : [];
+    if (!d) return [];
+    // The core pairs events in owner coordinates; the display may be swapped, so its
+    // times move by −δ (M25.B). The counts and mean |Δt| are unaffected.
+    return pairingSets(kinds(), d).map((set) => ({
+      ...set,
+      pairing: {
+        ...set.pairing,
+        pairs: set.pairing.pairs.map((pair) => ({
+          ...pair,
+          a: props.time.delta(pair.a),
+          b: props.time.delta(pair.b),
+        })),
+        onlyATimes: set.pairing.onlyATimes.map((secs) => props.time.delta(secs)),
+        onlyBTimes: set.pairing.onlyBTimes.map((secs) => props.time.delta(secs)),
+      },
+    }));
   };
 
   const merged = createMemo(() => {
     const a = sides.resultA();
     const b = sides.resultB();
     if (!a || !b) return null;
-    return mergeSeries(a.times, a.onsetStrength, b.times, b.onsetStrength);
+    const end = props.time.extent();
+    const aRel = clipSeries(displayTimes(a.times, props.time.originA()), a.onsetStrength, 0, end);
+    const bRel = clipSeries(
+      displayTimes(b.times, props.time.originB(), props.time.shiftB()),
+      b.onsetStrength,
+      0,
+      end,
+    );
+    return mergeSeries(aRel.times, aRel.values, bRel.times, bRel.values);
   });
 
-  const zoom = createUplotZoom("time");
+  const zoom = createUplotZoom(
+    "time",
+    untrack(() => props.time.axis()),
+  );
   const Tooltip = timeTooltip((value) => value.toFixed(4));
   const markers = () =>
     compareMarkers(
       liveMarkers({
         live: props.live,
         swapped: () => props.swapped,
-        window: props.bWindow,
+        time: props.time,
         axis: "time",
       }),
     );
@@ -100,12 +128,16 @@ export default function CompareEvents(props: {
               label={props.swapped ? "B" : "A"}
               color={chartTheme().compareA}
               rhythm={sides.resultA()}
+              origin={props.time.originA()}
+              shift={0}
               markers={markers}
             />
             <EnvelopeSide
               label={props.swapped ? "A" : "B"}
               color={chartTheme().compareB}
               rhythm={sides.resultB()}
+              origin={props.time.originB()}
+              shift={props.time.shiftB()}
               markers={markers}
             />
           </div>
@@ -120,8 +152,14 @@ export default function CompareEvents(props: {
                 plugins={[
                   cursor(),
                   tooltip(Tooltip),
-                  mirrorCursor("time"),
-                  syncView("time"),
+                  mirrorCursor(
+                    "time",
+                    untrack(() => props.time.axis()),
+                  ),
+                  syncView(
+                    "time",
+                    untrack(() => props.time.axis()),
+                  ),
                   markers(),
                   eventPairMarkers(sets),
                 ]}
@@ -141,7 +179,10 @@ export default function CompareEvents(props: {
                     width: 1,
                   },
                 ]}
-                scales={{ x: { time: false }, y: { range: paddedYRange } }}
+                scales={{
+                  x: { time: false, range: () => [0, props.time.extent()] },
+                  y: { range: paddedYRange },
+                }}
                 axes={[timeAxis(), valueAxis("onset strength")]}
               />
             </Show>
@@ -276,9 +317,13 @@ function EnvelopeSide(props: {
   label: string;
   color: string;
   rhythm: RhythmResult | undefined;
+  origin: number;
+  shift: number;
   markers: () => ReturnType<typeof compareMarkers>;
 }) {
   const Tooltip = timeTooltip((value) => value.toFixed(4));
+  const times = () =>
+    props.rhythm ? displayTimes(props.rhythm.times, props.origin, props.shift) : [];
   return (
     <div class="compare-side">
       <div class="compare-side-label" style={{ color: props.color }}>
@@ -294,7 +339,7 @@ function EnvelopeSide(props: {
               autoResize
               pluginBus={analyzerBus}
               plugins={[cursor(), tooltip(Tooltip), props.markers()]}
-              data={[rhythm().times, rhythm().onsetStrength]}
+              data={[times(), rhythm().onsetStrength]}
               series={[{}, { label: props.label, stroke: props.color, width: 1 }]}
               scales={{ x: { time: false }, y: { range: paddedYRange } }}
               axes={[timeAxis(), valueAxis("onset strength")]}

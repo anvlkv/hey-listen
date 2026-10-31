@@ -1,10 +1,12 @@
-//! Comparability between two project sides (M25).
+//! Comparability between two project sides (M25, relative alignment in M25.B).
 //!
 //! Each side may legitimately have a different window, filter or settings, so a diff
 //! is **explicit about what can be compared**: a *grid signature* decides whether a
-//! numeric delta exists, the two windows' absolute-time intersection is the overlap a
-//! delta runs over, and every differing setting is reported (never silently
-//! normalised). See `docs/comparison.md` → "Comparability".
+//! numeric delta exists, every differing setting is reported (never silently
+//! normalised), and the two windows are matched on a **relative** axis — each side
+//! starts at 0, the reference shifted by the fine-tune offset δ. The delta covers the
+//! **common span** `[max(0, δ), min(durA, δ + durB)]`. See `docs/comparison.md` →
+//! "Comparability" and ADR-26.
 
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -28,9 +30,41 @@ impl Span {
         (end > start).then_some(Span { start, end })
     }
 
+    /// The span's length in seconds (never negative).
+    pub fn len(&self) -> f64 {
+        (self.end - self.start).max(0.0)
+    }
+
     /// Whether a source-second instant lies in the (closed) span.
     pub fn contains(&self, secs: f32) -> bool {
         f64::from(secs) >= self.start && f64::from(secs) <= self.end
+    }
+}
+
+/// The relative-time extent of a comparison (M25.B), in **owner coordinates**: A
+/// starts at 0 and the reference B is shifted by `b_offset` (δ). `common` is the span
+/// the delta covers — the longer side clipped to the shorter — and is `None` when the
+/// shifted windows do not meet.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Alignment {
+    pub a_duration: f64,
+    pub b_duration: f64,
+    pub b_offset: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub common: Option<Span>,
+}
+
+impl Alignment {
+    pub fn new(a_duration: f64, b_duration: f64, b_offset: f64) -> Self {
+        let start = b_offset.max(0.0);
+        let end = a_duration.min(b_offset + b_duration);
+        Self {
+            a_duration: a_duration.max(0.0),
+            b_duration: b_duration.max(0.0),
+            b_offset,
+            common: (end > start).then_some(Span { start, end }),
+        }
     }
 }
 
@@ -57,9 +91,12 @@ impl Mismatch {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparability {
-    /// The grids match, so a delta is computed (and the overlap, if any, is non-empty).
+    /// The grids match, so a delta is computed when the shifted windows meet.
     pub aligned: bool,
-    /// The absolute-time intersection of the two windows; absent = no common time base.
+    /// The relative extents and the common span the delta covers (M25.B).
+    pub alignment: Alignment,
+    /// The absolute-time intersection of the two windows — information only (no longer
+    /// gates the delta; the CLI's `--overlap` clips both windows to it first).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overlap: Option<Span>,
     /// Every differing grid-shaping setting, by key.
@@ -100,6 +137,7 @@ pub fn comparability(
     a: &Side<'_>,
     b: &Side<'_>,
     filters_differ: bool,
+    alignment: Alignment,
 ) -> Comparability {
     let overlap = Span::overlap(a.setup.span(), b.setup.span());
     let grid_a = grid_of(tool, a);
@@ -147,15 +185,25 @@ pub fn comparability(
         }
     }
 
-    // A scalar readout has no grid; two scalars are always comparable.
-    let needs_overlap = matches!(family_of(tool).as_str(), "series" | "events" | "notes");
-    let aligned = mismatches.is_empty() && (!needs_overlap || overlap.is_some());
+    // The relative axis means two windows at different source seconds are comparable;
+    // only differing grids suppress the delta. A time-axis family still needs the
+    // shifted windows to meet — reported through `alignment.common`, not `aligned`.
     Comparability {
-        aligned,
+        aligned: mismatches.is_empty(),
+        alignment,
         overlap,
         mismatches,
         filters_differ,
     }
+}
+
+/// Whether the tool's result sits on a time axis, so its delta needs a common span.
+/// Spectrum / modulation / readouts have no time axis and always diff.
+pub fn needs_common_span(tool: &str) -> bool {
+    !matches!(
+        family_of(tool),
+        crate::audio::analyzers::Family::Spectrum | crate::audio::analyzers::Family::Scalar
+    ) && tool != "modulation"
 }
 
 fn push_difference(mismatches: &mut Vec<Mismatch>, key: &str, a: usize, b: usize) {

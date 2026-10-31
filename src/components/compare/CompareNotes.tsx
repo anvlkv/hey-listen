@@ -5,10 +5,11 @@ import { chartTheme } from "../../state/themes";
 import type { NoteMetric } from "../../bindings/NoteMetric";
 import type { NoteMetricsResult, AnalyzerId } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
-import type { ComparisonDto, NotesDiffDto, Span } from "../../state/compare/types";
+import type { ComparisonDto, NotesDiffDto } from "../../state/compare/types";
 import CompareCanvas from "./CompareCanvas";
 import { compareSides } from "./sides";
 import { noteRows, rowLabel } from "./notes";
+import { resultOrigin, type CompareTime } from "./time";
 
 /** The key that marks a note start as having a counterpart on the other side. */
 const key = (secs: number) => secs.toFixed(5);
@@ -26,7 +27,8 @@ export default function CompareNotes(props: {
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  bWindow: () => Span | null;
+  /** The relative display transform (M25.B). */
+  time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
   const sides = compareSides<NoteMetricsResult>(
@@ -34,10 +36,7 @@ export default function CompareNotes(props: {
     () => props.swapped,
   );
   /* eslint-enable solid/reactivity */
-  const axisSpan = () => ({
-    start: Math.min(sides.a().window.start, sides.b().window.start),
-    end: Math.max(sides.a().window.end, sides.b().window.end),
-  });
+  const axisSpan = () => ({ start: 0, end: props.time.extent() });
   const notesA = (): NoteMetric[] => sides.resultA()?.notes ?? [];
   const notesB = (): NoteMetric[] => sides.resultB()?.notes ?? [];
 
@@ -48,8 +47,20 @@ export default function CompareNotes(props: {
     return d ? noteRows(d) : [];
   });
 
-  const matchedA = () => new Set(diff()?.pairs.map((pair) => key(pair.aStart)) ?? []);
-  const matchedB = () => new Set(diff()?.pairs.map((pair) => key(pair.bStart)) ?? []);
+  const matchedA = () =>
+    new Set((diff()?.pairs ?? []).map((pair) => key(props.swapped ? pair.bStart : pair.aStart)));
+  const matchedB = () =>
+    new Set((diff()?.pairs ?? []).map((pair) => key(props.swapped ? pair.aStart : pair.bStart)));
+
+  // The pairings are in **owner** coordinates (core A relative, core B shifted by δ);
+  // the displayed sides swap with the header, so their keys follow the swap.
+  const originCoreA = () => resultOrigin(props.comparison.a);
+  const originCoreB = () => resultOrigin(props.comparison.b);
+  const offset = () => props.comparison.comparability.alignment.bOffset;
+  const keyA = (secs: number) => secs - originCoreA();
+  const keyB = (secs: number) => secs - originCoreB() + offset();
+  const keyOfA = (secs: number) => key(props.swapped ? keyB(secs) : keyA(secs));
+  const keyOfB = (secs: number) => key(props.swapped ? keyA(secs) : keyB(secs));
 
   const paint = (
     ctx: CanvasRenderingContext2D,
@@ -59,8 +70,30 @@ export default function CompareNotes(props: {
     const xOf = (secs: number) => box.x + ((secs - at.start) / (at.end - at.start)) * box.width;
     const mid = box.y + box.height / 2;
     const theme = chartTheme();
-    drawBlocks(ctx, box, mid, notesA(), xOf, theme.compareA, matchedA(), true);
-    drawBlocks(ctx, box, mid, notesB(), xOf, theme.compareB, matchedB(), false);
+    drawBlocks(
+      ctx,
+      box,
+      mid,
+      notesA(),
+      // eslint-disable-next-line solid/reactivity -- paint runs inside CompareCanvas's effect
+      (secs) => xOf(props.time.a(secs)),
+      theme.compareA,
+      matchedA(),
+      keyOfA,
+      true,
+    );
+    drawBlocks(
+      ctx,
+      box,
+      mid,
+      notesB(),
+      // eslint-disable-next-line solid/reactivity -- paint runs inside CompareCanvas's effect
+      (secs) => xOf(props.time.b(secs)),
+      theme.compareB,
+      matchedB(),
+      keyOfB,
+      false,
+    );
 
     ctx.save();
     ctx.strokeStyle = theme.compareDelta;
@@ -68,8 +101,8 @@ export default function CompareNotes(props: {
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (const pair of diff()?.pairs ?? []) {
-      const xa = xOf(pair.aStart);
-      const xb = xOf(pair.bStart);
+      const xa = xOf(props.time.delta(pair.aStart));
+      const xb = xOf(props.time.delta(pair.bStart));
       ctx.moveTo(xa, mid - 4);
       ctx.lineTo(xb, mid + 4);
     }
@@ -104,8 +137,7 @@ export default function CompareNotes(props: {
         testid="compare.notes.chart"
         span={axisSpan}
         live={props.live}
-        bWindow={props.bWindow}
-        swapped={props.swapped}
+        time={props.time}
         paint={(ctx, box, at) => paint(ctx, box, at)}
       />
 
@@ -167,13 +199,14 @@ function drawBlocks(
   xOf: (secs: number) => number,
   color: string,
   matched: Set<string>,
+  keyOf: (secs: number) => string,
   upper: boolean,
 ) {
   const top = upper ? box.y + 4 : mid + 6;
   const height = box.height / 2 - 10;
   ctx.save();
   for (const note of notes) {
-    const isMatched = matched.has(key(note.startSecs));
+    const isMatched = matched.has(keyOf(note.startSecs));
     const x0 = xOf(note.startSecs);
     const x1 = xOf(note.endSecs);
     const left = Math.max(box.x, Math.min(x0, x1));

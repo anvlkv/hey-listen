@@ -12,6 +12,7 @@ import ComparePlot from "./ComparePlot";
 import { timeAxis, valueAxis } from "./axes";
 import { compareSides, liveMarkers } from "./sides";
 import { mergeSeries, toUplotData, type MergedSeries } from "./align";
+import { clipSeries, displayTimes, type CompareTime } from "./time";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
 import {
@@ -21,15 +22,15 @@ import {
   type SeriesView as SeriesViewConfig,
 } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
-import type { ComparisonDto, SeriesDiffDto, Span } from "../../state/compare/types";
+import type { ComparisonDto, SeriesDiffDto } from "../../state/compare/types";
 
 export interface CompareSeriesProps {
   tool: AnalyzerId;
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  /** The reference's analysis window (the band the chart draws). */
-  bWindow: () => Span | null;
+  /** The relative display transform (M25.B). */
+  time: CompareTime;
 }
 
 /** A log-scale y-range with headroom, clamped so it never reaches 0. */
@@ -67,17 +68,41 @@ export default function CompareSeries(props: CompareSeriesProps) {
     const values = d?.values ?? [];
     // Swap A/B flips the sign of the core's `B − A` delta (display only).
     const deltaValues = props.swapped ? values.map((v) => (v == null ? null : -v)) : values;
-    return mergeSeries(a.times, a.values, b.times, b.values, d?.times ?? [], deltaValues);
+    const end = props.time.extent();
+    const aRel = clipSeries(displayTimes(a.times, props.time.originA()), a.values, 0, end);
+    const bRel = clipSeries(
+      displayTimes(b.times, props.time.originB(), props.time.shiftB()),
+      b.values,
+      0,
+      end,
+    );
+    const deltaRel = clipSeries(
+      (d?.times ?? []).map((time) => props.time.delta(time)),
+      deltaValues,
+      0,
+      end,
+    );
+    return mergeSeries(
+      aRel.times,
+      aRel.values,
+      bRel.times,
+      bRel.values,
+      deltaRel.times,
+      deltaRel.values,
+    );
   });
 
-  const zoom = createUplotZoom("time");
+  const zoom = createUplotZoom(
+    "time",
+    untrack(() => props.time.axis()),
+  );
   const Tooltip = timeTooltip(untrack(() => view().formatY));
   const markers = () =>
     compareMarkers(
       liveMarkers({
         live: props.live,
         swapped: () => props.swapped,
-        window: props.bWindow,
+        time: props.time,
         axis: "time",
       }),
     );
@@ -123,7 +148,10 @@ export default function CompareSeries(props: CompareSeriesProps) {
             <SidePlot
               label={props.swapped ? "B" : "A"}
               color={chartTheme().compareA}
-              series={sides.resultA()}
+              times={
+                sides.resultA() ? displayTimes(sides.resultA()!.times, props.time.originA()) : []
+              }
+              values={sides.resultA()?.values}
               view={view()}
               scale={yScale()}
               markers={markers}
@@ -131,7 +159,12 @@ export default function CompareSeries(props: CompareSeriesProps) {
             <SidePlot
               label={props.swapped ? "A" : "B"}
               color={chartTheme().compareB}
-              series={sides.resultB()}
+              times={
+                sides.resultB()
+                  ? displayTimes(sides.resultB()!.times, props.time.originB(), props.time.shiftB())
+                  : []
+              }
+              values={sides.resultB()?.values}
               view={view()}
               scale={yScale()}
               markers={markers}
@@ -148,8 +181,14 @@ export default function CompareSeries(props: CompareSeriesProps) {
                 plugins={[
                   cursor(),
                   tooltip(Tooltip),
-                  mirrorCursor("time"),
-                  syncView("time"),
+                  mirrorCursor(
+                    "time",
+                    untrack(() => props.time.axis()),
+                  ),
+                  syncView(
+                    "time",
+                    untrack(() => props.time.axis()),
+                  ),
                   markers(),
                 ]}
                 onCreate={zoom.onReady}
@@ -177,7 +216,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
                       ]
                     : []),
                 ]}
-                scales={{ x: { time: false }, y: yScale() }}
+                scales={{ x: { time: false, range: () => [0, props.time.extent()] }, y: yScale() }}
                 axes={[timeAxis(), valueAxis(view().yLabel)]}
               />
             </Show>
@@ -192,7 +231,8 @@ export default function CompareSeries(props: CompareSeriesProps) {
 function SidePlot(props: {
   label: string;
   color: string;
-  series: SeriesResult | undefined;
+  times: number[];
+  values: (number | null)[] | undefined;
   view: SeriesViewConfig;
   scale: uPlot.Scale;
   markers: () => ReturnType<typeof compareMarkers>;
@@ -203,22 +243,20 @@ function SidePlot(props: {
         {props.label}
       </div>
       <Show
-        when={props.series}
+        when={props.times.length > 0 && props.values}
         fallback={<div class="analyzer-empty">This project has no result for the window.</div>}
       >
-        {(series) => (
-          <Show when={activeThemeId()} keyed>
-            <SolidUplot
-              autoResize
-              pluginBus={analyzerBus}
-              plugins={[cursor(), props.markers()]}
-              data={[series().times, series().values]}
-              series={[{}, { label: props.label, stroke: props.color, width: 1.2 }]}
-              scales={{ x: { time: false }, y: props.scale }}
-              axes={[timeAxis(), valueAxis(props.view.yLabel)]}
-            />
-          </Show>
-        )}
+        <Show when={activeThemeId()} keyed>
+          <SolidUplot
+            autoResize
+            pluginBus={analyzerBus}
+            plugins={[cursor(), props.markers()]}
+            data={[props.times, props.values ?? []]}
+            series={[{}, { label: props.label, stroke: props.color, width: 1.2 }]}
+            scales={{ x: { time: false }, y: props.scale }}
+            axes={[timeAxis(), valueAxis(props.view.yLabel)]}
+          />
+        </Show>
       </Show>
     </div>
   );

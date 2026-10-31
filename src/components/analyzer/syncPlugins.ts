@@ -3,8 +3,10 @@ import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import {
   analyzerBus,
+  IDENTITY_AXIS,
   readBusMessage,
   type AnalyzerBus,
+  type AxisTransform,
   type SyncGroup,
 } from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
@@ -23,7 +25,7 @@ type UplotInstance = TooltipProps["u"];
 
 /** Mirror the cursor of whichever chart in the same group is hovered. */
 export const mirrorCursor =
-  (group: SyncGroup): UplotPluginFactory<AnalyzerBus> =>
+  (group: SyncGroup, transform: AxisTransform = IDENTITY_AXIS): UplotPluginFactory<AnalyzerBus> =>
   ({ bus }) => {
     if (!bus) return { hooks: {} };
     let dispose: (() => void) | undefined;
@@ -51,12 +53,16 @@ export const mirrorCursor =
           const idx = u.cursor.idx;
           const xs = u.data[0];
           const x = idx != null && xs && idx < xs.length ? Number(xs[idx]) : null;
-          bus.setData("cursorSync", { sourceId: u.root.id, group, x });
+          bus.setData("cursorSync", {
+            sourceId: u.root.id,
+            group,
+            x: x == null ? null : transform.toBus(x),
+          });
         },
         draw: (u) => {
           const msg = bus.data.cursorSync;
           if (!msg || msg.group !== group || msg.sourceId === u.root.id || msg.x == null) return;
-          const x = u.valToPos(msg.x, "x", true);
+          const x = u.valToPos(transform.fromBus(msg.x), "x", true);
           if (!Number.isFinite(x) || !u.ctx) return;
           const px = Math.round(x) + 0.5;
           const { ctx } = u;
@@ -139,18 +145,19 @@ export const playheadRule = (): UplotPluginFactory<AnalyzerBus> => () => {
 
 /** Mirror the x-range of charts in the same [`SyncGroup`]. */
 export const syncView =
-  (group: SyncGroup): UplotPluginFactory<AnalyzerBus> =>
+  (group: SyncGroup, transform: AxisTransform = IDENTITY_AXIS): UplotPluginFactory<AnalyzerBus> =>
   ({ bus }) => {
     if (!bus) return { hooks: {} };
     let dispose: (() => void) | undefined;
     let destroyed = false;
 
     /** Apply a shared x-range, clamped to this chart's own data extent. */
-    const applyShared = (u: UplotInstance, x: [number, number]) => {
+    const applyShared = (u: UplotInstance, shared: [number, number]) => {
       const scale = u.scales.x;
       if (typeof scale.min !== "number" || typeof scale.max !== "number") return;
       const xs = u.data[0];
       if (!xs || xs.length < 2) return;
+      const x: [number, number] = [transform.fromBus(shared[0]), transform.fromBus(shared[1])];
       const min = Math.max(Math.min(x[0], x[1]), xs[0]);
       const max = Math.min(Math.max(x[0], x[1]), xs[xs.length - 1]);
       if (!(max > min)) return;

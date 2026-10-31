@@ -7,11 +7,12 @@
  * runs against the current window.
  */
 import { SEL, tab } from "./selectors.ts";
-import { waitFor } from "./dom.ts";
+import { count, mockReturn, openFixture, openTool, waitFor, waitForShell } from "./helpers.ts";
+import type { FIXTURES } from "./fixtures.ts";
 import { canvasHasInk } from "./analyzers.ts";
 import { dismissPopovers, openSelect, pickOption } from "./popups.ts";
 import { rightClick } from "./popouts.ts";
-import { windowLabels } from "./windows.ts";
+import { windowLabels, openProjectWindow } from "./windows.ts";
 
 /** The dockview context-menu items the compare view adds. */
 export const COMPARE_ITEM = "Compare with…";
@@ -37,6 +38,41 @@ async function pickTarget(targetLabel: string): Promise<void> {
   const target = await $(`[data-testid="compare.target.${targetLabel}"]`);
   await target.waitForExist();
   await target.click();
+}
+
+/**
+ * Open a **new** project window showing `fixture`, then return to main.
+ *
+ * The compare specs need a second (or third) project with its own source; the new
+ * window is left open and the session returns to `main`.
+ */
+export async function openProjectWithFixture(fixture: keyof typeof FIXTURES): Promise<string> {
+  const label = await openProjectWindow();
+  await browser.tauri.switchWindow(label);
+  await waitForShell();
+  await mockReturn("confirm", true);
+  await openFixture(fixture);
+  await browser.tauri.switchWindow("main");
+  await waitForShell();
+  return label;
+}
+
+/**
+ * Open `tool` in main and compare it with `reference` through the tab menu.
+ *
+ * Not `waitForAnalyzer`: a family's analyzer view legitimately shows its empty state
+ * for one fixture (no notes / no modulation), which is not a failure here.
+ */
+export async function compareToolFromMain(tool: string, reference: string): Promise<void> {
+  await browser.tauri.switchWindow("main");
+  await waitForShell();
+  await openTool(tool);
+  await waitFor(async () => (await count(tab(tool))) === 1, `the ${tool} tab did not open`);
+  await compareFromTabMenu(tool, reference);
+  await waitFor(
+    async () => (await count(compareView(tool))) === 1,
+    `the ${tool} compare view did not open`,
+  );
 }
 
 /** The compare view's root (the header + chart), per tool. */

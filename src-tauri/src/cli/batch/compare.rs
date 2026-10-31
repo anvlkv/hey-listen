@@ -88,6 +88,7 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
                 state: &b.state,
                 setup: b.setup_for(tool),
             },
+            request.b_offset,
         );
         match result {
             Ok(comparison) => {
