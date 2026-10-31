@@ -14,7 +14,16 @@ import { pairingSummary } from "../src/components/compare/events";
 import { noteRows } from "../src/components/compare/notes";
 import { clipSeries, compareTime, displayTimes } from "../src/components/compare/time";
 import { shapeLabel } from "../src/state/compare/picker";
-import { openCompareTabs, pruneReferences, setCompareRefs } from "../src/state/compare/views";
+import { openCompareTabs, pruneViews, setCompareViews } from "../src/state/compare/views";
+import {
+  compareOffset,
+  compareSignature,
+  setCompareFingerprint,
+  setReference,
+  setSavedReference,
+  viewFor,
+} from "../src/state/compare/views";
+import type { SavedComparisonInfo } from "../src/bindings/SavedComparisonInfo";
 import { setOpenCompareIds, setOpenTools } from "../src/state/workbench";
 import type { ComparisonDto, MatrixDiffDto, NotesDiffDto } from "../src/state/compare/types";
 import { assertDeepEqual, assertEqual, check, report } from "./testHarness";
@@ -324,19 +333,52 @@ check("relative times and clipping trim a side at the axis end", () => {
   assertDeepEqual(clipped.values, [10, 11, 12]);
 });
 
+check("a saved reference restores its offset, and retargeting a live project resets it", () => {
+  const info: SavedComparisonInfo = {
+    tool: "spectrum",
+    referenceName: "Ref project",
+    source: { sampleRate: 48_000, channels: 1, duration: 2 },
+    window: { start: 0.5, end: 1.5 },
+    bOffset: 0.25,
+    savedMs: 1,
+    fingerprint: "abc",
+  };
+  setSavedReference("spectrum", info);
+  assertEqual(compareOffset("spectrum"), 0.25);
+  assertDeepEqual(viewFor("spectrum")?.binding, { kind: "saved", reference: "Ref project" });
+
+  // Reconnecting a live project resets the fine-tune offset (M25.C).
+  setReference("spectrum", "project-1");
+  assertEqual(compareOffset("spectrum"), 0);
+  assertDeepEqual(viewFor("spectrum")?.binding, { kind: "live", reference: "project-1" });
+
+  // The dirty signature follows the binding, the offset and the last fingerprint.
+  setCompareFingerprint("spectrum", "def");
+  assertDeepEqual(compareSignature(), { spectrum: "live|project-1|0.000000|def" });
+  setCompareViews({});
+});
+
 check("a compare tab keeps its reference when a tool tab changes", () => {
   // The M25.B regression: deriving compare tabs from `openTools` dropped every
   // reference on any panel add/remove, because `openTools` excludes compare ids.
   const ids = ["compare:spectrum"];
-  const refs = { spectrum: "project-1" };
-  setCompareRefs(refs);
+  const views = {
+    spectrum: {
+      binding: { kind: "live" as const, reference: "project-1" },
+      offset: 0,
+      fingerprint: null,
+    },
+  };
+  setCompareViews(views);
   setOpenCompareIds(ids);
   setOpenTools(["spectrum", "mfcc"]);
-  assertDeepEqual(openCompareTabs(), [{ tool: "spectrum", with: "project-1" }]);
-  // A tool-tab change no longer prunes the compare reference …
-  assertEqual(pruneReferences(refs, ids), refs);
+  assertDeepEqual(openCompareTabs(), [
+    { tool: "spectrum", with: "project-1", saved: false, offset: 0 },
+  ]);
+  // A tool-tab change no longer prunes the compare view …
+  assertEqual(pruneViews(views, ids), views);
   // … while closing the compare tab does.
-  assertDeepEqual(pruneReferences(refs, []), {});
+  assertDeepEqual(pruneViews(views, []), {});
 });
 
 report("compare");

@@ -1,87 +1,19 @@
-//! Cross-project comparison commands (M25) — see `docs/comparison.md`.
+//! The reference side of a comparison: its setup, live markers and picker targets.
 //!
-//! The core owns the compute: A comes from the caller's window, B from the reference
-//! label's **live** project state (own PCM, own filter). The frontend supplies each
-//! side's window/params/options (B's through [`compare_peer_setup`]), and this module
-//! only adapts state + IPC. Nothing here writes to either project.
+//! Peer reads never create state: a closed reference resolves to an error (the view
+//! shows **Reference project closed**), and every value comes from the peer's shared UI
+//! state or core `Playback`. See `docs/comparison.md`.
 
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Map, Value};
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewWindow};
 
-use crate::audio::analysis::compare::{self, CompareSetup, SourceShape, Span};
-use crate::audio::analysis::{canonical_option_key, Axis, Shape, SharedParams, ToolOptions};
+use crate::audio::analysis::compare::{self, SourceShape, Span};
+use crate::audio::analysis::{canonical_option_key, SharedParams, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
-use crate::commands::window::{next_label, raise};
-use crate::state::{window_state, CompareView, WindowRegistry, WindowState};
-
-/// One `run_comparison` request: the tool, the reference project label, both setups,
-/// and how much of each result/delta to return.
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareRequest {
-    pub tool: AnalyzerId,
-    /// The reference project's window label.
-    pub reference: String,
-    pub a: CompareSetup,
-    pub b: CompareSetup,
-    /// The fine-tune offset δ in seconds: positive moves the reference **later** on the
-    /// relative axis (M25.B). `0` by default.
-    #[serde(default)]
-    pub b_offset: f64,
-    #[serde(default)]
-    pub shape: Shape,
-    #[serde(default)]
-    pub max_points: Option<usize>,
-    /// Spell a uniform `times` axis compactly (MCP/CLI callers).
-    #[serde(default)]
-    pub compact_axis: Option<bool>,
-}
-
-/// Run `tool` over both projects and return `{ a, b, comparability, diff }`.
-///
-/// Both runs execute on the blocking pool, sequentially. A missing/closed reference is
-/// an error (the view renders the **Reference project closed** banner); peer reads
-/// never lazily create an empty state.
-#[tauri::command]
-pub async fn run_comparison(
-    window: WebviewWindow,
-    request: CompareRequest,
-) -> Result<Value, String> {
-    let app = window.app_handle().clone();
-    let a_state = window_state(&window);
-    let b_state = peer_state(&app, &request.reference)?;
-    let a_project = project_name(&a_state);
-    let b_project = project_name(&b_state);
-
-    tauri::async_runtime::spawn_blocking(move || {
-        let comparison = compare::compare(
-            request.tool,
-            compare::SideInput {
-                project: a_project,
-                state: &a_state,
-                setup: request.a,
-            },
-            compare::SideInput {
-                project: b_project,
-                state: &b_state,
-                setup: request.b,
-            },
-            request.b_offset,
-        )
-        .map_err(|err| err.to_string())?;
-        let axis = if request.compact_axis.unwrap_or(false) {
-            Axis::Compact
-        } else {
-            Axis::Array
-        };
-        Ok(comparison.to_value(request.shape, request.max_points, axis))
-    })
-    .await
-    .map_err(|err| err.to_string())?
-}
+use crate::state::{window_state, WindowRegistry, WindowState};
 
 /// The reference project's setup, read from its shared UI state (M25).
 #[derive(Debug, Serialize)]
@@ -221,76 +153,9 @@ pub fn compare_targets(window: WebviewWindow) -> Vec<CompareTarget> {
         .collect()
 }
 
-// --- compare popouts --------------------------------------------------------
-
-/// Open a compare popout for `tool`, or raise/retarget the one already open.
-#[tauri::command]
-pub async fn open_compare_popout(
-    window: WebviewWindow,
-    tool: String,
-    reference: String,
-) -> Result<(), String> {
-    let app = window.app_handle();
-    let registry = app.state::<WindowRegistry>();
-    let parent = registry.root_label(window.label());
-    peer_state(app, &reference)?;
-
-    if let Some(existing) = registry.compare_popout_for(&parent, &tool) {
-        if let Some(popout) = app.get_webview_window(&existing) {
-            registry.retarget_compare_popout(&existing, &reference);
-            raise(&popout);
-            return Ok(());
-        }
-        registry.remove(&existing);
-    }
-    let view = CompareView {
-        tool,
-        with: reference,
-    };
-    let label = next_label("compare");
-    registry.add_compare_popout(&label, &parent, view);
-    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-        .title("Compare — Hey Listen")
-        .inner_size(1_000.0, 680.0)
-        .min_inner_size(560.0, 400.0)
-        .build();
-    if let Err(err) = built {
-        registry.remove(&label);
-        return Err(err.to_string());
-    }
-    Ok(())
-}
-
-/// Retarget the **calling** compare popout at another reference project.
-#[tauri::command]
-pub fn retarget_compare_popout(window: WebviewWindow, reference: String) -> Result<(), String> {
-    peer_state(window.app_handle(), &reference)?;
-    window
-        .app_handle()
-        .state::<WindowRegistry>()
-        .retarget_compare_popout(window.label(), &reference);
-    Ok(())
-}
-
-/// The compare view a popout shows, or `None` for any other window.
-#[tauri::command]
-pub fn popout_compare(window: WebviewWindow) -> Option<CompareView> {
-    let registry = window.app_handle().state::<WindowRegistry>();
-    registry.compare_popout(window.label())
-}
-
-/// The compare popouts of the calling project (for `get_state`; never saved).
-#[tauri::command]
-pub fn compare_popouts(window: WebviewWindow) -> Vec<CompareView> {
-    let registry = window.app_handle().state::<WindowRegistry>();
-    registry.compare_popouts_of(&registry.root_label(window.label()))
-}
-
-// --- helpers ----------------------------------------------------------------
-
 /// The live project state for `reference`, following a popout alias to its project.
 /// A closed reference is an error — this never creates an empty state (ADR-24).
-fn peer_state(app: &AppHandle, reference: &str) -> Result<Arc<WindowState>, String> {
+pub(super) fn peer_state(app: &AppHandle, reference: &str) -> Result<Arc<WindowState>, String> {
     let registry = app.state::<WindowRegistry>();
     let root = registry.root_label(reference);
     if app.get_webview_window(&root).is_none() {
@@ -303,9 +168,8 @@ fn peer_state(app: &AppHandle, reference: &str) -> Result<Arc<WindowState>, Stri
         .ok_or_else(|| format!("the reference project '{root}' has no state yet"))
 }
 
-/// Resolve a reference label from any command that has no `AppHandle` (the popout
-/// queries and the live poll run in the calling window).
-fn project_name(state: &WindowState) -> Option<String> {
+/// The project's display name from its shared UI state, when it has one.
+pub(super) fn project_name(state: &WindowState) -> Option<String> {
     state
         .ui_snapshot()
         .get("project")

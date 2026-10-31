@@ -9,7 +9,13 @@ import FilterGraphTab from "./FilterGraphTab";
 import SynthGraphTab from "./SynthGraphTab";
 import type { AnalyzerId } from "../state/analyzer";
 import { parseCompareTool } from "../state/compare/id";
-import { referenceFor, setReference } from "../state/compare/views";
+import {
+  compareOffset,
+  openCompareSaved,
+  setCompareOffset,
+  setReference,
+  viewFor,
+} from "../state/compare/views";
 import type { ToolId } from "../state/workbench";
 
 /** Analyzers that keep a bespoke chart; the rest use the generic [`AnalyzerView`]. */
@@ -38,8 +44,13 @@ export default function ToolContent(props: { id: ToolId | string }) {
         {(tool) => (
           <CompareTab
             tool={tool()}
-            reference={() => referenceFor(tool())}
-            onReferenceChange={(label) => setReference(tool(), label)}
+            binding={() => viewFor(tool())?.binding ?? null}
+            onBindingChange={(next) => {
+              if (next.kind === "saved") void openCompareSaved(tool());
+              else setReference(tool(), next.reference);
+            }}
+            offset={() => compareOffset(tool())}
+            onOffset={(seconds) => setCompareOffset(tool(), seconds)}
           />
         )}
       </Match>

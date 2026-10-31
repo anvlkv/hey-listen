@@ -100,12 +100,20 @@ the rest answer *"requires the app"* headless.
 | Tabs | `open_tool`, `close_tool` | app-only |
 | Graphs | `get_graph`, `set_synth_graph` | app-only |
 | Preview/capture | `preview`, `stop_preview`, `set_output_gain`, `start_capture`, `stop_capture` | app-only |
-| Multi-window / compare | `list_projects`, `compare_analysis` | app-only (needs open windows) |
+| Multi-window / compare | `list_projects`, `compare_analysis` | app-only (a live compare needs open windows; `saved: true` uses the owner's stored snapshot) |
 | Notes | `list_notes`, `get_note`, `create_note`, `update_note`, `delete_note`, `set_focused_note` | app-only |
 | Export (chart) | `export_chart` | app-only (needs the rendered canvas) |
 | Themes | `list_themes`, `get_theme`, `set_theme`, `import_theme`, `export_theme` | headless lists bundled only |
 
 Templates (M13) are planned and **not yet** exposed as tools.
+
+`compare_analysis` diffs the **same** analyzer on two project sides. Pass `with` (a label
+from `list_projects`) for a live reference, or `saved: true` to use the owner's stored
+reference snapshot (the last comparison saved in the project — no second window). `bOffset`
+(seconds) fine-tunes the relative alignment; `includeData` / `maxPoints` / `axis` /
+`summaryOnly` shape the side results and the delta exactly like `run_analysis`. B is
+read-only. `list_projects` reports each project's `savedComparisons` and `get_state.compare`
+reports the open compare views as `{ tool, with, saved, offset }`.
 
 ## Results: summary, compact, full
 

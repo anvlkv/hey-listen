@@ -182,9 +182,10 @@ window/params/options/filter, and the response reports `comparability` (`aligned
 tell whether `diff` is numerically meaningful; the delta covers the common span. The core
 compares **every** analyzer family, and the GUI charts all of them (M25.A): series,
 spectrum, readouts, matrix/spectrogram, rhythm/events, `noteMetrics`, modulation and
-waveform. `get_state` reports the view as `compare: [{ tool, with, saved, offset }]`
-(never in `openTools`), and `get_state` / `list_projects` expose each project's saved
-comparisons. `compare_analysis` is app-only: a live reference needs two project windows,
+waveform. `get_state` reports the open views as `compare: [{ tool, with, saved, offset }]`
+(never in `openTools`), and `list_projects` reports each project's `savedComparisons`
+(tool, reference name, window, offset, fingerprint) — including a snapshot whose tab is
+closed. `compare_analysis` is app-only: a live reference needs two project windows,
 a **saved snapshot** needs only the owner's window. Headless mode still answers *requires
 the app*; use the CLI `compare` on two project files for a windowless diff.
 

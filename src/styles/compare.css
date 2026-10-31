@@ -6,7 +6,9 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
+  /* A panel too short for the header + readouts + chart scrolls instead of squeezing
+     the chart to 0 px — uPlot is handed no plot area at all and draws nothing. */
+  overflow-y: auto;
 }
 
 /* --- header ---------------------------------------------------------------- */
@@ -89,6 +91,11 @@
   border-color: var(--danger-border);
 }
 
+.compare-badge.saved {
+  color: var(--accent-2);
+  border-color: rgba(88, 152, 255, 0.4);
+}
+
 .compare-btn {
   font-size: 0.75rem;
   padding: 3px 9px;
@@ -151,7 +158,9 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0;
+  /* The chart is the point of the view: keep it a readable height in a cramped panel
+     (the tab scrolls) instead of letting the readouts consume its last pixel. */
+  min-height: 200px;
 }
 
 .compare-banner {
@@ -160,6 +169,12 @@
   color: var(--warn);
   background: rgba(255, 207, 107, 0.08);
   border-bottom: 1px solid rgba(255, 207, 107, 0.25);
+}
+
+.compare-banner.saved {
+  color: var(--accent-2);
+  background: rgba(88, 152, 255, 0.08);
+  border-bottom-color: rgba(88, 152, 255, 0.25);
 }
 
 .compare-error {

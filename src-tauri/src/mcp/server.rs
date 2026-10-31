@@ -259,6 +259,9 @@ fn list_projects<R: Runtime>(app: &AppHandle<R>) -> Vec<Value> {
                     .lock()
                     .unwrap_or_else(|poison| poison.into_inner())
                     .is_some(),
+                // The comparisons this project saved (M25.C): one reference snapshot per
+                // tool, so an agent can ask `compare_analysis` for a `saved` side.
+                "savedComparisons": state.saved_comparison_infos(),
             })
         })
         .collect()

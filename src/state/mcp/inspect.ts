@@ -1,4 +1,5 @@
 import type { Note } from "../../bindings/Note";
+import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
 import { noteExcerpt } from "../../lib/note";
@@ -17,8 +18,13 @@ import type { CompareViewDto } from "../compare/types";
 /** The observable project state an agent reads to follow the user. */
 export async function getState(target?: string) {
   // Compare views are **transient** (M25): they are reported separately, never as
-  // `openTools`, because they are not project content.
-  const popouts = await invoke<CompareViewDto[]>("compare_popouts").catch(() => []);
+  // `openTools`, because they are not project content. A saved reference's offset is
+  // read from the core's snapshot (M25.C) — a compare popout reports no offset of its own.
+  const [popouts, saved] = await Promise.all([
+    invoke<CompareViewDto[]>("compare_popouts").catch(() => []),
+    invoke<SavedComparisonInfo[]>("compare_saved", {}).catch(() => []),
+  ]);
+  const offsets = new Map<string, number>(saved.map((info) => [info.tool, info.bOffset]));
   return {
     project: {
       name: projectDisplayName(),
@@ -33,7 +39,10 @@ export async function getState(target?: string) {
     params: sharedParams(),
     toolOptions: deepClone(toolOptions),
     openTools: openTools(),
-    compare: [...openCompareTabs(), ...popouts],
+    compare: [
+      ...openCompareTabs(),
+      ...popouts.map((view) => ({ ...view, offset: offsets.get(view.tool) ?? 0 })),
+    ],
     filter: { enabled: filterEnabled(), error: filterError() },
     output: { gain: outputGain(), device: outputDeviceId() },
     notes: notesSorted().map(noteSummary),

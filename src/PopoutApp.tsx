@@ -16,6 +16,8 @@ import {
   loadComparePopout,
   retargetComparePopout,
 } from "./state/compare/popout";
+import { fetchSaved } from "./state/compare/views";
+import type { CompareBinding } from "./state/compare/views";
 import { compareTargets, refreshCompareTargets } from "./state/compare/picker";
 import type { SharedSourceInfo } from "./bindings/SharedSourceInfo";
 import type { CompareViewDto } from "./state/compare/types";
@@ -41,6 +43,18 @@ export default function PopoutApp(props: {
   // populated first — hence the note path renders only after the shared state arrives.
   // The tool path renders immediately and reacts to that state as it loads.
   const [ready, setReady] = createSignal(untrack(() => !props.noteId));
+  /** The compare view's fine-tune offset (restored from the saved snapshot). */
+  const [offset, setOffset] = createSignal(0);
+
+  /** Apply a saved popout's stored offset (a live binding starts at 0). */
+  async function applyBindingOffset(view: CompareViewDto | null) {
+    if (!view?.saved) {
+      setOffset(0);
+      return;
+    }
+    const info = await fetchSaved(view.tool as AnalyzerId);
+    setOffset(info?.bOffset ?? 0);
+  }
 
   onMount(() => {
     // Installed themes live in the app config dir; a popout is a separate webview.
@@ -49,7 +63,10 @@ export default function PopoutApp(props: {
       try {
         // Pull the shared project state first, then load the source's shape.
         await initUiState();
-        if (props.compare) await loadComparePopout();
+        if (props.compare) {
+          const view = await loadComparePopout();
+          await applyBindingOffset(view ?? props.compare);
+        }
         void refreshCompareTargets();
         const info = await invoke<SharedSourceInfo>("load_shared_source");
         setSource({
@@ -75,9 +92,10 @@ export default function PopoutApp(props: {
     })();
   });
 
-  /** The reference project's display name, for the compare window's title. */
+  /** The reference's display name, for the compare window's title. */
   const referenceName = () => {
     const view = comparePopoutView() ?? props.compare;
+    if (view?.saved) return view.with;
     return compareTargets().find((target) => target.label === view?.with)?.name ?? "project";
   };
 
@@ -111,13 +129,28 @@ export default function PopoutApp(props: {
       >
         {(view) => (
           <Show when={comparePopoutView() ?? view()}>
-            {(current) => (
-              <CompareTab
-                tool={current().tool as AnalyzerId}
-                reference={() => comparePopoutView()?.with ?? current().with}
-                onReferenceChange={(label) => void retargetComparePopout(label)}
-              />
-            )}
+            {(current) => {
+              const binding = (): CompareBinding | null => {
+                const shown = current();
+                if (!shown) return null;
+                return shown.saved
+                  ? { kind: "saved", reference: shown.with }
+                  : { kind: "live", reference: shown.with };
+              };
+              return (
+                <CompareTab
+                  tool={current().tool as AnalyzerId}
+                  binding={binding}
+                  onBindingChange={(next) =>
+                    void retargetComparePopout(next.reference, next.kind === "saved").then(() =>
+                      applyBindingOffset(comparePopoutView()),
+                    )
+                  }
+                  offset={() => offset()}
+                  onOffset={setOffset}
+                />
+              );
+            }}
           </Show>
         )}
       </Show>

@@ -3,6 +3,7 @@
 //! (the 400-line budget).
 
 use super::*;
+use crate::audio::analysis::compare::{compare_saved, SavedComparison};
 use crate::audio::analysis::{AnalysisResult, MatrixResult, WaveformResult};
 
 #[test]
@@ -98,6 +99,70 @@ fn the_longer_window_is_clipped_to_the_shorter() {
         .last()
         .is_some_and(|time| f64::from(*time) <= 0.8));
     assert!(diff.times.len() > 20);
+}
+
+#[test]
+fn a_saved_reference_compares_without_a_second_project() {
+    let a = state_with(tone(2.0, 440.0, 1.0));
+    let b = state_with(tone(2.0, 440.0, 0.5));
+    let live = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.5, 1.5)),
+    );
+    // Freeze B's side exactly as a save would (unfiltered, δ = 0).
+    let snapshot = SavedComparison::from_side(AnalyzerId::FrameRms, &live.b, None, 0.0, 1_000);
+
+    let saved = compare_saved(
+        AnalyzerId::FrameRms,
+        SideInput {
+            project: Some("A".to_string()),
+            state: &a,
+            setup: setup(0.0, 1.0),
+        },
+        &snapshot,
+        0.0,
+    )
+    .expect("saved comparison");
+
+    // B comes from the snapshot: its project name, window and result are restored.
+    assert_eq!(saved.b.project.as_deref(), Some("B"));
+    assert!((saved.b.setup.start - 0.5).abs() < 1e-6);
+    assert!(saved.comparability.aligned);
+    assert!(matches!(saved.b.result, AnalysisResult::FrameRms(_)));
+    let alignment = saved.comparability.alignment;
+    let common = alignment.common.expect("common span");
+    assert!((common.end - 1.0).abs() < 1e-6);
+    let Some(ComparisonDiff::Series(diff)) = &saved.diff else {
+        panic!("expected a series delta");
+    };
+    assert!(diff.stats.matched > 0);
+}
+
+#[test]
+fn a_snapshot_fingerprint_ignores_its_timestamp_but_tracks_the_content() {
+    let a = state_with(tone(2.0, 440.0, 1.0));
+    let b = state_with(tone(2.0, 440.0, 0.5));
+    let live = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
+    let snapshot = SavedComparison::from_side(AnalyzerId::FrameRms, &live.b, None, 0.0, 1_000);
+    let fingerprint = snapshot.fingerprint();
+
+    // Re-saving an unchanged comparison must not look like an edit.
+    let mut resaved = snapshot.clone();
+    resaved.saved_ms = 2_000;
+    assert_eq!(resaved.fingerprint(), fingerprint);
+
+    // A settled change to the reference (or the offset) does.
+    let mut moved = snapshot.clone();
+    moved.b_offset = 0.05;
+    assert_ne!(moved.fingerprint(), fingerprint);
+    let mut changed = snapshot.clone();
+    changed.reference_name = "other".to_string();
+    assert_ne!(changed.fingerprint(), fingerprint);
 }
 
 #[test]

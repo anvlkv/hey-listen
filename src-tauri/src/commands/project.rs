@@ -17,6 +17,8 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::audio::analysis::compare::SavedComparisonInfo;
+use crate::audio::analyzers::AnalyzerId;
 use crate::audio::STREAM_CHUNK_SAMPLES;
 use crate::commands::source::AUDIO_EXTENSIONS;
 use crate::commands::{focused_label, stream};
@@ -51,6 +53,10 @@ pub struct SaveProjectArgs {
     /// again. Useful when many annotation projects would otherwise duplicate audio.
     #[serde(default = "embed_source_default")]
     pub embed_source: bool,
+    /// The comparison tools open at save time (tabs or popouts, M25.C). The core
+    /// writes each one's last successful reference snapshot from its own state.
+    #[serde(default)]
+    pub compare_open: Vec<AnalyzerId>,
 }
 
 fn embed_source_default() -> bool {
@@ -72,6 +78,8 @@ pub struct LoadedProjectDto {
     pub results: Vec<StoredResult>,
     /// The project's notes (empty when the file has no `NOTES` section).
     pub notes: Vec<Note>,
+    /// Saved comparisons (empty when the file has no `COMPARE` section).
+    pub compare: Vec<SavedComparisonInfo>,
     pub sample_rate: u32,
     pub channels: u16,
     pub frames: u64,
@@ -86,7 +94,11 @@ pub async fn save_project(
     project: SaveProjectArgs,
 ) -> Result<(), ProjectError> {
     // Clone the `Arc` so the blocking write can lock the PCM without borrowing the state.
-    let source = window_state(&window).audio.source.clone();
+    let state = window_state(&window);
+    let source = state.audio.source.clone();
+    // One snapshot per comparison open at save time; a closed comparison is dropped.
+    let compare_open = project.compare_open.clone();
+    let compare = state.saved_comparisons_for(&compare_open);
 
     tauri::async_runtime::spawn_blocking(move || {
         let guard = source.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -104,10 +116,14 @@ pub async fn save_project(
             layout: project.layout,
             results: Vec::new(),
             notes: project.notes,
+            compare,
             pcm: if reference { None } else { guard.as_ref() },
         };
         let file = File::create(&path)?;
-        write_project(BufWriter::new(file), &save, crate::recent::now_ms())
+        write_project(BufWriter::new(file), &save, crate::recent::now_ms())?;
+        // The save succeeded, so a comparison no longer open can be forgotten.
+        state.retain_saved_comparisons(&compare_open);
+        Ok(())
     })
     .await
     .map_err(join_error)?
@@ -141,6 +157,7 @@ pub async fn load_project(
         layout,
         results,
         notes,
+        compare,
         pcm,
         ..
     } = loaded;
@@ -167,6 +184,12 @@ pub async fn load_project(
         window_state(&window).audio.set_source(None);
     }
 
+    // A load replaces the project's comparisons: the `COMPARE` snapshots become the
+    // core's saved side, and the frontend restores a compare tab per entry (M25.C).
+    let compare_infos: Vec<SavedComparisonInfo> =
+        compare.iter().map(|saved| saved.info()).collect();
+    window_state(&window).replace_saved_comparisons(compare);
+
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
     stream::send_end_sentinel(&on_chunk)
         .map_err(|err| ProjectError::Io(std::io::Error::other(err)))?;
@@ -178,6 +201,7 @@ pub async fn load_project(
         layout,
         results,
         notes,
+        compare: compare_infos,
         sample_rate,
         channels,
         frames,

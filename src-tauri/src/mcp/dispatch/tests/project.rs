@@ -157,6 +157,7 @@ fn open_project_ignores_display_only_tool_options() {
         layout: serde_json::Value::Null,
         results: Vec::new(),
         notes: Vec::new(),
+        compare: Vec::new(),
         pcm: None,
     };
     let file = std::fs::File::create(&path).unwrap();

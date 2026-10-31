@@ -12,9 +12,10 @@ use super::error::ProjectError;
 use super::sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
 use super::{
     Crc32, CHECKSUM_LEN, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, HEADER_LEN,
-    INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_DATA, SECTION_LAYOUT, SECTION_META,
-    SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
+    INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT,
+    SECTION_META, SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
 };
+use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourcePcm;
 
 /// The parsed contents of a project file.
@@ -27,6 +28,8 @@ pub struct LoadedProject {
     pub results: Vec<StoredResult>,
     /// The project's notes (empty when the file has no `NOTES` section).
     pub notes: Vec<Note>,
+    /// Saved comparison snapshots (empty when the file has no `COMPARE` section).
+    pub compare: Vec<SavedComparison>,
     /// The embedded audio, if the file had a `DATA` section with samples.
     pub pcm: Option<SourcePcm>,
 }
@@ -91,6 +94,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
     let mut layout = serde_json::Value::Null;
     let mut results: Vec<StoredResult> = Vec::new();
     let mut notes: Vec<Note> = Vec::new();
+    let mut compare: Vec<SavedComparison> = Vec::new();
     let mut pcm: Option<SourcePcm> = None;
 
     for entry in &entries {
@@ -109,6 +113,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
             SECTION_LAYOUT => layout = from_json(reader, entry)?,
             SECTION_RESULTS => results = from_postcard(reader, entry)?,
             SECTION_NOTES => notes = from_postcard(reader, entry)?,
+            SECTION_COMPARE => compare = from_postcard(reader, entry)?,
             // Forward compatibility: unknown sections are skipped.
             _ => {}
         }
@@ -123,6 +128,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
         layout,
         results,
         notes,
+        compare,
         pcm,
     })
 }

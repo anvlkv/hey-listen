@@ -52,6 +52,7 @@ fn write_project_file(name: &str) -> String {
         layout: Value::Null,
         results: Vec::new(),
         notes: vec![chart_note, timeline_note],
+        compare: Vec::new(),
         pcm: None,
     };
     let file = std::fs::File::create(&path).unwrap();

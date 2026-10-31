@@ -1748,8 +1748,8 @@ M25.A (saved comparisons followed in M25.C).
 > **Order:** M25.A is UI-only and follows M25; it can be delivered family by family
 > (matrix → events → modulation → waveform) with the action enabled as each lands.
 
-> **Planned follow-ups:** **M25.B** replaces the absolute-time overlap rule with a
-> relative axis and a manual fine-tune offset; **M25.C** makes the last comparison a saved
+> **Delivered follow-ups:** **M25.B** replaced the absolute-time overlap rule with a
+> relative axis and a manual fine-tune offset; **M25.C** made the last comparison a saved
 > snapshot in the project. Both supersede parts of the M25 contract above and are
 > documented in [`comparison.md`](comparison.md) and ADR-26 / ADR-27.
 
@@ -1854,7 +1854,7 @@ persistence yet (M25.C).
 > transform, swap, clipping, reference retention); E2E `r2b-compare-relative` R2.11–R2.12
 > (waveform clipping, adjacent windows, the slider, Swap, reference survives another tab).
 
-## M25.C — Saved comparisons (planned)
+## M25.C — Saved comparisons ✅
 
 Make the last comparison part of the project, so reopening **one** project still shows
 what it was compared against. Supersedes ADR-24's "not project content" rule; see ADR-27.
@@ -1864,16 +1864,20 @@ what it was compared against. Supersedes ADR-24's "not project content" rule; se
   shape, B's window, params, effective options, filter fingerprint, B's **full last
   `AnalysisResult`**, `bOffset`, and `savedMs`. No B PCM — the snapshot is the final
   analysis window, not the audio.
-- **Codec.** `postcard` via a small externally tagged wrapper: the IPC `AnalysisResult`
-  is internally tagged and postcard cannot encode that. A 512-frame spectrogram snapshot
-  is roughly 0.5 MB binary (JSON would be several MB). The result structs gain
-  `Deserialize`; the section is additive and forward-compatible.
-- **Save/load.** `save_project` carries the snapshots; `load_project` returns them and the
-  core keeps them per window. A comparison may bind to a **live** project or to its
-  **saved snapshot**; live always wins when reconnected. The picker lists the snapshot as
-  `Saved: <name>` even with one project open. A comparison whose reference has since
-  closed saves its **last successful** result (the same one the banner keeps); a
-  comparison that never resolved writes nothing.
+- **Codec.** `postcard` with a **postcard-safe mirror** of the result
+  (`results::StoredAnalysisResult`: an externally tagged enum, one newtype variant per
+  tool). The IPC `AnalysisResult` is internally tagged, which postcard cannot decode; a
+  512-frame spectrogram snapshot is roughly 0.5 MB binary (JSON would be several MB). The
+  payload structs gain `Deserialize`, the mirror's conversions are exhaustive, and the
+  section is additive and forward-compatible.
+- **Save/load.** The frontend passes the open compare tools (`compareOpen`); the core
+  writes each one's snapshot from its own per-tool store and prunes the rest.
+  `load_project` returns the snapshots (as compact infos) and installs them into the
+  window state. A comparison may bind to a **live** project or to its **saved snapshot**;
+  live always wins when reconnected. The picker lists the snapshot as `Saved: <name>` even
+  with one project open. A comparison whose reference has since closed saves its **last
+  successful** result (the same one the banner keeps); a comparison that never resolved
+  writes nothing.
 - **Restore.** Saved comparisons re-open as Workbench **tabs** on load (never as popouts).
   A compare popout's content is saved, but the window itself stays transient. A saved view
   draws B's band from the snapshot, hides B's playhead/cursor (there is no live B), and
@@ -1891,18 +1895,47 @@ what it was compared against. Supersedes ADR-24's "not project content" rule; se
   follow-up.
 
 **Files:** `src-tauri/src/project/{sections,read,write,mod}.rs`,
-`src-tauri/src/audio/analysis/results/mod.rs` (`Deserialize` + the stored wrapper),
-`src-tauri/src/commands/{project,compare}.rs`, `src-tauri/src/state/window/`,
-`src/state/project/*`, `src/state/compare/*`, `src/components/compare/*`.
+`src-tauri/src/audio/analysis/results/{mod,stored}.rs` (the postcard-safe mirror),
+`src-tauri/src/audio/analysis/compare/{mod,saved}.rs`, `src-tauri/src/commands/project.rs`
+and `src-tauri/src/commands/compare/{mod,peer,popout}.rs`,
+`src-tauri/src/state/window/`, `src-tauri/src/mcp/{server,tools/compare}.rs`,
+`src/state/project/*`, `src/state/compare/*` (`views` holds the binding/offset/fingerprint),
+`src/components/compare/*` (`CompareTab`, `CompareHeader`, `ComparePicker`).
 
-**Tests.** Rust: section round-trip (including a spectrogram snapshot), unknown-section
-forward compatibility, saved-side resolution, dirty signature. Unit: snapshot capture,
-saved-reference selection, retarget reset. E2E: save with a compare tab, quit, reopen one
-project → the compare tab returns with the saved B band and the **saved reference** badge;
-reconnect to a live B; the dirty prompt appears after a settled B change.
+**Tests.** Rust: section round-trip (including a spectrogram snapshot), saved-side
+resolution without a second project, fingerprint stability, `maxPoints`/pitch/axis
+follow-ups. Unit: saved-reference selection, retarget reset, the compare dirty signature,
+reference retention. E2E: save with a compare tab, quit, reopen one project → the compare
+tab returns with the saved B band and the **saved reference** badge; reconnect to a live
+B; the dirty prompt appears after a settled B change.
 
 **Non-goals:** no B audio embedded, no automatic reconnect, no multi-reference history
 (one saved comparison per tool), no export.
+
+> **Delivered.** The section (`0x08`, postcard `Vec<SavedComparison>`) is written by
+> `save_project` and read by `load_project`. The core keeps the last successful reference
+> side per tool (`WindowState::saved_compares`); a live comparison stores it after B runs,
+> a saved comparison runs only A and reuses it. `run_comparison` gained `reference?` /
+> `b?` / `saved`, `compare_saved` / `clear_compare_saved` were added, and the compare
+> popout commands take `saved`. The frontend's `state/compare/views.ts` holds each tab's
+> binding + offset + fingerprint; `restoreSavedComparisons` re-creates the tabs on load;
+> the header select and picker both offer `Saved: <name>`.
+>
+> **Deviations (kept explicit):** (1) the result mirror replaces the planned wrapper (see
+> the codec bullet); (2) dirty tracking covers compare **tabs** — a compare popout is a
+> separate webview, so a live-B change made only there updates the core snapshot but does
+> not set the owner window's dirty flag; (3) `SavedComparisonInfo` (not the full snapshot)
+> crosses to the frontend, so a restored tab gets B's result from the next
+> `run_comparison { saved: true }` rather than from the load payload.
+>
+> **Harness fixes (from validating the M25.C spec):** a compare view in a cramped panel now
+> **scrolls** instead of collapsing its chart (a 200 px chart minimum in `compare.css`;
+> at 726×410 the chart had 0 px of height, so it rendered and drew nothing), and
+> `waitForApp()` sizes the window to its 1280×800 default (the app restores the previous
+> session's geometry) while `afterSession` restores the geometry it found.
+> `activateTab()` now dispatches the **pointerdown** dockview activates on — a bare click
+> left the restored analyzer tab's panel unmounted. Both are documented in
+> [`testing.md`](testing.md) → “Waiting rules”.
 
 ## M26–M31 — Psychoacoustic analysis (planned)
 

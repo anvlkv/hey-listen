@@ -1,10 +1,10 @@
 //! The AM/FM modulation-spectrum result types (M20), split out of [`super`] to keep
 //! each file inside the source-size budget.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// One ranked peak in a modulation spectrum (M20).
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ModulationPeak {
@@ -20,7 +20,7 @@ pub struct ModulationPeak {
 /// the pitch-residual (cents) spectrum of the longest voiced run, their ranked peaks,
 /// and the depth readouts. Both spectra share `mod_freqs`; `fm_db` is empty when no
 /// voiced run is long enough to analyse.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ModulationResult {

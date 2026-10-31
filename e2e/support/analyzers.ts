@@ -4,21 +4,37 @@
 import { analyzerPanel } from "./selectors.ts";
 import { count, countWithin } from "./dom.ts";
 
+/** What a tool's panel is showing: absent, busy, empty, error — or a real result. */
+async function describeAnalyzer(id: string, scope: string): Promise<string> {
+  const panels = await count(scope);
+  if (panels === 0) return `no [data-testid="analyzer.${id}"] in the DOM (is its tab hidden?)`;
+  const busy = await countWithin(scope, '[data-testid="analyzer.busy"]');
+  const empty = await countWithin(scope, ".analyzer-empty");
+  const error = await countWithin(scope, ".analyzer-error");
+  const canvas = await countWithin(scope, "canvas");
+  const readouts = await countWithin(scope, ".readout-value");
+  return `busy=${busy} empty=${empty} error=${error} canvas=${canvas} readouts=${readouts}`;
+}
+
 /** Wait until an analyzer has a rendered result (or surfaced an error). */
 export async function waitForAnalyzer(id: string, timeout = 60_000): Promise<void> {
   const scope = analyzerPanel(id);
-  await browser.waitUntil(
-    async () => {
-      if ((await count(scope)) === 0) return false;
-      if ((await countWithin(scope, ".analyzer-error")) > 0) return true;
-      if ((await countWithin(scope, '[data-testid="analyzer.busy"]')) > 0) return false;
-      const empty = await countWithin(scope, ".analyzer-empty");
-      const canvas = await countWithin(scope, "canvas");
-      const readouts = await countWithin(scope, ".readout-value");
-      return empty === 0 && (canvas > 0 || readouts > 0);
-    },
-    { timeout, timeoutMsg: `analyzer "${id}" never rendered a result` },
-  );
+  try {
+    await browser.waitUntil(
+      async () => {
+        if ((await count(scope)) === 0) return false;
+        if ((await countWithin(scope, ".analyzer-error")) > 0) return true;
+        if ((await countWithin(scope, '[data-testid="analyzer.busy"]')) > 0) return false;
+        const empty = await countWithin(scope, ".analyzer-empty");
+        const canvas = await countWithin(scope, "canvas");
+        const readouts = await countWithin(scope, ".readout-value");
+        return empty === 0 && (canvas > 0 || readouts > 0);
+      },
+      { timeout, timeoutMsg: `analyzer "${id}" never rendered a result` },
+    );
+  } catch (error) {
+    throw new Error(`${error}\n${await describeAnalyzer(id, scope)}`, { cause: error });
+  }
 }
 
 /** Wait until a readout-only analyzer renders its `.readout-card` values. */

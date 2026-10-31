@@ -20,8 +20,8 @@ export async function loadComparePopout(): Promise<CompareViewDto | null> {
   return view;
 }
 
-/** Change this popout's reference (the core also raises/retargets a duplicate). */
-export async function retargetComparePopout(reference: string) {
-  await invoke("retarget_compare_popout", { reference });
-  setComparePopoutView((view) => (view ? { ...view, with: reference } : view));
+/** Change this popout's binding (the core also raises/retargets a duplicate). */
+export async function retargetComparePopout(reference: string, saved = false) {
+  await invoke("retarget_compare_popout", { reference, saved });
+  setComparePopoutView((view) => (view ? { ...view, with: reference, saved } : view));
 }

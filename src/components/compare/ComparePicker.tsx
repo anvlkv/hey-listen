@@ -3,9 +3,12 @@ import { For, Show } from "solid-js";
 import Icon from "../Icon";
 import {
   compareNotice,
+  compareSaved,
   compareTargets,
   pickCompareTarget,
+  pickSavedComparison,
   pickerTool,
+  savedWindowLabel,
   setPickerTool,
   shapeLabel,
   targetWindowLabel,
@@ -21,6 +24,9 @@ import {
  */
 export default function ComparePicker() {
   const open = () => pickerTool() != null;
+  /** An open project whose display name matches a saved reference (a reconnect hint). */
+  const openMatch = (name: string) =>
+    compareTargets().find((target) => target.name === name) ?? null;
 
   return (
     <Dialog open={open()} onOpenChange={(next) => !next && setPickerTool(null)}>
@@ -34,10 +40,38 @@ export default function ComparePicker() {
             </Dialog.CloseButton>
           </header>
           <Dialog.Description class="compare-dialog-hint">
-            Pick another open project. Each side keeps its own source, filter, analysis window and
-            params — the comparison is read-only.
+            Pick another open project, or the saved reference from the last comparison. Each side
+            keeps its own source, filter, analysis window and params — the comparison is read-only.
           </Dialog.Description>
           <ul class="compare-targets">
+            <Show when={compareSaved()}>
+              {(saved) => (
+                <li>
+                  <button
+                    type="button"
+                    class="compare-target compare-target-saved"
+                    data-testid="compare.target.saved"
+                    onClick={() => {
+                      const tool = pickerTool();
+                      if (tool) void pickSavedComparison(tool);
+                    }}
+                  >
+                    <span class="compare-target-name">Saved: {saved().referenceName}</span>
+                    <span class="compare-target-meta">
+                      {shapeLabel(saved().source)} · {savedWindowLabel(saved())} · saved
+                    </span>
+                  </button>
+                  <Show when={openMatch(saved().referenceName)}>
+                    {(target) => (
+                      <p class="compare-dialog-hint" data-testid="compare.saved.hint">
+                        “{target().name}” is open — pick it above to reconnect live (the saved
+                        snapshot stays as it was).
+                      </p>
+                    )}
+                  </Show>
+                </li>
+              )}
+            </Show>
             <For each={compareTargets()}>
               {(target) => (
                 <li>
@@ -62,9 +96,10 @@ export default function ComparePicker() {
               )}
             </For>
           </ul>
-          <Show when={compareTargets().length === 0}>
+          <Show when={compareTargets().length === 0 && !compareSaved()}>
             <p class="compare-dialog-hint">
-              No other project is open. Use File → New Window, then compare again.
+              No other project is open and this project has no saved comparison. Use File → New
+              Window, then compare again.
             </p>
           </Show>
         </Dialog.Content>

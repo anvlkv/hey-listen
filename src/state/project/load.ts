@@ -17,6 +17,7 @@ import {
   type SourceChoice,
 } from "../capture";
 import { loadGraph, setFilterEnabled } from "../graph";
+import { restoreSavedComparisons } from "../compare/views";
 import { resetHistory } from "../history";
 import { replaceNotes } from "../notes";
 import {
@@ -151,6 +152,11 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
 
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
   restoreLayout(loaded.layout?.dockview ?? null);
+
+  // 5a. The project's saved comparisons (M25.C) restore as Workbench **tabs**,
+  //     bound to their snapshot until the user reconnects a live project. They are
+  //     never part of `LAYOUT`, so they are re-created here rather than by dockview.
+  restoreSavedComparisons(loaded.compare ?? []);
 
   // 5b. Reconcile the project's popout windows with the loaded layout: a load replaces
   // the whole project, so the previous project's popouts close and the tools this layout

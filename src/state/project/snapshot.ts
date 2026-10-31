@@ -3,12 +3,15 @@ import { deepClone } from "../../lib/clone";
 import { toSpec } from "../../lib/graph";
 import { invoke } from "../../lib/ipc";
 import { sharedParams } from "../analysis";
-import { toolOptions } from "../analyzer";
+import { isAnalyzerId, toolOptions } from "../analyzer";
+import type { AnalyzerId } from "../analyzer";
 import { choice, deviceId, gain, mixMicDeviceId, mixSystemDeviceId, targetPid } from "../capture";
+import { parseCompareTool } from "../compare/id";
+import type { CompareViewDto } from "../compare/types";
 import { filterActive, filterEnabled, graphLayout, FILTER_GRAPH, SYNTH_GRAPH } from "../graph";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
-import { layoutJson, openTools } from "../workbench";
+import { layoutJson, openCompareIds, openTools } from "../workbench";
 import { projectLabel } from "./paths";
 import { projectName } from "./signals";
 import type { AnalysisSetupDto, LayoutDto, SourceDescriptorDto } from "./types";
@@ -76,6 +79,23 @@ export async function currentLayout(): Promise<LayoutDto> {
     // compare unfiltered, with a warning.
     filterSpec: filterActive() ? toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges) : null,
   };
+}
+
+/**
+ * The comparison tools open at save time: compare **tabs** plus compare **popouts**
+ * (both save their reference snapshot; a compare panel is never in `LAYOUT`).
+ */
+export async function currentCompareOpen(): Promise<AnalyzerId[]> {
+  const tools = new Set<AnalyzerId>();
+  for (const id of openCompareIds()) {
+    const tool = parseCompareTool(id);
+    if (tool) tools.add(tool);
+  }
+  const popouts = await invoke<CompareViewDto[]>("compare_popouts").catch(() => []);
+  for (const view of popouts) {
+    if (isAnalyzerId(view.tool)) tools.add(view.tool);
+  }
+  return [...tools].sort();
 }
 
 export function defaultFileName(): string {

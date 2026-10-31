@@ -1,21 +1,25 @@
 import { createSignal } from "solid-js";
+import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import { invoke } from "../../lib/ipc";
 import type { AnalyzerId } from "../analyzer";
 import type { CompareTargetDto } from "./types";
-import { openCompare } from "./views";
+import { fetchSaved, openCompare, openCompareSaved } from "./views";
 
 /**
- * The reference picker (M25).
+ * The reference picker (M25; saved references in M25.C).
  *
- * A comparison needs **two open projects**. The picker lists every other project
+ * A comparison needs **two open projects** — or *one* project plus its **saved
+ * snapshot** of the last comparison (M25.C). The picker lists every other project
  * window (never a popout) with its display name, source shape and analysis window; a
- * project with no source is listed but disabled. With one project open, it explains
- * how to open another instead of pretending a comparison is possible.
- * See `docs/comparison.md` → "Entry points".
+ * project with no source is listed but disabled. A saved reference is offered as
+ * `Saved: <name>` even with one project open. See `docs/comparison.md` → "Entry points".
  */
 
 /** The projects the picker can reference (refreshed on open). */
 export const [compareTargets, setCompareTargets] = createSignal<CompareTargetDto[]>([]);
+
+/** The tool's saved snapshot, when the project has one (M25.C). */
+export const [compareSaved, setCompareSaved] = createSignal<SavedComparisonInfo | null>(null);
 
 /** The tool whose reference is being picked, or `null` when the dialog is closed. */
 export const [pickerTool, setPickerTool] = createSignal<AnalyzerId | null>(null);
@@ -42,15 +46,22 @@ export async function refreshCompareTargets(): Promise<CompareTargetDto[]> {
   return targets;
 }
 
+/** Fetch the saved snapshot for `tool` (one per tool) and cache it for the picker. */
+export async function refreshCompareSaved(tool: AnalyzerId): Promise<SavedComparisonInfo | null> {
+  const saved = await fetchSaved(tool);
+  setCompareSaved(saved);
+  return saved;
+}
+
 /**
  * Open the picker for `tool` (or explain why it cannot open). This is the one entry
  * point behind both the tab menu and the native Analysis menu.
  */
 export async function chooseCompareReference(tool: AnalyzerId) {
-  const targets = await refreshCompareTargets();
-  if (targets.length === 0) {
+  const [targets, saved] = await Promise.all([refreshCompareTargets(), refreshCompareSaved(tool)]);
+  if (targets.length === 0 && !saved) {
     showCompareNotice(
-      "A comparison needs two projects. Open another window (File → New Window), then compare again.",
+      "A comparison needs two projects (or a saved comparison). Open another window (File → New Window), then compare again.",
     );
     return;
   }
@@ -65,6 +76,13 @@ export async function pickCompareTarget(tool: AnalyzerId, target: CompareTargetD
     return;
   }
   await openCompare(tool, target.label);
+}
+
+/** Pick the tool's saved snapshot: open (or retarget) the comparison at it. */
+export async function pickSavedComparison(tool: AnalyzerId) {
+  setPickerTool(null);
+  const opened = await openCompareSaved(tool);
+  if (!opened) showCompareNotice("This project has no saved comparison for that tool.");
 }
 
 /** A project's one-line shape label (`48 kHz · 1 ch · 12.4 s`). */
@@ -82,5 +100,11 @@ export function shapeLabel(source: CompareTargetDto["source"]): string {
 export function targetWindowLabel(target: CompareTargetDto): string {
   if (!target.window) return "window —";
   const { start, end } = target.window;
+  return `${start.toFixed(2)}–${end.toFixed(2)} s`;
+}
+
+/** A saved snapshot's window label (`0.00–2.40 s`). */
+export function savedWindowLabel(saved: SavedComparisonInfo): string {
+  const { start, end } = saved.window;
   return `${start.toFixed(2)}–${end.toFixed(2)} s`;
 }

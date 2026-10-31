@@ -68,7 +68,9 @@ fn run_analysis_is_not_destructive_and_compare_is_read_only() {
         true
     );
     let schema = &find("compare_analysis")["inputSchema"];
-    assert_eq!(schema["required"], serde_json::json!(["tool", "with"]));
+    // `saved: true` needs no reference project, so only `tool` is required.
+    assert_eq!(schema["required"], serde_json::json!(["tool"]));
+    assert_eq!(schema["properties"]["saved"]["type"], "boolean");
     // Every tool carries the shared `target` property (multi-project addressing).
     assert_eq!(schema["properties"]["target"]["type"], "string");
 }

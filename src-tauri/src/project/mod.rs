@@ -54,6 +54,8 @@ pub const SECTION_SETUP: u8 = 0x04;
 pub const SECTION_LAYOUT: u8 = 0x05;
 pub const SECTION_RESULTS: u8 = 0x06;
 pub const SECTION_NOTES: u8 = 0x07;
+/// Saved comparison snapshots (M25.C): one reference `AnalysisResult` per tool.
+pub const SECTION_COMPARE: u8 = 0x08;
 
 /// Interleaved samples per `DATA` chunk (~256 KiB at `f32`). Bounds per-chunk memory
 /// and keeps the chunk index small.

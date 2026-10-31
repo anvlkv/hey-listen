@@ -7,17 +7,19 @@
 //! window sits — re-bases them before the result leaves the engine. `window_start`
 //! records that origin so a consumer can map a time back onto a frame.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::audio::analyzers::AnalyzerId;
 
 mod modulation;
 mod notes;
 mod series;
+mod stored;
 
 pub use modulation::*;
 pub use notes::*;
 pub use series::*;
+pub use stored::StoredAnalysisResult;
 
 /// Shift every entry of a result's time axis by `shift` (source seconds).
 fn shift_times(times: &mut [f32], shift: f32) {
@@ -27,7 +29,7 @@ fn shift_times(times: &mut [f32], shift: f32) {
 }
 
 /// Time-domain waveform over the window plus its level readouts.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct WaveformResult {
@@ -47,7 +49,7 @@ pub struct WaveformResult {
 }
 
 /// Averaged magnitude spectrum over the window.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SpectrumResult {
@@ -70,7 +72,7 @@ pub struct SpectrumResult {
 }
 
 /// STFT magnitude heatmap over the window.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SpectrogramResult {
@@ -92,7 +94,7 @@ pub struct SpectrogramResult {
 }
 
 /// Time-domain level readouts (peak / RMS), without the waveform envelope.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct LevelsResult {
@@ -108,7 +110,7 @@ pub struct LevelsResult {
 /// A pitch track: the f0 series over time plus a voiced-frame summary, so a
 /// near-empty track (almost no voiced frames) is self-evident without scanning
 /// every `values` entry. Unvoiced frames are gaps (`null`).
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct PitchResult {
@@ -138,7 +140,7 @@ pub struct PitchResult {
 }
 
 /// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast).
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct MatrixResult {
@@ -162,7 +164,7 @@ pub struct MatrixResult {
 /// Tempo / onset / downbeat analysis over one window: the onset-strength envelope
 /// (one value per frame) plus the detected beat grid and event times. The rhythm
 /// charts draw the envelope and mark the relevant events on it.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RhythmResult {
@@ -184,7 +186,7 @@ pub struct RhythmResult {
 }
 
 /// Integrated loudness (EBU R128).
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct LufsResult {
@@ -192,7 +194,7 @@ pub struct LufsResult {
 }
 
 /// Loudness range (LRA), in LU.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct LraResult {
@@ -200,7 +202,7 @@ pub struct LraResult {
 }
 
 /// A tool's result, tagged by the tool id that produced it.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(tag = "tool", rename_all = "camelCase")]
 #[ts(export)]
 pub enum AnalysisResult {
