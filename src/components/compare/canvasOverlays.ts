@@ -2,6 +2,7 @@ import { chartTheme } from "../../state/themes";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { Span } from "../../state/compare/types";
 import type { PlotBox } from "../analyzer/chartGeometry";
+import type { CompareTime } from "./time";
 
 /**
  * The compare view's live marks on a **plain-canvas** chart (M25.A): the reference's
@@ -41,20 +42,34 @@ export function drawWindowBand(
   ctx.restore();
 }
 
-/** Both transports and B's cursor on a time-axis canvas chart. */
+/** Both transports and B's cursor on a time-axis canvas chart (relative axis). */
 export function drawLiveMarkers(
   ctx: CanvasRenderingContext2D,
   box: PlotBox,
   span: Span,
   live: CompareLiveHandle | undefined,
-  swapped: boolean,
+  time: CompareTime | undefined,
 ): void {
-  if (!live || !(span.end > span.start)) return;
-  const a = swapped ? live.b() : live.a();
-  const b = swapped ? live.a() : live.b();
-  drawRule(ctx, box, span, a.playhead, chartTheme().playhead);
-  drawRule(ctx, box, span, b.playhead, chartTheme().compareB, [5, 4]);
-  drawRule(ctx, box, span, b.cursorTime, chartTheme().mirror, [4, 4]);
+  if (!live || !time || !(span.end > span.start)) return;
+  const a = time.swapped() ? live.b() : live.a();
+  const b = time.swapped() ? live.a() : live.b();
+  drawRule(ctx, box, span, a.playhead == null ? null : time.a(a.playhead), chartTheme().playhead);
+  drawRule(
+    ctx,
+    box,
+    span,
+    b.playhead == null ? null : time.b(b.playhead),
+    chartTheme().compareB,
+    [5, 4],
+  );
+  drawRule(
+    ctx,
+    box,
+    span,
+    b.cursorTime == null ? null : time.b(b.cursorTime),
+    chartTheme().mirror,
+    [4, 4],
+  );
 }
 
 /** One full-height vertical rule at a source second. */

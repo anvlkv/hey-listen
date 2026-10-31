@@ -52,9 +52,24 @@ export interface MismatchDto {
   b: unknown;
 }
 
+/** The relative extents of a comparison and the span the delta covers (M25.B). */
+export interface AlignmentDto {
+  /** The owner's window length in seconds. */
+  aDuration: number;
+  /** The reference's window length in seconds. */
+  bDuration: number;
+  /** The fine-tune offset δ, positive = the reference is later. */
+  bOffset: number;
+  /** The relative span the delta covers, in owner coordinates; `null` when the shifted
+   * windows do not meet. */
+  common: Span | null;
+}
+
 /** Whether (and how far) two results can be diffed. */
 export interface ComparabilityDto {
   aligned: boolean;
+  alignment: AlignmentDto;
+  /** The absolute-time intersection — information only; it no longer gates the delta. */
   overlap: Span | null;
   mismatches: MismatchDto[];
   filtersDiffer: boolean;
@@ -100,7 +115,10 @@ export interface SpectrumDiffDto extends DiffHeader {
 export interface MatrixDiffDto extends DiffHeader {
   kind: "matrix";
   stats: DeltaStatsDto;
+  /** A's frame times on the relative axis. */
   times: number[];
+  /** One flag per column; `false` = A has a frame there but B has no counterpart (M25.B). */
+  columns: boolean[];
   bins: number;
   values: number[];
 }
@@ -185,8 +203,10 @@ export interface ModulationDiffDto extends DiffHeader {
 
 export interface WaveformDiffDto extends DiffHeader {
   kind: "waveform";
-  /** Envelope buckets compared (0 when the windows differ). */
+  /** Envelope buckets compared (A's bucket times sampled against B). */
   buckets: number;
+  /** The sampled bucket times on the relative axis. */
+  times: number[];
   values: number[];
 }
 

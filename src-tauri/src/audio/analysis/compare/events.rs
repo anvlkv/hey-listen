@@ -10,7 +10,7 @@ use serde::Serialize;
 use crate::audio::analysis::{NoteMetricsResult, RhythmResult, SeriesResult};
 
 use super::align::Span;
-use super::diff::{hop_of, series_delta, SeriesDelta};
+use super::diff::{hop_of, relative, series_delta, SeriesDelta};
 use super::stats::DeltaHeader;
 
 /// The default pairing tolerance for note spans (no hop is carried by the result).
@@ -103,14 +103,34 @@ pub struct NotesDelta {
 pub(super) fn events_delta(
     a: &RhythmResult,
     b: &RhythmResult,
-    overlap: Option<Span>,
+    a_origin: f64,
+    b_origin: f64,
+    b_offset: f64,
+    common: Option<Span>,
     max_hop: f32,
 ) -> EventsDelta {
     let tol = (max_hop * 2.0).max(MIN_EVENT_TOLERANCE_SECS);
-    let onsets = pair_times(&a.onset_times, &b.onset_times, tol, overlap);
-    let beats = pair_times(&a.beat_times, &b.beat_times, tol, overlap);
-    let downbeats = pair_times(&a.downbeat_times, &b.downbeat_times, tol, overlap);
-    let envelope = envelope_delta(a, b, overlap);
+    let a_times = relative(&a.times, a_origin, 0.0);
+    let b_times = relative(&b.times, b_origin, b_offset);
+    let onsets = pair_times(
+        &relative(&a.onset_times, a_origin, 0.0),
+        &relative(&b.onset_times, b_origin, b_offset),
+        tol,
+        common,
+    );
+    let beats = pair_times(
+        &relative(&a.beat_times, a_origin, 0.0),
+        &relative(&b.beat_times, b_origin, b_offset),
+        tol,
+        common,
+    );
+    let downbeats = pair_times(
+        &relative(&a.downbeat_times, a_origin, 0.0),
+        &relative(&b.downbeat_times, b_origin, b_offset),
+        tol,
+        common,
+    );
+    let envelope = envelope_delta(a, &a_times, b, &b_times, common);
     let summary = format!(
         "onsets {} · beats {} · downbeats {}",
         onsets.describe(),
@@ -130,15 +150,23 @@ pub(super) fn events_delta(
 /// The onset-strength envelope as a series delta, when both hops agree.
 fn envelope_delta(
     a: &RhythmResult,
+    a_times: &[f32],
     b: &RhythmResult,
-    overlap: Option<Span>,
+    b_times: &[f32],
+    common: Option<Span>,
 ) -> Option<SeriesDelta> {
-    let hop_a = hop_of(&a.times);
-    let hop_b = hop_of(&b.times);
+    let hop_a = hop_of(a_times);
+    let hop_b = hop_of(b_times);
     if hop_a > 0.0 && hop_b > 0.0 && (hop_a - hop_b).abs() > hop_a.max(hop_b) * 0.05 {
         return None;
     }
-    Some(series_delta(&as_series(a), &as_series(b), overlap))
+    Some(series_delta(
+        &as_series(a),
+        a_times,
+        &as_series(b),
+        b_times,
+        common,
+    ))
 }
 
 /// View a rhythm result's envelope as a series result (the delta code is shared).
@@ -179,24 +207,34 @@ fn as_series(r: &RhythmResult) -> SeriesResult {
 pub(super) fn notes_delta(
     a: &NoteMetricsResult,
     b: &NoteMetricsResult,
-    overlap: Option<Span>,
+    a_origin: f64,
+    b_origin: f64,
+    b_offset: f64,
+    common: Option<Span>,
 ) -> NotesDelta {
     let notes_a = &a.notes;
     let notes_b = &b.notes;
-    let starts_a: Vec<f32> = notes_a.iter().map(|note| note.start_secs).collect();
-    let starts_b: Vec<f32> = notes_b.iter().map(|note| note.start_secs).collect();
-    let pairing = pair_indices(&starts_a, &starts_b, NOTE_TOLERANCE_SECS, overlap);
+    let starts_a: Vec<f32> = notes_a
+        .iter()
+        .map(|note| (f64::from(note.start_secs) - a_origin) as f32)
+        .collect();
+    let starts_b: Vec<f32> = notes_b
+        .iter()
+        .map(|note| (f64::from(note.start_secs) - b_origin + b_offset) as f32)
+        .collect();
+    let pairing = pair_indices(&starts_a, &starts_b, NOTE_TOLERANCE_SECS, common);
 
     let mut pairs = Vec::with_capacity(pairing.0.len());
     let mut dt_total = 0.0f32;
     for (index_a, index_b) in &pairing.0 {
         let note_a = &notes_a[*index_a];
         let note_b = &notes_b[*index_b];
-        let dt = note_b.start_secs - note_a.start_secs;
+        let (start_a, start_b) = (starts_a[*index_a], starts_b[*index_b]);
+        let dt = start_b - start_a;
         dt_total += dt.abs();
         pairs.push(NotePair {
-            a_start: note_a.start_secs,
-            b_start: note_b.start_secs,
+            a_start: start_a,
+            b_start: start_b,
             dt,
             a_duration: note_a.duration_secs,
             b_duration: note_b.duration_secs,
@@ -206,16 +244,8 @@ pub(super) fn notes_delta(
             rms_delta_db: note_b.rms_db - note_a.rms_db,
         });
     }
-    let only_a_starts: Vec<f32> = pairing
-        .1
-        .iter()
-        .map(|index| notes_a[*index].start_secs)
-        .collect();
-    let only_b_starts: Vec<f32> = pairing
-        .2
-        .iter()
-        .map(|index| notes_b[*index].start_secs)
-        .collect();
+    let only_a_starts: Vec<f32> = pairing.1.iter().map(|index| starts_a[*index]).collect();
+    let only_b_starts: Vec<f32> = pairing.2.iter().map(|index| starts_b[*index]).collect();
     let matched = pairs.len();
     let mean_abs_dt = (matched > 0).then(|| dt_total / matched as f32);
     let summary = format!(

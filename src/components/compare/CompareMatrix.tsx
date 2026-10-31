@@ -14,6 +14,7 @@ import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, MatrixDiffDto, Span } from "../../state/compare/types";
 import CompareCanvas from "./CompareCanvas";
 import { compareSides } from "./sides";
+import type { CompareTime } from "./time";
 import {
   blitRange,
   deltaLimit,
@@ -47,7 +48,8 @@ export default function CompareMatrix(props: {
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  bWindow: () => Span | null;
+  /** The relative display transform (M25.B). */
+  time: CompareTime;
 }) {
   const [mode, setMode] = createSignal<Mode>("a");
   const family = () => compareFamily(props.tool);
@@ -63,11 +65,8 @@ export default function CompareMatrix(props: {
     props.comparison.diff?.kind === "matrix" ? props.comparison.diff : null;
   const aligned = () => sides.aligned() && !!sides.resultA() && !!sides.resultB();
 
-  /** The axis span both windows cover, so A and B share one time axis. */
-  const span = (): Span => ({
-    start: Math.min(sides.a().window.start, sides.b().window.start),
-    end: Math.max(sides.a().window.end, sides.b().window.end),
-  });
+  /** The relative axis extent: the displayed A side's own window length. */
+  const span = (): Span => ({ start: 0, end: props.time.extent() });
 
   /** The shared colour range, so switching A/B never changes the ramp's meaning. */
   const range = createMemo(() => {
@@ -91,29 +90,33 @@ export default function CompareMatrix(props: {
     const d = diff();
     if (!d || d.times.length === 0 || d.bins === 0) return null;
     const limit = deltaLimit(d.values);
+    // Swap flips the sign of the core's `B − A` (display only).
+    const sign = props.swapped ? -1 : 1;
     return buildHeatmapImage(
       d.times.length,
       d.bins,
       -limit,
       2 * limit,
-      (x, row) => d.values[x * d.bins + row],
+      (x, row) => sign * d.values[x * d.bins + row],
       // The image's `t` is 0…1; the ramp takes a signed −1…+1 Δ.
       (t) => divergingColor(t * 2 - 1),
+      // A frame with no B counterpart is a **null** column, never a zero Δ (M25.B).
+      (x) => (d.columns[x] ? 255 : 0),
     );
   });
 
-  /** Paint one grid over its own window, clipped to the axis span. */
+  /** Paint one grid over its own window, at its display shift (0 = anchored). */
   const paintGrid = (
     ctx: CanvasRenderingContext2D,
     box: PlotBox,
     at: Span,
     image: HTMLCanvasElement,
     result: GridResult,
+    shift = 0,
   ) => {
-    const start = result.windowStart;
     blitRange(ctx, box, at, image, {
-      start,
-      end: start + Math.max(result.duration, 1e-9),
+      start: shift,
+      end: shift + Math.max(result.duration, 1e-9),
     });
     drawBands(ctx, box, result);
   };
@@ -127,7 +130,11 @@ export default function CompareMatrix(props: {
   ) => {
     const covered = deltaSpan(d);
     if (!covered) return;
-    blitRange(ctx, box, at, image, covered);
+    // The core's frame times are in owner coordinates; the display may be swapped.
+    blitRange(ctx, box, at, image, {
+      start: props.time.delta(covered.start),
+      end: props.time.delta(covered.end),
+    });
     if (sides.resultA()) drawBands(ctx, box, sides.resultA()!);
   };
 
@@ -185,8 +192,7 @@ export default function CompareMatrix(props: {
           <CompareCanvas
             span={span}
             live={props.live}
-            bWindow={props.bWindow}
-            swapped={props.swapped}
+            time={props.time}
             paint={(ctx, box, at) => {
               const d = diff();
               const image =
@@ -195,7 +201,11 @@ export default function CompareMatrix(props: {
               if (mode() === "delta" && d) paintDelta(ctx, box, at, d, image);
               else {
                 const result = mode() === "a" ? sides.resultA() : sides.resultB();
-                if (result) paintGrid(ctx, box, at, image, result);
+                if (result) {
+                  // Displayed A is anchored; displayed B is shifted by δ (or −δ swapped).
+                  const shift = mode() === "a" ? 0 : props.time.shiftB();
+                  paintGrid(ctx, box, at, image, result, shift);
+                }
               }
             }}
           />
@@ -212,7 +222,7 @@ export default function CompareMatrix(props: {
               }}
             />
             <span>+{formatLimit(deltaLimit(diff()!.values))}</span>
-            <span class="compare-diverging-note">B − A</span>
+            <span class="compare-diverging-note">{props.swapped ? "A − B" : "B − A"}</span>
           </div>
         </Show>
       </Show>
@@ -224,17 +234,17 @@ export default function CompareMatrix(props: {
             label={props.swapped ? "B" : "A"}
             result={sides.resultA()}
             live={props.live}
+            time={props.time}
             paintGrid={paintGrid}
             image={imageA()}
-            span={sides.a().window}
           />
           <GridSide
             label={props.swapped ? "A" : "B"}
             result={sides.resultB()}
             live={props.live}
+            time={props.time}
             paintGrid={paintGrid}
             image={imageB()}
-            span={sides.b().window}
           />
         </div>
       </Show>
@@ -247,16 +257,19 @@ function GridSide(props: {
   label: string;
   result: GridResult | undefined;
   image: HTMLCanvasElement | null;
-  span: Span;
   live: CompareLiveHandle;
+  time: CompareTime;
   paintGrid: (
     ctx: CanvasRenderingContext2D,
     box: PlotBox,
     at: Span,
     image: HTMLCanvasElement,
     result: GridResult,
+    shift?: number,
   ) => void;
 }) {
+  /** Each side's own plot starts at its window: the relative span is 0…duration. */
+  const span = (): Span => ({ start: 0, end: props.result?.duration ?? 0 });
   return (
     <div class="compare-side">
       <div class="compare-side-label">{props.label}</div>
@@ -265,8 +278,9 @@ function GridSide(props: {
         fallback={<div class="analyzer-empty">This project has no grid for the window.</div>}
       >
         <CompareCanvas
-          span={() => props.span}
+          span={span}
           live={props.live}
+          time={props.time}
           paint={(ctx, box, at) => {
             if (props.image && props.result) {
               props.paintGrid(ctx, box, at, props.image, props.result);

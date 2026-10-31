@@ -289,6 +289,11 @@
               "description": "Window end for side B only"
             },
             {
+              "name": "b-offset",
+              "takesValue": true,
+              "description": "Move side B on the relative axis (seconds; positive = later)"
+            },
+            {
               "name": "overlap",
               "description": "Clip both sides to their absolute-time intersection"
             },

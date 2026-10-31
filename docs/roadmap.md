@@ -1733,9 +1733,9 @@ M25.A (saved comparisons followed in M25.C).
 > `max(20 ms, 2 hops)`; 50 ms for notes), so the chart and MCP/CLI always agree.
 
 > **Tests:** `scripts/compare.test.ts` (Δ limit/span, identical windows, bucket times,
-> event-pairing summary, note-table rows) and E2E `r2-compare` R2.7–R2.11 (matrix A/B/Δ
-> and no interpolation, rhythm pairing, `noteMetrics` table, modulation AM/FM, waveform
-> identical-window rule).
+> event-pairing summary, note-table rows) and E2E `r2-compare` R2.7–R2.10 (matrix A/B/Δ
+> and no interpolation, rhythm pairing, `noteMetrics` table, modulation AM/FM), with the
+> waveform clipping rule in `r2b-compare-relative` R2.11.
 
 > **Order:** M25.A is UI-only and follows M25; it can be delivered family by family
 > (matrix → events → modulation → waveform) with the action enabled as each lands.
@@ -1745,7 +1745,7 @@ M25.A (saved comparisons followed in M25.C).
 > snapshot in the project. Both supersede parts of the M25 contract above and are
 > documented in [`comparison.md`](comparison.md) and ADR-26 / ADR-27.
 
-## M25.B — Relative-time compare alignment (planned)
+## M25.B — Relative-time compare alignment ✅
 
 Rework how the two sides share one x-axis, so a comparison is meaningful when the windows
 have different start times **and different lengths**, and add a manual fine-tune.
@@ -1789,10 +1789,11 @@ Supersedes the absolute-time overlap rule of M25; see ADR-26.
   (or a dedicated open-compare signal) instead.
 
 **Files:** `src-tauri/src/audio/analysis/compare/{align,diff,diff/families,events}.rs`,
-`src-tauri/src/commands/compare.rs`, `src-tauri/src/cli/batch/compare.rs`,
+`src-tauri/src/commands/compare.rs`, `src-tauri/src/cli/batch/{compare,args,types}.rs`,
 `src-tauri/src/mcp/tools/compare.rs`, `src/state/compare/{run,views}.ts`,
-`src/components/compare/*` (including `peerPlugins` and the pure helpers),
-`src/components/analyzer/syncPlugins.ts` (the absolute ↔ relative transform).
+`src/state/workbench.ts`, `src/components/compare/*` (including `time`, `peerPlugins` and
+`canvasOverlays`), `src/components/analyzer/{syncPlugins,uplotZoom}.ts`,
+`src/state/chartSync.ts`.
 
 **Tests.** Rust: relative matching with non-overlapping windows, `bOffset` sign/limits,
 matrix null columns, waveform nearest-bucket delta. Unit: relative merge/clipping, swap
@@ -1805,6 +1806,36 @@ persistence yet (M25.C).
 
 > **Order:** M25.B follows M25.A and precedes M25.C. The saved snapshot of M25.C is only
 > meaningful because the alignment is relative (B's last window is restored as-is).
+
+> **Delivered:** the core matches on a **relative** axis. `Alignment` —
+> `{ aDuration, bDuration, bOffset, common }` — rides on `Comparability`; `aligned` no
+> longer depends on absolute overlap, and `compare()` returns no delta for a time family
+> whose shifted windows do not meet. `diff` maps every family's frames/events through
+> `t − windowStart` (B plus δ); the matrix delta carries a `columns` flag so a frame with
+> no counterpart is a **null** column, and the waveform delta carries the sampled bucket
+> `times`. `run_comparison` takes `bOffset`, the CLI `--b-offset`, and MCP `bOffset`.
+> The frontend gained `components/compare/time.ts` (the display transform: displayed A at
+> 0, displayed B shifted by δ, `Swap` swapping extent/clipping/sign), the δ slider in
+> `CompareHeader`, relative axes and clipping in every family view, remapped live
+> markers, an `AxisTransform` on `mirrorCursor`/`syncView`/`createUplotZoom` so A's sync
+> group still mirrors, and `openCompareIds` in `state/workbench.ts` — a dedicated signal
+> `views.ts` reads instead of `openTools`, fixing the dropped reference.
+
+> **Deviations (kept explicit):** the waveform Δ is a sampled readout (the view overlays
+> A's and B's envelopes; there is no Δ line), and its note reads *clipped to the shorter
+> common span* whenever the common span is shorter than displayed A. The matrix Δ keeps
+> a rectangular `values` array plus `columns: bool[]` instead of nullable cell values, so
+> the heatmap build and the stats stay simple. `needs_common_span` treats any non-spectrum,
+> non-scalar, non-modulation family as a time axis, so future series tools inherit the
+> rule. The sync transform maps display x onto the **owner** project's source seconds
+> (frequency / rate charts keep the identity), so a swap never re-points A's other charts.
+> The fine-tune offset is per open compare view and resets when it closes; M25.C saves it.
+
+> **Tests:** Rust `compare/tests/relative.rs` (relative windows, δ and the common span,
+> clipping, matrix null columns, waveform bucket sampling) plus the CLI relative/offset
+> test; `scripts/compare.test.ts` (display transform, swap, clipping, reference
+> retention); E2E `r2b-compare-relative` R2.11–R2.12 (waveform clipping, adjacent windows,
+> the slider, Swap, reference survives another tab).
 
 ## M25.C — Saved comparisons (planned)
 

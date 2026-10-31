@@ -81,7 +81,7 @@ pub struct Comparison {
     pub b: ComparisonSide,
     pub comparability: Comparability,
     /// The delta, present only when the grids align (and, for time families, the
-    /// windows overlap). The core computes it for **every** family.
+    /// shifted windows meet). The core computes it for **every** family.
     pub diff: Option<ComparisonDiff>,
 }
 
@@ -95,10 +95,13 @@ pub struct SideInput<'a> {
 /// Run `tool` over both projects and compare the results.
 ///
 /// Both runs are sequential on the caller's blocking thread; a failure names the side.
+/// `b_offset` (δ) shifts the reference on the relative axis; matching and the delta
+/// cover the common span (M25.B).
 pub fn compare(
     tool: &str,
     a: SideInput<'_>,
     b: SideInput<'_>,
+    b_offset: f64,
 ) -> Result<Comparison, AnalysisError> {
     let a_source = source_shape(a.state)?;
     let b_source = source_shape(b.state)?;
@@ -108,6 +111,7 @@ pub fn compare(
     let b_result = run(tool, &b, "b")?;
     let a_rate = analysis_rate(a_source.sample_rate, &a.setup.params);
     let b_rate = analysis_rate(b_source.sample_rate, &b.setup.params);
+    let alignment = align::Alignment::new(a.setup.span().len(), b.setup.span().len(), b_offset);
 
     let comparability = {
         let side_a = align::Side {
@@ -120,10 +124,14 @@ pub fn compare(
             result: &b_result,
             rate: b_rate,
         };
-        align::comparability(tool, &side_a, &side_b, filters_differ)
+        align::comparability(tool, &side_a, &side_b, filters_differ, alignment)
     };
 
-    let diff = if comparability.aligned {
+    // A time-axis family needs the shifted windows to meet; spectrum, modulation and the
+    // scalar readouts diff without one.
+    let comparable =
+        comparability.aligned && (!align::needs_common_span(tool) || alignment.common.is_some());
+    let diff = if comparable {
         let side_a = align::Side {
             setup: &a.setup,
             result: &a_result,
@@ -134,7 +142,7 @@ pub fn compare(
             result: &b_result,
             rate: b_rate,
         };
-        Some(diff::diff(&side_a, &side_b, comparability.overlap))
+        Some(diff::diff(&side_a, &side_b, b_offset, alignment.common))
     } else {
         None
     };

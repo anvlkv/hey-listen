@@ -89,6 +89,7 @@ fn common(matches: &Matches) -> Result<Request, String> {
         b_start: optional_number(matches, "b-start")?,
         b_end: optional_number(matches, "b-end")?,
         overlap: flag(matches, "overlap"),
+        b_offset: optional_number(matches, "b-offset")?.unwrap_or(0.0),
         windows: match string(matches, "windows") {
             Some(path) => read_windows(&path)?,
             None => Vec::new(),

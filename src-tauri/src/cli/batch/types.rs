@@ -77,6 +77,8 @@ pub struct Request {
     pub b_end: Option<f64>,
     /// Clip both sides to their absolute-time intersection (`compare --overlap`).
     pub overlap: bool,
+    /// Move side B on the relative axis (`compare --b-offset`, positive = later).
+    pub b_offset: f64,
     /// Per-window analysis list (`--windows FILE`); empty for a single window.
     pub windows: Vec<WindowSpec>,
     /// Shared-param patches (`-p K=V`).

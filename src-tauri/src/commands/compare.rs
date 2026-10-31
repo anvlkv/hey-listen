@@ -26,6 +26,10 @@ pub struct CompareRequest {
     pub reference: String,
     pub a: CompareSetup,
     pub b: CompareSetup,
+    /// The fine-tune offset δ in seconds: positive moves the reference **later** on the
+    /// relative axis (M25.B). `0` by default.
+    #[serde(default)]
+    pub b_offset: f64,
     #[serde(default)]
     pub shape: Shape,
     #[serde(default)]
@@ -64,6 +68,7 @@ pub async fn run_comparison(
                 state: &b_state,
                 setup: request.b,
             },
+            request.b_offset,
         )
         .map_err(|err| err.to_string())?;
         let axis = if request.compact_axis.unwrap_or(false) {

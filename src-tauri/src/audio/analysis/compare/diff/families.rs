@@ -1,7 +1,8 @@
-//! The per-family delta implementations (M25), split from [`super`] to keep each file
-//! inside the source-size budget. Every family is covered, so MCP and the CLI can
-//! compare any tool; the **views** for matrix/events/notes/modulation/waveform land in
-//! M25.A. See `docs/comparison.md` → "The delta".
+//! The per-family delta implementations (M25; relative matching in M25.B), split from
+//! [`super`] to keep each file inside the source-size budget. Every family is covered,
+//! so MCP and the CLI can compare any tool. Frame times arrive already on the relative
+//! axis; see [`super`] for the coordinate transform and `docs/comparison.md` → "The
+//! delta".
 
 use crate::audio::analysis::{
     AnalysisResult, LevelsResult, LraResult, LufsResult, MatrixResult, SeriesResult,
@@ -11,30 +12,38 @@ use crate::audio::analysis::{
 use super::super::align::Span;
 use super::super::stats::{DeltaHeader, DeltaStats};
 use super::{fmt_opt, ScalarDelta, SeriesDelta, SpectrumDelta, WaveformDelta};
-use super::{hop_of, in_overlap, nearest, FieldDelta, LineDelta, MatrixDelta, ModulationDelta};
+use super::{hop_of, in_span, nearest, FieldDelta, LineDelta, MatrixDelta, ModulationDelta};
 
 // --- series -----------------------------------------------------------------
 
-/// A series delta over the frames present in `overlap` (all frames when `None`).
-pub fn series_delta(a: &SeriesResult, b: &SeriesResult, overlap: Option<Span>) -> SeriesDelta {
-    let tol = hop_of(&a.times).max(hop_of(&b.times)).max(1e-4) * 0.6;
+/// A series delta over the frames present in the common span (all frames when `None`).
+///
+/// `a_times` / `b_times` are the sides' frame times on the relative axis.
+pub fn series_delta(
+    a: &SeriesResult,
+    a_times: &[f32],
+    b: &SeriesResult,
+    b_times: &[f32],
+    span: Option<Span>,
+) -> SeriesDelta {
+    let tol = hop_of(a_times).max(hop_of(b_times)).max(1e-4) * 0.6;
     let mut times = Vec::new();
     let mut values = Vec::new();
     let mut a_values = Vec::new();
     let mut b_values = Vec::new();
     let mut pairs = Vec::new();
     let mut cursor = 0usize;
-    for (index, &time) in a.times.iter().enumerate() {
-        if !in_overlap(time, overlap) {
+    for (index, &time) in a_times.iter().enumerate() {
+        if !in_span(time, span) {
             continue;
         }
         let Some(value_a) = a.values.get(index).copied().flatten() else {
             continue;
         };
-        let Some(b_index) = nearest(&b.times, time, &mut cursor) else {
+        let Some(b_index) = nearest(b_times, time, &mut cursor) else {
             continue;
         };
-        if (b.times[b_index] - time).abs() > tol {
+        if (b_times[b_index] - time).abs() > tol {
             continue;
         }
         let value_b = b.values.get(b_index).copied().flatten();
@@ -85,98 +94,81 @@ pub(super) fn spectrum_delta(a: &SpectrumResult, b: &SpectrumResult) -> Spectrum
 
 pub(super) fn matrix_delta(
     a: &MatrixResult,
+    a_times: &[f32],
     b: &MatrixResult,
-    overlap: Option<Span>,
+    b_times: &[f32],
+    span: Option<Span>,
 ) -> MatrixDelta {
-    let bins = a.bins.min(b.bins);
-    let tol = hop_of(&a.times).max(hop_of(&b.times)).max(1e-4) * 0.6;
-    let mut times = Vec::new();
-    let mut values = Vec::new();
-    let mut pairs = Vec::new();
-    let mut cursor = 0usize;
-    for (frame, &time) in a.times.iter().enumerate() {
-        if !in_overlap(time, overlap) {
-            continue;
-        }
-        let Some(b_frame) = nearest(&b.times, time, &mut cursor) else {
-            continue;
-        };
-        if (b.times[b_frame] - time).abs() > tol {
-            continue;
-        }
-        times.push(time);
-        for band in 0..bins {
-            let value_a = a.values.get(frame * a.bins + band).copied().unwrap_or(0.0);
-            let value_b = b
-                .values
-                .get(b_frame * b.bins + band)
-                .copied()
-                .unwrap_or(0.0);
-            values.push(value_b - value_a);
-            pairs.push((value_a, value_b));
-        }
-    }
-    let stats = DeltaStats::of(&pairs);
-    let summary = format!("{} · {}×{bins}", stats.describe(), times.len());
-    MatrixDelta {
-        header: DeltaHeader::new(summary, &stats),
-        stats,
-        times,
-        bins,
-        values,
-    }
-}
-
-/// A spectrogram's frame times are implicit (`window_start + frame · hop / rate`).
-fn spectrogram_frames(r: &SpectrogramResult) -> Vec<f32> {
-    let hop = r.hop_size as f64 / f64::from(r.sample_rate.max(1));
-    (0..r.frames)
-        .map(|frame| (r.window_start + frame as f64 * hop) as f32)
-        .collect()
+    let read_a =
+        |frame: usize, band: usize| a.values.get(frame * a.bins + band).copied().unwrap_or(0.0);
+    let read_b =
+        |frame: usize, band: usize| b.values.get(frame * b.bins + band).copied().unwrap_or(0.0);
+    grid_delta(a_times, a.bins, &read_a, b_times, b.bins, &read_b, span)
 }
 
 pub(super) fn spectrogram_delta(
     a: &SpectrogramResult,
+    a_times: &[f32],
     b: &SpectrogramResult,
-    overlap: Option<Span>,
+    b_times: &[f32],
+    span: Option<Span>,
 ) -> MatrixDelta {
-    let bins = a.bins.min(b.bins);
-    let times_a = spectrogram_frames(a);
-    let times_b = spectrogram_frames(b);
-    let hop = (a.hop_size as f64 / f64::from(a.sample_rate.max(1))).max(1e-4);
-    let tol = (hop as f32) * 0.6;
+    let read_a =
+        |frame: usize, band: usize| a.mag_db.get(frame * a.bins + band).copied().unwrap_or(0.0);
+    let read_b =
+        |frame: usize, band: usize| b.mag_db.get(frame * b.bins + band).copied().unwrap_or(0.0);
+    grid_delta(a_times, a.bins, &read_a, b_times, b.bins, &read_b, span)
+}
+
+/// The shared frame × band delta: A's frames inside the common span are the columns,
+/// and a frame with no B counterpart within tolerance is a **null column** (M25.B) —
+/// dropping it would collapse the time axis.
+#[allow(clippy::too_many_arguments)]
+fn grid_delta(
+    a_times: &[f32],
+    a_bins: usize,
+    read_a: &dyn Fn(usize, usize) -> f32,
+    b_times: &[f32],
+    b_bins: usize,
+    read_b: &dyn Fn(usize, usize) -> f32,
+    span: Option<Span>,
+) -> MatrixDelta {
+    let bins = a_bins.min(b_bins);
+    let tol = hop_of(a_times).max(hop_of(b_times)).max(1e-4) * 0.6;
     let mut times = Vec::new();
+    let mut columns = Vec::new();
     let mut values = Vec::new();
     let mut pairs = Vec::new();
     let mut cursor = 0usize;
-    for (frame, &time) in times_a.iter().enumerate() {
-        if !in_overlap(time, overlap) {
+    for (frame, &time) in a_times.iter().enumerate() {
+        if !in_span(time, span) {
             continue;
         }
-        let Some(b_frame) = nearest(&times_b, time, &mut cursor) else {
-            continue;
-        };
-        if (times_b[b_frame] - time).abs() > tol {
-            continue;
-        }
+        let counterpart = nearest(b_times, time, &mut cursor)
+            .filter(|index| (b_times[*index] - time).abs() <= tol);
         times.push(time);
+        columns.push(counterpart.is_some());
         for band in 0..bins {
-            let value_a = a.mag_db.get(frame * a.bins + band).copied().unwrap_or(0.0);
-            let value_b = b
-                .mag_db
-                .get(b_frame * b.bins + band)
-                .copied()
-                .unwrap_or(0.0);
-            values.push(value_b - value_a);
-            pairs.push((value_a, value_b));
+            let value_a = read_a(frame, band);
+            match counterpart {
+                Some(b_frame) => {
+                    let value_b = read_b(b_frame, band);
+                    values.push(value_b - value_a);
+                    pairs.push((value_a, value_b));
+                }
+                // A null column still occupies its frame; the Δ view paints it empty.
+                None => values.push(0.0),
+            }
         }
     }
     let stats = DeltaStats::of(&pairs);
-    let summary = format!("{} · {}×{bins}", stats.describe(), times.len());
+    let matched = columns.iter().filter(|matched| **matched).count();
+    let summary = format!("{} · {matched}×{bins}", stats.describe());
     MatrixDelta {
         header: DeltaHeader::new(summary, &stats),
         stats,
         times,
+        columns,
         bins,
         values,
     }
@@ -232,32 +224,46 @@ fn line_delta(a: &[f32], b: &[f32]) -> LineDelta {
 
 // --- waveform ---------------------------------------------------------------
 
+/// The envelope delta over the common span (M25.B).
+///
+/// Buckets are a fixed count per window with a length-dependent step, so clipping does
+/// not align them by index. The delta samples the other envelope at **A's** bucket
+/// times (nearest within one bucket), which is exact when the durations match.
 pub(super) fn waveform_delta(
     a: &WaveformResult,
+    a_times: &[f32],
     b: &WaveformResult,
-    a_span: Span,
-    b_span: Span,
+    b_times: &[f32],
+    span: Option<Span>,
 ) -> WaveformDelta {
-    let same_window = (a_span.start - b_span.start).abs() < 1e-6
-        && (a_span.end - b_span.end).abs() < 1e-6
-        && a.max.len() == b.max.len()
-        && !a.max.is_empty();
-    if !same_window {
-        return WaveformDelta {
-            header: DeltaHeader::text(
-                "the windows differ — bucket i covers a different span, so there is no envelope delta",
-            ),
-            buckets: 0,
-            values: Vec::new(),
+    let tol = hop_of(a_times).max(hop_of(b_times)).max(1e-6);
+    let mut times = Vec::new();
+    let mut values = Vec::new();
+    let mut pairs = Vec::new();
+    let mut cursor = 0usize;
+    for (frame, &time) in a_times.iter().enumerate() {
+        if !in_span(time, span) {
+            continue;
+        }
+        let Some(b_frame) = nearest(b_times, time, &mut cursor) else {
+            continue;
         };
+        if (b_times[b_frame] - time).abs() > tol {
+            continue;
+        }
+        let value_a = a.max.get(frame).copied().unwrap_or(0.0);
+        let value_b = b.max.get(b_frame).copied().unwrap_or(0.0);
+        times.push(time);
+        values.push(value_b - value_a);
+        pairs.push((value_a, value_b));
     }
-    let pairs: Vec<(f32, f32)> = a.max.iter().copied().zip(b.max.iter().copied()).collect();
-    let values = pairs.iter().map(|(a, b)| b - a).collect();
     let stats = DeltaStats::of(&pairs);
-    let summary = format!("{} · {} buckets", stats.describe(), pairs.len());
+    let matched = times.len();
+    let summary = format!("{} · {matched} buckets", stats.describe());
     WaveformDelta {
         header: DeltaHeader::new(summary, &stats),
-        buckets: pairs.len(),
+        buckets: matched,
+        times,
         values,
     }
 }

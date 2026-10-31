@@ -1,7 +1,7 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
-import { Show } from "solid-js";
+import { Show, untrack } from "solid-js";
 import Readout from "../analyzer/Readout";
 import { createUplotZoom } from "../analyzer/uplotZoom";
 import { mirrorCursor, syncView } from "../analyzer/syncPlugins";
@@ -11,27 +11,30 @@ import ComparePlot from "./ComparePlot";
 import { compareSides, liveMarkers } from "./sides";
 import { timeAxis, valueAxis } from "./axes";
 import { bucketTimes } from "./waveform";
+import { mergeSeries, toUplotData } from "./align";
+import { clipSeries, displayTimes, type CompareTime } from "./time";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import type { AnalyzerId, WaveformResult } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
-import type { ComparisonDto, Span, WaveformDiffDto } from "../../state/compare/types";
+import type { ComparisonDto, WaveformDiffDto } from "../../state/compare/types";
 
 /**
- * The **waveform** compare view (M25.A).
+ * The **waveform** compare view (M25.A; relative alignment in M25.B).
  *
- * The upper envelopes are overlaid on one time axis **only when the two windows are
- * identical**, because bucket *i* then covers the same absolute-time span on both sides
- * (the core's `WaveformDelta` encodes exactly that rule: `buckets > 0`). A differing
- * window draws each project's min/max envelope separately instead — a bucket of one
- * window has no counterpart in the other, so there is no envelope delta.
+ * Both peak envelopes are drawn on the **relative** axis, starting at 0 at their own
+ * window, with the reference shifted by the fine-tune offset. The delta samples the
+ * other envelope at A's bucket times over the **common span** (the core does the
+ * sampling); the view says *clipped to the shorter window* whenever the span does not
+ * cover the displayed A side. A differing **grid** still draws the two separately.
  */
 export default function CompareWaveform(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
   swapped: boolean;
   live: CompareLiveHandle;
-  bWindow: () => Span | null;
+  /** The relative display transform (M25.B). */
+  time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
   const sides = compareSides<WaveformResult>(
@@ -41,48 +44,79 @@ export default function CompareWaveform(props: {
   /* eslint-enable solid/reactivity */
   const diff = (): WaveformDiffDto | null =>
     props.comparison.diff?.kind === "waveform" ? props.comparison.diff : null;
-  /** The core only computes a delta when both windows are identical. */
-  const identical = () => (diff()?.buckets ?? 0) > 0;
+  const aligned = sides.aligned;
 
-  const zoom = createUplotZoom("time");
+  const zoom = createUplotZoom(
+    "time",
+    untrack(() => props.time.axis()),
+  );
   const Tooltip = timeTooltip((value) => value.toFixed(3));
   const markers = () =>
     compareMarkers(
       liveMarkers({
         live: props.live,
         swapped: () => props.swapped,
-        window: props.bWindow,
+        time: props.time,
         axis: "time",
       }),
     );
 
-  /** The overlaid peaks: one shared bucket grid (identical windows only). */
+  /** The overlaid peaks: each side mapped onto the relative axis and clipped. */
   const overlay = (): uPlot.AlignedData => {
     const a = sides.resultA();
     const b = sides.resultB();
     if (!a || !b) return [[], [], []];
-    const times = bucketTimes(a.windowStart, a.duration, a.max.length);
-    return [times, a.max, b.max];
+    const end = props.time.extent();
+    const aRel = clipSeries(
+      displayTimes(bucketTimes(a.windowStart, a.duration, a.max.length), props.time.originA()),
+      a.max,
+      0,
+      end,
+    );
+    const bRel = clipSeries(
+      displayTimes(
+        bucketTimes(b.windowStart, b.duration, b.max.length),
+        props.time.originB(),
+        props.time.shiftB(),
+      ),
+      b.max,
+      0,
+      end,
+    );
+    const merged = mergeSeries(aRel.times, aRel.values, bRel.times, bRel.values);
+    return toUplotData(merged).slice(0, 3) as uPlot.AlignedData;
+  };
+
+  /** The signed delta, flipped after a swap (display only). */
+  const deltaValues = () => {
+    const values = diff()?.values;
+    if (!values) return undefined;
+    return props.swapped ? values.map((value) => -value) : values;
   };
 
   return (
     <div class="analyzer-chart compare-chart" data-testid="compare.waveform">
       <div class="analyzer-readouts">
-        <Readout label="Δ mean" value={formatDelta(diff()?.values)} />
-        <Readout label="max |Δ|" value={formatPeak(diff()?.values)} />
+        <Readout label="Δ mean" value={formatDelta(deltaValues())} />
+        <Readout label="max |Δ|" value={formatPeak(deltaValues())} />
         <Readout label="Buckets" value={diff() ? `${diff()!.buckets}` : "—"} />
         <Readout label="Peak A" value={db(sides.resultA()?.peakDb)} />
         <Readout label="Peak B" value={db(sides.resultB()?.peakDb)} />
       </div>
-      <Show when={diff() && !identical()}>
+      <Show when={aligned() && !diff()}>
         <div class="compare-banner" data-testid="compare.waveform.note">
-          The analysis windows differ — bucket <em>i</em> covers a different span on each side, so
-          there is no envelope delta.
+          The shifted windows do not meet — adjust the fine-tune offset to compare them.
+        </div>
+      </Show>
+      <Show when={diff() && props.time.clipped()}>
+        <div class="compare-banner" data-testid="compare.waveform.note">
+          The windows differ — the delta is clipped to the shorter window, and the other envelope is
+          sampled at this side's bucket times.
         </div>
       </Show>
 
       <Show
-        when={identical()}
+        when={aligned() && sides.resultA() && sides.resultB()}
         fallback={
           <div class="compare-side-by-side" data-testid="compare.waveform.side">
             <WaveSide
@@ -108,8 +142,14 @@ export default function CompareWaveform(props: {
               plugins={[
                 cursor(),
                 tooltip(Tooltip),
-                mirrorCursor("time"),
-                syncView("time"),
+                mirrorCursor(
+                  "time",
+                  untrack(() => props.time.axis()),
+                ),
+                syncView(
+                  "time",
+                  untrack(() => props.time.axis()),
+                ),
                 markers(),
               ]}
               onCreate={zoom.onReady}
@@ -128,7 +168,10 @@ export default function CompareWaveform(props: {
                   width: 1,
                 },
               ]}
-              scales={{ x: { time: false }, y: { range: () => [-1.05, 1.05] } }}
+              scales={{
+                x: { time: false, range: () => [0, props.time.extent()] },
+                y: { range: () => [-1.05, 1.05] },
+              }}
               axes={[timeAxis(), valueAxis("amplitude")]}
             />
           </Show>
@@ -138,7 +181,7 @@ export default function CompareWaveform(props: {
   );
 }
 
-/** One side's own min/max envelope, used when the windows differ. */
+/** One side's own min/max envelope, used when the grids differ. */
 function WaveSide(props: {
   label: string;
   color: string;
@@ -148,8 +191,10 @@ function WaveSide(props: {
   const data = (): uPlot.AlignedData => {
     const result = props.result;
     if (!result || result.max.length === 0) return [[], []];
+    // Each side's own plot starts at its window, so the origin cancels out.
     const times = bucketTimes(result.windowStart, result.duration, result.max.length);
-    return [times, result.max, result.min];
+    const rel = displayTimes(times, result.windowStart);
+    return [rel, result.max, result.min];
   };
   return (
     <div class="compare-side">

@@ -1,6 +1,11 @@
 import { createSignal } from "solid-js";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
-import { publishChartView, type SyncGroup } from "../../state/chartSync";
+import {
+  IDENTITY_AXIS,
+  publishChartView,
+  type AxisTransform,
+  type SyncGroup,
+} from "../../state/chartSync";
 
 /** The uPlot instance type, taken from the wrapper's plugin props (avoids a CJS default import). */
 type UplotInstance = TooltipProps["u"];
@@ -33,7 +38,10 @@ export interface UplotZoom {
   instance: () => UplotInstance | null;
 }
 
-export function createUplotZoom(group: SyncGroup): UplotZoom {
+export function createUplotZoom(
+  group: SyncGroup,
+  transform: AxisTransform = IDENTITY_AXIS,
+): UplotZoom {
   const [instance, setInstance] = createSignal<UplotInstance | null>(null);
   const [range, setRange] = createSignal<[number, number] | null>(null);
 
@@ -55,7 +63,11 @@ export function createUplotZoom(group: SyncGroup): UplotZoom {
   const publish = (min: number, max: number) => {
     const u = instance();
     if (!u) return;
-    publishChartView({ sourceId: u.root.id, group, x: [min, max] });
+    publishChartView({
+      sourceId: u.root.id,
+      group,
+      x: [transform.toBus(min), transform.toBus(max)],
+    });
   };
 
   const apply = (min: number, max: number) => {

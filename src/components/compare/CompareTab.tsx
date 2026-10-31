@@ -10,6 +10,7 @@ import CompareReadouts from "./CompareReadouts";
 import CompareSeries from "./CompareSeries";
 import CompareSpectrum from "./CompareSpectrum";
 import CompareWaveform from "./CompareWaveform";
+import { compareTime } from "./time";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import { createComparison } from "../../state/compare/run";
 import { createCompareLive } from "../../state/compare/live";
@@ -34,19 +35,32 @@ export default function CompareTab(props: {
   onReferenceChange: (label: string) => void;
 }) {
   const live = createCompareLive(() => props.reference());
+  const [offset, setOffset] = createSignal(0);
   const run = createComparison(
     untrack(() => props.tool),
     () => props.reference(),
     () => live.revision(),
+    offset,
   );
   const [swapped, setSwapped] = createSignal(false);
 
-  /** The window of the project shown as **B** (the band), following a swap. */
-  const bWindow = () => {
-    const comparison = run.comparison();
-    if (!comparison) return null;
-    return swapped() ? comparison.a.window : comparison.b.window;
-  };
+  /** The relative display transform (M25.B): displayed A at 0, displayed B at δ. */
+  /* eslint-disable solid/reactivity -- compareTime stores the accessors and calls them
+     from tracked chart scopes; reading `swapped` here would freeze the transform. */
+  const time = compareTime(
+    () => {
+      const comparison = run.comparison();
+      if (!comparison) throw new Error("the comparison has not resolved yet");
+      return comparison;
+    },
+    () => swapped(),
+  );
+  /* eslint-enable solid/reactivity */
+  /** Only the time-axis families show the fine-tune slider and the relative note. */
+  const timeAxis = () =>
+    ["series", "matrix", "spectrogram", "events", "notes", "waveform"].includes(
+      compareFamily(props.tool),
+    );
 
   // The tab is created before the comparison resolves, so its title gains the two
   // project names once they are known (the popout sets its own window title).
@@ -118,6 +132,10 @@ export default function CompareTab(props: {
                 swapped={swapped()}
                 reference={props.reference()!}
                 live={live}
+                time={time}
+                timeAxis={timeAxis()}
+                offset={offset()}
+                onOffset={setOffset}
                 onSwap={() => setSwapped((on) => !on)}
                 onReferenceChange={props.onReferenceChange}
                 onRetry={retry}
@@ -138,7 +156,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={compareFamily(props.tool) === "series"}>
@@ -147,7 +165,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={["matrix", "spectrogram"].includes(compareFamily(props.tool))}>
@@ -156,7 +174,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={compareFamily(props.tool) === "events"}>
@@ -165,7 +183,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={compareFamily(props.tool) === "notes"}>
@@ -174,7 +192,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={compareFamily(props.tool) === "modulation"}>
@@ -183,7 +201,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={compareFamily(props.tool) === "waveform"}>
@@ -192,7 +210,7 @@ export default function CompareTab(props: {
                       comparison={comparison()}
                       swapped={swapped()}
                       live={live}
-                      bWindow={bWindow}
+                      time={time}
                     />
                   </Match>
                   <Match when={compareFamily(props.tool) === "scalar"}>

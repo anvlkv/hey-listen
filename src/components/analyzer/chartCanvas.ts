@@ -66,8 +66,8 @@ export function beginFrame(
  * Build the offscreen `frames × bins` image (time ×, band ↑) for a heatmap: `cell`
  * returns the value at a column `x` and a bottom-up row (row 0 = lowest band), and
  * `lo`/`span` map it through `ramp` (the active theme's colormap by default). The
- * compare views pass a diverging ramp for their Δ heatmap (M25.A). Rebuilt on
- * data/range change.
+ * compare views pass a diverging ramp for their Δ heatmap (M25.A) and an `alpha`
+ * callback to leave a **null** column transparent (M25.B). Rebuilt on data/range change.
  */
 export function buildHeatmapImage(
   frames: number,
@@ -76,6 +76,7 @@ export function buildHeatmapImage(
   span: number,
   cell: (x: number, row: number) => number,
   ramp: (t: number) => [number, number, number] = spectroColormap,
+  alpha?: (x: number, row: number) => number,
 ): HTMLCanvasElement | null {
   const off = document.createElement("canvas");
   // Time runs horizontally, bands vertically.
@@ -93,7 +94,7 @@ export function buildHeatmapImage(
       pixels.data[offset] = r;
       pixels.data[offset + 1] = g;
       pixels.data[offset + 2] = bl;
-      pixels.data[offset + 3] = 255;
+      pixels.data[offset + 3] = alpha ? alpha(x, row) : 255;
     }
   }
   ctx.putImageData(pixels, 0, 0);

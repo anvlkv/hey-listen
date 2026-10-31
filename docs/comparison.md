@@ -432,18 +432,21 @@ groups, re-point `activeGroup` / `activeView` if they were one),
   derivation (the M25 regression where any panel add/remove dropped the reference), peer
   poll latest-wins, relative merge/clipping, the swap sign, marker mapping, and the
   picker's target/saved filtering.
-- **E2E `r2-compare`** — two projects with distinct tones: Compare with… from Spectrum
-  shows both series and the legend; B's cursor and B's playhead appear on the compare
-  chart and follow B; a differing FFT size shows the badge and no delta; closing B shows
-  the banner; retargeting reuses the tab. **M25.B**: adjacent/disjoint windows compare,
-  the offset slider changes the Δ readouts, Swap moves the axis/clip, and opening another
-  tab keeps the reference. **M25.C**: saving with a compare tab and reopening one project
-  restores the compare tab with the **saved reference** badge and B's band; reconnect is
-  explicit; a settled B change marks A dirty.
-- **E2E compare views (M25.A)** — R2.7–R2.11: the matrix A/B/Δ switch and the
-  no-interpolation case, event pairing (matched / only-A / only-B), the `noteMetrics`
-  table's A/B/Δ rows, the modulation AM/FM toggle, and the waveform rule (overlay when
-  the envelope grids align, side by side when they do not).
+- **E2E `r2-compare` / `r2b-compare-relative`** — two projects with distinct tones:
+  Compare with… from Spectrum shows both series and the legend; B's cursor and B's
+  playhead appear on the compare chart and follow B; a differing FFT size shows the badge
+  and no delta; closing B shows the banner; retargeting reuses the tab. **M25.B**
+  (`r2b-compare-relative`): adjacent windows compare from 0, the offset slider moves the
+  common span, Swap moves the axis/clip, and an add/remove of another tab keeps the
+  reference. **M25.C**: saving with a compare tab and reopening one project restores the
+  compare tab with the **saved reference** badge and B's band; reconnect is explicit; a
+  settled B change marks A dirty.
+- **E2E compare views (M25.A, `r2-compare` / `r2b-compare-relative`)** — R2.7–R2.10:
+  the matrix A/B/Δ switch and the no-interpolation case, event pairing (matched /
+  only-A / only-B), the `noteMetrics` table's A/B/Δ rows, the modulation AM/FM toggle;
+  R2.11–R2.12 (M25.B): the waveform overlays a differing window and says it is clipped to
+  the common span, adjacent windows compare from 0, the δ slider moves the common span,
+  Swap moves the axis/clipping, and the reference survives opening another tab.
 - **E2E popout** — *Pop out to window* closes the compare tab and shows a window titled
   `Compare: Spectrum — <B>` with the same overlay; B's cursor/playhead still follow; A's
   hover in the popout moves A's cursor in the project window; closing the popout forgets
@@ -543,7 +546,7 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 > normal zoom / sync); the Δ heatmap's limit is the largest absolute Δ rather than a
 > percentile.
 
-> **Planned (M25.B) — relative alignment.** Replaces the absolute overlap rule:
+> **Delivered (M25.B) — relative alignment.** Replaces the absolute overlap rule:
 >
 > - both sides use `x = t − result.windowStart`; the axis extent is the **displayed A**
 >   side's duration, and `Swap A/B` swaps the extent, clipping and offset sign;

@@ -28,6 +28,23 @@ import { windowEnd, windowStart } from "./timeline";
  */
 export type SyncGroup = "time" | "freq" | "mod";
 
+/**
+ * Maps a chart's x value onto its sync group's x value, and back (M25.B).
+ *
+ * A compare chart draws a **relative** axis, while the project's other charts use
+ * source seconds; the sync plugins convert at the boundary so zoom and cursor still
+ * mirror. The identity transform is the default for every normal chart.
+ */
+export interface AxisTransform {
+  toBus: (x: number) => number;
+  fromBus: (x: number) => number;
+}
+
+export const IDENTITY_AXIS: AxisTransform = {
+  toBus: (x) => x,
+  fromBus: (x) => x,
+};
+
 /** A published x-range for a group, tagged with the chart that set it. */
 export interface ViewMessage {
   sourceId: string;
