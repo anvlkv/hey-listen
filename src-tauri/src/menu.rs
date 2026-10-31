@@ -21,17 +21,33 @@ use crate::recent::{self, RecentProject};
 /// Event carrying a menu action id (File / Edit) to the frontend.
 pub const MENU_EVENT: &str = "app:menu";
 
-/// The File actions the frontend handles (ids match `state/project/` / `state/menu.ts`).
-const FILE_ACTIONS: [&str; 5] = ["new", "newWindow", "open", "save", "saveAs"];
-
-/// The Edit actions the frontend handles (ids match `state/menu.ts` → `state/history.ts`).
-const EDIT_ACTIONS: [&str; 2] = ["undo", "redo"];
-
-/// App-level actions the frontend handles (the in-app **About** dialog).
-const APP_ACTIONS: [&str; 1] = ["about"];
-
-/// Analysis-menu actions the frontend handles (M25).
-const ANALYSIS_ACTIONS: [&str; 1] = ["compare"];
+/// The actions the frontend handles (ids match `state/project/`, `state/menu.ts` and
+/// `state/history.ts`). The native menu and the emitted event share these ids.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+)]
+#[strum(serialize_all = "camelCase")]
+pub enum MenuAction {
+    New,
+    NewWindow,
+    Open,
+    Save,
+    SaveAs,
+    Undo,
+    Redo,
+    About,
+    Compare,
+}
 
 /// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
 const RECENT_PREFIX: &str = "recent:";
@@ -42,17 +58,41 @@ const RECENT_CLEAR: &str = "recent-clear";
 pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let recent = recent_submenu(app, &recent::existing(app))?;
 
-    let new = MenuItem::with_id(app, "new", "New Project", true, Some("CmdOrCtrl+N"))?;
+    let new = MenuItem::with_id(
+        app,
+        MenuAction::New.as_ref(),
+        "New Project",
+        true,
+        Some("CmdOrCtrl+N"),
+    )?;
     let new_window = MenuItem::with_id(
         app,
-        "newWindow",
+        MenuAction::NewWindow.as_ref(),
         "New Window",
         true,
         Some("CmdOrCtrl+Shift+N"),
     )?;
-    let open = MenuItem::with_id(app, "open", "Open Project…", true, Some("CmdOrCtrl+O"))?;
-    let save = MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?;
-    let save_as = MenuItem::with_id(app, "saveAs", "Save As…", true, Some("CmdOrCtrl+Shift+S"))?;
+    let open = MenuItem::with_id(
+        app,
+        MenuAction::Open.as_ref(),
+        "Open Project…",
+        true,
+        Some("CmdOrCtrl+O"),
+    )?;
+    let save = MenuItem::with_id(
+        app,
+        MenuAction::Save.as_ref(),
+        "Save",
+        true,
+        Some("CmdOrCtrl+S"),
+    )?;
+    let save_as = MenuItem::with_id(
+        app,
+        MenuAction::SaveAs.as_ref(),
+        "Save As…",
+        true,
+        Some("CmdOrCtrl+Shift+S"),
+    )?;
     let sep_after_open = PredefinedMenuItem::separator(app)?;
     let sep_after_save = PredefinedMenuItem::separator(app)?;
     #[cfg(target_os = "macos")]
@@ -78,8 +118,20 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     )?;
 
     // Edit → Undo / Redo emit to the frontend (the app-level history lives there).
-    let undo = MenuItem::with_id(app, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?;
-    let redo = MenuItem::with_id(app, "redo", "Redo", true, Some("Shift+CmdOrCtrl+Z"))?;
+    let undo = MenuItem::with_id(
+        app,
+        MenuAction::Undo.as_ref(),
+        "Undo",
+        true,
+        Some("CmdOrCtrl+Z"),
+    )?;
+    let redo = MenuItem::with_id(
+        app,
+        MenuAction::Redo.as_ref(),
+        "Redo",
+        true,
+        Some("Shift+CmdOrCtrl+Z"),
+    )?;
     let edit = Submenu::with_items(app, "Edit", true, &[&undo, &redo])?;
 
     let view = Submenu::with_items(
@@ -91,7 +143,13 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
 
     // Analysis → Compare with… acts on the focused analyzer tab (M25). The item is
     // emitted to the frontend, which owns the Workbench and the target picker.
-    let compare = MenuItem::with_id(app, "compare", "Compare with…", true, None::<&str>)?;
+    let compare = MenuItem::with_id(
+        app,
+        MenuAction::Compare.as_ref(),
+        "Compare with…",
+        true,
+        None::<&str>,
+    )?;
     let analysis = Submenu::with_items(app, "Analysis", true, &[&compare])?;
 
     let window = Submenu::with_items(
@@ -106,7 +164,13 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
 
     // About opens the in-app dialog (required attributions live there); it is a
     // custom item rather than the predefined panel, so it is routed to the frontend.
-    let about = MenuItem::with_id(app, "about", "About Hey Listen", true, None::<&str>)?;
+    let about = MenuItem::with_id(
+        app,
+        MenuAction::About.as_ref(),
+        "About Hey Listen",
+        true,
+        None::<&str>,
+    )?;
 
     // About lives in the macOS application menu; elsewhere it lives under Help.
     #[cfg(target_os = "macos")]
@@ -176,15 +240,11 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
         return;
     }
 
-    if FILE_ACTIONS.contains(&id)
-        || EDIT_ACTIONS.contains(&id)
-        || APP_ACTIONS.contains(&id)
-        || ANALYSIS_ACTIONS.contains(&id)
-    {
-        // Emit only to the focused window: with N project windows, a File/Edit action
-        // must apply to the project the user is looking at (M7), not broadcast.
+    if let Ok(action) = id.parse::<MenuAction>() {
+        // Emit only to the focused window: with N project windows, a menu action must
+        // apply to the project the user is looking at (M7), not broadcast.
         if let Some(label) = focused_label(app) {
-            let _ = app.emit_to(label, MENU_EVENT, id);
+            let _ = app.emit_to(label, MENU_EVENT, action.as_ref());
         }
     }
 }
@@ -225,4 +285,27 @@ fn recent_submenu<R: Runtime>(
     items.push(&separator);
     items.push(&clear);
     Submenu::with_items(app, "Open Recent", true, &items)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn action_ids_match_the_frontend() {
+        // The frontend routes these exact strings (`state/menu.ts`).
+        assert_eq!(MenuAction::New.as_ref(), "new");
+        assert_eq!(MenuAction::NewWindow.as_ref(), "newWindow");
+        assert_eq!(MenuAction::Open.as_ref(), "open");
+        assert_eq!(MenuAction::Save.as_ref(), "save");
+        assert_eq!(MenuAction::SaveAs.as_ref(), "saveAs");
+        assert_eq!(MenuAction::Undo.as_ref(), "undo");
+        assert_eq!(MenuAction::Redo.as_ref(), "redo");
+        assert_eq!(MenuAction::About.as_ref(), "about");
+        assert_eq!(MenuAction::Compare.as_ref(), "compare");
+        for action in MenuAction::iter() {
+            assert_eq!(action.as_ref().parse::<MenuAction>(), Ok(action));
+        }
+    }
 }

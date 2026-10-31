@@ -100,7 +100,15 @@ fn silence() -> GraphSpec {
 }
 
 fn run_mod(mono: &[f32], options: &ToolOptions) -> ModulationResult {
-    match run("modulation", mono, MOD_RATE, &params(2048), options).expect("modulation") {
+    match run(
+        AnalyzerId::Modulation,
+        mono,
+        MOD_RATE,
+        &params(2048),
+        options,
+    )
+    .expect("modulation")
+    {
         AnalysisResult::Modulation(result) => result,
         other => panic!("unexpected result: {other:?}"),
     }

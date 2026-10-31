@@ -20,6 +20,11 @@ Replacing an existing source is **confirmed first**, and unsaved work is tracked
 | **Input: Mix** | flexaudio `SourceKind::Mix` (mic + system) | grows while recording |
 | **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source; **Live** re-renders it in place (M22, planned) |
 
+The project descriptor stores the kind as the `SourceKind` enum (`file` / `mic` /
+`system` / `process` / `mix` / `synth`), and the live picker uses `CaptureKind`
+(`mic` / `system` / `process` / `mix`); both serialize as those same strings
+(ADR-28).
+
 ## Recordable inputs
 
 For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:

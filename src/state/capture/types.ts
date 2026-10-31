@@ -1,10 +1,12 @@
+import type { CaptureKind as GeneratedCaptureKind } from "../../bindings/CaptureKind";
 import type { DeviceDto } from "../../bindings/DeviceDto";
 import type { ProcessDto } from "../../bindings/ProcessDto";
+import type { SourceKind } from "../../bindings/SourceKind";
 
-/** Live source kinds. */
-export type CaptureKind = "mic" | "system" | "process" | "mix";
-/** Everything the source picker can choose (synth renders from its graph tab). */
-export type SourceChoice = "file" | "synth" | CaptureKind;
+/** Live source kinds, generated from the Rust `CaptureKind` (M15.B / ADR-28). */
+export type CaptureKind = GeneratedCaptureKind;
+/** Everything the source picker can choose, generated from the Rust `SourceKind`. */
+export type SourceChoice = SourceKind;
 
 export const KIND_LABEL: Record<CaptureKind, string> = {
   mic: "Microphone",

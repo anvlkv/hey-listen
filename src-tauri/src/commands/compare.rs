@@ -13,6 +13,7 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder}
 
 use crate::audio::analysis::compare::{self, CompareSetup, SourceShape, Span};
 use crate::audio::analysis::{canonical_option_key, Axis, Shape, SharedParams, ToolOptions};
+use crate::audio::analyzers::AnalyzerId;
 use crate::commands::window::{next_label, raise};
 use crate::state::{window_state, CompareView, WindowRegistry, WindowState};
 
@@ -21,7 +22,7 @@ use crate::state::{window_state, CompareView, WindowRegistry, WindowState};
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompareRequest {
-    pub tool: String,
+    pub tool: AnalyzerId,
     /// The reference project's window label.
     pub reference: String,
     pub a: CompareSetup,
@@ -57,7 +58,7 @@ pub async fn run_comparison(
 
     tauri::async_runtime::spawn_blocking(move || {
         let comparison = compare::compare(
-            &request.tool,
+            request.tool,
             compare::SideInput {
                 project: a_project,
                 state: &a_state,
@@ -100,7 +101,7 @@ pub struct PeerSetup {
 pub fn compare_peer_setup(
     window: WebviewWindow,
     reference: String,
-    tool: String,
+    tool: AnalyzerId,
 ) -> Result<PeerSetup, String> {
     let state = peer_state(window.app_handle(), &reference)?;
     let ui = state.ui_snapshot();
@@ -111,14 +112,14 @@ pub fn compare_peer_setup(
         .unwrap_or_default();
     let options = ui
         .get("toolOptions")
-        .and_then(|value| value.get(&tool).cloned())
+        .and_then(|value| value.get(tool.as_ref()).cloned())
         .map(|value| options_from_value(&value))
         .unwrap_or_default();
     Ok(PeerSetup {
         project: project_name(&state),
         source: compare::source_shape(&state).ok(),
         window,
-        options: crate::audio::analyzers::effective_options(&tool, Some(&options)),
+        options: crate::audio::analyzers::effective_options(tool, Some(&options)),
         has_filter: has_filter(&state),
         params,
     })

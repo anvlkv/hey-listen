@@ -9,31 +9,28 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::audio::analysis;
-use crate::audio::analyzers;
+use crate::audio::analyzers::{self, AnalyzerId};
 use crate::export::{self, ExportContext, ExportFormat, ExportSource, RenderedExport};
 use crate::project::AnalysisWindow;
 
-use super::args::clamp_span;
+use super::args::{analyzer, clamp_span};
 use super::HeadlessSession;
 
 impl HeadlessSession {
     /// Render one tool's current window as an export (no file is written).
     fn render_export(
         &mut self,
-        tool: &str,
+        tool: AnalyzerId,
         format: ExportFormat,
         start: f64,
         end: f64,
     ) -> Result<RenderedExport, String> {
-        if !analyzers::is_analyzer(tool) {
-            return Err(format!("unknown analyzer: {tool}"));
-        }
         let (start, end) = clamp_span(start, end, self.duration());
-        let options = self.options.get(tool).cloned().unwrap_or_default();
+        let options = self.options.get(&tool).cloned().unwrap_or_default();
         let result = analysis::run_window(&self.state, tool, start, end, &self.params, &options)
             .map_err(|err| err.to_string())?;
         let context = ExportContext {
-            tool: tool.to_string(),
+            tool,
             source: self.export_source()?,
             window: AnalysisWindow {
                 start_secs: start,
@@ -66,13 +63,7 @@ impl HeadlessSession {
         let rate = source.sample_rate.max(1);
         Ok(ExportSource {
             name: self.name.clone(),
-            kind: if self.synth.is_some() {
-                "synth".to_string()
-            } else if self.source_path.is_some() {
-                "file".to_string()
-            } else {
-                "unknown".to_string()
-            },
+            kind: self.source_kind,
             sample_rate: rate,
             channels,
             duration: frames as f64 / f64::from(rate),
@@ -85,11 +76,7 @@ impl HeadlessSession {
     /// Returns the rendered `text` whether or not a `path` was given, so an agent can
     /// read the data without touching the filesystem.
     pub(super) fn export_analysis(&mut self, args: &Value) -> Result<Value, String> {
-        let tool = args
-            .get("tool")
-            .and_then(Value::as_str)
-            .ok_or("`tool` is required")?
-            .to_string();
+        let tool = analyzer(args, "tool")?;
         let format = parse_format(args)?;
         let start = args
             .get("start")
@@ -109,7 +96,7 @@ impl HeadlessSession {
             text,
             sidecar,
             ..
-        } = self.render_export(&tool, format, start, end)?;
+        } = self.render_export(tool, format, start, end)?;
         let mut out = json!({
             "tool": tool,
             "format": format.as_str(),
@@ -141,7 +128,13 @@ impl HeadlessSession {
         let tools = args
             .get("tools")
             .and_then(Value::as_array)
-            .ok_or("`tools` is required in headless mode (there are no open tabs)")?;
+            .ok_or("`tools` is required in headless mode (there are no open tabs)")?
+            .iter()
+            .map(|item| {
+                let id = item.as_str().ok_or("`tools` must be analyzer ids")?;
+                id.parse().map_err(|_| format!("unknown analyzer: {id}"))
+            })
+            .collect::<Result<Vec<AnalyzerId>, String>>()?;
         let dir = args
             .get("dir")
             .and_then(Value::as_str)
@@ -150,7 +143,7 @@ impl HeadlessSession {
         std::fs::create_dir_all(dir).map_err(|err| format!("cannot create {dir}: {err}"))?;
 
         let mut files = Vec::new();
-        for tool in tools.iter().filter_map(Value::as_str) {
+        for &tool in &tools {
             for &format in &formats {
                 let rendered = self.render_export(tool, format, self.window.0, self.window.1)?;
                 let path = Path::new(dir).join(&rendered.file_name);

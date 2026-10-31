@@ -14,11 +14,11 @@ fn write_project_file(name: &str) -> String {
         updated_ms: 2,
         time_secs: 2.5,
         range: None,
-        tool: Some("spectrum".into()),
+        tool: Some(crate::audio::analyzers::AnalyzerId::Spectrum),
         title: Some("Third harmonic".into()),
         body: "Peak at **880 Hz**\nsecond line".into(),
         values: Some(NoteValues {
-            tool: "spectrum".into(),
+            tool: crate::audio::analyzers::AnalyzerId::Spectrum,
             label: "Spectrum @ 2.5 s".into(),
             text: "peak 880.0 Hz".into(),
             window: AnalysisWindow {

@@ -60,12 +60,12 @@ fn run_frame_rms_applies_its_option_patch() {
     // `-o frameRms.frameMs=20 -o frameRms.hopMs=10` at 8 kHz → 160 / 80 samples.
     request.options = vec![
         OptionPatch {
-            tool: "frameRms".into(),
+            tool: crate::audio::analyzers::AnalyzerId::FrameRms,
             key: "frameMs".into(),
             value: json!(20),
         },
         OptionPatch {
-            tool: "frameRms".into(),
+            tool: crate::audio::analyzers::AnalyzerId::FrameRms,
             key: "hopMs".into(),
             value: json!(10),
         },
@@ -206,26 +206,6 @@ fn run_prints_one_line_per_file() {
     assert_eq!(lines(&out).len(), 2);
     let _ = std::fs::remove_file(&a);
     let _ = std::fs::remove_file(&b);
-}
-
-#[test]
-fn run_reports_an_unknown_tool_as_an_error_line() {
-    let path = std::env::temp_dir().join("hey_listen_cli_unknown.wav");
-    write_sine_wav(&path, 8_000, 4_000);
-    let request = analyze_request(
-        vec![path.to_string_lossy().into_owned()],
-        vec!["nope".into()],
-    );
-
-    let mut out = Vec::new();
-    assert_eq!(run(&request, &mut out), 1);
-    let values = lines(&out);
-    assert_eq!(values[0]["tool"], "nope");
-    assert!(values[0]["error"]
-        .as_str()
-        .unwrap()
-        .contains("unknown analyzer"));
-    let _ = std::fs::remove_file(&path);
 }
 
 #[test]

@@ -36,7 +36,7 @@ fn mean_series(result: &SeriesResult) -> f32 {
 fn pitch_yin_finds_a_low_f0_inside_an_explicit_range() {
     let mono = sine(75.0, 1.0);
     let result = match run(
-        "pitchYin",
+        AnalyzerId::PitchYin,
         &mono,
         RATE,
         &params(2048),
@@ -58,7 +58,7 @@ fn pitch_yin_finds_a_low_f0_inside_an_explicit_range() {
 fn yin_can_search_above_two_khz_when_the_range_allows_it() {
     let mono = sine(3_000.0, 1.0);
     let result = match run(
-        "pitchYin",
+        AnalyzerId::PitchYin,
         &mono,
         RATE,
         &params(2048),
@@ -77,7 +77,7 @@ fn yin_can_search_above_two_khz_when_the_range_allows_it() {
 fn harmonic_ratio_defaults_reach_three_khz() {
     let mono = sine(3_000.0, 0.5);
     let result = match run(
-        "harmonicRatio",
+        AnalyzerId::HarmonicRatio,
         &mono,
         RATE,
         &params(2048),
@@ -96,7 +96,7 @@ fn harmonic_ratio_defaults_reach_three_khz() {
 fn pyin_reports_its_fixed_effective_range() {
     let mono = sine(440.0, 0.5);
     let result = match run(
-        "pitchPyin",
+        AnalyzerId::PitchPyin,
         &mono,
         RATE,
         &params(2048),
@@ -136,7 +136,15 @@ fn the_spectral_band_does_not_change_the_pitch_search() {
     let mut p = params(2048);
     p.freq_min_hz = 1_000.0;
     p.freq_max_hz = 1_500.0;
-    let result = match run("pitchYin", &mono, RATE, &p, &ToolOptions::default()).expect("pitch") {
+    let result = match run(
+        AnalyzerId::PitchYin,
+        &mono,
+        RATE,
+        &p,
+        &ToolOptions::default(),
+    )
+    .expect("pitch")
+    {
         AnalysisResult::PitchYin(r) => r,
         other => panic!("unexpected result: {other:?}"),
     };

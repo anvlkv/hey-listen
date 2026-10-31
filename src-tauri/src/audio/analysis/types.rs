@@ -2,7 +2,6 @@
 //! the per-tool options, and the engine error. See `docs/data-model.md` and
 //! `docs/analysis-tools.md`.
 
-use oxiaudio::dsp::spectral::WindowFn;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -15,32 +14,11 @@ use super::{
     YIN_MIN_F0,
 };
 
+mod window;
 mod wire;
 
+pub use window::WindowKind;
 pub use wire::canonical_option_key;
-
-/// A window function for frame-based tools (`docs/analysis-tools.md`).
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, ts_rs::TS)]
-#[serde(rename_all = "lowercase")]
-#[ts(export)]
-pub enum WindowKind {
-    #[default]
-    Hann,
-    Hamming,
-    Blackman,
-    Rectangular,
-}
-
-impl WindowKind {
-    pub(super) fn to_window_fn(self) -> WindowFn {
-        match self {
-            WindowKind::Hann => WindowFn::Hann,
-            WindowKind::Hamming => WindowFn::Hamming,
-            WindowKind::Blackman => WindowFn::Blackman,
-            WindowKind::Rectangular => WindowFn::Rectangular,
-        }
-    }
-}
 
 /// Shared analysis params, synced across tools in the frontend (ADR-6) and sent
 /// with every `run_analysis` call. See `docs/data-model.md` → `SharedParams`.
@@ -107,8 +85,7 @@ pub enum AnalysisError {
     NoSource,
     #[error("the analysis window is empty")]
     EmptyWindow,
-    #[error("unknown analysis tool: {0}")]
-    UnknownTool(String),
+
     #[error("analysis failed: {0}")]
     Analysis(String),
     #[error("filter graph failed to apply: {0}")]

@@ -4,7 +4,7 @@
 
 use super::*;
 
-fn run_series(tool: &str, mono: &[f32], options: &ToolOptions) -> SeriesResult {
+fn run_series(tool: AnalyzerId, mono: &[f32], options: &ToolOptions) -> SeriesResult {
     let result = run(tool, mono, RATE, &params(2048), options).expect("a series tool");
     result.series().expect("a scalar-per-frame result").clone()
 }
@@ -12,7 +12,7 @@ fn run_series(tool: &str, mono: &[f32], options: &ToolOptions) -> SeriesResult {
 #[test]
 fn an_ungated_series_has_no_gate_metadata() {
     let mono = sine(1_000.0, 0.5);
-    let result = run_series("frameRms", &mono, &ToolOptions::default());
+    let result = run_series(AnalyzerId::FrameRms, &mono, &ToolOptions::default());
     assert!(result.gate.is_none());
     assert!(result.values.iter().all(Option::is_some));
 }
@@ -26,7 +26,7 @@ fn the_window_gate_excludes_quiet_frames() {
         gate_db: Some(20.0),
         ..ToolOptions::default()
     };
-    let gated = run_series("frameRms", &mono, &options);
+    let gated = run_series(AnalyzerId::FrameRms, &mono, &options);
 
     let gate = gated.gate.expect("the effective gate");
     assert_eq!(gate.gate_db, 20.0);
@@ -61,7 +61,7 @@ fn the_gate_applies_to_spectral_series() {
         gate_db: Some(30.0),
         ..ToolOptions::default()
     };
-    let gated = run_series("spectralCentroid", &mono, &options);
+    let gated = run_series(AnalyzerId::SpectralCentroid, &mono, &options);
 
     let gate = gated.gate.expect("the effective gate");
     assert!(gate.gated_frames > 0, "gate = {gate:?}");
@@ -87,7 +87,7 @@ fn the_gate_floor_is_absolute() {
         gate_floor_db: Some(-30.0),
         ..ToolOptions::default()
     };
-    let gated = run_series("frameRms", &mono, &options);
+    let gated = run_series(AnalyzerId::FrameRms, &mono, &options);
 
     let gate = gated.gate.expect("the effective gate");
     assert_eq!(gate.threshold_db, -30.0);

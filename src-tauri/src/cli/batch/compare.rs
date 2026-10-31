@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 
 use crate::audio::analysis::compare::{self as comparison, CompareSetup, SideInput, Span};
 use crate::audio::analysis::{canonical_option_key, Axis, Shape, ToolOptions};
+use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
 use crate::project::{read_project, AnalysisSetup};
 use crate::state::WindowState;
@@ -24,18 +25,18 @@ struct Side {
     file: String,
     state: WindowState,
     setup: AnalysisSetup,
-    options: BTreeMap<String, BTreeMap<String, f64>>,
+    options: BTreeMap<AnalyzerId, BTreeMap<String, f64>>,
     window: (f64, f64),
 }
 
 impl Side {
     /// This side's setup for one tool.
-    fn setup_for(&self, tool: &str) -> CompareSetup {
+    fn setup_for(&self, tool: AnalyzerId) -> CompareSetup {
         CompareSetup {
             start: self.window.0,
             end: self.window.1,
             params: self.setup.shared.clone(),
-            options: tool_options(self.options.get(tool)),
+            options: tool_options(self.options.get(&tool)),
         }
     }
 }
@@ -75,7 +76,7 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
     let tools = super::analyze::tools_for(request);
     let shape = shape_of(request);
     let mut failed = false;
-    for tool in &tools {
+    for &tool in &tools {
         let result = comparison::compare(
             tool,
             SideInput {
@@ -261,7 +262,7 @@ fn apply_options(side: &mut Side, request: &Request) {
             continue;
         };
         side.options
-            .entry(patch.tool.clone())
+            .entry(patch.tool)
             .or_default()
             .insert(patch.key.clone(), value);
     }

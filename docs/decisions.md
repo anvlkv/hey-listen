@@ -821,10 +821,11 @@ and discipline.
   `WindowKind`, and the menu/theme/CLI action ids), each derived with
   `strum::{EnumString, Display, AsRefStr, IntoStaticStr, EnumIter, VariantNames}` +
   `serde::{Serialize, Deserialize}` + `ts_rs::TS`.
-- `#[serde(rename_all = "camelCase")]` and `#[strum(serialize_all = "camelCase")]` keep
-the string identical on the wire and in code, so the IPC JSON, the `postcard` project file
-and the regenerated `src/bindings/` stay **byte-for-byte unchanged** — this is type safety,
-not a format bump.
+- `#[serde(rename_all = …)]` and `#[strum(serialize_all = …)]` use the same spelling
+(camelCase for the analyzer/menu ids; lowercase for `WindowKind`, the theme modes and
+the CLI subcommands), so the string is identical on the wire and in code: the IPC JSON,
+the `postcard` project file and the regenerated `src/bindings/` stay **byte-for-byte
+unchanged** — this is type safety, not a format bump.
 - `AnalyzerId` is the single source of truth for the 29 tool ids. `AnalysisResult` stays a
 typed union (its variants map 1:1 to `AnalyzerId`), and `tool_id()` returns `AnalyzerId`. An
 `EnumIter`-driven test pins the `AnalysisResult` ↔ `AnalyzerId` ↔ catalog `id` agreement,
@@ -841,4 +842,4 @@ list. The cost is one new dependency (`strum`, MIT), a `src/bindings/` regenerat
 the matching frontend imports after each phase, and care that `serde` and `strum` agree on
 the `camelCase` spelling. See ADR-2 and [`code-hygiene.md`](code-hygiene.md).
 
-**Status: proposed (M15.B).**
+**Status: accepted (M15.B, delivered with `strum` 0.28).**

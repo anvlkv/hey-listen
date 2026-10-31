@@ -59,7 +59,7 @@ pub(super) fn run_notes(path: &str, json: bool, full: bool, out: &mut impl Write
             let _ = writeln!(
                 out,
                 "{time}\t{}\t{label}\t{values}",
-                note.tool.as_deref().unwrap_or("-"),
+                note.tool.map(Into::<&'static str>::into).unwrap_or("-"),
             );
         }
     }

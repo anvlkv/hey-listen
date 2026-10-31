@@ -22,6 +22,7 @@
 | `postcard` | 1 | binary codec for the project file | MIT / Apache-2.0 |
 | `thiserror` | 2 | error types | MIT / Apache-2.0 |
 | `ts-rs` | 12 | generate the TypeScript bindings for the IPC boundary types (via `cargo test`) | MIT |
+| `strum` | 0.28 (`derive`) | id enums: `FromStr` / `Display` / `AsRefStr` / `IntoStaticStr` / `EnumIter` / `VariantNames` for the string identifiers (ADR-28) | MIT |
 
 ## Frontend (`package.json`)
 

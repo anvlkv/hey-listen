@@ -5,36 +5,36 @@ use serde_json::Value;
 use tauri_plugin_cli::Matches;
 
 use crate::audio::analysis::canonical_option_key;
-use crate::audio::analyzers;
+use crate::audio::analyzers::{self, AnalyzerId};
 
 use super::export_args;
 use super::inputs::{parse_params, read_filter_graph, read_synth_graph, read_windows, split_kv};
-use super::types::{Command, OptionPatch, Request};
-
-/// The batch subcommands, matching the `plugins.cli` definitions in `tauri.conf.json`.
-const SUBCOMMANDS: [&str; 5] = ["analyzers", "analyze", "synth", "notes", "compare"];
+use super::types::{BatchCommand, Command, OptionPatch, Request};
 
 /// Whether `name` is a batch subcommand (used to tell a real usage error from a
 /// `.heyl` file path that the plugin's parser rejected).
 pub fn is_subcommand(name: &str) -> bool {
-    SUBCOMMANDS.contains(&name)
+    name.parse::<BatchCommand>().is_ok()
 }
 
 /// Map a matched batch subcommand onto a [`Request`], or a usage-error message.
 pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
+    let command = name
+        .parse::<BatchCommand>()
+        .map_err(|_| format!("unknown subcommand: {name}"))?;
     let mut request = common(matches)?;
-    match name {
-        "analyzers" => {
+    match command {
+        BatchCommand::Analyzers => {
             request.command = Command::Analyzers {
                 id: string(matches, "id"),
                 json: flag(matches, "json"),
             };
         }
-        "analyze" => {
+        BatchCommand::Analyze => {
             request.files = strings(matches, "file");
             request.command = Command::Analyze;
         }
-        "synth" => {
+        BatchCommand::Synth => {
             let path = string(matches, "graph")
                 .ok_or("synth needs a graph file: `hey-listen synth <GRAPH.json>`")?;
             let graph = read_synth_graph(&path)?;
@@ -50,7 +50,7 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 path,
             };
         }
-        "notes" => {
+        BatchCommand::Notes => {
             let path = string(matches, "file")
                 .ok_or("notes needs a project file: `hey-listen notes <FILE.heyl>`")?;
             request.command = Command::Notes {
@@ -59,7 +59,7 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 full: flag(matches, "full"),
             };
         }
-        "compare" => {
+        BatchCommand::Compare => {
             let a = string(matches, "a").ok_or(
                 "compare needs two project files: `hey-listen compare A.heyl B.heyl -t TOOL`",
             )?;
@@ -68,7 +68,6 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
             )?;
             request.command = Command::Compare { a, b };
         }
-        other => return Err(format!("unknown subcommand: {other}")),
     }
     validate(&request)?;
     Ok(request)
@@ -76,11 +75,11 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
 
 /// Parse the options shared by `analyze` and `synth` (everything but the command).
 fn common(matches: &Matches) -> Result<Request, String> {
-    let tools = strings(matches, "tool");
+    let tools = request_tools(matches)?;
     let request = Request {
         command: Command::Analyze,
         files: Vec::new(),
-        tools,
+        tools: tools.clone(),
         all: flag(matches, "all"),
         start: optional_number(matches, "start")?,
         end: optional_number(matches, "end")?,
@@ -95,7 +94,7 @@ fn common(matches: &Matches) -> Result<Request, String> {
             None => Vec::new(),
         },
         params: parse_params(&strings(matches, "param"))?,
-        options: parse_option_patches(&strings(matches, "option"), &strings(matches, "tool"))?,
+        options: parse_option_patches(&strings(matches, "option"), &tools)?,
         filter: match string(matches, "filter") {
             Some(path) => Some(read_filter_graph(&path)?),
             None => None,
@@ -240,22 +239,36 @@ fn optional_number(matches: &Matches, name: &str) -> Result<Option<f64>, String>
 /// Parse `-o` patches. A token is `[TOOL.]KEY=VALUE`; a bare `KEY=VALUE` is scoped to
 /// the sole `--tool` (there is no other way to tell which tool it belongs to, since the
 /// plugin's matches do not preserve the order of flags on the command line).
-fn parse_option_patches(tokens: &[String], tools: &[String]) -> Result<Vec<OptionPatch>, String> {
+fn request_tools(matches: &Matches) -> Result<Vec<AnalyzerId>, String> {
+    strings(matches, "tool")
+        .iter()
+        .map(|tool| {
+            tool.parse()
+                .map_err(|_| format!("unknown analyzer: {tool}"))
+        })
+        .collect()
+}
+
+fn parse_option_patches(
+    tokens: &[String],
+    tools: &[AnalyzerId],
+) -> Result<Vec<OptionPatch>, String> {
     let mut patches = Vec::new();
     for token in tokens {
         let (lhs, value) = split_kv(token)?;
         let (tool, key) = match lhs.split_once('.') {
-            Some((tool, key)) => (tool.to_string(), key.to_string()),
-            None if tools.len() == 1 => (tools[0].clone(), lhs),
+            Some((tool, key)) => (
+                tool.parse::<AnalyzerId>()
+                    .map_err(|_| format!("unknown analyzer in `-o`: {tool}"))?,
+                key.to_string(),
+            ),
+            None if tools.len() == 1 => (tools[0], lhs),
             None => {
                 return Err(format!(
                     "`-o {token}` must name its tool when several are run: use `-o <TOOL>.<KEY>=<VALUE>`"
                 ))
             }
         };
-        if !analyzers::is_analyzer(&tool) {
-            return Err(format!("unknown analyzer in `-o`: {tool}"));
-        }
         // Canonicalize camelCase / snake_case (`min_f0_hz` → `minF0Hz`) so the same
         // keys MCP's `set_tool_options` takes work here too.
         let key = canonical_option_key(&key)

@@ -15,36 +15,60 @@
 
 mod catalog;
 mod family;
+mod id;
 mod options;
 
 #[allow(unused_imports)]
 pub use family::{about, family_of, Family};
+pub use id::{AnalyzerId, ToolId};
 
 use serde_json::{json, Map, Value};
 
 use crate::audio::analysis::ToolOptions;
 
+/// The Sidebar grouping of an analyzer (mirrors `AnalyzerSection` in the frontend).
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+    ts_rs::TS,
+)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
+#[ts(export, rename_all = "camelCase")]
+pub enum Section {
+    Time,
+    Spectral,
+    Pitch,
+    Rhythm,
+    Loudness,
+}
+
 /// One analyzer's agent-facing metadata (mirrors `AnalyzerDef` in the frontend,
 /// minus the view/params detail the webview needs).
 pub struct AnalyzerInfo {
-    pub id: &'static str,
+    pub id: AnalyzerId,
     pub title: &'static str,
     pub description: &'static str,
-    pub section: &'static str,
+    pub section: Section,
     pub keywords: &'static [&'static str],
 }
 
 /// Every analyzer, grouped by section, in the order the Sidebar shows them.
 pub const ANALYZERS: &[AnalyzerInfo] = catalog::ANALYZERS;
 
-/// Whether `id` names an analyzer (so a headless `run_analysis` can fail fast with a
-/// helpful message instead of the engine's generic unknown-tool error).
-pub fn is_analyzer(id: &str) -> bool {
-    ANALYZERS.iter().any(|analyzer| analyzer.id == id)
-}
-
-/// An analyzer's human title (`"Spectrum"`), or `None` for an unknown id.
-pub fn title(id: &str) -> Option<&'static str> {
+/// An analyzer's human title (`"Spectrum"`).
+pub fn title(id: AnalyzerId) -> Option<&'static str> {
     ANALYZERS
         .iter()
         .find(|analyzer| analyzer.id == id)
@@ -52,7 +76,7 @@ pub fn title(id: &str) -> Option<&'static str> {
 }
 
 /// A tool's compact option map: canonical camelCase keys to their defaults.
-pub fn option_defaults(id: &str) -> Map<String, Value> {
+pub fn option_defaults(id: AnalyzerId) -> Map<String, Value> {
     options::options_for(id)
         .iter()
         .map(|option| (option.key.to_string(), json!(option.default)))
@@ -63,7 +87,7 @@ pub fn option_defaults(id: &str) -> Map<String, Value> {
 /// fields set on `overrides`. Shared by `get_state`, `run_analysis`, and exports so
 /// every surface reports the same values — and so none leaks the all-`Option`
 /// [`ToolOptions`] struct, which would print every other tool's keys as `null`.
-pub fn effective_options(id: &str, overrides: Option<&ToolOptions>) -> Map<String, Value> {
+pub fn effective_options(id: AnalyzerId, overrides: Option<&ToolOptions>) -> Map<String, Value> {
     let mut options = option_defaults(id);
     if let Some(overrides) = overrides {
         if let Ok(Value::Object(values)) = serde_json::to_value(overrides) {
@@ -79,7 +103,7 @@ pub fn effective_options(id: &str, overrides: Option<&ToolOptions>) -> Map<Strin
 
 /// One analyzer's full detail, the shape `get_analyzer` returns. The `about` copy is
 /// the short description here — the GUI overlays the frontend registry's longer copy.
-pub fn detail(id: &str) -> Option<Value> {
+pub fn detail(id: AnalyzerId) -> Option<Value> {
     let analyzer = ANALYZERS.iter().find(|analyzer| analyzer.id == id)?;
     let options: Vec<Value> = options::options_for(id)
         .iter()
@@ -91,7 +115,7 @@ pub fn detail(id: &str) -> Option<Value> {
         "description": analyzer.description,
         "about": about(analyzer.id).unwrap_or(analyzer.description),
         "section": analyzer.section,
-        "family": family_of(analyzer.id).as_str(),
+        "family": family_of(analyzer.id),
         "decimatable": family_of(analyzer.id).decimatable(),
         "keywords": analyzer.keywords,
         "options": options,
@@ -111,7 +135,7 @@ pub fn list() -> Vec<Value> {
                 "title": analyzer.title,
                 "description": analyzer.description,
                 "section": analyzer.section,
-                "family": family_of(analyzer.id).as_str(),
+                "family": family_of(analyzer.id),
                 "keywords": analyzer.keywords,
                 "options": option_defaults(analyzer.id),
             })
@@ -123,43 +147,18 @@ pub fn list() -> Vec<Value> {
 mod tests {
     use super::*;
     use crate::audio::analysis::canonical_option_key;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn catalog_covers_every_engine_tool() {
-        // The engine's `run` knows these ids; the catalog must offer them all.
-        for id in [
-            "waveform",
-            "levels",
-            "frameRms",
-            "spectrum",
-            "spectrogram",
-            "melSpectrogram",
-            "mfcc",
-            "chromagram",
-            "spectralCentroid",
-            "spectralFlux",
-            "spectralRolloff",
-            "spectralFlatness",
-            "spectralContrast",
-            "spectralBandwidth",
-            "spectralEntropy",
-            "spectralCrest",
-            "harmonicRatio",
-            "zeroCrossingRate",
-            "modulation",
-            "pitchPyin",
-            "pitchYin",
-            "pitchAutocorr",
-            "noteMetrics",
-            "tempo",
-            "onsets",
-            "downbeats",
-            "loudnessIntegrated",
-            "loudnessMomentary",
-            "loudnessRange",
-        ] {
-            assert!(is_analyzer(id), "catalog is missing {id}");
+        // `AnalyzerId` is the source of truth; the catalog must offer every variant.
+        for id in AnalyzerId::iter() {
+            assert!(
+                ANALYZERS.iter().any(|analyzer| analyzer.id == id),
+                "catalog is missing {id}"
+            );
         }
+        assert_eq!(ANALYZERS.len(), AnalyzerId::iter().count());
     }
 
     #[test]
@@ -178,8 +177,11 @@ mod tests {
     #[test]
     fn option_metadata_names_known_canonical_keys() {
         for (id, options) in options::tables() {
-            assert!(is_analyzer(id), "option metadata for unknown analyzer {id}");
-            for option in *options {
+            assert!(
+                ANALYZERS.iter().any(|analyzer| analyzer.id == id),
+                "option metadata for unknown analyzer {id}"
+            );
+            for option in options {
                 assert_eq!(
                     canonical_option_key(option.key),
                     Some(option.key),

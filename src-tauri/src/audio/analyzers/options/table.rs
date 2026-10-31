@@ -2,12 +2,13 @@
 //! helpers in [`super`] so each file stays inside the source-size budget.
 
 use super::OptionInfo;
+use crate::audio::analyzers::AnalyzerId;
 
 /// Per-analyzer engine-option metadata, keyed by analyzer id. Analyzers without
 /// their own options are absent (the `list_analyzers` option map is then empty).
-pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
+pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
     (
-        "frameRms",
+        AnalyzerId::FrameRms,
         &[
             OptionInfo {
                 key: "frameMs",
@@ -44,7 +45,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "noteMetrics",
+        AnalyzerId::NoteMetrics,
         &[
             OptionInfo {
                 key: "frameMs",
@@ -153,7 +154,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "modulation",
+        AnalyzerId::Modulation,
         &[
             OptionInfo {
                 key: "frameMs",
@@ -246,7 +247,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "pitchYin",
+        AnalyzerId::PitchYin,
         &[
             OptionInfo {
                 key: "yinThreshold",
@@ -275,7 +276,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "pitchAutocorr",
+        AnalyzerId::PitchAutocorr,
         &[
             OptionInfo {
                 key: "minF0Hz",
@@ -296,7 +297,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "downbeats",
+        AnalyzerId::Downbeats,
         &[OptionInfo {
             key: "barLength",
             label: "Beats per bar",
@@ -307,7 +308,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         }],
     ),
     (
-        "loudnessMomentary",
+        AnalyzerId::LoudnessMomentary,
         &[OptionInfo {
             key: "windowMs",
             label: "Window",

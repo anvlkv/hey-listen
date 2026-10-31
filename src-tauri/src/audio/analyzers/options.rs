@@ -4,6 +4,8 @@
 //! full detail M21's `get_analyzer` returns, kept here so the catalog stays the one
 //! source of truth. Split out of [`super`] to keep each file small.
 
+use super::AnalyzerId;
+
 /// One per-tool **engine** option's metadata.
 pub struct OptionInfo {
     /// Canonical camelCase key (matching `ToolOptions`).
@@ -22,15 +24,18 @@ pub(crate) use spectral::OPTIONS as SPECTRAL_OPTIONS;
 pub(crate) use table::OPTIONS as BASE_OPTIONS;
 
 /// Every table, so validation and tests can iterate all declared options.
-pub(crate) fn tables() -> impl Iterator<Item = &'static (&'static str, &'static [OptionInfo])> {
-    BASE_OPTIONS.iter().chain(SPECTRAL_OPTIONS.iter())
+pub(crate) fn tables() -> impl Iterator<Item = (AnalyzerId, &'static [OptionInfo])> {
+    BASE_OPTIONS
+        .iter()
+        .chain(SPECTRAL_OPTIONS.iter())
+        .map(|(id, options)| (*id, *options))
 }
 
 /// The engine options declared for `id` (empty for a tool without options).
-pub(super) fn options_for(id: &str) -> &'static [OptionInfo] {
+pub(super) fn options_for(id: AnalyzerId) -> &'static [OptionInfo] {
     tables()
         .find(|(tool, _)| *tool == id)
-        .map(|(_, options)| *options)
+        .map(|(_, options)| options)
         .unwrap_or(&[])
 }
 

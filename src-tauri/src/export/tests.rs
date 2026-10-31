@@ -28,10 +28,10 @@ fn series() -> SeriesResult {
 
 fn context() -> ExportContext {
     ExportContext {
-        tool: "spectrum".to_string(),
+        tool: crate::audio::analyzers::AnalyzerId::Spectrum,
         source: ExportSource {
             name: "mix.wav".to_string(),
-            kind: "file".to_string(),
+            kind: crate::project::SourceKind::File,
             sample_rate: 48_000,
             channels: 2,
             duration: 12.5,
@@ -274,15 +274,27 @@ fn json_exports_the_envelope_and_no_sidecar() {
 #[test]
 fn file_names_are_stripped_and_sanitized() {
     assert_eq!(
-        envelope::file_name("dawn call.wav", "noteMetrics", ExportFormat::Csv),
+        envelope::file_name(
+            "dawn call.wav",
+            crate::audio::analyzers::AnalyzerId::NoteMetrics,
+            ExportFormat::Csv
+        ),
         "dawn_call.noteMetrics.csv"
     );
     assert_eq!(
-        envelope::file_name("dir/mix.wav", "levels", ExportFormat::Json),
+        envelope::file_name(
+            "dir/mix.wav",
+            crate::audio::analyzers::AnalyzerId::Levels,
+            ExportFormat::Json
+        ),
         "mix.levels.json"
     );
     assert_eq!(
-        envelope::file_name("", "levels", ExportFormat::Json),
+        envelope::file_name(
+            "",
+            crate::audio::analyzers::AnalyzerId::Levels,
+            ExportFormat::Json
+        ),
         "export.levels.json"
     );
 }

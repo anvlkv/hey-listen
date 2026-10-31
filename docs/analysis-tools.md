@@ -5,7 +5,9 @@ as a tab in the Workbench.
 
 ## Tool model
 
-- Stable `tool id` (string). **No duplicate tabs** per tool.
+- Stable `tool id`. On the wire it is the camelCase string; inside Rust it is the
+  `AnalyzerId` enum, parsed once at the boundary (ADR-28). **No duplicate tabs** per
+  tool.
 - Each tool has a **params popover** (per-tool config).
 - Each tool has an **about popover** (what it shows, and when to use it). The copy
   is **markdown** — short paragraphs with bold or italic lead-ins — rendered in the

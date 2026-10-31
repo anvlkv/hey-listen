@@ -81,7 +81,7 @@ fn run_notes(mono: &[f32], options: &ToolOptions) -> NoteMetricsResult {
 }
 
 fn run_notes_at(mono: &[f32], rate: u32, options: &ToolOptions) -> NoteMetricsResult {
-    match run("noteMetrics", mono, rate, &params(2048), options).expect("note metrics") {
+    match run(AnalyzerId::NoteMetrics, mono, rate, &params(2048), options).expect("note metrics") {
         AnalysisResult::NoteMetrics(result) => result,
         other => panic!("unexpected result: {other:?}"),
     }

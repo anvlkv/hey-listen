@@ -137,7 +137,10 @@ fn a_gated_series_reports_the_effective_gate() {
     };
     let summary = summarize(&AnalysisResult::SpectralCentroid(gated));
     let keys: Vec<&str> = summary.items.iter().map(|item| item.key.as_str()).collect();
-    assert_eq!(keys, summary_keys("spectralCentroid"));
+    assert_eq!(
+        keys,
+        summary_keys(crate::audio::analyzers::AnalyzerId::SpectralCentroid)
+    );
     let threshold = summary
         .items
         .iter()

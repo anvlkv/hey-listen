@@ -16,7 +16,10 @@ import { isCompareId } from "./compare/id";
  * API.
  */
 
-export type ToolId = "filter" | "synth" | AnalyzerId;
+import type { ToolId as GeneratedToolId } from "../bindings/ToolId";
+
+/** A Workbench tab id, generated from the Rust `ToolId` (M15.B / ADR-28). */
+export type ToolId = GeneratedToolId;
 
 export type ToolGroup = "graph" | "analyzer";
 

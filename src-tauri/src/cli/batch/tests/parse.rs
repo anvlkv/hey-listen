@@ -22,7 +22,7 @@ fn analyze_maps_files_tools_params_and_window() {
     let request = build_request("analyze", &m).unwrap();
     assert!(matches!(&request.command, Command::Analyze));
     assert_eq!(request.files, ["a.wav", "b.wav"]);
-    assert_eq!(request.tools, ["spectrum", "tempo"]);
+    assert_eq!(request.tools, [AnalyzerId::Spectrum, AnalyzerId::Tempo]);
     assert_eq!(request.start, Some(10.0));
     assert_eq!(request.end, Some(14.0));
     assert!(request.full);
@@ -36,7 +36,7 @@ fn analyze_maps_files_tools_params_and_window() {
         .params
         .contains(&("randomizedOverlap".to_string(), json!(true))));
     assert_eq!(request.options.len(), 1);
-    assert_eq!(request.options[0].tool, "spectrum");
+    assert_eq!(request.options[0].tool, AnalyzerId::Spectrum);
     assert_eq!(request.options[0].key, "nMels");
     assert_eq!(request.options[0].value, json!(40));
 }
@@ -56,11 +56,19 @@ fn compare_maps_two_projects_its_tools_and_window_overrides() {
     assert!(
         matches!(&request.command, Command::Compare { a, b } if a == "a.heyl" && b == "b.heyl")
     );
-    assert_eq!(request.tools, ["spectrum"]);
+    assert_eq!(request.tools, [AnalyzerId::Spectrum]);
     assert_eq!(request.a_start, Some(1.0));
     assert_eq!(request.b_end, Some(2.0));
     assert_eq!(request.b_offset, 0.125);
     assert!(request.overlap);
+}
+
+#[test]
+fn unknown_tool_is_rejected_when_parsing() {
+    let m = matches(&[("file", json!(["a.wav"])), ("tool", json!(["nope"]))]);
+    assert!(build_request("analyze", &m)
+        .unwrap_err()
+        .contains("unknown analyzer"));
 }
 
 #[test]
@@ -107,71 +115,6 @@ fn bad_params_are_rejected() {
     assert!(build_request("analyze", &base("windowFn=triangular")).is_err());
     assert!(build_request("analyze", &base("fftSize=lots")).is_err());
     assert!(build_request("analyze", &base("fftSize")).is_err());
-}
-
-#[test]
-fn option_without_a_tool_prefix_needs_a_single_tool() {
-    let two = matches(&[
-        ("file", json!(["a.wav"])),
-        ("tool", json!(["spectrum", "tempo"])),
-        ("option", json!(["nMels=40"])),
-    ]);
-    assert!(build_request("analyze", &two).is_err());
-
-    let one = matches(&[
-        ("file", json!(["a.wav"])),
-        ("tool", json!(["spectrum"])),
-        ("option", json!(["nMels=40"])),
-    ]);
-    let request = build_request("analyze", &one).unwrap();
-    assert_eq!(request.options[0].tool, "spectrum");
-}
-
-#[test]
-fn unknown_option_key_is_rejected() {
-    let m = matches(&[
-        ("file", json!(["a.wav"])),
-        ("tool", json!(["spectrum"])),
-        ("option", json!(["spectrum.nope=1"])),
-    ]);
-    assert!(build_request("analyze", &m)
-        .unwrap_err()
-        .contains("unknown option"));
-}
-
-#[test]
-fn snake_case_option_aliases_are_canonicalized() {
-    let m = matches(&[
-        ("file", json!(["a.wav"])),
-        ("tool", json!(["pitchYin"])),
-        ("option", json!(["min_f0_hz=50"])),
-    ]);
-    let request = build_request("analyze", &m).unwrap();
-    assert_eq!(request.options[0].tool, "pitchYin");
-    assert_eq!(request.options[0].key, "minF0Hz");
-    assert_eq!(request.options[0].value, json!(50));
-}
-
-#[test]
-fn note_quality_option_aliases_are_canonicalized() {
-    let m = matches(&[
-        ("file", json!(["a.wav"])),
-        ("tool", json!(["noteMetrics"])),
-        (
-            "option",
-            json!(["pitch_frame_ms=30", "pitch_hop_ms=2", "max_f0_hz=3000"]),
-        ),
-    ]);
-    let request = build_request("analyze", &m).unwrap();
-    let keys: Vec<&str> = request
-        .options
-        .iter()
-        .map(|option| option.key.as_str())
-        .collect();
-    assert_eq!(keys, ["pitchFrameMs", "pitchHopMs", "maxF0Hz"]);
-    assert_eq!(request.options[0].value, json!(30));
-    assert_eq!(request.options[1].value, json!(2));
-    assert_eq!(request.options[2].value, json!(3000));
 }
 
 #[test]
@@ -307,7 +250,10 @@ fn analyze_reads_a_windows_file() {
     assert_eq!(request.windows[0].start, 0.0);
     assert_eq!(request.windows[0].end, 1.0);
     assert!(request.windows[0].tools.is_empty());
-    assert_eq!(request.windows[1].tools, ["spectrum", "levels"]);
+    assert_eq!(
+        request.windows[1].tools,
+        [AnalyzerId::Spectrum, AnalyzerId::Levels]
+    );
     assert_eq!(request.windows[2].start, 4.0);
     let _ = std::fs::remove_file(&path);
 }

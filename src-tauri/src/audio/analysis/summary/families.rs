@@ -12,10 +12,11 @@ use crate::audio::analysis::{
     AnalysisResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
     SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
+use crate::audio::analyzers::AnalyzerId;
 
 pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
     let tool = result.tool_id();
-    let label = crate::audio::analyzers::title(tool).unwrap_or(tool);
+    let label = crate::audio::analyzers::title(tool).unwrap_or_else(|| tool.into());
     let mut b = SummaryBuilder::new(tool, label);
     match result {
         AnalysisResult::Waveform(r) => waveform(&mut b, r),
@@ -81,7 +82,7 @@ fn spectrogram(b: &mut SummaryBuilder, r: &SpectrogramResult) {
     }
 }
 
-fn matrix(b: &mut SummaryBuilder, tool: &str, r: &MatrixResult) {
+fn matrix(b: &mut SummaryBuilder, tool: AnalyzerId, r: &MatrixResult) {
     b.count("frames", "frames", r.frames);
     b.count("bands", "bands", r.bins);
     b.push("duration", "duration", f64::from(r.duration), Some("s"));
@@ -89,7 +90,7 @@ fn matrix(b: &mut SummaryBuilder, tool: &str, r: &MatrixResult) {
         b.count("peakFrame", "peak frame", frame);
         b.count("peakBand", "peak band", band);
         let unit = match tool {
-            "melSpectrogram" | "spectralContrast" => Some("dB"),
+            AnalyzerId::MelSpectrogram | AnalyzerId::SpectralContrast => Some("dB"),
             _ => None,
         };
         b.push("peakValue", "peak value", f64::from(value), unit);
@@ -141,10 +142,12 @@ fn gate(b: &mut SummaryBuilder, gate: Option<&crate::audio::analysis::SeriesGate
 
 /// Every scalar-per-frame tool. The unit comes from the tool, so an agent never has to
 /// infer Hz vs LUFS from the numbers.
-fn series(b: &mut SummaryBuilder, tool: &str, r: &SeriesResult) {
+fn series(b: &mut SummaryBuilder, tool: AnalyzerId, r: &SeriesResult) {
     let unit = match tool {
-        "spectralCentroid" | "spectralRolloff" | "spectralBandwidth" => Some("Hz"),
-        "loudnessMomentary" => Some("LUFS"),
+        AnalyzerId::SpectralCentroid
+        | AnalyzerId::SpectralRolloff
+        | AnalyzerId::SpectralBandwidth => Some("Hz"),
+        AnalyzerId::LoudnessMomentary => Some("LUFS"),
         _ => None,
     };
     b.count("frames", "frames", r.frames);

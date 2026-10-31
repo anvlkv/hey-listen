@@ -33,11 +33,12 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 
 use crate::audio::analysis::{SharedParams, ToolOptions};
-use crate::audio::analyzers;
+use crate::audio::analyzers::{self, AnalyzerId};
 use crate::audio::graph::GraphSpec;
+use crate::project::SourceKind;
 use crate::state::WindowState;
 
-use args::{clamp_span, default_params, merge_options, merge_params, number};
+use args::{analyzer, clamp_span, default_params, merge_options, merge_params, number};
 
 /// One headless project: the engine state plus the analysis setup the GUI keeps in
 /// the frontend. Lives for the lifetime of the stdio session.
@@ -45,7 +46,7 @@ pub struct HeadlessSession {
     state: WindowState,
     params: SharedParams,
     /// Per-analyzer option overrides (only the keys the agent set).
-    options: HashMap<String, ToolOptions>,
+    options: HashMap<AnalyzerId, ToolOptions>,
     /// The analysis window (source seconds).
     window: (f64, f64),
     /// The visible timeline range (source seconds) — tracked for `get_state` parity.
@@ -54,6 +55,8 @@ pub struct HeadlessSession {
     synth: Option<GraphSpec>,
     /// The file the current source was decoded from (for a project `SOURCE` section).
     source_path: Option<String>,
+    /// What kind of source the session holds (for exports / a project `SOURCE` section).
+    source_kind: SourceKind,
     /// The .heyl path and project name once the session has saved/opened a project.
     project_path: Option<String>,
     project_name: Option<String>,
@@ -70,6 +73,7 @@ impl Default for HeadlessSession {
             view: (0.0, 0.0),
             synth: None,
             source_path: None,
+            source_kind: SourceKind::File,
             project_path: None,
             project_name: None,
             name: String::new(),
@@ -84,10 +88,7 @@ impl HeadlessSession {
             "get_state" => Ok(self.get_state()),
             "list_analyzers" => Ok(Value::Array(analyzers::list())),
             "get_analyzer" => {
-                let id = args
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .ok_or("`id` is required")?;
+                let id = analyzer(&args, "id")?;
                 analyzers::detail(id).ok_or_else(|| format!("unknown analyzer: {id}"))
             }
             "open_audio_file" => self.open_audio_file(&args),
@@ -95,6 +96,7 @@ impl HeadlessSession {
                 self.state.audio.clear();
                 self.name.clear();
                 self.source_path = None;
+                self.source_kind = SourceKind::File;
                 self.synth = None;
                 self.window = (0.0, 0.0);
                 self.view = (0.0, 0.0);
@@ -138,15 +140,12 @@ impl HeadlessSession {
                 Ok(json!({ "params": serde_json::to_value(&self.params).unwrap_or(Value::Null) }))
             }
             "set_tool_options" => {
-                let tool = args
-                    .get("tool")
-                    .and_then(Value::as_str)
-                    .ok_or("`tool` is required")?;
+                let tool = analyzer(&args, "tool")?;
                 let options = args
                     .get("options")
                     .and_then(Value::as_object)
                     .ok_or("`options` is required")?;
-                let entry = self.options.entry(tool.to_string()).or_default();
+                let entry = self.options.entry(tool).or_default();
                 merge_options(entry, tool, options)?;
                 Ok(json!({
                     "tool": tool,

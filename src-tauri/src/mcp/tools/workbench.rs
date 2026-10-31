@@ -2,8 +2,11 @@
 //! preview playback and output, and enumerate/start live capture devices.
 
 use serde_json::{json, Value};
+use strum::VariantNames;
 
 use super::schema::{tool, ToolClass};
+use crate::audio::analyzers::ToolId;
+use crate::audio::capture::CaptureKind;
 
 /// The Workbench, graph, preview, and capture tools.
 pub(super) fn tools() -> Vec<Value> {
@@ -39,7 +42,12 @@ pub(super) fn tools() -> Vec<Value> {
             "Read a graph editor's state (`filter` or `synth`) as editor nodes + edges.",
             json!({
                 "type": "object",
-                "properties": { "graph": { "type": "string", "enum": ["filter", "synth"] } },
+                "properties": {
+                    "graph": {
+                        "type": "string",
+                        "enum": [ToolId::Filter.as_ref(), ToolId::Synth.as_ref()],
+                    },
+                },
                 "required": ["graph"],
                 "additionalProperties": false,
             }),
@@ -140,7 +148,7 @@ pub(super) fn tools() -> Vec<Value> {
             json!({
                 "type": "object",
                 "properties": {
-                    "kind": { "type": "string", "enum": ["mic", "system", "process", "mix"] },
+                    "kind": { "type": "string", "enum": CaptureKind::VARIANTS },
                     "deviceId": { "type": ["string", "null"] },
                     "mixMicDeviceId": { "type": ["string", "null"] },
                     "mixSystemDeviceId": { "type": ["string", "null"] },

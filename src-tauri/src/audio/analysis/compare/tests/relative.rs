@@ -9,7 +9,11 @@ use crate::audio::analysis::{AnalysisResult, MatrixResult, WaveformResult};
 fn windows_at_different_source_seconds_compare_from_zero() {
     let a = state_with(tone(2.0, 440.0, 1.0));
     let b = state_with(tone(2.0, 440.0, 0.5));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.0)), (&b, setup(0.5, 1.5)));
+    let comparison = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.5, 1.5)),
+    );
 
     assert!(comparison.comparability.aligned);
     // Relative alignment: both sides start at 0 even though the windows do not overlap
@@ -40,7 +44,7 @@ fn a_disjoint_relative_window_has_no_time_delta() {
     let b = state_with(tone(2.0, 440.0, 1.0));
     // δ pushes B past the end of A, so the shifted windows do not meet.
     let comparison = compare_pair_at(
-        "frameRms",
+        AnalyzerId::FrameRms,
         (&a, setup(0.0, 1.0)),
         (&b, setup(0.0, 1.0)),
         1.5,
@@ -55,7 +59,7 @@ fn the_offset_clips_the_common_span() {
     let a = state_with(tone(2.0, 440.0, 1.0));
     let b = state_with(tone(2.0, 440.0, 0.5));
     let comparison = compare_pair_at(
-        "frameRms",
+        AnalyzerId::FrameRms,
         (&a, setup(0.0, 1.0)),
         (&b, setup(0.0, 1.0)),
         0.25,
@@ -75,7 +79,11 @@ fn the_offset_clips_the_common_span() {
 fn the_longer_window_is_clipped_to_the_shorter() {
     let a = state_with(tone(2.0, 440.0, 1.0));
     let b = state_with(tone(2.0, 440.0, 0.5));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.5)), (&b, setup(0.0, 0.8)));
+    let comparison = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.5)),
+        (&b, setup(0.0, 0.8)),
+    );
     let common = comparison
         .comparability
         .alignment

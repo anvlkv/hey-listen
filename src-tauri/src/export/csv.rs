@@ -271,14 +271,14 @@ fn modulation(out: &mut String, value: &ModulationResult) {
     }
 }
 
-fn rhythm(out: &mut String, value: &RhythmResult, tool: &str) {
+fn rhythm(out: &mut String, value: &RhythmResult, tool: crate::audio::analyzers::AnalyzerId) {
     row(out, &["time_s".into(), "onset_strength".into()]);
     for (time, strength) in value.times.iter().zip(value.onset_strength.iter()) {
         row(out, &[number(*time), number(*strength)]);
     }
     let (times, kind) = match tool {
-        "tempo" => (&value.beat_times, "beat"),
-        "downbeats" => (&value.downbeat_times, "downbeat"),
+        crate::audio::analyzers::AnalyzerId::Tempo => (&value.beat_times, "beat"),
+        crate::audio::analyzers::AnalyzerId::Downbeats => (&value.downbeat_times, "downbeat"),
         _ => (&value.onset_times, "onset"),
     };
     out.push('\n');

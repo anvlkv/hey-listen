@@ -93,10 +93,9 @@ pub async fn save_project(
         // A reference project only makes sense for a file source: the loader can
         // decode the path again. Synths and live captures keep their audio.
         let reference = !project.embed_source
-            && project
-                .source
-                .as_ref()
-                .is_some_and(|source| source.kind == "file" && source.path.is_some());
+            && project.source.as_ref().is_some_and(|source| {
+                source.kind == crate::project::SourceKind::File && source.path.is_some()
+            });
         let save = SaveProject {
             name: project.name,
             created_ms: project.created_ms,

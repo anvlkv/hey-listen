@@ -4,6 +4,7 @@
 //! ([`parse`] for matches → request mapping, [`run`] for execution, [`notes`]).
 
 use super::*;
+use crate::audio::analyzers::AnalyzerId;
 use crate::export::ExportFormat;
 
 use std::path::Path;
@@ -15,6 +16,7 @@ use crate::audio::graph::{GraphEdge, GraphNode, GraphSpec};
 
 mod compare;
 mod notes;
+mod options;
 mod parse;
 mod run;
 
@@ -135,7 +137,7 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
     Request {
         command: Command::Analyze,
         files,
-        tools,
+        tools: parse_tools(&tools),
         all: false,
         start: None,
         end: None,
@@ -168,6 +170,13 @@ pub(super) fn synth_request(path: &str, seconds: f64, tools: Vec<String>) -> Req
         },
         ..analyze_request(Vec::new(), tools)
     }
+}
+
+fn parse_tools(tools: &[String]) -> Vec<AnalyzerId> {
+    tools
+        .iter()
+        .map(|tool| tool.parse().expect("a valid test tool id"))
+        .collect()
 }
 
 /// Run a request that must produce exactly one JSON line, and return that line.

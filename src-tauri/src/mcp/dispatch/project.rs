@@ -19,9 +19,10 @@ use std::path::Path;
 use serde_json::{json, Map, Value};
 
 use crate::audio::analysis::{canonical_option_key, ToolOptions};
-use crate::audio::analyzers::is_analyzer;
+use crate::audio::analyzers::ToolId;
 use crate::project::{
-    read_project, write_project, AnalysisSetup, AnalysisWindow, Note, SaveProject, SourceDescriptor,
+    read_project, write_project, AnalysisSetup, AnalysisWindow, Note, SaveProject,
+    SourceDescriptor, SourceKind,
 };
 
 use super::args::{default_params, merge_options};
@@ -59,8 +60,7 @@ impl HeadlessSession {
                 items
                     .iter()
                     .filter_map(Value::as_str)
-                    .filter(|id| is_analyzer(id))
-                    .map(str::to_string)
+                    .filter_map(|id| id.parse().ok())
                     .collect()
             })
             .unwrap_or_default();
@@ -129,9 +129,6 @@ impl HeadlessSession {
         self.params = loaded.setup.shared;
         self.options.clear();
         for (tool, values) in &loaded.setup.tool_options {
-            if !is_analyzer(tool) {
-                continue;
-            }
             // A GUI save stores every tool option, including display-only keys
             // (`showMean`, `logFreq`, …). The engine only takes canonical engine keys;
             // ignore the rest instead of failing to open the project.
@@ -141,8 +138,8 @@ impl HeadlessSession {
                 .map(|(key, value)| (key.clone(), json!(value)))
                 .collect();
             let mut options = ToolOptions::default();
-            merge_options(&mut options, tool, &patch)?;
-            self.options.insert(tool.clone(), options);
+            merge_options(&mut options, *tool, &patch)?;
+            self.options.insert(*tool, options);
         }
 
         let window = (loaded.setup.window.start_secs, loaded.setup.window.end_secs);
@@ -160,6 +157,10 @@ impl HeadlessSession {
             .source
             .as_ref()
             .and_then(|source| source.path.clone());
+        self.source_kind = loaded
+            .source
+            .as_ref()
+            .map_or(SourceKind::File, |source| source.kind);
         Ok(self.get_state())
     }
 
@@ -173,6 +174,7 @@ impl HeadlessSession {
         self.view = (0.0, 0.0);
         self.synth = None;
         self.source_path = None;
+        self.source_kind = SourceKind::File;
         self.project_path = None;
         self.project_name = None;
         self.name.clear();
@@ -180,7 +182,7 @@ impl HeadlessSession {
     }
 
     /// The `SETUP` section for the current session.
-    fn analysis_setup(&self, open_tools: Vec<String>) -> AnalysisSetup {
+    fn analysis_setup(&self, open_tools: Vec<ToolId>) -> AnalysisSetup {
         let filter_enabled = self
             .state
             .audio
@@ -193,7 +195,7 @@ impl HeadlessSession {
             tool_options: self
                 .options
                 .iter()
-                .map(|(tool, options)| (tool.clone(), numeric_options(options)))
+                .map(|(tool, options)| (*tool, numeric_options(options)))
                 .collect(),
             open_tools,
             window: AnalysisWindow {
@@ -212,13 +214,13 @@ impl HeadlessSession {
     fn source_descriptor(&self) -> Option<SourceDescriptor> {
         if let Some(path) = &self.source_path {
             return Some(SourceDescriptor {
-                kind: "file".to_string(),
+                kind: SourceKind::File,
                 path: Some(path.clone()),
                 ..Default::default()
             });
         }
         self.synth.as_ref().map(|graph| SourceDescriptor {
-            kind: "synth".to_string(),
+            kind: SourceKind::Synth,
             graph: Some(graph.clone()),
             ..Default::default()
         })

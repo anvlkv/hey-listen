@@ -6,7 +6,8 @@
 
 use serde_json::Value;
 
-use crate::audio::analyzers;
+use crate::audio::analysis::WindowKind;
+use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
 
 use super::types::WindowSpec;
@@ -22,9 +23,6 @@ const SHARED_PARAM_KEYS: [&str; 8] = [
     "freqMinHz",
     "freqMaxHz",
 ];
-
-/// The values `windowFn` accepts (`docs/analysis-tools.md`).
-const WINDOW_FNS: [&str; 4] = ["hann", "hamming", "blackman", "rectangular"];
 
 /// Split a `K=V` token, parsing `V` into a JSON value.
 pub(super) fn split_kv(token: &str) -> Result<(String, Value), String> {
@@ -76,7 +74,7 @@ fn validate_param(key: &str, value: &Value) -> Result<(), String> {
         "randomizedOverlap" => value.is_boolean(),
         "windowFn" => value
             .as_str()
-            .is_some_and(|name| WINDOW_FNS.contains(&name)),
+            .is_some_and(|name| name.parse::<WindowKind>().is_ok()),
         "channel" | "resampleTo" => value.is_null() || value.as_u64().is_some(),
         _ => false,
     };
@@ -119,16 +117,14 @@ pub(super) fn read_windows(path: &str) -> Result<Vec<WindowSpec>, String> {
                 "{path}:{line_number}: the window must be finite with end > start ({start}, {end})"
             ));
         }
-        let tools: Vec<String> = fields[2..]
+        let tools: Vec<AnalyzerId> = fields[2..]
             .iter()
             .filter(|name| !name.is_empty())
-            .map(|name| (*name).to_string())
-            .collect();
-        for tool in &tools {
-            if !analyzers::is_analyzer(tool) {
-                return Err(format!("{path}:{line_number}: unknown analyzer: {tool}"));
-            }
-        }
+            .map(|name| {
+                name.parse()
+                    .map_err(|_| format!("{path}:{line_number}: unknown analyzer: {name}"))
+            })
+            .collect::<Result<_, _>>()?;
         windows.push(WindowSpec { start, end, tools });
     }
     if windows.is_empty() {

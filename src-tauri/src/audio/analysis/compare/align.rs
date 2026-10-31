@@ -11,8 +11,8 @@
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::audio::analysis::{AnalysisResult, SharedParams, WindowKind};
-use crate::audio::analyzers::family_of;
+use crate::audio::analysis::{AnalysisResult, SharedParams};
+use crate::audio::analyzers::{family_of, AnalyzerId};
 
 /// A `start..end` span in source seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -133,7 +133,7 @@ pub struct Side<'a> {
 /// `filters_differ` is computed by the caller (the filter lives in the core state, not
 /// in the result).
 pub fn comparability(
-    tool: &str,
+    tool: AnalyzerId,
     a: &Side<'_>,
     b: &Side<'_>,
     filters_differ: bool,
@@ -199,11 +199,11 @@ pub fn comparability(
 
 /// Whether the tool's result sits on a time axis, so its delta needs a common span.
 /// Spectrum / modulation / readouts have no time axis and always diff.
-pub fn needs_common_span(tool: &str) -> bool {
+pub fn needs_common_span(tool: AnalyzerId) -> bool {
     !matches!(
         family_of(tool),
         crate::audio::analyzers::Family::Spectrum | crate::audio::analyzers::Family::Scalar
-    ) && tool != "modulation"
+    ) && tool != AnalyzerId::Modulation
 }
 
 fn push_difference(mismatches: &mut Vec<Mismatch>, key: &str, a: usize, b: usize) {
@@ -220,7 +220,7 @@ fn hop_fraction(side: &Side<'_>) -> usize {
     (side.setup.params.hop.clamp(0.0, 1.0) * 100.0).round() as usize
 }
 
-fn grid_of(tool: &str, side: &Side<'_>) -> Grid {
+fn grid_of(tool: AnalyzerId, side: &Side<'_>) -> Grid {
     let params = &side.setup.params;
     let channel = params.channel;
     let mut options = Vec::new();
@@ -243,12 +243,7 @@ fn grid_of(tool: &str, side: &Side<'_>) -> Grid {
 
 /// The window function's wire name (`"hann"`, …).
 pub fn window_fn_name(params: &SharedParams) -> &'static str {
-    match params.window_fn {
-        WindowKind::Hann => "hann",
-        WindowKind::Hamming => "hamming",
-        WindowKind::Blackman => "blackman",
-        WindowKind::Rectangular => "rectangular",
-    }
+    params.window_fn.into()
 }
 
 /// The length of a result's band/bin axis, when it has one.
@@ -266,47 +261,47 @@ pub fn bin_count(result: &AnalysisResult) -> Option<usize> {
 }
 
 /// Whether the tool's result depends on the shared FFT / hop / window grid.
-fn uses_spectral_grid(tool: &str) -> bool {
+fn uses_spectral_grid(tool: AnalyzerId) -> bool {
     !matches!(
         tool,
-        "levels"
-            | "loudnessIntegrated"
-            | "loudnessRange"
-            | "waveform"
-            | "frameRms"
-            | "noteMetrics"
-            | "modulation"
-            | "loudnessMomentary"
+        AnalyzerId::Levels
+            | AnalyzerId::LoudnessIntegrated
+            | AnalyzerId::LoudnessRange
+            | AnalyzerId::Waveform
+            | AnalyzerId::FrameRms
+            | AnalyzerId::NoteMetrics
+            | AnalyzerId::Modulation
+            | AnalyzerId::LoudnessMomentary
     )
 }
 
 /// Whether the tool reads the shared frequency band.
-fn uses_band(tool: &str) -> bool {
+fn uses_band(tool: AnalyzerId) -> bool {
     matches!(
         tool,
-        "spectrum"
-            | "spectrogram"
-            | "melSpectrogram"
-            | "spectralCentroid"
-            | "spectralFlux"
-            | "spectralRolloff"
-            | "spectralFlatness"
-            | "spectralBandwidth"
-            | "spectralEntropy"
-            | "spectralCrest"
+        AnalyzerId::Spectrum
+            | AnalyzerId::Spectrogram
+            | AnalyzerId::MelSpectrogram
+            | AnalyzerId::SpectralCentroid
+            | AnalyzerId::SpectralFlux
+            | AnalyzerId::SpectralRolloff
+            | AnalyzerId::SpectralFlatness
+            | AnalyzerId::SpectralBandwidth
+            | AnalyzerId::SpectralEntropy
+            | AnalyzerId::SpectralCrest
     )
 }
 
 /// The tool options that change the result's grid (not just its values).
-fn grid_option_keys(tool: &str) -> &'static [&'static str] {
+fn grid_option_keys(tool: AnalyzerId) -> &'static [&'static str] {
     match tool {
-        "melSpectrogram" => &["nMels"],
-        "mfcc" => &["nMels", "nMfcc"],
-        "spectralContrast" => &["nBands"],
-        "tempo" | "onsets" | "downbeats" => &["barLength"],
-        "frameRms" => &["frameMs", "hopMs"],
-        "modulation" => &["frameMs", "hopMs", "modMinHz", "modMaxHz"],
-        "loudnessMomentary" => &["windowMs"],
+        AnalyzerId::MelSpectrogram => &["nMels"],
+        AnalyzerId::Mfcc => &["nMels", "nMfcc"],
+        AnalyzerId::SpectralContrast => &["nBands"],
+        AnalyzerId::Tempo | AnalyzerId::Onsets | AnalyzerId::Downbeats => &["barLength"],
+        AnalyzerId::FrameRms => &["frameMs", "hopMs"],
+        AnalyzerId::Modulation => &["frameMs", "hopMs", "modMinHz", "modMaxHz"],
+        AnalyzerId::LoudnessMomentary => &["windowMs"],
         _ => &[],
     }
 }
@@ -340,7 +335,7 @@ pub fn coerce_option_numbers(map: &mut serde_json::Map<String, Value>) {
 ///
 /// Count-valued options are emitted as integers: a caller may send this object straight
 /// back as B's setup, and `ToolOptions` would reject a float there.
-pub fn effective_options(tool: &str, options: &crate::audio::analysis::ToolOptions) -> Value {
+pub fn effective_options(tool: AnalyzerId, options: &crate::audio::analysis::ToolOptions) -> Value {
     let mut map = crate::audio::analyzers::effective_options(tool, Some(options));
     coerce_option_numbers(&mut map);
     Value::Object(map)

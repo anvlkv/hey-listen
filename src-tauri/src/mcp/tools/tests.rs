@@ -76,7 +76,7 @@ fn run_analysis_is_not_destructive_and_compare_is_read_only() {
 #[test]
 fn get_analyzer_agrees_with_list_analyzers() {
     for item in analyzers::list() {
-        let id = item["id"].as_str().unwrap();
+        let id: crate::audio::analyzers::AnalyzerId = item["id"].as_str().unwrap().parse().unwrap();
         let detail = analyzers::detail(id).expect("every listed analyzer has detail");
         assert_eq!(detail["title"], item["title"], "{id}");
         assert_eq!(detail["section"], item["section"], "{id}");

@@ -15,6 +15,7 @@ mod tests;
 use serde::{Deserialize, Serialize};
 
 use super::AnalysisResult;
+use crate::audio::analyzers::AnalyzerId;
 
 pub use keys::summary_keys;
 
@@ -38,7 +39,7 @@ pub struct SummaryItem {
 #[ts(export)]
 pub struct ResultSummary {
     /// The analyzer id that produced the result.
-    pub tool: String,
+    pub tool: AnalyzerId,
     /// Human label (`"Spectrum"`).
     pub label: String,
     /// One compact human-readable line, e.g. `peak 440 Hz · −6 dBFS · 43 frames`.
@@ -48,13 +49,13 @@ pub struct ResultSummary {
 
 /// Accumulates a tool's items, then renders the `text` line from them.
 pub(super) struct SummaryBuilder {
-    tool: &'static str,
+    tool: AnalyzerId,
     label: &'static str,
     items: Vec<SummaryItem>,
 }
 
 impl SummaryBuilder {
-    pub(super) fn new(tool: &'static str, label: &'static str) -> Self {
+    pub(super) fn new(tool: AnalyzerId, label: &'static str) -> Self {
         Self {
             tool,
             label,
@@ -98,7 +99,7 @@ impl SummaryBuilder {
             .collect::<Vec<_>>()
             .join(" · ");
         ResultSummary {
-            tool: self.tool.to_string(),
+            tool: self.tool,
             label: self.label.to_string(),
             text,
             items: self.items,

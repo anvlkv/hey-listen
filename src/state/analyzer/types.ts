@@ -22,39 +22,13 @@ import type { LraResult as LraPayload } from "../../bindings/LraResult";
 import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
 import type { ModulationResult as ModulationPayload } from "../../bindings/ModulationResult";
 
-export type AnalyzerId =
-  | "waveform"
-  | "levels"
-  | "frameRms"
-  | "spectrum"
-  | "spectrogram"
-  | "melSpectrogram"
-  | "mfcc"
-  | "chromagram"
-  | "spectralCentroid"
-  | "spectralFlux"
-  | "spectralRolloff"
-  | "spectralFlatness"
-  | "spectralContrast"
-  | "spectralBandwidth"
-  | "spectralEntropy"
-  | "spectralCrest"
-  | "harmonicRatio"
-  | "zeroCrossingRate"
-  | "modulation"
-  | "pitchPyin"
-  | "pitchYin"
-  | "pitchAutocorr"
-  | "noteMetrics"
-  | "tempo"
-  | "onsets"
-  | "downbeats"
-  | "loudnessIntegrated"
-  | "loudnessMomentary"
-  | "loudnessRange";
+import type { AnalyzerId as GeneratedAnalyzerId } from "../../bindings/AnalyzerId";
 
-/** Grouping used by the Sidebar (mirrors `docs/analysis-tools.md`). */
-export type AnalyzerSection = "time" | "spectral" | "pitch" | "rhythm" | "loudness";
+/** The analyzer ids, generated from the Rust `AnalyzerId` (M15.B / ADR-28). */
+export type AnalyzerId = GeneratedAnalyzerId;
+
+/** Grouping used by the Sidebar, generated from the Rust `Section` (M15.B). */
+export type AnalyzerSection = import("../../bindings/Section").Section;
 
 // --- view descriptors ------------------------------------------------------
 

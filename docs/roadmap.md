@@ -804,12 +804,12 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M15.B — String identifiers become strum enums (planned)
+## M15.B — String identifiers become strum enums ✅
 
-A type-safety follow-on to M15: the Rust core still carries enumerable state as bare
-strings — analyzer tool ids, result families, source kinds, window functions, and the
+A type-safety follow-on to M15: the Rust core carried enumerable state as bare strings
+— analyzer tool ids, result families, source kinds, window functions, and the
 menu/theme/CLI action ids — matched and dispatched with hand-written `match` arms and
-`&'static str` tables in several places. Replace them with `strum`-backed enums
+`&'static str` tables in several places. M15.B replaced them with `strum`-backed enums
 (`serde` + `ts-rs`) so each id is parsed **once at the boundary** and every consumer
 works on a typed value, while the wire stays **camelCase strings, byte-for-byte
 identical** — the project file, IPC and generated TS bindings are unaffected. This is
@@ -821,6 +821,14 @@ type safety, not a format bump. See ADR-28 and [`code-hygiene.md`](code-hygiene.
 `#[strum(serialize_all = "camelCase")]` keep the string identical on the wire and in code.
 A `postcard`-safe enum **field** (never an internally-tagged top-level enum) replaces
 `SourceDescriptor.kind`.
+
+**Delivered.** All six phases shipped: `strum` 0.28 (`derive`), `AnalyzerId` (29
+variants, with `ToolId` generated from the same list for Workbench tabs), `Family` +
+`Section`, `SourceKind` + `CaptureKind`, `WindowKind`, and the menu / theme / CLI
+action ids. `src/bindings/` carries `AnalyzerId`, `ToolId`, `Family`, `Section`,
+`SourceKind`, and `CaptureKind`, and the frontend aliases those generated types
+instead of re-declaring them. The `postcard` encoding is pinned to the original
+strings by tests, so the project-file format did not change.
 
 **Phases (one at a time, gate green after each):**
 - **Dependency + pattern.** Add `strum` (MIT) to `src-tauri/Cargo.toml`; update

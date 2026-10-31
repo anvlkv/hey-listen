@@ -3,16 +3,16 @@
 //! Kept apart from the option metadata and the `list_analyzers` shaping in
 //! [`super`], so each file stays small enough to read.
 
-use super::AnalyzerInfo;
+use super::{AnalyzerId, AnalyzerInfo, Section};
 
 /// Every analyzer, grouped by section, in the order the Sidebar shows them.
 pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     // Time domain
     AnalyzerInfo {
-        id: "waveform",
+        id: AnalyzerId::Waveform,
         title: "Waveform",
         description: "Time-domain shape with peak / RMS levels",
-        section: "time",
+        section: Section::Time,
         keywords: &[
             "waveform",
             "time",
@@ -24,10 +24,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "levels",
+        id: AnalyzerId::Levels,
         title: "Level meters",
         description: "Peak and RMS level over the window",
-        section: "time",
+        section: Section::Time,
         keywords: &[
             "level",
             "meter",
@@ -39,10 +39,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "frameRms",
+        id: AnalyzerId::FrameRms,
         title: "Amplitude envelope",
         description: "Frame RMS level in dBFS over time",
-        section: "time",
+        section: Section::Time,
         keywords: &[
             "envelope",
             "amplitude",
@@ -56,10 +56,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     },
     // Spectral
     AnalyzerInfo {
-        id: "spectrum",
+        id: AnalyzerId::Spectrum,
         title: "Spectrum",
         description: "Averaged FFT magnitude vs frequency",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "spectrum",
             "fft",
@@ -70,10 +70,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "spectrogram",
+        id: AnalyzerId::Spectrogram,
         title: "Spectrogram",
         description: "STFT magnitude heatmap over time and frequency",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "spectrogram",
             "stft",
@@ -84,10 +84,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "melSpectrogram",
+        id: AnalyzerId::MelSpectrogram,
         title: "Mel spectrogram",
         description: "Log-mel energies over time and mel bands",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "mel",
             "spectrogram",
@@ -98,10 +98,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "mfcc",
+        id: AnalyzerId::Mfcc,
         title: "MFCC",
         description: "Mel-frequency cepstral coefficients over time",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "mfcc",
             "cepstral",
@@ -112,10 +112,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "chromagram",
+        id: AnalyzerId::Chromagram,
         title: "Chromagram",
         description: "Energy per pitch class over time",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "chroma",
             "chromagram",
@@ -126,10 +126,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "spectralCentroid",
+        id: AnalyzerId::SpectralCentroid,
         title: "Spectral centroid",
         description: "Spectral centre of mass over time",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "centroid",
             "brightness",
@@ -139,17 +139,17 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "spectralFlux",
+        id: AnalyzerId::SpectralFlux,
         title: "Spectral flux",
         description: "Frame-to-frame spectral change (onset strength)",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &["flux", "onset", "transient", "novelty", "spectral change"],
     },
     AnalyzerInfo {
-        id: "spectralRolloff",
+        id: AnalyzerId::SpectralRolloff,
         title: "Spectral rolloff",
         description: "Frequency below which most energy lies",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "rolloff",
             "roll-off",
@@ -159,47 +159,47 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "spectralFlatness",
+        id: AnalyzerId::SpectralFlatness,
         title: "Spectral flatness",
         description: "Tonality vs noisiness over time",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "flatness", "wiener", "entropy", "tonal", "noise", "tonality",
         ],
     },
     AnalyzerInfo {
-        id: "spectralContrast",
+        id: AnalyzerId::SpectralContrast,
         title: "Spectral contrast",
         description: "Peak-to-valley ratio per octave band",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &["contrast", "peak", "valley", "octave", "band", "spectral"],
     },
     AnalyzerInfo {
-        id: "spectralBandwidth",
+        id: AnalyzerId::SpectralBandwidth,
         title: "Spectral bandwidth",
         description: "Spread around the spectral centroid",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &["bandwidth", "spread", "variance", "width", "spectral"],
     },
     AnalyzerInfo {
-        id: "spectralEntropy",
+        id: AnalyzerId::SpectralEntropy,
         title: "Spectral entropy",
         description: "Order vs disorder of the spectrum",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &["entropy", "shannon", "disorder", "noise", "spectral"],
     },
     AnalyzerInfo {
-        id: "spectralCrest",
+        id: AnalyzerId::SpectralCrest,
         title: "Spectral crest factor",
         description: "Peak-to-average spectral power ratio",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &["crest", "factor", "peak", "average", "tonal", "spectral"],
     },
     AnalyzerInfo {
-        id: "harmonicRatio",
+        id: AnalyzerId::HarmonicRatio,
         title: "Harmonic ratio",
         description: "Max normalized autocorrelation over time (not HNR in dB)",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "harmonic",
             "ratio",
@@ -210,10 +210,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "zeroCrossingRate",
+        id: AnalyzerId::ZeroCrossingRate,
         title: "Zero-crossing rate",
         description: "Sign-change rate over time",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "zero crossing",
             "zcr",
@@ -224,10 +224,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "modulation",
+        id: AnalyzerId::Modulation,
         title: "AM/FM modulation",
         description: "Amplitude and pitch modulation spectra over time",
-        section: "spectral",
+        section: Section::Spectral,
         keywords: &[
             "modulation",
             "am",
@@ -244,24 +244,24 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     },
     // Pitch / melody
     AnalyzerInfo {
-        id: "pitchPyin",
+        id: AnalyzerId::PitchPyin,
         title: "Pitch (pYIN)",
         description: "Probabilistic YIN fundamental track",
-        section: "pitch",
+        section: Section::Pitch,
         keywords: &["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     },
     AnalyzerInfo {
-        id: "pitchYin",
+        id: AnalyzerId::PitchYin,
         title: "Pitch (YIN)",
         description: "YIN fundamental track",
-        section: "pitch",
+        section: Section::Pitch,
         keywords: &["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
     },
     AnalyzerInfo {
-        id: "pitchAutocorr",
+        id: AnalyzerId::PitchAutocorr,
         title: "Pitch (autocorrelation)",
         description: "Autocorrelation fundamental track",
-        section: "pitch",
+        section: Section::Pitch,
         keywords: &[
             "pitch",
             "autocorrelation",
@@ -272,10 +272,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "noteMetrics",
+        id: AnalyzerId::NoteMetrics,
         title: "Note segments",
         description: "Gated sound events with spans, gaps, level, and voice quality",
-        section: "pitch",
+        section: Section::Pitch,
         keywords: &[
             "note",
             "notes",
@@ -295,17 +295,17 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
     },
     // Rhythm / tempo
     AnalyzerInfo {
-        id: "tempo",
+        id: AnalyzerId::Tempo,
         title: "Tempo",
         description: "Estimated BPM and beat grid",
-        section: "rhythm",
+        section: Section::Rhythm,
         keywords: &["tempo", "bpm", "beat", "rhythm", "pulse", "detection"],
     },
     AnalyzerInfo {
-        id: "onsets",
+        id: AnalyzerId::Onsets,
         title: "Onsets",
         description: "Spectral-flux onset peaks (not gated sound events)",
-        section: "rhythm",
+        section: Section::Rhythm,
         keywords: &[
             "onset",
             "attack",
@@ -318,18 +318,18 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "downbeats",
+        id: AnalyzerId::Downbeats,
         title: "Downbeats",
         description: "Estimated bar-start beat times",
-        section: "rhythm",
+        section: Section::Rhythm,
         keywords: &["downbeat", "bar", "measure", "beat", "meter", "rhythm"],
     },
     // Loudness
     AnalyzerInfo {
-        id: "loudnessIntegrated",
+        id: AnalyzerId::LoudnessIntegrated,
         title: "Integrated LUFS",
         description: "EBU R128 integrated loudness",
-        section: "loudness",
+        section: Section::Loudness,
         keywords: &[
             "loudness",
             "lufs",
@@ -341,10 +341,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "loudnessMomentary",
+        id: AnalyzerId::LoudnessMomentary,
         title: "Loudness (momentary)",
         description: "Short-term loudness over time",
-        section: "loudness",
+        section: Section::Loudness,
         keywords: &[
             "loudness",
             "momentary",
@@ -355,10 +355,10 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
         ],
     },
     AnalyzerInfo {
-        id: "loudnessRange",
+        id: AnalyzerId::LoudnessRange,
         title: "Loudness range",
         description: "LRA — loudness spread in LU",
-        section: "loudness",
+        section: Section::Loudness,
         keywords: &[
             "loudness",
             "range",

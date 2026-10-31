@@ -1,6 +1,8 @@
 //! The summary item keys each result family reports (M21), and the tool → family
 //! map an agent discovers through `get_analyzer`.
 
+use crate::audio::analyzers::AnalyzerId;
+
 // Item-key lists, one per family. `summary_keys` maps a tool id onto one of these.
 const WAVEFORM: &[&str] = &["peakDb", "rmsDb", "duration"];
 const SPECTRUM: &[&str] = &["peakHz", "peakDb", "fftSize", "hopSize", "frames"];
@@ -83,19 +85,31 @@ const MODULATION: &[&str] = &[
 
 /// The summary item keys `tool` produces. Analyzers that are not listed fall back to
 /// the generic series shape (every scalar-per-frame tool).
-pub fn summary_keys(tool: &str) -> &'static [&'static str] {
+pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
     match tool {
-        "waveform" | "levels" => WAVEFORM,
-        "spectrum" => SPECTRUM,
-        "spectrogram" => SPECTROGRAM,
-        "melSpectrogram" | "mfcc" | "chromagram" | "spectralContrast" => MATRIX,
-        "frameRms" => FRAME_RMS,
-        "pitchPyin" | "pitchYin" | "pitchAutocorr" => PITCH,
-        "noteMetrics" => NOTES,
-        "modulation" => MODULATION,
-        "tempo" | "onsets" | "downbeats" => RHYTHM,
-        "loudnessIntegrated" => &["lufs"],
-        "loudnessRange" => &["lra"],
-        _ => SERIES,
+        AnalyzerId::Waveform | AnalyzerId::Levels => WAVEFORM,
+        AnalyzerId::Spectrum => SPECTRUM,
+        AnalyzerId::Spectrogram => SPECTROGRAM,
+        AnalyzerId::MelSpectrogram
+        | AnalyzerId::Mfcc
+        | AnalyzerId::Chromagram
+        | AnalyzerId::SpectralContrast => MATRIX,
+        AnalyzerId::FrameRms => FRAME_RMS,
+        AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
+        AnalyzerId::NoteMetrics => NOTES,
+        AnalyzerId::Modulation => MODULATION,
+        AnalyzerId::Tempo | AnalyzerId::Onsets | AnalyzerId::Downbeats => RHYTHM,
+        AnalyzerId::LoudnessIntegrated => &["lufs"],
+        AnalyzerId::LoudnessRange => &["lra"],
+        AnalyzerId::SpectralCentroid
+        | AnalyzerId::SpectralFlux
+        | AnalyzerId::SpectralRolloff
+        | AnalyzerId::SpectralFlatness
+        | AnalyzerId::SpectralBandwidth
+        | AnalyzerId::SpectralEntropy
+        | AnalyzerId::SpectralCrest
+        | AnalyzerId::HarmonicRatio
+        | AnalyzerId::ZeroCrossingRate
+        | AnalyzerId::LoudnessMomentary => SERIES,
     }
 }

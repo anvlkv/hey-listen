@@ -7,12 +7,12 @@
 use serde_json::{json, Map, Value};
 
 use crate::audio::analysis::{self, Shape};
-use crate::audio::analyzers;
+use crate::audio::analyzers::{self, AnalyzerId};
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
 use crate::state::SourcePcm;
 
-use super::args::{clamp_span, merge_options, merge_params};
+use super::args::{analyzer, clamp_span, merge_options, merge_params};
 use super::HeadlessSession;
 
 impl HeadlessSession {
@@ -55,8 +55,8 @@ impl HeadlessSession {
 
     /// One tool's effective options: its declared defaults overlaid with the values the
     /// agent set. Unset fields (`null` in the stored `ToolOptions`) are omitted.
-    pub(super) fn options_for(&self, tool: &str) -> Value {
-        Value::Object(analyzers::effective_options(tool, self.options.get(tool)))
+    pub(super) fn options_for(&self, tool: AnalyzerId) -> Value {
+        Value::Object(analyzers::effective_options(tool, self.options.get(&tool)))
     }
 
     /// Every analyzer's effective options, so `get_state` reports the defaults (not just
@@ -163,6 +163,7 @@ impl HeadlessSession {
             channels,
         }));
         self.source_path = Some(path.clone());
+        self.source_kind = crate::project::SourceKind::File;
         self.synth = None;
         self.name = std::path::Path::new(&path)
             .file_name()
@@ -207,6 +208,7 @@ impl HeadlessSession {
         }));
         self.synth = Some(spec);
         self.source_path = None;
+        self.source_kind = crate::project::SourceKind::Synth;
         self.name = "Synth".to_string();
 
         let duration = self.duration();
@@ -216,14 +218,7 @@ impl HeadlessSession {
     }
 
     pub(super) fn run_analysis(&mut self, args: &Value) -> Result<Value, String> {
-        let tool = args
-            .get("tool")
-            .and_then(Value::as_str)
-            .ok_or("`tool` is required")?
-            .to_string();
-        if !analyzers::is_analyzer(&tool) {
-            return Err(format!("unknown analyzer: {tool}"));
-        }
+        let tool = analyzer(args, "tool")?;
 
         // `transient` applies `start`/`end`/`params`/`options` to this call only; the
         // default writes them back to the session (matching the GUI's stores).
@@ -248,10 +243,10 @@ impl HeadlessSession {
         let mut options = self.options.get(&tool).cloned().unwrap_or_default();
         if let Some(patch) = args.get("options").and_then(Value::as_object) {
             if transient {
-                merge_options(&mut options, &tool, patch)?;
+                merge_options(&mut options, tool, patch)?;
             } else {
-                let entry = self.options.entry(tool.clone()).or_default();
-                merge_options(entry, &tool, patch)?;
+                let entry = self.options.entry(tool).or_default();
+                merge_options(entry, tool, patch)?;
                 options = self.options.get(&tool).cloned().unwrap_or_default();
             }
         }
@@ -302,7 +297,7 @@ impl HeadlessSession {
             _ => analysis::Axis::Array,
         };
 
-        let result = analysis::run_window(&self.state, &tool, start, end, &params, &options)
+        let result = analysis::run_window(&self.state, tool, start, end, &params, &options)
             .map_err(|err| err.to_string())?;
 
         // The summary is computed from the full result, before any shaping, so it is the
@@ -316,7 +311,7 @@ impl HeadlessSession {
         let mut envelope = json!({
             "window": { "start": start, "end": end },
             "params": serde_json::to_value(&params).unwrap_or(Value::Null),
-            "options": Value::Object(analyzers::effective_options(&tool, Some(&options))),
+            "options": Value::Object(analyzers::effective_options(tool, Some(&options))),
             "summary": summary,
         });
         if let Some(value) = shaped {
