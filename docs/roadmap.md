@@ -1839,11 +1839,20 @@ persistence yet (M25.C).
 > (frequency / rate charts keep the identity), so a swap never re-points A's other charts.
 > The fine-tune offset is per open compare view and resets when it closes; M25.C saves it.
 
+> **Follow-up fixes (from the MCP test drive):** `maxPoints` now thins the **delta** arrays
+> as well as the side results (series/waveform aligned, matrices by whole frames, with
+> `sourceBuckets` for provenance), so the documented contract holds. Pitch results
+> (`pitchYin`/`pitchPyin`/`pitchAutocorr`) diff through the **series** path instead of the
+> generic scalar fallback. `axis: "compact"` now covers overlap-add series (an edge frame
+> is carried as `firstHop`/`lastHop`) and applies to the delta's relative `times`. The
+> array-valued MCP tools (`list_analyzers`, the device/process enumerations) also answer
+> `structuredContent`. See [`mcp-comparison-improvements.md`](mcp-comparison-improvements.md).
+
 > **Tests:** Rust `compare/tests/relative.rs` (relative windows, δ and the common span,
 > clipping, matrix null columns, waveform bucket sampling) plus the CLI relative/offset
-> test; `scripts/compare.test.ts` (display transform, swap, clipping, reference
-> retention); E2E `r2b-compare-relative` R2.11–R2.12 (waveform clipping, adjacent windows,
-> the slider, Swap, reference survives another tab).
+> test and the follow-up `maxPoints`/pitch/axis tests; `scripts/compare.test.ts` (display
+> transform, swap, clipping, reference retention); E2E `r2b-compare-relative` R2.11–R2.12
+> (waveform clipping, adjacent windows, the slider, Swap, reference survives another tab).
 
 ## M25.C — Saved comparisons (planned)
 

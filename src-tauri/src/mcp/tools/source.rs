@@ -63,7 +63,8 @@ pub(super) fn tools() -> Vec<Value> {
              returns the raw arrays (with `maxPoints` to thin them), and `summaryOnly: true` \
              returns just the summary. `maxPoints` only thins series/matrix families; it never \
              removes events from `noteMetrics`/`onsets` lists. `axis: \"compact\"` replaces a \
-             uniform `times` array with `{ start, hop, length, end }`. By default the call also \
+             `times` array with `{ start, hop, length, end }` (an overlap-add edge frame is \
+             carried as `firstHop`/`lastHop`). By default the call also \
              opens (and focuses) the analyzer tab so the user's window follows; pass \
              `display: false` to compute without opening a tab. Optionally overrides the window \
              (`start`/`end`, source seconds), the shared params, or the tool's own options — \
@@ -85,7 +86,7 @@ pub(super) fn tools() -> Vec<Value> {
                     "summaryOnly": { "type": "boolean", "description": "Return only the summary, without `result` (default false). Mutually exclusive with `includeData`." },
                     "includeData": { "type": "boolean", "description": "Return the full result arrays (default false, compacted). Mutually exclusive with `summaryOnly`." },
                     "maxPoints": { "type": "integer", "minimum": 2, "description": "With `includeData`, thin series/matrix arrays to at most this many points (keeping first/last). Event and note lists are never thinned; scalars are unchanged." },
-                    "axis": { "type": "string", "enum": ["array", "compact"], "description": "With `includeData`, `compact` turns a uniform `times` array into `{ start, hop, length, end }` (default `array`)." },
+                    "axis": { "type": "string", "enum": ["array", "compact"], "description": "With `includeData`, `compact` turns a `times` array into `{ start, hop, length, end }` (`firstHop`/`lastHop` carry a differing edge frame; default `array`)." },
                 },
                 "required": ["tool"],
                 "additionalProperties": false,

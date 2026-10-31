@@ -70,6 +70,7 @@ pub fn run() {
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
                 .build(),
         )
+        .plugin(tauri_plugin_prevent_default::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // CLI flags are declared in `tauri.conf.json` (`plugins.cli`); the app reads

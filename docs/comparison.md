@@ -172,9 +172,13 @@ Per result family:
 
 The default output is **stats**, not arrays. Raw delta arrays are included only on
 request (MCP `includeData`, CLI `--full`) and are thinned by `maxPoints` for
-series/matrices. Event lists are never thinned. Each side keeps the existing canonical
-`summary`; the comparison adds a `diff.summary` line (e.g. `Δ rms −1.2 dB · Δ peak
-0.8 dB`).
+series/matrices: parallel arrays are thinned together (`times` / `values` / `a` / `b`,
+and whole frames for a matrix), a waveform reports `sourceBuckets` when thinned, and the
+stats still describe the full comparison. Event lists are never thinned. `axis:
+"compact"` applies to the delta's relative `times` as well as the side results (an
+overlap-add edge frame is carried as `firstHop` / `lastHop`). Each side keeps the
+existing canonical `summary`; the comparison adds a `diff.summary` line (e.g. `Δ rms
+−1.2 dB · Δ peak 0.8 dB`).
 
 **Views.** The core delta ships for **every** family, and the compare view charts all of
 them: **series, spectrum and readouts** (pitch, every spectral series, momentary loudness,

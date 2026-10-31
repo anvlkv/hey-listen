@@ -190,3 +190,34 @@ fn a_waveform_delta_clips_to_the_common_span() {
     assert_eq!(delta.buckets, 3, "A's buckets at 0, 0.25 and 0.5 s");
     assert!(delta.times.iter().all(|time| *time <= 0.5));
 }
+
+#[test]
+fn thinning_a_matrix_delta_keeps_whole_frames() {
+    let a_result = AnalysisResult::Mfcc(matrix(vec![0.0, 0.1, 0.2, 0.3], vec![1.0, 2.0, 3.0, 4.0]));
+    let b_result = AnalysisResult::Mfcc(matrix(
+        vec![0.0, 0.1, 0.2, 0.3],
+        vec![10.0, 20.0, 30.0, 40.0],
+    ));
+    let ComparisonDiff::Matrix(mut delta) = diff_at(&a_result, &b_result, 0.4) else {
+        panic!("expected a matrix delta");
+    };
+    delta.thin(2);
+    // Stride 2 keeps frames 0 and 2, with one value each (one band).
+    assert_eq!(delta.times, vec![0.0, 0.2]);
+    assert_eq!(delta.columns, vec![true, true]);
+    assert_eq!(delta.values, vec![9.0, 27.0]);
+}
+
+#[test]
+fn thinning_a_waveform_delta_keeps_times_and_values_aligned() {
+    let a_result = AnalysisResult::Waveform(waveform(1.0, vec![0.0; 8]));
+    let b_result = AnalysisResult::Waveform(waveform(1.0, vec![1.0; 8]));
+    let ComparisonDiff::Waveform(mut delta) = diff_at(&a_result, &b_result, 1.0) else {
+        panic!("expected a waveform delta");
+    };
+    delta.thin(4);
+    assert_eq!(delta.times.len(), 4);
+    assert_eq!(delta.values.len(), 4);
+    assert_eq!(delta.buckets, 4);
+    assert_eq!(delta.source_buckets, Some(8));
+}

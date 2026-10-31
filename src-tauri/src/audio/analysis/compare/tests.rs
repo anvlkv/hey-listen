@@ -302,6 +302,50 @@ fn full_shaping_returns_the_delta_arrays() {
 }
 
 #[test]
+fn max_points_thins_the_delta_arrays_and_keeps_them_aligned() {
+    let a = state_with(tone(1.0, 440.0, 1.0));
+    let b = state_with(tone(1.0, 440.0, 0.5));
+    let comparison = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
+    let value = comparison.to_value(Shape::Full, Some(8), Axis::Array);
+    let diff = &value["diff"];
+    for key in ["times", "values", "a", "b"] {
+        assert_eq!(
+            diff[key].as_array().unwrap().len(),
+            8,
+            "{key} must be thinned with the rest"
+        );
+    }
+    // The stats and summary still describe the full comparison.
+    assert!(diff["stats"]["matched"].as_u64().unwrap() > 8);
+    assert!(diff["summary"].as_str().unwrap().contains("pairs"));
+}
+
+#[test]
+fn a_pitch_track_compares_as_a_series() {
+    let a = state_with(tone(1.0, 440.0, 1.0));
+    let b = state_with(tone(1.0, 220.0, 1.0));
+    let comparison = compare_pair(
+        AnalyzerId::PitchYin,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
+    // Pitch is a gapped series, not a scalar readout: no constant-field noise.
+    let Some(ComparisonDiff::Series(diff)) = &comparison.diff else {
+        panic!("expected a series delta for a pitch track");
+    };
+    assert!(diff.stats.matched > 20, "voiced frames matched");
+    let mean = diff.stats.mean.expect("mean f0 delta");
+    assert!(
+        mean < -100.0,
+        "half the frequency should be about −220 Hz, got {mean}"
+    );
+}
+
+#[test]
 fn wire_options_round_trip_into_tool_options() {
     // The peer's effective options are sent straight back as B's setup, so a count must
     // reach the wire as an integer (the catalog reports every default as `f64`).

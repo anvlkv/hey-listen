@@ -203,8 +203,10 @@ export interface ModulationDiffDto extends DiffHeader {
 
 export interface WaveformDiffDto extends DiffHeader {
   kind: "waveform";
-  /** Envelope buckets compared (A's bucket times sampled against B). */
+  /** Envelope buckets present in `times` / `values` (A's bucket times sampled against B). */
   buckets: number;
+  /** The original bucket count when `maxPoints` thinned the arrays. */
+  sourceBuckets?: number;
   /** The sampled bucket times on the relative axis. */
   times: number[];
   values: number[];

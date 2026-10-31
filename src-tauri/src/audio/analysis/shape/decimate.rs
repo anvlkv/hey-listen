@@ -75,7 +75,7 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
 /// This is the opt-in `axis: "compact"` full mode: the consumer keeps every value but
 /// does not pay for a repeated, evenly spaced time array. A non-uniform axis is left
 /// as-is, so the result stays self-describing.
-pub(super) fn compact_time_axes(value: Value) -> Value {
+pub(crate) fn compact_time_axes(value: Value) -> Value {
     match value {
         Value::Object(mut object) => {
             let axis = object
@@ -168,35 +168,63 @@ fn thin_frames(
 }
 
 /// `max` evenly spaced indices over `length`, keeping the first and last.
-fn indices(length: usize, max: usize) -> Vec<usize> {
+pub(crate) fn indices(length: usize, max: usize) -> Vec<usize> {
     let step = (length - 1) as f64 / (max - 1) as f64;
     (0..max)
         .map(|index| (index as f64 * step).round() as usize)
         .collect()
 }
 
-/// `{ start, hop, length, end }` when the times are evenly spaced.
-fn uniform_axis(times: &[Value]) -> Option<Value> {
+/// `{ start, hop, length, end }` when the times are evenly spaced (see below).
+///
+/// Overlap-add series (every hop-based tool: `frameRms`, the spectral tracks, momentary
+/// loudness) end with one **short edge frame**, so their axis is uniform everywhere but
+/// the last interval. Compacting only perfectly uniform axes made `axis: "compact"` a
+/// no-op for exactly the tools that repeat the largest time arrays. The axis stays
+/// lossless: interior intervals must match `hop` exactly, and an irregular **first** or
+/// **last** interval is spelled out as `firstHop` / `lastHop` so every time is
+/// reconstructible (`t[i] = t[i−1] + hop` inside, the named hop at an edge).
+pub(super) fn uniform_axis(times: &[Value]) -> Option<Value> {
     let values: Option<Vec<f64>> = times.iter().map(Value::as_f64).collect();
     let values = values?;
     if values.len() < 2 {
         return None;
     }
-    let hop = (values[values.len() - 1] - values[0]) / (values.len() - 1) as f64;
+    let hops: Vec<f64> = values.windows(2).map(|pair| pair[1] - pair[0]).collect();
+    let mut sorted = hops.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let hop = sorted[sorted.len() / 2];
     if !hop.is_finite() || hop <= 0.0 {
         return None;
     }
     let tolerance = hop * 1e-4 + 1e-9;
-    let uniform = values
-        .windows(2)
-        .all(|pair| (pair[1] - pair[0] - hop).abs() <= tolerance);
-    if !uniform {
-        return None;
+    // Interior intervals must be uniform; the first and last are edge frames and may be
+    // shorter (overlap-add) — they are carried explicitly below.
+    let last = hops.len() - 1;
+    for (index, &step) in hops.iter().enumerate() {
+        if index == 0 || index == last {
+            continue;
+        }
+        if (step - hop).abs() > tolerance {
+            return None;
+        }
     }
-    Some(json!({
+    let mut axis = json!({
         "start": values[0],
         "hop": hop,
         "length": values.len(),
         "end": values[values.len() - 1],
-    }))
+    });
+    // A single interval (two points) has no interior: accept it as its own hop.
+    if hops.len() > 1 {
+        if let Some(object) = axis.as_object_mut() {
+            if (hops[0] - hop).abs() > tolerance {
+                object.insert("firstHop".to_string(), json!(hops[0]));
+            }
+            if (hops[last] - hop).abs() > tolerance {
+                object.insert("lastHop".to_string(), json!(hops[last]));
+            }
+        }
+    }
+    Some(axis)
 }

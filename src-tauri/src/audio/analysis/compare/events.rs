@@ -7,7 +7,7 @@
 
 use serde::Serialize;
 
-use crate::audio::analysis::{NoteMetricsResult, RhythmResult, SeriesResult};
+use crate::audio::analysis::{NoteMetricsResult, RhythmResult};
 
 use super::align::Span;
 use super::diff::{hop_of, relative, series_delta, SeriesDelta};
@@ -160,48 +160,9 @@ fn envelope_delta(
     if hop_a > 0.0 && hop_b > 0.0 && (hop_a - hop_b).abs() > hop_a.max(hop_b) * 0.05 {
         return None;
     }
-    Some(series_delta(
-        &as_series(a),
-        a_times,
-        &as_series(b),
-        b_times,
-        common,
-    ))
-}
-
-/// View a rhythm result's envelope as a series result (the delta code is shared).
-fn as_series(r: &RhythmResult) -> SeriesResult {
-    let values: Vec<Option<f32>> = r.onset_strength.iter().copied().map(Some).collect();
-    let min_value = r
-        .onset_strength
-        .iter()
-        .copied()
-        .fold(f32::INFINITY, f32::min);
-    let max_value = r
-        .onset_strength
-        .iter()
-        .copied()
-        .fold(f32::NEG_INFINITY, f32::max);
-    SeriesResult {
-        sample_rate: 0,
-        hop_size: r.hop_size,
-        frames: r.times.len(),
-        times: r.times.clone(),
-        window_start: r.window_start,
-        values,
-        min_value: if min_value.is_finite() {
-            min_value
-        } else {
-            0.0
-        },
-        max_value: if max_value.is_finite() {
-            max_value
-        } else {
-            0.0
-        },
-        frame_size: None,
-        gate: None,
-    }
+    let a_values: Vec<Option<f32>> = a.onset_strength.iter().copied().map(Some).collect();
+    let b_values: Vec<Option<f32>> = b.onset_strength.iter().copied().map(Some).collect();
+    Some(series_delta(&a_values, a_times, &b_values, b_times, common))
 }
 
 pub(super) fn notes_delta(
