@@ -7,6 +7,7 @@
 use serde_json::Value;
 
 use crate::audio::analysis::{canonical_option_key, SharedParams, ToolOptions, WindowKind};
+use crate::audio::analyzers::AnalyzerId;
 
 /// The default shared params, matching the frontend's initial store values
 /// (`src/state/analysis.ts`): 2048-point Hann, 75% overlap, no resample, full band.
@@ -79,12 +80,23 @@ pub(super) fn merge_params(params: &mut SharedParams, value: &Value) -> Result<(
     Ok(())
 }
 
+/// Read a required analyzer id from a tool's arguments (parsed once, here).
+pub(super) fn analyzer(args: &Value, key: &str) -> Result<AnalyzerId, String> {
+    let value = args
+        .get(key)
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("`{key}` is required"))?;
+    value
+        .parse()
+        .map_err(|_| format!("unknown analyzer: {value}"))
+}
+
 /// Merge per-tool option overrides into `entry`. Keys are canonical camelCase,
 /// with their snake_case aliases accepted; a value must be a number and an unknown
 /// key is an error (never silent).
 pub(super) fn merge_options(
     entry: &mut ToolOptions,
-    tool: &str,
+    tool: AnalyzerId,
     options: &serde_json::Map<String, Value>,
 ) -> Result<(), String> {
     for (key, value) in options {

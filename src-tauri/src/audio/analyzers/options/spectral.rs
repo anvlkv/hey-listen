@@ -2,11 +2,12 @@
 //! so each file stays inside the source-size budget.
 
 use super::OptionInfo;
+use crate::audio::analyzers::AnalyzerId;
 
 /// Per-analyzer engine-option metadata for the spectral tools.
-pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
+pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
     (
-        "melSpectrogram",
+        AnalyzerId::MelSpectrogram,
         &[OptionInfo {
             key: "nMels",
             label: "Mel bands",
@@ -17,7 +18,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         }],
     ),
     (
-        "mfcc",
+        AnalyzerId::Mfcc,
         &[
             OptionInfo {
                 key: "nMfcc",
@@ -38,7 +39,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "spectralRolloff",
+        AnalyzerId::SpectralRolloff,
         &[
             OptionInfo {
                 key: "rolloffPercent",
@@ -67,7 +68,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "spectralCentroid",
+        AnalyzerId::SpectralCentroid,
         &[
             OptionInfo {
                 key: "gateDb",
@@ -88,7 +89,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "spectralFlatness",
+        AnalyzerId::SpectralFlatness,
         &[
             OptionInfo {
                 key: "gateDb",
@@ -109,7 +110,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "zeroCrossingRate",
+        AnalyzerId::ZeroCrossingRate,
         &[
             OptionInfo {
                 key: "gateDb",
@@ -130,7 +131,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         ],
     ),
     (
-        "spectralContrast",
+        AnalyzerId::SpectralContrast,
         &[OptionInfo {
             key: "nBands",
             label: "Bands",
@@ -141,7 +142,7 @@ pub(crate) const OPTIONS: &[(&str, &[OptionInfo])] = &[
         }],
     ),
     (
-        "harmonicRatio",
+        AnalyzerId::HarmonicRatio,
         &[
             OptionInfo {
                 key: "minF0Hz",

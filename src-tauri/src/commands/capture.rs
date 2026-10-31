@@ -9,8 +9,7 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Emitter, WebviewWindow};
 
 use crate::audio::capture::{
-    self, CaptureConfig, CaptureError, CaptureHandle, CaptureKind, CaptureMessage, DeviceDto,
-    ProcessDto,
+    self, CaptureConfig, CaptureError, CaptureHandle, CaptureMessage, DeviceDto, ProcessDto,
 };
 use crate::commands::stream;
 use crate::state::{window_state, WindowState};
@@ -43,8 +42,7 @@ pub async fn list_processes() -> Result<Vec<ProcessDto>, CaptureError> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct StartCaptureArgs {
-    /// `mic` | `system` | `process` | `mix`.
-    pub kind: String,
+    pub kind: crate::audio::capture::CaptureKind,
     pub device_id: Option<String>,
     pub mix_mic_device_id: Option<String>,
     pub mix_system_device_id: Option<String>,
@@ -82,7 +80,7 @@ pub async fn start_capture(
     let state = window_state(&window);
 
     let config = CaptureConfig {
-        kind: CaptureKind::parse(&args.kind)?,
+        kind: args.kind,
         device_id: args.device_id.filter(|id| !id.is_empty()),
         mix_mic_device_id: args.mix_mic_device_id.filter(|id| !id.is_empty()),
         mix_system_device_id: args.mix_system_device_id.filter(|id| !id.is_empty()),

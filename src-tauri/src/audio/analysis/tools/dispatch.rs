@@ -13,6 +13,7 @@ use super::{
     chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, modulation, note_metrics,
     spectral_contrast, spectrogram, spectrum, waveform,
 };
+use crate::audio::analyzers::AnalyzerId;
 
 /// Build a scalar series and apply the window gate on `mono` (the unpadded signal).
 fn gated_series(
@@ -28,7 +29,7 @@ fn gated_series(
     result
 }
 pub fn run(
-    tool: &str,
+    tool: AnalyzerId,
     mono: &[f32],
     sample_rate: u32,
     params: &SharedParams,
@@ -49,47 +50,47 @@ pub fn run(
     };
     let lib_buf = || mono_buffer(lib_mono, sample_rate);
     match tool {
-        "waveform" => Ok(AnalysisResult::Waveform(waveform(mono, sample_rate))),
-        "levels" => Ok(AnalysisResult::Levels(levels(mono, sample_rate))),
-        "frameRms" => Ok(AnalysisResult::FrameRms(frame_rms_envelope(
+        AnalyzerId::Waveform => Ok(AnalysisResult::Waveform(waveform(mono, sample_rate))),
+        AnalyzerId::Levels => Ok(AnalysisResult::Levels(levels(mono, sample_rate))),
+        AnalyzerId::FrameRms => Ok(AnalysisResult::FrameRms(frame_rms_envelope(
             mono,
             sample_rate,
             options,
         ))),
-        "spectrum" => Ok(AnalysisResult::Spectrum(spectrum(
+        AnalyzerId::Spectrum => Ok(AnalysisResult::Spectrum(spectrum(
             mono,
             sample_rate,
             params,
         )?)),
-        "spectrogram" => Ok(AnalysisResult::Spectrogram(spectrogram(
+        AnalyzerId::Spectrogram => Ok(AnalysisResult::Spectrogram(spectrogram(
             mono,
             sample_rate,
             params,
         )?)),
-        "melSpectrogram" => Ok(AnalysisResult::MelSpectrogram(mel_spectrogram(
+        AnalyzerId::MelSpectrogram => Ok(AnalysisResult::MelSpectrogram(mel_spectrogram(
             lib_mono,
             sample_rate,
             params,
             options,
         )?)),
-        "mfcc" => Ok(AnalysisResult::Mfcc(mfcc(
+        AnalyzerId::Mfcc => Ok(AnalysisResult::Mfcc(mfcc(
             lib_mono,
             sample_rate,
             params,
             options,
         )?)),
-        "chromagram" => Ok(AnalysisResult::Chromagram(chromagram(
+        AnalyzerId::Chromagram => Ok(AnalysisResult::Chromagram(chromagram(
             lib_mono,
             sample_rate,
             params,
         )?)),
-        "spectralContrast" => Ok(AnalysisResult::SpectralContrast(spectral_contrast(
+        AnalyzerId::SpectralContrast => Ok(AnalysisResult::SpectralContrast(spectral_contrast(
             lib_mono,
             sample_rate,
             params,
             options,
         )?)),
-        "spectralCentroid" => Ok(AnalysisResult::SpectralCentroid(gated_series(
+        AnalyzerId::SpectralCentroid => Ok(AnalysisResult::SpectralCentroid(gated_series(
             oxiaudio::dsp::spectral::spectral_centroid(&lib_buf(), fft, hop),
             hop,
             fft,
@@ -97,12 +98,12 @@ pub fn run(
             sample_rate,
             options,
         ))),
-        "spectralFlux" => Ok(AnalysisResult::SpectralFlux(series_from_vec(
+        AnalyzerId::SpectralFlux => Ok(AnalysisResult::SpectralFlux(series_from_vec(
             oxiaudio::dsp::spectral::spectral_flux(&lib_buf(), fft, hop),
             hop,
             sample_rate,
         ))),
-        "spectralRolloff" => Ok(AnalysisResult::SpectralRolloff(gated_series(
+        AnalyzerId::SpectralRolloff => Ok(AnalysisResult::SpectralRolloff(gated_series(
             oxiaudio::dsp::spectral::spectral_rolloff(
                 &lib_buf(),
                 fft,
@@ -115,7 +116,7 @@ pub fn run(
             sample_rate,
             options,
         ))),
-        "spectralFlatness" => Ok(AnalysisResult::SpectralFlatness(gated_series(
+        AnalyzerId::SpectralFlatness => Ok(AnalysisResult::SpectralFlatness(gated_series(
             oxiaudio::dsp::spectral::spectral_flatness(&lib_buf(), fft, hop),
             hop,
             fft,
@@ -123,22 +124,22 @@ pub fn run(
             sample_rate,
             options,
         ))),
-        "spectralBandwidth" => Ok(AnalysisResult::SpectralBandwidth(series_from_vec(
+        AnalyzerId::SpectralBandwidth => Ok(AnalysisResult::SpectralBandwidth(series_from_vec(
             oxiaudio::dsp::spectral::spectral_bandwidth(&lib_buf(), fft, hop),
             hop,
             sample_rate,
         ))),
-        "spectralEntropy" => Ok(AnalysisResult::SpectralEntropy(series_from_vec(
+        AnalyzerId::SpectralEntropy => Ok(AnalysisResult::SpectralEntropy(series_from_vec(
             oxiaudio::dsp::spectral::spectral_entropy(&lib_buf(), fft, hop),
             hop,
             sample_rate,
         ))),
-        "spectralCrest" => Ok(AnalysisResult::SpectralCrest(series_from_vec(
+        AnalyzerId::SpectralCrest => Ok(AnalysisResult::SpectralCrest(series_from_vec(
             oxiaudio::dsp::spectral::spectral_crest_factor(&lib_buf(), fft, hop),
             hop,
             sample_rate,
         ))),
-        "harmonicRatio" => {
+        AnalyzerId::HarmonicRatio => {
             let (min_f0, max_f0) = options.harmonic_range();
             Ok(AnalysisResult::HarmonicRatio(gated_series(
                 oxiaudio::dsp::spectral::harmonic_ratio(
@@ -155,7 +156,7 @@ pub fn run(
                 options,
             )))
         }
-        "zeroCrossingRate" => Ok(AnalysisResult::ZeroCrossingRate(gated_series(
+        AnalyzerId::ZeroCrossingRate => Ok(AnalysisResult::ZeroCrossingRate(gated_series(
             oxiaudio::dsp::spectral::zero_crossing_rate(&lib_buf(), fft, hop),
             hop,
             fft,
@@ -163,13 +164,13 @@ pub fn run(
             sample_rate,
             options,
         ))),
-        "pitchPyin" => Ok(AnalysisResult::PitchPyin(pitch_series(
+        AnalyzerId::PitchPyin => Ok(AnalysisResult::PitchPyin(pitch_series(
             oxiaudio::dsp::detect_pitch_pyin(&lib_buf(), pitch_fft, pitch_hop),
             pitch_hop,
             sample_rate,
             (PYIN_MIN_F0, PYIN_MAX_F0),
         ))),
-        "pitchYin" => {
+        AnalyzerId::PitchYin => {
             let (min_f0, max_f0) = options.yin_range();
             let frames = oxiaudio::dsp::PitchTracker::new(pitch_fft, pitch_hop)
                 .with_threshold(options.yin_threshold())
@@ -182,7 +183,7 @@ pub fn run(
                 (min_f0, max_f0),
             )))
         }
-        "pitchAutocorr" => {
+        AnalyzerId::PitchAutocorr => {
             let (min_f0, max_f0) = options.autocorr_range();
             Ok(AnalysisResult::PitchAutocorr(pitch_series(
                 oxiaudio::dsp::detect_pitch_autocorr(
@@ -197,17 +198,17 @@ pub fn run(
                 (min_f0, max_f0),
             )))
         }
-        "noteMetrics" => Ok(AnalysisResult::NoteMetrics(note_metrics(
+        AnalyzerId::NoteMetrics => Ok(AnalysisResult::NoteMetrics(note_metrics(
             mono,
             sample_rate,
             options,
         ))),
-        "modulation" => Ok(AnalysisResult::Modulation(modulation(
+        AnalyzerId::Modulation => Ok(AnalysisResult::Modulation(modulation(
             mono,
             sample_rate,
             options,
         ))),
-        "tempo" => {
+        AnalyzerId::Tempo => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
             Ok(AnalysisResult::Tempo(RhythmResult {
@@ -223,7 +224,7 @@ pub fn run(
                 downbeat_times: vec![],
             }))
         }
-        "onsets" => {
+        AnalyzerId::Onsets => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let times = oxiaudio::dsp::detect_onsets(&lib_buf(), fft, hop).map_err(oxi_err)?;
             Ok(AnalysisResult::Onsets(RhythmResult {
@@ -239,7 +240,7 @@ pub fn run(
                 downbeat_times: vec![],
             }))
         }
-        "downbeats" => {
+        AnalyzerId::Downbeats => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
             let downbeats = oxiaudio::dsp::detect_downbeats(
@@ -261,13 +262,13 @@ pub fn run(
                 downbeat_times: downbeats.iter().map(|&t| t as f32).collect(),
             }))
         }
-        "loudnessIntegrated" => {
+        AnalyzerId::LoudnessIntegrated => {
             let lufs = oxiaudio::dsp::loudness_lufs(&lib_buf());
             Ok(AnalysisResult::LoudnessIntegrated(LufsResult {
                 lufs: if lufs.is_finite() { lufs } else { DB_FLOOR },
             }))
         }
-        "loudnessMomentary" => {
+        AnalyzerId::LoudnessMomentary => {
             let buf = lib_buf();
             let (values, hop_samples) = match options.window_ms() {
                 Some(ms) => (
@@ -291,12 +292,11 @@ pub fn run(
                 sample_rate,
             )))
         }
-        "loudnessRange" => {
+        AnalyzerId::LoudnessRange => {
             let lra = oxiaudio::dsp::loudness_range(&lib_buf());
             Ok(AnalysisResult::LoudnessRange(LraResult {
                 lra: if lra.is_finite() { lra } else { 0.0 },
             }))
         }
-        other => Err(AnalysisError::UnknownTool(other.to_string())),
     }
 }

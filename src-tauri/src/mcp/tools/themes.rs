@@ -2,8 +2,10 @@
 //! import/export `.heyltheme` files.
 
 use serde_json::{json, Value};
+use strum::VariantNames;
 
 use super::schema::{tool, ToolClass};
+use crate::themes::ThemeMode;
 
 /// The theme tools.
 pub(super) fn tools() -> Vec<Value> {
@@ -39,7 +41,7 @@ pub(super) fn tools() -> Vec<Value> {
             json!({
                 "type": "object",
                 "properties": {
-                    "mode": { "type": "string", "enum": ["auto", "dark", "light"] },
+                    "mode": { "type": "string", "enum": ThemeMode::VARIANTS },
                     "darkThemeId": { "type": "string" },
                     "lightThemeId": { "type": "string" },
                 },

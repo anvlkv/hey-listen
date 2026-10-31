@@ -29,6 +29,7 @@ pub use summary::*;
 pub use tools::*;
 pub use types::*;
 
+use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
 use crate::audio::pcm;
 
@@ -138,7 +139,7 @@ const MIN_RELIABLE_VOICED_FRAMES: usize = 8;
 /// `start`/`end` are source seconds; the region is clamped to the source.
 pub fn run_window(
     state: &crate::state::WindowState,
-    tool: &str,
+    tool: AnalyzerId,
     start: f64,
     end: f64,
     params: &SharedParams,

@@ -18,6 +18,7 @@ use tauri::WebviewWindow;
 use crate::audio::analysis::{
     self, AnalysisError, ResultSummary, Shape, SharedParams, ToolOptions,
 };
+use crate::audio::analyzers::AnalyzerId;
 use crate::state::window_state;
 
 /// One `run_analysis` request: the tool id, the analysis window (source seconds),
@@ -27,7 +28,7 @@ use crate::state::window_state;
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AnalysisRequest {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub start: f64,
     pub end: f64,
     pub params: SharedParams,
@@ -63,8 +64,8 @@ pub struct AnalysisResponse {
 /// One analyzer's catalog detail (the GUI MCP `get_analyzer` path): option metadata
 /// and summary keys, from the same Rust catalog the headless server uses.
 #[tauri::command]
-pub fn analyzer_detail(id: String) -> Result<Value, String> {
-    crate::audio::analyzers::detail(&id).ok_or_else(|| format!("unknown analyzer: {id}"))
+pub fn analyzer_detail(id: AnalyzerId) -> Result<Value, String> {
+    crate::audio::analyzers::detail(id).ok_or_else(|| format!("unknown analyzer: {id}"))
 }
 
 /// The analyzer catalog (the GUI MCP `list_analyzers` path), from the Rust catalog so
@@ -97,7 +98,7 @@ pub async fn run_analysis(
     let state = window_state(&window);
 
     tauri::async_runtime::spawn_blocking(move || {
-        let result = analysis::run_window(&state, &tool, start, end, &params, &options)?;
+        let result = analysis::run_window(&state, tool, start, end, &params, &options)?;
         let summary = analysis::summarize(&result);
         let axis = if compact_axis.unwrap_or(false) {
             analysis::Axis::Compact

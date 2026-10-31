@@ -9,6 +9,8 @@
 
 use serde::Serialize;
 
+use crate::audio::analyzers::AnalyzerId;
+
 mod modulation;
 mod notes;
 mod series;
@@ -234,39 +236,39 @@ pub enum AnalysisResult {
 }
 
 impl AnalysisResult {
-    /// The analyzer id that produced this result — the same string the catalog and the
+    /// The analyzer id that produced this result — the same id the catalog and the
     /// request use.
-    pub fn tool_id(&self) -> &'static str {
+    pub fn tool_id(&self) -> AnalyzerId {
         match self {
-            AnalysisResult::Waveform(_) => "waveform",
-            AnalysisResult::Spectrum(_) => "spectrum",
-            AnalysisResult::Spectrogram(_) => "spectrogram",
-            AnalysisResult::Levels(_) => "levels",
-            AnalysisResult::FrameRms(_) => "frameRms",
-            AnalysisResult::MelSpectrogram(_) => "melSpectrogram",
-            AnalysisResult::Mfcc(_) => "mfcc",
-            AnalysisResult::Chromagram(_) => "chromagram",
-            AnalysisResult::SpectralContrast(_) => "spectralContrast",
-            AnalysisResult::SpectralCentroid(_) => "spectralCentroid",
-            AnalysisResult::SpectralFlux(_) => "spectralFlux",
-            AnalysisResult::SpectralRolloff(_) => "spectralRolloff",
-            AnalysisResult::SpectralFlatness(_) => "spectralFlatness",
-            AnalysisResult::SpectralBandwidth(_) => "spectralBandwidth",
-            AnalysisResult::SpectralEntropy(_) => "spectralEntropy",
-            AnalysisResult::SpectralCrest(_) => "spectralCrest",
-            AnalysisResult::HarmonicRatio(_) => "harmonicRatio",
-            AnalysisResult::ZeroCrossingRate(_) => "zeroCrossingRate",
-            AnalysisResult::PitchPyin(_) => "pitchPyin",
-            AnalysisResult::PitchYin(_) => "pitchYin",
-            AnalysisResult::PitchAutocorr(_) => "pitchAutocorr",
-            AnalysisResult::NoteMetrics(_) => "noteMetrics",
-            AnalysisResult::Modulation(_) => "modulation",
-            AnalysisResult::Tempo(_) => "tempo",
-            AnalysisResult::Onsets(_) => "onsets",
-            AnalysisResult::Downbeats(_) => "downbeats",
-            AnalysisResult::LoudnessIntegrated(_) => "loudnessIntegrated",
-            AnalysisResult::LoudnessMomentary(_) => "loudnessMomentary",
-            AnalysisResult::LoudnessRange(_) => "loudnessRange",
+            AnalysisResult::Waveform(_) => AnalyzerId::Waveform,
+            AnalysisResult::Spectrum(_) => AnalyzerId::Spectrum,
+            AnalysisResult::Spectrogram(_) => AnalyzerId::Spectrogram,
+            AnalysisResult::Levels(_) => AnalyzerId::Levels,
+            AnalysisResult::FrameRms(_) => AnalyzerId::FrameRms,
+            AnalysisResult::MelSpectrogram(_) => AnalyzerId::MelSpectrogram,
+            AnalysisResult::Mfcc(_) => AnalyzerId::Mfcc,
+            AnalysisResult::Chromagram(_) => AnalyzerId::Chromagram,
+            AnalysisResult::SpectralContrast(_) => AnalyzerId::SpectralContrast,
+            AnalysisResult::SpectralCentroid(_) => AnalyzerId::SpectralCentroid,
+            AnalysisResult::SpectralFlux(_) => AnalyzerId::SpectralFlux,
+            AnalysisResult::SpectralRolloff(_) => AnalyzerId::SpectralRolloff,
+            AnalysisResult::SpectralFlatness(_) => AnalyzerId::SpectralFlatness,
+            AnalysisResult::SpectralBandwidth(_) => AnalyzerId::SpectralBandwidth,
+            AnalysisResult::SpectralEntropy(_) => AnalyzerId::SpectralEntropy,
+            AnalysisResult::SpectralCrest(_) => AnalyzerId::SpectralCrest,
+            AnalysisResult::HarmonicRatio(_) => AnalyzerId::HarmonicRatio,
+            AnalysisResult::ZeroCrossingRate(_) => AnalyzerId::ZeroCrossingRate,
+            AnalysisResult::PitchPyin(_) => AnalyzerId::PitchPyin,
+            AnalysisResult::PitchYin(_) => AnalyzerId::PitchYin,
+            AnalysisResult::PitchAutocorr(_) => AnalyzerId::PitchAutocorr,
+            AnalysisResult::NoteMetrics(_) => AnalyzerId::NoteMetrics,
+            AnalysisResult::Modulation(_) => AnalyzerId::Modulation,
+            AnalysisResult::Tempo(_) => AnalyzerId::Tempo,
+            AnalysisResult::Onsets(_) => AnalyzerId::Onsets,
+            AnalysisResult::Downbeats(_) => AnalyzerId::Downbeats,
+            AnalysisResult::LoudnessIntegrated(_) => AnalyzerId::LoudnessIntegrated,
+            AnalysisResult::LoudnessMomentary(_) => AnalyzerId::LoudnessMomentary,
+            AnalysisResult::LoudnessRange(_) => AnalyzerId::LoudnessRange,
         }
     }
 

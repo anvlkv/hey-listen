@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::audio::analysis::{AnalysisResult, SharedParams};
-use crate::project::AnalysisWindow;
+use crate::audio::analyzers::AnalyzerId;
+use crate::project::{AnalysisWindow, SourceKind};
 
 use super::{csv::csv, ExportFormat};
 
@@ -26,8 +27,7 @@ pub const FORMAT_VERSION: u32 = 1;
 pub struct ExportSource {
     /// Display name (a file name, or a label such as "Microphone").
     pub name: String,
-    /// `file` | `mic` | `system` | `process` | `mix` | `synth`.
-    pub kind: String,
+    pub kind: SourceKind,
     pub sample_rate: u32,
     pub channels: u16,
     pub duration: f64,
@@ -41,7 +41,7 @@ pub struct ExportSource {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ExportContext {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub source: ExportSource,
     pub window: AnalysisWindow,
     pub params: SharedParams,
@@ -80,7 +80,7 @@ fn envelope_without_result(context: &ExportContext, generated_at: u64) -> Value 
     let mut object = Map::new();
     object.insert("kind".to_string(), Value::from(KIND));
     object.insert("formatVersion".to_string(), Value::from(FORMAT_VERSION));
-    object.insert("tool".to_string(), Value::from(context.tool.clone()));
+    object.insert("tool".to_string(), Value::from(context.tool.as_ref()));
     object.insert("generatedAt".to_string(), Value::from(generated_at));
     object.insert(
         "source".to_string(),
@@ -108,7 +108,7 @@ pub fn render(
     format: ExportFormat,
     generated_at: u64,
 ) -> RenderedExport {
-    let file_name = file_name(&context.source.name, &context.tool, format);
+    let file_name = file_name(&context.source.name, context.tool, format);
     match format {
         ExportFormat::Json => RenderedExport {
             file_name,
@@ -131,9 +131,9 @@ fn pretty(value: Value) -> String {
 
 /// The suggested export file name: `<source stem>.<tool>.<ext>`, with characters that
 /// are awkward in a path replaced by `_`.
-pub fn file_name(source_name: &str, tool: &str, format: ExportFormat) -> String {
+pub fn file_name(source_name: &str, tool: AnalyzerId, format: ExportFormat) -> String {
     let stem = sanitize(source_stem(source_name));
-    format!("{stem}.{}.{}", sanitize(tool), format.extension())
+    format!("{stem}.{}.{}", sanitize(tool.as_ref()), format.extension())
 }
 
 /// `mix.wav` → `mix`; a label such as "Microphone" stays as-is.

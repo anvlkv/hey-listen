@@ -139,8 +139,9 @@ commands in `src-tauri/src/commands/project.rs` bridge it to the frontend, with
   16-byte footer (`chunk_count u64`, `index_offset u64`). Appending a chunk rewrites
   only the index/footer, never earlier chunks.
 - **`SOURCE`** is a `kind`-tagged struct (not a Serde enum): `postcard` cannot encode
-  internally-tagged enums. `kind` is `file` / `mic` / `system` / `process` / `mix` /
-  `synth`; the kind-specific fields (`path`, `deviceId`, `targetPid`, `gain`,
+  internally-tagged enums. `kind` is the `SourceKind` enum (`file` / `mic` / `system` /
+  `process` / `mix` / `synth`), serialized as that same string (M15.B); the
+  kind-specific fields (`path`, `deviceId`, `targetPid`, `gain`,
   `graph`, …) are optional.
 - **`LAYOUT`** carries the dockview `toJSON()` snapshot, both graph editors'
   nodes/edges (with positions), the list of **popped-out tools** (`popouts`), and the

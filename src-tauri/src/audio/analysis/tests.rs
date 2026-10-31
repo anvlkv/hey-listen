@@ -145,11 +145,27 @@ fn short_window_is_zero_padded() {
 }
 
 #[test]
-fn unknown_tool_is_an_error() {
-    assert!(matches!(
-        run("nope", &[0.0], RATE, &params(1024), &ToolOptions::default()),
-        Err(AnalysisError::UnknownTool(_))
-    ));
+fn unknown_tool_id_does_not_parse() {
+    assert!("nope"
+        .parse::<crate::audio::analyzers::AnalyzerId>()
+        .is_err());
+}
+
+#[test]
+fn every_analyzer_returns_its_own_id() {
+    // Pins `AnalysisResult::tool_id` to the engine dispatch and the catalog: every
+    // `AnalyzerId` runs, and the result reports the id it was asked for.
+    use strum::IntoEnumIterator;
+    let mono = sine(440.0, 0.5);
+    let p = params(2048);
+    let options = ToolOptions::default();
+    for id in crate::audio::analyzers::AnalyzerId::iter() {
+        let result =
+            run(id, &mono, RATE, &p, &options).unwrap_or_else(|err| panic!("{id} failed: {err}"));
+        assert_eq!(result.tool_id(), id, "{id}");
+        let wire = serde_json::to_value(&result).expect("serialize");
+        assert_eq!(wire["tool"], id.as_ref(), "{id}");
+    }
 }
 
 #[test]
@@ -170,7 +186,7 @@ fn spectral_features_return_one_value_per_frame() {
     let mono = sine(1_000.0, 0.5);
     let p = params(2048);
     let options = ToolOptions::default();
-    let centroid = run("spectralCentroid", &mono, RATE, &p, &options).expect("centroid");
+    let centroid = run(AnalyzerId::SpectralCentroid, &mono, RATE, &p, &options).expect("centroid");
     match centroid {
         AnalysisResult::SpectralCentroid(series) => {
             assert!(series.frames > 0);
@@ -199,7 +215,7 @@ fn pitch_marks_unvoiced_frames_as_gaps() {
     let mut mono = sine(440.0, 0.5);
     mono.extend(std::iter::repeat_n(0.0, RATE as usize / 4));
     let result = match run(
-        "pitchPyin",
+        AnalyzerId::PitchPyin,
         &mono,
         RATE,
         &params(2048),
@@ -229,7 +245,7 @@ fn pitch_marks_unvoiced_frames_as_gaps() {
 fn loudness_tools_return_finite_values() {
     let mono = sine(1_000.0, 1.0);
     match run(
-        "loudnessIntegrated",
+        AnalyzerId::LoudnessIntegrated,
         &mono,
         RATE,
         &params(2048),
@@ -248,9 +264,9 @@ fn loudness_tools_return_finite_values() {
 fn tempo_and_onsets_run_without_error() {
     let mono = sine(1_000.0, 1.0);
     let options = ToolOptions::default();
-    assert!(run("tempo", &mono, RATE, &params(2048), &options).is_ok());
-    assert!(run("onsets", &mono, RATE, &params(2048), &options).is_ok());
-    assert!(run("downbeats", &mono, RATE, &params(2048), &options).is_ok());
+    assert!(run(AnalyzerId::Tempo, &mono, RATE, &params(2048), &options).is_ok());
+    assert!(run(AnalyzerId::Onsets, &mono, RATE, &params(2048), &options).is_ok());
+    assert!(run(AnalyzerId::Downbeats, &mono, RATE, &params(2048), &options).is_ok());
 }
 
 #[test]
@@ -260,14 +276,14 @@ fn short_window_pads_library_tools() {
     let mono: Vec<f32> = vec![0.1, -0.1, 0.05, -0.05, 0.2, -0.2, 0.1, -0.1];
     let p = params(2048);
     let options = ToolOptions::default();
-    match run("chromagram", &mono, RATE, &p, &options).expect("chromagram") {
+    match run(AnalyzerId::Chromagram, &mono, RATE, &p, &options).expect("chromagram") {
         AnalysisResult::Chromagram(r) => {
             assert!(r.frames >= 1, "frames = {}", r.frames);
             assert_eq!(r.bins, 12);
         }
         other => panic!("unexpected result: {other:?}"),
     }
-    match run("spectralCentroid", &mono, RATE, &p, &options).expect("centroid") {
+    match run(AnalyzerId::SpectralCentroid, &mono, RATE, &p, &options).expect("centroid") {
         AnalysisResult::SpectralCentroid(r) => {
             assert!(r.frames >= 1, "frames = {}", r.frames)
         }
@@ -280,7 +296,7 @@ fn pitch_frames_are_capped() {
     // A long window keeps the O(frames × lags) pitch tools bounded.
     let mono = sine(440.0, 30.0);
     let pitch = match run(
-        "pitchYin",
+        AnalyzerId::PitchYin,
         &mono,
         RATE,
         &params(2048),
@@ -303,7 +319,7 @@ fn pitch_frames_are_capped() {
 fn rhythm_result_carries_the_envelope() {
     let mono = sine(1_000.0, 1.0);
     let r = match run(
-        "onsets",
+        AnalyzerId::Onsets,
         &mono,
         RATE,
         &params(2048),

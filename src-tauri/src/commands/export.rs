@@ -14,7 +14,7 @@ use tauri::{AppHandle, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::audio::analysis::{self, AnalysisError, SharedParams, ToolOptions};
-use crate::audio::analyzers;
+use crate::audio::analyzers::{self, AnalyzerId};
 use crate::export::{self, ExportContext, ExportFormat, ExportSource, RenderedExport};
 use crate::project::AnalysisWindow;
 use crate::state::{window_state, WindowState};
@@ -29,7 +29,7 @@ use crate::state::{window_state, WindowState};
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ExportArgs {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub start: f64,
     pub end: f64,
     pub params: SharedParams,
@@ -46,7 +46,7 @@ pub struct ExportArgs {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ExportedAnalysis {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub format: ExportFormat,
     /// `<source stem>.<tool>.<ext>` — the suggested file name.
     pub file_name: String,
@@ -64,7 +64,7 @@ pub struct ExportedAnalysis {
 #[ts(export)]
 pub struct ExportAllArgs {
     pub dir: String,
-    pub tools: Vec<String>,
+    pub tools: Vec<AnalyzerId>,
     /// `json` / `csv`; empty means both.
     #[serde(default)]
     pub formats: Vec<ExportFormat>,
@@ -73,7 +73,7 @@ pub struct ExportAllArgs {
     pub params: SharedParams,
     /// Per-tool options (each tab's effective engine values).
     #[serde(default)]
-    pub options: BTreeMap<String, ToolOptions>,
+    pub options: BTreeMap<AnalyzerId, ToolOptions>,
     pub source: ExportSource,
 }
 
@@ -82,7 +82,7 @@ pub struct ExportAllArgs {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ExportedFile {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub format: ExportFormat,
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -140,7 +140,7 @@ pub async fn export_all(
             let options = args.options.get(tool).cloned().unwrap_or_default();
             for &format in &formats {
                 let request = ExportArgs {
-                    tool: tool.clone(),
+                    tool: *tool,
                     start: args.start,
                     end: args.end,
                     params: args.params.clone(),
@@ -162,7 +162,7 @@ pub async fn export_all(
                     sidecar_path = Some(meta.to_string_lossy().into_owned());
                 }
                 files.push(ExportedFile {
-                    tool: tool.clone(),
+                    tool: *tool,
                     format,
                     path: path.to_string_lossy().into_owned(),
                     sidecar_path,
@@ -182,21 +182,21 @@ pub async fn export_all(
 fn render_for(state: &WindowState, args: &ExportArgs) -> Result<RenderedExport, AnalysisError> {
     let result = analysis::run_window(
         state,
-        &args.tool,
+        args.tool,
         args.start,
         args.end,
         &args.params,
         &args.options,
     )?;
     let context = ExportContext {
-        tool: args.tool.clone(),
+        tool: args.tool,
         source: args.source.clone(),
         window: AnalysisWindow {
             start_secs: args.start,
             end_secs: args.end,
         },
         params: args.params.clone(),
-        options: analyzers::effective_options(&args.tool, Some(&args.options)),
+        options: analyzers::effective_options(args.tool, Some(&args.options)),
     };
     Ok(export::render(
         &context,

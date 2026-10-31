@@ -50,19 +50,64 @@ pub struct InstalledTheme {
     pub content: String,
 }
 
+/// The palette base a theme is built on.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+)]
+#[strum(serialize_all = "lowercase")]
+pub enum ThemeBase {
+    Dark,
+    Light,
+}
+
+/// The app's theme-mode preference (`auto` follows the OS).
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+)]
+#[strum(serialize_all = "lowercase")]
+pub enum ThemeMode {
+    Auto,
+    Dark,
+    Light,
+}
+
 /// The bundled themes' identity `(id, name, base)`.
 ///
 /// Mirrors the built-in registry in `src/state/themes/builtins.ts` (`BUILTIN_THEMES`) — the
 /// webview applies the full palettes from TypeScript, but the **headless** MCP server
 /// has no webview, so it reports the bundled themes from here. Keep the two lists in
 /// sync when adding a bundled theme.
-pub const BUILTIN_THEMES: &[(&str, &str, &str)] = &[
-    ("builtin:dark", "Dark", "dark"),
-    ("builtin:light", "Light", "light"),
-    ("builtin:retrowave-neon", "Retrowave Neon", "dark"),
-    ("builtin:nord", "Nord", "dark"),
-    ("builtin:solarized-dark", "Solarized Dark", "dark"),
-    ("builtin:solarized-light", "Solarized Light", "light"),
+pub const BUILTIN_THEMES: &[(&str, &str, ThemeBase)] = &[
+    ("builtin:dark", "Dark", ThemeBase::Dark),
+    ("builtin:light", "Light", ThemeBase::Light),
+    ("builtin:retrowave-neon", "Retrowave Neon", ThemeBase::Dark),
+    ("builtin:nord", "Nord", ThemeBase::Dark),
+    ("builtin:solarized-dark", "Solarized Dark", ThemeBase::Dark),
+    (
+        "builtin:solarized-light",
+        "Solarized Light",
+        ThemeBase::Light,
+    ),
 ];
 
 /// Whether `id` names a bundled (undeletable) theme.
@@ -75,7 +120,12 @@ pub fn builtin_summaries() -> Vec<serde_json::Value> {
     BUILTIN_THEMES
         .iter()
         .map(|(id, name, base)| {
-            serde_json::json!({ "id": id, "name": name, "base": base, "builtin": true })
+            serde_json::json!({
+                "id": id,
+                "name": name,
+                "base": base.as_ref(),
+                "builtin": true,
+            })
         })
         .collect()
 }
@@ -86,7 +136,12 @@ pub fn builtin_summary(id: &str) -> Option<serde_json::Value> {
         .iter()
         .find(|(builtin, _, _)| *builtin == id)
         .map(|(id, name, base)| {
-            serde_json::json!({ "id": id, "name": name, "base": base, "builtin": true })
+            serde_json::json!({
+                "id": id,
+                "name": name,
+                "base": base.as_ref(),
+                "builtin": true,
+            })
         })
 }
 

@@ -38,6 +38,11 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   fingerprint, `bOffset`, `savedMs`, and the reference's full `AnalysisResult`. Written
   for each comparison open at save time; restored as a Workbench tab and used until an
   explicit reconnect. See [`project-file-format.md`](project-file-format.md).
+- **AnalyzerId / ToolId / SourceKind / WindowKind** — the typed string identifiers
+  (ADR-28, M15.B). `AnalyzerId` names the 29 analyzers, `ToolId` adds the `filter` /
+  `synth` graph tabs, `SourceKind` the six source kinds, and `WindowKind` the window
+  function. Each serializes as its original camelCase string (JSON and `postcard`), so
+  the wire format is unchanged; Rust consumers work on the enum.
 - **AnalysisResult** — cached output of a tool over a window (typed payload +
   the params/window it was computed for). Every time it carries is in **source
   seconds**: the tools run on the window's slice, and the engine re-bases the result
@@ -107,7 +112,7 @@ struct AnalysisWindow { start_secs: f64, end_secs: f64 }
 
 // M25: the core computes both sides. The reference may be live or saved (M25.C).
 struct Comparison {
-    tool: String,
+    tool: AnalyzerId,
     a: CompareSide,                  // project label + window/params/options + result
     b: CompareSide,
     comparability: Comparability,    // aligned, alignment, overlap (informational),

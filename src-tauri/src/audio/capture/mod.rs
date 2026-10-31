@@ -27,8 +27,6 @@ pub const CAPTURE_CHANNELS: u16 = 2;
 /// Errors produced while enumerating or capturing a live source.
 #[derive(Debug, thiserror::Error)]
 pub enum CaptureError {
-    #[error("unknown source kind: {0}")]
-    UnknownKind(String),
     #[error("a process source needs a target process")]
     MissingTarget,
     #[error("capture backend error: {0}")]
@@ -44,7 +42,25 @@ serialize_error_as_string!(CaptureError);
 
 /// Which live source to capture (mirrors [`flexaudio::SourceKind`] plus the string ids
 /// the frontend uses).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+    ts_rs::TS,
+)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
+#[ts(export, rename_all = "camelCase")]
 pub enum CaptureKind {
     Mic,
     System,
@@ -53,16 +69,6 @@ pub enum CaptureKind {
 }
 
 impl CaptureKind {
-    pub fn parse(id: &str) -> Result<Self, CaptureError> {
-        match id {
-            "mic" => Ok(Self::Mic),
-            "system" => Ok(Self::System),
-            "process" => Ok(Self::Process),
-            "mix" => Ok(Self::Mix),
-            other => Err(CaptureError::UnknownKind(other.to_string())),
-        }
-    }
-
     fn flexaudio(self) -> SourceKind {
         match self {
             Self::Mic => SourceKind::Mic,
@@ -114,8 +120,7 @@ pub struct CaptureEvent {
 pub struct DeviceDto {
     pub id: String,
     pub name: String,
-    /// `mic` | `system`.
-    pub source_kind: String,
+    pub source_kind: CaptureKind,
     /// `true` for a loopback (system-output) device.
     pub is_loopback: bool,
     pub is_default: bool,
@@ -145,12 +150,11 @@ pub fn list_devices() -> Result<Vec<DeviceDto>, CaptureError> {
             id: device.id,
             name: device.name,
             source_kind: match device.source_kind {
-                SourceKind::Mic => "mic",
-                SourceKind::SystemLoopback => "system",
-                SourceKind::ProcessLoopback => "process",
-                SourceKind::Mix => "mix",
-            }
-            .to_string(),
+                SourceKind::Mic => CaptureKind::Mic,
+                SourceKind::SystemLoopback => CaptureKind::System,
+                SourceKind::ProcessLoopback => CaptureKind::Process,
+                SourceKind::Mix => CaptureKind::Mix,
+            },
             is_loopback: device.is_loopback,
             is_default: device.is_default,
             sample_rate: device.sample_rate,

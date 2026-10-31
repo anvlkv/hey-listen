@@ -24,6 +24,7 @@ use serde_json::{Map, Value};
 use crate::audio::analysis::{
     self, AnalysisError, AnalysisResult, Axis, ResultSummary, Shape, SharedParams, ToolOptions,
 };
+use crate::audio::analyzers::AnalyzerId;
 use crate::state::WindowState;
 
 /// One side's setup: the analysis window, the shared params, and the tool's options.
@@ -76,7 +77,7 @@ pub struct ComparisonSide {
 /// Both sides plus what may be compared between them.
 #[derive(Debug, Clone)]
 pub struct Comparison {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub a: ComparisonSide,
     pub b: ComparisonSide,
     pub comparability: Comparability,
@@ -98,7 +99,7 @@ pub struct SideInput<'a> {
 /// `b_offset` (δ) shifts the reference on the relative axis; matching and the delta
 /// cover the common span (M25.B).
 pub fn compare(
-    tool: &str,
+    tool: AnalyzerId,
     a: SideInput<'_>,
     b: SideInput<'_>,
     b_offset: f64,
@@ -148,7 +149,7 @@ pub fn compare(
     };
 
     Ok(Comparison {
-        tool: tool.to_string(),
+        tool,
         a: side(a, a_result, a_source),
         b: side(b, b_result, b_source),
         comparability,
@@ -156,7 +157,11 @@ pub fn compare(
     })
 }
 
-fn run(tool: &str, side: &SideInput<'_>, name: &str) -> Result<AnalysisResult, AnalysisError> {
+fn run(
+    tool: AnalyzerId,
+    side: &SideInput<'_>,
+    name: &str,
+) -> Result<AnalysisResult, AnalysisError> {
     analysis::run_window(
         side.state,
         tool,

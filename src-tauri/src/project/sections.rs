@@ -6,9 +6,10 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::audio::analysis::SharedParams;
+use crate::audio::analyzers::{AnalyzerId, ToolId};
 use crate::audio::graph::GraphSpec;
 
 /// `META` section: the project's identity and provenance.
@@ -28,6 +29,63 @@ pub struct Meta {
     pub format_version: u32,
 }
 
+/// The kind of the project's single audio source.
+///
+/// Serialized as the same camelCase string the project file, IPC and exports always
+/// used. The serde impls are hand-written so `postcard` keeps the string encoding (a
+/// derived impl would store the variant index and change the file format).
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+    ts_rs::TS,
+)]
+#[strum(serialize_all = "camelCase")]
+#[ts(export, rename_all = "camelCase")]
+pub enum SourceKind {
+    /// A decoded audio file.
+    #[default]
+    File,
+    /// The microphone.
+    Mic,
+    /// System-output loopback.
+    System,
+    /// A captured process.
+    Process,
+    /// Microphone + system mixed.
+    Mix,
+    /// A rendered synth graph.
+    Synth,
+}
+
+impl Serialize for SourceKind {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let value: &'static str = self.into();
+        serializer.serialize_str(value)
+    }
+}
+
+impl<'de> Deserialize<'de> for SourceKind {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        value.parse().map_err(|_| {
+            de::Error::custom(format!(
+                "unknown source kind: {value} (expected one of {})",
+                <SourceKind as strum::VariantNames>::VARIANTS.join(", ")
+            ))
+        })
+    }
+}
+
 /// `SOURCE` section: the project's single audio source (`docs/source-model.md`).
 ///
 /// The audio itself lives in `DATA`; the descriptor records *what* the source was,
@@ -39,8 +97,7 @@ pub struct Meta {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SourceDescriptor {
-    /// `file` | `mic` | `system` | `process` | `mix` | `synth`.
-    pub kind: String,
+    pub kind: SourceKind,
     /// File source: the path the audio was decoded from (provenance only).
     #[serde(default)]
     pub path: Option<String>,
@@ -72,10 +129,10 @@ pub struct AnalysisSetup {
     pub shared: SharedParams,
     /// Per-tool option values: tool id → param key → value.
     #[serde(default)]
-    pub tool_options: BTreeMap<String, BTreeMap<String, f64>>,
-    /// Open Workbench tabs, in dockview order (tool ids).
+    pub tool_options: BTreeMap<AnalyzerId, BTreeMap<String, f64>>,
+    /// Open Workbench tabs, in dockview order (analyzer or graph-editor ids).
     #[serde(default)]
-    pub open_tools: Vec<String>,
+    pub open_tools: Vec<ToolId>,
     /// The analysis window `start..end` (source seconds).
     pub window: AnalysisWindow,
     /// The visible timeline range (zoom/pan).
@@ -134,7 +191,7 @@ pub struct Note {
     pub range: Option<AnalysisWindow>,
     /// The analyzer id the note was taken from; absent = a Timeline note.
     #[serde(default)]
-    pub tool: Option<String>,
+    pub tool: Option<AnalyzerId>,
     /// Optional plain-text title.
     #[serde(default)]
     pub title: Option<String>,
@@ -152,7 +209,7 @@ pub struct Note {
 #[ts(export)]
 pub struct NoteValues {
     /// The analyzer the snapshot was taken from.
-    pub tool: String,
+    pub tool: AnalyzerId,
     /// Human-readable label (e.g. `Spectrum @ 2.34 s`).
     pub label: String,
     /// The compact values line (the note's subtitle).
@@ -178,7 +235,7 @@ pub struct NoteValues {
 #[ts(export)]
 pub struct StoredResult {
     /// The tool id that produced the result.
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub start: f64,
     pub end: f64,
     /// The shared params the result was computed with (its cache key).

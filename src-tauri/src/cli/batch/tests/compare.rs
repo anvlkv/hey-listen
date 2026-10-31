@@ -1,7 +1,9 @@
 //! `compare` subcommand tests: two project files, one tool, one JSONL line.
 
 use super::*;
-use crate::project::{write_project, AnalysisSetup, AnalysisWindow, SaveProject, SourceDescriptor};
+use crate::project::{
+    write_project, AnalysisSetup, AnalysisWindow, SaveProject, SourceDescriptor, SourceKind,
+};
 use crate::state::SourcePcm;
 
 /// Write a `.heyl` project whose source is a mono 8 kHz sine at `amplitude`.
@@ -27,7 +29,7 @@ fn write_project_file(name: &str, amplitude: f32, window: (f64, f64)) -> String 
         name: name.to_string(),
         created_ms: None,
         source: Some(SourceDescriptor {
-            kind: "file".to_string(),
+            kind: SourceKind::File,
             path: Some("sine.wav".to_string()),
             ..Default::default()
         }),

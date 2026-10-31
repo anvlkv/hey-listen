@@ -66,8 +66,14 @@ fn save_project_writes_source_setup_and_notes() {
     let loaded = read_project(&mut file).unwrap();
     assert_eq!(loaded.meta.name, "Test");
     assert_eq!(loaded.setup.shared.fft_size, 1024);
-    assert_eq!(loaded.setup.tool_options["pitchYin"]["minF0Hz"], 40.0);
-    assert_eq!(loaded.setup.open_tools, vec!["spectrogram"]);
+    assert_eq!(
+        loaded.setup.tool_options[&crate::audio::analyzers::AnalyzerId::PitchYin]["minF0Hz"],
+        40.0
+    );
+    assert_eq!(
+        loaded.setup.open_tools,
+        vec![crate::audio::analyzers::ToolId::Spectrogram]
+    );
     assert_eq!(loaded.setup.window.start_secs, 0.05);
     assert_eq!(loaded.setup.view.end_secs, 0.25);
     assert_eq!(loaded.notes.len(), 2);
@@ -138,7 +144,7 @@ fn open_project_ignores_display_only_tool_options() {
     let path = temp_path("display.heyl");
     let mut setup = AnalysisSetup::default();
     setup.tool_options.insert(
-        "spectrum".to_string(),
+        crate::audio::analyzers::AnalyzerId::Spectrum,
         [("showMean".to_string(), 1.0), ("logFreq".to_string(), 1.0)]
             .into_iter()
             .collect(),

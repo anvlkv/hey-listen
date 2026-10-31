@@ -12,7 +12,7 @@ fn frame_rms_options(frame_ms: f32, hop_ms: f32) -> ToolOptions {
 }
 
 fn run_frame_rms(mono: &[f32], options: &ToolOptions) -> SeriesResult {
-    match run("frameRms", mono, RATE, &params(2048), options).expect("frame rms") {
+    match run(AnalyzerId::FrameRms, mono, RATE, &params(2048), options).expect("frame rms") {
         AnalysisResult::FrameRms(result) => result,
         other => panic!("unexpected result: {other:?}"),
     }

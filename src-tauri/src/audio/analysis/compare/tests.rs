@@ -58,7 +58,7 @@ fn setup(start: f64, end: f64) -> CompareSetup {
 }
 
 fn compare_pair(
-    tool: &str,
+    tool: AnalyzerId,
     a: (&WindowState, CompareSetup),
     b: (&WindowState, CompareSetup),
 ) -> Comparison {
@@ -66,7 +66,7 @@ fn compare_pair(
 }
 
 fn compare_pair_at(
-    tool: &str,
+    tool: AnalyzerId,
     a: (&WindowState, CompareSetup),
     b: (&WindowState, CompareSetup),
     b_offset: f64,
@@ -94,7 +94,11 @@ fn compare_pair_at(
 fn aligned_grids_produce_a_series_delta() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)));
+    let comparison = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
 
     assert!(comparison.comparability.aligned);
     assert!(comparison.comparability.mismatches.is_empty());
@@ -123,7 +127,7 @@ fn a_differing_fft_size_is_a_mismatch() {
     a_setup.params.fft_size = 1024;
     b_setup.params.fft_size = 2048;
 
-    let comparison = compare_pair("spectrum", (&a, a_setup), (&b, b_setup));
+    let comparison = compare_pair(AnalyzerId::Spectrum, (&a, a_setup), (&b, b_setup));
     assert!(!comparison.comparability.aligned);
     assert!(comparison.diff.is_none());
     assert!(comparison
@@ -141,7 +145,11 @@ fn a_differing_fft_size_is_a_mismatch() {
 fn a_spectrum_compares_without_time_overlap() {
     let a = state_with(tone(2.0, 440.0, 1.0));
     let b = state_with(tone(2.0, 440.0, 0.5));
-    let comparison = compare_pair("spectrum", (&a, setup(0.0, 1.0)), (&b, setup(1.0, 2.0)));
+    let comparison = compare_pair(
+        AnalyzerId::Spectrum,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(1.0, 2.0)),
+    );
     assert!(comparison.comparability.aligned);
     let Some(ComparisonDiff::Spectrum(diff)) = &comparison.diff else {
         panic!("expected a spectrum delta");
@@ -158,7 +166,7 @@ fn a_differing_channel_is_a_mismatch() {
     let mut b_setup = setup(0.0, 1.0);
     a_setup.params.channel = None;
     b_setup.params.channel = Some(0);
-    let comparison = compare_pair("loudnessIntegrated", (&a, a_setup), (&b, b_setup));
+    let comparison = compare_pair(AnalyzerId::LoudnessIntegrated, (&a, a_setup), (&b, b_setup));
     assert!(comparison
         .comparability
         .mismatches
@@ -173,7 +181,11 @@ fn a_differing_channel_is_a_mismatch() {
 fn a_level_delta_names_its_fields() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair("levels", (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)));
+    let comparison = compare_pair(
+        AnalyzerId::Levels,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
     let Some(ComparisonDiff::Scalar(diff)) = &comparison.diff else {
         panic!("expected a scalar delta");
     };
@@ -247,7 +259,11 @@ fn stats_describe_the_delta() {
 fn compact_shaping_keeps_stats_and_drops_arrays() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)));
+    let comparison = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
     let value = comparison.to_value(Shape::Compact, None, Axis::Array);
     assert_eq!(value["diff"]["kind"], "series");
     assert_eq!(value["diff"]["values"].as_array().unwrap().len(), 0);
@@ -261,7 +277,11 @@ fn compact_shaping_keeps_stats_and_drops_arrays() {
 fn summary_shaping_omits_the_results() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair("levels", (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)));
+    let comparison = compare_pair(
+        AnalyzerId::Levels,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
     let value = comparison.to_value(Shape::Summary, None, Axis::Array);
     assert!(value["a"].get("result").is_none());
     assert!(value["a"]["summary"]["text"].is_string());
@@ -271,7 +291,11 @@ fn summary_shaping_omits_the_results() {
 fn full_shaping_returns_the_delta_arrays() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair("frameRms", (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)));
+    let comparison = compare_pair(
+        AnalyzerId::FrameRms,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
     let value = comparison.to_value(Shape::Full, None, Axis::Array);
     assert!(!value["diff"]["values"].as_array().unwrap().is_empty());
     assert!(value["a"]["result"]["times"].is_array());
@@ -286,7 +310,8 @@ fn wire_options_round_trip_into_tool_options() {
         frame_ms: Some(2.5),
         ..Default::default()
     };
-    let value = super::align::effective_options("mfcc", &options);
+    let value =
+        super::align::effective_options(crate::audio::analyzers::AnalyzerId::Mfcc, &options);
     assert_eq!(value["nMfcc"], serde_json::json!(13));
     assert_eq!(value["frameMs"], serde_json::json!(2.5));
     let parsed: ToolOptions =
@@ -316,7 +341,11 @@ fn rhythm(onsets: &[f32]) -> RhythmResult {
 fn a_rhythm_delta_carries_paired_events() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 1.0));
-    let comparison = compare_pair("onsets", (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)));
+    let comparison = compare_pair(
+        AnalyzerId::Onsets,
+        (&a, setup(0.0, 1.0)),
+        (&b, setup(0.0, 1.0)),
+    );
     let Some(ComparisonDiff::Events(EventsDelta { onsets, .. })) = &comparison.diff else {
         panic!("expected an events delta");
     };

@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
+use crate::audio::analyzers::AnalyzerId;
 use crate::mcp::dispatch::HeadlessSession;
 
 use super::output::emit;
@@ -19,7 +20,7 @@ use super::types::{OutputTarget, Request};
 pub(super) fn run_export(
     session: &mut HeadlessSession,
     request: &Request,
-    tool: &str,
+    tool: AnalyzerId,
     label: &str,
     start: Option<f64>,
     end: Option<f64>,

@@ -3,6 +3,7 @@
 
 use serde_json::Value;
 
+use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::GraphSpec;
 use crate::export::ExportFormat;
 
@@ -12,6 +13,30 @@ use crate::export::ExportFormat;
 pub enum OutputTarget {
     File(String),
     Dir(String),
+}
+
+/// The batch subcommand names, matching the `plugins.cli` definitions in
+/// `tauri.conf.json`.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+)]
+#[strum(serialize_all = "lowercase")]
+pub enum BatchCommand {
+    Analyzers,
+    Analyze,
+    Synth,
+    Notes,
+    Compare,
 }
 
 /// The command the batch CLI runs.
@@ -41,7 +66,7 @@ pub enum Command {
 /// One per-tool option patch, scoped to a tool.
 #[derive(Debug, Clone)]
 pub struct OptionPatch {
-    pub tool: String,
+    pub tool: AnalyzerId,
     pub key: String,
     pub value: Value,
 }
@@ -55,7 +80,7 @@ pub struct OptionPatch {
 pub struct WindowSpec {
     pub start: f64,
     pub end: f64,
-    pub tools: Vec<String>,
+    pub tools: Vec<AnalyzerId>,
 }
 
 /// A fully-resolved batch request — the plain input [`run`](super::run) works over.
@@ -65,7 +90,7 @@ pub struct Request {
     /// Input files (`analyze`); empty for `analyzers` / `synth`.
     pub files: Vec<String>,
     /// Analyzer ids to run (`-t`, repeatable).
-    pub tools: Vec<String>,
+    pub tools: Vec<AnalyzerId>,
     /// Run every analyzer in the catalog (`--all`).
     pub all: bool,
     pub start: Option<f64>,

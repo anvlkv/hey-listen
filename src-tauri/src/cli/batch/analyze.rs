@@ -4,7 +4,7 @@ use std::io::Write;
 
 use serde_json::json;
 
-use crate::audio::analyzers;
+use crate::audio::analyzers::{self, AnalyzerId};
 use crate::export::ExportFormat;
 use crate::mcp::dispatch::HeadlessSession;
 
@@ -55,8 +55,8 @@ pub(super) fn run_analyze(
 /// An absent bound keeps the session's current window bound.
 fn resolve_windows(
     request: &Request,
-    tools: &[String],
-) -> Vec<(Option<f64>, Option<f64>, Vec<String>)> {
+    tools: &[AnalyzerId],
+) -> Vec<(Option<f64>, Option<f64>, Vec<AnalyzerId>)> {
     if request.windows.is_empty() {
         return vec![(request.start, request.end, tools.to_vec())];
     }
@@ -78,11 +78,11 @@ fn resolve_windows(
 }
 
 /// The tool ids to run: the catalog when `--all`, else the requested `-t` ids.
-pub(super) fn tools_for(request: &Request) -> Vec<String> {
+pub(super) fn tools_for(request: &Request) -> Vec<AnalyzerId> {
     if request.all {
         analyzers::ANALYZERS
             .iter()
-            .map(|analyzer| analyzer.id.to_string())
+            .map(|analyzer| analyzer.id)
             .collect()
     } else {
         request.tools.clone()
@@ -97,14 +97,14 @@ pub(super) fn tools_for(request: &Request) -> Vec<String> {
 pub(super) fn run_tools(
     session: &mut HeadlessSession,
     request: &Request,
-    tools: &[String],
+    tools: &[AnalyzerId],
     label: &str,
     start: Option<f64>,
     end: Option<f64>,
     out: &mut impl Write,
 ) -> Result<(), ()> {
     let mut failed = false;
-    for tool in tools {
+    for &tool in tools {
         if request.out.is_some() || request.format == ExportFormat::Csv {
             if super::export::run_export(session, request, tool, label, start, end, out).is_err() {
                 failed = true;

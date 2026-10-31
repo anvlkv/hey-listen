@@ -5,11 +5,18 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 ## Thank you 🙏
 
 - **[dtolnay](https://github.com/dtolnay)** for their contributions to: `json`, `log`, `postcard`, `serde`, `thiserror`
+- **[atouchet](https://github.com/atouchet)** for their contributions to: `log`, `rust-base64`, `serde`
+- **[jplatte](https://github.com/jplatte)** for their contributions to: `json`, `serde`, `strum`
 - **[madsmtm](https://github.com/madsmtm)** for their contributions to: `cpal`, `plugins-workspace`, `tauri`
+- **[nox](https://github.com/nox)** for their contributions to: `json`, `rust-base64`, `serde`
 - **[3lpsy](https://github.com/3lpsy)** for their contributions to: `plugins-workspace`, `tauri`
 - **[Beanow](https://github.com/Beanow)** for their contributions to: `plugins-workspace`, `tauri`
+- **[Brendonovich](https://github.com/Brendonovich)** for their contributions to: `kobalte`, `tauri`
 - **[FabianLars](https://github.com/FabianLars)** for their contributions to: `plugins-workspace`, `tauri`
+- **[GuillaumeGomez](https://github.com/GuillaumeGomez)** for their contributions to: `log`, `rust-base64`
+- **[Huliiiiii](https://github.com/Huliiiiii)** for their contributions to: `kobalte`, `solid`
 - **[JonasKruckenberg](https://github.com/JonasKruckenberg)** for their contributions to: `plugins-workspace`, `tauri`
+- **[LadyBluenotes](https://github.com/LadyBluenotes)** for their contributions to: `kobalte`, `solid`
 - **[Legend-Master](https://github.com/Legend-Master)** for their contributions to: `plugins-workspace`, `tauri`
 - **[Manishearth](https://github.com/Manishearth)** for their contributions to: `postcard`, `serde`
 - **[Ralith](https://github.com/Ralith)** for their contributions to: `cpal`, `fundsp`
@@ -17,34 +24,37 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[ahqsoftwares](https://github.com/ahqsoftwares)** for their contributions to: `plugins-workspace`, `tauri`
 - **[alexcrichton](https://github.com/alexcrichton)** for their contributions to: `log`, `serde`
 - **[amrbashir](https://github.com/amrbashir)** for their contributions to: `plugins-workspace`, `tauri`
-- **[atouchet](https://github.com/atouchet)** for their contributions to: `log`, `serde`
+- **[benmccann](https://github.com/benmccann)** for their contributions to: `marked`, `uPlot`
 - **[betamos](https://github.com/betamos)** for their contributions to: `plugins-workspace`, `tauri`
 - **[cijiugechu](https://github.com/cijiugechu)** for their contributions to: `plugins-workspace`, `tauri`
 - **[dklassic](https://github.com/dklassic)** for their contributions to: `plugins-workspace`, `tauri`
 - **[erickt](https://github.com/erickt)** for their contributions to: `json`, `serde`
 - **[frewsxcv](https://github.com/frewsxcv)** for their contributions to: `json`, `log`
+- **[gibson042](https://github.com/gibson042)** for their contributions to: `DOMPurify`, `marked`
 - **[homu](https://github.com/homu)** for their contributions to: `json`, `serde`
 - **[i-c-b](https://github.com/i-c-b)** for their contributions to: `plugins-workspace`, `tauri`
 - **[jbolda](https://github.com/jbolda)** for their contributions to: `plugins-workspace`, `tauri`
 - **[jesnor](https://github.com/jesnor)** for their contributions to: `Symphonia`, `cpal`
-- **[jplatte](https://github.com/jplatte)** for their contributions to: `json`, `serde`
 - **[jwilm](https://github.com/jwilm)** for their contributions to: `json`, `serde`
 - **[kandrelczyk](https://github.com/kandrelczyk)** for their contributions to: `plugins-workspace`, `tauri`
 - **[killercup](https://github.com/killercup)** for their contributions to: `json`, `serde`
 - **[lucasfernog](https://github.com/lucasfernog)** for their contributions to: `plugins-workspace`, `tauri`
 - **[lucasfernog-crabnebula](https://github.com/lucasfernog-crabnebula)** for their contributions to: `plugins-workspace`, `tauri`
 - **[naman-crabnebula](https://github.com/naman-crabnebula)** for their contributions to: `plugins-workspace`, `tauri`
-- **[nox](https://github.com/nox)** for their contributions to: `json`, `serde`
 - **[nyurik](https://github.com/nyurik)** for their contributions to: `log`, `thiserror`
 - **[oli-obk](https://github.com/oli-obk)** for their contributions to: `json`, `serde`
 - **[olivierlemasle](https://github.com/olivierlemasle)** for their contributions to: `plugins-workspace`, `tauri`
 - **[osiewicz](https://github.com/osiewicz)** for their contributions to: `json`, `serde`
 - **[pewsheen](https://github.com/pewsheen)** for their contributions to: `plugins-workspace`, `tauri`
 - **[rex4539](https://github.com/rex4539)** for their contributions to: `cpal`, `tauri`
+- **[riccardoperra](https://github.com/riccardoperra)** for their contributions to: `kobalte`, `solid`
 - **[richard-uk1](https://github.com/richard-uk1)** for their contributions to: `cpal`, `serde`
 - **[sfackler](https://github.com/sfackler)** for their contributions to: `log`, `serde`
 - **[simonhyll](https://github.com/simonhyll)** for their contributions to: `plugins-workspace`, `tauri`
+- **[styfle](https://github.com/styfle)** for their contributions to: `DOMPurify`, `marked`
 - **[sugar700](https://github.com/sugar700)** for their contributions to: `postcard`, `serde`
+- **[thedanchez](https://github.com/thedanchez)** for their contributions to: `solid-flow`, `solid-uplot`
+- **[thetarnav](https://github.com/thetarnav)** for their contributions to: `kobalte`, `solid`
 - **[thewh1teagle](https://github.com/thewh1teagle)** for their contributions to: `plugins-workspace`, `tauri`
 - **[tillmann-crabnebula](https://github.com/tillmann-crabnebula)** for their contributions to: `plugins-workspace`, `tauri`
 - **[tweidinger](https://github.com/tweidinger)** for their contributions to: `plugins-workspace`, `tauri`
@@ -52,14 +62,20 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[0323pin](https://github.com/0323pin)** for their contributions to: `cpal`
 - **[0nkery](https://github.com/0nkery)** for their contributions to: `serde`
 - **[0x241F31](https://github.com/0x241F31)** for their contributions to: `solid`
+- **[0xSobky](https://github.com/0xSobky)** for their contributions to: `DOMPurify`
+- **[0xedward](https://github.com/0xedward)** for their contributions to: `DOMPurify`
 - **[39zde](https://github.com/39zde)** for their contributions to: `tauri`
 - **[46bit](https://github.com/46bit)** for their contributions to: `serde`
 - **[A-kirami](https://github.com/A-kirami)** for their contributions to: `tauri`
+- **[AbdelrahmanHafez](https://github.com/AbdelrahmanHafez)** for their contributions to: `marked`
+- **[AlephAlpha](https://github.com/AlephAlpha)** for their contributions to: `rust-base64`
 - **[AlexTMjugador](https://github.com/AlexTMjugador)** for their contributions to: `tauri`
 - **[Amanieu](https://github.com/Amanieu)** for their contributions to: `log`
+- **[Andarist](https://github.com/Andarist)** for their contributions to: `marked`
 - **[Andreybest](https://github.com/Andreybest)** for their contributions to: `tauri`
 - **[AndyGauge](https://github.com/AndyGauge)** for their contributions to: `log`
 - **[AngelicosPhosphoros](https://github.com/AngelicosPhosphoros)** for their contributions to: `log`
+- **[Arian8j2](https://github.com/Arian8j2)** for their contributions to: `strum`
 - **[ArtemGr](https://github.com/ArtemGr)** for their contributions to: `cpal`
 - **[Arzte](https://github.com/Arzte)** for their contributions to: `json`
 - **[AustinJ235](https://github.com/AustinJ235)** for their contributions to: `cpal`
@@ -69,13 +85,15 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[BillGoldenWater](https://github.com/BillGoldenWater)** for their contributions to: `tauri`
 - **[Binero](https://github.com/Binero)** for their contributions to: `serde`
 - **[BlackHoleFox](https://github.com/BlackHoleFox)** for their contributions to: `Symphonia`
-- **[Brendonovich](https://github.com/Brendonovich)** for their contributions to: `tauri`
 - **[BurntSushi](https://github.com/BurntSushi)** for their contributions to: `serde`
 - **[Byron](https://github.com/Byron)** for their contributions to: `serde`
 - **[CBJamo](https://github.com/CBJamo)** for their contributions to: `postcard`
 - **[Calsign](https://github.com/Calsign)** for their contributions to: `postcard`
 - **[ChocolateLoverRaj](https://github.com/ChocolateLoverRaj)** for their contributions to: `postcard`
+- **[ChrisWren](https://github.com/ChrisWren)** for their contributions to: `marked`
+- **[ConradIrwin](https://github.com/ConradIrwin)** for their contributions to: `DOMPurify`
 - **[CrabNejonas](https://github.com/CrabNejonas)** for their contributions to: `tauri`
+- **[CryZe](https://github.com/CryZe)** for their contributions to: `rust-base64`
 - **[DDAN-17](https://github.com/DDAN-17)** for their contributions to: `log`
 - **[DIvkov575](https://github.com/DIvkov575)** for their contributions to: `log`
 - **[Daedaluz](https://github.com/Daedaluz)** for their contributions to: `tauri`
@@ -84,93 +102,129 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[Diggsey](https://github.com/Diggsey)** for their contributions to: `json`
 - **[DrSensor](https://github.com/DrSensor)** for their contributions to: `tauri`
 - **[Dreaming-Codes](https://github.com/Dreaming-Codes)** for their contributions to: `plugins-workspace`
+- **[DreierF](https://github.com/DreierF)** for their contributions to: `marked`
+- **[Dushistov](https://github.com/Dushistov)** for their contributions to: `strum`
 - **[EFanZh](https://github.com/EFanZh)** for their contributions to: `log`
+- **[EduardF1](https://github.com/EduardF1)** for their contributions to: `kobalte`
+- **[EmiPhil](https://github.com/EmiPhil)** for their contributions to: `uPlot`
 - **[Emilgardis](https://github.com/Emilgardis)** for their contributions to: `fundsp`
 - **[EriKWDev](https://github.com/EriKWDev)** for their contributions to: `log`
 - **[Exelord](https://github.com/Exelord)** for their contributions to: `solid`
+- **[Feder1co5oave](https://github.com/Feder1co5oave)** for their contributions to: `marked`
 - **[FelixMcFelix](https://github.com/FelixMcFelix)** for their contributions to: `Symphonia`
 - **[Flaise](https://github.com/Flaise)** for their contributions to: `serde`
 - **[Fractal-Tess](https://github.com/Fractal-Tess)** for their contributions to: `tauri`
 - **[Freax13](https://github.com/Freax13)** for their contributions to: `json`
+- **[FrodoLuo](https://github.com/FrodoLuo)** for their contributions to: `uPlot`
 - **[GREsau](https://github.com/GREsau)** for their contributions to: `json`
 - **[Gankra](https://github.com/Gankra)** for their contributions to: `serde`
 - **[Gavin-Gong](https://github.com/Gavin-Gong)** for their contributions to: `solid`
 - **[Geal](https://github.com/Geal)** for their contributions to: `cpal`
 - **[Gerharddc](https://github.com/Gerharddc)** for their contributions to: `postcard`
+- **[Gigabyte5671](https://github.com/Gigabyte5671)** for their contributions to: `DOMPurify`
+- **[GlennMatthys](https://github.com/GlennMatthys)** for their contributions to: `uPlot`
 - **[GnomedDev](https://github.com/GnomedDev)** for their contributions to: `Symphonia`
-- **[GuillaumeGomez](https://github.com/GuillaumeGomez)** for their contributions to: `log`
+- **[GrantGryczan](https://github.com/GrantGryczan)** for their contributions to: `DOMPurify`
+- **[GreedyC](https://github.com/GreedyC)** for their contributions to: `marked`
 - **[GyrosOfWar](https://github.com/GyrosOfWar)** for their contributions to: `json`
 - **[HEnquist](https://github.com/HEnquist)** for their contributions to: `cpal`
 - **[Hainesy](https://github.com/Hainesy)** for their contributions to: `solid`
 - **[HalfVoxel](https://github.com/HalfVoxel)** for their contributions to: `ts-rs`
 - **[Heliozoa](https://github.com/Heliozoa)** for their contributions to: `ts-rs`
 - **[Herohtar](https://github.com/Herohtar)** for their contributions to: `Symphonia`
-- **[Huliiiiii](https://github.com/Huliiiiii)** for their contributions to: `solid`
 - **[HybridEidolon](https://github.com/HybridEidolon)** for their contributions to: `cpal`
 - **[ImgBotApp](https://github.com/ImgBotApp)** for their contributions to: `dockview`
 - **[IsaacMarovitz](https://github.com/IsaacMarovitz)** for their contributions to: `fundsp`
 - **[JafarAkhondali](https://github.com/JafarAkhondali)** for their contributions to: `dockview`
 - **[Jake-Shadle](https://github.com/Jake-Shadle)** for their contributions to: `cpal`
 - **[JasonLG1979](https://github.com/JasonLG1979)** for their contributions to: `Symphonia`
+- **[JimChenWYU](https://github.com/JimChenWYU)** for their contributions to: `strum`
+- **[Jocs](https://github.com/Jocs)** for their contributions to: `marked`
 - **[JohnHeitmann](https://github.com/JohnHeitmann)** for their contributions to: `serde`
 - **[JohnTitor](https://github.com/JohnTitor)** for their contributions to: `log`
 - **[JonathanBrouwer](https://github.com/JonathanBrouwer)** for their contributions to: `json`
+- **[Joris-van-der-Wel](https://github.com/Joris-van-der-Wel)** for their contributions to: `DOMPurify`
 - **[JoshuaBatty](https://github.com/JoshuaBatty)** for their contributions to: `cpal`
 - **[Jutanium](https://github.com/Jutanium)** for their contributions to: `solid`
 - **[Kestrer](https://github.com/Kestrer)** for their contributions to: `solid`
+- **[Kjubikstronk](https://github.com/Kjubikstronk)** for their contributions to: `marked`
+- **[Klaster1](https://github.com/Klaster1)** for their contributions to: `uPlot`
 - **[Kleinmarb](https://github.com/Kleinmarb)** for their contributions to: `log`
 - **[KodrAus](https://github.com/KodrAus)** for their contributions to: `log`
+- **[KostyaTretyak](https://github.com/KostyaTretyak)** for their contributions to: `marked`
 - **[Kroisse](https://github.com/Kroisse)** for their contributions to: `json`
 - **[Krout0n](https://github.com/Krout0n)** for their contributions to: `json`
 - **[KushalMeghani1644](https://github.com/KushalMeghani1644)** for their contributions to: `tauri`
 - **[KyDenZ](https://github.com/KyDenZ)** for their contributions to: `dockview`
-- **[LadyBluenotes](https://github.com/LadyBluenotes)** for their contributions to: `solid`
 - **[Laegel](https://github.com/Laegel)** for their contributions to: `tauri`
+- **[LeSuisse](https://github.com/LeSuisse)** for their contributions to: `DOMPurify`
 - **[LiQuidProQuo](https://github.com/LiQuidProQuo)** for their contributions to: `solid`
 - **[Lucretiel](https://github.com/Lucretiel)** for their contributions to: `json`
 - **[Lukazoid](https://github.com/Lukazoid)** for their contributions to: `log`
 - **[Luni-4](https://github.com/Luni-4)** for their contributions to: `cpal`
 - **[Lymia](https://github.com/Lymia)** for their contributions to: `serde`
+- **[MaddyGuthridge](https://github.com/MaddyGuthridge)** for their contributions to: `marked`
+- **[Malvoz](https://github.com/Malvoz)** for their contributions to: `DOMPurify`
 - **[MarcoPolo](https://github.com/MarcoPolo)** for their contributions to: `solid`
 - **[MarkMcCaskey](https://github.com/MarkMcCaskey)** for their contributions to: `log`
+- **[Martii](https://github.com/Martii)** for their contributions to: `marked`
 - **[Marwes](https://github.com/Marwes)** for their contributions to: `serde`
 - **[MathiasKoch](https://github.com/MathiasKoch)** for their contributions to: `serde`
 - **[Mehrbod2002](https://github.com/Mehrbod2002)** for their contributions to: `tauri`
+- **[MendyBerger](https://github.com/MendyBerger)** for their contributions to: `strum`
 - **[MichaelHills](https://github.com/MichaelHills)** for their contributions to: `cpal`
 - **[Mingun](https://github.com/Mingun)** for their contributions to: `serde`
+- **[Mithgol](https://github.com/Mithgol)** for their contributions to: `marked`
 - **[NaNgets](https://github.com/NaNgets)** for their contributions to: `dockview`
+- **[Nandann018-ux](https://github.com/Nandann018-ux)** for their contributions to: `marked`
+- **[NateScarlet](https://github.com/NateScarlet)** for their contributions to: `DOMPurify`
+- **[NgoQuocViet2001](https://github.com/NgoQuocViet2001)** for their contributions to: `marked`
 - **[Niedzwiedzw](https://github.com/Niedzwiedzw)** for their contributions to: `ts-rs`
 - **[Norbiros](https://github.com/Norbiros)** for their contributions to: `tauri`
 - **[NyxCode](https://github.com/NyxCode)** for their contributions to: `ts-rs`
 - **[OccupyMars2025](https://github.com/OccupyMars2025)** for their contributions to: `log`
 - **[Osspial](https://github.com/Osspial)** for their contributions to: `serde`
+- **[Peternator7](https://github.com/Peternator7)** for their contributions to: `strum`
 - **[Pierstoval](https://github.com/Pierstoval)** for their contributions to: `tauri`
+- **[PokeJofeJr4th](https://github.com/PokeJofeJr4th)** for their contributions to: `strum`
+- **[Pomierski](https://github.com/Pomierski)** for their contributions to: `DOMPurify`
 - **[Pratyush](https://github.com/Pratyush)** for their contributions to: `serde`
 - **[ProtectedMode](https://github.com/ProtectedMode)** for their contributions to: `serde`
+- **[Puxhkar](https://github.com/Puxhkar)** for their contributions to: `marked`
 - **[Raphiiko](https://github.com/Raphiiko)** for their contributions to: `tauri`
 - **[RayJason](https://github.com/RayJason)** for their contributions to: `dockview`
 - **[RealDrPuc](https://github.com/RealDrPuc)** for their contributions to: `tauri`
 - **[Risto-Stevcev](https://github.com/Risto-Stevcev)** for their contributions to: `tauri`
 - **[Rodrigodd](https://github.com/Rodrigodd)** for their contributions to: `cpal`
 - **[Roguelazer](https://github.com/Roguelazer)** for their contributions to: `serde`
+- **[RomanHotsiy](https://github.com/RomanHotsiy)** for their contributions to: `marked`
 - **[Roms1383](https://github.com/Roms1383)** for their contributions to: `ts-rs`
+- **[Rotzbua](https://github.com/Rotzbua)** for their contributions to: `DOMPurify`
 - **[Rufflewind](https://github.com/Rufflewind)** for their contributions to: `json`
 - **[SamiPerttu](https://github.com/SamiPerttu)** for their contributions to: `fundsp`
+- **[Scrum](https://github.com/Scrum)** for their contributions to: `marked`
 - **[Serdnad](https://github.com/Serdnad)** for their contributions to: `fundsp`
 - **[ShaunSHamilton](https://github.com/ShaunSHamilton)** for their contributions to: `tauri`
+- **[Shubhdeep12](https://github.com/Shubhdeep12)** for their contributions to: `kobalte`
 - **[Simon-Laux](https://github.com/Simon-Laux)** for their contributions to: `tauri`
 - **[SimonSapin](https://github.com/SimonSapin)** for their contributions to: `serde`
 - **[Sky-walkerX](https://github.com/Sky-walkerX)** for their contributions to: `tauri`
 - **[SnirBroshi](https://github.com/SnirBroshi)** for their contributions to: `dockview`
 - **[Spartan2909](https://github.com/Spartan2909)** for their contributions to: `postcard`
+- **[SpencerWhitehead7](https://github.com/SpencerWhitehead7)** for their contributions to: `marked`
 - **[SpikeHD](https://github.com/SpikeHD)** for their contributions to: `tauri`
 - **[SplittyDev](https://github.com/SplittyDev)** for their contributions to: `ts-rs`
 - **[SpriteOvO](https://github.com/SpriteOvO)** for their contributions to: `log`
+- **[Stebalien](https://github.com/Stebalien)** for their contributions to: `rust-base64`
+- **[Syndelis](https://github.com/Syndelis)** for their contributions to: `strum`
 - **[TannerRogalsky](https://github.com/TannerRogalsky)** for their contributions to: `serde`
 - **[TedDriggs](https://github.com/TedDriggs)** for their contributions to: `serde`
 - **[TethysSvensson](https://github.com/TethysSvensson)** for their contributions to: `log`
+- **[Trott](https://github.com/Trott)** for their contributions to: `marked`
 - **[Tunglies](https://github.com/Tunglies)** for their contributions to: `tauri`
 - **[UserAB1236872](https://github.com/UserAB1236872)** for their contributions to: `serde`
+- **[UziTech](https://github.com/UziTech)** for their contributions to: `marked`
+- **[VeerShah41](https://github.com/VeerShah41)** for their contributions to: `marked`
 - **[Veykril](https://github.com/Veykril)** for their contributions to: `postcard`
 - **[VincentJousse](https://github.com/VincentJousse)** for their contributions to: `cpal`
 - **[WSH032](https://github.com/WSH032)** for their contributions to: `tauri`
@@ -178,6 +232,7 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[WiSaGaN](https://github.com/WiSaGaN)** for their contributions to: `serde`
 - **[WilliamVenner](https://github.com/WilliamVenner)** for their contributions to: `tauri`
 - **[WilsonGramer](https://github.com/WilsonGramer)** for their contributions to: `ts-rs`
+- **[WizardMeow](https://github.com/WizardMeow)** for their contributions to: `marked`
 - **[WofWca](https://github.com/WofWca)** for their contributions to: `tauri`
 - **[Xaeroxe](https://github.com/Xaeroxe)** for their contributions to: `serde`
 - **[Xanewok](https://github.com/Xanewok)** for their contributions to: `json`
@@ -186,10 +241,13 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[acieslewicz](https://github.com/acieslewicz)** for their contributions to: `Symphonia`
 - **[adamcrume](https://github.com/adamcrume)** for their contributions to: `serde`
 - **[adrieljss](https://github.com/adrieljss)** for their contributions to: `plugins-workspace`
+- **[aduh95](https://github.com/aduh95)** for their contributions to: `marked`
 - **[aergonaut](https://github.com/aergonaut)** for their contributions to: `log`
 - **[ahkohd](https://github.com/ahkohd)** for their contributions to: `plugins-workspace`
 - **[ahl](https://github.com/ahl)** for their contributions to: `serde`
+- **[aladram](https://github.com/aladram)** for their contributions to: `marked`
 - **[alexmoon](https://github.com/alexmoon)** for their contributions to: `cpal`
+- **[alicemaz](https://github.com/alicemaz)** for their contributions to: `rust-base64`
 - **[alistair23](https://github.com/alistair23)** for their contributions to: `log`
 - **[ameknite](https://github.com/ameknite)** for their contributions to: `cpal`
 - **[aminya](https://github.com/aminya)** for their contributions to: `solid`
@@ -198,28 +256,38 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[anatawa12](https://github.com/anatawa12)** for their contributions to: `tauri`
 - **[andrisak](https://github.com/andrisak)** for their contributions to: `json`
 - **[antrik](https://github.com/antrik)** for their contributions to: `serde`
+- **[anzal1](https://github.com/anzal1)** for their contributions to: `DOMPurify`
+- **[aprotim](https://github.com/aprotim)** for their contributions to: `marked`
 - **[arcnmx](https://github.com/arcnmx)** for their contributions to: `json`
 - **[arendjr](https://github.com/arendjr)** for their contributions to: `ts-rs`
+- **[asamuzaK](https://github.com/asamuzaK)** for their contributions to: `DOMPurify`
 - **[aschey](https://github.com/aschey)** for their contributions to: `Symphonia`
 - **[aseef17](https://github.com/aseef17)** for their contributions to: `dockview`
 - **[asomethings](https://github.com/asomethings)** for their contributions to: `plugins-workspace`
 - **[astraw](https://github.com/astraw)** for their contributions to: `thiserror`
 - **[atilafassina](https://github.com/atilafassina)** for their contributions to: `solid`
 - **[aumetra](https://github.com/aumetra)** for their contributions to: `ts-rs`
+- **[azmy60](https://github.com/azmy60)** for their contributions to: `marked`
+- **[azriel91](https://github.com/azriel91)** for their contributions to: `strum`
 - **[barafael](https://github.com/barafael)** for their contributions to: `postcard`
+- **[barrywoolgar](https://github.com/barrywoolgar)** for their contributions to: `marked`
 - **[baylesj](https://github.com/baylesj)** for their contributions to: `Symphonia`
 - **[bbarker](https://github.com/bbarker)** for their contributions to: `cpal`
+- **[bdura](https://github.com/bdura)** for their contributions to: `rust-base64`
 - **[bebecue](https://github.com/bebecue)** for their contributions to: `serde`
 - **[ben-bosmans](https://github.com/ben-bosmans)** for their contributions to: `dockview`
 - **[benbrittain](https://github.com/benbrittain)** for their contributions to: `postcard`
 - **[benjamingr](https://github.com/benjamingr)** for their contributions to: `solid`
 - **[bennofs](https://github.com/bennofs)** for their contributions to: `json`
+- **[bent10](https://github.com/bent10)** for their contributions to: `marked`
 - **[bheylin](https://github.com/bheylin)** for their contributions to: `json`
 - **[bigmistqke](https://github.com/bigmistqke)** for their contributions to: `solid-flow`
 - **[bikeshedder](https://github.com/bikeshedder)** for their contributions to: `solid`
 - **[birkskyum](https://github.com/birkskyum)** for their contributions to: `solid`
+- **[biryukovmaxim](https://github.com/biryukovmaxim)** for their contributions to: `strum`
 - **[blackbeam](https://github.com/blackbeam)** for their contributions to: `ts-rs`
 - **[bluenote10](https://github.com/bluenote10)** for their contributions to: `solid`
+- **[bobozaur](https://github.com/bobozaur)** for their contributions to: `strum`
 - **[borglin](https://github.com/borglin)** for their contributions to: `dockview`
 - **[borman](https://github.com/borman)** for their contributions to: `serde`
 - **[bouk](https://github.com/bouk)** for their contributions to: `json`
@@ -228,16 +296,25 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[brson](https://github.com/brson)** for their contributions to: `log`
 - **[budziq](https://github.com/budziq)** for their contributions to: `log`
 - **[bugadani](https://github.com/bugadani)** for their contributions to: `postcard`
+- **[buzinas](https://github.com/buzinas)** for their contributions to: `DOMPurify`
+- **[bzwheeler](https://github.com/bzwheeler)** for their contributions to: `marked`
 - **[c410-f3r](https://github.com/c410-f3r)** for their contributions to: `serde`
 - **[caesar](https://github.com/caesar)** for their contributions to: `tauri`
+- **[calculuschild](https://github.com/calculuschild)** for their contributions to: `marked`
 - **[carols10cents](https://github.com/carols10cents)** for their contributions to: `log`
 - **[catalinsh](https://github.com/catalinsh)** for their contributions to: `tauri`
+- **[caymaynard](https://github.com/caymaynard)** for their contributions to: `kobalte`
+- **[cfloume](https://github.com/cfloume)** for their contributions to: `marked`
 - **[chanced](https://github.com/chanced)** for their contributions to: `json`
 - **[chazzox](https://github.com/chazzox)** for their contributions to: `solid`
 - **[chiefcll](https://github.com/chiefcll)** for their contributions to: `solid`
 - **[chippers](https://github.com/chippers)** for their contributions to: `tauri`
+- **[chjj](https://github.com/chjj)** for their contributions to: `marked`
+- **[chris-morgan](https://github.com/chris-morgan)** for their contributions to: `DOMPurify`
 - **[christian-bromann](https://github.com/christian-bromann)** for their contributions to: `desktop-mobile`
+- **[christopherehlen](https://github.com/christopherehlen)** for their contributions to: `DOMPurify`
 - **[chrox](https://github.com/chrox)** for their contributions to: `tauri`
+- **[cirosantilli](https://github.com/cirosantilli)** for their contributions to: `marked`
 - **[claude](https://github.com/claude)** for their contributions to: `dockview`
 - **[clearlysid](https://github.com/clearlysid)** for their contributions to: `tauri`
 - **[conradludgate](https://github.com/conradludgate)** for their contributions to: `json`
@@ -245,51 +322,70 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[cowang4](https://github.com/cowang4)** for their contributions to: `log`
 - **[crapStone](https://github.com/crapStone)** for their contributions to: `tauri`
 - **[crubier](https://github.com/crubier)** for their contributions to: `dockview`
+- **[cure53](https://github.com/cure53)** for their contributions to: `DOMPurify`
 - **[cuviper](https://github.com/cuviper)** for their contributions to: `json`
+- **[cyanxiao](https://github.com/cyanxiao)** for their contributions to: `marked`
 - **[cymruu](https://github.com/cymruu)** for their contributions to: `tauri`
 - **[cynecx](https://github.com/cynecx)** for their contributions to: `solid`
 - **[daboross](https://github.com/daboross)** for their contributions to: `serde`
+- **[danieleades](https://github.com/danieleades)** for their contributions to: `rust-base64`
 - **[darakshan](https://github.com/darakshan)** for their contributions to: `cpal`
 - **[dathinaios](https://github.com/dathinaios)** for their contributions to: `fundsp`
 - **[davedbase](https://github.com/davedbase)** for their contributions to: `solid`
 - **[david-tsai-skydio](https://github.com/david-tsai-skydio)** for their contributions to: `dockview`
+- **[davisjam](https://github.com/davisjam)** for their contributions to: `marked`
 - **[dawnlarsson](https://github.com/dawnlarsson)** for their contributions to: `tauri`
 - **[dbrgn](https://github.com/dbrgn)** for their contributions to: `log`
 - **[debris](https://github.com/debris)** for their contributions to: `serde`
 - **[dedobbin](https://github.com/dedobbin)** for their contributions to: `Symphonia`
 - **[deftsp](https://github.com/deftsp)** for their contributions to: `tauri`
 - **[deid84](https://github.com/deid84)** for their contributions to: `tauri`
+- **[dejang](https://github.com/dejang)** for their contributions to: `DOMPurify`
 - **[dekellum](https://github.com/dekellum)** for their contributions to: `log`
 - **[dennev](https://github.com/dennev)** for their contributions to: `solid`
 - **[dereckson](https://github.com/dereckson)** for their contributions to: `log`
 - **[derhaskell](https://github.com/derhaskell)** for their contributions to: `serde`
+- **[dev-rb](https://github.com/dev-rb)** for their contributions to: `kobalte`
+- **[devinrhode2](https://github.com/devinrhode2)** for their contributions to: `DOMPurify`
 - **[dflemstr](https://github.com/dflemstr)** for their contributions to: `json`
 - **[dheijl](https://github.com/dheijl)** for their contributions to: `cpal`
 - **[diit](https://github.com/diit)** for their contributions to: `tauri`
 - **[diondokter](https://github.com/diondokter)** for their contributions to: `log`
 - **[diwic](https://github.com/diwic)** for their contributions to: `cpal`
+- **[dnkolegov](https://github.com/dnkolegov)** for their contributions to: `DOMPurify`
 - **[domiSchenk](https://github.com/domiSchenk)** for their contributions to: `tauri`
 - **[dr-bonez](https://github.com/dr-bonez)** for their contributions to: `ts-rs`
 - **[dreid](https://github.com/dreid)** for their contributions to: `serde`
 - **[druide](https://github.com/druide)** for their contributions to: `json`
+- **[durka](https://github.com/durka)** for their contributions to: `strum`
+- **[duyhai94](https://github.com/duyhai94)** for their contributions to: `DOMPurify`
 - **[dvdsk](https://github.com/dvdsk)** for their contributions to: `cpal`
 - **[edemaine](https://github.com/edemaine)** for their contributions to: `solid`
+- **[edg2s](https://github.com/edg2s)** for their contributions to: `DOMPurify`
 - **[edgex004](https://github.com/edgex004)** for their contributions to: `tauri`
 - **[elliottslaughter](https://github.com/elliottslaughter)** for their contributions to: `serde`
+- **[elrion018](https://github.com/elrion018)** for their contributions to: `DOMPurify`
 - **[eltociear](https://github.com/eltociear)** for their contributions to: `tauri`
 - **[ely-uf](https://github.com/ely-uf)** for their contributions to: `cpal`
 - **[emberian](https://github.com/emberian)** for their contributions to: `serde`
 - **[endragor](https://github.com/endragor)** for their contributions to: `cpal`
 - **[enfipy](https://github.com/enfipy)** for their contributions to: `cpal`
+- **[ericmcbride](https://github.com/ericmcbride)** for their contributions to: `strum`
 - **[escritorio-gustavo](https://github.com/escritorio-gustavo)** for their contributions to: `ts-rs`
 - **[est31](https://github.com/est31)** for their contributions to: `cpal`
 - **[euphbriggs](https://github.com/euphbriggs)** for their contributions to: `tauri`
 - **[eupn](https://github.com/eupn)** for their contributions to: `serde`
+- **[evgenyponomarev](https://github.com/evgenyponomarev)** for their contributions to: `marked`
+- **[fabien-ml](https://github.com/fabien-ml)** for their contributions to: `kobalte`
 - **[facklambda](https://github.com/facklambda)** for their contributions to: `tauri`
+- **[fhemberger](https://github.com/fhemberger)** for their contributions to: `DOMPurify`
 - **[fictitious](https://github.com/fictitious)** for their contributions to: `solid`
+- **[filedescriptor](https://github.com/filedescriptor)** for their contributions to: `DOMPurify`
 - **[fitztrev](https://github.com/fitztrev)** for their contributions to: `plugins-workspace`
+- **[fluxin](https://github.com/fluxin)** for their contributions to: `uPlot`
 - **[fmoor](https://github.com/fmoor)** for their contributions to: `json`
 - **[fornwall](https://github.com/fornwall)** for their contributions to: `cpal`
+- **[franktopel](https://github.com/franktopel)** for their contributions to: `DOMPurify`
 - **[freesig](https://github.com/freesig)** for their contributions to: `cpal`
 - **[frenzzy](https://github.com/frenzzy)** for their contributions to: `solid`
 - **[gabcoh](https://github.com/gabcoh)** for their contributions to: `tauri`
@@ -297,24 +393,37 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[gbbosak](https://github.com/gbbosak)** for their contributions to: `log`
 - **[generalelectrix](https://github.com/generalelectrix)** for their contributions to: `cpal`
 - **[gentoid](https://github.com/gentoid)** for their contributions to: `cpal`
+- **[ggriffiniii](https://github.com/ggriffiniii)** for their contributions to: `rust-base64`
+- **[ghiscoding](https://github.com/ghiscoding)** for their contributions to: `DOMPurify`
+- **[giaBaoJS](https://github.com/giaBaoJS)** for their contributions to: `marked`
+- **[gilescope](https://github.com/gilescope)** for their contributions to: `rust-base64`
 - **[gjf2a](https://github.com/gjf2a)** for their contributions to: `fundsp`
 - **[goenning](https://github.com/goenning)** for their contributions to: `tauri`
 - **[golddranks](https://github.com/golddranks)** for their contributions to: `log`
 - **[goosewobbler](https://github.com/goosewobbler)** for their contributions to: `desktop-mobile`
 - **[gui1117](https://github.com/gui1117)** for their contributions to: `cpal`
 - **[gustavo-shigueo](https://github.com/gustavo-shigueo)** for their contributions to: `ts-rs`
+- **[hackvertor](https://github.com/hackvertor)** for their contributions to: `DOMPurify`
+- **[hail2u](https://github.com/hail2u)** for their contributions to: `marked`
 - **[hamirmahal](https://github.com/hamirmahal)** for their contributions to: `tauri`
 - **[hannobraun](https://github.com/hannobraun)** for their contributions to: `postcard`
 - **[harudagondi](https://github.com/harudagondi)** for their contributions to: `fundsp`
 - **[hcpl](https://github.com/hcpl)** for their contributions to: `serde`
 - **[heftig](https://github.com/heftig)** for their contributions to: `serde`
 - **[hellow554](https://github.com/hellow554)** for their contributions to: `log`
+- **[hhk-png](https://github.com/hhk-png)** for their contributions to: `DOMPurify`
+- **[hong4rc](https://github.com/hong4rc)** for their contributions to: `marked`
+- **[hubenchang0515](https://github.com/hubenchang0515)** for their contributions to: `marked`
+- **[hughsw](https://github.com/hughsw)** for their contributions to: `marked`
 - **[hugoduncan](https://github.com/hugoduncan)** for their contributions to: `serde`
 - **[huntc](https://github.com/huntc)** for their contributions to: `postcard`
 - **[huonw](https://github.com/huonw)** for their contributions to: `log`
 - **[hyperNURb](https://github.com/hyperNURb)** for their contributions to: `dockview`
 - **[ia0](https://github.com/ia0)** for their contributions to: `postcard`
+- **[ianstormtaylor](https://github.com/ianstormtaylor)** for their contributions to: `marked`
 - **[imp](https://github.com/imp)** for their contributions to: `json`
+- **[is2ei](https://github.com/is2ei)** for their contributions to: `DOMPurify`
+- **[isaacs](https://github.com/isaacs)** for their contributions to: `marked`
 - **[ishitatsuyuki](https://github.com/ishitatsuyuki)** for their contributions to: `cpal`
 - **[jLynx](https://github.com/jLynx)** for their contributions to: `plugins-workspace`
 - **[james7132](https://github.com/james7132)** for their contributions to: `cpal`
@@ -323,12 +432,15 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[jan-auer](https://github.com/jan-auer)** for their contributions to: `serde`
 - **[jansol](https://github.com/jansol)** for their contributions to: `cpal`
 - **[japaric](https://github.com/japaric)** for their contributions to: `json`
+- **[jasonkarns](https://github.com/jasonkarns)** for their contributions to: `marked`
 - **[jbeich](https://github.com/jbeich)** for their contributions to: `cpal`
 - **[jbousquie](https://github.com/jbousquie)** for their contributions to: `plugins-workspace`
 - **[jehiggs](https://github.com/jehiggs)** for their contributions to: `log`
+- **[jer3m01](https://github.com/jer3m01)** for their contributions to: `kobalte`
 - **[jerm-dro](https://github.com/jerm-dro)** for their contributions to: `ts-rs`
 - **[jetli](https://github.com/jetli)** for their contributions to: `tauri`
 - **[jhutchins](https://github.com/jhutchins)** for their contributions to: `tauri`
+- **[jimmywarting](https://github.com/jimmywarting)** for their contributions to: `marked`
 - **[jmannanc](https://github.com/jmannanc)** for their contributions to: `tauri`
 - **[jojobyte](https://github.com/jojobyte)** for their contributions to: `plugins-workspace`
 - **[jonas-schievink](https://github.com/jonas-schievink)** for their contributions to: `log`
@@ -337,46 +449,73 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[jordens](https://github.com/jordens)** for their contributions to: `thiserror`
 - **[jorroll](https://github.com/jorroll)** for their contributions to: `solid`
 - **[josema03](https://github.com/josema03)** for their contributions to: `ts-rs`
+- **[joshbruce](https://github.com/joshbruce)** for their contributions to: `marked`
+- **[joshka](https://github.com/joshka)** for their contributions to: `strum`
+- **[jrandolf-old](https://github.com/jrandolf-old)** for their contributions to: `marked`
 - **[jrobsonchase](https://github.com/jrobsonchase)** for their contributions to: `serde`
 - **[juanrgm](https://github.com/juanrgm)** for their contributions to: `solid`
+- **[julien-c](https://github.com/julien-c)** for their contributions to: `marked`
 - **[jwestfall69](https://github.com/jwestfall69)** for their contributions to: `cpal`
 - **[jwillbold](https://github.com/jwillbold)** for their contributions to: `serde`
 - **[jyn514](https://github.com/jyn514)** for their contributions to: `log`
+- **[kada49](https://github.com/kada49)** for their contributions to: `kobalte`
+- **[kapouer](https://github.com/kapouer)** for their contributions to: `marked`
 - **[katywings](https://github.com/katywings)** for their contributions to: `solid`
 - **[kawogi](https://github.com/kawogi)** for their contributions to: `cpal`
 - **[keraf](https://github.com/keraf)** for their contributions to: `tauri`
+- **[kevin-deyoungster](https://github.com/kevin-deyoungster)** for their contributions to: `DOMPurify`
 - **[kilavvy](https://github.com/kilavvy)** for their contributions to: `postcard`
 - **[kingsword09](https://github.com/kingsword09)** for their contributions to: `tauri`
+- **[kitsonk](https://github.com/kitsonk)** for their contributions to: `marked`
 - **[kittuov](https://github.com/kittuov)** for their contributions to: `tauri`
+- **[koczkatamas](https://github.com/koczkatamas)** for their contributions to: `marked`
 - **[kornelski](https://github.com/kornelski)** for their contributions to: `tauri`
+- **[koto](https://github.com/koto)** for their contributions to: `DOMPurify`
 - **[koushiro](https://github.com/koushiro)** for their contributions to: `json`
+- **[kpreid](https://github.com/kpreid)** for their contributions to: `rust-base64`
 - **[kris-ava](https://github.com/kris-ava)** for their contributions to: `plugins-workspace`
 - **[krscott](https://github.com/krscott)** for their contributions to: `tauri`
+- **[kurkle](https://github.com/kurkle)** for their contributions to: `uPlot`
 - **[kvnvelasco](https://github.com/kvnvelasco)** for their contributions to: `json`
+- **[kyselberg](https://github.com/kyselberg)** for their contributions to: `DOMPurify`
 - **[lachlansneff](https://github.com/lachlansneff)** for their contributions to: `postcard`
 - **[lachlansneff-parallel](https://github.com/lachlansneff-parallel)** for their contributions to: `postcard`
 - **[laktak](https://github.com/laktak)** for their contributions to: `json`
 - **[laptou](https://github.com/laptou)** for their contributions to: `ts-rs`
 - **[lars-berger](https://github.com/lars-berger)** for their contributions to: `tauri`
 - **[ldm0](https://github.com/ldm0)** for their contributions to: `postcard`
+- **[ldstein](https://github.com/ldstein)** for their contributions to: `uPlot`
+- **[learykara](https://github.com/learykara)** for their contributions to: `marked`
+- **[leeoniya](https://github.com/leeoniya)** for their contributions to: `uPlot`
 - **[lemarier](https://github.com/lemarier)** for their contributions to: `tauri`
 - **[leopardracer](https://github.com/leopardracer)** for their contributions to: `postcard`
+- **[lepture](https://github.com/lepture)** for their contributions to: `marked`
+- **[linclelinkpart5](https://github.com/linclelinkpart5)** for their contributions to: `strum`
 - **[little-arhat](https://github.com/little-arhat)** for their contributions to: `json`
 - **[lnicola](https://github.com/lnicola)** for their contributions to: `json`
+- **[lo48576](https://github.com/lo48576)** for their contributions to: `strum`
 - **[lobobeebe](https://github.com/lobobeebe)** for their contributions to: `dockview`
 - **[lorenzolewis](https://github.com/lorenzolewis)** for their contributions to: `tauri`
 - **[lu-zero](https://github.com/lu-zero)** for their contributions to: `cpal`
+- **[luantaraschi](https://github.com/luantaraschi)** for their contributions to: `marked`
 - **[lucacasonato](https://github.com/lucacasonato)** for their contributions to: `json`
 - **[luoffei](https://github.com/luoffei)** for their contributions to: `tauri`
 - **[lxsmnsyc](https://github.com/lxsmnsyc)** for their contributions to: `solid`
 - **[m-ou-se](https://github.com/m-ou-se)** for their contributions to: `log`
 - **[madcodelife](https://github.com/madcodelife)** for their contributions to: `dockview`
+- **[marbemac](https://github.com/marbemac)** for their contributions to: `kobalte`
 - **[marc2332](https://github.com/marc2332)** for their contributions to: `tauri`
+- **[marcgallego](https://github.com/marcgallego)** for their contributions to: `uPlot`
 - **[mariotaku](https://github.com/mariotaku)** for their contributions to: `tauri`
 - **[marjakm](https://github.com/marjakm)** for their contributions to: `ts-rs`
+- **[marshallpierce](https://github.com/marshallpierce)** for their contributions to: `rust-base64`
 - **[martinfrances107](https://github.com/martinfrances107)** for their contributions to: `tauri`
+- **[masatokinugawa](https://github.com/masatokinugawa)** for their contributions to: `DOMPurify`
+- **[mathiasbynens](https://github.com/mathiasbynens)** for their contributions to: `DOMPurify`
+- **[mathisobadia](https://github.com/mathisobadia)** for their contributions to: `kobalte`
 - **[mathstuf](https://github.com/mathstuf)** for their contributions to: `thiserror`
 - **[mathuo](https://github.com/mathuo)** for their contributions to: `dockview`
+- **[matt-](https://github.com/matt-)** for their contributions to: `marked`
 - **[mattiloh](https://github.com/mattiloh)** for their contributions to: `plugins-workspace`
 - **[matwork](https://github.com/matwork)** for their contributions to: `cpal`
 - **[maurer](https://github.com/maurer)** for their contributions to: `log`
@@ -384,29 +523,41 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[maxded](https://github.com/maxded)** for their contributions to: `cpal`
 - **[mbodmer](https://github.com/mbodmer)** for their contributions to: `cpal`
 - **[mbrubeck](https://github.com/mbrubeck)** for their contributions to: `log`
+- **[mccraveiro](https://github.com/mccraveiro)** for their contributions to: `marked`
+- **[mdentremont](https://github.com/mdentremont)** for their contributions to: `marked`
 - **[mdynnl](https://github.com/mdynnl)** for their contributions to: `solid`
 - **[meowtec](https://github.com/meowtec)** for their contributions to: `tauri`
 - **[mikoto2000](https://github.com/mikoto2000)** for their contributions to: `plugins-workspace`
 - **[mina86](https://github.com/mina86)** for their contributions to: `thiserror`
+- **[minecrafter](https://github.com/minecrafter)** for their contributions to: `marked`
+- **[minrk](https://github.com/minrk)** for their contributions to: `marked`
 - **[mitchhentges](https://github.com/mitchhentges)** for their contributions to: `cpal`
 - **[mitchmindtree](https://github.com/mitchmindtree)** for their contributions to: `cpal`
 - **[mitsuhiko](https://github.com/mitsuhiko)** for their contributions to: `serde`
 - **[mizuki0629](https://github.com/mizuki0629)** for their contributions to: `cpal`
 - **[mmalecki](https://github.com/mmalecki)** for their contributions to: `ts-rs`
 - **[mockersf](https://github.com/mockersf)** for their contributions to: `cpal`
+- **[moefinley](https://github.com/moefinley)** for their contributions to: `DOMPurify`
 - **[morajabi](https://github.com/morajabi)** for their contributions to: `plugins-workspace`
 - **[morrme](https://github.com/morrme)** for their contributions to: `log`
 - **[mosheduminer](https://github.com/mosheduminer)** for their contributions to: `solid`
+- **[mozfreddyb](https://github.com/mozfreddyb)** for their contributions to: `DOMPurify`
 - **[mpearson](https://github.com/mpearson)** for their contributions to: `dockview`
+- **[mrijkeboer](https://github.com/mrijkeboer)** for their contributions to: `rust-base64`
+- **[mscheele7](https://github.com/mscheele7)** for their contributions to: `DOMPurify`
 - **[msiglreith](https://github.com/msiglreith)** for their contributions to: `cpal`
 - **[mslxl](https://github.com/mslxl)** for their contributions to: `dockview`
+- **[mstomar698](https://github.com/mstomar698)** for their contributions to: `marked`
 - **[mtn](https://github.com/mtn)** for their contributions to: `json`
 - **[musicinmybrain](https://github.com/musicinmybrain)** for their contributions to: `postcard`
 - **[mustevenplay](https://github.com/mustevenplay)** for their contributions to: `solid`
 - **[mvdnes](https://github.com/mvdnes)** for their contributions to: `cpal`
+- **[nandolawson](https://github.com/nandolawson)** for their contributions to: `rust-base64`
 - **[nchashch](https://github.com/nchashch)** for their contributions to: `cpal`
 - **[ndmitchell](https://github.com/ndmitchell)** for their contributions to: `json`
 - **[nebkor](https://github.com/nebkor)** for their contributions to: `log`
+- **[neilj](https://github.com/neilj)** for their contributions to: `DOMPurify`
+- **[nelstrom](https://github.com/nelstrom)** for their contributions to: `DOMPurify`
 - **[neodon](https://github.com/neodon)** for their contributions to: `solid`
 - **[neriyaco](https://github.com/neriyaco)** for their contributions to: `tauri`
 - **[niccholaspage](https://github.com/niccholaspage)** for their contributions to: `solid`
@@ -419,6 +570,7 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[nothingismagick](https://github.com/nothingismagick)** for their contributions to: `tauri`
 - **[olegdovger](https://github.com/olegdovger)** for their contributions to: `tauri`
 - **[olegshilov](https://github.com/olegshilov)** for their contributions to: `tauri`
+- **[oparoz](https://github.com/oparoz)** for their contributions to: `DOMPurify`
 - **[opilar](https://github.com/opilar)** for their contributions to: `log`
 - **[orenelbaum](https://github.com/orenelbaum)** for their contributions to: `solid`
 - **[oscartbeaumont](https://github.com/oscartbeaumont)** for their contributions to: `tauri`
@@ -427,12 +579,17 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[ottaviohartman](https://github.com/ottaviohartman)** for their contributions to: `log`
 - **[overdrivenpotato](https://github.com/overdrivenpotato)** for their contributions to: `json`
 - **[owjs3901](https://github.com/owjs3901)** for their contributions to: `tauri`
+- **[paolobarbolini](https://github.com/paolobarbolini)** for their contributions to: `strum`
+- **[papandreou](https://github.com/papandreou)** for their contributions to: `marked`
 - **[pashokitsme](https://github.com/pashokitsme)** for their contributions to: `plugins-workspace`
 - **[patrickelectric](https://github.com/patrickelectric)** for their contributions to: `ts-rs`
 - **[paul-hansen](https://github.com/paul-hansen)** for their contributions to: `cpal`
+- **[paulroub](https://github.com/paulroub)** for their contributions to: `marked`
 - **[pcwalton](https://github.com/pcwalton)** for their contributions to: `serde`
 - **[pdeljanov](https://github.com/pdeljanov)** for their contributions to: `Symphonia`
+- **[peernohell](https://github.com/peernohell)** for their contributions to: `DOMPurify`
 - **[peter-formlogic](https://github.com/peter-formlogic)** for their contributions to: `ts-rs`
+- **[peter-glotfelty](https://github.com/peter-glotfelty)** for their contributions to: `strum`
 - **[phoneticsushi](https://github.com/phoneticsushi)** for their contributions to: `ts-rs`
 - **[phungleson](https://github.com/phungleson)** for their contributions to: `solid`
 - **[piegamesde](https://github.com/piegamesde)** for their contributions to: `log`
@@ -447,28 +604,37 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[rajivshah3](https://github.com/rajivshah3)** for their contributions to: `tauri`
 - **[rap2hpoutre](https://github.com/rap2hpoutre)** for their contributions to: `log`
 - **[rdlabo](https://github.com/rdlabo)** for their contributions to: `tauri`
+- **[redreye](https://github.com/redreye)** for their contributions to: `kobalte`
+- **[reduckted](https://github.com/reduckted)** for their contributions to: `DOMPurify`
 - **[regexident](https://github.com/regexident)** for their contributions to: `tauri`
 - **[renato-zannon](https://github.com/renato-zannon)** for their contributions to: `serde`
 - **[renovate-bot](https://github.com/renovate-bot)** for their contributions to: `plugins-workspace`
 - **[retep998](https://github.com/retep998)** for their contributions to: `cpal`
 - **[rfwatson](https://github.com/rfwatson)** for their contributions to: `cpal`
 - **[rhizoome](https://github.com/rhizoome)** for their contributions to: `fundsp`
-- **[riccardoperra](https://github.com/riccardoperra)** for their contributions to: `solid`
+- **[robinst](https://github.com/robinst)** for their contributions to: `rust-base64`
 - **[roblabla](https://github.com/roblabla)** for their contributions to: `serde`
 - **[rocallahan](https://github.com/rocallahan)** for their contributions to: `serde`
 - **[rockerBOO](https://github.com/rockerBOO)** for their contributions to: `tauri`
 - **[roderickvd](https://github.com/roderickvd)** for their contributions to: `cpal`
 - **[rosslannen](https://github.com/rosslannen)** for their contributions to: `postcard`
 - **[rstoenescu](https://github.com/rstoenescu)** for their contributions to: `tauri`
+- **[rumkin](https://github.com/rumkin)** for their contributions to: `marked`
 - **[ruuda](https://github.com/ruuda)** for their contributions to: `cpal`
 - **[rvadhavk](https://github.com/rvadhavk)** for their contributions to: `solid`
+- **[rvolgers](https://github.com/rvolgers)** for their contributions to: `rust-base64`
 - **[ryansolid](https://github.com/ryansolid)** for their contributions to: `solid`
 - **[rych-hysh](https://github.com/rych-hysh)** for their contributions to: `tauri`
 - **[s-panferov](https://github.com/s-panferov)** for their contributions to: `json`
 - **[saethlin](https://github.com/saethlin)** for their contributions to: `serde`
 - **[safarir](https://github.com/safarir)** for their contributions to: `serde`
+- **[samarJ19](https://github.com/samarJ19)** for their contributions to: `marked`
 - **[sanket143](https://github.com/sanket143)** for their contributions to: `tauri`
+- **[sarathfrancis90](https://github.com/sarathfrancis90)** for their contributions to: `marked`
 - **[sdoering01](https://github.com/sdoering01)** for their contributions to: `tauri`
+- **[securitum-mb](https://github.com/securitum-mb)** for their contributions to: `DOMPurify`
+- **[selfcontained](https://github.com/selfcontained)** for their contributions to: `marked`
+- **[semantic-release-bot](https://github.com/semantic-release-bot)** for their contributions to: `marked`
 - **[seneca](https://github.com/seneca)** for their contributions to: `solid`
 - **[sftse](https://github.com/sftse)** for their contributions to: `tauri`
 - **[sgrif](https://github.com/sgrif)** for their contributions to: `serde`
@@ -476,45 +642,59 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[shepmaster](https://github.com/shepmaster)** for their contributions to: `serde`
 - **[shinglyu](https://github.com/shinglyu)** for their contributions to: `serde`
 - **[shockham](https://github.com/shockham)** for their contributions to: `cpal`
+- **[silverlyra](https://github.com/silverlyra)** for their contributions to: `rust-base64`
+- **[silverwind](https://github.com/silverwind)** for their contributions to: `uPlot`
+- **[simbas](https://github.com/simbas)** for their contributions to: `kobalte`
 - **[simlay](https://github.com/simlay)** for their contributions to: `cpal`
 - **[situ2001](https://github.com/situ2001)** for their contributions to: `tauri`
 - **[siyou](https://github.com/siyou)** for their contributions to: `tauri`
+- **[skalinichev](https://github.com/skalinichev)** for their contributions to: `uPlot`
+- **[smoelius](https://github.com/smoelius)** for their contributions to: `strum`
 - **[sommd](https://github.com/sommd)** for their contributions to: `postcard`
 - **[sosweetham](https://github.com/sosweetham)** for their contributions to: `plugins-workspace`
 - **[spacekookie](https://github.com/spacekookie)** for their contributions to: `postcard`
 - **[spinda](https://github.com/spinda)** for their contributions to: `serde`
+- **[spokodev](https://github.com/spokodev)** for their contributions to: `marked`
 - **[srijs](https://github.com/srijs)** for their contributions to: `json`
 - **[sscobici](https://github.com/sscobici)** for their contributions to: `Symphonia`
+- **[ssi02014](https://github.com/ssi02014)** for their contributions to: `DOMPurify`
 - **[stegaBOB](https://github.com/stegaBOB)** for their contributions to: `ts-rs`
 - **[steve8708](https://github.com/steve8708)** for their contributions to: `solid`
 - **[steveklabnik](https://github.com/steveklabnik)** for their contributions to: `log`
+- **[stevemoser](https://github.com/stevemoser)** for their contributions to: `marked`
+- **[strugee](https://github.com/strugee)** for their contributions to: `DOMPurify`
 - **[sunfishcode](https://github.com/sunfishcode)** for their contributions to: `log`
+- **[svdb99](https://github.com/svdb99)** for their contributions to: `DOMPurify`
 - **[swlynch99](https://github.com/swlynch99)** for their contributions to: `json`
 - **[swsnr](https://github.com/swsnr)** for their contributions to: `log`
 - **[tage64](https://github.com/tage64)** for their contributions to: `serde`
 - **[taiki-e](https://github.com/taiki-e)** for their contributions to: `serde`
 - **[takeramagan](https://github.com/takeramagan)** for their contributions to: `solid`
 - **[tbu-](https://github.com/tbu-)** for their contributions to: `serde`
+- **[tdeekens](https://github.com/tdeekens)** for their contributions to: `DOMPurify`
 - **[techbech](https://github.com/techbech)** for their contributions to: `dockview`
 - **[tensor-programming](https://github.com/tensor-programming)** for their contributions to: `tauri`
 - **[thadguidry](https://github.com/thadguidry)** for their contributions to: `tauri`
 - **[thakkarkeyur](https://github.com/thakkarkeyur)** for their contributions to: `dockview`
 - **[thealtofwar](https://github.com/thealtofwar)** for their contributions to: `postcard`
-- **[thedanchez](https://github.com/thedanchez)** for their contributions to: `solid-flow`
 - **[theduke](https://github.com/theduke)** for their contributions to: `ts-rs`
 - **[thep0y](https://github.com/thep0y)** for their contributions to: `tauri`
 - **[therealprof](https://github.com/therealprof)** for their contributions to: `postcard`
-- **[thetarnav](https://github.com/thetarnav)** for their contributions to: `solid`
 - **[timephy](https://github.com/timephy)** for their contributions to: `ts-rs`
+- **[tiny-ben-tran](https://github.com/tiny-ben-tran)** for their contributions to: `DOMPurify`
 - **[tisonkun](https://github.com/tisonkun)** for their contributions to: `log`
 - **[titoBouzout](https://github.com/titoBouzout)** for their contributions to: `solid`
+- **[tjamaan](https://github.com/tjamaan)** for their contributions to: `rust-base64`
 - **[tjardoo](https://github.com/tjardoo)** for their contributions to: `log`
+- **[tlau88](https://github.com/tlau88)** for their contributions to: `DOMPurify`
 - **[tmccombs](https://github.com/tmccombs)** for their contributions to: `log`
 - **[tobysmith568](https://github.com/tobysmith568)** for their contributions to: `dockview`
 - **[tomByrer](https://github.com/tomByrer)** for their contributions to: `solid`
 - **[tomaka](https://github.com/tomaka)** for their contributions to: `cpal`
 - **[tomara-x](https://github.com/tomara-x)** for their contributions to: `fundsp`
+- **[tosmolka](https://github.com/tosmolka)** for their contributions to: `DOMPurify`
 - **[tr3ysmith](https://github.com/tr3ysmith)** for their contributions to: `tauri`
+- **[tristan-f-r](https://github.com/tristan-f-r)** for their contributions to: `marked`
 - **[trusktr](https://github.com/trusktr)** for their contributions to: `solid`
 - **[tsubome](https://github.com/tsubome)** for their contributions to: `flexaudio`
 - **[tsushanth](https://github.com/tsushanth)** for their contributions to: `solid`
@@ -526,17 +706,22 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[udoprog](https://github.com/udoprog)** for their contributions to: `Symphonia`
 - **[unbeauvoyage](https://github.com/unbeauvoyage)** for their contributions to: `plugins-workspace`
 - **[unknovvn](https://github.com/unknovvn)** for their contributions to: `tauri`
+- **[untitaker](https://github.com/untitaker)** for their contributions to: `rust-base64`
 - **[vasfvitor](https://github.com/vasfvitor)** for their contributions to: `tauri`
 - **[veeceey](https://github.com/veeceey)** for their contributions to: `solid`
 - **[vegai](https://github.com/vegai)** for their contributions to: `json`
 - **[velocitysystems](https://github.com/velocitysystems)** for their contributions to: `tauri`
 - **[vincascm](https://github.com/vincascm)** for their contributions to: `serde`
 - **[vlabo](https://github.com/vlabo)** for their contributions to: `tauri`
+- **[vmlaguna](https://github.com/vmlaguna)** for their contributions to: `marked`
 - **[vonPB](https://github.com/vonPB)** for their contributions to: `tauri`
 - **[vorot93](https://github.com/vorot93)** for their contributions to: `serde`
+- **[vsemozhetbyt](https://github.com/vsemozhetbyt)** for their contributions to: `marked`
+- **[wahidrizka](https://github.com/wahidrizka)** for their contributions to: `marked`
 - **[washanhanzi](https://github.com/washanhanzi)** for their contributions to: `tauri`
 - **[waterWang](https://github.com/waterWang)** for their contributions to: `dockview`
 - **[webbertakken](https://github.com/webbertakken)** for their contributions to: `tauri`
+- **[webstech](https://github.com/webstech)** for their contributions to: `marked`
 - **[wgibbs-rs](https://github.com/wgibbs-rs)** for their contributions to: `cpal`
 - **[whycanty](https://github.com/whycanty)** for their contributions to: `ts-rs`
 - **[wjq990112](https://github.com/wjq990112)** for their contributions to: `solid`
@@ -544,10 +729,18 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[wravery](https://github.com/wravery)** for their contributions to: `tauri`
 - **[wtetzner](https://github.com/wtetzner)** for their contributions to: `log`
 - **[wusyong](https://github.com/wusyong)** for their contributions to: `tauri`
+- **[wyatt-herkamp](https://github.com/wyatt-herkamp)** for their contributions to: `strum`
+- **[x00mario](https://github.com/x00mario)** for their contributions to: `DOMPurify`
+- **[x2764tech](https://github.com/x2764tech)** for their contributions to: `uPlot`
 - **[xMAC94x](https://github.com/xMAC94x)** for their contributions to: `cpal`
+- **[xbinaryx](https://github.com/xbinaryx)** for their contributions to: `kobalte`
+- **[xepozz](https://github.com/xepozz)** for their contributions to: `marked`
+- **[xiehuanyi](https://github.com/xiehuanyi)** for their contributions to: `marked`
 - **[xu-cheng](https://github.com/xu-cheng)** for their contributions to: `postcard`
 - **[xuchaoqian](https://github.com/xuchaoqian)** for their contributions to: `tauri`
 - **[yamadapc](https://github.com/yamadapc)** for their contributions to: `cpal`
+- **[ydaniv](https://github.com/ydaniv)** for their contributions to: `DOMPurify`
+- **[yinonburgansky](https://github.com/yinonburgansky)** for their contributions to: `kobalte`
 - **[yjh0502](https://github.com/yjh0502)** for their contributions to: `json`
 - **[yoshuawuyts](https://github.com/yoshuawuyts)** for their contributions to: `log`
 - **[yungkneez](https://github.com/yungkneez)** for their contributions to: `postcard`
@@ -555,10 +748,11 @@ I hereby express my sincere gratitude and appreciation for the code contribution
 - **[yydcnjjw](https://github.com/yydcnjjw)** for their contributions to: `tauri`
 - **[zakpatterson](https://github.com/zakpatterson)** for their contributions to: `tauri`
 - **[zaxer2](https://github.com/zaxer2)** for their contributions to: `dockview`
+- **[ziadkh0](https://github.com/ziadkh0)** for their contributions to: `marked`
 - **[zippy](https://github.com/zippy)** for their contributions to: `flexaudio`
 - **[zsparal](https://github.com/zsparal)** for their contributions to: `solid`
 
-And 1001 other cool humans for their contributions, who haven't made it to this list yet.
+And 1410 other cool humans for their contributions, who haven't made it to this list yet.
 
 ---
 
