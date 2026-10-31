@@ -158,8 +158,8 @@ The commands and channels below are all implemented; milestone notes record the 
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅. `preview_region` takes a **varispeed** `speed` (M14 follow-up) — preview only, analysis is always 1×. |
 | Analysis | `run_analysis` | tool id + window + params → result |
-| Comparison | `run_comparison`, `list_comparison_targets`, `compare_peer_setup`, `compare_live` | transient A/B comparison over two project `WindowState`s (M25) ✅; `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only |
-| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14 ✅. |
+| Comparison | `run_comparison`, `list_comparison_targets`, `compare_peer_setup`, `compare_live` | A/B comparison over two project `WindowState`s (M25) ✅; matching is **relative** to each window start with a `bOffset` (M25.B); the reference may be a **saved snapshot** (M25.C); `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only |
+| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`. The `NOTES` section joined the payload in M14; `COMPARE` (saved comparison snapshots) in M25.C. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 | Window | `open_project_window` | open a new, independent project window (M7) ✅ |
 | Window | `open_popout_window`, `sync_popouts`, `popout_tool`, `popout_tools` | open/raise a popout window for a tool, reconcile a project's popouts on load (M7) ✅ |
@@ -207,8 +207,8 @@ The commands and channels below are all implemented; milestone notes record the 
 - `source_status` — device lost, stall, permission, etc. (flexaudio `Event`).
 - `analysis_progress` — long-running analysis updates.
 - `app:menu` — a File-menu action id (`new` / `newWindow` / `open` / `save` /
-  `saveAs`), an Edit action (`undo` / `redo`), or the Analysis action `compare` (M25,
-  planned) from the native menu (M6, M7); the frontend runs the matching project action. Emitted to the **focused window**
+  `saveAs`), an Edit action (`undo` / `redo`), or the Analysis action `compare` (M25) from
+  the native menu (M6, M7); the frontend runs the matching project action. Emitted to the **focused window**
   (multiple windows, M7); choosing an **Open Recent** entry is re-emitted as
   `app:open-project`.
 - `app:open-project` — opened `.heyl` paths (file association); routed to the focused
@@ -291,6 +291,14 @@ never changed. `compare_peer_setup` / `compare_live` are the narrow reads (B's
 window/params/options, both playheads, B's cursor and a revision) that let A follow B
 while the compare view is open. The engine itself (`audio/analysis/compare/`) is
 `tauri`-free and unit-tested. See [`comparison.md`](comparison.md) and ADR-24.
+
+Since **M25.B** the core places both results on a **relative** axis
+(`t − result.windowStart`, plus the `bOffset`) and diffs the **common span**; the
+absolute overlap is informational only. Since **M25.C** the reference side can be a
+`SavedComparison` restored from the project's `COMPARE` section: the core then runs only
+A and diffs against the stored result, so no second window is needed. A saved snapshot is
+frozen (the other project is not consulted) and the compare tab restores as a tab, while
+the compare *popout* remains a transient native window. See ADR-26 / ADR-27.
 
 > **Not a second track.** ADR-3/ADR-9 stay as they are: the second analysis setup is a
 > second **project**, not a second source in one project.

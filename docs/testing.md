@@ -498,10 +498,11 @@ own popout.
 > points at a live label. `windowLabels()` therefore falls back to plain WebDriver window
 > handles for exactly this case.
 
-### R2. Cross-project comparison (M25 / M25.A)
+### R2. Cross-project comparison (M25 / M25.A / M25.B / M25.C)
 
-A comparison needs **two project windows**, so this spec opens (and closes) its own. It
-sorts after `r-multi-project` and before `s-project-ux`; the **last** suite file must stay
+A **live** comparison needs two project windows, so this spec opens (and closes) its own;
+since M25.C a saved comparison can be tested with one. The spec sorts after
+`r-multi-project` and before `s-project-ux`; the **last** suite file must stay
 `t-close-main`. Helpers: `e2e/support/compare.ts` (tab menu → *Compare with…* / *Change
 reference…* / *Pop out to window*).
 
@@ -513,21 +514,24 @@ Two harness rules the spec follows, both learned the hard way:
   `browser.execute` DOM read).
 - **A restored layout lands after the project name.** After File → Open the name updates
   first and `dockview` replaces the tabs a moment later, so anything about the restored
-  tabs (no `Compare:` tab, then the analyzer tab back) is polled, never read once.
+  tabs is polled, never read once. Since M25.C a saved comparison tab is re-created
+  **after** the layout, so poll for it separately.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | R2.1 | Compare with… | Two projects: the tab menu opens a `compare:spectrum` tab, both sides overlay on one chart, the badge reads **Aligned**, and the view is separate from the analyzer tab | Scenario |
 | R2.2 | Grid mismatch | A differing FFT size flips the badge to **Grids differ** and drops the Δ readouts; restoring it realigns | Scenario |
 | R2.3 | Peer closes | Closing the reference project shows the banner, keeps the last result, and `compare_live` reports `open: false` | Scenario |
-| R2.4 | Transient save | Saving while the compare tab is open, then reopening, restores the analyzer tab and **no** compare tab | Scenario |
+| R2.4 | Saved comparison | Saving while the compare tab is open, then reopening **one** project, restores the compare tab in **saved reference** mode with B's band from the snapshot (M25.C) | Scenario |
 | R2.5 | Retarget | *Change reference…* points the same tab at another project — one compare tab before and after | Scenario |
-| R2.6 | Popout | *Pop out to window* closes the tab and opens a `compare-*` window with the same view; closing it forgets the view (no tab, no `compare_popouts`) | Scenario |
+| R2.6 | Popout | *Pop out to window* closes the tab and opens a `compare-*` window with the same view; closing it forgets the window (no tab, no `compare_popouts`); if saved while the popout is open, its content restores as a **tab**, never as a popout | Scenario |
 | R2.7 | Matrix A/B/Δ | The segmented control switches heatmaps; Δ adds the zero-centred legend; a differing FFT shows two side-by-side heatmaps and no Δ switch, and restoring it brings the switch back | Scenario |
 | R2.8 | Rhythm pairing | The onsets compare view names matched / only-A / only-B events and draws the envelope + markers | Scenario |
 | R2.9 | Note pairing | `noteMetrics` shows the A/B/Δ table and at least one note row, over the paired-block chart | Scenario |
 | R2.10 | Modulation | The AM/FM toggle drives the rate-axis chart and the Δ readouts (both sides use the chirp, which has a spectrum; a steady tone correctly shows the empty state) | Scenario |
-| R2.11 | Waveform rule | With the same source and window on both sides the peak envelopes overlay; moving the reference's window switches to side-by-side plots with the no-delta note | Scenario |
+| R2.11 | Waveform rule | With the same source and window on both sides the peak envelopes overlay; with different lengths the envelopes are clipped to the common span and the note says so (M25.B replaces the old identical-window rule); a differing grid still switches to side-by-side plots | Scenario |
+| R2.12 | Relative alignment | Adjacent/disjoint windows compare (no "no overlap" state); the offset slider changes the Δ readouts; Swap moves the axis extent/clipping; opening another tab keeps the reference bound (the M25 regression) | Scenario |
+| R2.13 | Reconnect | The picker offers `Saved: <name>` and hints a same-named open project; reconnecting to the live project restores live markers and resets the offset; a settled change in B marks A dirty | Scenario |
 
 ### S. Project UX
 
