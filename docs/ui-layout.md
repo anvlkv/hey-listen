@@ -181,13 +181,14 @@ None of these are closable, draggable, or tabbed.
 - Two kinds: the **graph editors** (`filter`, `synth` — see ADR-10) and the
   **analyzer tabs** (M4+).
 - **No duplicate tabs** — a tool/editor can be open at most once. A **compare view**
-  (M25) is a second, *transient* tab per tool (`compare:<tool>`): right-click an
-  analyzer tab → **Compare with…** (or Analysis → **Compare with…**) to overlay the
-  same tool from another open project. It is one per tool per project — as a tab **or**
-  its popout — and choosing another reference retargets it. It is never in the Sidebar
-  and **not saved** — the dockview layout is sanitised when it is written, and compare
-  popouts are never recorded as tool popouts, so save/load or New Project closes them.
-  See [`comparison.md`](comparison.md).
+  (M25) is a second tab per tool (`compare:<tool>`): right-click an analyzer tab →
+  **Compare with…** (or Analysis → **Compare with…**) to overlay the same tool from
+  another project (live) or the project's saved reference snapshot (M25.C). It is one per
+  tool per project — as a tab **or** its popout — and choosing another reference
+  retargets it. It is never in the Sidebar. The panel is **not in the dockview layout**
+  (the layout is sanitised when written, and compare popouts are never recorded as tool
+  popouts), but since M25.C the comparison's **content** is saved in the project and its
+  tab is re-created on load. See [`comparison.md`](comparison.md).
 - Tabs are dragged to reorder / **split / join** groups. The drag runs on
   dockview's **pointer** strategy (`dndStrategy: "pointer"`): the system WebView
   does not drive HTML5 drag-and-drop reliably, which left edge drops inoperative.
@@ -207,8 +208,9 @@ None of these are closable, draggable, or tabbed.
   registered with its tool and reference rather than as a tool popout: its title is
   `Compare: <tool> — <A> ↔ <B>` (the names arrive with the first comparison), choosing
   it again raises it, another reference retargets it (`retarget_compare_popout`), and it
-  is **never** recorded in `LAYOUT.popouts` or restored on load (`close_popouts` closes
-  it with the old project's views). Its window label is `compare-<n>`. See
+  is **never** recorded in `LAYOUT.popouts` (`close_popouts` closes it with the old
+  project's views). Its window label is `compare-<n>`. The window is transient, but since
+  M25.C its comparison content is saved and restores as a **tab**, not as a window. See
   [`comparison.md`](comparison.md).
 - A **note** pops out the same way (`open_note_window`, from the Annotations rail's row): a
   real window that renders just that note's editor, aliased to the same project and

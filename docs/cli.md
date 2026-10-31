@@ -126,7 +126,9 @@ file/window/tool, and the envelope's `window` says which span each line covers.
 Run the **same analyzer** over two saved projects and emit the two results plus an
 explicit comparison (see [`comparison.md`](comparison.md)). Each side uses its own
 saved setup — analysis window, shared params, tool options, `filterEnabled` and
-`LAYOUT.filterSpec` — so the diff is "the projects as saved".
+`LAYOUT.filterSpec` — so the diff is "the projects as saved". Matching is **relative**
+(each side starts at 0) and the delta covers the common span; `--overlap` opts into the
+older absolute-intersection behavior.
 
 | Option | Meaning |
 | --- | --- |
@@ -134,7 +136,8 @@ saved setup — analysis window, shared params, tool options, `filterEnabled` an
 | `--all` | Compare every analyzer in the catalog. |
 | `--start` / `--end` | Override **both** sides' windows. |
 | `--a-start` / `--a-end` / `--b-start` / `--b-end` | Override one side's window. |
-| `--overlap` | Clip both sides to their absolute-time intersection. |
+| `--b-offset <SECS>` | Move side B on the relative axis (positive = later). Default `0`. **(M25.B)** |
+| `--overlap` | Clip both sides to their absolute-time intersection before comparing. |
 | `-p, --param <K=V>` | Patch a shared param on **both** sides. |
 | `-o, --option [TOOL.]K=V` | Patch a per-tool option on **both** sides. |
 | `--filter <FILE>` | Override both saved filters with this `GraphSpec`. |
@@ -147,16 +150,19 @@ One JSONL object per tool (the `analyze` result envelope per side plus the compa
 {"tool":"spectrum",
  "a":{"file":"a.heyl","window":{},"params":{},"options":{},"summary":{},"result":{}},
  "b":{"file":"b.heyl","…":"…"},
- "comparability":{"aligned":true,"overlap":{},"mismatches":[],"filtersDiffer":false},
+ "comparability":{"aligned":true,"alignment":{},"overlap":{},"mismatches":[],
+                  "filtersDiffer":false},
  "diff":{"kind":"spectrum","summary":"…","maxAbs":4.2}}
 ```
 
 `diff` is absent when the grids differ (a mismatch list explains why); the two results
-are still emitted. Every analyzer id compares, and the GUI charts every family too
-(M25.A). Exit `0` when every tool ran, `1` when either side failed, `2` on a
+are still emitted. `alignment` carries `{ aDuration, bDuration, bOffset, common }`, the
+relative span the delta covers. Every analyzer id compares, and the GUI charts every
+family too (M25.A). Exit `0` when every tool ran, `1` when either side failed, `2` on a
 usage error. A project saved before `LAYOUT.filterSpec` existed compares unfiltered with
 a one-line stderr warning. **Only project files** are accepted — `analyze` covers raw
-audio files.
+audio files. Comparing a **single** file against its saved snapshot (M25.C) is a
+follow-up.
 
 > **Delivered (M25).** `cli/batch/compare.rs` loads both project files itself (each side
 > gets its own `WindowState` with the saved PCM — or the referenced file — and

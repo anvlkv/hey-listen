@@ -136,12 +136,13 @@ tracked in the [roadmap](roadmap.md) backlog.
 
 ## Comparing two projects (M25)
 
-A comparison is **per tool**: the same analyzer id is run against two independently
-open projects (A, the owner, and B, the reference), each over its own analysis window,
-with its own shared params, tool options and filter. The core computes both sides and
-the frontend overlays them in a transient compare view; the delta is explicit and is
-omitted when the grids (rate, channel, FFT/hop/window, band, dimensions) differ. See
-[`comparison.md`](comparison.md).
+A comparison is **per tool**: the same analyzer id is run against two project sides
+(A, the owner, and B, the reference), each over its own analysis window, with its own
+shared params, tool options and filter. The core computes both sides and the frontend
+overlays them in a compare view on a **relative** axis (each window starts at 0, with a
+fine-tune offset, M25.B); the delta is explicit and is omitted when the grids (rate,
+channel, FFT/hop/window, band, dimensions) differ. The reference may be a live project
+or the project's saved snapshot (M25.C). See [`comparison.md`](comparison.md).
 
 This is not a second track: ADR-3's one-window / one-project / one-source rule still
 holds, so "independent filters + synth + timeline" means two projects, not two sources in

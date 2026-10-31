@@ -13,7 +13,8 @@ summaries, compact results, catalog annotations, discovery) is delivered — see
 (timeline ergonomics), **M24** (keyboard control), **M25** (cross-project comparison) and
 **M25.A** (its remaining chart views — every family now has one) are **delivered** — see
 [`roadmap.md`](roadmap.md), [`hotkeys.md`](hotkeys.md) and
-[`comparison.md`](comparison.md). **M26–M31** (the
+[`comparison.md`](comparison.md). **M25.B** (relative-time alignment + fine-tune offset)
+and **M25.C** (saved comparison snapshots) are **planned**. **M26–M31** (the
 psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation,
 masking / tonality, equal-loudness + spatial cues) are **planned** — see
 [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
@@ -28,7 +29,7 @@ masking / tonality, equal-loudness + spatial cues) are **planned** — see
 | [data-model.md](data-model.md) | Domain entities and their relationships |
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
-| [comparison.md](comparison.md) | Cross-project diffs: the A/B model, comparability, the compare view (+ popout), MCP/CLI surfaces (M25 / M25.A) |
+| [comparison.md](comparison.md) | Cross-project diffs: the A/B model, relative alignment + fine-tune offset, comparability, the compare view (+ popout), saved snapshots, MCP/CLI surfaces (M25 / M25.A / M25.B / M25.C) |
 | [analysis-metrics.md](analysis-metrics.md) | Analysis depth: pitch range, frame RMS, note segmentation (M16–M18), per-note voice-quality proxies (M19), and AM/FM modulation spectra (M20) — all delivered |
 | [analysis-psychoacoustics.md](analysis-psychoacoustics.md) | Psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation, masking / tonality, equal-loudness + spatial cues (M26–M31) — planned |
 | [psychoacoustics-references.md](psychoacoustics-references.md) | Psychoacoustics reference: the libraries, equations, and model recommendations behind M26–M31 |

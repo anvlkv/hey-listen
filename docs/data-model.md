@@ -23,14 +23,21 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 - **AnalyzerTool** — an analysis capability (see
   [`analysis-tools.md`](analysis-tools.md)), identified by a stable id (e.g.
   `spectrogram`, `fft`, `loudness`).
-- **Comparison** — a **transient** view over two projects (M25): `tool` + owner `A` +
-  reference `B`, each side's window/params/options/filter, the two `AnalysisResult`s, a
-  `Comparability` (grid signature, time overlap, mismatches, filter difference) and an
-  optional `Diff` (per-family delta stats). One view per tool per project, as a
-  Workbench tab **or** its popout (`ComparePopout { tool, reference }`, held in the
-  window registry for the popout). It is **not** project content: never in `Project`, `SETUP`,
-  `RESULTS`, `LAYOUT`, `NOTES` or `LAYOUT.popouts`, never saved, never undoable. See
-  [`comparison.md`](comparison.md).
+- **Comparison** — a view over two project sides (M25): `tool` + owner `A` + reference
+  `B`, each side's window/params/options/filter, the two `AnalysisResult`s, a
+  `Comparability` (grid signature, **relative alignment** + measured extents, the
+  informational absolute overlap, mismatches, filter difference) and an optional `Diff`
+  (per-family delta stats). The reference is either a **live** project window or the
+  owner's **saved snapshot** (M25.C). One view per tool per project, as a Workbench tab
+  **or** its popout (`ComparePopout { tool, reference }`, held in the window registry for
+  the popout). Since M25.C the reference side is saved as a `SavedComparison` in the
+  project's `COMPARE` section (no reference audio); the panel itself still stays out of
+  `LAYOUT`, and comparisons stay out of undo/redo. See [`comparison.md`](comparison.md).
+- **SavedComparison** — the reference side of one comparison, frozen: tool, reference
+  display name, source shape, window, shared params, effective options, filter
+  fingerprint, `bOffset`, `savedMs`, and the reference's full `AnalysisResult`. Written
+  for each comparison open at save time; restored as a Workbench tab and used until an
+  explicit reconnect. See [`project-file-format.md`](project-file-format.md).
 - **AnalysisResult** — cached output of a tool over a window (typed payload +
   the params/window it was computed for). Every time it carries is in **source
   seconds**: the tools run on the window's slice, and the engine re-bases the result
@@ -70,9 +77,10 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 > **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md))
 > and `Note` in M14 (see [`notes.md`](notes.md)); the export envelope shipped in M12
 > (see [`exports.md`](exports.md)); `AnalysisTemplate` (M13) is still planned. The
-> export envelope is a view over an existing `AnalysisResult`. `Comparison` is M25
-> (planned) and is deliberately **not**
-> serialized into a project. See [`exports.md`](exports.md), [`templates.md`](templates.md),
+> export envelope is a view over an existing `AnalysisResult`. `Comparison` shipped in
+> M25 as a transient view; **M25.C** saves the reference side as a `SavedComparison`
+> (not the whole comparison), so the diff can be reproduced without the other project.
+> See [`exports.md`](exports.md), [`templates.md`](templates.md),
 > [`comparison.md`](comparison.md).
 > The M16–M20 analysis-depth results carry `FrameRms` (delivered in M17),
 > `NoteMetricsResult` (delivered in M18–M19), and `ModulationResult` (delivered in M20)
@@ -97,12 +105,13 @@ struct GraphEdge { from: String, from_port: usize, to: String, to_port: usize }
 
 struct AnalysisWindow { start_secs: f64, end_secs: f64 }
 
-// Transient (M25): the core computes both sides; nothing here is persisted.
+// M25: the core computes both sides. The reference may be live or saved (M25.C).
 struct Comparison {
     tool: String,
     a: CompareSide,                  // project label + window/params/options + result
     b: CompareSide,
-    comparability: Comparability,    // aligned, overlap, mismatches, filters_differ
+    comparability: Comparability,    // aligned, alignment, overlap (informational),
+                                     // mismatches, filters_differ
     diff: Option<Diff>,              // per-family stats; arrays only when requested
 }
 
@@ -111,6 +120,20 @@ struct CompareSide {
     window: AnalysisWindow,
     params: SharedParams,
     options: ToolOptions,
+    result: AnalysisResult,
+}
+
+// Project content since M25.C: the reference side as it was last compared.
+struct SavedComparison {
+    tool: String,
+    reference_name: String,          // display name (labels are session-scoped)
+    source: SourceShape,
+    window: AnalysisWindow,
+    params: SharedParams,
+    options: BTreeMap<String, f64>,
+    filter_fingerprint: Option<String>,
+    b_offset: f64,                   // fine-tune offset, seconds (M25.B)
+    saved_ms: u64,
     result: AnalysisResult,
 }
 

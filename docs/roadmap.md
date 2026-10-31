@@ -1580,11 +1580,13 @@ retarget reuses the tab; **popout**: Pop out to window keeps the overlay and the
 markers, closing it forgets the view, and a load does not restore it. MCP/CLI contract
 tests as in [`comparison.md`](comparison.md).
 
-**Non-goals:** no second track in one project; no time alignment/warping; no
-simultaneous mixed playback; no dual waveform Timeline in the compare view (each project
+**Non-goals:** no second track in one project; no time alignment/warping in M25;
+no simultaneous mixed playback; no dual waveform Timeline in the compare view (each project
 keeps its own); no different-tool or 3+ project compares; no notes in the compare view;
-no parameter normalisation; no persistence or export of a comparison. The matrix /
-event / modulation / waveform **views** followed in M25.A, not M25.
+no parameter normalisation; no persistence or export of a comparison in M25. The matrix /
+event / modulation / waveform **views** followed in M25.A, not M25; relative-time
+alignment + the fine-tune offset followed in **M25.B**, and saved comparisons in
+**M25.C**.
 
 > **Order:** M25 depends on M23 only for the peer playhead's *paused* position; without
 > M23 it reads the core's playing position. M25 is otherwise independent of M22/M24.
@@ -1659,7 +1661,8 @@ helpers (`matrix`, `notes`, `waveform`, `sides`), `src/styles/compareViews.css` 
 and the no-interpolation case, event pairing (matched/only-A/only-B), `noteMetrics`
 table deltas, modulation rate-axis cursors, and the waveform identical-window rule.
 
-**Non-goals:** no cross-grid interpolation, no 3+ project compare, no persistence.
+**Non-goals:** no cross-grid interpolation, no 3+ project compare, no persistence in
+M25.A (saved comparisons followed in M25.C).
 
 > **Delivered:** the five views (`CompareMatrix`, `CompareEvents`, `CompareNotes`,
 > `CompareModulation`, `CompareWaveform`), the A/B/Δ and AM/FM segmented controls, the
@@ -1684,6 +1687,122 @@ table deltas, modulation rate-axis cursors, and the waveform identical-window ru
 
 > **Order:** M25.A is UI-only and follows M25; it can be delivered family by family
 > (matrix → events → modulation → waveform) with the action enabled as each lands.
+
+> **Planned follow-ups:** **M25.B** replaces the absolute-time overlap rule with a
+> relative axis and a manual fine-tune offset; **M25.C** makes the last comparison a saved
+> snapshot in the project. Both supersede parts of the M25 contract above and are
+> documented in [`comparison.md`](comparison.md) and ADR-26 / ADR-27.
+
+## M25.B — Relative-time compare alignment (planned)
+
+Rework how the two sides share one x-axis, so a comparison is meaningful when the windows
+have different start times **and different lengths**, and add a manual fine-tune.
+Supersedes the absolute-time overlap rule of M25; see ADR-26.
+
+- **Relative axis.** `x(side) = t − side.result.windowStart`, so both sides begin at 0
+  even when their windows begin at different source seconds. Absolute overlap stops
+  gating `aligned`; two adjacent (or disjoint) windows compare as "first N seconds vs
+  first N seconds".
+- **Axis extent = the displayed A side's duration.** `Swap A/B` swaps the extent, the
+  clipping and the offset's sign with the two sides, not just their labels.
+- **Common span / clipping.** The delta, matched pairs and matrix columns cover
+  `[max(0, δ), min(durA, δ + durB)]` — the longer side is clipped to the shorter for
+  comparability. The chart still paints displayed A's full extent; displayed B ends where
+  its data ends.
+- **Fine-tune slider (δ).** A slider in the compare header/readouts moves displayed B
+  relative to displayed A: ±1 s, 1 ms steps, 0 by default, positive = B later, with a
+  reset. It changes alignment only (the per-side analyzer results are unchanged); the
+  comparison re-runs (debounced) so the Δ line, stats and pairings all follow.
+- **Core contract.** `run_comparison` takes `bOffset`; matching uses relative times.
+  The core works in **owner coordinates** (A at 0, the reference shifted by δ); Swap is a
+  display transform, so `bOffset`'s meaning never changes with it. `comparability` gains
+  `alignment { aDuration, bDuration, bOffset, common }` (relative `common`, `null` when
+  the shifted windows do not meet), keeps `overlap` as the absolute intersection (used by
+  CLI `--overlap`), and no longer requires overlap for `aligned`. MCP
+  `compare_analysis` takes `bOffset`; the CLI takes `--b-offset`.
+- **Matrix Δ.** Displayed A's frames inside the common span are the columns; a frame with
+  no B counterpart within tolerance is a **null** column (transparent / neutral), not a
+  dropped column (dropping would collapse the time axis).
+- **Waveform.** Envelope buckets are 2048 per window with a length-dependent step, so
+  clipping does not align them. The delta samples the other envelope at **A's** bucket
+  times (nearest within one bucket) over the common span; it is exact when the durations
+  match, and the view says "clipped to the shorter window" when they do not. No
+  re-analysis, no index matching.
+- **Markers and sync.** Playheads/cursors are remapped (`t − start`, plus δ for B); B's
+  band is `[δ, δ + bDur]`. The compare chart keeps A's `time` sync group, converting
+  absolute ↔ relative at the plugin boundary so zoom/cursor still mirror.
+- **Fix the reference reset.** `state/compare/views.ts` derives open compare tabs from
+  `openTools`, which excludes compare ids, so any panel add/remove drops every reference
+  (and `get_state.compare` is always empty). Read the compare panels from the dockview API
+  (or a dedicated open-compare signal) instead.
+
+**Files:** `src-tauri/src/audio/analysis/compare/{align,diff,diff/families,events}.rs`,
+`src-tauri/src/commands/compare.rs`, `src-tauri/src/cli/batch/compare.rs`,
+`src-tauri/src/mcp/tools/compare.rs`, `src/state/compare/{run,views}.ts`,
+`src/components/compare/*` (including `peerPlugins` and the pure helpers),
+`src/components/analyzer/syncPlugins.ts` (the absolute ↔ relative transform).
+
+**Tests.** Rust: relative matching with non-overlapping windows, `bOffset` sign/limits,
+matrix null columns, waveform nearest-bucket delta. Unit: relative merge/clipping, swap
+sign, marker mapping, compare-panel derivation. E2E: adjacent windows compare; the slider
+changes Δ stats and the overlay; Swap moves the axis/clip; markers follow; the reference
+survives opening another tab.
+
+**Non-goals:** no automatic alignment (cross-correlation / DTW), no time stretching, no
+persistence yet (M25.C).
+
+> **Order:** M25.B follows M25.A and precedes M25.C. The saved snapshot of M25.C is only
+> meaningful because the alignment is relative (B's last window is restored as-is).
+
+## M25.C — Saved comparisons (planned)
+
+Make the last comparison part of the project, so reopening **one** project still shows
+what it was compared against. Supersedes ADR-24's "not project content" rule; see ADR-27.
+
+- **`COMPARE` section (`0x08`).** One snapshot per comparison that is open at save time
+  (tab or popout): `tool`, reference **project name** (labels are session-scoped), source
+  shape, B's window, params, effective options, filter fingerprint, B's **full last
+  `AnalysisResult`**, `bOffset`, and `savedMs`. No B PCM — the snapshot is the final
+  analysis window, not the audio.
+- **Codec.** `postcard` via a small externally tagged wrapper: the IPC `AnalysisResult`
+  is internally tagged and postcard cannot encode that. A 512-frame spectrogram snapshot
+  is roughly 0.5 MB binary (JSON would be several MB). The result structs gain
+  `Deserialize`; the section is additive and forward-compatible.
+- **Save/load.** `save_project` carries the snapshots; `load_project` returns them and the
+  core keeps them per window. A comparison may bind to a **live** project or to its
+  **saved snapshot**; live always wins when reconnected. The picker lists the snapshot as
+  `Saved: <name>` even with one project open. A comparison whose reference has since
+  closed saves its **last successful** result (the same one the banner keeps); a
+  comparison that never resolved writes nothing.
+- **Restore.** Saved comparisons re-open as Workbench **tabs** on load (never as popouts).
+  A compare popout's content is saved, but the window itself stays transient. A saved view
+  draws B's band from the snapshot, hides B's playhead/cursor (there is no live B), and
+  marks the badge/banner **saved reference**.
+- **Reconnect is explicit.** Opening a project whose name matches the snapshot shows a
+  hint in the picker ("…is open — reconnect"), but never rebinds automatically (names are
+  not unique). Retargeting to a live project resets `bOffset` to 0.
+- **Dirty state.** While a compare view is open, a **settled** change in B's result is part
+  of A's dirty signature (the saved snapshot would change), so A prompts on close;
+  closing the compare tab and saving drops its snapshot. Snapshots stay out of undo/redo.
+- **MCP/CLI.** `get_state.compare` reports `{ tool, with, saved, offset }`;
+  `list_projects` reports each project's saved comparisons; `compare_analysis` accepts
+  `saved: true` (use the stored B side, `with` omitted) and `bOffset`. The CLI gains
+  nothing beyond `--b-offset`; comparing a single file against its snapshot is a
+  follow-up.
+
+**Files:** `src-tauri/src/project/{sections,read,write,mod}.rs`,
+`src-tauri/src/audio/analysis/results/mod.rs` (`Deserialize` + the stored wrapper),
+`src-tauri/src/commands/{project,compare}.rs`, `src-tauri/src/state/window/`,
+`src/state/project/*`, `src/state/compare/*`, `src/components/compare/*`.
+
+**Tests.** Rust: section round-trip (including a spectrogram snapshot), unknown-section
+forward compatibility, saved-side resolution, dirty signature. Unit: snapshot capture,
+saved-reference selection, retarget reset. E2E: save with a compare tab, quit, reopen one
+project → the compare tab returns with the saved B band and the **saved reference** badge;
+reconnect to a live B; the dirty prompt appears after a settled B change.
+
+**Non-goals:** no B audio embedded, no automatic reconnect, no multi-reference history
+(one saved comparison per tool), no export.
 
 ## M26–M31 — Psychoacoustic analysis (planned)
 

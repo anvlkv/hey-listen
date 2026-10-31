@@ -33,6 +33,7 @@ streaming for very large audio.
 | 0x05 | `LAYOUT` | serde_json | dockview JSON + solid-flow node positions |
 | 0x06 | `RESULTS` | postcard | cached `AnalysisResult` list |
 | 0x07 | `NOTES` | postcard | the project's annotations (`Note` list: anchor time + optional range, tool, markdown body, frozen values) |
+| 0x08 | `COMPARE` | postcard | saved comparison snapshots (M25.C): one reference analysis result + setup per tool |
 
 ## Notes (M14)
 
@@ -47,6 +48,37 @@ version governs the section set and readers skip unknown ids, a `NOTES` section 
 file with no `NOTES` section loads with zero notes. Keeping notes in their own section
 (rather than inside `SETUP`) keeps the analysis setup a pure `AnalysisSetup` and lets the
 CLI read just the notes (`hey-listen notes <FILE.heyl>`).
+
+## Comparisons (M25.C)
+
+The `COMPARE` section (id `0x08`) carries the project's **saved comparisons** as a
+`postcard` `Vec<SavedComparison>` (see [`comparison.md`](comparison.md)). Each entry is a
+**snapshot of the reference side**, not a link:
+
+| Field | Meaning |
+| --- | --- |
+| `tool` | The analyzer id (one saved comparison per tool). |
+| `referenceName` | The reference project's display name (window labels are session-scoped, so they are not stored). |
+| `source` | The reference's source shape (rate / channels / duration), for the header. |
+| `window` | The reference's analysis window (`start..end`, absolute source seconds). |
+| `params` / `options` | The shared params and effective tool options the result was produced with. |
+| `filterFingerprint` | A hash of the reference's applied filter, so `filtersDiffer` still works after reload. |
+| `bOffset` | The fine-tune offset (M25.B) in seconds, relative to the owner. |
+| `savedMs` | When the snapshot was written (Unix ms). |
+| `result` | The reference's full `AnalysisResult` for that window (M25.C). |
+
+No reference **audio** is embedded: the snapshot is the final analysis window, so a
+saved comparison is reproducible without the other project. `save_project` writes one
+entry per comparison open at save time (tab or popout); `load_project` returns them and
+the core keeps them per window, so a compare view can bind to the snapshot after reload.
+
+The payload is `postcard` via a small **externally tagged wrapper** around
+`AnalysisResult`: the IPC enum is internally tagged (`tool` key), which `postcard` cannot
+encode, and JSON would make a 512-frame spectrogram several megabytes instead of roughly
+0.5 MB. The result structs therefore also derive `Deserialize`.
+
+The panel itself is still not in `LAYOUT` (compare panels are sanitised out); restoring a
+saved comparison re-creates its Workbench **tab** after the project state is ready.
 
 ## Reference projects (M21.A)
 
@@ -85,7 +117,8 @@ recording would otherwise duplicate every recording's raw `f32` (4.4 MB for 25 s
 
 - `version` in the header governs the section set and codecs.
 - Readers skip unknown section ids (forward compatibility); missing optional
-  sections (`RESULTS`) default to empty.
+  sections (`RESULTS`, `COMPARE`) default to empty. Older builds open a project with
+  saved comparisons and simply ignore them.
 - `checksum` validates the whole file on load.
 
 ## Implemented (M6)

@@ -667,11 +667,14 @@ cursors/playheads are polled read-only, so the compare view never drives B's tra
 The CLI needs the compiled filter spec in `LAYOUT` to reproduce the app's conditioning.
 See [`comparison.md`](comparison.md).
 
-**Status: implemented (M25, views completed in M25.A).** `audio/analysis/compare/`
-computes the diff for every family; `commands/compare.rs` owns the IPC/lifecycle surface;
-the frontend's `state/compare/` + `components/compare/` chart every family (series,
-spectrum, readouts, matrix/spectrogram, rhythm/events, `noteMetrics`, modulation,
-waveform); the CLI's `compare` reads `LAYOUT.filterSpec`.
+**Status: implemented (M25, views completed in M25.A); partially superseded.**
+`audio/analysis/compare/` computes the diff for every family; `commands/compare.rs` owns
+the IPC/lifecycle surface; the frontend's `state/compare/` + `components/compare/` chart
+every family (series, spectrum, readouts, matrix/spectrogram, rhythm/events,
+`noteMetrics`, modulation, waveform); the CLI's `compare` reads `LAYOUT.filterSpec`.
+**ADR-26** (planned M25.B) replaces the absolute-overlap rule with relative alignment and
+a manual offset; **ADR-27** (planned M25.C) makes the comparison's reference side a saved
+project snapshot. The compare *panel* still never enters `LAYOUT`.
 
 ## ADR-25 — Psychoacoustic analyzers are a calibrated, standards-honest layer over dBFS
 
@@ -719,3 +722,83 @@ control can fan out to the per-tool options later without a schema change. See
 [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
 
 **Status: proposed (M26–M31).**
+
+## ADR-26 — Compare alignment is relative, with a manual fine-tune offset
+
+**Context:** ADR-24 compares the two windows over their **absolute-time intersection**.
+That is the right rule for "the same moment of the same recording", but it makes two
+normal cases uncomparable: windows that start at different points, and windows of
+different lengths (the intersection may be empty, or much shorter than either result).
+The useful question is usually "how does the first/second of B differ from the
+first/second of A", with the user able to nudge B by a few milliseconds.
+
+**Decision:**
+
+- Each side is placed on a **relative** axis `x = t − result.windowStart`. Absolute
+  overlap no longer gates `aligned`; the relative axis always exists.
+- The chart extent is the **displayed A** side's window duration; `Swap A/B` swaps the
+  extent, the clipping and the offset's sign with the sides. Displayed B is clipped where
+  its data ends, and never stretched.
+- The delta, matched pairs and matrix columns cover the **common span**
+  `[max(0, δ), min(durA, δ + durB)]` — the longer side is clipped to the shorter.
+- A **fine-tune slider δ** (±1 s, 1 ms steps, 0 default, positive = B later) moves B on
+  the axis. It changes **alignment only**: neither side is re-analyzed. `run_comparison`
+  takes `bOffset`, so the delta/stats/pairings and the chart always agree; MCP and the CLI
+  expose the same field.
+- Matching stays **nearest-time within a tolerance** and is done on the relative axis
+  (`0.6 × hop` for frames; `max(20 ms, 2 hops)` for events). A matrix frame with no
+  counterpart is a **null** column, not a dropped one. Waveform envelopes have a
+  length-dependent bucket step, so the delta samples the neighbour envelope at the
+  displayed A's bucket times (nearest within one bucket).
+- Live markers are remapped to the relative axis; the compare chart keeps A's sync group
+  by converting absolute ↔ relative at the plugin boundary.
+
+**Consequence:** windows with different starts and lengths are comparable without
+re-slicing or stretching audio, and the user can compensate for a small offset. The cost
+is a second concept in the contract (`alignment` beside the informational `overlap`), a
+re-run on every settled slider move (A and B are re-run; results are unchanged, only the
+matching), and a waveform delta that is exact only when the durations match. Automatic
+alignment (cross-correlation / DTW) remains out of scope. See
+[`comparison.md`](comparison.md).
+
+**Status: proposed (M25.B).**
+
+## ADR-27 — The last comparison is saved as a reference snapshot
+
+**Context:** ADR-24 made comparisons transient: the reference picker forgot its choice
+and reopening one project lost the comparison. In practice a comparison is often part of
+the project's state ("this call vs that call"), and the second project's source may not be
+available later. Keeping the reference project open just to see the diff is fragile.
+
+**Decision:**
+
+- The project file gains a `COMPARE` section (id `0x08`): one **snapshot per comparison
+  open at save time** (tab or popout), not a link to another project. It stores the tool,
+  the reference's **display name** (window labels are session-scoped), source shape,
+  window, shared params, effective options, filter fingerprint, the fine-tune offset, and
+  the reference's **full last `AnalysisResult`**. No reference audio is embedded.
+- The snapshot is `postcard`-encoded through a small externally tagged wrapper (the IPC
+  `AnalysisResult` is internally tagged, which `postcard` cannot encode). The result
+  structs gain `Deserialize`; the section is additive and forward-compatible.
+- A comparison may bind to a **live** project or to its **saved snapshot**. Live wins; a
+  saved binding shows the stored B band, hides B's live markers, marks the badge **saved
+  reference**, and runs only A when the view re-computes.
+- Saved comparisons **restore as Workbench tabs** after load (never as popout windows);
+  the compare panel stays out of `LAYOUT`.
+- Reconnect is **explicit**: the picker hints when an open project's name matches but
+  never rebinds automatically. Retargeting to a live project resets the offset.
+- While a compare view is open, a **settled** change in the live reference is part of the
+  owner's dirty signature (the snapshot would change). Snapshots stay out of undo/redo;
+  closing the compare tab and saving drops the snapshot (one per tool).
+- MCP `compare_analysis` can use the saved side (`saved: true`, `with` omitted);
+  `get_state` / `list_projects` report the saved comparison and its offset.
+
+**Consequence:** a project is self-contained for its last comparison and survives a
+missing reference project. The cost is a per-tool result in the file (≈0.5 MB worst case
+for a spectrogram), `Deserialize` on every result struct, a saved/live lifecycle in the
+view, and a dirty state that now includes a settled peer change. A snapshot is **frozen**:
+editing the reference project afterwards does not update it until the comparison is made
+and saved again. See [`comparison.md`](comparison.md) and
+[`project-file-format.md`](project-file-format.md).
+
+**Status: proposed (M25.C).**
