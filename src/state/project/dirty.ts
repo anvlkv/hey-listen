@@ -3,6 +3,7 @@ import { toSpec } from "../../lib/graph";
 import { sharedParams } from "../analysis";
 import { toolOptions } from "../analyzer";
 import { recording } from "../capture";
+import { compareSignature } from "../compare/views";
 import { FILTER_GRAPH, filterEnabled, graphPristine, SYNTH_GRAPH } from "../graph";
 import { notes } from "../notes";
 import { source } from "../source";
@@ -78,6 +79,10 @@ function projectSignature(): string {
       view: [viewStart(), viewEnd()],
       filterEnabled: filterEnabled(),
       openTools: openTools(),
+      // A comparison's reference snapshot is project content (M25.C): an open compare
+      // view contributes its binding, offset and last-successful fingerprint, so a
+      // settled change in a live reference marks this project dirty.
+      compare: compareSignature(),
       layout: layoutSignature(layoutJson()),
       notes: notes(),
     }),

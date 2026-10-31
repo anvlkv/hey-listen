@@ -95,7 +95,6 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11, M12, M14–M21, M21.A, M21.B, M25, and M25.A are
-done; M13 templates, M25.B relative compare alignment, and M25.C saved comparisons are
-planned). Deliver strictly one milestone at a time; confirm current status from that file
-before starting.
+`docs/roadmap.md` tracks progress (M11, M12, M14–M21, M21.A, M21.B, M25 and its A/B/C
+follow-ups are done; M13 templates and M26–M31 psychoacoustics are planned). Deliver
+strictly one milestone at a time; confirm current status from that file before starting.

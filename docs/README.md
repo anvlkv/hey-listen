@@ -14,7 +14,7 @@ summaries, compact results, catalog annotations, discovery) is delivered — see
 **M25.A** (its remaining chart views — every family now has one) are **delivered** — see
 [`roadmap.md`](roadmap.md), [`hotkeys.md`](hotkeys.md) and
 [`comparison.md`](comparison.md). **M25.B** (relative-time alignment + fine-tune offset)
-and **M25.C** (saved comparison snapshots) are **planned**. **M26–M31** (the
+and **M25.C** (saved comparison snapshots) are **delivered** as well. **M26–M31** (the
 psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation,
 masking / tonality, equal-loudness + spatial cues) are **planned** — see
 [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).

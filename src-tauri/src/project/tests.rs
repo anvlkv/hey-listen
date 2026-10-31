@@ -5,6 +5,8 @@ use std::io::Cursor;
 
 use super::sections::{AnalysisWindow, NoteValues, StoredResult};
 use super::*;
+use crate::audio::analysis::compare::{SavedComparison, SourceShape, Span};
+use crate::audio::analysis::{SharedParams, SpectrogramResult, StoredAnalysisResult, ToolOptions};
 use crate::audio::analyzers::{AnalyzerId, ToolId};
 use crate::state::SourcePcm;
 
@@ -85,6 +87,48 @@ fn write(save: &SaveProject, now_ms: u64) -> Cursor<Vec<u8>> {
     cursor
 }
 
+/// A saved comparison with a small spectrogram snapshot (M25.C).
+fn saved_comparison() -> SavedComparison {
+    SavedComparison {
+        tool: AnalyzerId::Spectrogram,
+        reference_name: "Reference project".to_string(),
+        source: SourceShape {
+            sample_rate: 48_000,
+            channels: 1,
+            duration: 2.0,
+        },
+        window: Span {
+            start: 0.5,
+            end: 1.5,
+        },
+        params: SharedParams {
+            fft_size: 2048,
+            hop: 0.5,
+            ..Default::default()
+        },
+        options: ToolOptions {
+            n_mels: Some(64),
+            ..Default::default()
+        },
+        filter_fingerprint: Some("{\"nodes\":[]}".to_string()),
+        b_offset: 0.012,
+        saved_ms: 1_234,
+        result: StoredAnalysisResult::Spectrogram(SpectrogramResult {
+            sample_rate: 48_000,
+            fft_size: 2048,
+            hop_size: 1_024,
+            duration: 1.0,
+            window_start: 0.5,
+            frames: 2,
+            bins: 3,
+            freqs: vec![100.0, 200.0, 300.0],
+            mag_db: vec![-10.0, -20.0, -30.0, -11.0, -21.0, -31.0],
+            min_db: -31.0,
+            max_db: -10.0,
+        }),
+    }
+}
+
 #[test]
 fn round_trips_every_section() {
     let pcm = pcm(5_000);
@@ -107,6 +151,7 @@ fn round_trips_every_section() {
             result: vec![1, 2, 3],
         }],
         notes: vec![note(), range_note()],
+        compare: vec![saved_comparison()],
         pcm: Some(&pcm),
     };
 
@@ -142,6 +187,25 @@ fn round_trips_every_section() {
     assert_eq!(range.start_secs, 2.34);
     assert_eq!(range.end_secs, 3.10);
 
+    // The `COMPARE` section round-trips a full reference result (M25.C).
+    assert_eq!(loaded.compare.len(), 1);
+    let saved = &loaded.compare[0];
+    assert_eq!(saved.tool, AnalyzerId::Spectrogram);
+    assert_eq!(saved.reference_name, "Reference project");
+    assert_eq!(saved.b_offset, 0.012);
+    assert_eq!(saved.window.start, 0.5);
+    assert_eq!(saved.options.n_mels, Some(64));
+    assert_eq!(saved.filter_fingerprint.as_deref(), Some("{\"nodes\":[]}"));
+    match saved.analysis_result() {
+        crate::audio::analysis::AnalysisResult::Spectrogram(result) => {
+            assert_eq!(result.frames, 2);
+            assert_eq!(result.bins, 3);
+            assert_eq!(result.mag_db.len(), 6);
+            assert_eq!(result.mag_db[4], -21.0);
+        }
+        other => panic!("unexpected stored result: {other:?}"),
+    }
+
     let pcm = loaded.pcm.expect("pcm");
     assert_eq!(pcm.sample_rate, 48_000);
     assert_eq!(pcm.channels, 2);
@@ -162,6 +226,7 @@ fn streams_audio_across_chunks() {
         layout: serde_json::Value::Null,
         results: Vec::new(),
         notes: Vec::new(),
+        compare: Vec::new(),
         pcm: Some(&pcm),
     };
 
@@ -182,6 +247,7 @@ fn writes_a_project_without_audio() {
         layout: serde_json::Value::Null,
         results: Vec::new(),
         notes: Vec::new(),
+        compare: Vec::new(),
         pcm: None,
     };
 
@@ -201,6 +267,7 @@ fn rejects_a_corrupt_checksum() {
         layout: serde_json::Value::Null,
         results: Vec::new(),
         notes: Vec::new(),
+        compare: Vec::new(),
         pcm: Some(&pcm),
     };
 

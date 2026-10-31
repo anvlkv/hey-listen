@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
 import { invoke } from "../../lib/ipc";
 import type { CompareLiveDto, LiveSideDto } from "./types";
 
@@ -58,11 +58,22 @@ export function createCompareLive(reference: () => string | null): CompareLiveHa
   let timer: number | undefined;
 
   async function tick() {
+    if (stopped || inflight) return;
     const ref = reference();
-    if (stopped || !ref || inflight) return;
     inflight = true;
     const token = gate.begin();
     try {
+      if (!ref) {
+        // A saved (or unbound) view has no live peer: keep A's own playhead and clear
+        // the reference's markers instead of polling a second project (M25.C).
+        const playhead = await invoke<number | null>("preview_position").catch(() => null);
+        if (stopped || !gate.accept(token)) return;
+        setA({ ...EMPTY, playhead });
+        setB(EMPTY);
+        setOpen(true);
+        setError(null);
+        return;
+      }
       const reply = await invoke<CompareLiveDto>("compare_live", { reference: ref });
       if (stopped || !gate.accept(token)) return;
       setA(reply.a);
@@ -85,6 +96,18 @@ export function createCompareLive(reference: () => string | null): CompareLiveHa
     timer = window.setInterval(() => void tick(), POLL_MS);
     void tick();
   });
+
+  // A saved (or unbound) compare view has no live peer: drop the previous reference's
+  // markers instead of leaving them frozen on the chart (M25.C).
+  createEffect(
+    on(reference, (ref) => {
+      if (ref) return;
+      setA(EMPTY);
+      setB(EMPTY);
+      setOpen(true);
+      setError(null);
+    }),
+  );
 
   onCleanup(() => {
     stopped = true;

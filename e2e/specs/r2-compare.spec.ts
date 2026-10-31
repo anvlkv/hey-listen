@@ -22,6 +22,7 @@ import {
   openFixture,
   openTabTitles,
   openTool,
+  activateTab,
   textOf,
   waitFor,
   waitForAnalyzer,
@@ -129,17 +130,18 @@ describe("R2. Comparison", () => {
     expect(live.open).toBe(false);
   });
 
-  it("R2.4 — saving while a compare tab is open writes the project without it", async () => {
+  it("R2.4 — a saved compare tab restores from the reference snapshot", async () => {
     const tmpFile = path.join(os.tmpdir(), `heylisten-e2e-compare-${Date.now()}.heyl`);
     const label = path.basename(tmpFile, ".heyl");
 
+    // The reference project from R2.3 is closed; the last successful result is what the
+    // project saves (the same one the banner keeps), so no second window is needed (M25.C).
     await browser.tauri.switchWindow("main");
     await waitForShell();
     await mockReturn("pick_project_save_path", tmpFile);
     await menuActionIn("main", "saveAs");
     await waitFor(() => Promise.resolve(existsSync(tmpFile)), "the project file was never written");
 
-    // Reopen it: the compare tab is transient, so it is neither saved nor restored.
     await mockReturn("pick_project_open_path", tmpFile);
     await menuActionIn("main", "open");
     await waitFor(
@@ -147,19 +149,74 @@ describe("R2. Comparison", () => {
       "main did not load the saved project",
       30_000,
     );
-    // The compare tab is transient: it is never written to the project file, so reopening
-    // does not restore it. The project name updates first and the Workbench layout a
-    // moment later, so this is polled rather than read once.
+
+    // The comparison is project content now: the tab returns, bound to the snapshot, and
+    // presents itself as a saved reference (no "reference closed" banner).
     await waitFor(
-      async () => (await openTabTitles()).every((title) => !title.startsWith("Compare:")),
-      "the compare tab was restored",
+      async () => (await count(tab(compareTab("spectrum")))) === 1,
+      "the saved compare tab was not restored",
     );
-    // The analyzer tab it was opened from is restored…
+    await waitFor(
+      async () => (await count('[data-testid="compare.saved"]')) === 1,
+      "the saved-reference badge never appeared",
+    );
+    await waitFor(
+      async () => (await count('[data-testid="compare.saved-banner"]')) === 1,
+      "the saved-reference banner never appeared",
+    );
+    expect(await count(BANNER)).toBe(0);
+    await waitForCompareChart("spectrum");
+    const saved = await invokeCore<{ tool: string; referenceName: string }[]>("compare_saved", {});
+    const info = saved.find((entry) => entry.tool === "spectrum");
+    expect(info).toBeTruthy();
+    expect(info!.referenceName.length).toBeGreaterThan(0);
+
+    // The analyzer tab it was opened from is restored too. The restored compare tab is
+    // the active one, and dockview only mounts a **visible** panel — so the analyzer's
+    // content exists only once its tab is focused again.
     await waitFor(
       async () => (await count(tab("spectrum"))) > 0,
       "the spectrum tab was not restored",
     );
+    await activateTab("spectrum");
     await waitForAnalyzer("spectrum");
+  });
+
+  it("R2.13 — reconnecting is explicit and a settled B change marks A dirty", async () => {
+    // R2.4 restored a saved comparison; reconnect it to a live project through the picker.
+    const reference = await secondProject();
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await changeReference("spectrum", reference);
+    await waitFor(
+      async () => (await count('[data-testid="compare.saved"]')) === 0,
+      "the saved-reference badge stayed after reconnecting",
+    );
+    await waitForBadge("Aligned");
+
+    // Save so the live binding (and its snapshot) becomes the clean point; the dirty flag
+    // must then come from the reference change below, not from the reconnect itself.
+    await menuActionIn("main", "save");
+    await waitFor(
+      async () => !(await textOf(SEL.projectName)).includes("*"),
+      "the project stayed dirty after reconnecting and saving",
+      15_000,
+    );
+
+    // A settled change in the live reference re-runs the comparison; the snapshot would
+    // change, so the owner project prompts on close.
+    await browser.tauri.switchWindow(reference);
+    await waitForShell();
+    await invokeCore("set_ui_state", {
+      key: "timeline",
+      value: { windowStart: 0.5, windowEnd: 2, viewStart: 0.5, viewEnd: 2 },
+    });
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
+    await waitFor(
+      async () => (await textOf(SEL.projectName)).includes("*"),
+      "a settled reference change did not mark the owner dirty",
+    );
   });
 
   it("R2.5 — retargeting reuses the same compare tab", async () => {
@@ -215,7 +272,7 @@ describe("R2. Comparison", () => {
       "the compare tab stayed",
     );
     expect(await invokeCore<{ tool: string }[]>("compare_popouts")).toEqual([
-      { tool: "spectrum", with: reference },
+      { tool: "spectrum", with: reference, saved: false },
     ]);
 
     // The popout renders the same compare view (header + chart).

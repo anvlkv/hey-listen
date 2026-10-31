@@ -57,6 +57,65 @@ export async function waitForShell(timeout = 20_000): Promise<void> {
 export async function waitForApp(): Promise<void> {
   await selectMainWindow();
   await waitForWindow(async () => (await count(SEL.workbench)) > 0, "the app shell did not render");
+  await ensureWindowSize();
+}
+
+/** The window size the suite drives: the app's own default (see `tauri.conf.json`). */
+const WINDOW = { width: 1280, height: 800 };
+
+/** The window's **outer** geometry this session found (restored in `afterSession`). */
+let originalRect: { width: number; height: number } | null = null;
+
+/** The window's inner size — what the app's layout is actually built from. */
+async function innerSize(): Promise<{ width: number; height: number }> {
+  const [width, height] = (await browser.execute(() => [
+    window.innerWidth,
+    window.innerHeight,
+  ])) as [number, number];
+  return { width, height };
+}
+
+/**
+ * Give the app window the default size, so the run does not inherit the last session's.
+ *
+ * The app persists its window geometry (`tauri_plugin_window_state`) and restores it on
+ * launch — including a window the user (or an earlier run) shrank, so every spec would
+ * otherwise lay out against a different, machine-local size. Best-effort: the compare
+ * view scrolls rather than collapsing its chart (see `styles/compare.css`), so a resize
+ * the window manager refuses means a smaller chart, not a failure. [`restoreWindowSize`]
+ * puts the user's own geometry back at the end of the session.
+ */
+async function ensureWindowSize(): Promise<void> {
+  const inner = await innerSize();
+  if (inner.width >= WINDOW.width && inner.height >= 600) return;
+  // The rect the driver reports is the **outer** window: its chrome (the title bar) is
+  // the difference from the page's inner size — measure it rather than assume it.
+  const outer = await browser.getWindowSize().catch(() => null);
+  const chrome = {
+    width: Math.max(0, (outer?.width ?? inner.width) - inner.width),
+    height: Math.max(0, (outer?.height ?? inner.height) - inner.height),
+  };
+  originalRect = outer ?? null;
+  await browser
+    .setWindowSize(WINDOW.width + chrome.width, WINDOW.height + chrome.height)
+    .catch((err) => console.error("could not size the app window", err));
+  await browser
+    .waitUntil(async () => (await innerSize()).width >= WINDOW.width - 40, {
+      timeout: 5_000,
+      timeoutMsg: "the app window stayed narrow",
+    })
+    .catch((err) => console.error("the app window stayed narrow:", err.message));
+}
+
+/** Put `main` back to the size this session found it at (a test run must not resize it). */
+export async function restoreWindowSize(): Promise<void> {
+  const rect = originalRect;
+  originalRect = null;
+  if (!rect) return;
+  await browser.tauri.switchWindow("main").catch(() => {});
+  await browser
+    .setWindowSize(rect.width, rect.height)
+    .catch((err) => console.error("could not restore the app window size", err));
 }
 
 /** What the window currently shows, for a failure message (best-effort). */

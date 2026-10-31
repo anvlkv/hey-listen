@@ -10,9 +10,11 @@ use super::error::ProjectError;
 use super::sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
 use super::{
     Crc32, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, FLAGS,
-    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_DATA, SECTION_LAYOUT, SECTION_META,
-    SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
+    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_COMPARE, SECTION_DATA,
+    SECTION_LAYOUT, SECTION_META, SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE,
+    VERSION,
 };
+use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourcePcm;
 
 /// Everything a save needs: the frontend-supplied setup + layout, plus the
@@ -28,6 +30,8 @@ pub struct SaveProject<'a> {
     pub results: Vec<StoredResult>,
     /// The project's notes (M14).
     pub notes: Vec<Note>,
+    /// Saved comparison snapshots, one per comparison open at save time (M25.C).
+    pub compare: Vec<SavedComparison>,
     pub pcm: Option<&'a SourcePcm>,
 }
 
@@ -52,6 +56,7 @@ pub fn write_project<W: Write>(
     let layout_bytes = serde_json::to_vec(&save.layout).map_err(encode)?;
     let results_bytes = postcard::to_stdvec(&save.results).map_err(encode)?;
     let notes_bytes = postcard::to_stdvec(&save.notes).map_err(encode)?;
+    let compare_bytes = postcard::to_stdvec(&save.compare).map_err(encode)?;
 
     // The section plan, in id order. `DATA`'s length is analytic.
     let plan = [
@@ -62,6 +67,7 @@ pub fn write_project<W: Write>(
         (SECTION_LAYOUT, layout_bytes.len() as u64),
         (SECTION_RESULTS, results_bytes.len() as u64),
         (SECTION_NOTES, notes_bytes.len() as u64),
+        (SECTION_COMPARE, compare_bytes.len() as u64),
     ];
     let count = plan.len() as u32;
 
@@ -97,6 +103,7 @@ pub fn write_project<W: Write>(
     hashing.write_all(&layout_bytes)?;
     hashing.write_all(&results_bytes)?;
     hashing.write_all(&notes_bytes)?;
+    hashing.write_all(&compare_bytes)?;
 
     // Trailing checksum, over everything written so far.
     let checksum = hashing.checksum();

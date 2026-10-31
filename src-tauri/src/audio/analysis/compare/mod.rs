@@ -13,10 +13,12 @@
 pub mod align;
 pub mod diff;
 pub mod events;
+pub mod saved;
 pub mod stats;
 
 pub use align::{Comparability, Span};
 pub use diff::ComparisonDiff;
+pub use saved::{SavedComparison, SavedComparisonInfo};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -49,8 +51,9 @@ impl CompareSetup {
 }
 
 /// A project's source shape (what the picker and the view show).
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SourceShape {
     pub sample_rate: u32,
     pub channels: u16,
@@ -110,51 +113,120 @@ pub fn compare(
 
     let a_result = run(tool, &a, "a")?;
     let b_result = run(tool, &b, "b")?;
-    let a_rate = analysis_rate(a_source.sample_rate, &a.setup.params);
-    let b_rate = analysis_rate(b_source.sample_rate, &b.setup.params);
+
+    Ok(assemble(
+        tool,
+        PreparedSide::new(a.project.clone(), a_source, a.setup.clone(), a_result),
+        PreparedSide::new(b.project.clone(), b_source, b.setup.clone(), b_result),
+        b_offset,
+        filters_differ,
+    ))
+}
+
+/// Compare the owner against a **saved reference snapshot** (M25.C): only A is
+/// analysed; B's result comes from the snapshot. The grid comparability still runs, so
+/// a snapshot from a different setup than A is reported, never silently diffed.
+pub fn compare_saved(
+    tool: AnalyzerId,
+    a: SideInput<'_>,
+    saved: &SavedComparison,
+    b_offset: f64,
+) -> Result<Comparison, AnalysisError> {
+    let a_source = source_shape(a.state)?;
+    let filters_differ = filter_fingerprint(a.state) != saved.filter_fingerprint;
+    let a_result = run(tool, &a, "a")?;
+
+    Ok(assemble(
+        tool,
+        PreparedSide::new(a.project.clone(), a_source, a.setup.clone(), a_result),
+        PreparedSide::new(
+            Some(saved.reference_name.clone()),
+            saved.source,
+            saved.setup(),
+            saved.analysis_result(),
+        ),
+        b_offset,
+        filters_differ,
+    ))
+}
+
+/// One side ready to be compared: identity, shape, setup and the result.
+struct PreparedSide {
+    project: Option<String>,
+    source: SourceShape,
+    setup: CompareSetup,
+    result: AnalysisResult,
+}
+
+impl PreparedSide {
+    fn new(
+        project: Option<String>,
+        source: SourceShape,
+        setup: CompareSetup,
+        result: AnalysisResult,
+    ) -> Self {
+        Self {
+            project,
+            source,
+            setup,
+            result,
+        }
+    }
+
+    fn into_side(self, tool: AnalyzerId) -> ComparisonSide {
+        ComparisonSide {
+            project: self.project,
+            source: Some(self.source),
+            options: align::effective_options(tool, &self.setup.options)
+                .as_object()
+                .cloned()
+                .unwrap_or_default(),
+            summary: analysis::summarize(&self.result),
+            setup: self.setup,
+            result: self.result,
+        }
+    }
+}
+
+/// Build the comparison from two prepared sides (live or saved).
+fn assemble(
+    tool: AnalyzerId,
+    a: PreparedSide,
+    b: PreparedSide,
+    b_offset: f64,
+    filters_differ: bool,
+) -> Comparison {
+    let a_rate = analysis_rate(a.source.sample_rate, &a.setup.params);
+    let b_rate = analysis_rate(b.source.sample_rate, &b.setup.params);
     let alignment = align::Alignment::new(a.setup.span().len(), b.setup.span().len(), b_offset);
 
-    let comparability = {
+    let (comparability, diff) = {
         let side_a = align::Side {
             setup: &a.setup,
-            result: &a_result,
+            result: &a.result,
             rate: a_rate,
         };
         let side_b = align::Side {
             setup: &b.setup,
-            result: &b_result,
+            result: &b.result,
             rate: b_rate,
         };
-        align::comparability(tool, &side_a, &side_b, filters_differ, alignment)
+        let comparability = align::comparability(tool, &side_a, &side_b, filters_differ, alignment);
+        // A time-axis family needs the shifted windows to meet; spectrum, modulation and
+        // the scalar readouts diff without one.
+        let comparable = comparability.aligned
+            && (!align::needs_common_span(tool) || alignment.common.is_some());
+        let diff = comparable.then(|| diff::diff(&side_a, &side_b, b_offset, alignment.common));
+        (comparability, diff)
     };
 
-    // A time-axis family needs the shifted windows to meet; spectrum, modulation and the
-    // scalar readouts diff without one.
-    let comparable =
-        comparability.aligned && (!align::needs_common_span(tool) || alignment.common.is_some());
-    let diff = if comparable {
-        let side_a = align::Side {
-            setup: &a.setup,
-            result: &a_result,
-            rate: a_rate,
-        };
-        let side_b = align::Side {
-            setup: &b.setup,
-            result: &b_result,
-            rate: b_rate,
-        };
-        Some(diff::diff(&side_a, &side_b, b_offset, alignment.common))
-    } else {
-        None
-    };
-
-    Ok(Comparison {
+    Comparison {
         tool,
-        a: side(a, a_result, a_source),
-        b: side(b, b_result, b_source),
+        a: a.into_side(tool),
+        b: b.into_side(tool),
         comparability,
         diff,
-    })
+    }
 }
 
 fn run(
@@ -176,20 +248,6 @@ fn run(
         }
         other => AnalysisError::Analysis(format!("side {name}: {other}")),
     })
-}
-
-fn side(input: SideInput<'_>, result: AnalysisResult, source: SourceShape) -> ComparisonSide {
-    ComparisonSide {
-        project: input.project,
-        source: Some(source),
-        options: align::effective_options(result.tool_id(), &input.setup.options)
-            .as_object()
-            .cloned()
-            .unwrap_or_default(),
-        summary: analysis::summarize(&result),
-        setup: input.setup,
-        result,
-    }
 }
 
 /// The effective analysis rate: the source rate, or `resampleTo` when set.
@@ -218,16 +276,16 @@ pub fn source_shape(state: &WindowState) -> Result<SourceShape, AnalysisError> {
     })
 }
 
-/// A comparable fingerprint of the active filter (`None` = unfiltered).
-fn filter_fingerprint(state: &WindowState) -> Option<Value> {
+/// A comparable fingerprint of the active filter (`None` = unfiltered), as canonical
+/// JSON so a live side and a saved snapshot compare with `==` (M25.C).
+pub(crate) fn filter_fingerprint(state: &WindowState) -> Option<String> {
     let guard = state
         .audio
         .filter
         .lock()
         .unwrap_or_else(|poison| poison.into_inner());
-    guard
-        .as_ref()
-        .and_then(|spec| serde_json::to_value(spec).ok())
+    let spec = guard.as_ref()?;
+    serde_json::to_string(spec).ok()
 }
 
 impl Comparison {

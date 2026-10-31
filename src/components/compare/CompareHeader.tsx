@@ -1,22 +1,32 @@
 import { createMemo, createSignal, onMount, Show } from "solid-js";
+import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import Button from "../Button";
 import SelectField from "../SelectField";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import { compareTargets, refreshCompareTargets, shapeLabel } from "../../state/compare/picker";
+import { fetchSaved } from "../../state/compare/views";
 import type { CompareLiveHandle } from "../../state/compare/live";
+import type { CompareBinding } from "../../state/compare/views";
 import type { ComparisonDto, MismatchDto } from "../../state/compare/types";
 import type { CompareTime } from "./time";
 
+/** The select value that reconnects the compare view to the project's saved snapshot. */
+const SAVED_VALUE = "__saved__";
+
 /**
- * A compare view's header (M25): the tab's title, both projects by name with their
- * source shape, the **comparability badge**, **Swap A/B** (display only), and the
- * reference picker. See `docs/comparison.md` → "The compare view".
+ * A compare view's header (M25; saved references in M25.C): the tab's title, both
+ * projects by name with their source shape, the **comparability badge**, **Swap A/B**
+ * (display only), and the reference picker. See `docs/comparison.md` → "The compare
+ * view".
  */
 export default function CompareHeader(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
   swapped: boolean;
+  /** The live project label, or the saved reference's name. */
   reference: string;
+  /** Whether `reference` names the project's saved snapshot (M25.C). */
+  saved: boolean;
   live: CompareLiveHandle;
   /** The relative display transform (M25.B). */
   time: CompareTime;
@@ -26,12 +36,18 @@ export default function CompareHeader(props: {
   offset: number;
   onOffset: (seconds: number) => void;
   onSwap: () => void;
-  onReferenceChange: (label: string) => void;
+  onBindingChange: (binding: CompareBinding) => void;
   onRetry: () => void;
 }) {
-  // The picker's options are the live projects (refreshed when the header mounts).
+  // The picker's options are the live projects (refreshed when the header mounts), plus
+  // this tool's own saved snapshot (kept per header: two compare tabs may each have one).
   const [ready, setReady] = createSignal(false);
-  onMount(() => void refreshCompareTargets().finally(() => setReady(true)));
+  const [savedInfo, setSavedInfo] = createSignal<SavedComparisonInfo | null>(null);
+  onMount(() => {
+    void Promise.all([refreshCompareTargets(), fetchSaved(props.tool).then(setSavedInfo)]).finally(
+      () => setReady(true),
+    );
+  });
 
   // The reference select's options. Memoized so the array (and the option objects) keep
   // their identity between the view's frequent re-renders (the live poll), and so the
@@ -41,13 +57,27 @@ export default function CompareHeader(props: {
       value: target.label,
       label: `${target.name}${target.ready ? "" : " (no source)"}`,
     }));
+    const saved = savedInfo();
+    const savedOption =
+      saved || props.saved
+        ? [
+            {
+              value: SAVED_VALUE,
+              label: `Saved: ${props.saved ? props.reference : (saved?.referenceName ?? props.reference)}`,
+            },
+          ]
+        : [];
     // A reference project that has since closed is no longer a target; keep it in the
     // list so the select shows the truth instead of silently switching to another.
     const known = targets.some((option) => option.value === props.reference);
-    if (!known && props.reference) {
-      return [{ value: props.reference, label: `${props.reference} (closed)` }, ...targets];
+    if (!props.saved && !known && props.reference) {
+      return [
+        ...savedOption,
+        { value: props.reference, label: `${props.reference} (closed)` },
+        ...targets,
+      ];
     }
-    return targets;
+    return [...savedOption, ...targets];
   });
 
   const a = () => (props.swapped ? props.comparison.b : props.comparison.a);
@@ -97,9 +127,14 @@ export default function CompareHeader(props: {
         >
           {badge().text}
         </span>
-        <Show when={!props.live.open()}>
+        <Show when={!props.saved && !props.live.open()}>
           <span class="compare-badge closed" data-testid="compare.peer-closed">
             Reference closed
+          </span>
+        </Show>
+        <Show when={props.saved}>
+          <span class="compare-badge saved" data-testid="compare.saved">
+            Saved reference
           </span>
         </Show>
         {/* Remounted (`keyed`) when the target list changes: an in-place `options` update
@@ -112,12 +147,18 @@ export default function CompareHeader(props: {
               class="compare-reference-select"
               ariaLabel="Reference project"
               options={list}
-              value={props.reference}
-              onChange={(value) => props.onReferenceChange(value)}
+              value={props.saved ? SAVED_VALUE : props.reference}
+              onChange={(value) =>
+                props.onBindingChange(
+                  value === SAVED_VALUE
+                    ? { kind: "saved", reference: savedInfo()?.referenceName ?? props.reference }
+                    : { kind: "live", reference: value },
+                )
+              }
             />
           )}
         </Show>
-        <Show when={!props.live.open()}>
+        <Show when={!props.saved && !props.live.open()}>
           <Button class="compare-btn" onClick={props.onRetry}>
             Retry
           </Button>

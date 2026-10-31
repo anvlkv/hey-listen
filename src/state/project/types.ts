@@ -1,8 +1,10 @@
 import type { AnalysisSetup } from "../../bindings/AnalysisSetup";
 import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
+import type { AnalyzerId } from "../../bindings/AnalyzerId";
 import type { GraphSpec } from "../../bindings/GraphSpec";
 import type { Meta } from "../../bindings/Meta";
 import type { Note } from "../../bindings/Note";
+import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import type { SourceDescriptor } from "../../bindings/SourceDescriptor";
 import type { StoredResult } from "../../bindings/StoredResult";
 import type { GraphLayout } from "../graph";
@@ -49,6 +51,8 @@ export interface SaveProjectArgs {
   notes: Note[];
   /** Embed the source PCM (default). `false` writes a reference project. */
   embedSource?: boolean;
+  /** The comparison tools open at save time; the core writes their snapshots (M25.C). */
+  compareOpen: AnalyzerId[];
 }
 
 /** What `load_project` returns (the `DATA` samples stream separately). */
@@ -59,6 +63,8 @@ export interface LoadedProjectDto {
   layout: LayoutDto;
   results: StoredResult[];
   notes: Note[];
+  /** Saved comparisons (empty when the file has no `COMPARE` section, M25.C). */
+  compare: SavedComparisonInfo[];
   sampleRate: number;
   channels: number;
   frames: number;

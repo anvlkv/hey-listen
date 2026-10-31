@@ -4,11 +4,11 @@
 //! A **note** here is an acoustic event found by `noteMetrics` — distinct from a
 //! project **annotation** (the M14 `Note` payload, user-authored commentary).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// One detected audio **note** (a segment above the gate) with its level summary and
 /// per-note voice-quality proxies.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct NoteMetric {
@@ -46,7 +46,7 @@ pub struct NoteMetric {
 
 /// A silence **gap** between two detected notes. Leading/trailing silence is not
 /// listed here (it is reflected in the first / last note's gap fields).
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GapMetric {
@@ -58,7 +58,7 @@ pub struct GapMetric {
 /// A **syllable**: one or more adjacent notes whose separating gap is shorter than
 /// the requested `syllableGapMs` (M21.B). Grouping is separate from detection, so the
 /// note spans are never changed by it; amplitude belongs to the syllable, not a note.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SyllableMetric {
@@ -76,7 +76,7 @@ pub struct SyllableMetric {
 
 /// Note segmentation over the window: the detected notes, the gaps between them, and
 /// the summary an agent needs without reading every record (M18).
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct NoteMetricsResult {

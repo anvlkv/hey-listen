@@ -672,9 +672,9 @@ See [`comparison.md`](comparison.md).
 the IPC/lifecycle surface; the frontend's `state/compare/` + `components/compare/` chart
 every family (series, spectrum, readouts, matrix/spectrogram, rhythm/events,
 `noteMetrics`, modulation, waveform); the CLI's `compare` reads `LAYOUT.filterSpec`.
-**ADR-26** (planned M25.B) replaces the absolute-overlap rule with relative alignment and
-a manual offset; **ADR-27** (planned M25.C) makes the comparison's reference side a saved
-project snapshot. The compare *panel* still never enters `LAYOUT`.
+**ADR-26** (M25.B) replaced the absolute-overlap rule with relative alignment and a
+manual offset; **ADR-27** (M25.C) made the comparison's reference side a saved project
+snapshot. The compare *panel* still never enters `LAYOUT`.
 
 ## ADR-25 — Psychoacoustic analyzers are a calibrated, standards-honest layer over dBFS
 
@@ -761,7 +761,10 @@ matching), and a waveform delta that is exact only when the durations match. Aut
 alignment (cross-correlation / DTW) remains out of scope. See
 [`comparison.md`](comparison.md).
 
-**Status: proposed (M25.B).**
+**Status: implemented (M25.B).** The core matches on a relative axis (`Alignment` with
+`aDuration` / `bDuration` / `bOffset` / `common`); `run_comparison`, MCP `bOffset` and
+CLI `--b-offset` expose the offset, and the frontend's `components/compare/time.ts`
+holds the display transform (including the swap).
 
 ## ADR-27 — The last comparison is saved as a reference snapshot
 
@@ -801,7 +804,12 @@ editing the reference project afterwards does not update it until the comparison
 and saved again. See [`comparison.md`](comparison.md) and
 [`project-file-format.md`](project-file-format.md).
 
-**Status: proposed (M25.C).**
+**Status: implemented (M25.C).** The `COMPARE` section is written by
+`save_project` and read by `load_project`; the core keeps the last successful reference
+side per tool, saved comparisons restore as tabs bound to the snapshot, and
+`compare_analysis { saved: true }` / `get_state.compare` / `list_projects` expose it.
+See [`comparison.md`](comparison.md) for the delivered contract and its one recorded
+deviation (a compare popout's live change is not in the owner window's dirty flag).
 
 ## ADR-28 — String identifiers become strum enums
 

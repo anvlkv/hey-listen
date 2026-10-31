@@ -6,6 +6,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Options } from "@wdio/types";
 import { writeFixtures } from "./e2e/support/fixtures.ts";
+import { restoreWindowSize } from "./e2e/support/app.ts";
 
 /**
  * WebdriverIO config for the Hey Listen E2E suite (M8).
@@ -133,6 +134,11 @@ export const config: Options.Testrunner & {
     ui: "bdd",
     // Analysis can be slow on the longest fixture; a generous per-test ceiling.
     timeout: 120_000,
+  },
+
+  /** Restore the window geometry the session may have resized (see `support/app.ts`). */
+  async afterSession() {
+    await restoreWindowSize().catch(() => {});
   },
 
   /** Generate the deterministic fixtures before the app launches. */

@@ -91,6 +91,7 @@ impl HeadlessSession {
                 layout: json!({ "dockview": Value::Null, "graphs": {}, "popouts": [] }),
                 results: Vec::new(),
                 notes,
+                compare: self.state.saved_comparisons(),
                 pcm: if reference { None } else { guard.as_ref() },
             };
             let file =
@@ -125,6 +126,9 @@ impl HeadlessSession {
             .or_else(|| crate::project::decode_reference(loaded.source.as_ref()));
         self.state.audio.set_source(pcm);
         self.state.audio.set_filter(None);
+        // The loaded project's saved comparisons (M25.C) become the session's snapshots;
+        // headless has no compare view, but a later save keeps them.
+        self.state.replace_saved_comparisons(loaded.compare.clone());
 
         self.params = loaded.setup.shared;
         self.options.clear();
@@ -168,6 +172,7 @@ impl HeadlessSession {
     pub(super) fn new_project(&mut self) -> Result<Value, String> {
         self.state.audio.clear();
         self.state.audio.set_filter(None);
+        self.state.clear_saved_comparisons();
         self.params = default_params();
         self.options.clear();
         self.window = (0.0, 0.0);

@@ -63,6 +63,9 @@ suite file has to stand alone for a targeted `--spec` run to mean anything.
 
 **Dockview unmounts hidden panels.** The default renderer keeps only the active
 tab mounted, so a test that reads a chart must activate its tab (`activateTab`).
+Activation happens on **pointerdown** (dockview coordinates it with its drag
+backend), so `activateTab` dispatches the pointer gesture — an element `.click()`
+leaves the target tab inactive and its panel unmounted.
 
 **Synthesized pointer/drag events.** The system WebView doesn't produce W3C pointer
 actions (or native HTML5 drag-and-drop) under WebDriver, so `pointerDrag` (timeline
@@ -522,7 +525,7 @@ Two harness rules the spec follows, both learned the hard way:
 | R2.1 | Compare with… | Two projects: the tab menu opens a `compare:spectrum` tab, both sides overlay on one chart, the badge reads **Aligned**, and the view is separate from the analyzer tab | Scenario |
 | R2.2 | Grid mismatch | A differing FFT size flips the badge to **Grids differ** and drops the Δ readouts; restoring it realigns | Scenario |
 | R2.3 | Peer closes | Closing the reference project shows the banner, keeps the last result, and `compare_live` reports `open: false` | Scenario |
-| R2.4 | Saved comparison | Saving while the compare tab is open, then reopening **one** project, restores the compare tab in **saved reference** mode with B's band from the snapshot (M25.C) | Scenario |
+| R2.4 | Saved comparison | Saving while the compare tab is open, then reopening **one** project, restores the compare tab in **saved reference** mode with B's band from the snapshot (M25.C); the reference project was already closed, so the snapshot alone drives the view, and the analyzer tab it came from re-renders once its (restored, hidden) tab is activated | Scenario |
 | R2.5 | Retarget | *Change reference…* points the same tab at another project — one compare tab before and after | Scenario |
 | R2.6 | Popout | *Pop out to window* closes the tab and opens a `compare-*` window with the same view; closing it forgets the window (no tab, no `compare_popouts`); if saved while the popout is open, its content restores as a **tab**, never as a popout | Scenario |
 | R2.7 | Matrix A/B/Δ | The segmented control switches heatmaps; Δ adds the zero-centred legend; a differing FFT shows two side-by-side heatmaps and no Δ switch, and restoring it brings the switch back | Scenario |
@@ -532,6 +535,10 @@ Two harness rules the spec follows, both learned the hard way:
 | R2.11 | Waveform rule | With the same source and window on both sides the peak envelopes overlay; with different lengths the envelopes are clipped to the common span and the note says so (M25.B replaces the old identical-window rule); a differing grid still switches to side-by-side plots | Scenario |
 | R2.12 | Relative alignment | Adjacent/disjoint windows compare (no "no overlap" state); the offset slider changes the Δ readouts; Swap moves the axis extent/clipping; opening another tab keeps the reference bound (the M25 regression) | Scenario |
 | R2.13 | Reconnect | The picker offers `Saved: <name>` and hints a same-named open project; reconnecting to the live project restores live markers and resets the offset; a settled change in B marks A dirty | Scenario |
+
+M25.C test ids: `compare.saved` (the saved-reference badge), `compare.saved-banner`,
+`compare.target.saved` (the picker entry) and `compare.saved.hint` (a same-named open
+project). The saved snapshot itself is inspected with `invokeCore("compare_saved", {})`.
 
 ### S. Project UX
 
@@ -608,6 +615,13 @@ service log).
   (`waitForRowChange` in `support/analyzers.ts`) rather than sleeping a fixed time —
   and use the row-band signature for a thin canvas rule, which the sparse
   `canvasSignature` sample can miss.
+- **The window size is restored, so set it.** The app persists its window geometry
+  (`tauri_plugin_window_state`) and reopens at whatever the last session left, so a spec
+  would otherwise lay out against a machine-local size. `waitForApp()` (`support/app.ts`)
+  resizes `main` to the app's 1280×800 default and `afterSession` puts the found geometry
+  back. It is best-effort by design: a compare view **scrolls** rather than collapsing its
+  chart (`styles/compare.css` keeps a 200 px chart minimum), so a window manager that
+  refuses the resize costs a smaller chart, not a failure.
 
 ### Rendering the UI without the app
 

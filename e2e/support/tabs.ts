@@ -21,11 +21,33 @@ export async function openTool(id: string): Promise<void> {
   }
 }
 
-/** Focus an already-open tool's tab (dockview unmounts hidden panels, so this
- * re-mounts its content). */
+/**
+ * Focus an already-open tool's tab.
+ *
+ * dockview activates a tab on **pointerdown** (it coordinates with its drag backend),
+ * so a plain `click()` leaves the target panel hidden — and dockview only mounts the
+ * visible panel, so its content never appears. Dispatch the gesture the tab listens for.
+ */
 export async function activateTab(id: string): Promise<void> {
   await waitForTab(id);
-  await click(tab(id));
+  await browser.execute((sel: string) => {
+    const el = document.querySelector(sel) as HTMLElement | null;
+    if (!el) throw new Error(`no element for ${sel}`);
+    const rect = el.getBoundingClientRect();
+    const at = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+      button: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    };
+    el.dispatchEvent(new PointerEvent("pointerdown", { ...at, buttons: 1 }));
+    el.dispatchEvent(new PointerEvent("pointerup", { ...at, buttons: 0 }));
+  }, tab(id));
 }
 
 /** Close a tool's dockview tab (via the tab's close button). */

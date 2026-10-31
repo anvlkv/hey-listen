@@ -26,6 +26,10 @@ export async function newProject(): Promise<void> {
   await invoke("close_popouts").catch((err) =>
     console.error("could not close the previous popouts", err),
   );
+  // A new project has no saved comparisons (M25.C).
+  await invoke("clear_compare_saved").catch((err) =>
+    console.error("could not clear the saved comparisons", err),
+  );
 
   beginBaseline();
   setProjectError(null);

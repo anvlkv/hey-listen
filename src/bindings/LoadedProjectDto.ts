@@ -2,6 +2,7 @@
 import type { AnalysisSetup } from "./AnalysisSetup";
 import type { Meta } from "./Meta";
 import type { Note } from "./Note";
+import type { SavedComparisonInfo } from "./SavedComparisonInfo";
 import type { SourceDescriptor } from "./SourceDescriptor";
 import type { StoredResult } from "./StoredResult";
 import type { JsonValue } from "./serde_json/JsonValue";
@@ -19,4 +20,8 @@ results: Array<StoredResult>,
 /**
  * The project's notes (empty when the file has no `NOTES` section).
  */
-notes: Array<Note>, sampleRate: number, channels: number, frames: number, };
+notes: Array<Note>, 
+/**
+ * Saved comparisons (empty when the file has no `COMPARE` section).
+ */
+compare: Array<SavedComparisonInfo>, sampleRate: number, channels: number, frames: number, };

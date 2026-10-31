@@ -86,10 +86,34 @@ export function compareTab(toolId: string): string {
 /** The comparability badge. */
 export const BADGE = '[data-testid="compare.badge"]';
 
+/**
+ * What a compare view is showing right now: its canvases (with their sizes) and its
+ * text. A chart that never draws is either not mounted, zero-sized, an empty state, or
+ * an error — this tells the four apart in the failure message.
+ */
+async function describeCompare(tool: string): Promise<string> {
+  return (await browser.execute((sel: string) => {
+    const root = document.querySelector(sel) as HTMLElement | null;
+    if (!root) return "the compare view is not in the DOM";
+    const canvases = Array.from(root.querySelectorAll("canvas")).map((canvas) => {
+      const c = canvas as HTMLCanvasElement;
+      return `${c.width}x${c.height}`;
+    });
+    const rect = root.getBoundingClientRect();
+    const text = (root.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
+    const box = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    return `view=${box} canvases=[${canvases.join(", ")}] text="${text}"`;
+  }, compareView(tool))) as string;
+}
+
 /** Wait until a compare view has a live comparison and its chart has drawn ink. */
 export async function waitForCompareChart(tool: string): Promise<void> {
   const chart = `${compareView(tool)} canvas`;
-  await waitFor(() => canvasHasInk(chart), `the ${tool} compare chart never drew`);
+  try {
+    await waitFor(() => canvasHasInk(chart), `the ${tool} compare chart never drew`);
+  } catch (error) {
+    throw new Error(`${error}\n${await describeCompare(tool)}`, { cause: error });
+  }
 }
 
 /** The comparability badge: its text and the mismatch list it carries as a tooltip. */

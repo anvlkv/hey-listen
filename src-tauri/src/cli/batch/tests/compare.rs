@@ -41,6 +41,7 @@ fn write_project_file(name: &str, amplitude: f32, window: (f64, f64)) -> String 
         layout: serde_json::json!({ "dockview": null, "graphs": {} }),
         results: Vec::new(),
         notes: Vec::new(),
+        compare: Vec::new(),
         pcm: Some(&pcm),
     };
     let mut file = std::fs::File::create(&path).unwrap();

@@ -15,16 +15,19 @@ import {
 import { filterRevision } from "../graph";
 import { source, status } from "../source";
 import { windowEnd, windowStart } from "../timeline";
-import type { ComparisonDto, PeerSetupDto } from "./types";
+import type { CompareSetupDto, ComparisonDto, PeerSetupDto } from "./types";
+import type { CompareBinding } from "./views";
+import { setCompareFingerprint } from "./views";
 
 /**
- * One comparison's compute (M25).
+ * One comparison's compute (M25; saved references in M25.C).
  *
- * A's setup comes from this window's stores; B's from `compare_peer_setup` (the
- * reference project's shared UI state). The request is debounced (~200 ms) and
- * latest-wins, and re-runs when the peer's revision changes — so a drag in either
- * project settles into one comparison instead of queuing one per pointer event.
- * The UI asks for **full** arrays, because the charts need them.
+ * A's setup comes from this window's stores; B's from `compare_peer_setup` (a live
+ * reference project) or from the core's **saved snapshot** (M25.C, no second window).
+ * The request is debounced (~200 ms) and latest-wins, and re-runs when the peer's
+ * revision changes — so a drag in either project settles into one comparison instead
+ * of queuing one per pointer event. The UI asks for **full** arrays, because the
+ * charts need them.
  */
 
 /** Trailing debounce for a re-run, in ms. */
@@ -38,10 +41,10 @@ export interface CompareHandle {
   refresh: () => void;
 }
 
-/** A reactive handle over one comparison: A × B for `tool`. */
+/** A reactive handle over one comparison: A × (live B | saved B) for `tool`. */
 export function createComparison(
   tool: AnalyzerId,
-  reference: () => string | null,
+  binding: () => CompareBinding | null,
   revision: () => number | null,
   /** The fine-tune offset δ: positive moves the reference later (M25.B). */
   bOffset: () => number = () => 0,
@@ -53,9 +56,19 @@ export function createComparison(
   let generation = 0;
   let timer: number | undefined;
 
+  /** A's setup, read from this window's stores. */
+  function setupA(): CompareSetupDto {
+    return {
+      start: windowStart(),
+      end: windowEnd(),
+      params: sharedParams(),
+      options: engineOptions(tool),
+    };
+  }
+
   async function run() {
-    const ref = reference();
-    if (!ref) {
+    const target = binding();
+    if (!target) {
       generation++;
       setComparison(null);
       setError(null);
@@ -65,32 +78,37 @@ export function createComparison(
     const token = ++generation;
     setLoading(true);
     try {
-      // B's window/params/options and shape, from the reference project.
-      const peer = await invoke<PeerSetupDto>("compare_peer_setup", { reference: ref, tool });
-      if (token !== generation) return;
-
-      const request = {
+      const a = setupA();
+      const request: Record<string, unknown> = {
         tool,
-        reference: ref,
-        a: {
-          start: windowStart(),
-          end: windowEnd(),
-          params: sharedParams(),
-          options: engineOptions(tool),
-        },
-        b: {
+        a,
+        bOffset: bOffset(),
+        shape: "full",
+      };
+      if (target.kind === "saved") {
+        request.saved = true;
+      } else {
+        // B's window/params/options and shape, from the reference project.
+        const peer = await invoke<PeerSetupDto>("compare_peer_setup", {
+          reference: target.reference,
+          tool,
+        });
+        if (token !== generation) return;
+        request.reference = target.reference;
+        request.b = {
           start: peer.window.start,
           end: peer.window.end,
           params: peer.params,
           options: peer.options,
-        },
-        bOffset: bOffset(),
-        shape: "full",
-      };
+        };
+      }
       const reply = await invoke<ComparisonDto>("run_comparison", { request });
       if (token !== generation) return;
       setComparison(reply);
       setError(null);
+      // The core recorded this result as the saved snapshot; its content fingerprint
+      // is part of the project's dirty signature (M25.C).
+      if (reply.savedFingerprint) setCompareFingerprint(tool, reply.savedFingerprint);
     } catch (err) {
       if (token !== generation) return;
       setError(String(err));
@@ -124,7 +142,7 @@ export function createComparison(
         freqMaxHz,
         filterRevision,
         () => engineOptions(tool),
-        reference,
+        binding,
         revision,
         bOffset,
       ],

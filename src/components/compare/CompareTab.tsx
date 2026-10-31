@@ -16,11 +16,13 @@ import { createComparison } from "../../state/compare/run";
 import { createCompareLive } from "../../state/compare/live";
 import { compareFamily, comparePanelId } from "../../state/compare/id";
 import { chooseCompareReference } from "../../state/compare/picker";
+import type { CompareBinding } from "../../state/compare/views";
 import { dockApi } from "../../state/workbench";
 import { scheduleStampTabIds } from "../workbenchTabIds";
 
 /**
- * A comparison view (M25): one analyzer over two independently open projects.
+ * A comparison view (M25): one analyzer over two independently open projects, or over
+ * this project and its **saved reference snapshot** (M25.C).
  *
  * Mounted as a transient Workbench tab (`compare:<tool>`) or, in a compare popout,
  * as the whole window. It owns the debounced compute ([`createComparison`]) and the
@@ -29,18 +31,24 @@ import { scheduleStampTabIds } from "../workbenchTabIds";
  */
 export default function CompareTab(props: {
   tool: AnalyzerId;
-  /** The reference project's window label (this view's binding). */
-  reference: () => string | null;
+  /** This view's binding: a live project label, or the saved snapshot's name. */
+  binding: () => CompareBinding | null;
   /** Change the binding (a tab updates locally; a popout asks the core). */
-  onReferenceChange: (label: string) => void;
+  onBindingChange: (binding: CompareBinding) => void;
+  /** The fine-tune offset δ in seconds (per view). */
+  offset: () => number;
+  onOffset: (seconds: number) => void;
 }) {
-  const live = createCompareLive(() => props.reference());
-  const [offset, setOffset] = createSignal(0);
+  const binding = () => props.binding();
+  /** The saved binding's display name, or `null` for a live / unbound view. */
+  const saved = () => (binding()?.kind === "saved" ? binding()!.reference : null);
+  /** Only a live reference is polled for markers / revision (M25.C hides B's markers). */
+  const live = createCompareLive(() => (binding()?.kind === "live" ? binding()!.reference : null));
   const run = createComparison(
     untrack(() => props.tool),
-    () => props.reference(),
+    binding,
     () => live.revision(),
-    offset,
+    () => props.offset(),
   );
   const [swapped, setSwapped] = createSignal(false);
 
@@ -88,12 +96,12 @@ export default function CompareTab(props: {
   return (
     <div class="compare-tab" data-testid={`compare.${props.tool}`}>
       <Show
-        when={props.reference()}
+        when={binding()}
         fallback={
           <EmptyState
             icon="⇄"
             title="Compare with another project"
-            hint="A comparison needs two projects. Open another window (File → New Window), then pick it here."
+            hint="A comparison needs two projects — or a saved comparison. Open another window (File → New Window), then pick it here."
             action={
               <Button class="compare-btn" onClick={() => void chooseCompareReference(props.tool)}>
                 Choose a project…
@@ -102,125 +110,134 @@ export default function CompareTab(props: {
           />
         }
       >
-        <Show
-          when={run.comparison()}
-          fallback={
-            <Show
-              when={run.error()}
-              fallback={
-                <div class="analyzer-empty">
-                  {run.loading() ? "Comparing…" : "Waiting for the reference project…"}
-                </div>
-              }
-            >
-              {(error) => (
-                <div class="compare-error" data-testid="compare.error">
-                  <div class="compare-error-text">{error()}</div>
-                  <Button class="compare-btn" onClick={retry}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-            </Show>
-          }
-        >
-          {(comparison) => (
-            <>
-              <CompareHeader
-                tool={props.tool}
-                comparison={comparison()}
-                swapped={swapped()}
-                reference={props.reference()!}
-                live={live}
-                time={time}
-                timeAxis={timeAxis()}
-                offset={offset()}
-                onOffset={setOffset}
-                onSwap={() => setSwapped((on) => !on)}
-                onReferenceChange={props.onReferenceChange}
-                onRetry={retry}
-              />
-              <Show when={!live.open()}>
-                <div class="compare-banner" data-testid="compare.banner">
-                  Reference project closed — showing the last result. Live updates are stopped.
-                </div>
+        {(current) => (
+          <Show
+            when={run.comparison()}
+            fallback={
+              <Show
+                when={run.error()}
+                fallback={
+                  <div class="analyzer-empty">
+                    {run.loading() ? "Comparing…" : "Waiting for the reference project…"}
+                  </div>
+                }
+              >
+                {(error) => (
+                  <div class="compare-error" data-testid="compare.error">
+                    <div class="compare-error-text">{error()}</div>
+                    <Button class="compare-btn" onClick={retry}>
+                      Retry
+                    </Button>
+                  </div>
+                )}
               </Show>
-              <Show when={run.error()}>
-                {(error) => <div class="compare-banner">{error()}</div>}
-              </Show>
-              <div class="compare-body">
-                <Switch>
-                  <Match when={compareFamily(props.tool) === "spectrum"}>
-                    <CompareSpectrum
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={compareFamily(props.tool) === "series"}>
-                    <CompareSeries
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={["matrix", "spectrogram"].includes(compareFamily(props.tool))}>
-                    <CompareMatrix
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={compareFamily(props.tool) === "events"}>
-                    <CompareEvents
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={compareFamily(props.tool) === "notes"}>
-                    <CompareNotes
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={compareFamily(props.tool) === "modulation"}>
-                    <CompareModulation
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={compareFamily(props.tool) === "waveform"}>
-                    <CompareWaveform
-                      tool={props.tool}
-                      comparison={comparison()}
-                      swapped={swapped()}
-                      live={live}
-                      time={time}
-                    />
-                  </Match>
-                  <Match when={compareFamily(props.tool) === "scalar"}>
-                    <CompareReadouts comparison={comparison()} swapped={swapped()} />
-                  </Match>
-                </Switch>
-              </div>
-            </>
-          )}
-        </Show>
+            }
+          >
+            {(comparison) => (
+              <>
+                <CompareHeader
+                  tool={props.tool}
+                  comparison={comparison()}
+                  swapped={swapped()}
+                  reference={current().reference}
+                  saved={current().kind === "saved"}
+                  live={live}
+                  time={time}
+                  timeAxis={timeAxis()}
+                  offset={props.offset()}
+                  onOffset={props.onOffset}
+                  onSwap={() => setSwapped((on) => !on)}
+                  onBindingChange={props.onBindingChange}
+                  onRetry={retry}
+                />
+                <Show when={saved()}>
+                  <div class="compare-banner saved" data-testid="compare.saved-banner">
+                    Saved reference — the reference from the last saved comparison. Pick a live
+                    project to reconnect.
+                  </div>
+                </Show>
+                <Show when={!saved() && !live.open()}>
+                  <div class="compare-banner" data-testid="compare.banner">
+                    Reference project closed — showing the last result. Live updates are stopped.
+                  </div>
+                </Show>
+                <Show when={run.error()}>
+                  {(error) => <div class="compare-banner">{error()}</div>}
+                </Show>
+                <div class="compare-body">
+                  <Switch>
+                    <Match when={compareFamily(props.tool) === "spectrum"}>
+                      <CompareSpectrum
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={compareFamily(props.tool) === "series"}>
+                      <CompareSeries
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={["matrix", "spectrogram"].includes(compareFamily(props.tool))}>
+                      <CompareMatrix
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={compareFamily(props.tool) === "events"}>
+                      <CompareEvents
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={compareFamily(props.tool) === "notes"}>
+                      <CompareNotes
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={compareFamily(props.tool) === "modulation"}>
+                      <CompareModulation
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={compareFamily(props.tool) === "waveform"}>
+                      <CompareWaveform
+                        tool={props.tool}
+                        comparison={comparison()}
+                        swapped={swapped()}
+                        live={live}
+                        time={time}
+                      />
+                    </Match>
+                    <Match when={compareFamily(props.tool) === "scalar"}>
+                      <CompareReadouts comparison={comparison()} swapped={swapped()} />
+                    </Match>
+                  </Switch>
+                </div>
+              </>
+            )}
+          </Show>
+        )}
       </Show>
     </div>
   );

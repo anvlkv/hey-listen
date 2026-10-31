@@ -14,7 +14,8 @@ pub(super) fn tools() -> Vec<Value> {
         "compare_analysis",
         "Compare analysis",
         ToolClass::OBSERVE,
-        "Diff **the same analyzer** across two independently open projects. Returns \
+        "Diff **the same analyzer** across two independently open projects, or against \
+         the owner's **saved reference snapshot**. Returns \
          `{ tool, a, b, comparability, diff }`: each side carries its project, source shape, \
          window, params, effective options, canonical `summary` and (shaped) result; \
          `comparability` says whether the grids align, the **relative** `alignment` \
@@ -24,10 +25,11 @@ pub(super) fn tools() -> Vec<Value> {
          arrays with `includeData`) matched on the relative axis. `bOffset` shifts the \
          reference (positive = later) to fine-tune a match. B is **read-only**: the \
          comparison never changes the reference project's audio, window, params or tabs. \
-         Both sides are the same tool — a different tool is not a comparison. Requires the \
-         app: pass `with` a label from `list_projects` (which reports each project's source \
-         shape, window and filter presence). Headless has no second window — use the CLI \
-         `compare` subcommand.",
+         Both sides are the same tool — a different tool is not a comparison. Pass `with` a \
+         label from `list_projects` (which reports each project's source shape, window, \
+         filter presence and saved comparisons), or `saved: true` to use A's stored snapshot \
+         (no second window needed; `list_projects` reports the snapshot). Requires the app: \
+         headless has no second window — use the CLI `compare` subcommand.",
         json!({
             "type": "object",
             "properties": {
@@ -37,11 +39,15 @@ pub(super) fn tools() -> Vec<Value> {
                 },
                 "with": {
                     "type": "string",
-                    "description": "The reference project's label from list_projects.",
+                    "description": "The reference project's label from list_projects (required unless `saved`).",
+                },
+                "saved": {
+                    "type": "boolean",
+                    "description": "Use A's saved reference snapshot instead of a live project (the last comparison saved in the project). Ignores `with`.",
                 },
                 "bOffset": {
                     "type": "number",
-                    "description": "Fine-tune offset δ in seconds: positive moves the reference later on the relative axis (default 0).",
+                    "description": "Fine-tune offset δ in seconds: positive moves the reference later on the relative axis. Default 0 for a live reference; a saved reference defaults to its stored offset.",
                 },
                 "includeData": {
                     "type": "boolean",
@@ -66,7 +72,7 @@ pub(super) fn tools() -> Vec<Value> {
                     "description": "Open/focus the compare view when the tool's family has one (default true).",
                 },
             },
-            "required": ["tool", "with"],
+            "required": ["tool"],
             "additionalProperties": false,
         }),
     )]

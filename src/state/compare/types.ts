@@ -229,6 +229,8 @@ export interface ComparisonDto {
   b: CompareSideDto;
   comparability: ComparabilityDto;
   diff?: ComparisonDiffDto;
+  /** The content fingerprint of the reference snapshot that would be saved (M25.C). */
+  savedFingerprint?: string;
 }
 
 /** The reference project's setup (`compare_peer_setup`). */
@@ -272,6 +274,10 @@ export interface CompareTargetDto {
 /** A compare view a popout shows (registered in the core). */
 export interface CompareViewDto {
   tool: string;
-  /** The reference project's window label. */
+  /** The live reference project's window label, or the saved reference's name. */
   with: string;
+  /** Whether `with` names the project's saved snapshot rather than a live project. */
+  saved?: boolean;
+  /** The view's fine-tune offset (tab entries only; a popout reports it on its own). */
+  offset?: number;
 }

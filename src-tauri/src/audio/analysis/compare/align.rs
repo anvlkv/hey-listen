@@ -8,15 +8,16 @@
 //! **common span** `[max(0, δ), min(durA, δ + durB)]`. See `docs/comparison.md` →
 //! "Comparability" and ADR-26.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::audio::analysis::{AnalysisResult, SharedParams};
 use crate::audio::analyzers::{family_of, AnalyzerId};
 
 /// A `start..end` span in source seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct Span {
     pub start: f64,
     pub end: f64,

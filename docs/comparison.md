@@ -230,6 +230,10 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   from the snapshot and B has no live playhead/cursor.
 - Empty / error states: peer closed (live), peer has no source, grids differ; a saved
   reference never reports "no overlap" — its common span is computed from the snapshot.
+- **A cramped panel scrolls.** The header, readouts and banners keep their height and the
+  chart area keeps a 200 px minimum, so a short Workbench panel (a small window, a split
+  group) scrolls the view instead of squeezing the chart to 0 px — `uPlot` draws nothing at
+  all when its plot area has no height.
 
 ### Popout
 
@@ -305,13 +309,15 @@ Returns:
 ```
 
 - `target` selects A (focused by default); `with` selects B; `bOffset` is the fine-tune
-  offset in seconds (M25.B; positive moves B later, default 0).
+  offset in seconds (M25.B; positive moves B later). It defaults to **0** for a live
+  reference and to the **snapshot's stored offset** for a saved one (M25.C).
 - `saved: true` (M25.C) uses A's saved snapshot for B and omits `with`; a live reference
   is ignored then.
 - `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`, applied to
   both sides and to the delta.
 - `diff` is omitted when the grids differ or when the shifted windows do not meet
-  (`alignment.common` is `null`).
+  (`alignment.common` is `null`). `savedFingerprint` is the content fingerprint of the
+  reference snapshot that would be saved (the frontend's dirty signature uses it).
 - `display` (default true) opens / focuses the compare view. Every family now has one
   (`Compare with…` is offered for every analyzer).
 - `compare_analysis` is **app-only**: a live reference needs two project windows, while a
@@ -396,11 +402,13 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 
 ## Files
 
-**Core** — `src-tauri/src/audio/analysis/compare/{mod,align,diff,diff/families,events,stats,compare/tests}.rs`,
-`src-tauri/src/audio/analysis/results/mod.rs` (`windowStart` origins; `Deserialize` for
-saved snapshots), `src-tauri/src/project/{mod,sections,read,write}.rs` (`COMPARE`,
-M25.C), `src-tauri/src/commands/{compare,window,project}.rs` (comparison, popout
-windows, save/load), `src-tauri/src/state/{mod,window}.rs` (revision, peer reads,
+**Core** — `src-tauri/src/audio/analysis/compare/{mod,align,diff,diff/families,events,stats,saved,compare/tests}.rs`,
+`src-tauri/src/audio/analysis/results/mod.rs` (`windowStart` origins) and
+`results/stored.rs` (the postcard-safe result mirror for saved snapshots),
+`src-tauri/src/project/{mod,sections,read,write}.rs` (`COMPARE`,
+M25.C), `src-tauri/src/commands/compare/{mod,peer,popout}.rs` (comparison, reference
+reads, popout), `src-tauri/src/commands/{window,project}.rs` (windows, save/load),
+`src-tauri/src/state/{mod,window}.rs` (revision, peer reads,
 compare-popout map, saved snapshots), `src-tauri/src/menu.rs` (Analysis menu),
 `src-tauri/src/lib.rs` (register).
 
@@ -565,11 +573,11 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 >   excludes them), dropping the reference on any panel add/remove and leaving
 >   `get_state.compare` empty.
 
-> **Planned (M25.C) — saved comparisons.** Replaces the "not project content" rule:
+> **Delivered (M25.C) — saved comparisons.** Replaces the "not project content" rule:
 >
 > - a `COMPARE` section (id `0x08`, `postcard`) holds one snapshot per comparison open at
->   save time: tool, reference **name**, source shape, window, params, options, filter
->   fingerprint, B's full last `AnalysisResult`, `bOffset`, `savedMs` — no B audio;
+>   save time: tool, reference **name**, source shape, window, params, effective options,
+>   filter fingerprint, B's full last `AnalysisResult`, `bOffset`, `savedMs` — no B audio;
 > - saved comparisons restore as **tabs** (never popouts); they bind to the snapshot until
 >   an explicit reconnect (the picker hints a same-named open project);
 > - a saved reference hides B's live markers and marks the badge/banner **saved
@@ -578,3 +586,30 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 >   snapshots stay out of undo/redo; closing the tab and saving drops the snapshot;
 > - MCP `compare_analysis` accepts `saved: true`; `get_state.compare` reports
 >   `{ tool, with, saved, offset }`; `list_projects` reports saved comparisons.
+>
+> Implementation notes and deviations, kept explicit:
+>
+> - The section payload uses a **postcard-safe mirror** of the result
+>   (`results::StoredAnalysisResult`, an externally tagged enum with one newtype variant
+>   per tool) instead of deriving `Deserialize` on the internally tagged IPC
+>   `AnalysisResult`: postcard is not self-describing and cannot decode that
+>   representation. The payload structs do derive `Deserialize`, and the mirror's
+>   conversions are exhaustive, so a new tool is a compile error until it is stored.
+> - The core keeps the **last successful** comparison per tool. Saving writes the
+>   snapshots of the comparisons open at save time (tabs *and* popouts) and prunes the
+>   rest; a comparison that never resolved has no snapshot. `savedMs` is refreshed when
+>   the snapshot is recorded; the fingerprint ignores it.
+> - `run_comparison` returns a `savedFingerprint` (FNV-1a over the postcard encoding of
+>   the snapshot, excluding `savedMs`). The project's dirty signature includes each open
+>   compare tab's `{binding, offset, fingerprint}` (`state/compare/views.ts`), so a
+>   settled B change flags A — and restoring a saved comparison does not (the stored and
+>   recomputed fingerprints are equal).
+> - **Deviation:** dirty tracking covers open compare **tabs**. A compare **popout** is a
+>   separate webview, so a settled B change made while only the popout is open updates the
+>   core snapshot (and is written on save) but does not set the owner window's dirty flag.
+> - The saved side's window and params come from the snapshot; the core runs **only A**.
+>   `compare_live` is not polled for a saved binding (there is no live B), and the view
+>   shows B's band from `alignment` + the snapshot's window.
+> - The header's reference select lists live projects **and** the tool's saved snapshot
+>   (`Saved: <name>`); choosing a live project resets `bOffset` to 0, choosing the snapshot
+>   restores the saved offset. The picker offers the same entry with one window open.

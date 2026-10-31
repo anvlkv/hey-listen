@@ -13,7 +13,13 @@ import {
   setProjectStatus,
   setProjectTitle,
 } from "./signals";
-import { currentDescriptor, currentLayout, currentSetup, defaultFileName } from "./snapshot";
+import {
+  currentDescriptor,
+  currentLayout,
+  currentSetup,
+  defaultFileName,
+  currentCompareOpen,
+} from "./snapshot";
 import type { SaveProjectArgs } from "./types";
 
 /**
@@ -33,6 +39,8 @@ async function write(path: string, embedSource = true): Promise<boolean> {
       layout: await currentLayout(),
       notes: deepClone(notes()),
       embedSource,
+      // The core writes the saved snapshot of each comparison open at save time (M25.C).
+      compareOpen: await currentCompareOpen(),
     };
     await invoke("save_project", { path, project: args });
     setProjectPath(path);

@@ -1,14 +1,14 @@
 //! The scalar-per-frame series result and its window gate (M21.B), split out of
 //! [`super`] to keep each file inside the source-size budget.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// The window gate a series measurement ran with (M21.B).
 ///
 /// Gating excludes frames far below the window's loudest frame by turning their
 /// `values` entry into a gap, so a measurement is not polluted by a recording's
 /// pre-roll or background. The effective gate is echoed here and in the summary.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SeriesGate {
@@ -26,7 +26,7 @@ pub struct SeriesGate {
 
 /// One scalar value per analysis frame, plotted against time. `values` may contain
 /// gaps (`None`) — e.g. unvoiced pitch frames or silent loudness blocks.
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SeriesResult {

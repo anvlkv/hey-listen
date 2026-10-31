@@ -62,7 +62,7 @@ The `COMPARE` section (id `0x08`) carries the project's **saved comparisons** as
 | `source` | The reference's source shape (rate / channels / duration), for the header. |
 | `window` | The reference's analysis window (`start..end`, absolute source seconds). |
 | `params` / `options` | The shared params and effective tool options the result was produced with. |
-| `filterFingerprint` | A hash of the reference's applied filter, so `filtersDiffer` still works after reload. |
+| `filterFingerprint` | A canonical JSON fingerprint of the reference's applied filter (`null` = unfiltered), so `filtersDiffer` still works after reload. |
 | `bOffset` | The fine-tune offset (M25.B) in seconds, relative to the owner. |
 | `savedMs` | When the snapshot was written (Unix ms). |
 | `result` | The reference's full `AnalysisResult` for that window (M25.C). |
@@ -71,11 +71,18 @@ No reference **audio** is embedded: the snapshot is the final analysis window, s
 saved comparison is reproducible without the other project. `save_project` writes one
 entry per comparison open at save time (tab or popout); `load_project` returns them and
 the core keeps them per window, so a compare view can bind to the snapshot after reload.
+The frontend supplies the open compare tools (`compareOpen`) and the core fills each
+entry from its last successful comparison; a closed comparison is dropped on the next
+save.
 
-The payload is `postcard` via a small **externally tagged wrapper** around
-`AnalysisResult`: the IPC enum is internally tagged (`tool` key), which `postcard` cannot
-encode, and JSON would make a 512-frame spectrogram several megabytes instead of roughly
-0.5 MB. The result structs therefore also derive `Deserialize`.
+The payload is `postcard` with a **postcard-safe mirror** of the result
+(`results::StoredAnalysisResult`): the IPC enum is internally tagged (`tool` key), which
+`postcard` cannot decode, and JSON would make a 512-frame spectrogram several megabytes
+instead of roughly 0.5 MB. The mirror is an externally tagged enum with one newtype
+variant per tool; the payload structs derive `Deserialize`, and the conversions are
+exhaustive, so a new analyzer cannot be added without a stored form. The `COMPARE`
+section itself is additive: an older build opens a project that has one and ignores it,
+and a file without one loads with no saved comparisons.
 
 The panel itself is still not in `LAYOUT` (compare panels are sanitised out); restoring a
 saved comparison re-creates its Workbench **tab** after the project state is ready.
