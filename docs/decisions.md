@@ -802,3 +802,43 @@ and saved again. See [`comparison.md`](comparison.md) and
 [`project-file-format.md`](project-file-format.md).
 
 **Status: proposed (M25.C).**
+
+## ADR-28 — String identifiers become strum enums
+
+**Context:** the Rust core carries a lot of enumerable state as bare strings and
+compares them with hand-written `match` arms and `&'static str` tables in several
+places: the 29 analyzer tool ids (`AnalysisResult::tool_id`, `family_of`, `about`, the
+catalog), the result `Family`, the catalog `Section`, the project `SourceDescriptor.kind`
+(`file`/`mic`/…), the window function (already a `WindowKind` enum, but matched by hand),
+and the menu/theme/CLI action ids. A typo is a runtime `UnknownTool` error or a silent
+`_ => Family::Series` fallback, and the same id string is repeated across the engine, the
+catalog, the persistence sections and the MCP/CLI surfaces — kept in step only by tests
+and discipline.
+
+**Decision:**
+
+- One `strum` enum per domain (`AnalyzerId`, `Family`, `Section`, `SourceKind`,
+  `WindowKind`, and the menu/theme/CLI action ids), each derived with
+  `strum::{EnumString, Display, AsRefStr, IntoStaticStr, EnumIter, VariantNames}` +
+  `serde::{Serialize, Deserialize}` + `ts_rs::TS`.
+- `#[serde(rename_all = "camelCase")]` and `#[strum(serialize_all = "camelCase")]` keep
+the string identical on the wire and in code, so the IPC JSON, the `postcard` project file
+and the regenerated `src/bindings/` stay **byte-for-byte unchanged** — this is type safety,
+not a format bump.
+- `AnalyzerId` is the single source of truth for the 29 tool ids. `AnalysisResult` stays a
+typed union (its variants map 1:1 to `AnalyzerId`), and `tool_id()` returns `AnalyzerId`. An
+`EnumIter`-driven test pins the `AnalysisResult` ↔ `AnalyzerId` ↔ catalog `id` agreement,
+replacing the hard-coded id list in `catalog_covers_every_engine_tool`.
+- A string is parsed **once at the boundary** (`FromStr` on the command / CLI / MCP
+argument) and dropped; every internal signature takes the enum.
+- `SourceDescriptor.kind` becomes a `SourceKind` enum **field** (a C-like enum serialized
+as a string), not an internally-tagged enum — `postcard` still cannot encode
+internally-tagged enums (ADR-2), so the struct stays the top-level shape.
+
+**Consequence:** typos and id drift become compile errors, and `EnumIter`/`VariantNames`
+let the catalog and engine dispatch stay in lockstep structurally instead of by a string
+list. The cost is one new dependency (`strum`, MIT), a `src/bindings/` regeneration with
+the matching frontend imports after each phase, and care that `serde` and `strum` agree on
+the `camelCase` spelling. See ADR-2 and [`code-hygiene.md`](code-hygiene.md).
+
+**Status: proposed (M15.B).**
