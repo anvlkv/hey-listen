@@ -804,6 +804,58 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
+## M15.B — String identifiers become strum enums (planned)
+
+A type-safety follow-on to M15: the Rust core still carries enumerable state as bare
+strings — analyzer tool ids, result families, source kinds, window functions, and the
+menu/theme/CLI action ids — matched and dispatched with hand-written `match` arms and
+`&'static str` tables in several places. Replace them with `strum`-backed enums
+(`serde` + `ts-rs`) so each id is parsed **once at the boundary** and every consumer
+works on a typed value, while the wire stays **camelCase strings, byte-for-byte
+identical** — the project file, IPC and generated TS bindings are unaffected. This is
+type safety, not a format bump. See ADR-28 and [`code-hygiene.md`](code-hygiene.md).
+
+**Design (ADR-28).** One enum per domain, derived with
+`strum::{EnumString, Display, AsRefStr, IntoStaticStr, EnumIter, VariantNames}` +
+`serde::{Serialize, Deserialize}` + `ts_rs::TS`; `#[serde(rename_all = "camelCase")]` and
+`#[strum(serialize_all = "camelCase")]` keep the string identical on the wire and in code.
+A `postcard`-safe enum **field** (never an internally-tagged top-level enum) replaces
+`SourceDescriptor.kind`.
+
+**Phases (one at a time, gate green after each):**
+- **Dependency + pattern.** Add `strum` (MIT) to `src-tauri/Cargo.toml`; update
+  `docs/dependencies.md` + `ACKNOWLEDGEMENTS.md`; document the shared derive block.
+- **`AnalyzerId`** (the big one). Introduce the 29-variant enum as the single source of
+  truth for tool ids; `AnalysisResult` stays a typed union (its variants map 1:1) and
+  `tool_id()` returns `AnalyzerId`. Switch `family_of`/`about`/`catalog`/
+  `AnalysisSetup.{open_tools, tool_options}`/`Note.tool`/`NoteValues.tool`/`run`/
+  `run_analysis`/compare/MCP/CLI to it; add an exhaustive `EnumIter`-driven test pinning
+  `AnalysisResult` ↔ `AnalyzerId` ↔ catalog `id`; regenerate `src/bindings/` and resync
+  the frontend. Delivered in engine → persistence/IPC → MCP/CLI slices.
+- **`Family` + `Section`.** Strum-ify the existing `Family` enum and add a `Section` enum
+  for the catalog; `family_of` takes `AnalyzerId`.
+- **`SourceKind`.** A project-level enum (`file`/`mic`/`system`/`process`/`mix`/`synth`)
+  distinct from `flexaudio::SourceKind`, replacing `SourceDescriptor.kind`.
+- **`WindowKind`.** Add strum; delete the manual `window_fn_name`/`to_window_fn` matches
+  (it is already an enum).
+- **Menu actions, theme base/mode, CLI subcommands.** Small self-contained enums.
+
+**Files:** `src-tauri/src/audio/{analyzers,analysis/{results,types},compare}/`,
+`src-tauri/src/project/sections.rs`, `src-tauri/src/{menu,themes}.rs`,
+`src-tauri/src/cli/batch/`, `src-tauri/src/mcp/`, `src-tauri/Cargo.toml`,
+`src/bindings/**` (regenerated), and the frontend imports that consume them.
+
+**Tests.** Rust: the `AnalyzerId` ↔ `AnalysisResult` ↔ catalog pin test, `FromStr`
+round-trips, wire-compat (serialized strings unchanged), `SourceDescriptor` postcard
+round-trip. `cargo test` (regenerates bindings) + `npm run typecheck` after each phase.
+
+**Non-goals:** graph-node kinds (an open-ended fundsp mirror), option/summary key strings
+(already typed via `ToolOptions`), and any change to the serialized strings themselves —
+this is type safety only, not a format bump.
+
+> **Order:** M15.B follows M15 and is independent of M13/M22–M25. Phases are
+> self-contained; `AnalyzerId` is the prerequisite for the `Family`/`Section` phase.
+
 ## M16–M20 — Analysis depth I ✅
 
 Five milestones that close the analysis gaps found while driving the app through MCP on
