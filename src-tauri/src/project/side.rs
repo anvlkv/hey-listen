@@ -14,7 +14,7 @@ use crate::audio::analysis::compare::CompareSetup;
 use crate::audio::analysis::{canonical_option_key, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
-use crate::project::{read_project, AnalysisSetup};
+use crate::project::{read_project, AnalysisSetup, Note, SourceDescriptor};
 use crate::state::WindowState;
 
 /// One loaded project: its core state and the setup the diff runs with.
@@ -23,6 +23,16 @@ pub struct Side {
     pub file: String,
     /// The project's display name (`META.name`), for a comparison side label.
     pub name: String,
+    /// The project's creation time, preserved when a comparison is saved back to it.
+    pub created_ms: u64,
+    /// The saved `SOURCE` descriptor (for writing the owner back).
+    pub source: Option<SourceDescriptor>,
+    /// The saved `LAYOUT` (graphs, popouts, `filterSpec`).
+    pub layout: Value,
+    /// The project's annotations.
+    pub notes: Vec<Note>,
+    /// Whether the file actually carried `DATA` (a reference project does not).
+    pub embedded: bool,
     /// The core state holding this side's PCM and filter.
     pub state: WindowState,
     /// The project's saved `SETUP`.
@@ -49,6 +59,7 @@ impl Side {
 pub fn load_side(path: &str, filter_override: Option<&GraphSpec>) -> Result<Side, String> {
     let mut file = std::fs::File::open(path).map_err(|err| format!("cannot open {path}: {err}"))?;
     let loaded = read_project(&mut file).map_err(|err| format!("{path}: {err}"))?;
+    let embedded = loaded.pcm.is_some();
     let pcm = loaded
         .pcm
         .or_else(|| crate::project::decode_reference(loaded.source.as_ref()));
@@ -65,10 +76,16 @@ pub fn load_side(path: &str, filter_override: Option<&GraphSpec>) -> Result<Side
 
     let setup = loaded.setup;
     let name = loaded.meta.name.clone();
+    let created_ms = loaded.meta.created_ms;
     let window = saved_window(&setup, source_duration(&state));
     Ok(Side {
         file: path.to_string(),
         name,
+        created_ms,
+        source: loaded.source,
+        layout: loaded.layout,
+        notes: loaded.notes,
+        embedded,
         state,
         options: setup.tool_options.clone(),
         setup,

@@ -15,7 +15,10 @@ pub(super) fn tools() -> Vec<Value> {
             "open_tool",
             "Open tool",
             ToolClass::SETTINGS,
-            "Open (or focus) a Workbench tab: an analyzer id, or `filter` / `synth`.",
+            "Open (or focus) a Workbench tab: an analyzer id, or `filter` / `synth`. \
+             Headless there is no webview, so this records the tab in the project's \
+             `SETUP.openTools`: `get_state.openTools` reports it and `save_project` writes \
+             it, so the app opens the tab when the project loads.",
             json!({
                 "type": "object",
                 "properties": { "tool": { "type": "string" } },
@@ -27,7 +30,8 @@ pub(super) fn tools() -> Vec<Value> {
             "close_tool",
             "Close tool",
             ToolClass::SETTINGS,
-            "Close a Workbench tab by id.",
+            "Close a Workbench tab by id. Headless, this removes it from the project's \
+             `SETUP.openTools`.",
             json!({
                 "type": "object",
                 "properties": { "tool": { "type": "string" } },

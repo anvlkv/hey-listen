@@ -52,7 +52,7 @@ impl HeadlessSession {
                     .map(str::to_string)
             })
             .unwrap_or_else(|| "Untitled project".to_string());
-        let notes = parse_notes(args.get("notes"), now)?;
+        let notes: Vec<Note> = crate::project::notes::parse_notes(args.get("notes"), now)?;
         let open_tools = args
             .get("openTools")
             .and_then(Value::as_array)
@@ -95,6 +95,15 @@ impl HeadlessSession {
                 compare: self.state.saved_comparisons(),
                 pcm: if reference { None } else { guard.as_ref() },
             };
+            // A batch script saves into a fresh tree; create the folder rather than
+            // failing on the last step of a long run.
+            if let Some(parent) = Path::new(&path)
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+            {
+                std::fs::create_dir_all(parent)
+                    .map_err(|err| format!("could not create {}: {err}", parent.display()))?;
+            }
             let file =
                 File::create(&path).map_err(|err| format!("could not create {path}: {err}"))?;
             write_project(BufWriter::new(file), &save, now)
@@ -246,29 +255,4 @@ fn numeric_options(options: &crate::audio::analysis::ToolOptions) -> BTreeMap<St
                 .collect()
         })
         .unwrap_or_default()
-}
-
-/// Parse the `notes` argument, filling ids/timestamps the caller may omit.
-fn parse_notes(value: Option<&Value>, now_ms: u64) -> Result<Vec<Note>, String> {
-    let Some(value) = value.filter(|value| !value.is_null()) else {
-        return Ok(Vec::new());
-    };
-    let items = value.as_array().ok_or("`notes` must be an array")?;
-    let mut notes = Vec::with_capacity(items.len());
-    for (index, item) in items.iter().enumerate() {
-        let mut object = item
-            .as_object()
-            .cloned()
-            .ok_or_else(|| format!("note {index} must be an object"))?;
-        object
-            .entry("id")
-            .or_insert_with(|| json!(format!("headless-{now_ms:x}-{index}")));
-        object.entry("createdMs").or_insert_with(|| json!(now_ms));
-        object.entry("updatedMs").or_insert_with(|| json!(now_ms));
-        object.entry("body").or_insert_with(|| json!(""));
-        let note: Note = serde_json::from_value(Value::Object(object))
-            .map_err(|err| format!("invalid note {index}: {err}"))?;
-        notes.push(note);
-    }
-    Ok(notes)
 }

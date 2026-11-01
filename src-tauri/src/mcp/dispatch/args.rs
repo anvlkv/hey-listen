@@ -11,7 +11,7 @@ use serde_json::Value;
 use crate::audio::analysis::{
     canonical_option_key, Axis, Shape, SharedParams, ToolOptions, WindowKind,
 };
-use crate::audio::analyzers::AnalyzerId;
+use crate::audio::analyzers::{AnalyzerId, ToolId};
 
 /// The default shared params, matching the frontend's initial store values
 /// (`src/state/analysis.ts`): 2048-point Hann, 75% overlap, no resample, full band.
@@ -93,6 +93,15 @@ pub(super) fn analyzer(args: &Value, key: &str) -> Result<AnalyzerId, String> {
     value
         .parse()
         .map_err(|_| format!("unknown analyzer: {value}"))
+}
+
+/// Read a required Workbench tool id: an analyzer id, `filter`, or `synth`.
+pub(super) fn tool_id(args: &Value) -> Result<ToolId, String> {
+    let value = args
+        .get("tool")
+        .and_then(Value::as_str)
+        .ok_or("`tool` is required")?;
+    value.parse().map_err(|_| format!("unknown tool: {value}"))
 }
 
 /// Merge per-tool option overrides into `entry`. Keys are canonical camelCase,

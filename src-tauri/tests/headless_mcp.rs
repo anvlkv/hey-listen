@@ -164,10 +164,40 @@ fn headless_server_drives_the_analysis_engine() {
         "peak Hz out of range: {peak}"
     );
 
-    // A UI-only tool explains that it needs the app.
-    let ui_only = client.call(6, "open_tool", serde_json::json!({ "tool": "spectrum" }));
+    // A UI-only tool explains that it needs the app (the graph *editor* layout, not
+    // `open_tool`, which headless records in the project's tab list).
+    let ui_only = client.call(6, "get_graph", serde_json::json!({ "graph": "filter" }));
     assert_eq!(ui_only["isError"], true);
     assert!(ui_only["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("requires the app"));
+
+    // Headless tab control feeds the project's `SETUP.openTools` (no webview).
+    let opened = client.call(7, "open_tool", serde_json::json!({ "tool": "spectrum" }));
+    assert_eq!(opened["isError"], false);
+    assert_eq!(
+        opened["structuredContent"]["openTools"],
+        serde_json::json!(["spectrum"])
+    );
+
+    // The app-only window tool is advertised, but needs the app.
+    let listed = client.request(8, "tools/list", serde_json::json!({}));
+    assert!(
+        listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tool| tool["name"] == "open_project_window"),
+        "open_project_window is not in the catalog"
+    );
+    let window_tool = client.call(
+        9,
+        "open_project_window",
+        serde_json::json!({ "path": "/tmp/not-opened-here.heyl" }),
+    );
+    assert_eq!(window_tool["isError"], true);
+    assert!(window_tool["content"][0]["text"]
         .as_str()
         .unwrap()
         .contains("requires the app"));

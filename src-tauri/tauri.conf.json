@@ -214,13 +214,13 @@
           ]
         },
         "notes": {
-          "description": "List the notes in a project file (.heyl)",
+          "description": "List, get, add, update or delete the notes in a project file (.heyl)",
           "args": [
             {
               "name": "file",
               "index": 1,
               "takesValue": true,
-              "description": "Project file (.heyl) to read the notes from"
+              "description": "Project file (.heyl) to read or edit"
             },
             {
               "name": "json",
@@ -229,6 +229,37 @@
             {
               "name": "full",
               "description": "Include the full markdown body (default: a one-line excerpt)"
+            },
+            {
+              "name": "add",
+              "takesValue": true,
+              "description": "Append the notes in this JSON array file (title/body/timeSecs/range/tool)"
+            },
+            {
+              "name": "get",
+              "takesValue": true,
+              "description": "Print one note by id (full body and frozen values)"
+            },
+            {
+              "name": "update",
+              "takesValue": true,
+              "description": "Patch one note by id; give the fields with --set"
+            },
+            {
+              "name": "set",
+              "multiple": true,
+              "takesValue": true,
+              "description": "With --update: FIELD=VALUE for title, body, timeSecs (time/at), range (start,end or none) or tool (id or none). Repeatable"
+            },
+            {
+              "name": "delete",
+              "takesValue": true,
+              "description": "Remove one note by id"
+            },
+            {
+              "name": "to",
+              "takesValue": true,
+              "description": "Write a changed project to this copy instead of editing it in place"
             }
           ]
         },
@@ -325,12 +356,102 @@
               "description": "Emit the side summaries and diff summary only"
             },
             {
+              "name": "save",
+              "takesValue": true,
+              "description": "Write owner A back to this .heyl path with the reference snapshots, so the app reopens the comparison"
+            },
+            {
+              "name": "open-tool",
+              "multiple": true,
+              "takesValue": true,
+              "description": "With --save, override the saved project's Workbench tabs (repeatable)"
+            },
+            {
               "name": "pretty",
               "description": "Pretty-print a single result instead of one JSON line per tool"
             },
             {
               "name": "fail-fast",
               "description": "Stop at the first failing tool"
+            }
+          ]
+        },
+        "project": {
+          "description": "Build a .heyl project from a source + setup + tabs, without opening a window",
+          "args": [
+            {
+              "name": "dest",
+              "index": 1,
+              "takesValue": true,
+              "description": "Destination .heyl path (parent folders are created)"
+            },
+            {
+              "name": "source",
+              "takesValue": true,
+              "description": "Audio file to decode as the project source"
+            },
+            {
+              "name": "synth",
+              "takesValue": true,
+              "description": "Synth GraphSpec (JSON file) to render as the source (with --seconds); instead of --source"
+            },
+            {
+              "name": "seconds",
+              "takesValue": true,
+              "description": "Rendered length for --synth (default 5)"
+            },
+            {
+              "name": "name",
+              "takesValue": true,
+              "description": "Project display name (default: the output file stem)"
+            },
+            {
+              "name": "open-tool",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Analyzer tab to restore when the project opens (repeatable), e.g. --open-tool spectrum"
+            },
+            {
+              "name": "notes",
+              "takesValue": true,
+              "description": "Annotations JSON file: an array of note objects (title/body/timeSecs/range/tool)"
+            },
+            {
+              "name": "reference",
+              "description": "Write a reference project (no embedded audio) for a file source"
+            },
+            {
+              "name": "start",
+              "takesValue": true,
+              "description": "Analysis window start in seconds (default 0)"
+            },
+            {
+              "name": "end",
+              "takesValue": true,
+              "description": "Analysis window end in seconds (default: full duration)"
+            },
+            {
+              "name": "param",
+              "short": "p",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Shared param patch K=V (repeatable); same keys as analyze"
+            },
+            {
+              "name": "option",
+              "short": "o",
+              "multiple": true,
+              "takesValue": true,
+              "description": "Per-tool option patch TOOL.K=V (repeatable); name the tool, e.g. -o mfcc.nMfcc=13"
+            },
+            {
+              "name": "filter",
+              "takesValue": true,
+              "description": "Save this filter GraphSpec (JSON file) into the project"
+            },
+            {
+              "name": "pretty",
+              "description": "Pretty-print the saved-project record"
             }
           ]
         }

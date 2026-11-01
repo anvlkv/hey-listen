@@ -273,7 +273,7 @@ export interface CompareTargetDto {
 
 /** A compare view a popout shows (registered in the core). */
 export interface CompareViewDto {
-  tool: string;
+  tool: AnalyzerId;
   /** The live reference project's window label, or the saved reference's name. */
   with: string;
   /** Whether `with` names the project's saved snapshot rather than a live project. */

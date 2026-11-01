@@ -20,6 +20,7 @@
 //! ```
 
 mod error;
+pub mod notes;
 mod read;
 pub(crate) mod sections;
 pub mod side;

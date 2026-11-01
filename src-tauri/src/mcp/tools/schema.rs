@@ -52,6 +52,13 @@ impl ToolClass {
         idempotent: false,
         open_world: true,
     };
+    /// Opens a project window at a file (raises one already showing it).
+    pub(super) const WINDOW: Self = Self {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: true,
+    };
     /// Writes a file outside the app.
     pub(super) const SAVE: Self = Self {
         read_only: false,

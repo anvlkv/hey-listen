@@ -17,7 +17,7 @@ use super::peer::peer_state;
 #[tauri::command]
 pub async fn open_compare_popout(
     window: WebviewWindow,
-    tool: String,
+    tool: AnalyzerId,
     reference: Option<String>,
     saved: bool,
 ) -> Result<(), String> {
@@ -25,12 +25,12 @@ pub async fn open_compare_popout(
     let registry = app.state::<WindowRegistry>();
     let parent = registry.root_label(window.label());
     let state = window_state(&window);
-    let view = compare_view(&state, &tool, reference.as_deref(), saved)?;
+    let view = compare_view(&state, tool, reference.as_deref(), saved)?;
     if !view.saved {
         peer_state(app, &view.with)?;
     }
 
-    if let Some(existing) = registry.compare_popout_for(&parent, &tool) {
+    if let Some(existing) = registry.compare_popout_for(&parent, tool) {
         if let Some(popout) = app.get_webview_window(&existing) {
             registry.retarget_compare_popout(&existing, &view.with, view.saved);
             raise(&popout);
@@ -65,7 +65,7 @@ pub fn retarget_compare_popout(
         return Err("this window is not a comparison".to_string());
     };
     let state = window_state(&window);
-    let next = compare_view(&state, &current.tool, reference.as_deref(), saved)?;
+    let next = compare_view(&state, current.tool, reference.as_deref(), saved)?;
     if !next.saved {
         peer_state(window.app_handle(), &next.with)?;
     }
@@ -83,26 +83,23 @@ pub fn popout_compare(window: WebviewWindow) -> Option<CompareView> {
 /// Resolve a popout's `(tool, reference, saved)` into the view it shows.
 fn compare_view(
     state: &WindowState,
-    tool: &str,
+    tool: AnalyzerId,
     reference: Option<&str>,
     saved: bool,
 ) -> Result<CompareView, String> {
     if saved {
-        let id: AnalyzerId = tool
-            .parse()
-            .map_err(|_| format!("unknown analyzer: {tool}"))?;
         let snapshot = state
-            .saved_comparison(id)
+            .saved_comparison(tool)
             .ok_or_else(|| format!("no saved comparison for '{tool}'"))?;
         return Ok(CompareView {
-            tool: tool.to_string(),
+            tool,
             with: snapshot.reference_name,
             saved: true,
         });
     }
     let reference = reference.ok_or_else(|| "`reference` is required".to_string())?;
     Ok(CompareView {
-        tool: tool.to_string(),
+        tool,
         with: reference.to_string(),
         saved: false,
     })

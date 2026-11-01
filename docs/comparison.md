@@ -331,10 +331,13 @@ Returns:
   against a project **file**: `with` is the `.heyl` path and B runs with that file's saved
   setup, window, options and `LAYOUT.filterSpec`; `saved: true` reuses the session's stored
   snapshot. Either way the last successful comparison is kept in the session, so
-  `save_project` writes it into `COMPARE`, and the app restores it as a compare tab.
+  `save_project` writes it into `COMPARE`, and the app restores it as a compare tab;
+  headless `get_state.savedComparisons` lists what `saved: true` can use, and
+  `save_project` creates the target's parent folders.
   The **Reference project** button in the header (`open_reference_window`) raises a live
   reference's window, or opens a saved reference by name (an open project, else the most
-  recent project file) in a new window.
+  recent project file) in a new window. To script the same two-window comparison, open the
+  reference with `open_project_window { path }` and pass the returned label as `with`.
 
 `list_projects` gains `source` (rate / channels / duration), `window`, `hasFilter` and the
 project's **saved comparisons** (tool + reference name + window), so an agent can pick a

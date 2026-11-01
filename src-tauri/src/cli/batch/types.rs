@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::audio::analyzers::AnalyzerId;
+use crate::audio::analyzers::{AnalyzerId, ToolId};
 use crate::audio::graph::GraphSpec;
 use crate::export::ExportFormat;
 
@@ -37,6 +37,7 @@ pub enum BatchCommand {
     Synth,
     Notes,
     Compare,
+    Project,
 }
 
 /// The command the batch CLI runs.
@@ -53,14 +54,59 @@ pub enum Command {
         /// The graph file path (used as the `file` label in the output).
         path: String,
     },
-    /// `notes <FILE.heyl>` — list a saved project's notes (read-only).
+    /// `notes <FILE.heyl>` — list, add, get, update or delete a saved project's notes.
     Notes {
         path: String,
         json: bool,
         full: bool,
+        /// What to do with the notes (list by default).
+        op: NotesOp,
+        /// For a mutation, write to this copy instead of in place.
+        to: Option<String>,
     },
     /// `compare <A.heyl> <B.heyl> -t TOOL` — diff one tool across two project files.
-    Compare { a: String, b: String },
+    Compare {
+        a: String,
+        b: String,
+        /// Write the owner (A) back to this path with the comparison snapshots (M25.D).
+        save: Option<String>,
+        /// Override A's `SETUP.openTools` when saving.
+        open_tools: Vec<ToolId>,
+    },
+    /// `project <OUT.heyl>` — build a project from a source + setup + tabs, windowless.
+    ProjectSave {
+        path: String,
+        /// Audio file to decode as the source.
+        source: Option<String>,
+        /// Synth graph + render length (mutually exclusive with `source`).
+        synth: Option<(GraphSpec, f64)>,
+        /// Project display name (default: the output file stem).
+        name: Option<String>,
+        /// The analyzer tabs to restore (`SETUP.openTools`).
+        open_tools: Vec<ToolId>,
+        /// Annotations to write (the same objects MCP's `save_project` takes).
+        notes: Vec<Value>,
+        /// Write a reference project (no embedded audio) for a file source.
+        reference: bool,
+    },
+}
+
+/// What a `notes` invocation does (exactly one operation, or a plain listing).
+#[derive(Debug, Clone)]
+pub enum NotesOp {
+    /// List every note, sorted by time.
+    List,
+    /// Append the notes in this JSON array file.
+    Add { file: String },
+    /// Print one note by id (the full body and frozen values).
+    Get { id: String },
+    /// Patch one note; `patch` is the parsed `--set K=V` list.
+    Update {
+        id: String,
+        patch: Vec<(String, Value)>,
+    },
+    /// Remove one note by id.
+    Delete { id: String },
 }
 
 /// One per-tool option patch, scoped to a tool.

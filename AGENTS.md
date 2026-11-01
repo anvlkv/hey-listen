@@ -85,6 +85,54 @@ Load the matching skill (via the `skill` tool) before working in that area:
   `src/bindings/**` is **generated** by `cargo test`: never hand-edit or format it.
   See `docs/code-hygiene.md`.
 
+## Typed identifiers — no string ids (M15.B, ADR-28)
+
+Enumerable ids are **enums**, not strings. A string is parsed **once at a boundary**
+(serde/IPC, CLI or MCP args, a project-file load, a URL) and then dropped; every
+internal signature, field, map key and return value takes the enum.
+
+**Existing id enums — extend these, do not add a parallel `String`:**
+
+| Domain | Enum(s) |
+| --- | --- |
+| Analyzer tools | `AnalyzerId`; `ToolId` adds `filter` / `synth` |
+| Result family / Sidebar grouping | `Family`, `Section` |
+| Sources | `SourceKind` (project), `CaptureKind` (live picker), `CaptureEventKind` |
+| Window function | `WindowKind` |
+| Actions / chrome | `MenuAction`, `ThemeBase`, `ThemeMode`, `BatchCommand` |
+
+This applies to **transient/UI state too**, not just project data: compare views
+(`CompareView.tool`), tool popouts (`WindowRegistry.popout_tools`) and capture
+events (`CaptureEvent.kind`) are ids and must stay typed.
+
+**Rules**
+
+1. Never add a `String` / `&str` field, parameter, map key or return value for an id
+   that has (or should have) an enum. Do not compare ids to string literals in Rust
+   outside wire-format tests.
+2. Parse at the boundary (`FromStr` / serde). An unknown id is an error **there**,
+   not a later `_ =>` fallback or a silently accepted arbitrary string.
+3. For a new id domain, define one enum derived with
+   `strum::{EnumString, Display, AsRefStr, IntoStaticStr, EnumIter, VariantNames}` +
+   `serde` + `ts_rs::TS`:
+   - Keep the wire spelling identical: `#[serde(rename_all = …)]` and
+     `#[strum(serialize_all = …)]` must agree.
+   - If it crosses `postcard` (the project file), encode it as a **string** with
+     hand-written serde — see `src-tauri/src/audio/analyzers/id.rs` and
+     `SourceKind`. Never make it an internally-tagged enum (ADR-2).
+   - Regenerate `src/bindings/` with `cargo test` **from `src-tauri/`**; never
+     hand-edit the generated files.
+4. The frontend imports the generated types (`AnalyzerId`, `ToolId`, `SourceKind`,
+   `CaptureKind`, …). Do not redeclare a union or `as`-cast a string into one.
+5. Keep the wire unchanged and pin it: add a string-serde / `postcard` round-trip
+   test for each new id enum, and a test that the id ↔ catalog ↔ result tag agree.
+6. Before finishing, review the diff for id literals and for `String` / `&str` on
+   id-shaped fields and signatures. Every remaining hit must be a genuine boundary
+   string: a path or file name, a user label or window label, an option / summary
+   key, an MCP tool name or schema key, a theme id, or a `GraphNode.kind` (the
+   open-ended fundsp mirror). If it names an analyzer, source, capture event,
+   window function, menu action, theme base/mode or CLI subcommand, it is a bug.
+
 ## Layout
 
 ```

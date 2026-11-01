@@ -5,11 +5,15 @@ use serde_json::Value;
 use tauri_plugin_cli::Matches;
 
 use crate::audio::analysis::canonical_option_key;
-use crate::audio::analyzers::{self, AnalyzerId};
+use crate::audio::analyzers::{self, AnalyzerId, ToolId};
 
 use super::export_args;
-use super::inputs::{parse_params, read_filter_graph, read_synth_graph, read_windows, split_kv};
-use super::types::{BatchCommand, Command, OptionPatch, Request};
+use super::inputs::{
+    parse_params, read_filter_graph, read_notes, read_synth_graph, read_windows, split_kv,
+};
+use super::types::{BatchCommand, Command, NotesOp, OptionPatch, Request};
+
+mod note_args;
 
 /// Whether `name` is a batch subcommand (used to tell a real usage error from a
 /// `.heyl` file path that the plugin's parser rejected).
@@ -57,6 +61,8 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 path,
                 json: flag(matches, "json"),
                 full: flag(matches, "full"),
+                op: note_args::note_op(matches)?,
+                to: string(matches, "to"),
             };
         }
         BatchCommand::Compare => {
@@ -66,7 +72,44 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
             let b = string(matches, "b").ok_or(
                 "compare needs two project files: `hey-listen compare A.heyl B.heyl -t TOOL`",
             )?;
-            request.command = Command::Compare { a, b };
+            request.command = Command::Compare {
+                a,
+                b,
+                save: string(matches, "save"),
+                open_tools: tool_ids(matches, "open-tool")?,
+            };
+        }
+        BatchCommand::Project => {
+            let path = string(matches, "dest").ok_or(
+                "project needs an output path: `hey-listen project <OUT.heyl> --source <FILE>`",
+            )?;
+            let source = string(matches, "source");
+            let synth = match string(matches, "synth") {
+                Some(graph_path) => {
+                    let graph = read_synth_graph(&graph_path)?;
+                    let seconds = match string(matches, "seconds") {
+                        Some(text) => text
+                            .parse::<f64>()
+                            .map_err(|_| format!("invalid --seconds: {text}"))?,
+                        None => 5.0,
+                    };
+                    Some((graph, seconds))
+                }
+                None => None,
+            };
+            let notes = match string(matches, "notes") {
+                Some(path) => read_notes(&path)?,
+                None => Vec::new(),
+            };
+            request.command = Command::ProjectSave {
+                path,
+                source,
+                synth,
+                name: string(matches, "name"),
+                open_tools: tool_ids(matches, "open-tool")?,
+                notes,
+                reference: flag(matches, "reference"),
+            };
         }
     }
     validate(&request)?;
@@ -135,15 +178,68 @@ fn validate(request: &Request) -> Result<(), String> {
                 ));
             }
         }
-        Command::Notes { .. } => {}
-        Command::Compare { .. } => {
+        Command::Notes {
+            op, to, json, full, ..
+        } => {
+            let mutating = matches!(
+                op,
+                NotesOp::Add { .. } | NotesOp::Update { .. } | NotesOp::Delete { .. }
+            );
+            if to.is_some() && !mutating {
+                return Err(
+                    "`--to` writes a changed project; use it with --add / --update / --delete"
+                        .into(),
+                );
+            }
+            if mutating && (*json || *full) {
+                return Err(
+                    "`--json` / `--full` list the notes; a mutation prints one JSON record".into(),
+                );
+            }
+        }
+        Command::Compare {
+            save, open_tools, ..
+        } => {
             if request.tools.is_empty() && !request.all {
                 return Err("compare needs `-t <TOOL>` (or `--all`)".into());
             }
             if !request.windows.is_empty() {
                 return Err("compare does not take `--windows`; use --start/--end".into());
             }
+            if save.is_none() && !open_tools.is_empty() {
+                return Err("--open-tool applies when --save writes the project".into());
+            }
         }
+        Command::ProjectSave {
+            source,
+            synth,
+            reference,
+            ..
+        } => match (source, synth) {
+            (Some(_), Some(_)) => {
+                return Err(
+                    "use either `--source <AUDIO>` or `--synth <GRAPH.json>`, not both".into(),
+                )
+            }
+            (None, None) => {
+                return Err(
+                    "project needs a source: `--source <AUDIO>` or `--synth <GRAPH.json>`".into(),
+                )
+            }
+            (_, Some((_, seconds))) => {
+                if !seconds.is_finite() || *seconds <= 0.0 {
+                    return Err(format!(
+                        "--seconds must be a positive number, got {seconds}"
+                    ));
+                }
+                if *reference {
+                    return Err(
+                        "--reference needs a file source (a synth cannot be re-decoded)".into(),
+                    );
+                }
+            }
+            (Some(_), None) => {}
+        },
     }
     if request.pretty && result_count(request) != 1 {
         return Err("--pretty prints a single result; give exactly one file and one tool".into());
@@ -162,6 +258,7 @@ pub(super) fn result_count(request: &Request) -> usize {
         Command::Synth { .. } => tool_count(request),
         Command::Notes { .. } => 0,
         Command::Compare { .. } => tool_count(request),
+        Command::ProjectSave { .. } => 1,
     }
 }
 
@@ -218,6 +315,17 @@ pub(super) fn string(matches: &Matches, name: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// A repeatable Workbench tool id (`--open-tool`), parsed once here.
+fn tool_ids(matches: &Matches, name: &str) -> Result<Vec<ToolId>, String> {
+    strings(matches, name)
+        .into_iter()
+        .map(|id| {
+            id.parse::<ToolId>()
+                .map_err(|_| format!("unknown tool in --{name}: {id}"))
+        })
+        .collect()
+}
+
 pub(super) fn flag(matches: &Matches, name: &str) -> bool {
     matches
         .args
@@ -265,7 +373,7 @@ fn parse_option_patches(
             None if tools.len() == 1 => (tools[0], lhs),
             None => {
                 return Err(format!(
-                    "`-o {token}` must name its tool when several are run: use `-o <TOOL>.<KEY>=<VALUE>`"
+                    "`-o {token}` must name its tool: use `-o <TOOL>.<KEY>=<VALUE>`"
                 ))
             }
         };

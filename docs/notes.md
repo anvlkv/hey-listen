@@ -277,9 +277,10 @@ where it was.
 
 ## MCP surface
 
-The note tools are **app-only**: a note lives in a project, and the headless
-server has none (so it answers "requires the app", like `save_project`). Handlers
-live in `src/state/mcp/`; the catalog in `src-tauri/src/mcp/tools/`.
+The note tools are **app-only**: a note lives in a project, and a headless session has no
+note store (so they answer "requires the app"). Headless, `save_project` still accepts a
+`notes` array when building a project, and the batch CLI's `notes` command edits a saved
+file. Handlers live in `src/state/mcp/`; the catalog in `src-tauri/src/mcp/tools/`.
 
 | Tool | Purpose |
 | --- | --- |
@@ -295,24 +296,32 @@ so an agent can see the annotations on the project it is driving.
 
 ## CLI surface
 
-The batch CLI is windowless and has no project, so the note surface there is a
-**read-only** command over a saved project file — the "show me the notes in this
-session" view, usable from a shell or CI. See [`cli.md`](cli.md).
+The batch CLI is windowless; its note surface works on a **saved project file**. It lists
+notes, and since M25.D it also edits them (append / patch / remove), rewriting the file
+**atomically**. See [`cli.md`](cli.md).
 
 ```text
 hey-listen notes <FILE.heyl>
 
 Options:
-      --json     Emit each note as one JSON line (JSONL) instead of a table.
-      --full     Include the full markdown body (default: a one-line excerpt).
+      --json                 List: emit each note as one JSON line (JSONL) instead of a table.
+      --full                 List: include the full markdown body (default: a one-line excerpt).
+      --get <ID>             Print one note (full body and frozen values).
+      --add <FILE.json>      Append the notes in a JSON array file.
+      --update <ID> --set FIELD=VALUE
+                             Patch title / body / timeSecs (time, at) / range
+                             (`start,end` or none) / tool (id or none). Repeatable.
+      --delete <ID>          Remove one note.
+      --to <FILE.heyl>       Write a changed project to a copy instead of in place.
 ```
 
-It decodes the container, reads the `NOTES` section, and prints the notes sorted
-by time. It **never mutates** the project file (the CLI is deterministic and does
-not drive the app). A missing / unreadable / non-project file is an error (exit
-`1`); a malformed argument is a usage error (exit `2`). `analyze` / `synth` do
-**not** gain note flags — they run against files, not projects, so there is
-nowhere to store a note.
+Listing decodes the container and prints the notes sorted by time. Mutations rewrite
+the whole container (source, setup, layout, notes, saved comparisons) through a sibling
+temp file renamed over the target, so a failure cannot truncate the project; the file is
+not watched, so an open app must **reload** it. A missing / unreadable / non-project
+file, an unknown id, or an invalid field is an error (exit `1`); a malformed argument or
+conflicting flags is a usage error (exit `2`). `analyze` / `synth` do **not** gain note
+flags — they run against files, not projects, so there is nowhere to store a note.
 
 ## Files
 

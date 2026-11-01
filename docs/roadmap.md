@@ -817,18 +817,19 @@ type safety, not a format bump. See ADR-28 and [`code-hygiene.md`](code-hygiene.
 
 **Design (ADR-28).** One enum per domain, derived with
 `strum::{EnumString, Display, AsRefStr, IntoStaticStr, EnumIter, VariantNames}` +
-`serde::{Serialize, Deserialize}` + `ts_rs::TS`; `#[serde(rename_all = "camelCase")]` and
-`#[strum(serialize_all = "camelCase")]` keep the string identical on the wire and in code.
-A `postcard`-safe enum **field** (never an internally-tagged top-level enum) replaces
-`SourceDescriptor.kind`.
+`serde::{Serialize, Deserialize}` + `ts_rs::TS`; matching `serde` / `strum` spelling
+(`camelCase` for the analyzer/menu ids, `kebab-case` / `lowercase` where that was the
+original wire form) keeps the string identical on the wire and in code. A `postcard`-safe
+enum **field** (never an internally-tagged top-level enum) replaces `SourceDescriptor.kind`.
 
 **Delivered.** All six phases shipped: `strum` 0.28 (`derive`), `AnalyzerId` (29
 variants, with `ToolId` generated from the same list for Workbench tabs), `Family` +
-`Section`, `SourceKind` + `CaptureKind`, `WindowKind`, and the menu / theme / CLI
-action ids. `src/bindings/` carries `AnalyzerId`, `ToolId`, `Family`, `Section`,
-`SourceKind`, and `CaptureKind`, and the frontend aliases those generated types
-instead of re-declaring them. The `postcard` encoding is pinned to the original
-strings by tests, so the project-file format did not change.
+`Section`, `SourceKind` + `CaptureKind` + `CaptureEventKind`, `WindowKind`, and the
+menu / theme / CLI action ids. Transient ids are typed too (a compare view's tool, a
+tool popout's id). `src/bindings/` carries `AnalyzerId`, `ToolId`, `Family`, `Section`,
+`SourceKind`, `CaptureKind`, and `CaptureEventKind`, and the frontend aliases those
+generated types instead of re-declaring them. The `postcard` encoding is pinned to the
+original strings by tests, so the project-file format did not change.
 
 **Phases (one at a time, gate green after each):**
 - **Dependency + pattern.** Add `strum` (MIT) to `src-tauri/Cargo.toml`; update
@@ -1969,6 +1970,24 @@ between sibling projects and to reach the other side of a comparison. Supersedes
   discoverable through `get_state` / `list_analyzers` / `get_analyzer` — no need to read
   the sources or shell out to the CLI. `compare_analysis`, `save_project` and
   `open_project` descriptions say the same.
+- **Scriptability.** The headless surface is now uniform for batch work: `open_tool` /
+  `close_tool` maintain `SETUP.openTools` (no webview), `get_state` reports `openTools`
+  and `savedComparisons`, `save_project` creates the target's parent folders, and a
+  headless `compare_analysis` snapshot is written by the next save. So one script can
+  open a source, analyze, compare against another project file, choose the tabs, and
+  write a `.heyl` that the app opens exactly that way. For the **app** side,
+  `open_project_window { path }` opens (or raises) the reference project as a second
+  window and returns its label — what `compare_analysis`'s `with` accepts — so a script
+  can drive the same two-window comparison the UI shows.
+- **CLI parity.** The batch CLI can now build the same projects without a window:
+  `project <OUT.heyl> --source <AUDIO>` (or `--synth <GRAPH.json> --seconds`) with
+  `-p` / `-o` / `--filter`, `--start` / `--end`, `--open-tool` (repeatable), `--notes
+  <FILE.json>`, and `--reference`; and `compare A B -t TOOL --save OUT.heyl` writes the
+  owner with one `COMPARE` snapshot per compared tool (its effective setup included), so
+  reopening reproduces the diff. `notes <FILE.heyl>` also edits an existing project:
+  `--get <ID>`, `--add <FILE.json>`, `--update <ID> --set FIELD=VALUE`, `--delete <ID>`,
+  with `--to <COPY.heyl>` for a non-destructive edit. Parent folders are created; stdout
+  stays JSONL.
 - **Previous / Next Project.** File menu items (and `CmdOrCtrl+Alt+Left` / `Right`) step
   through the `.heyl` files in the current project's folder, case-insensitive name order,
   stopping at the ends, behind the usual unsaved-work guard. The core command is
@@ -1981,15 +2000,24 @@ between sibling projects and to reach the other side of a comparison. Supersedes
   it never rebinds the comparison.
 
 **Files:** `src-tauri/src/project/side.rs` (the shared project side loader),
-`src-tauri/src/mcp/dispatch/{mod,compare,project}.rs` + `dispatch/tests/compare.rs`,
-`src-tauri/src/mcp/{protocol,tools/{compare,project}}.rs`,
-`src-tauri/src/commands/project/siblings.rs`, `src-tauri/src/commands/compare/reference.rs`,
+`src-tauri/src/mcp/dispatch/{mod,compare,project,session,args}.rs` +
+`dispatch/tests/{compare,project}.rs`,
+`src-tauri/src/mcp/{protocol,tools/{compare,project,workbench,schema}}.rs`,
+`src-tauri/src/commands/project/siblings.rs`,
+`src-tauri/src/commands/window/project.rs` (a project window at a file),
+`src-tauri/src/commands/compare/reference.rs`,
+`src-tauri/src/cli/batch/{project,compare,compare_save,args,types,inputs}.rs`,
+`src-tauri/tauri.conf.json` (`plugins.cli`),
 `src-tauri/src/{lib,menu}.rs`, `src/state/project/{load,siblings,index}.ts`,
-`src/state/{menu,compare/views}.ts`, `src/components/compare/CompareHeader.tsx`.
+`src/state/{menu,compare/views,mcp/dispatch}.ts`,
+`src/components/compare/CompareHeader.tsx`.
 
 **Tests.** Rust: headless compare against a project file (result + snapshot + save),
-`saved: true`, a missing reference, the open→save `openTools` round trip, the
-`adjacent_project` ordering/ends, and the saved-reference name match.
+`saved: true`, a missing reference, the open→save `openTools` round trip, headless
+`open_tool` / `close_tool`, `get_state.savedComparisons`, `save_project` creating nested
+folders, the `adjacent_project` ordering/ends, the saved-reference name match,
+`open_project_window`'s schema + `.heyl` path validation, the `project` request
+mapping/validation, and `project` / `compare --save` writing a readable project.
 
 **Validation.** `cargo test --lib`, `cargo clippy`, `npm run typecheck`,
 `npm run typecheck:e2e`, `npm run test:unit`, `npm run build`, `npm run maid`, a headless

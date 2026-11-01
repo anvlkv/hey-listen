@@ -12,10 +12,30 @@ use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
 use crate::state::SourcePcm;
 
-use super::args::{self, analyzer};
+use super::args::{self, analyzer, tool_id};
 use super::HeadlessSession;
 
 impl HeadlessSession {
+    /// Open (or focus) a Workbench tab. Headless has no webview, so this **records**
+    /// the tab in the project's `SETUP.openTools`: `get_state.openTools` reports it,
+    /// `save_project` writes it, and the app opens it when the project loads. The id
+    /// is validated against the real tool list, so a typo fails here rather than at
+    /// save time.
+    pub(super) fn open_tool(&mut self, args: &Value) -> Result<Value, String> {
+        let id = tool_id(args)?;
+        if !self.open_tools.contains(&id) {
+            self.open_tools.push(id);
+        }
+        Ok(json!({ "openTools": self.open_tools }))
+    }
+
+    /// Close a Workbench tab by id — headless, remove it from `SETUP.openTools`.
+    pub(super) fn close_tool(&mut self, args: &Value) -> Result<Value, String> {
+        let id = tool_id(args)?;
+        self.open_tools.retain(|open| *open != id);
+        Ok(json!({ "openTools": self.open_tools }))
+    }
+
     /// The observable state an agent reads (mirrors the GUI's `get_state`, plus
     /// `headless: true`).
     pub(super) fn get_state(&self) -> Value {
@@ -48,6 +68,9 @@ impl HeadlessSession {
             "params": serde_json::to_value(&self.params).unwrap_or(Value::Null),
             "toolOptions": self.tool_options(),
             "openTools": self.open_tools,
+            // What `compare_analysis { saved: true }` can use (M25.C/M25.D), in the
+            // same compact shape `list_projects` reports for an open project.
+            "savedComparisons": self.state.saved_comparison_infos(),
             "filter": { "enabled": filter_enabled, "error": Value::Null },
             "output": { "gain": 1.0, "device": Value::Null },
         })

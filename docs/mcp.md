@@ -118,7 +118,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout). Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout) and `savedComparisons` lists the project's stored comparison snapshots — the same compact shape `list_projects` reports. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. The list is mirrored under `structuredContent.analyzers` (the 2025-06-18 revision), while `content[0].text` keeps the JSON array. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
@@ -130,7 +130,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
 | `set_tool_options` | Patch one analyzer's own options. Keys are canonical camelCase (`nMels`, `yinThreshold`, `minF0Hz`); snake_case aliases are accepted; an unknown key or non-numeric value fails. See `list_analyzers` for each tool's keys/defaults. **(M16)** |
-| `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). |
+| `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). Headless there is no webview, so the tab joins/leaves the project's `SETUP.openTools` restore list (reported by `get_state.openTools`, written by `save_project`, opened by the app on load). **(M25.D)** |
 | `get_graph` | Read a graph editor's `{ nodes, edges }`. |
 | `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). In headless mode takes a `GraphSpec` directly. |
 | `set_synth_graph` | Replace the synth graph. |
@@ -138,7 +138,8 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_output_gain` | Preview output gain. |
 | `list_output_devices` / `list_input_devices` / `list_processes` | Enumerate devices / processes. |
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
-| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` and `openTools` (no Workbench layout); the `openTools` recorded in `SETUP` are restored as tabs when the app opens the file, even when the saved layout is empty (M25.D). A comparison computed headless is written to `COMPARE` like an open compare tab. `embedSource: false` writes a reference project for a file source. **(M21.A, M25.D)** |
+| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` and `openTools` (no Workbench layout) and **creates the target's parent folders**; the `openTools` recorded in `SETUP` are restored as tabs when the app opens the file, even when the saved layout is empty (M25.D). A comparison computed headless is written to `COMPARE` like an open compare tab. `embedSource: false` writes a reference project for a file source. **(M21.A, M25.D)** |
+| `open_project_window` | Open a **new project window** at an existing `.heyl` file, leaving the current project untouched; a window already showing that file is raised instead of duplicated. Returns `{ label, path, reused }` — `label` is what `target` and `compare_analysis`'s `with` accept. This is the app-side way to script an A/B. **App-only** (headless compares the file directly). **(M25.D)** |
 | `list_projects` | List the open project windows (label, name, focused; plus each project's source shape, analysis window, filter presence and **saved comparisons**) — answered by the server. **(M25, M25.C)** |
 | `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
@@ -367,9 +368,12 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   connects to whoever last advertised.
 - **Headless is the compute + project subset.** `heylisten-mcp --headless` runs
   analyzers over files, enumerates devices, installs a compute filter
-  (`set_filter_graph` with a `GraphSpec`), and saves/opens projects (source + setup +
-  notes; there is no Workbench layout), but cannot open Workbench tabs, edit the
-  editor-layout graphs (`get_graph` / `set_synth_graph`), or drive live preview/capture —
+  (`set_filter_graph` with a `GraphSpec`), compares against a project file
+  (`compare_analysis`), and saves/opens projects (source + setup + notes + the
+  `openTools` restore list; there is no Workbench layout). `open_tool` / `close_tool`
+  maintain that restore list, and `get_state` reports `openTools` and the project's
+  `savedComparisons`. It cannot edit the
+  editor-layout graphs (`get_graph` / `set_synth_graph`) or drive live preview/capture —
   those need the app. The headless orchestration is a second (thin) dispatcher that must
   stay in step with the GUI handlers for the tools it covers. For scripting without an
   MCP client at all, use the batch CLI instead — [`cli.md`](cli.md) (`hey-listen

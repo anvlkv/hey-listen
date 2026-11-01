@@ -54,7 +54,7 @@ fn compare_maps_two_projects_its_tools_and_window_overrides() {
     ]);
     let request = build_request("compare", &m).unwrap();
     assert!(
-        matches!(&request.command, Command::Compare { a, b } if a == "a.heyl" && b == "b.heyl")
+        matches!(&request.command, Command::Compare { a, b, .. } if a == "a.heyl" && b == "b.heyl")
     );
     assert_eq!(request.tools, [AnalyzerId::Spectrum]);
     assert_eq!(request.a_start, Some(1.0));

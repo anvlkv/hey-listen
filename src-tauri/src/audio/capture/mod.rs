@@ -103,13 +103,41 @@ pub enum CaptureMessage {
     Event(CaptureEvent),
 }
 
+/// A capture stream event kind (the frontend's stable `STATUS_TEXT` keys).
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
+    strum::VariantNames,
+    ts_rs::TS,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+#[ts(export, rename_all = "kebab-case")]
+pub enum CaptureEventKind {
+    Dropped,
+    Stalled,
+    Recovered,
+    Permission,
+    DeviceLost,
+    Error,
+}
+
 /// A capture stream event, ready to be emitted to the frontend.
 #[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CaptureEvent {
-    /// Stable id: `dropped` | `stalled` | `recovered` | `permission` | `device-lost` | `error`.
-    pub kind: String,
+    pub kind: CaptureEventKind,
     pub message: Option<String>,
 }
 
