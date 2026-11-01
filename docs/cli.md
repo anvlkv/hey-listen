@@ -162,7 +162,8 @@ family too (M25.A). Exit `0` when every tool ran, `1` when either side failed, `
 usage error. A project saved before `LAYOUT.filterSpec` existed compares unfiltered with
 a one-line stderr warning. **Only project files** are accepted — `analyze` covers raw
 audio files. Comparing a **single** file against its saved snapshot (M25.C) is a
-follow-up.
+follow-up (the headless MCP server already does it with
+`compare_analysis { saved: true }`, M25.D).
 
 > **Delivered (M25).** `cli/batch/compare.rs` loads both project files itself (each side
 > gets its own `WindowState` with the saved PCM — or the referenced file — and

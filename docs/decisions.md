@@ -655,7 +655,8 @@ view that spans two of them.
   There is no silent normalisation.
 - The same operation is exposed by the native **Analysis** menu and a tab context menu,
   by MCP `compare_analysis` (app-only), and by the CLI `compare` subcommand (two project
-  files, each with its saved setup).
+  files, each with its saved setup). *M25.D:* a headless session compares against a
+  project file, so the same operation works without two windows.
 
 **Consequence:** the diff is available without changing ADR-3, the source model, or the
 project file's audio layout. The cost is a second set of peer-read commands, a revision

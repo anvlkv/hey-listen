@@ -12,6 +12,7 @@ import {
   isProjectFile,
   loadProject,
   newProject,
+  openAdjacentProject,
   openProject,
   projectPath,
   saveProject,
@@ -96,6 +97,12 @@ export async function initMenu() {
         case "open":
           void guarded(openProject);
           break;
+        case "previousProject":
+          void guarded(() => openAdjacentProject(-1));
+          break;
+        case "nextProject":
+          void guarded(() => openAdjacentProject(1));
+          break;
         case "save":
           void saveProject();
           break;
@@ -140,6 +147,10 @@ export async function initMenu() {
 
     // Files requested before this listener existed (command line / macOS open event).
     await openPaths(await invoke<string[]>("take_pending_open_paths"));
+    // A window created at a specific project (the compare view's "Open reference",
+    // M25.D) drains its path once, after the global launch queue.
+    const own = await invoke<string | null>("take_window_open_path");
+    if (own) await openPaths([own]);
   } catch (err) {
     console.error("could not initialise the app menu", err);
   }

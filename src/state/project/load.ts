@@ -29,7 +29,7 @@ import {
   type ProbeInfo,
 } from "../source";
 import { setView, setWindowEnd, setWindowStart } from "../timeline";
-import { restoreLayout, TOOLS } from "../workbench";
+import { dockApi, openTool, restoreLayout, TOOLS } from "../workbench";
 import { beginBaseline, endBaseline } from "./dirty";
 import { basename, projectLabel } from "./paths";
 import { rememberRecent } from "./recents";
@@ -153,12 +153,22 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
   restoreLayout(loaded.layout?.dockview ?? null);
 
-  // 5a. The project's saved comparisons (M25.C) restore as Workbench **tabs**,
+  // 5a. A headless save has no dockview layout but records the analyzer tabs in
+  //    `SETUP.openTools`; open them so the project comes up as it was saved. A GUI
+  //    layout already contains them (and restoring must not steal the active tab), so
+  //    this only fills an empty Workbench.
+  if ((dockApi()?.panels.length ?? 0) === 0) {
+    for (const id of loaded.setup.openTools ?? []) {
+      if (TOOLS.some((tool) => tool.id === id)) void openTool(id);
+    }
+  }
+
+  // 5b. The project's saved comparisons (M25.C) restore as Workbench **tabs**,
   //     bound to their snapshot until the user reconnects a live project. They are
   //     never part of `LAYOUT`, so they are re-created here rather than by dockview.
   restoreSavedComparisons(loaded.compare ?? []);
 
-  // 5b. Reconcile the project's popout windows with the loaded layout: a load replaces
+  // 5c. Reconcile the project's popout windows with the loaded layout: a load replaces
   // the whole project, so the previous project's popouts close and the tools this layout
   // shows popped out get a window (exactly one each). Deferred a tick so the restored
   // state has been pushed to the core before a new popout pulls it.

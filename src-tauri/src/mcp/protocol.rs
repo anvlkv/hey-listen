@@ -116,13 +116,23 @@ fn initialize_result(params: &Value) -> Value {
                          (FM modulation) say so, and remember `harmonicRatio` is max \
                          autocorrelation, not HNR in dB. Tool calls are serialized \
                          per window, but shared params/window still persist unless transient. \
+                         Comparisons: call `compare_analysis` with the same `tool` on both \
+                         sides — with the app, `with` is another project's label from \
+                         `list_projects`; headless, `with` is the reference project's `.heyl` \
+                         path (the session's project is A, the file's saved setup is B). \
+                         `saved: true` reuses the last stored reference. The comparison is \
+                         stored in the owner, so `save_project` writes it (the app reopens it \
+                         as a compare tab) — no need to fetch the Hey Listen sources or to \
+                         shell out to the CLI. `save_project` also restores `openTools` as \
+                         analyzer tabs. \
                          For many files use the app binary's batch CLI (`hey-listen analyze \
                          FILE -t ID`, JSONL on stdout); for many windows in one file use one \
                          headless session or `analyze --windows FILE`. When no app is running \
                          this server runs \
                          headless: it also supports `save_project` / `open_project` / \
-                         `new_project` (source + setup + notes, no Workbench layout) plus the \
-                         compute tools.",
+                         `new_project` (source + setup + notes + openTools; no Workbench layout) \
+                         plus the compute tools, including `compare_analysis` against a project \
+                         file.",
     })
 }
 

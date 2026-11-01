@@ -118,14 +118,14 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout). Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. The list is mirrored under `structuredContent.analyzers` (the 2025-06-18 revision), while `content[0].text` keeps the JSON array. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
 | `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
 | `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a `times` array as `{ start, hop, length, end }` (plus `firstHop`/`lastHop` for a differing edge frame). **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
-| `compare_analysis` | Compare **the same tool** on two project sides: `with` names the live reference window, `target` the owner (default: focused); `bOffset` (seconds) is the fine-tune offset (M25.B); `saved: true` uses the owner's saved snapshot instead of `with` (M25.C). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, `comparability.alignment` reports the relative extents/common span, and `diff` is omitted when the grids differ or the shifted windows do not meet. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the compare view. App-only. **(M25, M25.B, M25.C)** See [`comparison.md`](comparison.md). |
+| `compare_analysis` | Compare **the same tool** on two project sides: `with` names the live reference window (app) or the reference **project file** (headless, M25.D), `target` the owner (default: focused, app); `bOffset` (seconds) is the fine-tune offset (M25.B); `saved: true` uses the owner's saved snapshot instead of `with` (M25.C). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, `comparability.alignment` reports the relative extents/common span, and `diff` is omitted when the grids differ or the shifted windows do not meet. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the compare view. The last successful comparison is stored in the owner, so `save_project` writes it. **(M25, M25.B, M25.C, M25.D)** See [`comparison.md`](comparison.md). |
 | `set_analysis_window` | Set the region every analyzer runs over. |
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
@@ -138,7 +138,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_output_gain` | Preview output gain. |
 | `list_output_devices` / `list_input_devices` / `list_processes` | Enumerate devices / processes. |
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
-| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` (no Workbench layout); `embedSource: false` writes a reference project for a file source. **(M21.A)** |
+| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` and `openTools` (no Workbench layout); the `openTools` recorded in `SETUP` are restored as tabs when the app opens the file, even when the saved layout is empty (M25.D). A comparison computed headless is written to `COMPARE` like an open compare tab. `embedSource: false` writes a reference project for a file source. **(M21.A, M25.D)** |
 | `list_projects` | List the open project windows (label, name, focused; plus each project's source shape, analysis window, filter presence and **saved comparisons**) — answered by the server. **(M25, M25.C)** |
 | `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
@@ -173,7 +173,7 @@ to address a specific project window instead of the focused one. `get_state` rep
 the window it is looking at as `project.window`. With no app running, the headless
 server answers the compute subset (the rest return "requires the app").
 
-**Comparisons (M25, M25.B, M25.C).** `compare_analysis` takes `with` (the live
+**Comparisons (M25, M25.B, M25.C, M25.D).** `compare_analysis` takes `with` (the live
 reference label) on top of `target`; both must be open project windows (not popouts), or
 `saved: true` uses the owner's saved snapshot instead of a live peer. `bOffset` (seconds)
 moves the reference on the relative axis. Each side runs with its own
@@ -185,9 +185,15 @@ spectrum, readouts, matrix/spectrogram, rhythm/events, `noteMetrics`, modulation
 waveform. `get_state` reports the open views as `compare: [{ tool, with, saved, offset }]`
 (never in `openTools`), and `list_projects` reports each project's `savedComparisons`
 (tool, reference name, window, offset, fingerprint) — including a snapshot whose tab is
-closed. `compare_analysis` is app-only: a live reference needs two project windows,
-a **saved snapshot** needs only the owner's window. Headless mode still answers *requires
-the app*; use the CLI `compare` on two project files for a windowless diff.
+closed.
+
+**Headless comparisons (M25.D).** A headless session has one project, so `with` is the
+reference **project file** (`.heyl`) instead of a label: A is the session, B runs with the
+file's saved window/params/options and its `LAYOUT.filterSpec` (each side is decoded and
+filtered exactly as the CLI `compare` does). `saved: true` reuses the session's stored
+snapshot. The last successful comparison is kept in the session, so `save_project` writes
+it into `COMPARE` and the app reopens it as a compare tab — this is how a batch can leave
+projects with their comparisons visible. `target` and `display` are app-only.
 
 ## Protocol notes
 
@@ -255,10 +261,11 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    - The headless subset is the **engine-backed compute surface**: `get_state`,
      `list_analyzers`, `get_analyzer`, `open_audio_file`, `close_source`,
      `render_synth` (with an explicit `graph`), `set_filter_graph` (with an explicit
-     `GraphSpec`), `run_analysis`, `set_analysis_window`, `set_view`,
+     `GraphSpec`), `run_analysis`, `compare_analysis` (against a project file, M25.D),
+     `set_analysis_window`, `set_view`,
      `set_shared_params`, `set_tool_options`, the `list_*` enumerations, and
-     `save_project` / `open_project` / `new_project` (source + setup + notes; no
-     Workbench layout) — plus the **data** halves of the export tools
+     `save_project` / `open_project` / `new_project` (source + setup + notes + openTools;
+     no Workbench layout) — plus the **data** halves of the export tools
      (`export_analysis`, `export_all`; `export_chart` needs the canvas).
      UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
      `set_synth_graph`), and live preview/capture (real device I/O with no UI to

@@ -28,8 +28,11 @@ pub(super) fn tools() -> Vec<Value> {
          Both sides are the same tool — a different tool is not a comparison. Pass `with` a \
          label from `list_projects` (which reports each project's source shape, window, \
          filter presence and saved comparisons), or `saved: true` to use A's stored snapshot \
-         (no second window needed; `list_projects` reports the snapshot). Requires the app: \
-         headless has no second window — use the CLI `compare` subcommand.",
+         (no second window needed; `list_projects` reports the snapshot). Headless, `with` is \
+         instead the reference **project file path** (`.heyl`): the session's project is A and \
+         the file's saved setup/window is B. Either way the last successful comparison is \
+         stored in A, so `save_project` writes it and the app restores it as a compare tab. \
+         The owner is `target` (default: focused).",
         json!({
             "type": "object",
             "properties": {
@@ -39,7 +42,7 @@ pub(super) fn tools() -> Vec<Value> {
                 },
                 "with": {
                     "type": "string",
-                    "description": "The reference project's label from list_projects (required unless `saved`).",
+                    "description": "The reference side: a project label from list_projects (app), or the reference project's .heyl path (headless). Required unless `saved`.",
                 },
                 "saved": {
                     "type": "boolean",

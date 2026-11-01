@@ -29,7 +29,7 @@ masking / tonality, equal-loudness + spatial cues) are **planned** — see
 | [data-model.md](data-model.md) | Domain entities and their relationships |
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
-| [comparison.md](comparison.md) | Cross-project diffs: the A/B model, relative alignment + fine-tune offset, comparability, the compare view (+ popout), saved snapshots, MCP/CLI surfaces (M25 / M25.A / M25.B / M25.C) |
+| [comparison.md](comparison.md) | Cross-project diffs: the A/B model, relative alignment + fine-tune offset, comparability, the compare view (+ popout), saved snapshots, headless comparisons, MCP/CLI surfaces (M25 / M25.A / M25.B / M25.C / M25.D) |
 | [analysis-metrics.md](analysis-metrics.md) | Analysis depth: pitch range, frame RMS, note segmentation (M16–M18), per-note voice-quality proxies (M19), and AM/FM modulation spectra (M20) — all delivered |
 | [analysis-psychoacoustics.md](analysis-psychoacoustics.md) | Psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation, masking / tonality, equal-loudness + spatial cues (M26–M31) — planned |
 | [psychoacoustics-references.md](psychoacoustics-references.md) | Psychoacoustics reference: the libraries, equations, and model recommendations behind M26–M31 |

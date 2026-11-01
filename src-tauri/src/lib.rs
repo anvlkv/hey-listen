@@ -145,6 +145,9 @@ pub fn run() {
             let opened_files = commands::project::OpenedFiles::default();
             opened_files.adopt_early();
             app.manage(opened_files);
+            // The project a newly created window should open (the compare view's
+            // "Open reference", M25.D); drained by that window's frontend.
+            app.manage(commands::compare::reference::PendingWindowPaths::default());
             // MCP server (M9): in-flight tool calls forwarded to a window's frontend.
             app.manage(mcp::Pending::default());
             // MCP settings + server lifecycle: load the persisted config and, when it
@@ -228,6 +231,8 @@ pub fn run() {
             commands::compare::popout::retarget_compare_popout,
             commands::compare::popout::popout_compare,
             commands::compare::popout::compare_popouts,
+            commands::compare::reference::open_reference_window,
+            commands::compare::reference::take_window_open_path,
             commands::export::export_analysis,
             commands::export::export_all,
             commands::export::pick_save_path,
@@ -242,6 +247,7 @@ pub fn run() {
             commands::project::pick_project_save_path,
             commands::project::take_pending_open_paths,
             commands::project::add_recent_project,
+            commands::project::siblings::adjacent_project,
             commands::window::open_project_window,
             commands::window::open_popout_window,
             commands::window::sync_popouts,

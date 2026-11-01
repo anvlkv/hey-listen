@@ -20,6 +20,7 @@ use crate::state::window_state;
 
 pub mod peer;
 pub mod popout;
+pub mod reference;
 
 use peer::{peer_state, project_name};
 

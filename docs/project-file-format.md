@@ -73,7 +73,8 @@ entry per comparison open at save time (tab or popout); `load_project` returns t
 the core keeps them per window, so a compare view can bind to the snapshot after reload.
 The frontend supplies the open compare tools (`compareOpen`) and the core fills each
 entry from its last successful comparison; a closed comparison is dropped on the next
-save.
+save. A **headless** session writes the same section: `compare_analysis` against a
+project file stores that reference side, and `save_project` writes it (M25.D).
 
 The payload is `postcard` with a **postcard-safe mirror** of the result
 (`results::StoredAnalysisResult`): the IPC enum is internally tagged (`tool` key), which
@@ -159,6 +160,10 @@ commands in `src-tauri/src/commands/project.rs` bridge it to the frontend, with
   (the editor state is authoritative), old files simply lack it, and the CLI then
   compares unfiltered with a warning. Compare panels are stripped from the dockview
   snapshot before it is written (see [`comparison.md`](comparison.md)).
+- **`SETUP.openTools`** lists the analyzer tabs the project was saved with. A GUI save
+  also carries the full `LAYOUT.dockview`, so the layout is authoritative; a **headless**
+  save has no dockview, and the loader opens the listed tabs to fill an empty Workbench
+  (M25.D).
 - **`RESULTS`** is a `postcard` `Vec<StoredResult>`; it is written **empty** today
   (result caching is deferred — see below). The type is defined now so the format
   stays forward-compatible.

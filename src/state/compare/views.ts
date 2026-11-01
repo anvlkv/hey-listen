@@ -172,6 +172,19 @@ export async function openCompare(tool: AnalyzerId, reference: string) {
   setReference(tool, reference);
 }
 
+/**
+ * Bring the reference project into view (M25.D): raise its window when the reference
+ * is live (or an open project with the saved reference's name), otherwise open a new
+ * window at the matching recent project file. Returns the action the core took
+ * (`focused` / `opened`) and rejects with a readable message when it cannot.
+ */
+export async function showReference(binding: CompareBinding): Promise<string> {
+  return invoke<string>("open_reference_window", {
+    label: binding.kind === "live" ? binding.reference : null,
+    name: binding.kind === "saved" ? binding.reference : null,
+  });
+}
+
 /** Open (or retarget) `tool`'s comparison against the project's saved snapshot. */
 export async function openCompareSaved(tool: AnalyzerId): Promise<boolean> {
   const info = await fetchSaved(tool);

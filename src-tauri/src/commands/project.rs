@@ -28,6 +28,8 @@ use crate::project::{
 };
 use crate::state::window_state;
 
+pub mod siblings;
+
 /// The project's file extension (magic `HEYL`, and `bundle.fileAssociations` in
 /// `tauri.conf.json`).
 const PROJECT_EXTENSION: &str = "heyl";

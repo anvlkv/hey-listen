@@ -1561,7 +1561,8 @@ transient **compare view** overlays the two results. See [`comparison.md`](compa
 - Workbench **tab context menu** → *Compare with…* on an analyzer tab.
 - Native **Analysis → Compare with…** on the focused analyzer tab (`app:menu` id
   `compare`).
-- MCP **`compare_analysis`** (app-only); CLI **`compare A.heyl B.heyl -t TOOL`**.
+- MCP **`compare_analysis`** (a live window label in the app, a project path headless
+  since M25.D); CLI **`compare A.heyl B.heyl -t TOOL`**.
 
 ### Compute
 
@@ -1615,7 +1616,8 @@ transient **compare view** overlays the two results. See [`comparison.md`](compa
 
 - **MCP** `compare_analysis { tool, with, target? }` returns `{ a, b, comparability,
   diff }`, with the same `includeData` / `maxPoints` / `axis` / `summaryOnly` shaping as
-  `run_analysis`. Headless answers *requires the app*. `list_projects` gains each
+  `run_analysis`. Headless answers *requires the app* (superseded by M25.D: headless
+  takes a reference project path). `list_projects` gains each
   project's source shape, window and filter presence.
 - **CLI** `compare <A.heyl> <B.heyl> -t TOOL` uses each project's saved setup and
   `LAYOUT.filterSpec`; per-side window overrides and `--overlap`; JSONL one line per
@@ -1660,7 +1662,8 @@ alignment + the fine-tune offset followed in **M25.B**, and saved comparisons in
 > the commands (`commands/compare.rs`: `run_comparison`, `compare_peer_setup`,
 > `compare_live`, `compare_targets`, `open_compare_popout`, `retarget_compare_popout`,
 > `popout_compare`, `compare_popouts`), the **Analysis** menu item, the enriched
-> `list_projects`, MCP `compare_analysis` (app-only) with `get_state.compare`, the CLI
+> `list_projects`, MCP `compare_analysis` (app-only at M25; headless takes a project path
+> since M25.D) with `get_state.compare`, the CLI
 > `compare` subcommand and `LAYOUT.filterSpec`, and the frontend (`state/compare/`,
 > `components/compare/`, the `lib/dockviewLayout.ts` sanitiser, the picker dialog, the
 > compare-popout boot). The M25 **views** are series, spectrum and readouts; the core
@@ -1936,6 +1939,66 @@ B; the dirty prompt appears after a settled B change.
 > `activateTab()` now dispatches the **pointerdown** dockview activates on — a bare click
 > left the restored analyzer tab's panel unmounted. Both are documented in
 > [`testing.md`](testing.md) → “Waiting rules”.
+
+## M25.D — Project navigation + headless comparisons ✅
+
+Follow-ups from a Tier-1 preset evaluation test drive (an agent over MCP) and daily batch
+work: an agent had to read the sources to find the surface, refused to compare without
+the app, and could not save a project with its tabs/comparisons; the user wanted to step
+between sibling projects and to reach the other side of a comparison. Supersedes nothing
+— it extends M25/M25.C.
+
+- **Headless comparisons.** `compare_analysis` no longer answers *requires the app* in a
+  headless session. `with` is the reference **project file** (`.heyl`): A is the session,
+  B runs with that file's saved window/params/options and `LAYOUT.filterSpec`, through the
+  **same loader** the CLI `compare` uses (`project/side.rs`, extracted from
+  `cli/batch/compare.rs`). `saved: true` reuses the session's stored snapshot. `params` /
+  `options` / `start` / `end` / `transient` patch A exactly as `run_analysis` does
+  (`summaryOnly` / `includeData` / `maxPoints` / `axis` shape the result). The last
+  successful comparison is kept in the session's window state — the same per-tool store
+  the app fills — so `save_project` writes it.
+- **Saved project state round-trips headless.** `open_project` keeps `SETUP.openTools`;
+  `save_project` writes them when the call passes none (and a headless comparison is
+  written into `COMPARE`). The GUI loader opens `SETUP.openTools` when the saved
+  `LAYOUT.dockview` has **no panels** (a headless save has no dockview), so such a project
+  no longer opens with zero tabs; a GUI layout already contains them and is untouched
+  (restoring must not steal the active tab).
+- **MCP self-documentation.** The server `instructions` now spell the comparison workflow
+  (live label in the app vs project path headless, `saved`, and that the comparison is
+  stored so `save_project` writes it), `openTools` restore, and that the surface is
+  discoverable through `get_state` / `list_analyzers` / `get_analyzer` — no need to read
+  the sources or shell out to the CLI. `compare_analysis`, `save_project` and
+  `open_project` descriptions say the same.
+- **Previous / Next Project.** File menu items (and `CmdOrCtrl+Alt+Left` / `Right`) step
+  through the `.heyl` files in the current project's folder, case-insensitive name order,
+  stopping at the ends, behind the usual unsaved-work guard. The core command is
+  `adjacent_project(path, direction)`; an unsaved project reports that it must be saved
+  first.
+- **Reference project from a compare view.** The header gains **Show reference** (a live
+  reference raises that project's window) / **Open reference** (a saved reference: an open
+  project with that display name first, else the most recent project file with that name,
+  opened in a new window through a pending-path handoff). A miss is a transient notice —
+  it never rebinds the comparison.
+
+**Files:** `src-tauri/src/project/side.rs` (the shared project side loader),
+`src-tauri/src/mcp/dispatch/{mod,compare,project}.rs` + `dispatch/tests/compare.rs`,
+`src-tauri/src/mcp/{protocol,tools/{compare,project}}.rs`,
+`src-tauri/src/commands/project/siblings.rs`, `src-tauri/src/commands/compare/reference.rs`,
+`src-tauri/src/{lib,menu}.rs`, `src/state/project/{load,siblings,index}.ts`,
+`src/state/{menu,compare/views}.ts`, `src/components/compare/CompareHeader.tsx`.
+
+**Tests.** Rust: headless compare against a project file (result + snapshot + save),
+`saved: true`, a missing reference, the open→save `openTools` round trip, the
+`adjacent_project` ordering/ends, and the saved-reference name match.
+
+**Validation.** `cargo test --lib`, `cargo clippy`, `npm run typecheck`,
+`npm run typecheck:e2e`, `npm run test:unit`, `npm run build`, `npm run maid`, a headless
+MCP test drive (open → compare against a project file → save → reopen the saved
+comparison), and the CLI `compare` on two project files. The full E2E suite is the
+regression gate before release (it restarts the app, so it runs when no session is open).
+
+**Non-goals:** no second live window headless (one session = one project), no automatic
+rebinding of a saved reference, no comparison across 3+ projects.
 
 ## M26–M31 — Psychoacoustic analysis (planned)
 

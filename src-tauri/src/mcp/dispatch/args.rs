@@ -4,9 +4,13 @@
 //! the camelCase patch objects an agent sends, matching the frontend's stores; and
 //! [`number`] / [`clamp_span`] read and clamp a tool's explicit span.
 
+use std::collections::HashMap;
+
 use serde_json::Value;
 
-use crate::audio::analysis::{canonical_option_key, SharedParams, ToolOptions, WindowKind};
+use crate::audio::analysis::{
+    canonical_option_key, Axis, Shape, SharedParams, ToolOptions, WindowKind,
+};
 use crate::audio::analyzers::AnalyzerId;
 
 /// The default shared params, matching the frontend's initial store values
@@ -158,4 +162,98 @@ pub(super) fn clamp_span(start: f64, end: f64, duration: f64) -> (f64, f64) {
         std::mem::swap(&mut a, &mut b);
     }
     (a, b)
+}
+
+/// Whether a call's overrides apply to this call only (`transient`).
+pub(super) fn transient(args: &Value) -> bool {
+    args.get("transient")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+/// The effective shared params for a call: a `params` patch merges into a local copy
+/// when the call is transient, otherwise it persists in `stored`.
+pub(super) fn effective_params(
+    stored: &mut SharedParams,
+    args: &Value,
+    transient: bool,
+) -> Result<SharedParams, String> {
+    let mut params = stored.clone();
+    if let Some(patch) = args.get("params").filter(|value| !value.is_null()) {
+        if transient {
+            merge_params(&mut params, patch)?;
+        } else {
+            merge_params(stored, patch)?;
+            params = stored.clone();
+        }
+    }
+    Ok(params)
+}
+
+/// The effective per-tool options for a call, under the same persistence rule.
+pub(super) fn effective_options(
+    stored: &mut HashMap<AnalyzerId, ToolOptions>,
+    tool: AnalyzerId,
+    args: &Value,
+    transient: bool,
+) -> Result<ToolOptions, String> {
+    let mut options = stored.get(&tool).cloned().unwrap_or_default();
+    if let Some(patch) = args.get("options").and_then(Value::as_object) {
+        if transient {
+            merge_options(&mut options, tool, patch)?;
+        } else {
+            let entry = stored.entry(tool).or_default();
+            merge_options(entry, tool, patch)?;
+            options = stored.get(&tool).cloned().unwrap_or_default();
+        }
+    }
+    Ok(options)
+}
+
+/// The effective analysis window (clamped to the source), plus whether the call named
+/// an explicit `start`/`end` (which persists unless the call is transient).
+pub(super) fn effective_window(
+    stored: (f64, f64),
+    args: &Value,
+    duration: f64,
+) -> ((f64, f64), bool) {
+    let explicit = args.get("start").is_some() || args.get("end").is_some();
+    let start = args
+        .get("start")
+        .and_then(Value::as_f64)
+        .unwrap_or(stored.0);
+    let end = args.get("end").and_then(Value::as_f64).unwrap_or(stored.1);
+    (clamp_span(start, end, duration), explicit)
+}
+
+/// The requested result shape, its point cap, and the axis spelling.
+pub(super) fn output_mode(args: &Value) -> Result<(Shape, Option<usize>, Axis), String> {
+    let summary_only = args
+        .get("summaryOnly")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let include_data = args
+        .get("includeData")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if summary_only && include_data {
+        return Err("`summaryOnly` and `includeData` are mutually exclusive".to_string());
+    }
+    let shape = if summary_only {
+        Shape::Summary
+    } else if include_data {
+        Shape::Full
+    } else {
+        Shape::Compact
+    };
+    let max_points = args
+        .get("maxPoints")
+        .and_then(Value::as_u64)
+        .map(|points| points as usize);
+    // Full results can spell uniform time axes compactly; the default keeps arrays.
+    let axis = match args.get("axis").and_then(Value::as_str) {
+        Some("compact") => Axis::Compact,
+        _ => Axis::Array,
+    };
+    Ok((shape, max_points, axis))
 }
