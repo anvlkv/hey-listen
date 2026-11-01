@@ -1,9 +1,10 @@
 # Batch CLI (`hey-listen analyze`)
 
 A **subcommand of the app binary** that runs the analysis engine over files without
-opening or driving a window — so a shell script or CI job can do bulk analysis and
-read the results as JSON. It is the non-MCP sibling of the headless MCP server: the
-same engine, a friendlier calling convention.
+opening or driving a window — so a shell script or CI job can do bulk analysis, build
+project files (source + setup + tabs, and a saved comparison), and read the results as
+JSON. It is the non-MCP sibling of the headless MCP server: the same engine, a friendlier
+calling convention.
 
 This is delivered (**M10**). The batch logic lives in `src-tauri/src/cli/batch/`;
 the interface is declared in `tauri.conf.json` → `plugins.cli`. See
@@ -77,8 +78,9 @@ Commands:
   analyzers [ID]  List the analyzer catalog, or explain one analyzer
   analyze         Decode file(s) and run analyzer(s) over them
   compare         Diff one analyzer across two project files
+  project         Build a .heyl project (source + setup + tabs), no window
   synth           Render a synth graph and (optionally) analyze the result
-  notes           List the notes in a project file (.heyl)
+  notes           List or edit the notes in a project file (.heyl)
 
 Options:
   -m, --mcp      Run the stdio MCP entry instead of the GUI
@@ -142,6 +144,8 @@ older absolute-intersection behavior.
 | `-o, --option [TOOL.]K=V` | Patch a per-tool option on **both** sides. |
 | `--filter <FILE>` | Override both saved filters with this `GraphSpec`. |
 | `--full` / `--summary` | Raw result/delta arrays, or summaries + diff stats only. |
+| `--save <OUT.heyl>` | Write **owner A** back to this path with the reference snapshots, so the app reopens the comparison as a compare tab **(M25.D)**. A reference project stays a reference; anything else embeds the decoded audio. |
+| `--open-tool <ID>` | With `--save`, override the saved project's Workbench tabs (repeatable). |
 | `--pretty` / `--fail-fast` | As in `analyze`. |
 
 One JSONL object per tool (the `analyze` result envelope per side plus the comparison):
@@ -165,6 +169,11 @@ audio files. Comparing a **single** file against its saved snapshot (M25.C) is a
 follow-up (the headless MCP server already does it with
 `compare_analysis { saved: true }`, M25.D).
 
+With `--save`, the owner's setup stores the diff's **effective** settings (the
+`-p` / `-o` / `--start` / `--end` / `--filter` overrides included), so reopening it
+reproduces the comparison instead of a silently different one. stdout stays pure
+JSONL; the saved path is reported on stderr.
+
 > **Delivered (M25).** `cli/batch/compare.rs` loads both project files itself (each side
 > gets its own `WindowState` with the saved PCM — or the referenced file — and
 > `LAYOUT.filterSpec`), then runs `analysis::compare::compare` per tool. `--windows` is
@@ -178,21 +187,85 @@ follow-up (the headless MCP server already does it with
 | `ID` | Optional analyzer id. With it, print the description, about copy, option metadata (defaults / ranges / help), and summary keys. **(M21)** |
 | `--json` | Emit the analyzer catalog (or the one analyzer) as JSON, matching MCP's `list_analyzers` / `get_analyzer`. Otherwise a plain table. |
 
-### `notes <FILE.heyl>`
+### `notes <FILE.heyl>` (M14; editing since M25.D)
 
-List the **notes** stored in a project file, sorted by time (M14; see
-[`notes.md`](notes.md)). Read-only — it decodes the container, reads the `NOTES` section,
-and never mutates the file.
+List, get, add, update or delete the **notes** stored in a project file, without a window
+(see [`notes.md`](notes.md)). The note shape is the same one MCP's `save_project` takes:
+`title`, `body`, `timeSecs`, optional `range` / `tool`.
 
 | Option | Meaning |
 | --- | --- |
-| `--json` | Emit each note as one JSON line (JSONL) instead of a table. |
-| `--full` | Include the full markdown body (default: a one-line excerpt). |
+| `--json` | List: emit each note as one JSON line (JSONL) instead of a table. |
+| `--full` | List: include the full markdown body (default: a one-line excerpt). |
+| `--get <ID>` | Print one note (full body and frozen values). |
+| `--add <FILE.json>` | Append the notes in a JSON array file. |
+| `--update <ID> --set FIELD=VALUE` | Patch one note. Fields: `title`, `body`, `timeSecs` (`time` / `at`), `range` (`start,end` seconds, an object, or `none`), `tool` (an analyzer id or `none`). `none` / `null` clears an optional field. |
+| `--delete <ID>` | Remove one note. |
+| `--to <FILE.heyl>` | Write a changed project to a **copy** instead of editing it in place (works with `--add` / `--update` / `--delete`). |
 
 A file with no `NOTES` section prints nothing and exits `0`; a missing / unreadable /
-non-project file is an `error` (exit `1`), and a bad flag is a usage error (exit `2`).
+non-project file, an unknown id, or an invalid field is an `error` (exit `1`); a bad flag
+or using flags together (`--json` with a mutation, two operations, `--to` without one) is
+a usage error (exit `2`). Mutations rewrite the project **atomically** (a sibling temp
+file renamed over it), preserving the source, setup, layout and saved comparisons — but
+an open app does not watch the file, so **reload it** after an external edit.
+
+```bash
+# Add two annotations from a JSON array file:
+hey-listen notes mix.heyl --add /tmp/notes.json
+
+# Rename one and give it a span, in place:
+hey-listen notes mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
+
+# Print it back, or remove it:
+hey-listen notes mix.heyl --get n1
+hey-listen notes mix.heyl --delete n1
+
+# Edit a copy:
+hey-listen notes mix.heyl --add /tmp/notes.json --to mix-annotated.heyl
+```
+
 The `analyze` / `synth` commands do **not** gain note flags — they run against files, not
 projects, so there is nowhere to store a note.
+
+### `project <OUT.heyl>` (M25.D)
+
+Build a **project file** from a source + setup + tabs, with no window — the CLI face of
+the headless MCP sequence `open_audio_file` / `render_synth` → `set_*` → `open_tool` →
+`save_project`. The result opens in the app with the same source, setup, filter, notes
+and Workbench tabs. Nothing is analyzed unless you run `analyze` / `compare` separately.
+
+| Option | Meaning |
+| --- | --- |
+| `--source <AUDIO>` | Decode this file as the project source (mutually exclusive with `--synth`). |
+| `--synth <GRAPH.json>` | Render a synth graph as the source; `--seconds` sets its length (default 5). |
+| `--name <NAME>` | Project display name (default: the output file stem). |
+| `--open-tool <ID>` | Analyzer tab to restore when the project opens (repeatable). |
+| `--notes <FILE.json>` | Annotations to write: a JSON array of note objects (`title`, `body`, `timeSecs`, optional `range` / `tool`), the same shape MCP's `save_project` takes. |
+| `--start` / `--end` | Analysis window (default `0` … full duration). |
+| `-p` / `-o` / `--filter` | Shared params, per-tool options, and a filter `GraphSpec` saved into the project. Name the tool in `-o` (`-o mfcc.nMfcc=13`). |
+| `--reference` | Write a reference project (no embedded audio) for a file source. |
+| `--pretty` | Pretty-print the one saved-project record. |
+
+Prints one JSON line (`{ path, name, embedded, notes, openTools }`). Parent folders are
+created. A failure to decode/render/save is an `error` line (exit `1`); bad arguments are
+a usage error (exit `2`).
+
+```bash
+# An audio file plus the tabs and notes to restore:
+hey-listen project call.heyl --source call.wav --open-tool noteMetrics \
+  --open-tool spectrogram --notes notes.json --start 1.2 --end 3.4
+
+# A project from a synth graph:
+hey-listen project demo.heyl --synth demo.json --seconds 2.5 --open-tool spectrum
+
+# A reference project (keeps the SOURCE path, embeds no audio):
+hey-listen project call-ref.heyl --source call.wav --reference
+
+# Compare two projects and save the diff into a copy of the owner:
+hey-listen compare a.heyl b.heyl -t spectrum --save a-with-comparison.heyl \
+  --open-tool spectrum
+```
 
 ### `synth <GRAPH.json>`
 
@@ -336,7 +409,12 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
 
 - `analyzers`, `analyze`, `synth` — decode a file, run analyzers, render a synth
   graph, list the catalog, with shared params / per-tool options / a filter graph.
-- `notes` — read a saved project's notes (M14; read-only).
+- `notes` — list **and edit** a saved project's notes (M14; get/add/update/delete since
+  M25.D).
+- `compare` — diff two project files, optionally saving the reference snapshots back
+  into the owner (`--save`, M25.D).
+- `project` — build a `.heyl` from a file or synth source with the analysis setup,
+  filter, notes and Workbench tabs to restore (M25.D). Nothing needs a window.
 
 Planned in the compute subset (M13):
 

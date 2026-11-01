@@ -17,10 +17,10 @@ mod shaping;
 fn ui_only_tools_require_the_app() {
     let mut session = HeadlessSession::default();
     for tool in [
-        "open_tool",
         "get_graph",
         "set_synth_graph",
         "preview",
+        "open_project_window",
         "set_theme",
         "import_theme",
         "export_theme",
@@ -104,6 +104,38 @@ fn get_state_reports_headless() {
     assert_eq!(state["headless"], true);
     assert!(state["source"].is_null());
     assert_eq!(state["params"]["fftSize"], 2048);
+    assert_eq!(state["savedComparisons"], json!([]));
+}
+
+#[test]
+fn open_and_close_tool_track_the_projects_tabs() {
+    let mut session = HeadlessSession::default();
+
+    let opened = session
+        .dispatch("open_tool", json!({ "tool": "spectrum" }))
+        .unwrap();
+    assert_eq!(opened["openTools"], json!(["spectrum"]));
+    // Opening the same tab again is a focus, not a duplicate.
+    session
+        .dispatch("open_tool", json!({ "tool": "spectrum" }))
+        .unwrap();
+    session
+        .dispatch("open_tool", json!({ "tool": "waveform" }))
+        .unwrap();
+    assert_eq!(
+        session.dispatch("get_state", json!({})).unwrap()["openTools"],
+        json!(["spectrum", "waveform"])
+    );
+
+    let closed = session
+        .dispatch("close_tool", json!({ "tool": "spectrum" }))
+        .unwrap();
+    assert_eq!(closed["openTools"], json!(["waveform"]));
+
+    let err = session
+        .dispatch("open_tool", json!({ "tool": "nope" }))
+        .unwrap_err();
+    assert!(err.contains("unknown tool"), "{err}");
 }
 
 #[test]

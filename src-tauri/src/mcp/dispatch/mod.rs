@@ -8,11 +8,12 @@
 //! [`crate::audio::graph`], …). So there is no second DSP path; the "same surface"
 //! is the engine, not the webview.
 //!
-//! UI-only tools — Workbench tabs (`open_tool` / `close_tool`), editor-layout graph
-//! editing (`get_graph` / `set_synth_graph`), and live preview/capture (real device
-//! I/O with no UI to configure it) — answer "requires the app". Project save/load is
-//! supported headless from the session's own state (source, setup, notes); it writes
-//! no Workbench layout, because there is no webview. `set_filter_graph` is supported
+//! UI-only tools — editor-layout graph editing (`get_graph` / `set_synth_graph`) and
+//! live preview/capture (real device I/O with no UI to configure it) — answer
+//! "requires the app". Project save/load is supported headless from the session's own
+//! state (source, setup, notes, open tabs); `open_tool` / `close_tool` maintain the
+//! `SETUP.openTools` restore list rather than a webview, and no `LAYOUT` is written.
+//! `set_filter_graph` is supported
 //! headless too, but takes a `GraphSpec` directly (there is no graph editor). See
 //! `docs/mcp.md`.
 //!
@@ -112,6 +113,8 @@ impl HeadlessSession {
             "open_project" => self.open_project(&args),
             "new_project" => self.new_project(),
             "set_filter_graph" => self.set_filter_graph(&args),
+            "open_tool" => self.open_tool(&args),
+            "close_tool" => self.close_tool(&args),
             "run_analysis" => self.run_analysis(&args),
             "compare_analysis" => self.compare_analysis(&args),
             "export_analysis" => self.export_analysis(&args),
@@ -185,9 +188,10 @@ impl HeadlessSession {
                 ),
             },
             other => Err(format!(
-                "`{other}` requires the app — headless mode runs the compute tools only \
-                 (open a source, run analyzers, render synth, enumerate devices). \
-                 Start Hey Listen and point the bridge at it for the full surface."
+                "`{other}` requires the app — headless mode runs the compute + project \
+                 tools (open a source, run analyzers, compare against a project file, \
+                 save/load projects). Start Hey Listen and point the bridge at it for the \
+                 full surface."
             )),
         }
     }

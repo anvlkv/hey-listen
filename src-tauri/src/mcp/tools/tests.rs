@@ -76,6 +76,23 @@ fn run_analysis_is_not_destructive_and_compare_is_read_only() {
 }
 
 #[test]
+fn open_project_window_is_non_destructive_and_requires_a_path() {
+    let tools = super::list();
+    let tool = tools
+        .iter()
+        .find(|tool| tool["name"] == "open_project_window")
+        .expect("the window tool is registered");
+    assert_eq!(tool["annotations"]["destructiveHint"], false);
+    assert_eq!(tool["annotations"]["idempotentHint"], true);
+    assert_eq!(tool["inputSchema"]["required"], serde_json::json!(["path"]));
+    // Every tool carries the shared `target` property (multi-project addressing).
+    assert_eq!(
+        tool["inputSchema"]["properties"]["target"]["type"],
+        "string"
+    );
+}
+
+#[test]
 fn get_analyzer_agrees_with_list_analyzers() {
     for item in analyzers::list() {
         let id: crate::audio::analyzers::AnalyzerId = item["id"].as_str().unwrap().parse().unwrap();

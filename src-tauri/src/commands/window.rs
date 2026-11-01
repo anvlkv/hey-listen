@@ -16,6 +16,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
+use crate::audio::analyzers::ToolId;
+
+pub mod project;
+
 /// Monotonic counter for unique window labels within this process.
 static WINDOW_SEQ: AtomicU32 = AtomicU32::new(1);
 
@@ -36,7 +40,7 @@ pub(crate) fn raise(window: &tauri::WebviewWindow) {
 /// The alias is registered **before** the window loads, so its frontend can ask
 /// `popout_tool` / `load_shared_source` and resolve to the parent project right away
 /// (no race with the window's first paint).
-fn create_popout(app: &AppHandle, parent: &str, tool_id: &str) -> Result<(), String> {
+fn create_popout(app: &AppHandle, parent: &str, tool_id: ToolId) -> Result<(), String> {
     let label = next_label("popout");
     let registry = app.state::<crate::state::WindowRegistry>();
     registry.add_popout(&label, parent, tool_id);
@@ -65,17 +69,17 @@ fn create_popout(app: &AppHandle, parent: &str, tool_id: &str) -> Result<(), Str
 #[tauri::command]
 pub async fn open_popout_window(
     window: tauri::WebviewWindow,
-    tool_id: String,
+    tool_id: ToolId,
 ) -> Result<(), String> {
     let app = window.app_handle();
     let registry = app.state::<crate::state::WindowRegistry>();
-    if let Some(existing) = registry.popout_for(window.label(), &tool_id) {
+    if let Some(existing) = registry.popout_for(window.label(), tool_id) {
         if let Some(popout) = app.get_webview_window(&existing) {
             raise(&popout);
             return Ok(());
         }
     }
-    create_popout(app, window.label(), &tool_id)
+    create_popout(app, window.label(), tool_id)
 }
 
 /// Close every popout window of the calling project (tool **and** note views).
@@ -111,14 +115,14 @@ pub async fn close_popouts(window: tauri::WebviewWindow) -> Result<(), String> {
 /// one command keeps the two halves (close then open) in a single order; doing it from
 /// the frontend as a loop could leave a duplicate between the calls.
 #[tauri::command]
-pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<String>) -> Result<(), String> {
+pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<ToolId>) -> Result<(), String> {
     let app = window.app_handle();
     let registry = app.state::<crate::state::WindowRegistry>();
     let root = registry.root_label(window.label());
     let live = app.webview_windows();
 
     // What is open *now*, per tool (skip windows that are already destroyed).
-    let open: HashSet<String> = registry
+    let open: HashSet<ToolId> = registry
         .project_windows(&root)
         .into_iter()
         .filter(|label| label != &root && live.contains_key(label))
@@ -127,7 +131,7 @@ pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<String>) -> R
 
     // Close what the project no longer shows, and every window but the first for a tool
     // it does show — so a load can never leave two windows for one tool.
-    let mut kept: HashSet<String> = HashSet::new();
+    let mut kept: HashSet<ToolId> = HashSet::new();
     for label in registry.project_windows(&root) {
         if label == root || !live.contains_key(&label) {
             continue;
@@ -147,7 +151,7 @@ pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<String>) -> R
     // Open the ones the project shows that had no window.
     for tool in tools {
         if !open.contains(&tool) {
-            create_popout(app, &root, &tool)?;
+            create_popout(app, &root, tool)?;
         }
     }
 
@@ -198,7 +202,7 @@ pub async fn open_note_window(window: tauri::WebviewWindow, note_id: String) -> 
 
 /// The tool a popout window shows, or `None` for a regular project window.
 #[tauri::command]
-pub fn popout_tool(window: tauri::WebviewWindow) -> Option<String> {
+pub fn popout_tool(window: tauri::WebviewWindow) -> Option<ToolId> {
     window
         .app_handle()
         .state::<crate::state::WindowRegistry>()
@@ -216,7 +220,7 @@ pub fn popout_note(window: tauri::WebviewWindow) -> Option<String> {
 
 /// The tools currently popped out of the calling window's project.
 #[tauri::command]
-pub fn popout_tools(window: tauri::WebviewWindow) -> Vec<String> {
+pub fn popout_tools(window: tauri::WebviewWindow) -> Vec<ToolId> {
     window
         .app_handle()
         .state::<crate::state::WindowRegistry>()
@@ -229,10 +233,10 @@ pub fn popout_tools(window: tauri::WebviewWindow) -> Vec<String> {
 /// main window (the "no duplicate analyzer tabs" rule): it raises the popout
 /// instead. Returns `true` when a popout was found and focused.
 #[tauri::command]
-pub fn focus_popout(window: tauri::WebviewWindow, tool_id: String) -> bool {
+pub fn focus_popout(window: tauri::WebviewWindow, tool_id: ToolId) -> bool {
     let app = window.app_handle();
     let registry = app.state::<crate::state::WindowRegistry>();
-    let Some(label) = registry.popout_for(window.label(), &tool_id) else {
+    let Some(label) = registry.popout_for(window.label(), tool_id) else {
         return false;
     };
     let Some(popout) = app.get_webview_window(&label) else {

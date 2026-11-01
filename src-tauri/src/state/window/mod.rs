@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use crate::audio::analysis::compare::SavedComparison;
-use crate::audio::analyzers::AnalyzerId;
+use crate::audio::analyzers::{AnalyzerId, ToolId};
 use crate::audio::capture::CaptureHandle;
 
 use super::AudioState;
@@ -107,7 +107,7 @@ struct RegistryInner {
     /// Popout label → parent label (a popout shares its parent's project state).
     aliases: HashMap<String, String>,
     /// Popout label → tool id shown in that popout.
-    popout_tools: HashMap<String, String>,
+    popout_tools: HashMap<String, ToolId>,
     /// Popout label → note id shown in that popout.
     popout_notes: HashMap<String, String>,
     /// Popout label → the **compare** view it shows (M25). Kept apart from the tool
@@ -162,19 +162,17 @@ impl WindowRegistry {
     }
 
     /// Register `popout` as a view of `parent`'s project showing `tool`.
-    pub fn add_popout(&self, popout: &str, parent: &str, tool: &str) {
+    pub fn add_popout(&self, popout: &str, parent: &str, tool: ToolId) {
         let mut inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         inner.aliases.insert(popout.to_string(), parent.to_string());
-        inner
-            .popout_tools
-            .insert(popout.to_string(), tool.to_string());
+        inner.popout_tools.insert(popout.to_string(), tool);
     }
 
     /// The tool a popout window shows, or `None` for a regular project window.
-    pub fn popout_tool(&self, label: &str) -> Option<String> {
+    pub fn popout_tool(&self, label: &str) -> Option<ToolId> {
         let inner = self
             .inner
             .lock()
@@ -238,12 +236,12 @@ impl WindowRegistry {
     ///
     /// Used to **raise** an already-popped-out tool instead of opening a duplicate
     /// tab for it (the "no duplicate analyzer tabs" rule).
-    pub fn popout_for(&self, label: &str, tool: &str) -> Option<String> {
+    pub fn popout_for(&self, label: &str, tool: ToolId) -> Option<String> {
         let inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        popout_showing(&inner, label, &inner.popout_tools, tool)
+        popout_showing(&inner, label, &inner.popout_tools, &tool)
     }
 
     /// The popout window showing `note_id` for `label`'s project, if one is open.
@@ -269,7 +267,7 @@ impl WindowRegistry {
     }
 
     /// The tools popped out of `label`'s project (for saving/restoring them).
-    pub fn popout_tools_of(&self, label: &str) -> Vec<String> {
+    pub fn popout_tools_of(&self, label: &str) -> Vec<ToolId> {
         let inner = self
             .inner
             .lock()
@@ -278,7 +276,7 @@ impl WindowRegistry {
             .aliases
             .iter()
             .filter(|(_, parent)| parent.as_str() == label)
-            .filter_map(|(popout, _)| inner.popout_tools.get(popout).cloned())
+            .filter_map(|(popout, _)| inner.popout_tools.get(popout).copied())
             .collect()
     }
 
@@ -319,16 +317,20 @@ fn resolve_root(aliases: &HashMap<String, String>, label: &str) -> String {
 /// The popout of `label`'s project whose `shown` table (popout label → shown id) maps
 /// it to `id`, if one is open. `shown` is the tool map or the note map, so the two
 /// kinds share one lookup.
-fn popout_showing(
+fn popout_showing<K, Q>(
     inner: &RegistryInner,
     label: &str,
-    shown: &HashMap<String, String>,
-    id: &str,
-) -> Option<String> {
+    shown: &HashMap<String, K>,
+    id: &Q,
+) -> Option<String>
+where
+    K: std::borrow::Borrow<Q>,
+    Q: PartialEq + ?Sized,
+{
     let root = resolve_root(&inner.aliases, label);
     inner.aliases.iter().find_map(|(popout, parent)| {
         let same_project = resolve_root(&inner.aliases, parent) == root;
-        let shows_id = shown.get(popout).map(String::as_str) == Some(id);
+        let shows_id = shown.get(popout).map(std::borrow::Borrow::borrow) == Some(id);
         (same_project && shows_id).then(|| popout.clone())
     })
 }

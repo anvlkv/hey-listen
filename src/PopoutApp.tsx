@@ -4,7 +4,7 @@ import { createEffect, createSignal, onMount, Show, untrack, type JSX } from "so
 import ToolContent from "./components/ToolContent";
 import CompareTab from "./components/compare/CompareTab";
 import NoteWindow from "./components/notes/NoteWindow";
-import { analyzerById, type AnalyzerId } from "./state/analyzer";
+import { analyzerById } from "./state/analyzer";
 import { projectName } from "./state/project";
 import { setError, setSource, setStatus, source } from "./state/source";
 import { resetTimeline, windowEnd, windowStart } from "./state/timeline";
@@ -52,7 +52,7 @@ export default function PopoutApp(props: {
       setOffset(0);
       return;
     }
-    const info = await fetchSaved(view.tool as AnalyzerId);
+    const info = await fetchSaved(view.tool);
     setOffset(info?.bOffset ?? 0);
   }
 
@@ -106,7 +106,7 @@ export default function PopoutApp(props: {
     const what = props.noteId
       ? "Note"
       : props.compare
-        ? `Compare: ${analyzerById(props.compare.tool as AnalyzerId).title} — ${projectName()} ↔ ${referenceName()}`
+        ? `Compare: ${analyzerById(props.compare.tool).title} — ${projectName()} ↔ ${referenceName()}`
         : (tool()?.title ?? "Hey Listen");
     void getCurrentWindow()
       .setTitle(`${what} — ${projectName().replace(/ \*$/, "")}`)
@@ -139,7 +139,7 @@ export default function PopoutApp(props: {
               };
               return (
                 <CompareTab
-                  tool={current().tool as AnalyzerId}
+                  tool={current().tool}
                   binding={binding}
                   onBindingChange={(next) =>
                     void retargetComparePopout(next.reference, next.kind === "saved").then(() =>

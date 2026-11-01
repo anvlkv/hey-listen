@@ -1,6 +1,6 @@
 ---
 name: audio-analysis
-description: Drive Hey Listen's audio-analysis engine programmatically — via the built-in MCP server (agent access + live UI following) or the batch CLI (`hey-listen analyze`, headless shell/CI). Covers picking the interface, the discover → run → read workflow, the tool inventory, result modes (summary / compact / full), event segmentation, comparison, and data/chart export. Use when a task needs to open a source, run analyzers, segment calls/syllables/notes, compare projects, or read results from an MCP client or a shell.
+description: Drive Hey Listen's audio-analysis engine programmatically — via the built-in MCP server (agent access + live UI following) or the batch CLI (`hey-listen analyze`, headless shell/CI). Covers picking the interface, the discover → run → read workflow, the tool inventory, result modes (summary / compact / full), event segmentation, comparisons, building/opening project files (sources, tabs, saved comparisons), and data/chart export. Use when a task needs to open a source, run analyzers, segment calls/syllables/notes, compare projects, save a project with its tabs/comparison, or read results from an MCP client or a shell.
 ---
 
 # Driving Hey Listen's analysis engine (MCP + CLI)
@@ -8,16 +8,19 @@ description: Drive Hey Listen's audio-analysis engine programmatically — via t
 Hey Listen exposes one analysis engine (`audio::analysis::run_window`) through two
 programmatic interfaces:
 
-1. **MCP server** — an agent drives the *running* app (open sources, run tools, edit
-   graphs, preview, save) with the UI following along.
-2. **Batch CLI** — `hey-listen analyze <FILE>...` runs the engine over files with no
-   window, printing one JSON object per file/tool. Deterministic; for shell/CI.
+1. **MCP server** — an agent drives a *running or headless* project: open sources, run
+   tools, edit graphs, preview, compare, save projects. Bridged to the app the UI follows
+   along; headless it is the engine + project subset.
+2. **Batch CLI** — `hey-listen analyze|compare|project <...>` runs the engine over files
+   with no window, printing one JSON object per file/tool. Deterministic; for shell/CI.
 
 Both return the **same envelope** — effective `window` / `params` / `options`, a canonical
 `summary`, and a `result` shaped by the requested mode. Authoritative docs:
 [`docs/mcp.md`](docs/mcp.md), [`docs/cli.md`](docs/cli.md),
-[`docs/analysis-tools.md`](docs/analysis-tools.md). This skill is the consumer-facing
-summary; read those for rationale and the full file map.
+[`docs/analysis-tools.md`](docs/analysis-tools.md), [`docs/comparison.md`](docs/comparison.md).
+This skill is the consumer-facing summary. **You should not need the Hey Listen sources:
+the MCP tool list + `get_state` + this skill are the surface; the docs above are the
+reference.**
 
 ## Pick an interface
 
@@ -25,8 +28,12 @@ summary; read those for rationale and the full file map.
 | --- | --- |
 | An agent drives the live window, tabs/UI following | MCP **bridge** to the running app |
 | An agent analyzes files with nothing open | MCP **headless** (auto-fallback) |
+| Build a `.heyl` with a source, setup, filter, tabs, notes | MCP headless `save_project`, or CLI `project` |
+| Compare two projects (file vs file, or app windows) | MCP `compare_analysis` (headless or bridged), or CLI `compare` |
+| Save a project **with** its comparison | MCP: `compare_analysis` then `save_project`; CLI: `compare --save` |
 | Shell script / CI bulk-analyzes files | **Batch CLI** |
-| Read notes from a saved `.heyl` project | **Batch CLI** `notes` |
+| Read notes from a saved `.heyl` project | **Batch CLI** `notes` (list/get) |
+| Add / update / delete annotations in a project file | **Batch CLI** `notes --add/--update/--delete`, or MCP `save_project`'s `notes` when building |
 
 ## The reliable workflow
 
@@ -95,25 +102,81 @@ the rest answer *"requires the app"* headless.
 | Observe | `get_state`, `list_analyzers`, `get_analyzer` | yes |
 | Source | `open_audio_file`, `close_source`, `render_synth`, `list_input_devices`, `list_output_devices`, `list_processes` | yes |
 | Analyze | `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `set_filter_graph` | yes |
-| Project | `save_project`, `open_project`, `new_project` | yes (source + setup + notes; no Workbench layout) |
+| Tabs | `open_tool`, `close_tool` | yes — headless they maintain `SETUP.openTools` (no webview), which `save_project` writes and the app restores |
+| Project | `save_project`, `open_project`, `new_project` | yes (source + setup + notes + `openTools`; parent folders are created) |
+| Project window | `open_project_window` | app-only (opens/raises a window at a `.heyl` and returns its label) |
+| Compare | `compare_analysis`, `list_projects` | `compare_analysis` yes: a project **path** headless, a live label bridged, or `saved: true`; `list_projects` is answered by the server |
 | Export (data) | `export_analysis`, `export_all` | yes (`export_all` headless takes an explicit `tools` list) |
-| Tabs | `open_tool`, `close_tool` | app-only |
-| Graphs | `get_graph`, `set_synth_graph` | app-only |
+| Graphs | `get_graph`, `set_synth_graph` | app-only (editor layouts) |
 | Preview/capture | `preview`, `stop_preview`, `set_output_gain`, `start_capture`, `stop_capture` | app-only |
-| Multi-window / compare | `list_projects`, `compare_analysis` | app-only (a live compare needs open windows; `saved: true` uses the owner's stored snapshot) |
-| Notes | `list_notes`, `get_note`, `create_note`, `update_note`, `delete_note`, `set_focused_note` | app-only |
+| Notes | `list_notes`, `get_note`, `create_note`, `update_note`, `delete_note`, `set_focused_note` | app-only (but `save_project` writes the `notes` you pass headless) |
 | Export (chart) | `export_chart` | app-only (needs the rendered canvas) |
 | Themes | `list_themes`, `get_theme`, `set_theme`, `import_theme`, `export_theme` | headless lists bundled only |
 
 Templates (M13) are planned and **not yet** exposed as tools.
 
-`compare_analysis` diffs the **same** analyzer on two project sides. Pass `with` (a label
-from `list_projects`) for a live reference, or `saved: true` to use the owner's stored
-reference snapshot (the last comparison saved in the project — no second window). `bOffset`
+`compare_analysis` diffs the **same** analyzer on two project sides. Pass `with` — a
+project label from `list_projects` when bridged, a **project file path** (`.heyl`) when
+headless — or `saved: true` to use the owner's stored reference snapshot. `bOffset`
 (seconds) fine-tunes the relative alignment; `includeData` / `maxPoints` / `axis` /
 `summaryOnly` shape the side results and the delta exactly like `run_analysis`. B is
-read-only. `list_projects` reports each project's `savedComparisons` and `get_state.compare`
-reports the open compare views as `{ tool, with, saved, offset }`.
+read-only. The last successful comparison is stored in the owner, so `save_project`
+writes it into `COMPARE` and the app reopens it as a compare tab.
+`list_projects` reports each project's `savedComparisons`; headless `get_state` reports
+`savedComparisons` and `openTools`. In the app, `open_project_window { path }` opens the
+reference as a second window and returns the label to pass as `with`.
+
+## Projects, tabs, and comparisons from a script
+
+A project = source + `SETUP` (window, params, options, `openTools`) + `LAYOUT` (graphs,
+filter, popouts) + notes + saved comparison snapshots. All of it is scriptable; nothing
+below opens a window.
+
+**Headless MCP (no app)** — one session, one project:
+
+```text
+open_audio_file { path }                 # or render_synth { graph, seconds }
+set_analysis_window { start, end }       # optional
+transient / params / options              # same overrides as run_analysis
+set_filter_graph { graph, enabled: true }# a GraphSpec (no editor headless)
+open_tool { tool: "spectrum" }            # repeat; records SETUP.openTools
+compare_analysis { tool, with: "/abs/reference.heyl", summaryOnly: true }
+                                          # stores the reference snapshot in the session
+save_project { path, openTools: [...], notes: [...], embedSource: true }
+                                          # creates parent dirs; writes COMPARE too
+get_state                                 # → openTools + savedComparisons + window/params
+```
+
+`open_project { path }` loads a project's tabs/comparison into the session, and
+`compare_analysis { saved: true }` re-runs against the loaded snapshot. The result opens
+in the app with those tabs and a compare tab bound to the saved reference.
+
+**Bridged MCP (app running)** — two live windows:
+
+```text
+open_project_window { path: "/abs/reference.heyl" }   # → { label, path, reused }
+list_projects                                          # wait until that label is ready
+compare_analysis { tool, with: "<label>" }             # live A/B, UI follows
+save_project { path }                                  # saves the live tabs + comparison
+```
+
+If the project already has a saved comparison and you only want to re-read it, use
+`compare_analysis { saved: true }` with one window open.
+
+**CLI (shell, no window)**:
+
+```bash
+# Build a project with tabs, notes and a window:
+hey-listen project out.heyl --source call.wav --open-tool noteMetrics \
+  --open-tool spectrogram --notes notes.json --start 1.2 --end 3.4
+
+# Compare two project files and write the owner with the snapshot:
+hey-listen compare a.heyl b.heyl -t spectrum --save a-with-comparison.heyl \
+  --open-tool spectrum
+```
+
+A comparison is **one per tool**; re-running overwrites that tool's snapshot. Closing the
+compare tab (app) and saving drops it.
 
 ## Results: summary, compact, full
 
@@ -190,8 +253,9 @@ Commands:
   analyzers [ID] [--json]   catalog, or one analyzer's options + summary keys
   analyze                   decode file(s) and run analyzer(s) over them
   synth                     render a synth graph, then (optionally) analyze it
-  notes                     list notes in a project file (.heyl)
-  compare A.heyl B.heyl     diff one analyzer across two saved projects
+  notes                     list or edit notes in a project file (.heyl)
+  compare A.heyl B.heyl     diff one analyzer across two saved projects (--save writes it)
+  project OUT.heyl          build a project from a source + setup + tabs, no window
 
 Options:
   -m, --mcp      run the stdio MCP entry instead of the GUI
@@ -233,9 +297,47 @@ shared params, tool options and filter. Matching is **relative** (each side star
 | `--overlap` | Clip both sides to their absolute-time intersection. |
 | `-p` / `-o` / `--filter` | Patch params/options, or override saved filters, on both sides. |
 | `--full` / `--summary` | Delta arrays, or summaries + diff stats only. |
+| `--save <OUT.heyl>` | Write owner A with the reference snapshots (the app reopens it as a compare tab). |
+| `--open-tool <ID>` | With `--save`, override the saved project's tabs (repeatable). |
 
 Each line is `{ tool, a, b, comparability, diff }`; `diff` is absent when the grids differ
 (`comparability.mismatches` says why). Project files only — `analyze` covers raw audio.
+`--save` stores the diff's effective setup in the owner, so reopening reproduces it;
+the saved path goes to stderr.
+
+### `project <OUT.heyl>`
+
+Build a project file with no window — the CLI face of the headless
+`open_audio_file`/`render_synth` → `set_*` → `open_tool` → `save_project` sequence.
+
+| Option | Meaning |
+| --- | --- |
+| `--source <AUDIO>` / `--synth <GRAPH.json>` | The source (exactly one). `--seconds` sets a synth's length (default 5). |
+| `--name <NAME>` | Display name (default: the output file stem). |
+| `--open-tool <ID>` | Analyzer tab to restore (repeatable). |
+| `--notes <FILE.json>` | Annotations: a JSON array of note objects (`title`, `body`, `timeSecs`, optional `range`/`tool`). |
+| `--start` / `--end` | Analysis window (default 0 … full duration). |
+| `-p` / `-o` / `--filter` | Shared params, per-tool options (`-o mfcc.nMfcc=13`), and a filter `GraphSpec` saved into the project. |
+| `--reference` | Keep only the file `SOURCE` path (no embedded audio). |
+
+One JSON line: `{ path, name, embedded, notes, openTools }`; parent folders are created.
+
+### `notes <FILE.heyl>`
+
+List or edit a project's annotations, no window: `--json` / `--full` list, `--get <ID>`,
+`--add <FILE.json>` (an array of note objects), `--update <ID> --set FIELD=VALUE`
+(`title`, `body`, `timeSecs`/`time`/`at`, `range=start,end` or `none`, `tool=id` or
+`none`), `--delete <ID>`. Mutations rewrite the project atomically; `--to <COPY.heyl>`
+edits a copy. An open app does not watch the file — reload after editing. (The MCP note
+tools operate on the live project and stay app-only; headless, pass `notes` to
+`save_project` when building, or use this CLI.)
+
+```bash
+hey-listen notes mix.heyl --add notes.json
+hey-listen notes mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
+hey-listen notes mix.heyl --get n1
+hey-listen notes mix.heyl --delete n1
+```
 
 ### Output, exit codes, examples
 
@@ -272,12 +374,13 @@ hey-listen analyzers noteMetrics
 hey-listen compare before.heyl after.heyl -t spectrum --summary
 ```
 
-## What is *not* scriptable headless
+## What still needs the app
 
-UI-only work — Workbench tabs, editor-layout graph editing (`get_graph` /
-`set_synth_graph`), live preview/capture, `compare_analysis`, notes, and chart-image
-export — needs the app (bridged MCP). **Project files are scriptable headless**:
-`save_project` (with `notes`, `openTools`, `embedSource: false` for a file source),
-`open_project`, and `new_project` work in `heylisten-mcp --headless`; they write source +
-setup + notes and skip the Workbench layout. The CLI is file/synth sources only and never
-opens a window or bridges to a running app.
+Bridged MCP is needed for **visual** work: Workbench tabs that render, editor-layout graph
+editing (`get_graph` / `set_synth_graph`), live preview/capture, annotations
+(`create_note` & co.), chart-image export, and a live two-window comparison. Everything
+else is scriptable without a window: sources, analysis, filters, project files **with
+their tabs and comparisons** (`save_project` + `open_tool`, or CLI `project`), and
+headless comparisons against a project file (`compare_analysis { with: path }`, or CLI
+`compare`). The CLI never bridges to a running app, and `open_project_window` is the one
+app-only tool that deliberately creates a window (for a scripted app-side A/B).

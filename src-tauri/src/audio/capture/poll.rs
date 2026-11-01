@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use flexaudio::{Event as FlexEvent, Stream};
 
-use super::{CaptureEvent, CaptureMessage};
+use super::{CaptureEvent, CaptureEventKind, CaptureMessage};
 
 /// How long the poll loop waits for the next chunk/control before re-checking.
 const POLL_INTERVAL: Duration = Duration::from_millis(4);
@@ -103,7 +103,7 @@ fn report_failure(
 ) {
     if let Err(error) = result {
         sink(CaptureMessage::Event(CaptureEvent {
-            kind: "error".to_string(),
+            kind: CaptureEventKind::Error,
             message: Some(format!("capture {action} failed: {error}")),
         }));
     }
@@ -129,32 +129,32 @@ fn report_failure(
 fn map_event(event: FlexEvent) -> Option<CaptureEvent> {
     match event {
         FlexEvent::ChunkDropped { count } => Some(CaptureEvent {
-            kind: "dropped".to_string(),
+            kind: CaptureEventKind::Dropped,
             message: Some(format!("{count} chunks dropped")),
         }),
         FlexEvent::StreamStalled => Some(CaptureEvent {
-            kind: "stalled".to_string(),
+            kind: CaptureEventKind::Stalled,
             message: None,
         }),
         FlexEvent::StreamRecovered => Some(CaptureEvent {
-            kind: "recovered".to_string(),
+            kind: CaptureEventKind::Recovered,
             message: None,
         }),
         FlexEvent::PermissionDenied { detail, .. } => Some(CaptureEvent {
-            kind: "permission".to_string(),
+            kind: CaptureEventKind::Permission,
             message: Some(detail),
         }),
         FlexEvent::DeviceLost => Some(CaptureEvent {
-            kind: "device-lost".to_string(),
+            kind: CaptureEventKind::DeviceLost,
             message: None,
         }),
         FlexEvent::Error(message) => Some(CaptureEvent {
-            kind: "error".to_string(),
+            kind: CaptureEventKind::Error,
             message: Some(message),
         }),
         FlexEvent::TerminalError { error } | FlexEvent::RecoverableError { error } => {
             Some(CaptureEvent {
-                kind: "error".to_string(),
+                kind: CaptureEventKind::Error,
                 message: Some(error.to_string()),
             })
         }

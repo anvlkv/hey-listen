@@ -18,6 +18,8 @@ mod compare;
 mod notes;
 mod options;
 mod parse;
+mod parse_project;
+mod project;
 mod run;
 
 /// Build an `ArgData` the way the plugin's parser would (its fields are `pub`, but

@@ -11,55 +11,17 @@
 //!    project window at that file;
 //! 4. otherwise report what to do instead.
 //!
-//! The new window learns its project path through [`PendingWindowPaths`]: the frontend
-//! drains it once on startup (`take_window_open_path`), which avoids racing a window
-//! that is still loading.
+//! The new window learns its project path through [`crate::commands::window::project::PendingWindowPaths`]:
+//! the frontend drains it once on startup (`take_window_open_path`), which avoids racing
+//! a window that is still loading.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
+use tauri::{AppHandle, Manager, WebviewWindow};
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
-
-use crate::commands::window::{next_label, raise};
+use crate::commands::window::project::open_project_window_at;
+use crate::commands::window::raise;
 use crate::state::WindowRegistry;
 
 use super::peer::project_name;
-
-/// A project file a new window should open, keyed by that window's label.
-#[derive(Default)]
-pub struct PendingWindowPaths(Mutex<HashMap<String, String>>);
-
-impl PendingWindowPaths {
-    fn put(&self, label: &str, path: String) {
-        self.0
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .insert(label.to_string(), path);
-    }
-
-    fn remove(&self, label: &str) {
-        self.0
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .remove(label);
-    }
-
-    fn take(&self, label: &str) -> Option<String> {
-        self.0
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .remove(label)
-    }
-}
-
-/// The path this window was created to open, drained once (`None` for a plain window).
-#[tauri::command]
-pub fn take_window_open_path(window: WebviewWindow) -> Option<String> {
-    window
-        .app_handle()
-        .state::<PendingWindowPaths>()
-        .take(window.label())
-}
 
 /// Open the compare view's reference project, or raise the window that shows it.
 ///
@@ -143,22 +105,6 @@ fn name_matches(reference: &str, stem: &str) -> bool {
         || reference
             .strip_prefix(&stem)
             .is_some_and(|rest| rest.starts_with(' '))
-}
-
-/// Create a new project window that opens `path` once its frontend is ready.
-fn open_project_window_at(app: &AppHandle, path: String) -> Result<(), String> {
-    let label = next_label("project");
-    app.state::<PendingWindowPaths>().put(&label, path);
-    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-        .title("Hey Listen")
-        .inner_size(1280.0, 800.0)
-        .min_inner_size(960.0, 600.0)
-        .build();
-    if let Err(err) = built {
-        app.state::<PendingWindowPaths>().remove(&label);
-        return Err(err.to_string());
-    }
-    Ok(())
 }
 
 #[cfg(test)]

@@ -23,7 +23,7 @@ use super::{resolve_root, WindowRegistry, WindowState};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompareView {
-    pub tool: String,
+    pub tool: AnalyzerId,
     /// The live reference project's window label, or the saved snapshot's name.
     pub with: String,
     /// Whether `with` names an A **saved snapshot** rather than a live project (M25.C).
@@ -69,7 +69,7 @@ impl WindowRegistry {
     }
 
     /// The compare popout of `label`'s project showing `tool`, if one is open.
-    pub fn compare_popout_for(&self, label: &str, tool: &str) -> Option<String> {
+    pub fn compare_popout_for(&self, label: &str, tool: AnalyzerId) -> Option<String> {
         let inner = self
             .inner
             .lock()

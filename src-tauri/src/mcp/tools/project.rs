@@ -13,14 +13,15 @@ pub(super) fn tools() -> Vec<Value> {
             "save_project",
             "Save project",
             ToolClass::SAVE,
-            "Save the project. With `path`, saves there; without, saves to the current path \
+            "Save the project. With `path`, saves there (creating its parent folders); \
+             without, saves to the current path \
              (or prompts, as the UI does). The project keeps the open analyzer tabs \
              (`openTools`) and its saved comparison snapshots — a comparison that is open in \
              the app, or was computed by `compare_analysis` headless, is written to `COMPARE` \
              and reopens as a compare tab. In headless mode `path` is required and the file is \
              built from the session's source + setup + the `notes` you pass (there is no \
              Workbench layout; `openTools` are restored as tabs when the app opens the file, \
-             defaulting to the tabs the session opened with). `embedSource: false` writes a \
+             defaulting to the tabs opened with `open_tool`). `embedSource: false` writes a \
              reference project instead of embedding the audio.",
             json!({
                 "type": "object",
@@ -34,7 +35,7 @@ pub(super) fn tools() -> Vec<Value> {
                     },
                     "openTools": {
                         "type": "array",
-                        "description": "Headless: analyzer ids to restore as Workbench tabs when the app opens the file (default: the tabs the session opened with).",
+                        "description": "Headless: Workbench tab ids (analyzers, or `filter` / `synth`) to restore when the app opens the file (default: the tabs opened with open_tool).",
                         "items": { "type": "string" },
                     },
                     "embedSource": {
@@ -55,6 +56,25 @@ pub(super) fn tools() -> Vec<Value> {
             json!({
                 "type": "object",
                 "properties": { "path": { "type": "string" } },
+                "required": ["path"],
+                "additionalProperties": false,
+            }),
+        ),
+        tool(
+            "open_project_window",
+            "Open project window",
+            ToolClass::WINDOW,
+            "Open a **new project window** at a project file (`.heyl`), leaving the current \
+             project untouched — the app-side way to script an A/B: open the reference, wait \
+             for it in `list_projects`, then call `compare_analysis` with its label as `with`. \
+             A window that already shows that file is raised instead of duplicated. Returns \
+             `{ label, path, reused }`; `label` is what `target` / `with` accept. App-only \
+             (headless compares a project file directly).",
+            json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Absolute path of an existing .heyl project file." },
+                },
                 "required": ["path"],
                 "additionalProperties": false,
             }),

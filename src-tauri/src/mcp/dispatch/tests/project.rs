@@ -131,6 +131,41 @@ fn open_project_restores_the_session_and_new_project_clears_it() {
 }
 
 #[test]
+fn save_project_creates_parent_folders_and_writes_opened_tools() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 0.1 }),
+        )
+        .unwrap();
+    session
+        .dispatch("open_tool", json!({ "tool": "spectrum" }))
+        .unwrap();
+
+    // A batch script saves into a tree it has not created yet.
+    let dir = std::env::temp_dir().join(format!(
+        "hey_listen_mcp_nested_{}_{}",
+        std::process::id(),
+        "folders"
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    let path = dir.join("a").join("b").join("nested.heyl");
+    session
+        .dispatch("save_project", json!({ "path": path.to_string_lossy() }))
+        .unwrap();
+    assert!(path.exists());
+
+    let mut file = std::fs::File::open(&path).unwrap();
+    let loaded = read_project(&mut file).unwrap();
+    assert_eq!(
+        loaded.setup.open_tools,
+        vec![crate::audio::analyzers::ToolId::Spectrum]
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn save_project_reports_a_missing_path() {
     let mut session = HeadlessSession::default();
     let err = session.dispatch("save_project", json!({})).unwrap_err();

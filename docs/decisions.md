@@ -640,7 +640,7 @@ view that spans two of them.
 
 **Decision:**
 
-- A comparison binds **(owner project A, reference project B, one analyzer tool)**. Both
+- A comparison binds **(owner project A, reference project B, one `AnalyzerId`)**. Both
   are ordinary project windows; no popout and no second source is involved.
 - The **core** computes both sides through the existing `analysis::run_window`, each from
   its own `WindowState` (own PCM and own filter). A's setup is sent by its frontend; B's
@@ -648,8 +648,9 @@ view that spans two of them.
 - The compare view is a **transient Workbench tab** in A that **pops out like any tab**.
   It is **not project content**: excluded from `LAYOUT` (sanitised), `SETUP.openTools`,
   `RESULTS`, undo history, the dirty signature and Recent; a compare popout is registered
-  with its `(tool, reference)` but never returned by `popout_tools_of` and never restored
-  on load. Saving while it is open writes the project as if it were closed.
+  with its `(AnalyzerId, reference)` but never returned by `popout_tools_of` and never
+  restored on load (ADR-28: those ids stay typed). Saving while it is open writes the
+  project as if it were closed.
 - Comparability is **explicit**: a grid signature gates the numeric delta, differing
   windows diff over their absolute-time overlap, and every differing setting is reported.
   There is no silent normalisation.
@@ -661,9 +662,9 @@ view that spans two of them.
 **Consequence:** the diff is available without changing ADR-3, the source model, or the
 project file's audio layout. The cost is a second set of peer-read commands, a revision
 counter, a compare-view chart layer, and a **third popout kind** (a compare window is
-still a view of A, registered with its tool + reference, but never saved). Because each
-side keeps its own settings, a diff is only numerically meaningful when the grids match;
-the badge and mismatch list are part of the contract, not a nicety. Peer
+still a view of A, registered with its `AnalyzerId` + reference, but never saved).
+Because each side keeps its own settings, a diff is only numerically meaningful when the
+grids match; the badge and mismatch list are part of the contract, not a nicety. Peer
 cursors/playheads are polled read-only, so the compare view never drives B's transport.
 The CLI needs the compiled filter spec in `LAYOUT` to reproduce the app's conditioning.
 See [`comparison.md`](comparison.md).
@@ -777,10 +778,11 @@ available later. Keeping the reference project open just to see the diff is frag
 **Decision:**
 
 - The project file gains a `COMPARE` section (id `0x08`): one **snapshot per comparison
-  open at save time** (tab or popout), not a link to another project. It stores the tool,
-  the reference's **display name** (window labels are session-scoped), source shape,
-  window, shared params, effective options, filter fingerprint, the fine-tune offset, and
-  the reference's **full last `AnalysisResult`**. No reference audio is embedded.
+  open at save time** (tab or popout), not a link to another project. It stores the
+  `AnalyzerId`, the reference's **display name** (window labels are session-scoped),
+  source shape, window, shared params, effective options, filter fingerprint, the
+  fine-tune offset, and the reference's **full last `AnalysisResult`**. No reference
+  audio is embedded.
 - The snapshot is `postcard`-encoded through a small externally tagged wrapper (the IPC
   `AnalysisResult` is internally tagged, which `postcard` cannot encode). The result
   structs gain `Deserialize`; the section is additive and forward-compatible.
@@ -814,41 +816,58 @@ deviation (a compare popout's live change is not in the owner window's dirty fla
 
 ## ADR-28 — String identifiers become strum enums
 
-**Context:** the Rust core carries a lot of enumerable state as bare strings and
-compares them with hand-written `match` arms and `&'static str` tables in several
-places: the 29 analyzer tool ids (`AnalysisResult::tool_id`, `family_of`, `about`, the
-catalog), the result `Family`, the catalog `Section`, the project `SourceDescriptor.kind`
-(`file`/`mic`/…), the window function (already a `WindowKind` enum, but matched by hand),
-and the menu/theme/CLI action ids. A typo is a runtime `UnknownTool` error or a silent
-`_ => Family::Series` fallback, and the same id string is repeated across the engine, the
-catalog, the persistence sections and the MCP/CLI surfaces — kept in step only by tests
-and discipline.
+**Context:** the Rust core carried a lot of enumerable state as bare strings and
+compared it with hand-written `match` arms and `&'static str` tables in several places:
+the 29 analyzer tool ids (`AnalysisResult::tool_id`, `family_of`, `about`, the catalog),
+the result `Family`, the catalog `Section`, the project `SourceDescriptor.kind`
+(`file`/`mic`/…), the live `CaptureKind`, capture event kinds, the window function
+(already a `WindowKind` enum, but matched by hand), the menu/theme/CLI action ids, and
+transient view ids (a compare view's tool, a tool popout's tool). A typo was a runtime
+`UnknownTool` error or a silent `_ => Family::Series` fallback, and the same id string
+was repeated across the engine, the catalog, the persistence sections, the window
+registry and the MCP/CLI surfaces — kept in step only by tests and discipline.
 
 **Decision:**
 
-- One `strum` enum per domain (`AnalyzerId`, `Family`, `Section`, `SourceKind`,
-  `WindowKind`, and the menu/theme/CLI action ids), each derived with
+- One `strum` enum per domain — `AnalyzerId` + `ToolId`, `Family`, `Section`,
+  `SourceKind` + `CaptureKind` + `CaptureEventKind`, `WindowKind`, and `MenuAction` /
+  `ThemeBase` / `ThemeMode` / `BatchCommand` — each derived with
   `strum::{EnumString, Display, AsRefStr, IntoStaticStr, EnumIter, VariantNames}` +
-  `serde::{Serialize, Deserialize}` + `ts_rs::TS`.
+  `serde::{Serialize, Deserialize}` + `ts_rs::TS`. This covers **transient/UI state**
+  as well as project data: a compare view's `tool`, a tool popout's id and a capture
+  event's kind are ids, so they stay typed.
 - `#[serde(rename_all = …)]` and `#[strum(serialize_all = …)]` use the same spelling
-(camelCase for the analyzer/menu ids; lowercase for `WindowKind`, the theme modes and
-the CLI subcommands), so the string is identical on the wire and in code: the IPC JSON,
-the `postcard` project file and the regenerated `src/bindings/` stay **byte-for-byte
-unchanged** — this is type safety, not a format bump.
+(camelCase for the analyzer/menu ids, lowercase for the single-word source/window/theme/
+CLI ids, kebab-case for capture event kinds), so the string is identical on the wire and
+in code: the IPC JSON, the `postcard` project file and the regenerated `src/bindings/`
+stay **byte-for-byte unchanged** — this is type safety, not a format bump.
 - `AnalyzerId` is the single source of truth for the 29 tool ids. `AnalysisResult` stays a
-typed union (its variants map 1:1 to `AnalyzerId`), and `tool_id()` returns `AnalyzerId`. An
-`EnumIter`-driven test pins the `AnalysisResult` ↔ `AnalyzerId` ↔ catalog `id` agreement,
-replacing the hard-coded id list in `catalog_covers_every_engine_tool`.
-- A string is parsed **once at the boundary** (`FromStr` on the command / CLI / MCP
-argument) and dropped; every internal signature takes the enum.
-- `SourceDescriptor.kind` becomes a `SourceKind` enum **field** (a C-like enum serialized
+typed union (its variants map 1:1 to `AnalyzerId`), and `tool_id()` returns `AnalyzerId`.
+`ToolId` is generated from the same variant list (plus `filter` / `synth`), so the
+analyzer subset and the Workbench tab ids cannot drift. An `EnumIter`-driven test runs
+every `AnalyzerId`, asserts the result's `tool_id()` and its serialized `tool` tag
+match, and checks the catalog covers every variant; a second test pins the postcard
+encoding to the original strings.
+- A string is parsed **once at the boundary** (`FromStr` / serde on the command, CLI or
+MCP argument, or a project-file load) and dropped; every internal signature takes the
+enum.
+- **No new `String` / `&str` for an id.** Do not add an id-shaped field, parameter, map
+  key or return value as a string when an enum exists (or should exist), and do not
+  compare ids to string literals in Rust outside wire-format tests. Legitimate remaining
+  strings are genuine boundaries: paths, display/window labels, option and summary keys,
+  MCP tool names/schema keys, theme ids, and the open-ended `GraphNode.kind`. This is a
+  **standing rule** for new work, not a one-off migration; the checklist lives in
+  `AGENTS.md` → "Typed identifiers — no string ids".
+- `SourceDescriptor.kind` became a `SourceKind` enum **field** (a C-like enum serialized
 as a string), not an internally-tagged enum — `postcard` still cannot encode
 internally-tagged enums (ADR-2), so the struct stays the top-level shape.
 
 **Consequence:** typos and id drift become compile errors, and `EnumIter`/`VariantNames`
 let the catalog and engine dispatch stay in lockstep structurally instead of by a string
-list. The cost is one new dependency (`strum`, MIT), a `src/bindings/` regeneration with
-the matching frontend imports after each phase, and care that `serde` and `strum` agree on
-the `camelCase` spelling. See ADR-2 and [`code-hygiene.md`](code-hygiene.md).
+list. The same enums flow through transient state (compare views, popouts, capture
+events) and the frontend imports the generated unions instead of redeclaring them. The
+cost is one new dependency (`strum`, MIT), a `src/bindings/` regeneration with the
+matching frontend imports after each phase, and care that `serde` and `strum` agree on
+the wire spelling. See ADR-2 and [`code-hygiene.md`](code-hygiene.md).
 
 **Status: accepted (M15.B, delivered with `strum` 0.28).**

@@ -7,7 +7,7 @@ use crate::project::{
 use crate::state::SourcePcm;
 
 /// Write a `.heyl` project whose source is a mono 8 kHz sine at `amplitude`.
-fn write_project_file(name: &str, amplitude: f32, window: (f64, f64)) -> String {
+pub(super) fn write_project_file(name: &str, amplitude: f32, window: (f64, f64)) -> String {
     let rate = 8_000u32;
     let samples: Vec<f32> = (0..rate as usize)
         .map(|frame| {
@@ -51,7 +51,12 @@ fn write_project_file(name: &str, amplitude: f32, window: (f64, f64)) -> String 
 
 fn compare_request(a: String, b: String, tools: Vec<String>) -> Request {
     let mut request = analyze_request(Vec::new(), tools);
-    request.command = Command::Compare { a, b };
+    request.command = Command::Compare {
+        a,
+        b,
+        save: None,
+        open_tools: Vec::new(),
+    };
     request
 }
 

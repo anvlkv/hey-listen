@@ -121,6 +121,14 @@ pub async fn save_project(
             compare,
             pcm: if reference { None } else { guard.as_ref() },
         };
+        // A script (MCP `save_project`) can target a folder that does not exist yet;
+        // create it rather than failing at the last step of a long run.
+        if let Some(parent) = Path::new(&path)
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent)?;
+        }
         let file = File::create(&path)?;
         write_project(BufWriter::new(file), &save, crate::recent::now_ms())?;
         // The save succeeded, so a comparison no longer open can be forgotten.

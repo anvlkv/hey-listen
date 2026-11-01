@@ -120,6 +120,8 @@ fn initialize_result(params: &Value) -> Value {
                          sides — with the app, `with` is another project's label from \
                          `list_projects`; headless, `with` is the reference project's `.heyl` \
                          path (the session's project is A, the file's saved setup is B). \
+                         In the app, `open_project_window { path }` opens the reference as a \
+                         second window and returns the label to pass as `with`. \
                          `saved: true` reuses the last stored reference. The comparison is \
                          stored in the owner, so `save_project` writes it (the app reopens it \
                          as a compare tab) — no need to fetch the Hey Listen sources or to \

@@ -265,6 +265,16 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "open_project":
       await loadProject(str(args, "path"));
       return getState();
+    case "open_project_window": {
+      // A new window at a project file (M25.D): the current project is untouched, and
+      // the core raises one already showing that path. The label is returned so the
+      // caller can `target` it (or pass it as `compare_analysis`'s `with`).
+      const path = str(args, "path");
+      return invoke<{ label: string; path: string; reused: boolean }>(
+        "open_project_window_at_path",
+        { path },
+      );
+    }
     case "new_project":
       await newProject();
       return getState();

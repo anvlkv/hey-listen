@@ -9,10 +9,11 @@ use std::io::Write;
 
 use serde_json::json;
 
-use crate::audio::analysis::compare::{self as comparison, SideInput, Span};
+use crate::audio::analysis::compare::{self as comparison, SavedComparison, SideInput, Span};
 use crate::audio::analysis::{Axis, Shape};
 use crate::project::side::{load_side, Side};
 
+use super::compare_save::save_owner;
 use super::output::emit;
 use super::types::{Command, Request};
 
@@ -21,6 +22,8 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
     let Command::Compare {
         a: path_a,
         b: path_b,
+        save,
+        ..
     } = &request.command
     else {
         return 2;
@@ -51,6 +54,7 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
     let tools = super::analyze::tools_for(request);
     let shape = shape_of(request);
     let mut failed = false;
+    let mut snapshots: Vec<SavedComparison> = Vec::new();
     for &tool in &tools {
         let result = comparison::compare(
             tool,
@@ -72,6 +76,15 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
                 value["a"]["file"] = json!(a.file);
                 value["b"]["file"] = json!(b.file);
                 emit(out, &value, request.pretty);
+                // What a `--save` writes: the reference side as the last successful
+                // comparison, exactly like the app's compare tab.
+                snapshots.push(SavedComparison::from_side(
+                    tool,
+                    &comparison.b,
+                    comparison::filter_fingerprint(&b.state),
+                    request.b_offset,
+                    crate::recent::now_ms(),
+                ));
             }
             Err(err) => {
                 emit(
@@ -89,6 +102,12 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
                     return 1;
                 }
             }
+        }
+    }
+    if save.is_some() {
+        if let Err(message) = save_owner(&a, request, snapshots) {
+            eprintln!("hey-listen: {message}");
+            failed = true;
         }
     }
     if failed {
