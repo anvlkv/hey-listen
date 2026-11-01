@@ -6,13 +6,13 @@
 
 use serde_json::{json, Map, Value};
 
-use crate::audio::analysis::{self, Shape};
+use crate::audio::analysis;
 use crate::audio::analyzers::{self, AnalyzerId};
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
 use crate::state::SourcePcm;
 
-use super::args::{analyzer, clamp_span, merge_options, merge_params};
+use super::args::{self, analyzer};
 use super::HeadlessSession;
 
 impl HeadlessSession {
@@ -47,7 +47,7 @@ impl HeadlessSession {
             "view": { "start": self.view.0, "end": self.view.1 },
             "params": serde_json::to_value(&self.params).unwrap_or(Value::Null),
             "toolOptions": self.tool_options(),
-            "openTools": [],
+            "openTools": self.open_tools,
             "filter": { "enabled": filter_enabled, "error": Value::Null },
             "output": { "gain": 1.0, "device": Value::Null },
         })
@@ -95,7 +95,7 @@ impl HeadlessSession {
         Ok(json!({ "filter": { "enabled": applied } }))
     }
 
-    fn source_summary(&self) -> Value {
+    pub(super) fn source_summary(&self) -> Value {
         let guard = self
             .state
             .audio
@@ -222,80 +222,20 @@ impl HeadlessSession {
 
         // `transient` applies `start`/`end`/`params`/`options` to this call only; the
         // default writes them back to the session (matching the GUI's stores).
-        let transient = args
-            .get("transient")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-
-        // The effective shared params: a transient patch merges into a local copy,
-        // otherwise it is applied to (and persisted in) the session.
-        let mut params = self.params.clone();
-        if let Some(patch) = args.get("params").filter(|value| !value.is_null()) {
-            if transient {
-                merge_params(&mut params, patch)?;
-            } else {
-                merge_params(&mut self.params, patch)?;
-                params = self.params.clone();
-            }
-        }
-
-        // The effective per-tool options, likewise.
-        let mut options = self.options.get(&tool).cloned().unwrap_or_default();
-        if let Some(patch) = args.get("options").and_then(Value::as_object) {
-            if transient {
-                merge_options(&mut options, tool, patch)?;
-            } else {
-                let entry = self.options.entry(tool).or_default();
-                merge_options(entry, tool, patch)?;
-                options = self.options.get(&tool).cloned().unwrap_or_default();
-            }
-        }
+        let transient = args::transient(args);
+        let params = args::effective_params(&mut self.params, args, transient)?;
+        let options = args::effective_options(&mut self.options, tool, args, transient)?;
 
         // The effective window (clamped to the source). An explicit start/end persists
         // unless the call is transient.
-        let has_window = args.get("start").is_some() || args.get("end").is_some();
-        let start = args
-            .get("start")
-            .and_then(Value::as_f64)
-            .unwrap_or(self.window.0);
-        let end = args
-            .get("end")
-            .and_then(Value::as_f64)
-            .unwrap_or(self.window.1);
-        let (start, end) = clamp_span(start, end, self.duration());
+        let ((start, end), has_window) = args::effective_window(self.window, args, self.duration());
         if has_window && !transient {
             self.window = (start, end);
         }
 
         // Resolve the output mode before the (expensive) analysis so a bad request fails
         // without computing anything.
-        let summary_only = args
-            .get("summaryOnly")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        let include_data = args
-            .get("includeData")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        if summary_only && include_data {
-            return Err("`summaryOnly` and `includeData` are mutually exclusive".to_string());
-        }
-        let shape = if summary_only {
-            Shape::Summary
-        } else if include_data {
-            Shape::Full
-        } else {
-            Shape::Compact
-        };
-        let max_points = args
-            .get("maxPoints")
-            .and_then(Value::as_u64)
-            .map(|points| points as usize);
-        // Full results can spell uniform time axes compactly; the default keeps arrays.
-        let axis = match args.get("axis").and_then(Value::as_str) {
-            Some("compact") => analysis::Axis::Compact,
-            _ => analysis::Axis::Array,
-        };
+        let (shape, max_points, axis) = args::output_mode(args)?;
 
         let result = analysis::run_window(&self.state, tool, start, end, &params, &options)
             .map_err(|err| err.to_string())?;

@@ -68,7 +68,8 @@ compact "Add audio" state has a fixed height).
 
 - The **native window title bar** carries the app name ("Hey Listen").
 - A **native application menu** carries the document actions: **File** (New /
-  Open… / Open Recent → up to 10 files + Clear Menu / Save / Save As… —
+  Open… / Previous Project / Next Project (`CmdOrCtrl+Alt+Left` / `Right`, M25.D) /
+  Open Recent → up to 10 files + Clear Menu / Save / Save As… —
   `CmdOrCtrl+N` / `O` / `S` / `Shift+S` — plus **Templates ▸** (Apply / Save as
   Template… / Import / Export, M13 planned) and Close on macOS / Quit elsewhere),
   **View** (fullscreen), **Window** (minimize/maximize), and **Help** / About. On
@@ -79,6 +80,8 @@ compact "Add audio" state has a fixed height).
   (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
   [`roadmap.md`](roadmap.md) → Backlog). An **Analysis** menu carries **Compare
   with…** (M25; acts on the focused analyzer tab). See `src-tauri/src/menu.rs`.
+  **Previous/Next Project** step through the `.heyl` files in the current project's
+  folder (name order, ends stop); they need a saved project (M25.D).
   The **Toolbar shows the current project name** — the file actions live in the File
   menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and

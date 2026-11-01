@@ -41,6 +41,8 @@ pub enum MenuAction {
     New,
     NewWindow,
     Open,
+    PreviousProject,
+    NextProject,
     Save,
     SaveAs,
     Undo,
@@ -79,6 +81,21 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         Some("CmdOrCtrl+O"),
     )?;
+    // Step through the `.heyl` files beside the current project (M25.D).
+    let previous_project = MenuItem::with_id(
+        app,
+        MenuAction::PreviousProject.as_ref(),
+        "Previous Project",
+        true,
+        Some("CmdOrCtrl+Alt+Left"),
+    )?;
+    let next_project = MenuItem::with_id(
+        app,
+        MenuAction::NextProject.as_ref(),
+        "Next Project",
+        true,
+        Some("CmdOrCtrl+Alt+Right"),
+    )?;
     let save = MenuItem::with_id(
         app,
         MenuAction::Save.as_ref(),
@@ -108,6 +125,8 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             &new,
             &new_window,
             &open,
+            &previous_project,
+            &next_project,
             &recent,
             &sep_after_open,
             &save,
@@ -298,6 +317,8 @@ mod tests {
         assert_eq!(MenuAction::New.as_ref(), "new");
         assert_eq!(MenuAction::NewWindow.as_ref(), "newWindow");
         assert_eq!(MenuAction::Open.as_ref(), "open");
+        assert_eq!(MenuAction::PreviousProject.as_ref(), "previousProject");
+        assert_eq!(MenuAction::NextProject.as_ref(), "nextProject");
         assert_eq!(MenuAction::Save.as_ref(), "save");
         assert_eq!(MenuAction::SaveAs.as_ref(), "saveAs");
         assert_eq!(MenuAction::Undo.as_ref(), "undo");

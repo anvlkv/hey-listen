@@ -22,6 +22,7 @@
 mod error;
 mod read;
 pub(crate) mod sections;
+pub mod side;
 mod write;
 
 pub use error::ProjectError;

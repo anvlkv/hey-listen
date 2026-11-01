@@ -3,8 +3,13 @@ import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import Button from "../Button";
 import SelectField from "../SelectField";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
-import { compareTargets, refreshCompareTargets, shapeLabel } from "../../state/compare/picker";
-import { fetchSaved } from "../../state/compare/views";
+import {
+  compareTargets,
+  refreshCompareTargets,
+  shapeLabel,
+  showCompareNotice,
+} from "../../state/compare/picker";
+import { fetchSaved, showReference } from "../../state/compare/views";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { CompareBinding } from "../../state/compare/views";
 import type { ComparisonDto, MismatchDto } from "../../state/compare/types";
@@ -84,6 +89,22 @@ export default function CompareHeader(props: {
   const b = () => (props.swapped ? props.comparison.a : props.comparison.b);
   const comparability = () => props.comparison.comparability;
 
+  /**
+   * Bring the other project into view (M25.D): raise its window when it is live (or an
+   * open project with the saved reference's name), otherwise open the matching recent
+   * project file in a new window. A failure is a transient notice, not a dialog.
+   */
+  async function openReference() {
+    const binding: CompareBinding = props.saved
+      ? { kind: "saved", reference: savedInfo()?.referenceName ?? props.reference }
+      : { kind: "live", reference: props.reference };
+    try {
+      await showReference(binding);
+    } catch (err) {
+      showCompareNotice(String(err).replace(/^Error:\s*/, ""));
+    }
+  }
+
   const badge = () => {
     if (!comparability().aligned) return { text: "Grids differ", cls: "warn" };
     if (comparability().filtersDiffer) return { text: "Filters differ", cls: "warn" };
@@ -161,6 +182,20 @@ export default function CompareHeader(props: {
         <Show when={!props.saved && !props.live.open()}>
           <Button class="compare-btn" onClick={props.onRetry}>
             Retry
+          </Button>
+        </Show>
+        <Show when={props.saved || props.live.open()}>
+          <Button
+            class="compare-btn"
+            data-testid="compare.reference-window"
+            title={
+              props.saved
+                ? "Open the reference project in its own window"
+                : "Bring the reference project's window to the front"
+            }
+            onClick={() => void openReference()}
+          >
+            {props.saved ? "Open reference" : "Show reference"}
           </Button>
         </Show>
         <Button class="compare-btn" data-testid="compare.swap" onClick={props.onSwap}>

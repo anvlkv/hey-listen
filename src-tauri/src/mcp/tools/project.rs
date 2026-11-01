@@ -14,10 +14,14 @@ pub(super) fn tools() -> Vec<Value> {
             "Save project",
             ToolClass::SAVE,
             "Save the project. With `path`, saves there; without, saves to the current path \
-             (or prompts, as the UI does). In headless mode `path` is required and the file \
-             is built from the session's source + setup + the `notes` you pass (there is no \
-             Workbench layout). `embedSource: false` writes a reference project instead of \
-             embedding the audio.",
+             (or prompts, as the UI does). The project keeps the open analyzer tabs \
+             (`openTools`) and its saved comparison snapshots — a comparison that is open in \
+             the app, or was computed by `compare_analysis` headless, is written to `COMPARE` \
+             and reopens as a compare tab. In headless mode `path` is required and the file is \
+             built from the session's source + setup + the `notes` you pass (there is no \
+             Workbench layout; `openTools` are restored as tabs when the app opens the file, \
+             defaulting to the tabs the session opened with). `embedSource: false` writes a \
+             reference project instead of embedding the audio.",
             json!({
                 "type": "object",
                 "properties": {
@@ -30,7 +34,7 @@ pub(super) fn tools() -> Vec<Value> {
                     },
                     "openTools": {
                         "type": "array",
-                        "description": "Headless: analyzer ids to restore as Workbench tabs when the app opens the file.",
+                        "description": "Headless: analyzer ids to restore as Workbench tabs when the app opens the file (default: the tabs the session opened with).",
                         "items": { "type": "string" },
                     },
                     "embedSource": {
@@ -46,8 +50,8 @@ pub(super) fn tools() -> Vec<Value> {
             "Open project",
             ToolClass::REPLACE,
             "Open a .heyl project file, replacing the current project. Works headless too \
-             (installs the source, shared params, options, and window; there is no Workbench \
-             layout to restore).",
+             (installs the source, shared params, options, window, analyzer tabs and saved \
+             comparisons; there is no Workbench layout to restore).",
             json!({
                 "type": "object",
                 "properties": { "path": { "type": "string" } },

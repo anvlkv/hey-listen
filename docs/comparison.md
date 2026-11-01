@@ -53,7 +53,7 @@ can show it with one window open; restoring a saved comparison never invents a p
 | --- | --- |
 | Workbench tab menu | Right-click an **analyzer** tab → **Compare with…** → pick another project. On a **compare** tab: *Change reference…*, *Pop out to window*, *Close tab*. Only the project window has the Workbench; a popout shows no tab strip. |
 | Native menu | **Analysis → Compare with…** acts on the focused analyzer tab (the root project window); with none focused it shows a transient hint instead of a dialog. |
-| MCP | `compare_analysis { tool, with, target?, bOffset?, saved? }` (app-only). |
+| MCP | `compare_analysis { tool, with, target?, bOffset?, saved? }` — a live project label (app) or a project file path (headless, M25.D). |
 | CLI | `hey-listen compare A.heyl B.heyl -t TOOL [--b-offset SECS]` (batch, no window). |
 
 On the compare tab itself, **Compare with…** re-targets its reference. The picker lists
@@ -228,12 +228,18 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   cursor still mirror the project's other charts.
 - **Saved reference (M25.C).** The badge/banner says **saved reference**; B's band comes
   from the snapshot and B has no live playhead/cursor.
+- **Reference project button (M25.D).** Beside the reference picker: a **live** reference
+  reads **Show reference** and raises that project's window; a **saved** reference reads
+  **Open reference** and resolves B by name — an open project with that display name
+  first, then the most recent project file with that name (opened in a new window). When
+  nothing matches, a transient notice says to open it from File → Open Recent. It never
+  rebinds the comparison.
 - Empty / error states: peer closed (live), peer has no source, grids differ; a saved
   reference never reports "no overlap" — its common span is computed from the snapshot.
-- **A cramped panel scrolls.** The header, readouts and banners keep their height and the
-  chart area keeps a 200 px minimum, so a short Workbench panel (a small window, a split
-  group) scrolls the view instead of squeezing the chart to 0 px — `uPlot` draws nothing at
-  all when its plot area has no height.
+- **A cramped panel scrolls.** The header (whose tools row wraps), readouts and banners keep
+  their height and the chart area keeps a 200 px minimum, so a short Workbench panel (a
+  small window, a split group) scrolls the view instead of squeezing the chart to 0 px —
+  `uPlot` draws nothing at all when its plot area has no height.
 
 ### Popout
 
@@ -286,7 +292,7 @@ The picker offers the saved entry and hints when an open project has the same na
 
 ## MCP
 
-`compare_analysis` (app-only):
+`compare_analysis` (app / headless, M25.D):
 
 ```json
 { "tool": "spectrum", "with": "main-2", "target": "main", "bOffset": 0.012,
@@ -320,9 +326,15 @@ Returns:
   reference snapshot that would be saved (the frontend's dirty signature uses it).
 - `display` (default true) opens / focuses the compare view. Every family now has one
   (`Compare with…` is offered for every analyzer).
-- `compare_analysis` is **app-only**: a live reference needs two project windows, while a
-  **saved snapshot** needs only the owner's window (M25.C). The CLI covers windowless
-  diffs.
+- `compare_analysis` runs with two project windows (a live reference) or one window plus
+  a **saved snapshot** (M25.C). **Headless (M25.D)** it compares the session's project
+  against a project **file**: `with` is the `.heyl` path and B runs with that file's saved
+  setup, window, options and `LAYOUT.filterSpec`; `saved: true` reuses the session's stored
+  snapshot. Either way the last successful comparison is kept in the session, so
+  `save_project` writes it into `COMPARE`, and the app restores it as a compare tab.
+  The **Reference project** button in the header (`open_reference_window`) raises a live
+  reference's window, or opens a saved reference by name (an open project, else the most
+  recent project file) in a new window.
 
 `list_projects` gains `source` (rate / channels / duration), `window`, `hasFilter` and the
 project's **saved comparisons** (tool + reference name + window), so an agent can pick a
@@ -464,8 +476,9 @@ groups, re-point `activeGroup` / `activeView` if they were one),
   hover in the popout moves A's cursor in the project window; closing the popout forgets
   the window. A saved comparison restores as a **tab**, never as a popout window.
 - **MCP** — `compare_analysis` with `target`/`with`/`bOffset`/`saved`, compact/full/
-  summary, an unknown reference, a matrix tool (core diff without a view), and the
-  headless answer (two live windows, or one with a saved snapshot).
+  summary, an unknown reference, a matrix tool (core diff without a view), a live-project
+  call, a saved snapshot, and (M25.D) a headless file-reference call that is then saved
+  into `COMPARE`.
 - **CLI** — `compare a.heyl b.heyl -t spectrum --summary`, `--b-offset`, `--overlap`,
   mismatch, a reference project, a missing `filterSpec` warning, and the exit codes.
 - **M25.A** — the view helpers: Δ limit/span, identical windows and bucket times,

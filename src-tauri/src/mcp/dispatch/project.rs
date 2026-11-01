@@ -63,7 +63,7 @@ impl HeadlessSession {
                     .filter_map(|id| id.parse().ok())
                     .collect()
             })
-            .unwrap_or_default();
+            .unwrap_or_else(|| self.open_tools.clone());
         let embed_source = args
             .get("embedSource")
             .and_then(Value::as_bool)
@@ -71,7 +71,8 @@ impl HeadlessSession {
         // A reference project only makes sense for a file source: the loader can decode
         // the path again. Synths keep their rendered audio.
         let reference = !embed_source && self.source_path.is_some();
-        let setup = self.analysis_setup(open_tools);
+        let setup = self.analysis_setup(open_tools.clone());
+        self.open_tools = open_tools;
         let source = self.source_descriptor();
         let notes_len = notes.len();
 
@@ -150,6 +151,7 @@ impl HeadlessSession {
         let view = (loaded.setup.view.start_secs, loaded.setup.view.end_secs);
         self.window = window;
         self.view = view;
+        self.open_tools = loaded.setup.open_tools.clone();
         self.name = loaded.meta.name.clone();
         self.project_name = Some(loaded.meta.name);
         self.project_path = Some(path.to_string());
@@ -182,6 +184,7 @@ impl HeadlessSession {
         self.source_kind = SourceKind::File;
         self.project_path = None;
         self.project_name = None;
+        self.open_tools.clear();
         self.name.clear();
         Ok(self.get_state())
     }
