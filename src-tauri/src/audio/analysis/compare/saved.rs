@@ -47,6 +47,10 @@ pub struct SavedComparison {
     pub saved_ms: u64,
     /// The reference's full result for that window.
     pub result: StoredAnalysisResult,
+    /// The reference project's **file path** (M25.D), so "Open reference" can open the
+    /// other project again; `None` when the reference was a project that was never
+    /// saved. Appended last so an older payload is a strict prefix of this one.
+    pub reference_path: Option<String>,
 }
 
 /// A compact view of a saved comparison for the frontend / MCP (no result payload).
@@ -67,12 +71,18 @@ pub struct SavedComparisonInfo {
 
 impl SavedComparison {
     /// Capture the reference side of a **live** comparison.
+    ///
+    /// `reference_path` is the reference project's file, when it has one (the app reads
+    /// it from the peer's project state; the CLI and a headless session pass the file
+    /// they loaded). It is stored absolute, so it still opens from another working
+    /// directory.
     pub fn from_side(
         tool: AnalyzerId,
         side: &ComparisonSide,
         filter_fingerprint: Option<String>,
         b_offset: f64,
         saved_ms: u64,
+        reference_path: Option<String>,
     ) -> Self {
         Self {
             tool,
@@ -96,6 +106,11 @@ impl SavedComparison {
             b_offset,
             saved_ms,
             result: StoredAnalysisResult::from(&side.result),
+            reference_path: reference_path.map(|path| {
+                std::fs::canonicalize(&path)
+                    .map(|resolved| resolved.to_string_lossy().into_owned())
+                    .unwrap_or(path)
+            }),
         }
     }
 
@@ -143,9 +158,58 @@ impl SavedComparison {
             &self.filter_fingerprint,
             self.b_offset,
             &self.result,
+            &self.reference_path,
         );
         let bytes = postcard::to_stdvec(&key).unwrap_or_default();
         format!("{:016x}", fnv1a(&bytes))
+    }
+}
+
+/// The `COMPARE` payload written before `referencePath` existed (0.5.1 files).
+///
+/// `postcard` is positional, so the old struct decodes as a tuple in field order; the
+/// conversion stores `None` for the path, so an existing project still loads (the view
+/// then reports that the reference file is unknown instead of guessing one).
+pub(crate) type SavedComparisonV1 = (
+    AnalyzerId,
+    String,
+    SourceShape,
+    Span,
+    SharedParams,
+    ToolOptions,
+    Option<String>,
+    f64,
+    u64,
+    StoredAnalysisResult,
+);
+
+impl From<SavedComparisonV1> for SavedComparison {
+    fn from(old: SavedComparisonV1) -> Self {
+        let (
+            tool,
+            reference_name,
+            source,
+            window,
+            params,
+            options,
+            filter_fingerprint,
+            b_offset,
+            saved_ms,
+            result,
+        ) = old;
+        Self {
+            tool,
+            reference_name,
+            source,
+            window,
+            params,
+            options,
+            filter_fingerprint,
+            b_offset,
+            saved_ms,
+            result,
+            reference_path: None,
+        }
     }
 }
 

@@ -132,6 +132,7 @@ impl HeadlessSession {
                     compare::filter_fingerprint(&side.state),
                     b_offset,
                     crate::recent::now_ms(),
+                    Some(path.clone()),
                 );
                 self.state.store_saved_comparison(snapshot.clone());
                 Ok(comparison_value(

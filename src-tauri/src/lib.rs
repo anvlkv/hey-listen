@@ -250,6 +250,7 @@ pub fn run() {
             commands::project::take_pending_open_paths,
             commands::project::add_recent_project,
             commands::project::siblings::adjacent_project,
+            commands::project::siblings::adjacent_projects,
             commands::window::open_project_window,
             commands::window::open_popout_window,
             commands::window::sync_popouts,

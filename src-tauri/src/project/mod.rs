@@ -151,3 +151,6 @@ impl Crc32 {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_compare;

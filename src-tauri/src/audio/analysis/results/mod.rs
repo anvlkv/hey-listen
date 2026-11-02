@@ -19,7 +19,7 @@ mod stored;
 pub use modulation::*;
 pub use notes::*;
 pub use series::*;
-pub use stored::StoredAnalysisResult;
+pub use stored::*;
 
 /// Shift every entry of a result's time axis by `shift` (source seconds).
 fn shift_times(times: &mut [f32], shift: f32) {

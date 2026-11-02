@@ -41,6 +41,7 @@ export const ICON_GLYPHS = {
   // --- Graph editors / charts -------------------------------------------------
   trash: "f1f8",
   "angle-down": "f107",
+  "angle-left": "f104",
   "angle-right": "f105",
   "chevron-down": "f078",
   "chevron-up": "f077",

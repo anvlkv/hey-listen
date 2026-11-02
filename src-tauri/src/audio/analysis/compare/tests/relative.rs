@@ -111,7 +111,8 @@ fn a_saved_reference_compares_without_a_second_project() {
         (&b, setup(0.5, 1.5)),
     );
     // Freeze B's side exactly as a save would (unfiltered, δ = 0).
-    let snapshot = SavedComparison::from_side(AnalyzerId::FrameRms, &live.b, None, 0.0, 1_000);
+    let snapshot =
+        SavedComparison::from_side(AnalyzerId::FrameRms, &live.b, None, 0.0, 1_000, None);
 
     let saved = compare_saved(
         AnalyzerId::FrameRms,
@@ -148,7 +149,8 @@ fn a_snapshot_fingerprint_ignores_its_timestamp_but_tracks_the_content() {
         (&a, setup(0.0, 1.0)),
         (&b, setup(0.0, 1.0)),
     );
-    let snapshot = SavedComparison::from_side(AnalyzerId::FrameRms, &live.b, None, 0.0, 1_000);
+    let snapshot =
+        SavedComparison::from_side(AnalyzerId::FrameRms, &live.b, None, 0.0, 1_000, None);
     let fingerprint = snapshot.fingerprint();
 
     // Re-saving an unchanged comparison must not look like an edit.

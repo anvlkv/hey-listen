@@ -84,6 +84,7 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
                     comparison::filter_fingerprint(&b.state),
                     request.b_offset,
                     crate::recent::now_ms(),
+                    Some(b.file.clone()),
                 ));
             }
             Err(err) => {

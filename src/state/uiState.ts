@@ -4,7 +4,7 @@ import { analyzerBus, readBusMessage } from "./chartSync";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
 import { focusedNoteId, notes, replaceNotes, setFocusedNoteId } from "./notes";
-import { applyProjectTitle, projectDisplayName } from "./project";
+import { applyProjectTitle, projectDisplayName, projectPath } from "./project";
 import {
   setView,
   setWindowEnd,
@@ -33,6 +33,11 @@ interface TimelineState {
 
 interface ProjectState {
   name: string;
+  /**
+   * The project's file, so the core can re-open this project as a comparison's
+   * reference (and raise rather than duplicate a window already showing it).
+   */
+  path: string | null;
 }
 
 /** A marker sourceId so a remote view applies to every chart in its group. */
@@ -121,7 +126,10 @@ export async function initUiState(): Promise<void> {
     // stub, so it must not push its derived name back).
     if (!isPopoutWindow) {
       createEffect(() =>
-        pushUiState("project", { name: projectDisplayName() } satisfies ProjectState),
+        pushUiState("project", {
+          name: projectDisplayName(),
+          path: projectPath(),
+        } satisfies ProjectState),
       );
     }
     for (const group of ["time", "freq", "mod"] as const) {

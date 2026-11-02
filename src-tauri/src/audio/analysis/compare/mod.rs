@@ -18,6 +18,7 @@ pub mod stats;
 
 pub use align::{Comparability, Span};
 pub use diff::ComparisonDiff;
+pub(crate) use saved::SavedComparisonV1;
 pub use saved::{SavedComparison, SavedComparisonInfo};
 
 use serde::{Deserialize, Serialize};

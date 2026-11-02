@@ -1,6 +1,6 @@
 import { Slider } from "@kobalte/core/slider";
 import { Meter } from "@kobalte/core/meter";
-import { onCleanup, onMount, Show } from "solid-js";
+import { createEffect, on, onCleanup, onMount, Show } from "solid-js";
 import Button from "./Button";
 import Combobox from "./Combobox";
 import Icon from "./Icon";
@@ -20,11 +20,18 @@ import {
   setOutputDeviceId,
 } from "../state/output";
 import { previewError } from "../audio/preview";
-import { projectError, projectName, projectStatus } from "../state/project";
+import {
+  adjacentProjects,
+  projectError,
+  projectName,
+  projectPath,
+  projectStatus,
+  refreshAdjacentProjects,
+} from "../state/project";
 import { notes } from "../state/notes";
 import { notesPanelOpen, toggleNotesPanel } from "../state/settings";
 import { error, status } from "../state/source";
-import { setAboutOpen } from "../state/menu";
+import { setAboutOpen, stepProject } from "../state/menu";
 import { refreshMcpStatus } from "../state/mcpSettings";
 import { meterDbLabel, meterPercent } from "../lib/format";
 
@@ -56,6 +63,9 @@ export default function Toolbar() {
   onMount(() => {
     void refreshMcpStatus();
   });
+  // The previous/next arrows follow the project's folder: a load, a save-as or a step
+  // re-reads the neighbour list (unsaved projects have none).
+  createEffect(on(projectPath, (path) => void refreshAdjacentProjects(path)));
   // Poll the preview output level for the meter; stop when the toolbar unmounts.
   onCleanup(initOutputMeter());
 
@@ -67,8 +77,32 @@ export default function Toolbar() {
 
   return (
     <header class="app-toolbar" data-testid="region.toolbar">
-      <span class="toolbar-name" data-testid="toolbar.project.name" title={projectName()}>
-        {projectName()}
+      <span class="toolbar-project">
+        <Tooltip label="Previous project (⌥⌘←)">
+          <Button
+            class="toolbar-btn toolbar-step"
+            data-testid="toolbar.project.previous"
+            aria-label="Previous project"
+            disabled={!adjacentProjects().previous}
+            onClick={() => void stepProject(-1)}
+          >
+            <Icon name="angle-left" />
+          </Button>
+        </Tooltip>
+        <span class="toolbar-name" data-testid="toolbar.project.name" title={projectName()}>
+          {projectName()}
+        </span>
+        <Tooltip label="Next project (⌥⌘→)">
+          <Button
+            class="toolbar-btn toolbar-step"
+            data-testid="toolbar.project.next"
+            aria-label="Next project"
+            disabled={!adjacentProjects().next}
+            onClick={() => void stepProject(1)}
+          >
+            <Icon name="angle-right" />
+          </Button>
+        </Tooltip>
       </span>
 
       <Show when={PROJECT_LABEL[projectStatus()]}>

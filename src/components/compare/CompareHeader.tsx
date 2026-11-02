@@ -99,7 +99,7 @@ export default function CompareHeader(props: {
       ? { kind: "saved", reference: savedInfo()?.referenceName ?? props.reference }
       : { kind: "live", reference: props.reference };
     try {
-      await showReference(binding);
+      await showReference(binding, props.tool);
     } catch (err) {
       showCompareNotice(String(err).replace(/^Error:\s*/, ""));
     }

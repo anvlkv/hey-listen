@@ -230,10 +230,12 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   from the snapshot and B has no live playhead/cursor.
 - **Reference project button (M25.D).** Beside the reference picker: a **live** reference
   reads **Show reference** and raises that project's window; a **saved** reference reads
-  **Open reference** and resolves B by name — an open project with that display name
-  first, then the most recent project file with that name (opened in a new window). When
-  nothing matches, a transient notice says to open it from File → Open Recent. It never
-  rebinds the comparison.
+  **Open reference** and opens the reference **file recorded with the snapshot** (raising
+  a window that already shows it). Nothing is resolved by name — two projects can share a
+  display name, and an origin project's title can share a prefix with the owner's file.
+  A snapshot without a recorded path (a comparison made against an unsaved project, or a
+  file saved by an older build) and a reference file that has since been deleted both
+  report a transient notice. It never rebinds the comparison.
 - Empty / error states: peer closed (live), peer has no source, grids differ; a saved
   reference never reports "no overlap" — its common span is computed from the snapshot.
 - **A cramped panel scrolls.** The header (whose tools row wraps), readouts and banners keep
@@ -335,9 +337,10 @@ Returns:
   headless `get_state.savedComparisons` lists what `saved: true` can use, and
   `save_project` creates the target's parent folders.
   The **Reference project** button in the header (`open_reference_window`) raises a live
-  reference's window, or opens a saved reference by name (an open project, else the most
-  recent project file) in a new window. To script the same two-window comparison, open the
-  reference with `open_project_window { path }` and pass the returned label as `with`.
+  reference's window, or opens the file recorded with a saved snapshot (M25.C stores the
+  reference project's **path**; there is no name-based fallback). To script the same
+  two-window comparison, open the reference with `open_project_window { path }` and pass
+  the returned label as `with`.
 
 `list_projects` gains `source` (rate / channels / duration), `window`, `hasFilter` and the
 project's **saved comparisons** (tool + reference name + window), so an agent can pick a
@@ -592,8 +595,10 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 > **Delivered (M25.C) — saved comparisons.** Replaces the "not project content" rule:
 >
 > - a `COMPARE` section (id `0x08`, `postcard`) holds one snapshot per comparison open at
->   save time: tool, reference **name**, source shape, window, params, effective options,
->   filter fingerprint, B's full last `AnalysisResult`, `bOffset`, `savedMs` — no B audio;
+>   save time: tool, reference **name**, the reference's **project file** (so the view's
+>   **Open reference** button reopens it exactly), source shape, window, params, effective
+>   options, filter fingerprint, B's full last `AnalysisResult`, `bOffset`, `savedMs` — no
+>   B audio;
 > - saved comparisons restore as **tabs** (never popouts); they bind to the snapshot until
 >   an explicit reconnect (the picker hints a same-named open project);
 > - a saved reference hides B's live markers and marks the badge/banner **saved
@@ -609,8 +614,15 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 >   (`results::StoredAnalysisResult`, an externally tagged enum with one newtype variant
 >   per tool) instead of deriving `Deserialize` on the internally tagged IPC
 >   `AnalysisResult`: postcard is not self-describing and cannot decode that
->   representation. The payload structs do derive `Deserialize`, and the mirror's
->   conversions are exhaustive, so a new tool is a compile error until it is stored.
+>   representation. The mirror's conversions are exhaustive, so a new tool is a compile
+>   error until it is stored.
+> - A payload that **skips** an absent optional key is stored through a positional
+>   wrapper (`StoredSeries`, `StoredNoteMetrics`): `skip_serializing_if` only affects
+>   writing, so postcard would omit a field the reader still expects and run off the end
+>   of the buffer — which is what made a saved **series** (or grouped-notes) comparison
+>   unreadable. The wrappers write every field unconditionally while the JSON wire keeps
+>   its absent-key shape; the field order matches the structs, so a file written before
+>   the wrapper (both optional keys present) still decodes.
 > - The core keeps the **last successful** comparison per tool. Saving writes the
 >   snapshots of the comparisons open at save time (tabs *and* popouts) and prunes the
 >   rest; a comparison that never resolved has no snapshot. `savedMs` is refreshed when

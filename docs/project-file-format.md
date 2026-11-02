@@ -59,6 +59,7 @@ The `COMPARE` section (id `0x08`) carries the project's **saved comparisons** as
 | --- | --- |
 | `tool` | The analyzer id (one saved comparison per tool). |
 | `referenceName` | The reference project's display name (window labels are session-scoped, so they are not stored). |
+| `referencePath` | The reference project's **file path** (`null` when the reference was never saved). The compare view's **Open reference** opens exactly this file; it is not resolved by name. |
 | `source` | The reference's source shape (rate / channels / duration), for the header. |
 | `window` | The reference's analysis window (`start..end`, absolute source seconds). |
 | `params` / `options` | The shared params and effective tool options the result was produced with. |
@@ -80,10 +81,22 @@ The payload is `postcard` with a **postcard-safe mirror** of the result
 (`results::StoredAnalysisResult`): the IPC enum is internally tagged (`tool` key), which
 `postcard` cannot decode, and JSON would make a 512-frame spectrogram several megabytes
 instead of roughly 0.5 MB. The mirror is an externally tagged enum with one newtype
-variant per tool; the payload structs derive `Deserialize`, and the conversions are
-exhaustive, so a new analyzer cannot be added without a stored form. The `COMPARE`
-section itself is additive: an older build opens a project that has one and ignores it,
-and a file without one loads with no saved comparisons.
+variant per tool, and the conversions are exhaustive, so a new analyzer cannot be added
+without a stored form.
+
+The mirror also covers the payloads that **skip** an absent optional key on the JSON
+wire (`SeriesResult`'s `frameSize` / `gate` and `NoteMetricsResult`'s `syllables`).
+`skip_serializing_if` only affects writing, so a stored result that skipped a field
+would make the reader run off the end of the buffer; `StoredSeries` and
+`StoredNoteMetrics` write every field in struct order instead. The `COMPARE` section
+itself is additive: an older build opens a project that has one and ignores it, and a
+file without one loads with no saved comparisons.
+
+`referencePath` was appended after the first released snapshot layout, so a file from
+an older build decodes as that layout (the reader tries the current payload, then the
+older one) and simply has no recorded path. The reverse does not hold: a build that
+predates `referencePath` cannot read a newer `COMPARE` payload — postcard carries no
+field names to skip.
 
 The panel itself is still not in `LAYOUT` (compare panels are sanitised out); restoring a
 saved comparison re-creates its Workbench **tab** after the project state is ready.

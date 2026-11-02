@@ -1,12 +1,36 @@
 //! Step through the `.heyl` files in a project's folder (M25.D).
 //!
 //! An evaluation run produces many sibling projects (one per species / recording) in a
-//! single directory; File → Previous/Next Project moves between them without a dialog.
-//! The order is the folder's file names, case-insensitively, so it is stable and obvious.
+//! single directory; File → Previous/Next Project and the toolbar's arrows move between
+//! them without a dialog. The order is the folder's file names, case-insensitively, so
+//! it is stable and obvious.
 
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+
 use super::PROJECT_EXTENSION;
+
+/// The neighbouring project files of a project, in one folder read.
+///
+/// Drives the toolbar's `[<] name [>]` arrows: each is disabled when its neighbour does
+/// not exist (including for an unsaved project, which has no folder yet).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct AdjacentProjects {
+    /// The previous project file in name order (`None` at the start of the folder).
+    pub previous: Option<String>,
+    /// The next project file in name order (`None` at the end of the folder).
+    pub next: Option<String>,
+}
+
+/// Both neighbours of `path` in its folder (the toolbar's Previous/Next state).
+#[tauri::command]
+pub fn adjacent_projects(path: String) -> AdjacentProjects {
+    let (previous, next) = neighbours(&path).unwrap_or((None, None));
+    AdjacentProjects { previous, next }
+}
 
 /// The neighbouring project file in `path`'s folder.
 ///
@@ -15,14 +39,41 @@ use super::PROJECT_EXTENSION;
 /// readable folder or has no neighbour.
 #[tauri::command]
 pub fn adjacent_project(path: String, direction: i32) -> Option<String> {
-    let current = Path::new(&path);
-    let folder = current.parent()?;
     if direction == 0 {
         return None;
     }
+    let (previous, next) = neighbours(&path)?;
+    if direction < 0 {
+        previous
+    } else {
+        next
+    }
+}
 
+/// The project files before and after `path`, when `path` is one of them.
+fn neighbours(path: &str) -> Option<(Option<String>, Option<String>)> {
+    let current = Path::new(path);
+    let folder = current.parent()?;
+    let projects = project_files(folder);
+    let index = projects
+        .iter()
+        .position(|(_, candidate)| candidate.file_name() == current.file_name())?;
+
+    let before = index
+        .checked_sub(1)
+        .and_then(|index| projects.get(index))
+        .map(|(_, path)| path.to_string_lossy().into_owned());
+    let after = projects
+        .get(index + 1)
+        .map(|(_, path)| path.to_string_lossy().into_owned());
+    Some((before, after))
+}
+
+/// The `.heyl` files in `folder`, ordered by file name (case-insensitively).
+fn project_files(folder: &Path) -> Vec<(String, PathBuf)> {
     let mut projects: Vec<(String, PathBuf)> = std::fs::read_dir(folder)
-        .ok()?
+        .into_iter()
+        .flatten()
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
         .filter(|candidate| {
@@ -38,17 +89,7 @@ pub fn adjacent_project(path: String, direction: i32) -> Option<String> {
         .collect();
     // Same-name files differing only in case are ordered by their real path.
     projects.sort();
-
-    let index = projects
-        .iter()
-        .position(|(_, candidate)| candidate.file_name() == current.file_name())?;
-    let target = if direction < 0 {
-        index.checked_sub(1)?
-    } else {
-        index + 1
-    };
-    let (_, next) = projects.get(target)?;
-    Some(next.to_string_lossy().into_owned())
+    projects
 }
 
 #[cfg(test)]
@@ -79,6 +120,41 @@ mod tests {
         assert_eq!(adjacent_project(b, -1), Some(a.clone()));
         assert_eq!(adjacent_project(a.clone(), -1), None);
         assert_eq!(adjacent_project(a, 0), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn both_neighbours_come_from_one_read() {
+        let dir = temp_dir("neighbours");
+        for name in ["b.heyl", "a.heyl", "d.HEYL"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+        let a = dir.join("a.heyl").to_string_lossy().into_owned();
+        let b = dir.join("b.heyl").to_string_lossy().into_owned();
+        let d = dir.join("d.HEYL").to_string_lossy().into_owned();
+
+        assert_eq!(
+            adjacent_projects(b),
+            AdjacentProjects {
+                previous: Some(a.clone()),
+                next: Some(d),
+            }
+        );
+        // The ends have one neighbour each, so the toolbar disables the other arrow.
+        assert_eq!(
+            adjacent_projects(a.clone()),
+            AdjacentProjects {
+                previous: None,
+                next: Some(dir.join("b.heyl").to_string_lossy().into_owned()),
+            }
+        );
+        assert_eq!(
+            adjacent_projects("stray.heyl".to_string()),
+            AdjacentProjects {
+                previous: None,
+                next: None,
+            }
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

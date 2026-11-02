@@ -804,12 +804,12 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M15.B — String identifiers become strum enums ✅
+## M15.A — String identifiers become strum enums ✅
 
 A type-safety follow-on to M15: the Rust core carried enumerable state as bare strings
 — analyzer tool ids, result families, source kinds, window functions, and the
 menu/theme/CLI action ids — matched and dispatched with hand-written `match` arms and
-`&'static str` tables in several places. M15.B replaced them with `strum`-backed enums
+`&'static str` tables in several places. M15.A replaced them with `strum`-backed enums
 (`serde` + `ts-rs`) so each id is parsed **once at the boundary** and every consumer
 works on a typed value, while the wire stays **camelCase strings, byte-for-byte
 identical** — the project file, IPC and generated TS bindings are unaffected. This is
@@ -862,7 +862,7 @@ round-trip. `cargo test` (regenerates bindings) + `npm run typecheck` after each
 (already typed via `ToolOptions`), and any change to the serialized strings themselves —
 this is type safety only, not a format bump.
 
-> **Order:** M15.B follows M15 and is independent of M13/M22–M25. Phases are
+> **Order:** M15.A follows M15 and is independent of M13/M22–M25. Phases are
 > self-contained; `AnalyzerId` is the prerequisite for the `Family`/`Section` phase.
 
 ## M16–M20 — Analysis depth I ✅
@@ -1990,14 +1990,18 @@ between sibling projects and to reach the other side of a comparison. Supersedes
   stays JSONL.
 - **Previous / Next Project.** File menu items (and `CmdOrCtrl+Alt+Left` / `Right`) step
   through the `.heyl` files in the current project's folder, case-insensitive name order,
-  stopping at the ends, behind the usual unsaved-work guard. The core command is
-  `adjacent_project(path, direction)`; an unsaved project reports that it must be saved
-  first.
+  stopping at the ends, behind the usual unsaved-work guard. The Toolbar mirrors it as
+  `[<] name [>]`: `adjacent_projects(path)` returns both neighbours in one folder read,
+  so each arrow is disabled when there is no project in that direction (and both are for
+  an unsaved project). The core command is `adjacent_project(path, direction)`; an
+  unsaved project reports that it must be saved first.
 - **Reference project from a compare view.** The header gains **Show reference** (a live
-  reference raises that project's window) / **Open reference** (a saved reference: an open
-  project with that display name first, else the most recent project file with that name,
-  opened in a new window through a pending-path handoff). A miss is a transient notice —
-  it never rebinds the comparison.
+  reference raises that project's window) / **Open reference** (a saved reference: opens the
+  reference project **file recorded with the snapshot** in a new window through a
+  pending-path handoff, raising an existing window that already shows it). The path is
+  stored in `COMPARE` (`referencePath`); there is no name-based fallback. A snapshot with
+  no recorded path or a deleted reference file is a transient notice — it never rebinds
+  the comparison.
 
 **Files:** `src-tauri/src/project/side.rs` (the shared project side loader),
 `src-tauri/src/mcp/dispatch/{mod,compare,project,session,args}.rs` +
