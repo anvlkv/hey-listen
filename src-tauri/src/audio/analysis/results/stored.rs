@@ -10,10 +10,174 @@
 //!
 //! The encoding is a project-file detail (the `COMPARE` section) and is versioned with
 //! the container; it is not a public wire format.
+//!
+//! The same applies to a payload struct that **skips** an absent optional key:
+//! `skip_serializing_if` only affects writing, while the reader still expects the field
+//! (there is no "absent" marker in a non-self-describing format), so the reader runs off
+//! the end of the buffer. [`SeriesResult`] (`frameSize` / `gate`) and
+//! [`NoteMetricsResult`] (`syllables`) do exactly that for the JSON wire, so the stored
+//! form writes their fields through the positional wrappers below.
 
 use serde::{Deserialize, Serialize};
 
 use super::*;
+
+/// The postcard-safe stored fields of a [`SeriesResult`].
+///
+/// Positional (postcard carries no names) and in **field order**, so a file written
+/// before this wrapper — one where both optional keys happened to be present — still
+/// decodes. The destructuring in the conversions below is exhaustive: adding a field to
+/// `SeriesResult` fails to compile until the stored form carries it too.
+type SeriesFields = (
+    u32,
+    usize,
+    usize,
+    Vec<f32>,
+    f64,
+    Vec<Option<f32>>,
+    f32,
+    f32,
+    Option<usize>,
+    Option<SeriesGate>,
+);
+
+/// A [`SeriesResult`] as stored in the project file (see [`SeriesFields`]).
+#[derive(Clone, Serialize, Deserialize)]
+pub struct StoredSeries(SeriesFields);
+
+impl std::fmt::Debug for StoredSeries {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        SeriesResult::from(self.clone()).fmt(f)
+    }
+}
+
+impl From<&SeriesResult> for StoredSeries {
+    fn from(r: &SeriesResult) -> Self {
+        Self((
+            r.sample_rate,
+            r.hop_size,
+            r.frames,
+            r.times.clone(),
+            r.window_start,
+            r.values.clone(),
+            r.min_value,
+            r.max_value,
+            r.frame_size,
+            r.gate,
+        ))
+    }
+}
+
+impl From<StoredSeries> for SeriesResult {
+    fn from(stored: StoredSeries) -> Self {
+        let (
+            sample_rate,
+            hop_size,
+            frames,
+            times,
+            window_start,
+            values,
+            min_value,
+            max_value,
+            frame_size,
+            gate,
+        ) = stored.0;
+        Self {
+            sample_rate,
+            hop_size,
+            frames,
+            times,
+            window_start,
+            values,
+            min_value,
+            max_value,
+            frame_size,
+            gate,
+        }
+    }
+}
+
+/// The postcard-safe stored fields of a [`NoteMetricsResult`] (see [`SeriesFields`]).
+type NoteMetricsFields = (
+    f64,
+    usize,
+    usize,
+    f32,
+    f32,
+    f32,
+    f32,
+    f32,
+    Vec<f32>,
+    Option<usize>,
+    Vec<NoteMetric>,
+    Vec<GapMetric>,
+    Option<Vec<SyllableMetric>>,
+);
+
+/// A [`NoteMetricsResult`] as stored in the project file (see [`SeriesFields`]).
+#[derive(Clone, Serialize, Deserialize)]
+pub struct StoredNoteMetrics(NoteMetricsFields);
+
+impl std::fmt::Debug for StoredNoteMetrics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        NoteMetricsResult::from(self.clone()).fmt(f)
+    }
+}
+
+impl From<&NoteMetricsResult> for StoredNoteMetrics {
+    fn from(r: &NoteMetricsResult) -> Self {
+        Self((
+            r.window_start,
+            r.note_count,
+            r.gap_count,
+            r.total_gap_secs,
+            r.longest_gap_secs,
+            r.median_note_secs,
+            r.median_gap_secs,
+            r.threshold_db,
+            r.envelope_positions.clone(),
+            r.reference_note_index,
+            r.notes.clone(),
+            r.gaps.clone(),
+            r.syllables.clone(),
+        ))
+    }
+}
+
+impl From<StoredNoteMetrics> for NoteMetricsResult {
+    fn from(stored: StoredNoteMetrics) -> Self {
+        let (
+            window_start,
+            note_count,
+            gap_count,
+            total_gap_secs,
+            longest_gap_secs,
+            median_note_secs,
+            median_gap_secs,
+            threshold_db,
+            envelope_positions,
+            reference_note_index,
+            notes,
+            gaps,
+            syllables,
+        ) = stored.0;
+        Self {
+            window_start,
+            note_count,
+            gap_count,
+            total_gap_secs,
+            longest_gap_secs,
+            median_note_secs,
+            median_gap_secs,
+            threshold_db,
+            envelope_positions,
+            reference_note_index,
+            notes,
+            gaps,
+            syllables,
+        }
+    }
+}
 
 /// The stored form of one analysis result (see the module note).
 ///
@@ -25,30 +189,30 @@ pub enum StoredAnalysisResult {
     Spectrum(SpectrumResult),
     Spectrogram(SpectrogramResult),
     Levels(LevelsResult),
-    FrameRms(SeriesResult),
+    FrameRms(StoredSeries),
     MelSpectrogram(MatrixResult),
     Mfcc(MatrixResult),
     Chromagram(MatrixResult),
     SpectralContrast(MatrixResult),
-    SpectralCentroid(SeriesResult),
-    SpectralFlux(SeriesResult),
-    SpectralRolloff(SeriesResult),
-    SpectralFlatness(SeriesResult),
-    SpectralBandwidth(SeriesResult),
-    SpectralEntropy(SeriesResult),
-    SpectralCrest(SeriesResult),
-    HarmonicRatio(SeriesResult),
-    ZeroCrossingRate(SeriesResult),
+    SpectralCentroid(StoredSeries),
+    SpectralFlux(StoredSeries),
+    SpectralRolloff(StoredSeries),
+    SpectralFlatness(StoredSeries),
+    SpectralBandwidth(StoredSeries),
+    SpectralEntropy(StoredSeries),
+    SpectralCrest(StoredSeries),
+    HarmonicRatio(StoredSeries),
+    ZeroCrossingRate(StoredSeries),
     PitchPyin(PitchResult),
     PitchYin(PitchResult),
     PitchAutocorr(PitchResult),
-    NoteMetrics(NoteMetricsResult),
+    NoteMetrics(StoredNoteMetrics),
     Modulation(ModulationResult),
     Tempo(RhythmResult),
     Onsets(RhythmResult),
     Downbeats(RhythmResult),
     LoudnessIntegrated(LufsResult),
-    LoudnessMomentary(SeriesResult),
+    LoudnessMomentary(StoredSeries),
     LoudnessRange(LraResult),
 }
 
@@ -59,30 +223,30 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::Spectrum(value) => Self::Spectrum(value.clone()),
             AnalysisResult::Spectrogram(value) => Self::Spectrogram(value.clone()),
             AnalysisResult::Levels(value) => Self::Levels(value.clone()),
-            AnalysisResult::FrameRms(value) => Self::FrameRms(value.clone()),
+            AnalysisResult::FrameRms(value) => Self::FrameRms(value.into()),
             AnalysisResult::MelSpectrogram(value) => Self::MelSpectrogram(value.clone()),
             AnalysisResult::Mfcc(value) => Self::Mfcc(value.clone()),
             AnalysisResult::Chromagram(value) => Self::Chromagram(value.clone()),
             AnalysisResult::SpectralContrast(value) => Self::SpectralContrast(value.clone()),
-            AnalysisResult::SpectralCentroid(value) => Self::SpectralCentroid(value.clone()),
-            AnalysisResult::SpectralFlux(value) => Self::SpectralFlux(value.clone()),
-            AnalysisResult::SpectralRolloff(value) => Self::SpectralRolloff(value.clone()),
-            AnalysisResult::SpectralFlatness(value) => Self::SpectralFlatness(value.clone()),
-            AnalysisResult::SpectralBandwidth(value) => Self::SpectralBandwidth(value.clone()),
-            AnalysisResult::SpectralEntropy(value) => Self::SpectralEntropy(value.clone()),
-            AnalysisResult::SpectralCrest(value) => Self::SpectralCrest(value.clone()),
-            AnalysisResult::HarmonicRatio(value) => Self::HarmonicRatio(value.clone()),
-            AnalysisResult::ZeroCrossingRate(value) => Self::ZeroCrossingRate(value.clone()),
+            AnalysisResult::SpectralCentroid(value) => Self::SpectralCentroid(value.into()),
+            AnalysisResult::SpectralFlux(value) => Self::SpectralFlux(value.into()),
+            AnalysisResult::SpectralRolloff(value) => Self::SpectralRolloff(value.into()),
+            AnalysisResult::SpectralFlatness(value) => Self::SpectralFlatness(value.into()),
+            AnalysisResult::SpectralBandwidth(value) => Self::SpectralBandwidth(value.into()),
+            AnalysisResult::SpectralEntropy(value) => Self::SpectralEntropy(value.into()),
+            AnalysisResult::SpectralCrest(value) => Self::SpectralCrest(value.into()),
+            AnalysisResult::HarmonicRatio(value) => Self::HarmonicRatio(value.into()),
+            AnalysisResult::ZeroCrossingRate(value) => Self::ZeroCrossingRate(value.into()),
             AnalysisResult::PitchPyin(value) => Self::PitchPyin(value.clone()),
             AnalysisResult::PitchYin(value) => Self::PitchYin(value.clone()),
             AnalysisResult::PitchAutocorr(value) => Self::PitchAutocorr(value.clone()),
-            AnalysisResult::NoteMetrics(value) => Self::NoteMetrics(value.clone()),
+            AnalysisResult::NoteMetrics(value) => Self::NoteMetrics(value.into()),
             AnalysisResult::Modulation(value) => Self::Modulation(value.clone()),
             AnalysisResult::Tempo(value) => Self::Tempo(value.clone()),
             AnalysisResult::Onsets(value) => Self::Onsets(value.clone()),
             AnalysisResult::Downbeats(value) => Self::Downbeats(value.clone()),
             AnalysisResult::LoudnessIntegrated(value) => Self::LoudnessIntegrated(value.clone()),
-            AnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.clone()),
+            AnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.into()),
             AnalysisResult::LoudnessRange(value) => Self::LoudnessRange(value.clone()),
         }
     }
@@ -95,31 +259,94 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::Spectrum(value) => Self::Spectrum(value),
             StoredAnalysisResult::Spectrogram(value) => Self::Spectrogram(value),
             StoredAnalysisResult::Levels(value) => Self::Levels(value),
-            StoredAnalysisResult::FrameRms(value) => Self::FrameRms(value),
+            StoredAnalysisResult::FrameRms(value) => Self::FrameRms(value.into()),
             StoredAnalysisResult::MelSpectrogram(value) => Self::MelSpectrogram(value),
             StoredAnalysisResult::Mfcc(value) => Self::Mfcc(value),
             StoredAnalysisResult::Chromagram(value) => Self::Chromagram(value),
             StoredAnalysisResult::SpectralContrast(value) => Self::SpectralContrast(value),
-            StoredAnalysisResult::SpectralCentroid(value) => Self::SpectralCentroid(value),
-            StoredAnalysisResult::SpectralFlux(value) => Self::SpectralFlux(value),
-            StoredAnalysisResult::SpectralRolloff(value) => Self::SpectralRolloff(value),
-            StoredAnalysisResult::SpectralFlatness(value) => Self::SpectralFlatness(value),
-            StoredAnalysisResult::SpectralBandwidth(value) => Self::SpectralBandwidth(value),
-            StoredAnalysisResult::SpectralEntropy(value) => Self::SpectralEntropy(value),
-            StoredAnalysisResult::SpectralCrest(value) => Self::SpectralCrest(value),
-            StoredAnalysisResult::HarmonicRatio(value) => Self::HarmonicRatio(value),
-            StoredAnalysisResult::ZeroCrossingRate(value) => Self::ZeroCrossingRate(value),
+            StoredAnalysisResult::SpectralCentroid(value) => Self::SpectralCentroid(value.into()),
+            StoredAnalysisResult::SpectralFlux(value) => Self::SpectralFlux(value.into()),
+            StoredAnalysisResult::SpectralRolloff(value) => Self::SpectralRolloff(value.into()),
+            StoredAnalysisResult::SpectralFlatness(value) => Self::SpectralFlatness(value.into()),
+            StoredAnalysisResult::SpectralBandwidth(value) => Self::SpectralBandwidth(value.into()),
+            StoredAnalysisResult::SpectralEntropy(value) => Self::SpectralEntropy(value.into()),
+            StoredAnalysisResult::SpectralCrest(value) => Self::SpectralCrest(value.into()),
+            StoredAnalysisResult::HarmonicRatio(value) => Self::HarmonicRatio(value.into()),
+            StoredAnalysisResult::ZeroCrossingRate(value) => Self::ZeroCrossingRate(value.into()),
             StoredAnalysisResult::PitchPyin(value) => Self::PitchPyin(value),
             StoredAnalysisResult::PitchYin(value) => Self::PitchYin(value),
             StoredAnalysisResult::PitchAutocorr(value) => Self::PitchAutocorr(value),
-            StoredAnalysisResult::NoteMetrics(value) => Self::NoteMetrics(value),
+            StoredAnalysisResult::NoteMetrics(value) => Self::NoteMetrics(value.into()),
             StoredAnalysisResult::Modulation(value) => Self::Modulation(value),
             StoredAnalysisResult::Tempo(value) => Self::Tempo(value),
             StoredAnalysisResult::Onsets(value) => Self::Onsets(value),
             StoredAnalysisResult::Downbeats(value) => Self::Downbeats(value),
             StoredAnalysisResult::LoudnessIntegrated(value) => Self::LoudnessIntegrated(value),
-            StoredAnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value),
+            StoredAnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.into()),
             StoredAnalysisResult::LoudnessRange(value) => Self::LoudnessRange(value),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::analysis::fixtures;
+
+    fn round_trip(result: &AnalysisResult) -> AnalysisResult {
+        let bytes = postcard::to_stdvec(&StoredAnalysisResult::from(result)).expect("encode");
+        postcard::from_bytes::<StoredAnalysisResult>(&bytes)
+            .expect("decode")
+            .into()
+    }
+
+    fn assert_same(a: &AnalysisResult, b: &AnalysisResult) {
+        assert_eq!(
+            serde_json::to_value(b).expect("json"),
+            serde_json::to_value(a).expect("json"),
+            "{:?} did not survive the stored form",
+            a.tool_id()
+        );
+    }
+
+    #[test]
+    fn every_result_variant_round_trips_through_postcard() {
+        // The fixtures cover the common case: a series with `frameSize` absent, and a
+        // note list with `syllables` absent — the fields the JSON wire skips.
+        for result in fixtures::samples() {
+            assert_same(&result, &round_trip(&result));
+        }
+    }
+
+    #[test]
+    fn present_optional_keys_round_trip_through_postcard() {
+        let gated = SeriesResult {
+            gate: Some(SeriesGate {
+                gate_db: 20.0,
+                gate_floor_db: -120.0,
+                threshold_db: -26.0,
+                gated_frames: 1,
+                kept_frames: 3,
+            }),
+            ..fixtures::series()
+        };
+        let grouped = NoteMetricsResult {
+            syllables: Some(vec![SyllableMetric {
+                start_secs: 0.4,
+                end_secs: 0.8,
+                duration_secs: 0.4,
+                note_count: 1,
+                rms_db: -18.0,
+                peak_db: -9.0,
+            }]),
+            ..fixtures::notes()
+        };
+        for result in [
+            AnalysisResult::FrameRms(gated),
+            AnalysisResult::LoudnessMomentary(fixtures::frame_rms()),
+            AnalysisResult::NoteMetrics(grouped),
+        ] {
+            assert_same(&result, &round_trip(&result));
         }
     }
 }

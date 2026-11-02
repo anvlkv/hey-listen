@@ -126,6 +126,7 @@ fn saved_comparison() -> SavedComparison {
             min_db: -31.0,
             max_db: -10.0,
         }),
+        reference_path: Some("/tmp/reference.heyl".to_string()),
     }
 }
 
@@ -196,6 +197,7 @@ fn round_trips_every_section() {
     assert_eq!(saved.window.start, 0.5);
     assert_eq!(saved.options.n_mels, Some(64));
     assert_eq!(saved.filter_fingerprint.as_deref(), Some("{\"nodes\":[]}"));
+    assert_eq!(saved.reference_path.as_deref(), Some("/tmp/reference.heyl"));
     match saved.analysis_result() {
         crate::audio::analysis::AnalysisResult::Spectrogram(result) => {
             assert_eq!(result.frames, 2);

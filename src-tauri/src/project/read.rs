@@ -15,7 +15,7 @@ use super::{
     INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT,
     SECTION_META, SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
 };
-use crate::audio::analysis::compare::SavedComparison;
+use crate::audio::analysis::compare::{SavedComparison, SavedComparisonV1};
 use crate::state::SourcePcm;
 
 /// The parsed contents of a project file.
@@ -113,7 +113,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
             SECTION_LAYOUT => layout = from_json(reader, entry)?,
             SECTION_RESULTS => results = from_postcard(reader, entry)?,
             SECTION_NOTES => notes = from_postcard(reader, entry)?,
-            SECTION_COMPARE => compare = from_postcard(reader, entry)?,
+            SECTION_COMPARE => compare = compare_section(reader, entry)?,
             // Forward compatibility: unknown sections are skipped.
             _ => {}
         }
@@ -154,6 +154,26 @@ fn verify_checksum<R: Read + Seek>(reader: &mut R, len: u64) -> Result<(), Proje
         return Err(ProjectError::Corrupt("checksum mismatch".to_string()));
     }
     Ok(())
+}
+
+/// The `COMPARE` section, tolerating a file written before `referencePath` existed.
+fn compare_section<R: Read + Seek>(
+    reader: &mut R,
+    entry: &SectionEntry,
+) -> Result<Vec<SavedComparison>, ProjectError> {
+    compare_from_bytes(&read_section(reader, entry)?)
+}
+
+/// Decode a `COMPARE` payload: the current snapshots first, then a file from an older
+/// build (whose snapshots are a strict prefix of the current ones), which stores no
+/// reference path.
+pub(crate) fn compare_from_bytes(bytes: &[u8]) -> Result<Vec<SavedComparison>, ProjectError> {
+    if let Ok(current) = postcard::from_bytes::<Vec<SavedComparison>>(bytes) {
+        return Ok(current);
+    }
+    postcard::from_bytes::<Vec<SavedComparisonV1>>(bytes)
+        .map(|old| old.into_iter().map(SavedComparison::from).collect())
+        .map_err(|err| ProjectError::Corrupt(format!("postcard: {err}")))
 }
 
 /// Read one section's payload bytes into memory.

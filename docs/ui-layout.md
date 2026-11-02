@@ -81,7 +81,9 @@ compact "Add audio" state has a fixed height).
   [`roadmap.md`](roadmap.md) → Backlog). An **Analysis** menu carries **Compare
   with…** (M25; acts on the focused analyzer tab). See `src-tauri/src/menu.rs`.
   **Previous/Next Project** step through the `.heyl` files in the current project's
-  folder (name order, ends stop); they need a saved project (M25.D).
+  folder (name order, ends stop); they need a saved project (M25.D). The same step is a
+  pair of **arrow buttons around the project name** in the Toolbar (`[<] name [>]`), each
+  disabled when its neighbour does not exist and behind the same unsaved-work guard.
   The **Toolbar shows the current project name** — the file actions live in the File
   menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and

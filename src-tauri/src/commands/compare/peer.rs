@@ -179,6 +179,20 @@ pub(super) fn project_name(state: &WindowState) -> Option<String> {
         .map(str::to_string)
 }
 
+/// The project's **file path** from its shared UI state (`None` for an unsaved project).
+///
+/// A saved comparison records this so "Open reference" can reopen the other project
+/// without guessing it from its name (M25.C follow-up).
+pub(super) fn project_path(state: &WindowState) -> Option<String> {
+    state
+        .ui_snapshot()
+        .get("project")
+        .and_then(|value| value.get("path"))
+        .and_then(Value::as_str)
+        .filter(|path| !path.is_empty())
+        .map(str::to_string)
+}
+
 fn has_filter(state: &WindowState) -> bool {
     state
         .audio

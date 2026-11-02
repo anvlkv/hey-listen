@@ -59,6 +59,15 @@ async function guarded(action: () => Promise<void>): Promise<void> {
 }
 
 /**
+ * Step to the previous/next project in the current project's folder (File → Previous /
+ * Next Project and the toolbar's arrows), behind the same unsaved-work guard as the
+ * other project-replacing actions.
+ */
+export async function stepProject(direction: -1 | 1): Promise<void> {
+  await guarded(() => openAdjacentProject(direction));
+}
+
+/**
  * Open dropped/launched paths: a `.heyl` file loads that project, any other path
  * opens as a fresh project with the file as its source. Shared with drag-and-drop so
  * a dropped project file follows the same discard guard as File → Open.
@@ -98,10 +107,10 @@ export async function initMenu() {
           void guarded(openProject);
           break;
         case "previousProject":
-          void guarded(() => openAdjacentProject(-1));
+          void stepProject(-1);
           break;
         case "nextProject":
-          void guarded(() => openAdjacentProject(1));
+          void stepProject(1);
           break;
         case "save":
           void saveProject();

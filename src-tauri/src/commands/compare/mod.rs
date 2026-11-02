@@ -22,7 +22,7 @@ pub mod peer;
 pub mod popout;
 pub mod reference;
 
-use peer::{peer_state, project_name};
+use peer::{peer_state, project_name, project_path};
 
 /// One `run_comparison` request: the tool, the reference project label **or** the
 /// owner's saved snapshot, both setups, and how much of each result/delta to return.
@@ -106,6 +106,7 @@ pub async fn run_comparison(
             let b_setup = b.ok_or_else(|| "`b` (the reference setup) is required".to_string())?;
             let b_state = peer_state(&app, &reference)?;
             let b_project = project_name(&b_state);
+            let b_path = project_path(&b_state);
             let b_filter = compare::filter_fingerprint(&b_state);
             let comparison = compare::compare(
                 tool,
@@ -124,6 +125,7 @@ pub async fn run_comparison(
                 b_filter,
                 b_offset,
                 crate::recent::now_ms(),
+                b_path,
             );
             (comparison, snapshot)
         };

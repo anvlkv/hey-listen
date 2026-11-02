@@ -786,6 +786,22 @@ available later. Keeping the reference project open just to see the diff is frag
 - The snapshot is `postcard`-encoded through a small externally tagged wrapper (the IPC
   `AnalysisResult` is internally tagged, which `postcard` cannot encode). The result
   structs gain `Deserialize`; the section is additive and forward-compatible.
+
+> **Amended (bug fix):** `postcard` cannot read a field that the writer skipped. A result
+> payload that omits an absent optional key on the JSON wire (`SeriesResult`'s
+> `frameSize` / `gate`, `NoteMetricsResult`'s `syllables`) is therefore stored through a
+> positional wrapper that writes every field (`StoredSeries`, `StoredNoteMetrics`);
+> without it a saved series / grouped-notes comparison was unreadable. The JSON wire is
+> unchanged.
+>
+> **Amended (M25.C follow-up):** a snapshot also records the reference project's
+> **file path** (`referencePath`, appended last), and the compare view's **Open
+> reference** opens exactly that file. Resolving the other project by display name was
+> wrong: two projects can share one, and an origin project's title can share a prefix
+> with the owner's file — the button opened the owner instead of the reference. A file
+> saved by an older build (no path) and a deleted reference file both report a notice.
+> An older payload is a strict prefix of the new one, so the reader decodes it as the
+> previous layout and stores no path.
 - A comparison may bind to a **live** project or to its **saved snapshot**. Live wins; a
   saved binding shows the stored B band, hides B's live markers, marks the badge **saved
   reference**, and runs only A when the view re-computes.

@@ -40,5 +40,5 @@ export {
 } from "./signals";
 export { saveProject, saveProjectAs, saveProjectTo } from "./save";
 export { loadProject, openProject } from "./load";
-export { openAdjacentProject } from "./siblings";
+export { adjacentProjects, openAdjacentProject, refreshAdjacentProjects } from "./siblings";
 export { newProject } from "./newProject";

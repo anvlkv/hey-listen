@@ -173,15 +173,15 @@ export async function openCompare(tool: AnalyzerId, reference: string) {
 }
 
 /**
- * Bring the reference project into view (M25.D): raise its window when the reference
- * is live (or an open project with the saved reference's name), otherwise open a new
- * window at the matching recent project file. Returns the action the core took
- * (`focused` / `opened`) and rejects with a readable message when it cannot.
+ * Bring the reference project into view (M25.D): raise its window when the reference is
+ * live, otherwise open the project file recorded with `tool`'s saved snapshot. The core
+ * never guesses a project from its name — a saved reference without a recorded file, or
+ * one whose file is gone, rejects with a readable message (shown as a transient notice).
  */
-export async function showReference(binding: CompareBinding): Promise<string> {
+export async function showReference(binding: CompareBinding, tool: AnalyzerId): Promise<string> {
   return invoke<string>("open_reference_window", {
     label: binding.kind === "live" ? binding.reference : null,
-    name: binding.kind === "saved" ? binding.reference : null,
+    tool: binding.kind === "saved" ? tool : null,
   });
 }
 

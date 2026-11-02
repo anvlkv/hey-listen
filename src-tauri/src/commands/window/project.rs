@@ -76,12 +76,20 @@ pub(crate) fn open_project_window_at(app: &AppHandle, path: String) -> Result<St
 #[tauri::command]
 pub async fn open_project_window_at_path(app: AppHandle, path: String) -> Result<Value, String> {
     validate_project_file(&path)?;
-    if let Some(existing) = project_window_showing(&app, &path) {
+    let (label, reused) = open_file_window(&app, &path)?;
+    Ok(json!({ "label": label, "path": path, "reused": reused }))
+}
+
+/// Open a project window at `path`, raising one that already shows it.
+///
+/// Returns the window label and whether an existing window was reused. Callers that
+/// accept an arbitrary path validate it first.
+pub(crate) fn open_file_window(app: &AppHandle, path: &str) -> Result<(String, bool), String> {
+    if let Some(existing) = project_window_showing(app, path) {
         raise(&existing);
-        return Ok(json!({ "label": existing.label(), "path": path, "reused": true }));
+        return Ok((existing.label().to_string(), true));
     }
-    let label = open_project_window_at(&app, path.clone())?;
-    Ok(json!({ "label": label, "path": path, "reused": false }))
+    open_project_window_at(app, path.to_string()).map(|label| (label, false))
 }
 
 /// A project window opens only an existing `.heyl` file (case-insensitive extension).
