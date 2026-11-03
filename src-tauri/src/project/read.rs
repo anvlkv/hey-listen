@@ -9,14 +9,14 @@ use std::io::{Read, Seek, SeekFrom};
 use serde::de::DeserializeOwned;
 
 use super::error::ProjectError;
-use super::sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
+use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
 use super::{
     Crc32, CHECKSUM_LEN, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, HEADER_LEN,
-    INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT,
-    SECTION_META, SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
+    INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_ANNOTATIONS, SECTION_COMPARE, SECTION_DATA,
+    SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
 };
 use crate::audio::analysis::compare::{SavedComparison, SavedComparisonV1};
-use crate::state::SourcePcm;
+use crate::state::SourceData;
 
 /// The parsed contents of a project file.
 #[derive(Debug, Clone)]
@@ -26,12 +26,12 @@ pub struct LoadedProject {
     pub setup: AnalysisSetup,
     pub layout: serde_json::Value,
     pub results: Vec<StoredResult>,
-    /// The project's notes (empty when the file has no `NOTES` section).
-    pub notes: Vec<Note>,
+    /// The project's annotations (empty when the file has no `ANNOTATIONS` section).
+    pub annotations: Vec<Annotation>,
     /// Saved comparison snapshots (empty when the file has no `COMPARE` section).
     pub compare: Vec<SavedComparison>,
     /// The embedded audio, if the file had a `DATA` section with samples.
-    pub pcm: Option<SourcePcm>,
+    pub pcm: Option<SourceData>,
 }
 
 /// One entry from the section index.
@@ -93,9 +93,9 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
     let mut setup: Option<AnalysisSetup> = None;
     let mut layout = serde_json::Value::Null;
     let mut results: Vec<StoredResult> = Vec::new();
-    let mut notes: Vec<Note> = Vec::new();
+    let mut annotations: Vec<Annotation> = Vec::new();
     let mut compare: Vec<SavedComparison> = Vec::new();
-    let mut pcm: Option<SourcePcm> = None;
+    let mut pcm: Option<SourceData> = None;
 
     for entry in &entries {
         match entry.id {
@@ -112,7 +112,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
             SECTION_SETUP => setup = Some(from_postcard(reader, entry)?),
             SECTION_LAYOUT => layout = from_json(reader, entry)?,
             SECTION_RESULTS => results = from_postcard(reader, entry)?,
-            SECTION_NOTES => notes = from_postcard(reader, entry)?,
+            SECTION_ANNOTATIONS => annotations = from_postcard(reader, entry)?,
             SECTION_COMPARE => compare = compare_section(reader, entry)?,
             // Forward compatibility: unknown sections are skipped.
             _ => {}
@@ -127,7 +127,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
         setup: setup.unwrap_or_default(),
         layout,
         results,
-        notes,
+        annotations,
         compare,
         pcm,
     })
@@ -207,7 +207,7 @@ fn from_json<R: Read + Seek>(
 fn read_data<R: Read + Seek>(
     reader: &mut R,
     entry: &SectionEntry,
-) -> Result<SourcePcm, ProjectError> {
+) -> Result<SourceData, ProjectError> {
     if entry.length < DATA_HEADER_LEN + DATA_FOOTER_LEN {
         return Err(ProjectError::Corrupt(
             "DATA section is too small".to_string(),
@@ -273,7 +273,7 @@ fn read_data<R: Read + Seek>(
         }
     }
 
-    Ok(SourcePcm {
+    Ok(SourceData {
         samples,
         sample_rate,
         channels,

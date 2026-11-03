@@ -64,7 +64,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 1. **Turn MCP on** in the app: open the Toolbar **MCP** popover, switch it on, and
    pick a port (default `47100`; a busy port falls back to a free one with an inline
-   note). A live status line shows the endpoint — e.g. `127.0.0.1:47100` — and the port
+   annotation). A live status line shows the endpoint — e.g. `127.0.0.1:47100` — and the port
    field shows the same (the port actually in effect). The setting is persisted (it
    comes back on the next launch).
 2. **Copy the config** with the popover's **Copy** button — it renders a ready-to-paste
@@ -118,7 +118,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **notes** + focused note id, and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout) and `savedComparisons` lists the project's stored comparison snapshots — the same compact shape `list_projects` reports. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **annotations** + the selected annotation id (wire key `selectedAnnotationId`), and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout) and `savedComparisons` lists the project's stored comparison snapshots — the same compact shape `list_projects` reports. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. The list is mirrored under `structuredContent.analyzers` (the 2025-06-18 revision), while `content[0].text` keeps the JSON array. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
@@ -138,10 +138,10 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_output_gain` | Preview output gain. |
 | `list_output_devices` / `list_input_devices` / `list_processes` | Enumerate devices / processes. |
 | `start_capture` / `stop_capture` | Live capture (mic / system / process / mix). |
-| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `notes` and `openTools` (no Workbench layout) and **creates the target's parent folders**; the `openTools` recorded in `SETUP` are restored as tabs when the app opens the file, even when the saved layout is empty (M25.D). A comparison computed headless is written to `COMPARE` like an open compare tab. `embedSource: false` writes a reference project for a file source. **(M21.A, M25.D)** |
+| `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `annotations` and `openTools` (no Workbench layout) and **creates the target's parent folders**; the `openTools` recorded in `SETUP` are restored as tabs when the app opens the file, even when the saved layout is empty (M25.D). A comparison computed headless is written to `COMPARE` like an open compare tab. `embedSource: false` writes a reference project for a file source. **(M21.A, M25.D)** |
 | `open_project_window` | Open a **new project window** at an existing `.heyl` file, leaving the current project untouched; a window already showing that file is raised instead of duplicated. Returns `{ label, path, reused }` — `label` is what `target` and `compare_analysis`'s `with` accept. This is the app-side way to script an A/B. **App-only** (headless compares the file directly). **(M25.D)** |
 | `list_projects` | List the open project windows (label, name, focused; plus each project's source shape, analysis window, filter presence and **saved comparisons**) — answered by the server. **(M25, M25.C)** |
-| `list_notes` / `get_note` / `create_note` / `update_note` / `delete_note` / `set_focused_note` | The project's **annotations** (stored as `Note`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_note` captures the chart's frozen values, `update_note` can `recomputeValues`, and `set_focused_note` highlights one on every time-based chart. `list_notes` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_note` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). The names keep the M14 `note` spelling for compatibility; they are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
+| `list_annotations` / `get_annotation` / `create_annotation` / `update_annotation` / `delete_annotation` / `set_selected_annotation` | The project's **annotations** (stored as `Annotation`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_annotation` captures the chart's frozen values, `update_annotation` can `recomputeValues`, and `set_selected_annotation` highlights one on every time-based chart. `list_annotations` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_annotation` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). They are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
 | `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON provenance envelope / wide-matrix CSV) or chart (PNG), or every open analysis to a folder. `export_analysis` recomputes the tool at the current window and is **headless-capable**; `export_chart` needs the rendered canvas. **(M12)** |
 | `list_templates` / `apply_template` / `save_template` / `export_template` / `import_template` | Installed analysis templates; apply to the current project or the headless session. **(M13, planned)** |
@@ -196,7 +196,7 @@ snapshot. The last successful comparison is kept in the session, so `save_projec
 it into `COMPARE` and the app reopens it as a compare tab — this is how a batch can leave
 projects with their comparisons visible. `target` and `display` are app-only.
 
-## Protocol notes
+## Protocol annotations
 
 - JSON-RPC 2.0, newline-delimited, over loopback TCP. The **first line is the token**
   from `mcp.json`; after it, the stream is ordinary MCP framing (the same framing the
@@ -242,7 +242,7 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    - **On/off toggle, default off.** Off = no listener and no `mcp.json`, so the
      bridge falls through to the headless server (or reports that MCP is off).
    - **Port input**, default `47100`; a busy port falls back to a free port and the
-     popover shows an inline note (no `port_check` crate — the bind itself is the
+     popover shows an inline annotation (no `port_check` crate — the bind itself is the
      check).
    - A live status line (`127.0.0.1:PORT`) and a **copyable** `mcpServers` snippet
      rendered from `current_exe()` + `["--mcp"]` (with a toggle for the
@@ -265,7 +265,7 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
      `GraphSpec`), `run_analysis`, `compare_analysis` (against a project file, M25.D),
      `set_analysis_window`, `set_view`,
      `set_shared_params`, `set_tool_options`, the `list_*` enumerations, and
-     `save_project` / `open_project` / `new_project` (source + setup + notes + openTools;
+     `save_project` / `open_project` / `new_project` (source + setup + annotations + openTools;
      no Workbench layout) — plus the **data** halves of the export tools
      (`export_analysis`, `export_all`; `export_chart` needs the canvas).
      UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
@@ -296,9 +296,10 @@ exposed rough edges in **result shape and side effects**. Delivered as *M9 follo
    Headless is display-less already, so it is a no-op there.
 2. **Honest compaction.** A long numeric array → `{ length, min, max, argmin, argmax }`;
    a long array with gaps → `{ length, nulls, min, max, argmin, argmax }` over the present
-   numbers. "One voiced frame out of 511" is now visible at a glance (`nulls: 510`). The
-   two implementations stay in step: `src/state/mcp/shaping.ts` (`compact`) and
-   `src-tauri/src/mcp/dispatch/shape.rs` (`compact`), with a matching Rust unit test.
+   numbers. "One voiced frame out of 511" is now visible at a glance (`nulls: 510`).
+   There is **one** implementation — `src-tauri/src/audio/analysis/shape.rs`
+   (`shape_result_with` / `compact`), used by the MCP server and the CLI alike, with
+   its unit tests in `src-tauri/src/mcp/dispatch/tests/shaping.rs`.
 3. **Bounded `includeData`.** A `maxPoints` argument decimates the returned arrays to ≤ N
    points by striding (keeping the first and last), so `includeData` need not dump every
    frame.
@@ -348,7 +349,7 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   computed from the full result. It is present in compact and `includeData` modes, and
   `summaryOnly: true` returns just the summary (the MCP counterpart of `--summary`).
 - **Structurally compact results.** Matrices and spectrograms keep dimensions and peak
-  time/freq/level; event and note arrays get a bounded preview instead of `{ length }`;
+  time/freq/level; event and annotation arrays get a bounded preview instead of `{ length }`;
   raw arrays still require `includeData: true` (with `maxPoints` to decimate). One Rust
   shaper serves the GUI MCP path, headless, and CLI: the GUI `run_analysis` command takes
   `shape: full | compact | summary` and `maxPoints`, and the analyzer tabs request
@@ -369,7 +370,7 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 - **Headless is the compute + project subset.** `heylisten-mcp --headless` runs
   analyzers over files, enumerates devices, installs a compute filter
   (`set_filter_graph` with a `GraphSpec`), compares against a project file
-  (`compare_analysis`), and saves/opens projects (source + setup + notes + the
+  (`compare_analysis`), and saves/opens projects (source + setup + annotations + the
   `openTools` restore list; there is no Workbench layout). `open_tool` / `close_tool`
   maintain that restore list, and `get_state` reports `openTools` and the project's
   `savedComparisons`. It cannot edit the
@@ -431,5 +432,5 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src-tauri/src/commands/export.rs` | `export_analysis` / `export_all` + output plumbing (`pick_save_path` / `pick_directory` / `write_text` / `write_bytes`), and `src-tauri/src/export/` for the envelope + CSV renderer (M12). |
 | `src/components/McpPopover.tsx` | the Toolbar MCP popover. |
 | `e2e/specs/k-mcp.spec.ts` | end-to-end coverage over the real endpoint. |
-| `e2e/specs/l-mcp-ui.spec.ts` | the popover: toggle, status, port, busy-port note, copy. |
+| `e2e/specs/l-mcp-ui.spec.ts` | the popover: toggle, status, port, busy-port annotation, copy. |
 | `src-tauri/tests/headless_mcp.rs` | the headless CLI integration test (spawns the binary). |

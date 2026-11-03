@@ -218,47 +218,18 @@ pub fn decode_file(
 mod tests {
     use super::*;
 
+    mod wav {
+        include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/support/wav.rs"));
+    }
+    use wav::write_sine_wav_channels;
+
     const RATE: u32 = 8_000;
     const FRAMES: usize = 4_000;
-
-    /// Write a minimal 16-bit PCM mono WAV with a 440 Hz sine at half scale.
-    fn write_sine_wav(path: &Path, channels: u16) {
-        let bits = 16u16;
-        let block_align = channels * bits / 8;
-        let byte_rate = RATE * u32::from(block_align);
-        let data_len = FRAMES as u32 * u32::from(block_align);
-
-        let mut buf = Vec::new();
-        buf.extend_from_slice(b"RIFF");
-        buf.extend_from_slice(&(36 + data_len).to_le_bytes());
-        buf.extend_from_slice(b"WAVE");
-        buf.extend_from_slice(b"fmt ");
-        buf.extend_from_slice(&16u32.to_le_bytes());
-        buf.extend_from_slice(&1u16.to_le_bytes()); // PCM
-        buf.extend_from_slice(&channels.to_le_bytes());
-        buf.extend_from_slice(&RATE.to_le_bytes());
-        buf.extend_from_slice(&byte_rate.to_le_bytes());
-        buf.extend_from_slice(&block_align.to_le_bytes());
-        buf.extend_from_slice(&bits.to_le_bytes());
-        buf.extend_from_slice(b"data");
-        buf.extend_from_slice(&data_len.to_le_bytes());
-
-        for f in 0..FRAMES {
-            let t = f as f32 / RATE as f32;
-            let sample = (t * 440.0 * std::f32::consts::TAU).sin() * 0.5;
-            let value = (sample * f32::from(i16::MAX)) as i16;
-            for _ in 0..channels {
-                buf.extend_from_slice(&value.to_le_bytes());
-            }
-        }
-
-        std::fs::write(path, buf).unwrap();
-    }
 
     #[test]
     fn probe_and_decode_wav() {
         let path = std::env::temp_dir().join("hey_listen_decode_test.wav");
-        write_sine_wav(&path, 1);
+        write_sine_wav_channels(&path, RATE, FRAMES, 1);
         let path_str = path.to_str().unwrap();
 
         let info = probe(path_str).expect("probe");
@@ -294,7 +265,7 @@ mod tests {
     #[test]
     fn decode_respects_channel_count() {
         let path = std::env::temp_dir().join("hey_listen_decode_test_stereo.wav");
-        write_sine_wav(&path, 2);
+        write_sine_wav_channels(&path, RATE, FRAMES, 2);
         let path_str = path.to_str().unwrap();
 
         let mut total = 0usize;

@@ -6,7 +6,7 @@ import type { AnalyzerBus } from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
 import { gapSpans, noteAt, type GapSpan } from "../../lib/noteSegments";
 import { duration } from "./noteMetricsFormat";
-import { NOTE_STRIP_H } from "../notes/strip";
+import { ANNOTATION_STRIP_H } from "../annotations/strip";
 
 /**
  * The note-segment overlay: everything the segment chart encodes beyond the envelope
@@ -255,7 +255,7 @@ export const noteSegments =
           }
 
           // Gap durations, just above the annotation lane.
-          const gapBaseline = bottom - NOTE_STRIP_H - 4 * ratio;
+          const gapBaseline = bottom - ANNOTATION_STRIP_H - 4 * ratio;
           let gapLabelRight = -Infinity;
           for (const gap of gaps) {
             const x0 = u.valToPos(gap.startSecs, "x", true);

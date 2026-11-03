@@ -169,7 +169,7 @@ export default function SharedParamsForm() {
         </div>
       </Tooltip>
 
-      <div class="params-note">
+      <div class="params-annotation">
         0 Hz max means up to Nyquist; the band limit applies to spectral tools. Pitch tools have
         their own Min f0 / Max f0 range.
       </div>

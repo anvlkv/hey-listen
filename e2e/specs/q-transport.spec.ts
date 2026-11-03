@@ -2,19 +2,19 @@
  * Q. Preview transport (M14 follow-up).
  *
  * The Timeline's transport: the **varispeed slider** (a log scale with 1× at the centre),
- * the **playhead** drawn on the open charts while auditioning, the **note-at-the-playhead**
- * action, the Timeline's **scrollbar** when the view is zoomed in, and the looped region
- * **following the analysis window** when it is moved.
+ * the **playhead** drawn on the open charts while auditioning, the
+ * **annotation-at-the-playhead** action, the Timeline's **scrollbar** when the view is
+ * zoomed in, and the looped region **following the analysis window** when it is moved.
  *
  * Audio itself cannot be heard headlessly, and WebKit suspends `requestAnimationFrame`
  * (and throttles timers) for the window WebDriver drives, so the transport advances in
  * coarse steps here. What is asserted is therefore what the transport *drives* — the
- * slider's scale, the rule appearing on an open chart, the note landing at the
+ * slider's scale, the rule appearing on an open chart, the annotation landing at the
  * transport's position, and the scrollbar — not frame-by-frame smoothness.
  *
  * The runners have no audio output device, so the real `preview_region` rejects with
  * `NoDevice` (which correctly stops the preview). The transport's clock, the playhead it
- * publishes and the note time are all frontend-side, so the device boundary is stubbed
+ * publishes and the annotation time are all frontend-side, so the device boundary is stubbed
  * through the IPC seam (as the native dialogs are), leaving the UI path real.
  */
 import { SEL, analyzerPanel } from "../support/selectors.ts";
@@ -41,7 +41,7 @@ import {
   wheelOver,
 } from "../support/helpers.ts";
 
-const ROW = '[data-testid^="note.row."]';
+const ROW = '[data-testid^="annotation.row."]';
 const SPEED_VALUE = '[data-testid="timeline.speed.value"]';
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
@@ -75,11 +75,11 @@ async function speedReadout(): Promise<string> {
 }
 
 /**
- * `true` while the transport is playing. The note-at-the-playhead action is enabled only
+ * `true` while the transport is playing. The annotation-at-the-playhead action is enabled only
  * then, so it doubles as the transport's state readout.
  */
 async function transportPlaying(): Promise<boolean> {
-  return (await $(SEL.timelineNoteAtCursor)).isEnabled();
+  return (await $(SEL.timelineAnnotationAtCursor)).isEnabled();
 }
 
 /** Stop the transport if it is running, so each case starts from a known state. */
@@ -132,7 +132,7 @@ describe("Q. Preview transport", () => {
 
   it("Q2 — the playhead appears on a uPlot chart while previewing", async () => {
     await stopTransport();
-    // Nothing is playing, so the note-at-the-playhead action is unavailable.
+    // Nothing is playing, so the annotation-at-the-playhead action is unavailable.
     expect(await transportPlaying()).toBe(false);
 
     await openTool("waveform");
@@ -168,10 +168,10 @@ describe("Q. Preview transport", () => {
     await closeTool("spectrogram");
   });
 
-  it("Q3 — a note can be dropped at the playhead", async () => {
+  it("Q3 — an annotation can be dropped at the playhead", async () => {
     await stopTransport();
 
-    // Move the analysis window so it does *not* start at the source start: a note placed
+    // Move the analysis window so it does *not* start at the source start: an annotation placed
     // at the transport's position must then land inside the window, not at 0.
     await dragTimelineHandle("start", 140);
     const moved = await readout();
@@ -179,13 +179,13 @@ describe("Q. Preview transport", () => {
 
     await (await $(SEL.timelinePreview)).click();
     await waitFor(async () => await transportPlaying(), "the transport never started the preview");
-    await (await $(SEL.timelineNoteAtCursor)).click();
-    await waitFor(async () => (await count(ROW)) === 1, "no note appeared at the playhead");
+    await (await $(SEL.timelineAnnotationAtCursor)).click();
+    await waitFor(async () => (await count(ROW)) === 1, "no annotation appeared at the playhead");
 
-    // The transport's position is where the window starts, so the note is there — proof it
+    // The transport's position is where the window starts, so the annotation is there — proof it
     // was placed at the playhead rather than at the source start.
     const meta = (await browser.execute(
-      () => document.querySelector(".note-row-meta")?.textContent?.trim() ?? "",
+      () => document.querySelector(".annotation-row-meta")?.textContent?.trim() ?? "",
     )) as string;
     expect(meta).toMatch(/[0-9]/);
     expect(meta).not.toContain("0.000 s");

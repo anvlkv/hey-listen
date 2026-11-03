@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
@@ -12,7 +12,7 @@ import {
   type SpectrogramResult,
 } from "../../state/analyzer";
 import { activeThemeId } from "../../state/themes";
-import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
+import { useCanvasImage } from "./chartImage";
 import { clamp01 } from "./colormap";
 import { NoAudioState } from "./chartCommon";
 import { createChartInteraction } from "./chartInteraction";
@@ -21,7 +21,7 @@ import {
   blitHeatmap,
   drawHoverCross,
   drawMirrorCursor,
-  drawNoteOverlay,
+  drawAnnotationOverlay,
   drawPlayhead,
   drawTimeAxis,
 } from "./chartCanvas";
@@ -147,9 +147,7 @@ export default function SpectrogramTab() {
 
   const image = createMemo(() => spectrogramImage(analysis.result(), dbRange()));
   // Export the rendered heatmap (M12).
-  const imageProvider = () => chart.canvas() ?? null;
-  registerChartImage(SPECTROGRAM_ID, imageProvider);
-  onCleanup(() => unregisterChartImage(SPECTROGRAM_ID, imageProvider));
+  useCanvasImage(SPECTROGRAM_ID, chart.canvas);
   const overlays = createMemo(() => spectrogramOverlays(analysis.result()));
 
   function draw() {
@@ -189,7 +187,7 @@ export default function SpectrogramTab() {
     drawMirrorCursor(ctx, v, box, SPECTROGRAM_ID);
     // Read inside `draw` so the repaint effect below tracks the transport position.
     drawPlayhead(ctx, v, box);
-    drawNoteOverlay(ctx, v, box, SPECTROGRAM_ID, chart.selection());
+    drawAnnotationOverlay(ctx, v, box, SPECTROGRAM_ID, chart.selection());
   }
 
   createEffect(() => {

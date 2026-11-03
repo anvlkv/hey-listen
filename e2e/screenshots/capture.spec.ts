@@ -7,13 +7,13 @@
  *
  * The shots come from a **project file** rather than a hand-built sequence of MCP
  * calls: the file carries the source (embedded PCM), the Workbench grid, the filter,
- * the analysis window and the notes, so the page cannot drift from the app's real
+ * the analysis window and the annotations, so the page cannot drift from the app's real
  * state — and the analyzer *grid* is only reachable by restoring a saved layout (the
  * app opens every new tab into the focused group, so a split cannot be scripted).
  *
  * It writes five PNGs into `site/assets/`:
  *   - `hero.png`      — the whole window: Spectrogram + Tempo over Level meters, with
- *                       the notes rail open and the phrase note's span drawn.
+ *                       the annotations rail open and the phrase annotation's span drawn.
  *   - `pitch.png`     — the Pitch (autocorrelation) popout window, on its own.
  *   - `spectrum.png`  — clipped to the spectrum panel.
  *   - `tempo.png`     — clipped to the tempo (rhythm) panel.
@@ -65,8 +65,8 @@ const ASSETS_DIR = path.resolve(
 /** The project the shots are taken from (see `docs/testing.md` → Marketing screenshots). */
 const PROJECT = "/Users/anvlkv/Downloads/blue capped ifrit.heyl";
 
-/** The heading of the note focused for the shots — the call-phrase **range** note. */
-const FOCUS_NOTE_HEADING = "Call phrase";
+/** The heading of the annotation selected for the shots — the call-phrase **range** annotation. */
+const FOCUS_ANNOTATION_HEADING = "Call phrase";
 
 /** Cap each asset's width, in device px (the page shows them at 960 CSS px, so 2x). */
 const ASSET_WIDTH = 1954;
@@ -78,8 +78,9 @@ const CHART_TARGETS = {
   tempo: '[data-testid="analyzer.tempo"] canvas',
 } as const;
 
-/** The first note row's heading (`ids are uuid-based, so match the prefix`). */
-const FIRST_NOTE_HEADING = '[data-testid^="note.row."] [data-testid^="note.heading."]';
+/** The first annotation row's heading (`ids are uuid-based, so match the prefix`). */
+const FIRST_ANNOTATION_HEADING =
+  '[data-testid^="annotation.row."] [data-testid^="annotation.heading."]';
 
 /** Drive the app's own MCP surface (the same path an agent uses). */
 let mcpId = 1;
@@ -223,40 +224,43 @@ async function waitForPopout(tool: string): Promise<string> {
   return popout;
 }
 
-/** Make sure the notes rail is open, and that it has the project's rows. */
-async function openNotesRail(): Promise<void> {
-  if ((await count(SEL.notesRegion)) === 0) {
-    await click(SEL.toolbarNotes);
-    await waitFor(async () => (await count(SEL.notesRegion)) > 0, "the notes rail did not open");
+/** Make sure the annotations rail is open, and that it has the project's rows. */
+async function openAnnotationsRail(): Promise<void> {
+  if ((await count(SEL.annotationsRegion)) === 0) {
+    await click(SEL.toolbarAnnotations);
+    await waitFor(
+      async () => (await count(SEL.annotationsRegion)) > 0,
+      "the annotations rail did not open",
+    );
   }
   await waitFor(
-    async () => (await count(FIRST_NOTE_HEADING)) > 0,
-    "the notes rail showed no note rows",
+    async () => (await count(FIRST_ANNOTATION_HEADING)) > 0,
+    "the annotations rail showed no annotation rows",
   );
 }
 
 /**
- * Select the note headed `heading` (its markdown's first line) by clicking the row.
- * Selecting is what focuses a note — and a focused note only draws its full-height
+ * Select the annotation headed `heading` (its markdown's first line) by clicking the row.
+ * Selecting is what highlights an annotation — and a selected annotation only draws its full-height
  * span while the rail is open, which is exactly what the hero shows.
  */
-async function focusNote(heading: string): Promise<void> {
+async function selectAnnotation(heading: string): Promise<void> {
   const clicked = (await browser.execute((wanted: string) => {
     const headings = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-testid^="note.heading."]'),
+      document.querySelectorAll<HTMLElement>('[data-testid^="annotation.heading."]'),
     );
     const match = headings.find((el) => (el.textContent ?? "").trim() === wanted);
     if (!match) return false;
     match.click();
     return true;
   }, heading)) as boolean;
-  if (!clicked) throw new Error(`no note row is headed "${heading}"`);
+  if (!clicked) throw new Error(`no annotation row is headed "${heading}"`);
 }
 
 describe("Marketing screenshots", () => {
   // The popout is this spec's to close: the next session must start on a single window.
   after(async () => {
-    await closeWindowsMatching(/^(popout|note)-\d+$/);
+    await closeWindowsMatching(/^(popout|annotation)-\d+$/);
     await browser.tauri.switchWindow("main").catch(() => {});
   });
 
@@ -268,7 +272,7 @@ describe("Marketing screenshots", () => {
     await closeAllTabs();
 
     // Open the project the shots describe: source, Workbench grid, filter, analysis
-    // window and notes all travel with the file.
+    // window and annotations all travel with the file.
     await emitEvent("app:open-project", [PROJECT]);
     await waitForSourceLoaded();
     await waitFor(
@@ -292,10 +296,10 @@ describe("Marketing screenshots", () => {
     await mcp("set_filter_graph", { enabled: true });
     await browser.pause(1200); // let every open chart re-run against the filtered audio
 
-    // The rail carries the annotations, and the focused note draws across every
-    // time-based chart — so focus the phrase note before the shot.
-    await openNotesRail();
-    await focusNote(FOCUS_NOTE_HEADING);
+    // The rail carries the annotations, and the selected annotation draws across every
+    // time-based chart — so select the phrase annotation before the shot.
+    await openAnnotationsRail();
+    await selectAnnotation(FOCUS_ANNOTATION_HEADING);
 
     // Hero: a crosshair on the spectrogram, and preview running so the toolbar's
     // output meter reads live levels.

@@ -373,14 +373,14 @@ snake_case aliases, validated like every other tool (M16).
   min/max/argmin/argmax like every series.
 - **CLI:** the new ids are available through `hey-listen analyze` automatically once in
   the Rust catalog; `-o <tool>.<key>=<value>` covers `scale` and `calibrationDbSpl`.
-- **Notes:** add `valuesText` cases in `src/state/notes/format.ts` for the new
+- **Notes:** add `valuesText` cases in `src/state/annotations/format.ts` for the new
   readouts (loudness, sharpness, roughness/fluctuation, masking, spatial).
 
 ## Validation
 
 - Rust unit tests beside each tool module (so `tests.rs` stays under the budget),
   including synth-graph-rendered references for roughness / fluctuation strength.
-- `scripts/notes.test.ts` cases for the new values-line formatters.
+- `scripts/annotations.test.ts` cases for the new values-line formatters.
 - `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `npm run maid`.
 - Regenerate `src/bindings/**` with `cargo test`; never hand-edit it.
 - Optional e2e: render a synthetic AM tone, run `loudness` / `sharpness` /

@@ -28,8 +28,8 @@ import {
   projectStatus,
   refreshAdjacentProjects,
 } from "../state/project";
-import { notes } from "../state/notes";
-import { notesPanelOpen, toggleNotesPanel } from "../state/settings";
+import { annotations } from "../state/annotations";
+import { annotationsPanelOpen, toggleAnnotationsPanel } from "../state/settings";
 import { error, status } from "../state/source";
 import { setAboutOpen, stepProject } from "../state/menu";
 import { refreshMcpStatus } from "../state/mcpSettings";
@@ -203,20 +203,20 @@ export default function Toolbar() {
           </Button>
         </Tooltip>
 
-        {/* The Notes rail toggle sits apart at the right end of the toolbar. */}
+        {/* The Annotations rail toggle sits apart at the right end of the toolbar. */}
         <span class="toolbar-divider" aria-hidden="true" />
         <Tooltip label="Annotations panel">
           <Button
-            class="toolbar-btn toolbar-btn-notes"
-            data-testid="toolbar.notes"
+            class="toolbar-btn toolbar-btn-annotations"
+            data-testid="toolbar.annotations"
             aria-label="Toggle the annotations panel"
-            aria-pressed={notesPanelOpen()}
-            onClick={toggleNotesPanel}
+            aria-pressed={annotationsPanelOpen()}
+            onClick={toggleAnnotationsPanel}
           >
-            <Icon name="note-sticky" />
-            <Show when={!notesPanelOpen() && notes().length > 0}>
-              <span class="notes-count-chip" data-testid="toolbar.notes.count">
-                {notes().length}
+            <Icon name="annotation-sticky" />
+            <Show when={!annotationsPanelOpen() && annotations().length > 0}>
+              <span class="annotations-count-chip" data-testid="toolbar.annotations.count">
+                {annotations().length}
               </span>
             </Show>
           </Button>

@@ -199,7 +199,8 @@ pub fn comparability(
 }
 
 /// Whether the tool's result sits on a time axis, so its delta needs a common span.
-/// Spectrum / modulation / readouts have no time axis and always diff.
+/// Spectrum, modulation and the scalar readouts (`Family::Scalar`) have no time axis
+/// and always diff.
 pub fn needs_common_span(tool: AnalyzerId) -> bool {
     !matches!(
         family_of(tool),

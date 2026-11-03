@@ -63,8 +63,9 @@
 > command; a per-tool `ToolOptions` carries tool-specific params (band counts, YIN
 > threshold, f0 range, bar length, momentary window). The frontend registry
 > (`state/analyzer/`) drives a generic view layer
-> (`components/analyzer/AnalyzerView.tsx` → series / matrix / readouts / events),
-> so a tool is a registry entry, not a new component. The Sidebar now has a search
+> (`components/analyzer/AnalyzerView.tsx` → its `AnalyzerView["kind"]`: waveform /
+> series / spectrum / spectrogram / matrix / rhythm / readouts / …), so a tool is a
+> registry entry, not a new component. The Sidebar now has a search
 > box (title + keywords) and lists **analyzers first**, grouped by domain, then the
 > graph editors. Charts share one solid-uplot plugin bus (`state/chartSync.ts`):
 > cursor and x-zoom are synced across tabs (time and frequency groups), including
@@ -172,7 +173,7 @@
 > for `browser.tauri.execute()`. `wdio.conf.ts` + `e2e/` (generated `.fixtures`,
 > `support` helpers, 9 spec files, gitignored `artifacts`) deliver **58 tests**:
 > the shell/layout, all source kinds, both graph editors, a **parametrized smoke
-> test over all 27 analyzers**, five correctness spot-checks, the cross-cutting
+> test over every analyzer in `AnalyzerId`**, five correctness spot-checks, the cross-cutting
 > scenarios (search / no-duplicate / shared-param / zoom-sync / popovers), the
 > timeline, project save/load + popout, the five error/warning surfaces, and the
 > native-dialog-safe IPC mocking described below.
@@ -195,7 +196,7 @@
 ## M8.A Improvements iteration ✅ (delivered)
 
 Implemented after M6 as one batch. Where the delivered behaviour is narrower than
-originally scoped, a note follows the item.
+originally scoped, an annotation follows the item.
 
 - **Undo / redo ✅.** App-level snapshot history (`src/state/history.ts`) over graph
   edits, layout/tab changes, shared params, tool options, and the timeline window,
@@ -288,7 +289,7 @@ control surface and the pieces that make the agent genuinely standalone:
 
 - **In-app MCP control** — a Toolbar **MCP** popover: an **on/off toggle (default
   off)**, a **port input** (default `47100`, free-port fallback, inline "port in use"
-  note), a live status line, and a **copyable** `mcpServers` snippet
+  annotation), a live status line, and a **copyable** `mcpServers` snippet
   (rendered from `current_exe()` + `["--mcp"]`, and the `heylisten-mcp` sibling).
   Persisted with `tauri-plugin-store`; copied via `tauri-plugin-clipboard-manager`.
 - **Headless MCP-only CLI** — `heylisten-mcp` **auto-detects**: when a running app
@@ -334,7 +335,7 @@ and it surfaced rough edges in **what `run_analysis` returns and what it changes
 not in the analyzers. This follow-up is about the result shape and side effects.
 
 - **Compute without display.** `run_analysis` always opens (and focuses) the analyzer
-  tab, so a sweep leaves a Workbench tab per tool (a 19-tool pass opened 19 tabs). Add
+  tab, so a sweep leaves a Workbench tab per tool (one per tool). Add
   `display` (bool, default `true`); `display: false` returns the result without opening
   or focusing a tab. Headless is already display-less, so it is a no-op there.
 - **Honest compaction.** `compact` is duplicated (`src/state/mcp/` `compact` and
@@ -507,7 +508,7 @@ driven throughout — no per-tool chart components.
 - **Spectrogram contours.** Per-tool **Centroid** / **Rolloff** toggles (default on)
   overlay the spectral centroid and rolloff tracks, derived from the displayed
   magnitudes so they align with the heatmap's frames.
-- **Chromagram note grid.** The chromagram draws pitch-class row rules with an
+- **Chromagram annotation grid.** The chromagram draws pitch-class row rules with an
   emphasised octave (C) boundary.
 - **Tempogram.** The tempo / downbeats tabs add a **tempo-salience** panel — the
   autocorrelation of the onset-strength envelope over the BPM range, with the chosen
@@ -533,7 +534,7 @@ driven throughout — no per-tool chart components.
 >
 > **Delivered:** `SeriesView` + `seriesPlugins.ts` (reference line, semitone grid);
 > `WaveformTab` (dB), `SpectrumTab` (log axis), `SpectrogramTab` (contours),
-> `MatrixView` (note grid), `RhythmView` (tempogram), `ReadoutsView` +
+> `MatrixView` (annotation grid), `RhythmView` (tempogram), `ReadoutsView` +
 > `LevelMeters.tsx`; the shared axis formatters now hide uPlot's `null` minor splits.
 
 ## M12 — Analysis exports: chart image + data ✅
@@ -595,73 +596,74 @@ source rather than pinned.
 > usable headless; the layout part is GUI-only. See [`templates.md`](templates.md)
 > (ADR-17).
 
-## M14 — Notes ✅
+## M14 — Annotations ✅
 
-An **annotation layer** on the project: a **markdown** note attached to an audio
+An **annotation layer** on the project: a **markdown** annotation attached to an audio
 **time** (a point, optionally a span) and to the **analyzer chart** it was taken from,
-carrying a **frozen snapshot** of that chart's values. Notes show on the Timeline, on
-the chart they belong to, and — when **focused** — on every time-based chart; they live
+carrying a **frozen snapshot** of that chart's values. Annotations show on the Timeline, on
+the chart they belong to, and — when **selected** — on every time-based chart; they live
 in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI.
 
-- **`Note` model.** `id`, `createdMs` / `updatedMs`, `timeSecs` (the anchor) + optional
-  `range`, `tool` (the analyzer id; absent = a Timeline note), optional plain-text
+- **`Annotation` model.** `id`, `createdMs` / `updatedMs`, `timeSecs` (the anchor) + optional
+  `range`, `tool` (the analyzer id; absent = a Timeline annotation), optional plain-text
   `title`, the **markdown** `body`, and a `values` snapshot. Serde + `ts_rs::TS`.
-- **Values snapshot.** The chart's readout at the note's time (per-frame for a
+- **Values snapshot.** The chart's readout at the annotation's time (per-frame for a
   time-axis chart, the summary for a no-time-axis tool), **frozen** with its
   `window` / `params` / `options` provenance. A row shows the chart's **current**
-  readout with the frozen one struck through beneath when they differ; editing the note
+  readout with the frozen one struck through beneath when they differ; editing the annotation
   or releasing a drag refreshes it. (No Recompute button, and no stale tag.)
 - **Markdown.** Raw markdown body, sanitized render, edited in a textarea that an
   **explicit save** commits (Done / ⌘↵; Escape discards) — blur never saves, and the
   editor **replaces** the rendered body while it is open.
-- **Notes panel (right rail).** A new **fixed region** (not a Workbench tab), hidden by
-  default, toggled by a Toolbar `note-sticky` button (its count a muted pill *inside*
+- **Annotations panel (right rail).** A new **fixed region** (not a Workbench tab), hidden by
+  default, toggled by a Toolbar `annotation-sticky` button (its count a muted pill *inside*
   the button while the rail is closed), resizable (clamped 160–520 px); open/closed +
   width persisted app-level. Compact rows sorted by time, each a **title bar** (heading
   + icon-only actions) over the meta, the values line, and the clamped body; select =
-  focus. A note **pops out into its own window** (`open_note_window`, a real Tauri
+  focus. An annotation **pops out into its own window** (`open_annotation_window`, a real Tauri
   window like a tool popout, raised not duplicated).
-- **Surfacing.** Every note an anchor in a thin **strip along the bottom** of the
-  Timeline; a chart draws **its own** notes in its strip; the **focused** note draws as
+- **Surfacing.** Every annotation an anchor in a thin **strip along the bottom** of the
+  Timeline; a chart draws **its own** annotations in its strip; the **focused** annotation draws as
   a full-height rule with a label on **every time-based chart** (the `time` sync group)
-  but **not** on the frequency-axis `spectrum`. Focusing a note **opens/raises its
-  chart** and sets the analysis window to the note's time.
-- **Ranges are selections.** A range note shows a **handle on each edge** in the note
-  lane and either end is draggable (never collapsing the span); a point note has one
-  handle, which moves it. The panel's `Add` makes a point note; a **range** is made by
+  but **not** on the frequency-axis `spectrum`. Focusing an annotation **opens/raises its
+  chart** and sets the analysis window to the annotation's time.
+- **Ranges are selections.** A range annotation shows a **handle on each edge** in the annotation
+  lane and either end is draggable (never collapsing the span); a point annotation has one
+  handle, which moves it. The panel's `Add` makes a point annotation; a **range** is made by
   dragging a span in the lane (there is no range toggle — the span *is* the toggle).
 - **Source-second axes.** The engine re-bases every result onto source seconds
-  (`windowStart` records the origin), so a chart's axis, its hover readout, and a note's
-  `timeSecs` share one timebase whatever the analysis window is — the fix for notes
+  (`windowStart` records the origin), so a chart's axis, its hover readout, and an annotation's
+  `timeSecs` share one timebase whatever the analysis window is — the fix for annotations
   drifting when the window moved.
-- **Persistence.** A new **`NOTES` section (`0x07`, postcard)** in the `.heyl` container;
-  notes ride `save_project` / `load_project`. Cross-window sync via `uiState`
-  (`notes` + `focusedNoteId`); note edits mark the project dirty and are one undo step.
-- **Agent surface.** MCP `list_notes` / `get_note` / `create_note` / `update_note` /
-  `delete_note` / `set_focused_note` (app-only; headless has no project) and the notes in
-  `get_state`; CLI `hey-listen notes <FILE.heyl>` (read-only, table or `--json`).
+- **Persistence.** A new **`ANNOTATIONS` section (`0x07`, postcard)** in the `.heyl` container;
+  annotations ride `save_project` / `load_project`. Cross-window sync via `uiState`
+  (`annotations` + `selectedAnnotationId`; the MCP wire key stays `selectedAnnotationId`); annotation edits mark
+  the project dirty and are one undo step.
+- **Agent surface.** MCP `list_annotations` / `get_annotation` / `create_annotation` / `update_annotation` /
+  `delete_annotation` / `set_selected_annotation` (app-only; headless has no project) and the annotations in
+  `get_state`; CLI `hey-listen annotations <FILE.heyl>` (read-only, table or `--json`).
 
-> **Decision (committed):** a note is **project content** anchored to a **time** and,
+> **Decision (committed):** an annotation is **project content** anchored to a **time** and,
 > optionally, to an **analyzer tool id** — not a Workbench tab, not an analyzer result.
 > Its subtitle is a **frozen** values snapshot (refreshed on edit / drag-release), and the
-> panel is **chrome** (a fixed region, view-persisted) while the notes themselves are
-> **data** (project-persisted). See [`notes.md`](notes.md) (ADR-18).
+> panel is **chrome** (a fixed region, view-persisted) while the annotations themselves are
+> **data** (project-persisted). See [`annotations.md`](annotations.md) (ADR-18).
 
-### M14 follow-up — review fixes, the notes interaction model, and the preview transport ✅
+### M14 follow-up — review fixes, the annotations interaction model, and the preview transport ✅
 
-A pass over the notes layer after using it, plus the transport facilities the notes
-wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
+A pass over the annotations layer after using it, plus the transport facilities the annotations
+wanted. Reviewed behaviour is recorded in ADR-19 and [`annotations.md`](annotations.md).
 
-- **A note is selected, not focused** (ADR-19). Selecting — the row's heading, its chart
-  action, or a lane handle — highlights the note and opens/raises its chart but **never
-  moves the analysis window**; a new row **Analyze** action (on point *and* range notes) is
+- **An annotation is selected, not focused** (ADR-19). Selecting — the row's heading, its chart
+  action, or a lane handle — highlights the annotation and opens/raises its chart but **never
+  moves the analysis window**; a new row **Analyze** action (on point *and* range annotations) is
   the only thing that reframes (a range becomes the window exactly; a point gets a window
-  of the current width). This was the "clicking a note jumps there" / "adding a note moves
+  of the current width). This was the "clicking an annotation jumps there" / "adding an annotation moves
   the window" report.
-- **Closing the rail unfocuses.** The focused note was a panel concept all along, so a
-  closed rail drops the focus — clearing every chart's full-height overlay and the
+- **Closing the rail clears the selection.** The selected annotation was a panel concept all
+  along, so a closed rail clears it — clearing every chart's full-height overlay and the
   Timeline's stem — while the lane anchors stay, drawn **dull** (`panelOpen` rides the
-  notes bus message).
+  annotations bus message).
 - **Varispeed preview.** `preview_region` takes a `speed` (clamped 0.25×–4×, baked in by
   resampling the region, so it shifts pitch); the transport drives it with a **log slider**
   (`lib/previewSpeed.ts`, 1× at the centre). Preview only — analysis is always 1×. Also on
@@ -669,7 +671,7 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
 - **The playhead on every time chart.** The transport's position rides the shared chart
   bus (`playhead`), drawn as a solid rule by `syncPlugins.playheadRule` (uPlot) and
   `chartCanvas.drawPlayhead` (canvas heatmaps) — what is being auditioned is visible on the
-  data, not only on the Timeline. And **note at the playhead** in the transport, so an
+  data, not only on the Timeline. And **annotation at the playhead** in the transport, so an
   observation made while listening lands on the right moment.
 - **Bug: the chart playhead froze at its first position.** The rule appeared but never
   moved or erased. Two causes, both silent: a plugin-driven repaint used `u.redraw(false)`,
@@ -691,13 +693,13 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   half-read it again — and every consumer of an object-valued key goes through it. The
   sibling of the `playhead.secs` trap above; covered by `o-cursor-sync.spec.ts` (a **second**
   remote move must move the mirror again).
-- **Bug: notes never worked on the matrix tools** (mel spectrogram, MFCC, chromagram,
+- **Bug: annotations never worked on the matrix tools** (mel spectrogram, MFCC, chromagram,
   spectral contrast). `valuesText` classified a result by testing `"times" in result`
   first, but a `MatrixResult` carries `times` **as well as** `bins`/`values`, so every
   matrix tool took the series branch, called the matrix view config's missing `formatY`,
-  and threw inside `createNote` — the note was silently dropped. The classification now
+  and threw inside `createAnnotation` — the annotation was silently dropped. The classification now
   tests the band shape first, and `captureValues` catches a formatter failure so a readout
-  problem can never lose the note.
+  problem can never lose the annotation.
 - **Bug: the chart view went stale when the analysis window moved.** The visible time
   range was clamped into the new window instead of re-fitting it (and the uPlot charts
   re-applied the stale range after every `setData`), so a chart kept showing the previous
@@ -709,7 +711,7 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   Centroid / Rolloff being the obvious victims). The row is a `div` now, like the working
   shared-params switch; covered by an e2e regression test.
 - **Bug: the hovered cursor did not cross windows.** The shared cursor was published on the
-  in-process bus only — `uiState` carried the timeline, params, options, notes and views,
+  in-process bus only — `uiState` carried the timeline, params, options, annotations and views,
   but never the cursor. It now rides `cursor:${group}` (per sync group, so a frequency
   cursor cannot land on a time chart).
 - **Bug: dragging the analysis window could stop the app responding.** The drag path did far
@@ -719,7 +721,7 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   every open chart**, and took a whole-project snapshot (`layoutJson` → dockview's
   `toJSON` plus deep clones) for undo, while the window's two ends were written as two
   separate reactive transactions. With a popout open (a split Workbench of spectral charts
-  and a couple of notes) that queued cross-window work faster than it drained, so the
+  and a couple of annotations) that queued cross-window work faster than it drained, so the
   window moved a little and then the app stopped responding. Three changes: a UI-state push
   is **coalesced** (`uiSync.ts` — the leading value at once, then at most one per 60 ms,
   always the latest, so another window still follows a drag), the window's ends are written
@@ -728,10 +730,10 @@ wanted. Reviewed behaviour is recorded in ADR-19 and [`notes.md`](notes.md).
   later). The drag is back to ~3 ms per move, and `g-timeline.spec.ts` → G5 asserts the
   coalescing.
 
-> **Delivered:** the notes interaction model (ADR-19), the varispeed slider and playhead
-> transport, and the seven bug fixes above. See [`notes.md`](notes.md),
+> **Delivered:** the annotations interaction model (ADR-19), the varispeed slider and playhead
+> transport, and the seven bug fixes above. See [`annotations.md`](annotations.md),
 > [`architecture.md`](architecture.md) → Playback, and `e2e/specs/` (`d-analyzers`,
-> `g-timeline` → G4 / G5, `n-notes`, `o-cursor-sync`, `p-notes-interactions`,
+> `g-timeline` → G4 / G5, `n-annotations`, `o-cursor-sync`, `p-annotations-interactions`,
 > `q-transport`).
 
 ## M15 — Code hygiene ✅
@@ -775,8 +777,8 @@ first, one file per change, no behaviour change, gate green after each:
   support,tools/*,tests}`; then `cli/batch.rs` (1264), `audio/graph.rs` (1117),
   `mcp/dispatch.rs` (859), `mcp/tools.rs` (474), `audio/playback.rs` (439) and
   `audio/capture.rs` (414) → the same `{mod, part}` shape.
-- the frontend stores → `state/{analyzer,themes,project,mcp,notes,capture}/`, and
-  `components/{Timeline,GraphEditor,Toolbar,NotesPanel,SourcePanel}.tsx` → sibling
+- the frontend stores → `state/{analyzer,themes,project,mcp,annotations,capture}/`, and
+  `components/{Timeline,GraphEditor,Toolbar,AnnotationsPanel,SourcePanel}.tsx` → sibling
   directories.
 
 Inline `#[cfg(test)] mod tests` moved to sibling files as each module split. The one
@@ -784,13 +786,13 @@ visible knock-on was a generated binding comment (`src/bindings/SharedParams.ts`
 re-emitted by `cargo test` because an intra-doc link now points at the moved helper.
 
 **Phase 3 — dedupe and delete ✅.** The four named duplications are gone:
-- the analyzer pan / zoom / note-drag / reframe interaction (`SpectrogramTab` ↔
+- the analyzer pan / zoom / annotation-drag / reframe interaction (`SpectrogramTab` ↔
   `MatrixView` — the repo's largest at 17 clone pairs) → one
   `components/analyzer/chartInteraction.ts` (over shared `chartGeometry` /
   `chartCanvas`);
 - the three-way select trigger (`ChannelSelect` / `SelectField` / `SourcePanel`) →
   one `components/SelectTrigger.tsx`;
-- the unit-test harness (`notes.test.ts` ↔ `themeFile.test.ts`) →
+- the unit-test harness (`annotations.test.ts` ↔ `themeFile.test.ts`) →
   `scripts/testHarness.ts`;
 - the triplicated splitter handlers in `App.tsx` → `lib/splitter.ts` +
   `components/Splitter.tsx`.
@@ -804,12 +806,12 @@ the jscpd threshold from **1.5 to 0.5** (measured ≈0.36 %).
 > and the one-time formatting churn is isolated in a single commit so later diffs stay
 > readable.
 
-## M15.A — String identifiers become strum enums ✅
+## M15.B — String identifiers become strum enums ✅
 
 A type-safety follow-on to M15: the Rust core carried enumerable state as bare strings
 — analyzer tool ids, result families, source kinds, window functions, and the
 menu/theme/CLI action ids — matched and dispatched with hand-written `match` arms and
-`&'static str` tables in several places. M15.A replaced them with `strum`-backed enums
+`&'static str` tables in several places. M15.B replaced them with `strum`-backed enums
 (`serde` + `ts-rs`) so each id is parsed **once at the boundary** and every consumer
 works on a typed value, while the wire stays **camelCase strings, byte-for-byte
 identical** — the project file, IPC and generated TS bindings are unaffected. This is
@@ -822,8 +824,8 @@ type safety, not a format bump. See ADR-28 and [`code-hygiene.md`](code-hygiene.
 original wire form) keeps the string identical on the wire and in code. A `postcard`-safe
 enum **field** (never an internally-tagged top-level enum) replaces `SourceDescriptor.kind`.
 
-**Delivered.** All six phases shipped: `strum` 0.28 (`derive`), `AnalyzerId` (29
-variants, with `ToolId` generated from the same list for Workbench tabs), `Family` +
+**Delivered.** All six phases shipped: `strum` 0.28 (`derive`), `AnalyzerId` (every
+analyzer, with `ToolId` generated from the same list for Workbench tabs), `Family` +
 `Section`, `SourceKind` + `CaptureKind` + `CaptureEventKind`, `WindowKind`, and the
 menu / theme / CLI action ids. Transient ids are typed too (a compare view's tool, a
 tool popout's id). `src/bindings/` carries `AnalyzerId`, `ToolId`, `Family`, `Section`,
@@ -834,10 +836,10 @@ original strings by tests, so the project-file format did not change.
 **Phases (one at a time, gate green after each):**
 - **Dependency + pattern.** Add `strum` (MIT) to `src-tauri/Cargo.toml`; update
   `docs/dependencies.md` + `ACKNOWLEDGEMENTS.md`; document the shared derive block.
-- **`AnalyzerId`** (the big one). Introduce the 29-variant enum as the single source of
+- **`AnalyzerId`** (the big one). Introduce the `AnalyzerId` enum as the single source of
   truth for tool ids; `AnalysisResult` stays a typed union (its variants map 1:1) and
   `tool_id()` returns `AnalyzerId`. Switch `family_of`/`about`/`catalog`/
-  `AnalysisSetup.{open_tools, tool_options}`/`Note.tool`/`NoteValues.tool`/`run`/
+  `AnalysisSetup.{open_tools, tool_options}`/`Annotation.tool`/`AnnotationValues.tool`/`run`/
   `run_analysis`/compare/MCP/CLI to it; add an exhaustive `EnumIter`-driven test pinning
   `AnalysisResult` ↔ `AnalyzerId` ↔ catalog `id`; regenerate `src/bindings/` and resync
   the frontend. Delivered in engine → persistence/IPC → MCP/CLI slices.
@@ -862,8 +864,23 @@ round-trip. `cargo test` (regenerates bindings) + `npm run typecheck` after each
 (already typed via `ToolOptions`), and any change to the serialized strings themselves —
 this is type safety only, not a format bump.
 
-> **Order:** M15.A follows M15 and is independent of M13/M22–M25. Phases are
+> **Order:** M15.B follows M15 and is independent of M13/M22–M25. Phases are
 > self-contained; `AnalyzerId` is the prerequisite for the `Family`/`Section` phase.
+
+> **Follow-up delivered (M15.B): dedupe + one vocabulary.** The six id phases above
+> shipped first; a second pass removed the copy-pasted blocks the clone gate still
+> reported and fixed the docs/comments that had drifted:
+> - one `id_enum!` derive list; one WAV fixture in
+>   `src-tauri/tests/support/wav.rs`; shared graph-tab chrome, chart-image
+>   registration, compare uPlot stack, and CSS control rules (`src/styles/shared.css`);
+>   test-only request/save helpers instead of repeated literals;
+> - the analyzer smoke matrix (`e2e/support/tools.ts`) now mirrors
+>   `AnalyzerView["kind"]` and covers every `AnalyzerId` (it had silently skipped
+>   `modulation`); counts were removed from prose;
+> - `SourcePcm` → `SourceData` and `CompareFamily` → `CompareViewFamily`; the annotation
+>   selection state is `selectedAnnotationId` across the type, the UI and the MCP surface
+>   (`set_selected_annotation` / `get_state.selectedAnnotationId`);
+> - the canonical vocabulary lives in `AGENTS.md` → "Canonical vocabulary".
 
 ## M16–M20 — Analysis depth I ✅
 
@@ -880,7 +897,7 @@ Make an f0 range actually reach the pitch tools, and stop unknown option keys fr
 silently doing nothing.
 
 - **Per-tool f0 range.** Add `minF0Hz` / `maxF0Hz` to every pitch-related tool (YIN,
-  autocorrelation, harmonic ratio, and the new note / modulation tools). `pitchYin` uses
+  autocorrelation, harmonic ratio, and the note / modulation tools). `pitchYin` uses
   `PitchTracker::with_range`; the other two already accept the range. No new
   `SharedParams` field: the project file is `postcard`-encoded, so that would need a
   format bump. `freqMinHz` / `freqMaxHz` stays a **spectral band limit**, and the docs /
@@ -900,7 +917,7 @@ silently doing nothing.
 
 > **MCP ownership:** M16 builds the generic option mechanism (key validation/aliases,
 > catalog option metadata, effective-range reporting). M17–M20 each add their analyzer's
-> catalog entry, option metadata, `includeData` note, and CLI `-o` keys. **M21** owns the
+> catalog entry, option metadata, `includeData` annotation, and CLI `-o` keys. **M21** owns the
 > cross-cutting summary / compact / annotation contract.
 
 > **Delivered:** per-tool `minF0Hz`/`maxF0Hz` reach YIN, autocorrelation, and harmonic
@@ -970,9 +987,9 @@ Explicit notes, ends, gaps, counts, and levels.
 > checks, and the headless option/result flow.
 >
 > **Terminology:** these are **detected audio notes**, distinct from the project's
-> user-authored **annotations** (M14, stored as `Note`). The right rail is now labelled
-> **Annotations** in the UI; the data model and MCP/CLI names are unchanged for
-> compatibility. See [`notes.md`](notes.md) → Terminology.
+> user-authored **annotations** (M14, stored as `Annotation`). The right rail is labelled
+> **Annotations**; its data model, `ANNOTATIONS` section, and MCP/CLI surfaces all say
+> **annotation**. See [`annotations.md`](annotations.md) → Terminology.
 
 > See [`analysis-metrics.md`](analysis-metrics.md) → M18.
 
@@ -1069,7 +1086,7 @@ milestone over M16–M20, not another analyzer.
   `{ result, summary }`. `run_analysis` gains `summaryOnly` (summary without `result`),
   matching the CLI's `--summary`.
 - **Compact by structure.** Matrices/spectrograms keep dimensions and peak
-  time/freq/level; waveform/spectrum/series arrays keep meaningful stats; event and note
+  time/freq/level; waveform/spectrum/series arrays keep meaningful stats; event and annotation
   arrays get a bounded preview instead of `{ length }`. `includeData: true` / `--full`
   still returns raw arrays.
 - **Catalog annotations.** `title` + `annotations` (`readOnlyHint`, `destructiveHint`,
@@ -1085,8 +1102,8 @@ milestone over M16–M20, not another analyzer.
 - **Effective settings echoed.** The envelope's `options` is the tool's declared defaults
   overlaid with what the call set, with unset fields omitted — the same small object from
   the GUI, headless, and CLI, instead of the all-`Option` struct's nulls.
-- **Tool-output audit.** `list_notes` defaults to a compact summary (body excerpt + values
-  text; full body via `get_note` or `full: true`); `list_analyzers` stays compact with
+- **Tool-output audit.** `list_annotations` defaults to a compact summary (body excerpt + values
+  text; full body via `get_annotation` or `full: true`); `list_analyzers` stays compact with
   `get_analyzer` for detail; the other list tools are checked for bounded responses.
 - **Consistency.** One Rust shaper builds the summary and the compact shape for every
   result family; the GUI MCP handler forwards `shape`/`maxPoints`, the analyzer tabs
@@ -1119,7 +1136,7 @@ milestone over M16–M20, not another analyzer.
 > `analyzer_detail` command). Every MCP tool now carries a `title` and hints
 > (`readOnlyHint` / `destructiveHint` / `idempotentHint` / `openWorldHint`) from a shared
 > `ToolClass`; headless `get_state` reports every tool's option defaults; and
-> `list_notes` defaults to compact summaries (body excerpt + values text) with
+> `list_annotations` defaults to compact summaries (body excerpt + values text) with
 > `full: true` for the whole record. `analyzers <ID>` is the CLI's `-o` discovery path.
 > Tests cover every result variant's summary (including empty/silent), the compact
 > families, catalog title/annotation coverage, `get_analyzer`/`list_analyzers`
@@ -1150,7 +1167,7 @@ the protocol instructions, and the skill.
   parallel `open_tool` batch cannot answer from a half-applied state.
 - **Headless project files.** `save_project` / `open_project` / `new_project` work in
   the headless session: they build `META`/`SETUP` (source, params, options, window,
-  view, filter) and the supplied `notes`; `LAYOUT` is empty because there is no
+  view, filter) and the supplied `annotations`; `LAYOUT` is empty because there is no
   Workbench. A 1k-recording annotation pipeline no longer needs a live GUI window.
 - **Reference projects.** `save_project { embedSource: false }` writes no `DATA` for a
   file source; `load_project` (GUI and headless) decodes the `SOURCE` path again. Use
@@ -1169,7 +1186,7 @@ the protocol instructions, and the skill.
   caveats.
 - **Tests.** Family-aware shaping (matrix grid, untouched events), note bounds, axis
   `hop`, compact-axis full results, catalog `family`/`about`, and a headless
-  `save_project` → `open_project` round-trip (source, setup, notes). CLI stdout purity
+  `save_project` → `open_project` round-trip (source, setup, annotations). CLI stdout purity
   is verified by hand (the batch unit tests inject `out` and cannot see the process
   stream).
 
@@ -1191,7 +1208,7 @@ what they *omit*.
 > median from a handful of frames; `ModulationResult.fmReliable` suppresses an FM rate
 > from a short or quantized (staircase) run while still reporting the cents spread.
 > `noteMetrics.syllableGapMs` adds a `syllables` grouping (and `syllableCount`) beside
-> the unchanged notes. `hey-listen analyze --windows FILE` runs many
+> the unchanged annotations. `hey-listen analyze --windows FILE` runs many
 > `start,end[,tool…]` windows in one process. No DSP was replaced: the gate is an
 > explicit mask, and the reliability flags gate what is *reported*.
 
@@ -1279,7 +1296,7 @@ analysis follow every edit, and show where a palette node will land.
   new timeline (and resets the window/view). Headless/CLI keep using `render_synth`
   unchanged.
 - **Length changes** grow/shrink the source in place. The same length preserves the
-  window and view exactly; shrinking clamps them and the annotations (reusing the note
+  window and view exactly; shrinking clamps them and the annotations (reusing the annotation
   clamping); growing preserves them. Update the local PCM, peaks and a `sourceRevision`
   signal so the waveform and the debounced analyzer auto-run follow.
 - **One render per settle.** When both facets are on, a single command
@@ -1320,7 +1337,7 @@ analysis follow every edit, and show where a palette node will land.
 **Tests.** Rust: render + in-place source, crossfade/loop edges, failed render keeps the
 source. Unit: `dropTarget` (place/splice/invalid), live scheduler (latest-wins, cap,
 confirmation) with fake timers. E2E (`q2-synth-live`): audition calls `preview_synth` and
-not `preview_region`, Live updates the source without resetting the window/view/notes, a
+not `preview_region`, Live updates the source without resetting the window/view/annotations, a
 failed live render keeps the old audio, palette drag shows the ghost/splice badge and
 drops where previewed.
 
@@ -1415,16 +1432,16 @@ per gesture, so a two-finger scroll becomes a violent zoom, a horizontal swipe i
 
 ### Annotation vertical rules
 
-- **While dragging a span** in the note lane, draw full-height vertical rules at **both**
+- **While dragging a span** in the annotation lane, draw full-height vertical rules at **both**
   edges, a translucent span, and a live `start → end (Δ)` chip; the lane keeps its
   selection fill.
-- **Selected/focused annotation:** both edges of a range (or the one edge of a point) as
+- **Selected annotation:** both edges of a range (or the one edge of a point) as
   full-height rules, the range tinted, a small ruler flag and a label. **Hover** promotes
   any annotation to the same rules + label. Other annotations keep the faint tint and a
   short stem, so the waveform stays readable.
 - **While dragging a handle:** draw the moving edge full-height and the original edge as a
   ghost, with the live time/delta. Rules sit under the window handles and the playhead.
-- Extract the geometry as a pure helper and unit-test it; reuse `chartTheme().note`
+- Extract the geometry as a pure helper and unit-test it; reuse `chartTheme().annotation`
   colours/dashes so the Timeline and charts agree.
 
 ### Proposed additions (prioritized — confirm before building)
@@ -1432,7 +1449,7 @@ per gesture, so a two-finger scroll becomes a violent zoom, a horizontal swipe i
 | Priority | Improvement | Why |
 | --- | --- | --- |
 | P1 | Hover crosshair + time/sample readout | The Timeline has no time readout today; annotation precision needs one. |
-| P1 | Right-click menu: set start/end here, select window, zoom, seek, annotate | `notes.md` says the Timeline right-click sets the window; the implementation has no context menu. |
+| P1 | Right-click menu: set start/end here, select window, zoom, seek, annotate | `annotations.md` says the Timeline right-click sets the window; the implementation has no context menu. |
 | P2 | Snapping to playhead / annotations / window edges / a zoom-dependent grid (`Alt` overrides) | Repeatable windows; today every position is freehand. |
 | P2 | Numeric start/end/duration fields (type or drag) | Reproducible analysis windows and templates. |
 | P2 | Wider hit targets + cursor feedback for the window handles and move bar | The edge hit zone is 9 px and the move bar 8 px tall; both are easy to miss. |
@@ -1450,8 +1467,8 @@ per-selection analysis, and a per-user *Wheel zooms* preference.
 `src-tauri/src/commands/playback.rs`, `src/audio/preview.ts`,
 `src/components/timeline/{preview,interaction,draw,constants}.ts`,
 `src/components/timeline/TimelineToolbar.tsx`, `src/components/Timeline.tsx`,
-`src/state/timeline.ts`, `src/state/notes/focus.ts`,
-`src/components/analyzer/ReframeMenu.tsx`, `src/components/notes/lane.ts`,
+`src/state/timeline.ts`, `src/state/annotations/select.ts`,
+`src/components/analyzer/ReframeMenu.tsx`, `src/components/annotations/lane.ts`,
 `src/components/analyzer/{uplotZoom.ts,chartInteraction.ts}`,
 `src/lib/wheelGesture.ts`, `src/state/uiState.ts`.
 
@@ -1530,7 +1547,7 @@ ranking), `src/components/ShortcutsDialog.tsx`, `src/components/CommandPalette.t
 migration, palette ranking. E2E (`q4-keyboard`): Space toggles the transport, arrows
 seek, `N` annotates, `Mod+K` opens and runs a palette command, `?` opens the dialog,
 rebinding a command makes the old key inert and the new one work, a conflict is rejected,
-typing in a note/search field never triggers a shortcut, and bindings survive a reload.
+typing in an annotation/search field never triggers a shortcut, and bindings survive a reload.
 
 > **Order:** M22 is independent; M23 generalizes the transport M22's audition uses; M24
 > builds on M23's transport and window commands. Recommended order: **M22 → M23 → M24**.
@@ -1627,7 +1644,7 @@ transient **compare view** overlays the two results. See [`comparison.md`](compa
   the CLI can condition each side like the app. Older files warn and compare unfiltered.
 
 **Files:** `src-tauri/src/audio/analysis/compare/`,
-`src-tauri/src/commands/{compare,window}.rs`, `src-tauri/src/state/{mod,window}.rs`,
+`src-tauri/src/commands/{compare,window}.rs`, `src-tauri/src/state/{mod.rs,window/mod.rs}`,
 `src-tauri/src/menu.rs`, `src-tauri/src/mcp/`, `src-tauri/src/cli/batch/`,
 `src/state/compare/`, `src/components/compare/`, `src/lib/dockviewLayout.ts`,
 `src/state/{workbench,uiState,menu,history,snapshot}.ts`,
@@ -1645,7 +1662,7 @@ tests as in [`comparison.md`](comparison.md).
 
 **Non-goals:** no second track in one project; no time alignment/warping in M25;
 no simultaneous mixed playback; no dual waveform Timeline in the compare view (each project
-keeps its own); no different-tool or 3+ project compares; no notes in the compare view;
+keeps its own); no different-tool or 3+ project compares; no annotations in the compare view;
 no parameter normalisation; no persistence or export of a comparison in M25. The matrix /
 event / modulation / waveform **views** followed in M25.A, not M25; relative-time
 alignment + the fine-tune offset followed in **M25.B**, and saved comparisons in
@@ -1660,7 +1677,7 @@ alignment + the fine-tune offset followed in **M25.B**, and saved comparisons in
 > **Delivered:** the engine (`audio/analysis/compare/`: `align` grid signature and
 > comparability, `diff` + `diff/families` per-family deltas, `events` pairing, `stats`),
 > the per-window revision and compare-popout registry (`state/window/{mod,compare}.rs`),
-> the commands (`commands/compare.rs`: `run_comparison`, `compare_peer_setup`,
+> the commands (`commands/compare/`: `run_comparison`, `compare_peer_setup`,
 > `compare_live`, `compare_targets`, `open_compare_popout`, `retarget_compare_popout`,
 > `popout_compare`, `compare_popouts`), the **Analysis** menu item, the enriched
 > `list_projects`, MCP `compare_analysis` (app-only at M25; headless takes a project path
@@ -1739,7 +1756,7 @@ M25.A (saved comparisons followed in M25.C).
 
 > **Deviations (kept explicit):** a Δ heatmap's ramp is symmetric around its largest
 > absolute value and sampled from the theme (`compareA` → background → `compareB`); the
-> matrix compare is read-only (no zoom, no note lane, no sync-group membership) and
+> matrix compare is read-only (no zoom, no annotation lane, no sync-group membership) and
 > follows the union of the two windows; the note view's canvas is read-only in the same
 > way. The rhythm and note views draw the *core's* pairings (tolerance
 > `max(20 ms, 2 hops)`; 50 ms for notes), so the chart and MCP/CLI always agree.
@@ -1801,7 +1818,7 @@ Supersedes the absolute-time overlap rule of M25; see ADR-26.
   (or a dedicated open-compare signal) instead.
 
 **Files:** `src-tauri/src/audio/analysis/compare/{align,diff,diff/families,events}.rs`,
-`src-tauri/src/commands/compare.rs`, `src-tauri/src/cli/batch/{compare,args,types}.rs`,
+`src-tauri/src/commands/compare/`, `src-tauri/src/cli/batch/{compare,args,types}.rs`,
 `src-tauri/src/mcp/tools/compare.rs`, `src/state/compare/{run,views}.ts`,
 `src/state/workbench.ts`, `src/components/compare/*` (including `time`, `peerPlugins` and
 `canvasOverlays`), `src/components/analyzer/{syncPlugins,uplotZoom}.ts`,
@@ -1981,10 +1998,10 @@ between sibling projects and to reach the other side of a comparison. Supersedes
   can drive the same two-window comparison the UI shows.
 - **CLI parity.** The batch CLI can now build the same projects without a window:
   `project <OUT.heyl> --source <AUDIO>` (or `--synth <GRAPH.json> --seconds`) with
-  `-p` / `-o` / `--filter`, `--start` / `--end`, `--open-tool` (repeatable), `--notes
+  `-p` / `-o` / `--filter`, `--start` / `--end`, `--open-tool` (repeatable), `--annotations
   <FILE.json>`, and `--reference`; and `compare A B -t TOOL --save OUT.heyl` writes the
   owner with one `COMPARE` snapshot per compared tool (its effective setup included), so
-  reopening reproduces the diff. `notes <FILE.heyl>` also edits an existing project:
+  reopening reproduces the diff. `annotations <FILE.heyl>` also edits an existing project:
   `--get <ID>`, `--add <FILE.json>`, `--update <ID> --set FIELD=VALUE`, `--delete <ID>`,
   with `--to <COPY.heyl>` for a non-destructive edit. Parent folders are created; stdout
   stays JSONL.

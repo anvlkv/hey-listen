@@ -27,27 +27,27 @@ streaming for very large audio.
 | id | name | codec | content |
 | --- | --- | --- | --- |
 | 0x01 | `META` | postcard | name, timestamps, app version, format version |
-| 0x02 | `SOURCE` | postcard | `Source` descriptor (file path / input config / synth graph) |
+| 0x02 | `SOURCE` | postcard | `SourceDescriptor` (file path / input config / synth graph) |
 | 0x03 | `DATA` | raw PCM blob | interleaved `f32` (or `i16`) samples, chunked |
 | 0x04 | `SETUP` | postcard | `AnalysisSetup` (tools, configs, shared params) |
 | 0x05 | `LAYOUT` | serde_json | dockview JSON + solid-flow node positions |
 | 0x06 | `RESULTS` | postcard | cached `AnalysisResult` list |
-| 0x07 | `NOTES` | postcard | the project's annotations (`Note` list: anchor time + optional range, tool, markdown body, frozen values) |
+| 0x07 | `ANNOTATIONS` | postcard | the project's annotations (`Annotation` list: anchor time + optional range, tool, markdown body, frozen values) |
 | 0x08 | `COMPARE` | postcard | saved comparison snapshots (M25.C): one reference analysis result + setup per tool |
 
-## Notes (M14)
+## Annotations (M14)
 
-The `NOTES` section (id `0x07`) carries the project's **annotations** as a `postcard`
-`Vec<Note>` — the same `Note` / `NoteValues` types the frontend and the MCP surface use
-(see [`notes.md`](notes.md)). (The section and type keep the historical `notes` name;
-the UI labels the feature **Annotations** to distinguish it from M18's detected note
-segments.) It is written from the frontend's notes store through
+The `ANNOTATIONS` section (id `0x07`) carries the project's **annotations** as a `postcard`
+`Vec<Annotation>` — the same `Annotation` / `AnnotationValues` types the frontend and the MCP surface use
+(see [`annotations.md`](annotations.md)). The section and the type are both named for
+**annotations**; the `noteMetrics` analyzer's *detected note segments* are a different
+thing. It is written from the frontend's annotations store through
 `save_project` and returned by `load_project`, exactly like `SETUP`. Because the header
-version governs the section set and readers skip unknown ids, a `NOTES` section is
+version governs the section set and readers skip unknown ids, an `ANNOTATIONS` section is
 **forward-compatible**: an older build opens the project and simply ignores it, and a
-file with no `NOTES` section loads with zero notes. Keeping notes in their own section
+file with no `ANNOTATIONS` section loads with zero annotations. Keeping annotations in their own section
 (rather than inside `SETUP`) keeps the analysis setup a pure `AnalysisSetup` and lets the
-CLI read just the notes (`hey-listen notes <FILE.heyl>`).
+CLI read just the annotations (`hey-listen annotations <FILE.heyl>`).
 
 ## Comparisons (M25.C)
 

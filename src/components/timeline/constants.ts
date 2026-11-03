@@ -1,10 +1,10 @@
 /**
  * Layout and interaction constants for the Timeline canvas (all in CSS pixels
- * unless noted). Kept together so the drawing helpers (`draw.ts`) and the pointer
+ * unless annotationd). Kept together so the drawing helpers (`draw.ts`) and the pointer
  * handling (`interaction.ts`) agree on the geometry.
  *
- * The note lane's height and grab radius are shared with the analyzer charts — see
- * `components/notes/strip.ts` and `components/notes/lane.ts`.
+ * The annotation lane's height and grab radius are shared with the analyzer charts — see
+ * `components/annotations/strip.ts` and `components/annotations/lane.ts`.
  */
 
 /** Height of the ruler strip along the top of the canvas. */

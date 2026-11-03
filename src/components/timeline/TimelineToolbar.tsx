@@ -19,17 +19,17 @@ const speedLabel = (speed: number) => `${Number(speed.toFixed(2))}×`;
 
 /**
  * The Timeline toolbar (readout, filter indicator, channel picker and the
- * replace / preview / speed / note / zoom actions). Presentational: `previewing`,
- * `active`, `canNoteAtCursor` and the callbacks come from `Timeline.tsx`; the remaining
+ * replace / preview / speed / annotation / zoom actions). Presentational: `previewing`,
+ * `active`, `canAnnotateAtCursor` and the callbacks come from `Timeline.tsx`; the remaining
  * state is read from the stores directly.
  */
 export default function TimelineToolbar(props: {
   previewing: boolean;
   active: boolean;
-  /** Whether a preview is playing, so a note can be dropped at the playhead. */
-  canNoteAtCursor: boolean;
+  /** Whether a preview is playing, so an annotation can be dropped at the playhead. */
+  canAnnotateAtCursor: boolean;
   onTogglePreview: () => void;
-  onNoteAtCursor: () => void;
+  onAnnotateAtCursor: () => void;
   onZoomWindow: () => void;
   onZoomOut: () => void;
   onZoomIn: () => void;
@@ -132,15 +132,15 @@ export default function TimelineToolbar(props: {
             {speedLabel(previewSpeed())}
           </span>
         </div>
-        <Tooltip label="Add a note at the playhead">
+        <Tooltip label="Add an annotation at the playhead">
           <Button
             class="timeline-btn icon-btn"
-            data-testid="timeline.noteAtCursor"
-            disabled={!props.canNoteAtCursor}
-            aria-label="Add a note at the playhead"
-            onClick={() => props.onNoteAtCursor()}
+            data-testid="timeline.annotationAtCursor"
+            disabled={!props.canAnnotateAtCursor}
+            aria-label="Add an annotation at the playhead"
+            onClick={() => props.onAnnotateAtCursor()}
           >
-            <Icon name="note-sticky" />
+            <Icon name="annotation-sticky" />
           </Button>
         </Tooltip>
         <Tooltip label="Zoom the view to the analysis window">

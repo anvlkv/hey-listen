@@ -1,12 +1,12 @@
-import type { Note } from "../../bindings/Note";
+import type { Annotation } from "../../bindings/Annotation";
 import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
-import { noteExcerpt } from "../../lib/note";
+import { annotationExcerpt } from "../../lib/annotation";
 import { sharedParams } from "../analysis";
 import { toolOptions } from "../analyzer";
 import { filterEnabled, filterError } from "../graph";
-import { focusedNoteId, notesSorted } from "../notes";
+import { selectedAnnotationId, annotationsSorted } from "../annotations";
 import { outputDeviceId, outputGain } from "../output";
 import { dirty, projectDisplayName, projectPath } from "../project";
 import { source } from "../source";
@@ -45,24 +45,24 @@ export async function getState(target?: string) {
     ],
     filter: { enabled: filterEnabled(), error: filterError() },
     output: { gain: outputGain(), device: outputDeviceId() },
-    notes: notesSorted().map(noteSummary),
-    focusedNoteId: focusedNoteId(),
+    annotations: annotationsSorted().map(annotationSummary),
+    selectedAnnotationId: selectedAnnotationId(),
   };
 }
 
 /**
- * A compact note summary for `get_state` / `list_notes`: identity, anchor, the frozen
- * values line, and a one-line body excerpt (the full body needs `get_note`).
+ * A compact annotation summary for `get_state` / `list_annotations`: identity, anchor, the frozen
+ * values line, and a one-line body excerpt (the full body needs `get_annotation`).
  */
-export function noteSummary(note: Note) {
+export function annotationSummary(annotation: Annotation) {
   return {
-    id: note.id,
-    timeSecs: note.timeSecs,
-    range: note.range,
-    tool: note.tool,
-    title: note.title,
-    values: note.values?.text ?? null,
-    body: noteExcerpt(note.body),
+    id: annotation.id,
+    timeSecs: annotation.timeSecs,
+    range: annotation.range,
+    tool: annotation.tool,
+    title: annotation.title,
+    values: annotation.values?.text ?? null,
+    body: annotationExcerpt(annotation.body),
   };
 }
 

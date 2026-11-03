@@ -6,7 +6,7 @@ import type { NoteMetricsResult } from "../bindings/NoteMetricsResult";
  * column of levels (dBFS), and one column of per-note median f0 (Hz, on its own scale).
  * `null` separates notes so a line never joins two segments across a gap.
  *
- * These are the detected note segments, not the project's user-authored annotations
+ * These are the detected note segments, not the project's user-authored notes
  * (M14) — see `docs/notes.md` → Terminology.
  */
 export interface SegmentSeries {

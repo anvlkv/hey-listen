@@ -1,7 +1,7 @@
 /**
  * Pointer-drag handling for the app's layout splitters (M15).
  *
- * The Timeline row, the Sidebar column and the Notes rail each resize themselves by
+ * The Timeline row, the Sidebar column and the Annotations rail each resize themselves by
  * the same down / move / up pointer dance; this is the one implementation they share.
  * The handlers go straight onto a splitter `<div>` (`onPointerDown` etc.), so a caller
  * only describes its axis, its size store, and which way the pointer moves it.

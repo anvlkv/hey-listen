@@ -2,7 +2,7 @@
 //! keep the gaps between them explicit, and summarize each note's level.
 //!
 //! These are audio **note segments** — not the project's user-authored **annotations**
-//! (the M14 `Note` payload). See `docs/analysis-metrics.md` → M18.
+//! (the M14 `Annotation` payload). See `docs/analysis-metrics.md` → M18.
 
 use super::super::support::{db_or_floor, frame_rms};
 use super::super::{

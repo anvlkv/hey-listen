@@ -132,7 +132,7 @@ export default function ExportMenu(props: { id: AnalyzerId }) {
         <span>Write CSV sidecar metadata</span>
       </label>
       <Show when={busy()}>
-        <div class="params-note">Exporting…</div>
+        <div class="params-annotation">Exporting…</div>
       </Show>
       <Show when={error()}>
         {(message) => (
@@ -148,7 +148,7 @@ export default function ExportMenu(props: { id: AnalyzerId }) {
           </div>
         )}
       </Show>
-      <p class="params-note">
+      <p class="params-annotation">
         JSON is a self-describing provenance envelope; CSV is one row per time frame. Both re-run
         the analysis at the current window and settings.
       </p>

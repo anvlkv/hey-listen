@@ -2,7 +2,7 @@
 //! file inside the source-size budget.
 //!
 //! A **note** here is an acoustic event found by `noteMetrics` — distinct from a
-//! project **annotation** (the M14 `Note` payload, user-authored commentary).
+//! project **annotation** (the M14 `Annotation` payload, user-authored commentary).
 
 use serde::{Deserialize, Serialize};
 

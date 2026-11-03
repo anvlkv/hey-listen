@@ -111,18 +111,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.timeline-btn {
-  height: 24px;
-  padding: 0 10px;
-  font: inherit;
-  font-size: 0.75rem;
-  color: var(--fg);
-  background: var(--control);
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
 .timeline-btn:hover:not(:disabled) {
   background: var(--control-hover);
 }

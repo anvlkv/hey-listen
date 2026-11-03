@@ -140,7 +140,7 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "(`harmonic_ratio`), not HNR in dB. They are **proxies**, not clinical " +
       "measures, and stay blank when a note is too short or too unvoiced to measure.\n\n" +
       "**Not annotations.** These are **detected audio notes**, not the project's " +
-      "user-authored annotations (the right-hand rail's markdown notes).",
+      "user-authored annotations (the right-hand rail's markdown annotations).",
     keywords: [
       "note",
       "notes",

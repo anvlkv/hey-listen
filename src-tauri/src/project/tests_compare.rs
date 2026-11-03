@@ -84,7 +84,7 @@ fn round_trips_series_comparisons() {
         setup: AnalysisSetup::default(),
         layout: serde_json::Value::Null,
         results: Vec::new(),
-        notes: Vec::new(),
+        annotations: Vec::new(),
         compare: vec![
             snapshot(
                 AnalyzerId::SpectralCentroid,

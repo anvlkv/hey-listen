@@ -3,12 +3,12 @@
 use std::collections::BTreeMap;
 use std::io::Cursor;
 
-use super::sections::{AnalysisWindow, NoteValues, StoredResult};
+use super::sections::{AnalysisWindow, AnnotationValues, StoredResult};
 use super::*;
 use crate::audio::analysis::compare::{SavedComparison, SourceShape, Span};
 use crate::audio::analysis::{SharedParams, SpectrogramResult, StoredAnalysisResult, ToolOptions};
 use crate::audio::analyzers::{AnalyzerId, ToolId};
-use crate::state::SourcePcm;
+use crate::state::SourceData;
 
 fn setup() -> AnalysisSetup {
     AnalysisSetup {
@@ -30,17 +30,32 @@ fn setup() -> AnalysisSetup {
     }
 }
 
-fn pcm(samples: usize) -> SourcePcm {
+fn pcm(samples: usize) -> SourceData {
     let values: Vec<f32> = (0..samples).map(|i| (i as f32 * 0.001).sin()).collect();
-    SourcePcm {
+    SourceData {
         samples: values,
         sample_rate: 48_000,
         channels: 2,
     }
 }
 
-fn note() -> Note {
-    Note {
+/// A minimal save payload; `pcm` is the only part the write/read tests vary.
+fn save_with<'a>(name: &str, pcm: Option<&'a SourceData>) -> SaveProject<'a> {
+    SaveProject {
+        name: name.to_string(),
+        created_ms: None,
+        source: None,
+        setup: AnalysisSetup::default(),
+        layout: serde_json::Value::Null,
+        results: Vec::new(),
+        annotations: Vec::new(),
+        compare: Vec::new(),
+        pcm,
+    }
+}
+
+fn annotation() -> Annotation {
+    Annotation {
         id: "n1".to_string(),
         created_ms: 10,
         updated_ms: 20,
@@ -49,7 +64,7 @@ fn note() -> Note {
         tool: Some(AnalyzerId::Spectrum),
         title: Some("Third harmonic".to_string()),
         body: "Peak at **880 Hz**".to_string(),
-        values: Some(NoteValues {
+        values: Some(AnnotationValues {
             tool: AnalyzerId::Spectrum,
             label: "Spectrum @ 2.34 s".to_string(),
             text: "peak 880.0 Hz, −12.4 dBFS".to_string(),
@@ -64,8 +79,8 @@ fn note() -> Note {
     }
 }
 
-fn range_note() -> Note {
-    Note {
+fn range_annotation() -> Annotation {
+    Annotation {
         id: "n2".to_string(),
         created_ms: 30,
         updated_ms: 30,
@@ -151,7 +166,7 @@ fn round_trips_every_section() {
             options: BTreeMap::new(),
             result: vec![1, 2, 3],
         }],
-        notes: vec![note(), range_note()],
+        annotations: vec![annotation(), range_annotation()],
         compare: vec![saved_comparison()],
         pcm: Some(&pcm),
     };
@@ -173,9 +188,9 @@ fn round_trips_every_section() {
     assert_eq!(loaded.meta.app_version, env!("CARGO_PKG_VERSION"));
     assert_eq!(loaded.source.expect("source").kind, SourceKind::File);
 
-    // The `NOTES` section round-trips (a point note with values, a range note).
-    assert_eq!(loaded.notes.len(), 2);
-    let point = &loaded.notes[0];
+    // The `ANNOTATIONS` section round-trips (a point annotation with values, a range annotation).
+    assert_eq!(loaded.annotations.len(), 2);
+    let point = &loaded.annotations[0];
     assert_eq!(point.id, "n1");
     assert_eq!(point.time_secs, 2.34);
     assert!(point.range.is_none());
@@ -184,7 +199,7 @@ fn round_trips_every_section() {
     assert_eq!(values.tool, AnalyzerId::Spectrum);
     assert_eq!(values.text, "peak 880.0 Hz, −12.4 dBFS");
     assert_eq!(values.options.get("showMean"), Some(&1.0));
-    let range = loaded.notes[1].range.expect("range");
+    let range = loaded.annotations[1].range.expect("range");
     assert_eq!(range.start_secs, 2.34);
     assert_eq!(range.end_secs, 3.10);
 
@@ -220,17 +235,7 @@ fn streams_audio_across_chunks() {
     // More than one DATA chunk, and a sample count that is not a chunk multiple.
     let count = DATA_CHUNK_SAMPLES * 2 + 7;
     let pcm = pcm(count);
-    let save = SaveProject {
-        name: "big".to_string(),
-        created_ms: None,
-        source: None,
-        setup: AnalysisSetup::default(),
-        layout: serde_json::Value::Null,
-        results: Vec::new(),
-        notes: Vec::new(),
-        compare: Vec::new(),
-        pcm: Some(&pcm),
-    };
+    let save = save_with("big", Some(&pcm));
 
     let bytes = write(&save, 5).into_inner();
     let loaded = read_project(&mut Cursor::new(bytes)).expect("read");
@@ -241,17 +246,7 @@ fn streams_audio_across_chunks() {
 
 #[test]
 fn writes_a_project_without_audio() {
-    let save = SaveProject {
-        name: "empty".to_string(),
-        created_ms: None,
-        source: None,
-        setup: AnalysisSetup::default(),
-        layout: serde_json::Value::Null,
-        results: Vec::new(),
-        notes: Vec::new(),
-        compare: Vec::new(),
-        pcm: None,
-    };
+    let save = save_with("empty", None);
 
     let bytes = write(&save, 5).into_inner();
     let loaded = read_project(&mut Cursor::new(bytes)).expect("read");
@@ -261,17 +256,7 @@ fn writes_a_project_without_audio() {
 #[test]
 fn rejects_a_corrupt_checksum() {
     let pcm = pcm(64);
-    let save = SaveProject {
-        name: "test".to_string(),
-        created_ms: None,
-        source: None,
-        setup: AnalysisSetup::default(),
-        layout: serde_json::Value::Null,
-        results: Vec::new(),
-        notes: Vec::new(),
-        compare: Vec::new(),
-        pcm: Some(&pcm),
-    };
+    let save = save_with("test", Some(&pcm));
 
     let mut bytes = write(&save, 5).into_inner();
     let mid = bytes.len() / 2;

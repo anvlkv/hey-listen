@@ -108,8 +108,8 @@ export default function ComparePicker() {
   );
 }
 
-/** The transient hint shown when a comparison cannot open (no analyzer focused, one
- *  project open, or an M25.A-only family). Rendered by the Workbench. */
+/** The transient hint shown when a comparison cannot open (no analyzer focused, or
+ *  only one project open). Rendered by the Workbench. */
 export function CompareNotice() {
   return (
     <Show when={compareNotice()}>

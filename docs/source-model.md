@@ -20,10 +20,12 @@ Replacing an existing source is **confirmed first**, and unsaved work is tracked
 | **Input: Mix** | flexaudio `SourceKind::Mix` (mic + system) | grows while recording |
 | **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source; **Live** re-renders it in place (M22, planned) |
 
-The project descriptor stores the kind as the `SourceKind` enum (`file` / `mic` /
+The project descriptor stores the kind as **our** `SourceKind` enum (`file` / `mic` /
 `system` / `process` / `mix` / `synth`), and the live picker uses `CaptureKind`
 (`mic` / `system` / `process` / `mix`); both serialize as those same strings
-(ADR-28).
+(ADR-28). The `flexaudio::SourceKind` spellings in the table above are the crate's
+(`SystemLoopback` / `ProcessLoopback`); our enum deliberately shortens them to
+`system` / `process` on the wire.
 
 ## Recordable inputs
 
@@ -67,8 +69,8 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - The whole window can be **dragged** (keeping its width) via a handle at its top; a
   preview that is playing reloads onto the new window when the drag settles, so it never
   keeps auditioning the old region.
-- The bottom **note lane** holds the project's annotations (M14) — see
-  [`notes.md`](notes.md) → Surfacing.
+- The bottom **annotation lane** holds the project's annotations (M14) — see
+  [`annotations.md`](annotations.md) → Surfacing.
 - For a **multichannel** source, a channel selector (in the Timeline toolbar) picks
   the channel to display/analyse, or downmixes to mono. It is the shared analysis
   param, so the waveform, preview playback and (M4+) analyzers all agree.

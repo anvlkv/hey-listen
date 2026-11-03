@@ -125,8 +125,9 @@ Each side may legitimately have a different window, filter or settings, so the d
 
 A **grid signature** decides whether a numeric delta exists:
 
-- the tool's view family (series / spectrum / matrix / events / scalar / modulation /
-  waveform);
+- the tool's **`CompareViewFamily`** (`series` / `spectrum` / `spectrogram` / `matrix` /
+  `events` / `annotations` / `modulation` / `waveform` / `scalar` — the display superset of the
+  Rust result `Family`);
 - the analysis rate after `resampleTo`, the channel pick, `fftSize`, `hop`, `windowFn`,
   the frequency band, and the frame/bin dimensions;
 - the tool options that change the grid (`nMels`, `nBands`, `nMfcc`, `barLength`, …).
@@ -198,7 +199,7 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   steps, 0 by default, positive = B later, with a reset. It only re-aligns the results
   (no re-analysis); the comparison re-runs debounced, so the Δ line, stats and pairings
   follow. It is shown for the time-axis families (series, matrix/spectrogram, events,
-  notes, waveform); spectrum/modulation/readouts have no time axis and no slider.
+  annotations, waveform); spectrum/modulation/readouts have no time axis and no slider.
 - **Swap A/B** swaps the sides, the **axis extent and clipping**, and the offset's sign —
   not only the labels and the Δ sign. The slider always moves the side shown as B.
 - **Chart**, by family:
@@ -249,7 +250,7 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   creates a native window (a `popout-*` label) aliased to A. It is registered as a
   **compare popout** (`tool` + `reference`) rather than a tool popout, and its title is
   `Compare: <Tool> — <A> ↔ <B>`. The popout boot asks `popout_compare` alongside the
-  tool/note queries and renders the compare view in the popout shell; its picker calls
+  tool/annotation queries and renders the compare view in the popout shell; its picker calls
   `retarget_compare_popout`.
 - **One compare view per tool per project.** If it is already popped out, choosing the
   same tool again raises the window; choosing another reference **retargets** that window
@@ -400,7 +401,7 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 - No simultaneous mixed playback; each project's transport stays its own. A/B switching
   is done by playing the other window.
 - No comparison of **different** tools, and no "compare 3+" projects.
-- No notes in the compare view (annotations belong to a project).
+- No annotations in the compare view (annotations belong to a project).
 - No parameter matching / normalisation. Mismatches are reported, never silently fixed.
 - No export of a comparison. Saved snapshots are project content (M25.C), but there is no
   standalone comparison file.
@@ -424,9 +425,9 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 `src-tauri/src/audio/analysis/results/mod.rs` (`windowStart` origins) and
 `results/stored.rs` (the postcard-safe result mirror for saved snapshots),
 `src-tauri/src/project/{mod,sections,read,write}.rs` (`COMPARE`,
-M25.C), `src-tauri/src/commands/compare/{mod,peer,popout}.rs` (comparison, reference
+M25.C), `src-tauri/src/commands/compare/{mod,peer,popout,reference}.rs` (comparison, reference
 reads, popout), `src-tauri/src/commands/{window,project}.rs` (windows, save/load),
-`src-tauri/src/state/{mod,window}.rs` (revision, peer reads,
+`src-tauri/src/state/{mod.rs,window/mod.rs}` (revision, peer reads,
 compare-popout map, saved snapshots), `src-tauri/src/menu.rs` (Analysis menu),
 `src-tauri/src/lib.rs` (register).
 
@@ -533,10 +534,10 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 > **Delivered (M25).** The contract above is implemented end to end. Notes
 > from delivery:
 >
-> - `aligned` is `mismatches.is_empty()` **and** (for series/events/notes) an overlap.
->   A mismatch therefore suppresses the delta for **every** family, including a scalar
->   readout — a readout comparison is numeric only when rate, channel and the tool's
->   grid options agree.
+> - `aligned` is `mismatches.is_empty()`. A mismatch therefore suppresses the delta for
+>   **every** family, including a scalar readout — a readout comparison is numeric only
+>   when rate, channel and the tool's grid options agree. (M25.B replaced the extra
+>   overlap requirement; `alignment.common` reports whether the shifted spans meet.)
 > - `filtersDiffer` is reported but does not suppress the delta: each side runs with
 >   its own filter, as processed.
 > - The two runs execute sequentially on the blocking pool.
@@ -552,7 +553,7 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 > **Delivered (M25.A).** Every family now has a compare view, and *Compare with…* is
 > offered for every analyzer. Notes from delivery:
 >
-> - **Matrix / spectrogram** is read-only: the plain-canvas heatmap has no zoom or note
+> - **Matrix / spectrogram** is read-only: the plain-canvas heatmap has no zoom or annotation
 >   lane (so it does not join a sync group), and follows the union of the two analysis
 >   windows. A and B share one colour range (so switching sides never rescales); the Δ
 >   image is symmetric around its largest absolute value and uses a diverging ramp sampled
@@ -608,7 +609,7 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 > - MCP `compare_analysis` accepts `saved: true`; `get_state.compare` reports
 >   `{ tool, with, saved, offset }`; `list_projects` reports saved comparisons.
 >
-> Implementation notes and deviations, kept explicit:
+> Implementation annotations and deviations, kept explicit:
 >
 > - The section payload uses a **postcard-safe mirror** of the result
 >   (`results::StoredAnalysisResult`, an externally tagged enum with one newtype variant
@@ -619,7 +620,7 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 > - A payload that **skips** an absent optional key is stored through a positional
 >   wrapper (`StoredSeries`, `StoredNoteMetrics`): `skip_serializing_if` only affects
 >   writing, so postcard would omit a field the reader still expects and run off the end
->   of the buffer — which is what made a saved **series** (or grouped-notes) comparison
+>   of the buffer — which is what made a saved **series** (or grouped-annotations) comparison
 >   unreadable. The wrappers write every field unconditionally while the JSON wire keeps
 >   its absent-key shape; the field order matches the structs, so a file written before
 >   the wrapper (both optional keys present) still decodes.

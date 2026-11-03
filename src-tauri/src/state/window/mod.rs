@@ -100,7 +100,7 @@ impl Default for WindowState {
 /// Popout windows are **views** of a project, not projects of their own: their
 /// label is aliased to the parent's, so every command resolves to the parent's
 /// [`WindowState`] (the shared source / filter / playback). The alias also records
-/// which tool or note the popout shows.
+/// which tool or annotation the popout shows.
 #[derive(Default)]
 struct RegistryInner {
     states: HashMap<String, Arc<WindowState>>,
@@ -108,8 +108,8 @@ struct RegistryInner {
     aliases: HashMap<String, String>,
     /// Popout label → tool id shown in that popout.
     popout_tools: HashMap<String, ToolId>,
-    /// Popout label → note id shown in that popout.
-    popout_notes: HashMap<String, String>,
+    /// Popout label → annotation id shown in that popout.
+    popout_annotations: HashMap<String, String>,
     /// Popout label → the **compare** view it shows (M25). Kept apart from the tool
     /// map so a compare popout is never saved, restored or raised as a tool popout.
     popout_compares: HashMap<String, CompareView>,
@@ -180,25 +180,25 @@ impl WindowRegistry {
         inner.popout_tools.get(label).cloned()
     }
 
-    /// Register `popout` as a view of `parent`'s project showing the note `note_id`.
-    pub fn add_note_popout(&self, popout: &str, parent: &str, note_id: &str) {
+    /// Register `popout` as a view of `parent`'s project showing the annotation `annotation_id`.
+    pub fn add_annotation_popout(&self, popout: &str, parent: &str, annotation_id: &str) {
         let mut inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         inner.aliases.insert(popout.to_string(), parent.to_string());
         inner
-            .popout_notes
-            .insert(popout.to_string(), note_id.to_string());
+            .popout_annotations
+            .insert(popout.to_string(), annotation_id.to_string());
     }
 
-    /// The note a popout window shows, or `None` for a tool popout / project window.
-    pub fn popout_note(&self, label: &str) -> Option<String> {
+    /// The annotation a popout window shows, or `None` for a tool popout / project window.
+    pub fn popout_annotation(&self, label: &str) -> Option<String> {
         let inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        inner.popout_notes.get(label).cloned()
+        inner.popout_annotations.get(label).cloned()
     }
 
     /// Every window of `label`'s project: the owning (root) window plus any popout
@@ -244,19 +244,19 @@ impl WindowRegistry {
         popout_showing(&inner, label, &inner.popout_tools, &tool)
     }
 
-    /// The popout window showing `note_id` for `label`'s project, if one is open.
+    /// The popout window showing `annotation_id` for `label`'s project, if one is open.
     ///
-    /// Like [`WindowRegistry::popout_for`] for tools: a note that already has a window
+    /// Like [`WindowRegistry::popout_for`] for tools: an annotation that already has a window
     /// is **raised** instead of opened twice.
-    pub fn note_popout_for(&self, label: &str, note_id: &str) -> Option<String> {
+    pub fn annotation_popout_for(&self, label: &str, annotation_id: &str) -> Option<String> {
         let inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        popout_showing(&inner, label, &inner.popout_notes, note_id)
+        popout_showing(&inner, label, &inner.popout_annotations, annotation_id)
     }
 
-    /// Whether `label` is a popout of any kind (tool or note), rather than a project
+    /// Whether `label` is a popout of any kind (tool or annotation), rather than a project
     /// window: a popout has an alias entry, a project window does not.
     pub fn is_popout(&self, label: &str) -> bool {
         let inner = self
@@ -289,7 +289,7 @@ impl WindowRegistry {
                 .unwrap_or_else(|poison| poison.into_inner());
             inner.aliases.remove(label);
             inner.popout_tools.remove(label);
-            inner.popout_notes.remove(label);
+            inner.popout_annotations.remove(label);
             inner.popout_compares.remove(label);
             inner.aliases.retain(|_, parent| parent != label);
             inner.states.remove(label)
@@ -315,7 +315,7 @@ fn resolve_root(aliases: &HashMap<String, String>, label: &str) -> String {
 }
 
 /// The popout of `label`'s project whose `shown` table (popout label → shown id) maps
-/// it to `id`, if one is open. `shown` is the tool map or the note map, so the two
+/// it to `id`, if one is open. `shown` is the tool map or the annotation map, so the two
 /// kinds share one lookup.
 fn popout_showing<K, Q>(
     inner: &RegistryInner,

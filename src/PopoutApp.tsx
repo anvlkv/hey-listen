@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, createSignal, onMount, Show, untrack, type JSX } from "solid-js";
 import ToolContent from "./components/ToolContent";
 import CompareTab from "./components/compare/CompareTab";
-import NoteWindow from "./components/notes/NoteWindow";
+import AnnotationWindow from "./components/annotations/AnnotationWindow";
 import { analyzerById } from "./state/analyzer";
 import { projectName } from "./state/project";
 import { setError, setSource, setStatus, source } from "./state/source";
@@ -25,8 +25,8 @@ import "./App.css";
 
 /**
  * A popped-out tab: a full app instance that renders a **single tool**, a **single
- * note**, or a **comparison** against the parent project. The project's shared state
- * (timeline window, params, chart views, name, notes) is pulled from the core by
+ * annotation**, or a **comparison** against the parent project. The project's shared state
+ * (timeline window, params, chart views, name, annotations) is pulled from the core by
  * [`initUiState`]; the source PCM stays in the core (this window's label is aliased to
  * its parent, so `run_analysis` resolves to the shared state).
  *
@@ -35,14 +35,14 @@ import "./App.css";
  */
 export default function PopoutApp(props: {
   toolId?: string;
-  noteId?: string;
+  annotationId?: string;
   compare?: CompareViewDto;
 }): JSX.Element {
   const tool = () => (props.toolId ? toolById(props.toolId as ToolId) : null);
-  // A note's body is seeded once when its editor mounts, so the notes store must be
-  // populated first — hence the note path renders only after the shared state arrives.
+  // An annotation's body is seeded once when its editor mounts, so the annotations store must be
+  // populated first — hence the annotation path renders only after the shared state arrives.
   // The tool path renders immediately and reacts to that state as it loads.
-  const [ready, setReady] = createSignal(untrack(() => !props.noteId));
+  const [ready, setReady] = createSignal(untrack(() => !props.annotationId));
   /** The compare view's fine-tune offset (restored from the saved snapshot). */
   const [offset, setOffset] = createSignal(0);
 
@@ -99,12 +99,12 @@ export default function PopoutApp(props: {
     return compareTargets().find((target) => target.label === view?.with)?.name ?? "project";
   };
 
-  // Title: the tool (or note / comparison) plus the project's name.
+  // Title: the tool (or annotation / comparison) plus the project's name.
   createEffect(() => {
     // Track the source too, so the title settles once the shared name arrives.
     source();
-    const what = props.noteId
-      ? "Note"
+    const what = props.annotationId
+      ? "Annotation"
       : props.compare
         ? `Compare: ${analyzerById(props.compare.tool).title} — ${projectName()} ↔ ${referenceName()}`
         : (tool()?.title ?? "Hey Listen");
@@ -118,10 +118,10 @@ export default function PopoutApp(props: {
       <Show
         when={props.compare}
         fallback={
-          <Show when={props.noteId} fallback={<ToolContent id={props.toolId as ToolId} />}>
-            {(noteId) => (
+          <Show when={props.annotationId} fallback={<ToolContent id={props.toolId as ToolId} />}>
+            {(annotationId) => (
               <Show when={ready()}>
-                <NoteWindow noteId={noteId()} />
+                <AnnotationWindow annotationId={annotationId()} />
               </Show>
             )}
           </Show>

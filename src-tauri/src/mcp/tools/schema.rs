@@ -67,14 +67,14 @@ impl ToolClass {
         open_world: true,
     };
     /// Creates or patches an annotation.
-    pub(super) const NOTE_WRITE: Self = Self {
+    pub(super) const ANNOTATION_WRITE: Self = Self {
         read_only: false,
         destructive: false,
         idempotent: true,
         open_world: false,
     };
     /// Removes an annotation.
-    pub(super) const NOTE_DELETE: Self = Self {
+    pub(super) const ANNOTATION_DELETE: Self = Self {
         read_only: false,
         destructive: true,
         idempotent: true,

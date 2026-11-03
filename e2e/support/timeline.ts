@@ -1,7 +1,7 @@
 /**
  * Timeline E2E helpers (M8).
  *
- * The analysis-window handles (start / end), the whole-window move bar and the note
+ * The analysis-window handles (start / end), the whole-window move bar and the annotation
  * lane are drawn on the Timeline **canvas**, not the DOM, so they are addressed by
  * their known canvas position rather than a selector — which is why every suite that
  * moves the window shares this helper instead of copying the geometry. See

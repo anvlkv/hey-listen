@@ -4,7 +4,12 @@ import { channelFor } from "../state/analysis";
 import { stopFollowing } from "../state/capture";
 import { filteredSamples } from "../state/filtered";
 import { filterActive } from "../state/graph";
-import { createNote, defaultNoteTool, focusedNoteId, notesSorted } from "../state/notes";
+import {
+  createAnnotation,
+  defaultAnnotationTool,
+  selectedAnnotationId,
+  annotationsSorted,
+} from "../state/annotations";
 import { source, status } from "../state/source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
 import { PLOT_PAD } from "./timeline/constants";
@@ -35,7 +40,11 @@ export default function Timeline() {
 
   const [cssW, setCssW] = createSignal(0);
   const [cssH, setCssH] = createSignal(0);
-  const [noteHint, setNoteHint] = createSignal<{ x: number; y: number; text: string } | null>(null);
+  const [annotationHint, setAnnotationHint] = createSignal<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
 
   const duration = () => source()?.duration ?? 0;
   const span = () => Math.max(1e-9, viewEnd() - viewStart());
@@ -100,14 +109,14 @@ export default function Timeline() {
   const preview = createPreview();
 
   /**
-   * Drop a **point** note at the preview playhead — the cursor the user is listening to.
-   * It takes the focused analyzer as its chart (like the Notes panel's `Add`) and, as
-   * always when creating, never moves the analysis window.
+   * Drop a **point** annotation at the preview playhead — the cursor the user is
+   * listening to. It takes the focused analyzer as its chart (like the Annotations
+   * panel's `Add`) and, as always when creating, never moves the analysis window.
    */
-  const noteAtCursor = () => {
+  const annotationAtCursor = () => {
     const at = preview.playSec();
     if (at == null) return;
-    createNote({ timeSecs: at, tool: defaultNoteTool() });
+    createAnnotation({ timeSecs: at, tool: defaultAnnotationTool() });
   };
 
   const interaction = createTimelineInteraction({
@@ -119,7 +128,7 @@ export default function Timeline() {
     span,
     plotW,
     applyView,
-    setNoteHint,
+    setAnnotationHint,
     previewEdge: preview.previewEdge,
     endPreview: preview.endPreview,
   });
@@ -183,8 +192,8 @@ export default function Timeline() {
     preview.playSec();
     filteredSamples();
     filterActive();
-    notesSorted();
-    focusedNoteId();
+    annotationsSorted();
+    selectedAnnotationId();
     draw();
   });
 
@@ -193,9 +202,9 @@ export default function Timeline() {
       <TimelineToolbar
         previewing={preview.previewing()}
         active={active()}
-        canNoteAtCursor={preview.playSec() != null}
+        canAnnotateAtCursor={preview.playSec() != null}
         onTogglePreview={preview.togglePreview}
-        onNoteAtCursor={noteAtCursor}
+        onAnnotateAtCursor={annotationAtCursor}
         onZoomWindow={interaction.zoomToWindow}
         onZoomOut={() => interaction.zoomBy(1.5)}
         onZoomIn={() => interaction.zoomBy(1 / 1.5)}
@@ -210,7 +219,7 @@ export default function Timeline() {
           onPointerMove={interaction.onPointerMove}
           onPointerUp={interaction.onPointerUp}
           onPointerCancel={interaction.onPointerUp}
-          onPointerLeave={() => setNoteHint(null)}
+          onPointerLeave={() => setAnnotationHint(null)}
         />
         <Show when={!active()}>
           <div class="timeline-overlay">
@@ -222,11 +231,11 @@ export default function Timeline() {
             </Show>
           </div>
         </Show>
-        <Show when={noteHint()}>
+        <Show when={annotationHint()}>
           {(hint) => (
             <div
-              class="timeline-note-hint"
-              data-testid="timeline.note.hint"
+              class="timeline-annotation-hint"
+              data-testid="timeline.annotation.hint"
               style={{ left: `${hint().x + 10}px`, top: `${hint().y + 10}px` }}
             >
               {hint().text}

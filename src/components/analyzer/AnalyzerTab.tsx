@@ -59,7 +59,7 @@ export default function AnalyzerTab(props: {
               testid={`analyzer.params.${props.id}`}
             >
               {props.params}
-              <div class="params-note">
+              <div class="params-annotation">
                 Shared params (FFT size, hop/overlap, window, channel, analysis rate, frequency
                 range) are in the toolbar.
               </div>

@@ -84,52 +84,11 @@
   display: inline-flex;
 }
 
-/* Shared switch styling matches the Toolbar switch. */
+/* Kobalte Switch wrapper (the control itself is shared with the Toolbar). */
 .params-switch {
   position: relative;
   display: inline-flex;
   align-items: center;
-}
-
-.params-switch-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.params-switch-control {
-  display: inline-flex;
-  align-items: center;
-  width: 30px;
-  height: 16px;
-  padding: 2px;
-  background: var(--control-2);
-  border: 1px solid var(--border-2);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 100ms linear;
-}
-
-.params-switch-thumb {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--switch-thumb);
-  transition: transform 100ms ease;
-}
-
-.params-switch[data-checked] .params-switch-control,
-.params-switch-control[data-checked] {
-  background: var(--primary-bg);
-  border-color: var(--border-accent);
-}
-
-.params-switch[data-checked] .params-switch-thumb,
-.params-switch-control[data-checked] .params-switch-thumb {
-  transform: translateX(14px);
-  background: var(--switch-thumb-on);
 }
 
 .select-field {

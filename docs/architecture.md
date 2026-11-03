@@ -134,21 +134,22 @@ every launch** (`FileOpenStrategy::Rotate`) and rotating once it exceeds 2 MB
 
 ## IPC surface
 
-The commands and channels below are all implemented; milestone notes record the details.
+The commands and channels below are implemented unless a row is marked **planned**;
+milestone annotations record the details.
 
 > **Type exchange (ts-rs).** The structured types crossing IPC (shared params,
 > analysis results, device/process DTOs, project sections) are defined once in Rust
 > with `#[derive(ts_rs::TS)]`; `cargo test` exports their TypeScript definitions to
 > `src/bindings/`, and the frontend imports them instead of hand-mirroring the
-> shapes. See [`dependencies.md`](dependencies.md) → Tooling notes.
+> shapes. See [`dependencies.md`](dependencies.md) → Tooling annotations.
 
 **Commands** (`invoke`):
 
-| Domain | Command | Notes |
+| Domain | Command | Annotations |
 | --- | --- | --- |
 | Source | `list_devices`, `list_processes` | flexaudio `devices()` / `processes()` |
 | Source | `pick_audio_file` | native open dialog → path (file I/O stays in Rust) |
-| Source | `open_source`, `close_source` | file / input / synth; switching source replaces the timeline |
+| Source | `open_source`, `close_source` | **planned** unification of the source kinds; the implemented paths are `stream_file`, `render_synth`, and the capture commands |
 | Source | `load_shared_source` | the shared source's shape (rate/channels/frames/duration) — a popout renders a tool without the PCM ✅ |
 | Capture | `start_capture`, `stop_capture`, `set_capture_gain`, `pause_capture`, `resume_capture` | flexaudio `Stream` |
 | Decode | `probe_file` | symphonia metadata (codec, channels, rate, duration) |
@@ -158,13 +159,14 @@ The commands and channels below are all implemented; milestone notes record the 
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅. `preview_region` takes a **varispeed** `speed` (M14 follow-up) — preview only, analysis is always 1×. |
 | Analysis | `run_analysis` | tool id + window + params → result |
-| Comparison | `run_comparison`, `list_comparison_targets`, `compare_peer_setup`, `compare_live` | A/B comparison over two project `WindowState`s (M25) ✅; matching is **relative** to each window start with a `bOffset` (M25.B); the reference may be a **saved snapshot** (M25.C); `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only. `open_reference_window` raises the reference (or opens its project file in a new window) and `take_window_open_path` hands that path to the new window (M25.D) |
-| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`, and `adjacent_project` (the next/previous `.heyl` in the folder, M25.D). The `NOTES` section joined the payload in M14; `COMPARE` (saved comparison snapshots) in M25.C. |
+| Comparison | `run_comparison`, `compare_targets`, `compare_peer_setup`, `compare_live` | A/B comparison over two project `WindowState`s (M25) ✅; matching is **relative** to each window start with a `bOffset` (M25.B); the reference may be a **saved snapshot** (M25.C); `compare_live` returns both playheads + B's cursor + a revision, so a compare popout (no Timeline) still shows them; the peer is read-only. `open_reference_window` raises the reference (or opens its project file in a new window) and `take_window_open_path` hands that path to the new window (M25.D) |
+| Project | `save_project`, `load_project` | binary file (M6) ✅; native `pick_project_open_path` / `pick_project_save_path` dialogs, `add_recent_project`, `take_pending_open_paths`, and `adjacent_project` (the next/previous `.heyl` in the folder, M25.D). The `ANNOTATIONS` section joined the payload in M14; `COMPARE` (saved comparison snapshots) in M25.C. |
 | Window | `confirm`, `close_window` | native confirmation dialog (work-loss prompts) + close ✅ |
 | Window | `open_project_window` | open a new, independent project window (M7) ✅; `open_project_window_at_path` opens one at a project file and returns its label, raising a window that already shows it (M25.D) ✅ |
-| Window | `open_popout_window`, `sync_popouts`, `popout_tool`, `popout_tools` | open/raise a popout window for a tool, reconcile a project's popouts on load (M7) ✅ |
+| Window | `open_popout_window`, `sync_popouts`, `close_popouts`, `popout_tool`, `popout_tools` | open/raise a popout window for a tool, reconcile a project's popouts on load, close them with the project (M7) ✅ |
+| Window | `open_annotation_window`, `popout_annotation` | an annotation's own window (a view of the project, M14) ✅ |
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
-| Comparison | `open_compare_popout_window`, `popout_compare`, `focus_compare_popout`, `retarget_compare_popout` | a compare view popped out like any tab: aliased to A, registered with `(tool, reference)`, raised/retargeted rather than duplicated, and never recorded as a tool popout (M25) ✅ |
+| Comparison | `open_compare_popout`, `popout_compare`, `compare_popouts`, `retarget_compare_popout` | a compare view popped out like any tab: aliased to A, registered with `(tool, reference)`, raised/retargeted rather than duplicated, and never recorded as a tool popout (M25) ✅ |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
 | MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
 | MCP | `get_mcp_status`, `set_mcp_config` | the MCP server's status / config (on-off + port), owned by `mcp::settings::McpController` (M9) ✅ |
@@ -276,7 +278,7 @@ Both windows drive the same core state:
 - A UI edit in either window calls `set_ui_state`, which stores the value and emits
   `ui-state` to the other windows, which apply it — so the timeline window, params,
   chart zoom, and project name stay in lockstep.
-- A popout is a **tool**, a **note**, or a **compare view** (M25). A compare popout
+- A popout is a **tool**, a **annotation**, or a **compare view** (M25). A compare popout
   carries its own `(tool, reference)` in the registry; it is still aliased to the project
   for source/UI state, but it is never recorded in `LAYOUT.popouts` and is closed with
   the project's other views (`close_popouts`).
@@ -387,8 +389,8 @@ thread); analysis runs in Rust.
 
 - The window capability grants `core:default`, `core:window:allow-set-title`, and
   `log:default` to the app's windows (`windows: ["main", "project-*", "popout-*",
-  "note-*"]` — the label globs match every project window, every window opened via New
-  Window, every **popout**, and every **note window**). Every future command is
+  "annotation-*"]` — the label globs match every project window, every window opened via New
+  Window, every **popout**, and every **annotation window**). Every future command is
   registered and, if needed, gated by
   `allow-<command>` permissions in `capabilities/*.json`. A popout is a real Tauri
   window (not a `window.open` popup), so it has its own capability and runs its own

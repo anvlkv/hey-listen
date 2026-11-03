@@ -38,15 +38,15 @@ import {
   type GraphLayout,
 } from "../graph";
 import {
-  createNote,
-  deleteNote,
-  focusedNoteId,
-  noteById,
-  notesSorted,
-  setFocusedNote,
-  updateNote,
-  type NotePatch,
-} from "../notes";
+  createAnnotation,
+  deleteAnnotation,
+  selectedAnnotationId,
+  annotationById,
+  annotationsSorted,
+  setSelectedAnnotation,
+  updateAnnotation,
+  type AnnotationPatch,
+} from "../annotations";
 import { applyOutputGain, outputGain } from "../output";
 import {
   dirty,
@@ -86,13 +86,13 @@ import {
   optionalNum,
   optionalStr,
   rangeArg,
-  requireNote,
+  requireAnnotation,
   slotThemeId,
   str,
   toolId,
   type Args,
 } from "./args";
-import { getState, noteSummary, sourceSummary } from "./inspect";
+import { getState, annotationSummary, sourceSummary } from "./inspect";
 import { exportFormat, exportFormats, exportTools } from "./export";
 import { compareAnalysis } from "./compare";
 
@@ -248,9 +248,9 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
 
     // --- project ------------------------------------------------------------
     case "save_project": {
-      if ("notes" in args || "openTools" in args) {
+      if ("annotations" in args || "openTools" in args) {
         throw new Error(
-          "`notes` and `openTools` are headless-only; in the app the live annotations and Workbench tabs are saved",
+          "`annotations` and `openTools` are headless-only; in the app the live annotations and Workbench tabs are saved",
         );
       }
       const path = optionalStr(args, "path");
@@ -279,34 +279,36 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
       await newProject();
       return getState();
 
-    // --- notes (app-only; a note lives in a project) ------------------------
-    case "list_notes":
+    // --- annotations (app-only; an annotation lives in a project) ------------------------
+    case "list_annotations":
       // Compact by default (a body excerpt + values line); `full: true` returns the
       // markdown bodies and frozen snapshots.
       return {
-        notes:
-          (optionalBool(args, "full") ?? false) ? notesSorted() : notesSorted().map(noteSummary),
+        annotations:
+          (optionalBool(args, "full") ?? false)
+            ? annotationsSorted()
+            : annotationsSorted().map(annotationSummary),
       };
-    case "get_note":
-      return { note: requireNote(str(args, "id")) };
-    case "create_note": {
+    case "get_annotation":
+      return { annotation: requireAnnotation(str(args, "id")) };
+    case "create_annotation": {
       const tool = optionalStr(args, "tool");
       if (tool && !isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
-      const note = createNote({
+      const annotation = createAnnotation({
         timeSecs: num(args, "time"),
         range: "range" in args ? rangeArg(args.range) : null,
         tool: (tool as AnalyzerId | null) ?? null,
         title: optionalStr(args, "title"),
         body: typeof args.body === "string" ? args.body : "",
-        // The tool creates data, it does not steal the UI focus (use set_focused_note).
-        focus: false,
+        // The tool creates data, it does not steal the UI selection (use set_selected_annotation).
+        select: false,
       });
-      return { note };
+      return { annotation };
     }
-    case "update_note": {
+    case "update_annotation": {
       const id = str(args, "id");
-      requireNote(id);
-      const patch: NotePatch = {};
+      requireAnnotation(id);
+      const patch: AnnotationPatch = {};
       if ("title" in args) patch.title = optionalStr(args, "title");
       if ("body" in args) {
         if (typeof args.body !== "string") throw new Error("`body` must be a string");
@@ -320,18 +322,19 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
         patch.tool = (tool as AnalyzerId | null) ?? null;
       }
       if (optionalBool(args, "recomputeValues")) patch.recomputeValues = true;
-      return { note: updateNote(id, patch) };
+      return { annotation: updateAnnotation(id, patch) };
     }
-    case "delete_note": {
+    case "delete_annotation": {
       const id = str(args, "id");
-      deleteNote(id);
+      deleteAnnotation(id);
       return { id };
     }
-    case "set_focused_note": {
+    case "set_selected_annotation": {
+      // Sets the persisted selection; the name matches the state (`selectedAnnotationId`).
       const id = optionalStr(args, "id");
-      if (id && !noteById(id)) throw new Error(`unknown note: ${id}`);
-      setFocusedNote(id);
-      return { focusedNoteId: focusedNoteId() };
+      if (id && !annotationById(id)) throw new Error(`unknown annotation: ${id}`);
+      setSelectedAnnotation(id);
+      return { selectedAnnotationId: selectedAnnotationId() };
     }
 
     // --- themes (app chrome) ------------------------------------------------

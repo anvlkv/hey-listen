@@ -4,7 +4,7 @@ import type {
   CursorPluginMessageBus,
   FocusSeriesPluginMessageBus,
 } from "@dschz/solid-uplot/plugins";
-import type { Note } from "../bindings/Note";
+import type { Annotation } from "../bindings/Annotation";
 import { windowEnd, windowStart } from "./timeline";
 
 /**
@@ -72,21 +72,21 @@ export interface CursorSyncMessageBus {
 }
 
 /**
- * The project's notes on the bus (M14): every note, the focused note id, and whether the
- * Notes rail is open, so a chart's note plugin can draw its own notes and the one focused
- * note without each chart reaching into the store. Published by `state/notes/` whenever
- * the notes, the focus or the panel change. `panelOpen` drives the *dull* rendering used
- * when the rail is closed. See `docs/notes.md`.
+ * The project's annotations on the bus (M14): every annotation, the selected annotation id, and whether the
+ * Annotations rail is open, so a chart's annotation plugin can draw its own annotations and the one selected
+ * annotation without each chart reaching into the store. Published by `state/annotations/` whenever
+ * the annotations, the selection or the panel change. `panelOpen` drives the *dull* rendering used
+ * when the rail is closed. See `docs/annotations.md`.
  */
-export interface NotesMessage {
-  notes: Note[];
-  focusedId: string | null;
+export interface AnnotationsMessage {
+  annotations: Annotation[];
+  selectedId: string | null;
   panelOpen: boolean;
 }
 
-/** Bus key used by the note marker plugin. */
-export interface NotesMessageBus {
-  notes?: NotesMessage;
+/** Bus key used by the annotation marker plugin. */
+export interface AnnotationsMessageBus {
+  annotations?: AnnotationsMessage;
 }
 
 /**
@@ -139,7 +139,7 @@ export type AnalyzerBus = CursorPluginMessageBus &
   FocusSeriesPluginMessageBus &
   ViewMessageBus &
   CursorSyncMessageBus &
-  NotesMessageBus &
+  AnnotationsMessageBus &
   PlayheadMessageBus &
   Record<string, unknown>;
 

@@ -64,7 +64,7 @@ pub(super) fn save_owner(
         setup,
         layout,
         results: Vec::new(),
-        notes: a.notes.clone(),
+        annotations: a.annotations.clone(),
         compare: snapshots,
         pcm: if can_reference { None } else { guard.as_ref() },
     };

@@ -11,7 +11,7 @@ import {
 } from "../capture";
 import { resetGraph, setFilterEnabled } from "../graph";
 import { resetHistory } from "../history";
-import { resetNotes } from "../notes";
+import { resetAnnotations } from "../annotations";
 import { closeSource } from "../source";
 import { closeAllTools } from "../workbench";
 import { beginBaseline, endBaseline } from "./dirty";
@@ -46,7 +46,7 @@ export async function newProject(): Promise<void> {
   setProjectPath(null);
   setProjectTitle(null);
   setCreatedMs(null);
-  resetNotes();
+  resetAnnotations();
   resetHistory();
   // Re-arm the dirty baseline once the resets have settled, so the fresh project is
   // clean but a later edit flags it again (mirrors `loadProject`).

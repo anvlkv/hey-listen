@@ -19,8 +19,8 @@
 //! +end  checksum        8 bytes   CRC-32 of everything before it (stored as u64 LE)
 //! ```
 
+pub mod annotations;
 mod error;
-pub mod notes;
 mod read;
 pub(crate) mod sections;
 pub mod side;
@@ -29,7 +29,7 @@ mod write;
 pub use error::ProjectError;
 pub use read::{read_project, LoadedProject};
 pub use sections::{
-    AnalysisSetup, AnalysisWindow, Meta, Note, SourceDescriptor, SourceKind, StoredResult,
+    AnalysisSetup, AnalysisWindow, Annotation, Meta, SourceDescriptor, SourceKind, StoredResult,
 };
 pub use write::{write_project, SaveProject};
 
@@ -55,7 +55,7 @@ pub const SECTION_DATA: u8 = 0x03;
 pub const SECTION_SETUP: u8 = 0x04;
 pub const SECTION_LAYOUT: u8 = 0x05;
 pub const SECTION_RESULTS: u8 = 0x06;
-pub const SECTION_NOTES: u8 = 0x07;
+pub const SECTION_ANNOTATIONS: u8 = 0x07;
 /// Saved comparison snapshots (M25.C): one reference `AnalysisResult` per tool.
 pub const SECTION_COMPARE: u8 = 0x08;
 
@@ -80,7 +80,7 @@ pub const PCM_FORMAT_F32: u8 = 0;
 /// `embedSource: false` has no `DATA` section; the `SOURCE` descriptor keeps the path).
 /// Returns `None` when the source is not a file or the file cannot be decoded, so a
 /// project with a missing external recording still opens (with an empty timeline).
-pub fn decode_reference(source: Option<&SourceDescriptor>) -> Option<crate::state::SourcePcm> {
+pub fn decode_reference(source: Option<&SourceDescriptor>) -> Option<crate::state::SourceData> {
     let source = source?;
     if source.kind != SourceKind::File {
         return None;
@@ -92,7 +92,7 @@ pub fn decode_reference(source: Option<&SourceDescriptor>) -> Option<crate::stat
         Ok(())
     })
     .ok()?;
-    Some(crate::state::SourcePcm {
+    Some(crate::state::SourceData {
         samples,
         sample_rate: summary.sample_rate.max(1),
         channels: summary.channels.max(1),

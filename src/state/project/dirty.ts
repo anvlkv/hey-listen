@@ -5,7 +5,7 @@ import { toolOptions } from "../analyzer";
 import { recording } from "../capture";
 import { compareSignature } from "../compare/views";
 import { FILTER_GRAPH, filterEnabled, graphPristine, SYNTH_GRAPH } from "../graph";
-import { notes } from "../notes";
+import { annotations } from "../annotations";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { layoutJson, openTools } from "../workbench";
@@ -84,13 +84,13 @@ function projectSignature(): string {
       // settled change in a live reference marks this project dirty.
       compare: compareSignature(),
       layout: layoutSignature(layoutJson()),
-      notes: notes(),
+      annotations: annotations(),
     }),
   );
 }
 
 /**
- * Whether the project has nothing worth protecting: no source, no notes, and both
+ * Whether the project has nothing worth protecting: no source, no annotations, and both
  * graphs still in their seeded (default) shape. Opening a tab or moving a splitter
  * marks such a project dirty (the layout is part of the project file), but a
  * discard prompt would be noise — there is no work to lose yet.
@@ -99,7 +99,7 @@ export function isEmptyProject(): boolean {
   return (
     !source() &&
     !recording() &&
-    notes().length === 0 &&
+    annotations().length === 0 &&
     graphPristine("filter") &&
     graphPristine("synth")
   );

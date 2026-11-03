@@ -27,7 +27,7 @@ uses it. Each `run_analysis` call carries them.
 | Param | Applies to | Notes |
 | --- | --- | --- |
 | FFT window size | spectral, pitch, onset, tempo | 512 / 1024 / 2048 / 4096 / 8192 |
-| Hop / overlap | all frame-based tools | fraction of window or explicit frames |
+| Hop / overlap | all frame-based tools | fraction of the FFT window (`0.25` = 75% overlap) |
 | Randomized overlap | all frame-based tools | optional; synced too |
 | Window function | spectral, pitch | Hann / Hamming / Blackman / rectangular |
 | Channel selection | all tools | downmix (mono) / Left / Right / Channel N (0-based) |
@@ -181,10 +181,11 @@ per-result summaries, compact previews, tool annotations, and analyzer discovery
 
 All tools above are implemented (M5) in `src-tauri/src/audio/analysis/` and
 dispatched by the single `run_analysis` command. The frontend registry
-(`state/analyzer/`) declares each tool's title, description, about copy,
-keywords, sidebar section, view (series / matrix / rhythm / readouts / events), and
-per-tool params, so adding a tool is a registry entry plus its Rust function — no
-bespoke component. **No duplicate tabs** per tool, and **zoom/cursor are synced**
+(`state/analyzer/`) declares each tool's title, description, about copy, keywords,
+sidebar `Section`, `AnalyzerView["kind"]` (the renderer: `waveform` / `series` /
+`spectrum` / `spectrogram` / `matrix` / `rhythm` / `readouts` / `noteMetrics` /
+`modulation`), and per-tool params, so adding a tool is a registry entry plus its Rust
+function — no bespoke component. **No duplicate tabs** per tool, and **zoom/cursor are synced**
 across tabs (`state/chartSync.ts`). The **spectrum** tool returns per-bin
 **min / max / mean** magnitudes and exposes each as a toggleable layer. The shared
 params now live in the app **Toolbar** (an “Analysis params” popover); a tool's own
@@ -215,7 +216,7 @@ chart over the analysis window (each note as a **peak/RMS block** over its envel
 **voiced** split ruler, **gap** bands with durations, a **gate** rule, and a per-note
 **f0** overlay on a right-hand axis), and a scrollable table; hovering a note highlights
 its row. These are **detected audio notes**, not the project's user-authored
-**annotations** (M14) — see [`notes.md`](notes.md) → Terminology. In MCP/CLI the result
+**annotations** (M14) — see [`annotations.md`](annotations.md) → Terminology. In MCP/CLI the result
 is compacted by the normal rules: the summary counts (`noteCount`, `gapCount`, …) always
 survive, the `notes` / `gaps` arrays keep a five-record preview, and **`bounds`** keeps
 every detected span (`startSecs`, `endSecs`, `gapAfterSecs`) so an agent can segment
@@ -303,15 +304,15 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
   It joins its own `"mod"` sync group, because its x-unit is neither source time nor
   audio frequency; the floor bins are drawn as gaps, so silence is not a flat line.
 - **readouts** — scalar cards; the `levels` tool draws **peak / RMS meter bars**.
-- **notes** — every time-axis chart also draws its project notes as anchors in a thin
-  strip along the bottom (its own at full strength, other charts' muted, the focused
-  one as a full-height rule with a label). See [`notes.md`](notes.md) → Surfacing.
+- **annotations** — every time-axis chart also draws its project annotations as anchors in a thin
+  strip along the bottom (its own at full strength, other charts' muted, the selected
+  one as a full-height rule with a label). See [`annotations.md`](annotations.md) → Surfacing.
 
 **Cursors and overlays** are theme roles, not per-tool constants (see
 [`theming.md`](theming.md) → the `ChartTheme` role list): `hover` is where the pointer
 is (the uPlot crosshair **and** the canvas cross, so both charts agree), `mirror` is the
 same cursor mirrored in from another chart in the group (dashed), `playhead` is the
-preview transport (solid), `reference` is a target/threshold rule, and `note` the
+preview transport (solid), `reference` is a target/threshold rule, and `annotation` the
 annotation anchors. Each is held at a distinct hue in every bundled theme, so several
 can be on a chart at once. Over a **heatmap** the background *is* the data, so the
 cross, cursor, playhead and contours are stroked with a background-coloured **halo**

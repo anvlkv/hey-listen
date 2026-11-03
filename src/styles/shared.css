@@ -1,0 +1,81 @@
+/* --- Shared control chrome (M15.B) -------------------------------------- */
+
+/* Rules that the toolbar / params / graph / timeline sheets used to repeat
+   verbatim. Keep one copy here; add a selector rather than cloning a block. */
+
+.analyzer-toolbar,
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  color: var(--fg-body);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.graph-btn,
+.timeline-btn {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--control);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* The Kobalte Switch, shared by the Toolbar (filter bypass) and the analyzer
+   params form. Only the wrappers differ; the control itself is one design. */
+.params-switch-input,
+.toolbar-switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.params-switch-control,
+.toolbar-switch-control {
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 16px;
+  padding: 2px;
+  background: var(--control-2);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 100ms linear;
+}
+
+.params-switch-thumb,
+.toolbar-switch-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--switch-thumb);
+  transition: transform 100ms ease;
+}
+
+.params-switch[data-checked] .params-switch-control,
+.params-switch-control[data-checked],
+.toolbar-switch[data-checked] .toolbar-switch-control,
+.toolbar-switch-control[data-checked] {
+  background: var(--primary-bg);
+  border-color: var(--border-accent);
+}
+
+.params-switch[data-checked] .params-switch-thumb,
+.params-switch-control[data-checked] .params-switch-thumb,
+.toolbar-switch[data-checked] .toolbar-switch-thumb,
+.toolbar-switch-control[data-checked] .toolbar-switch-thumb {
+  transform: translateX(14px);
+  background: var(--switch-thumb-on);
+}

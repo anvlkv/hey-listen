@@ -256,10 +256,10 @@ describe("I. Errors & warnings", () => {
       async () => (await textOf(SEL.toolbarPreviewError)).includes("no audio output device"),
       "the failed preview did not surface in the toolbar",
     );
-    // A failed start is not a playing transport: the note action must go away again
+    // A failed start is not a playing transport: the annotation action must go away again
     // (milliseconds after the click, once the rejection lands).
     await waitFor(
-      async () => !(await $(SEL.timelineNoteAtCursor).isEnabled()),
+      async () => !(await $(SEL.timelineAnnotationAtCursor).isEnabled()),
       "the failed preview left the transport looking alive",
     );
 
@@ -272,14 +272,14 @@ describe("I. Errors & warnings", () => {
       "the preview error did not clear after a successful start",
     );
     await waitFor(
-      async () => (await $(SEL.timelineNoteAtCursor)).isEnabled(),
+      async () => (await $(SEL.timelineAnnotationAtCursor)).isEnabled(),
       "the retried preview did not start",
     );
 
     // Stop, so the next case starts from a clean transport.
     await preview.click();
     await waitFor(
-      async () => !(await $(SEL.timelineNoteAtCursor).isEnabled()),
+      async () => !(await $(SEL.timelineAnnotationAtCursor).isEnabled()),
       "the preview did not stop",
     );
   });

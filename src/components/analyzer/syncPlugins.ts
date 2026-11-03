@@ -92,7 +92,7 @@ export const mirrorCursor =
  * controller. Unlike [`mirrorCursor`] — a dashed rule following *another chart's* hover
  * — this is the transport's own position, so it is drawn solid, in the playhead colour.
  *
- * Reads the **module** bus rather than the one handed to the plugin (as the note plugin
+ * Reads the **module** bus rather than the one handed to the plugin (as the annotation plugin
  * does), so a chart built before the first preview still sees the message.
  *
  * The repaint is `u.redraw()` — *not* `u.redraw(false)`, which only commits and is a

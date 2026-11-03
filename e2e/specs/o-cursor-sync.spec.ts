@@ -1,5 +1,5 @@
 /**
- * N. Notes — cross-window hover + notes sync.
+ * O. Cross-window hover + cursor sync.
  *
  * A second window is a *view* of the same project (ADR-11): the shared cursor and view
  * ride `uiState`. This checks both directions — hovering a chart in one window mirrors
@@ -100,7 +100,7 @@ async function popOut(id: string): Promise<string> {
   return label;
 }
 
-describe("N. Notes — cross-window cursor", () => {
+describe("O. Cross-window cursor", () => {
   before(async () => {
     await waitForApp();
     await closeAllTabs();

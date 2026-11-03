@@ -9,10 +9,10 @@ import {
   type Accessor,
 } from "solid-js";
 import { analyzerBus, readBusMessage, publishChartView } from "../../state/chartSync";
-import { NOTE_STRIP_H } from "../notes/strip";
-import { createLaneDrag, type LaneSelection } from "../notes/lane";
+import { ANNOTATION_STRIP_H } from "../annotations/strip";
+import { createLaneDrag, type LaneSelection } from "../annotations/lane";
 import { timeRangeLabel } from "./chartCommon";
-import { laneNotes } from "./notePlugins";
+import { laneAnnotations } from "./annotationPlugins";
 import type { AnalyzerId } from "../../state/analyzer";
 import type { ReframeTarget } from "./ReframeMenu";
 import {
@@ -25,7 +25,7 @@ import {
   type TimeExtent,
 } from "./chartGeometry";
 
-/** The state and DOM handlers a heatmap needs for its pan / zoom / note interaction. */
+/** The state and DOM handlers a heatmap needs for its pan / zoom / annotation interaction. */
 export interface ChartInteraction<V extends ChartView, H> {
   /** Bind to the sizing wrapper (`ref`). */
   attachWrap: (element: HTMLDivElement) => void;
@@ -54,7 +54,7 @@ export interface ChartInteraction<V extends ChartView, H> {
 
 /** The per-chart hooks the interaction needs, so one factory serves both heatmaps. */
 export interface ChartInteractionOptions<V extends ChartView, H, R extends TimeExtent> {
-  /** Stable id: the note tool and the `sourceId` published for time sync. */
+  /** Stable id: the annotation tool and the `sourceId` published for time sync. */
   id: string;
   /** The current analysis result, or `null` when there is no data. */
   result: Accessor<R | null>;
@@ -83,7 +83,7 @@ export interface ChartInteractionOptions<V extends ChartView, H, R extends TimeE
 }
 
 /**
- * The pan / wheel-zoom / note-drag / reframe interaction shared by the heatmap
+ * The pan / wheel-zoom / annotation-drag / reframe interaction shared by the heatmap
  * charts (M15): one view signal kept across data refreshes and synced on the
  * shared `"time"` group, the pointer + wheel handlers, the reframe menu target,
  * and the canvas sizing. The charts supply the small per-tool differences (the
@@ -103,18 +103,18 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>();
 
   let pan: { x: number; y: number; view: V } | null = null;
-  /** Whether the note lane owns the current gesture. */
+  /** Whether the annotation lane owns the current gesture. */
   let laneActive = false;
 
-  /** The lane's gesture (drag a note handle, or select a span for a new note). */
+  /** The lane's gesture (drag an annotation handle, or select a span for a new annotation). */
   const lane = createLaneDrag(() => {
     const v = view();
     const b = box();
     const spanT = Math.max((v?.t1 ?? 0) - (v?.t0 ?? 0), 1e-9);
     const t0 = v?.t0 ?? 0;
     return {
-      notes: () => laneNotes(options.id),
-      // The lane's new notes belong to this chart (its id is an analyzer id).
+      annotations: () => laneAnnotations(options.id),
+      // The lane's new annotations belong to this chart (its id is an analyzer id).
       tool: () => options.id as AnalyzerId,
       timeAt: (time) => b.x + ((time - t0) / spanT) * b.width,
       timeFromX: (x) => t0 + ((x - b.x) / b.width) * spanT,
@@ -200,13 +200,13 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const v = view();
     const el = canvas();
     if (!v || !el) return;
-    // The note lane owns the bottom strip: grab a handle to move / resize a note, or
+    // The annotation lane owns the bottom strip: grab a handle to move / resize an annotation, or
     // drag empty space to select a span for a new one.
     const b = box();
     const rect = el.getBoundingClientRect();
     const localY = event.clientY - rect.top;
     if (
-      localY >= b.y + b.height - NOTE_STRIP_H &&
+      localY >= b.y + b.height - ANNOTATION_STRIP_H &&
       localY <= b.y + b.height &&
       lane.down(event.clientX - rect.left)
     ) {

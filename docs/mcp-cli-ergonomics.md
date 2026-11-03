@@ -173,14 +173,14 @@ Add a `title` and `annotations` to every catalog entry. The `tool()` helper gain
 
 | Class | Examples | `readOnlyHint` | `destructiveHint` | `idempotentHint` | `openWorldHint` |
 | --- | --- | --- | --- | --- | --- |
-| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_notes`, `get_note`, `list_projects`, `compare_analysis`, `list_themes`, `get_theme`, `get_graph` | true | false | true | false |
+| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_annotations`, `get_annotation`, `list_projects`, `compare_analysis`, `list_themes`, `get_theme`, `get_graph` | true | false | true | false |
 | Analysis compute | `run_analysis` | false | false | true | false |
-| Analysis settings | `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `open_tool`, `close_tool`, `set_filter_graph`, `set_synth_graph`, `set_output_gain`, `set_focused_note` | false | false | true | false |
+| Analysis settings | `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `open_tool`, `close_tool`, `set_filter_graph`, `set_synth_graph`, `set_output_gain`, `set_selected_annotation` | false | false | true | false |
 | Preview | `preview` / `stop_preview` | false | false | `preview` false, `stop_preview` true | false |
 | Source / project replace | `open_audio_file`, `render_synth`, `open_project`, `new_project`, `close_source` | false | true | false | true |
 | Project save | `save_project` | false | false | true | true |
 | Export files | `export_analysis`, `export_chart`, `export_all` | false | false | true | true |
-| Note mutation | `create_note`, `update_note`, `delete_note` | false | `delete_note` only | update/delete true | false |
+| Annotation mutation | `create_annotation`, `update_annotation`, `delete_annotation` | false | `delete_annotation` only | update/delete true | false |
 | Capture | `start_capture` / `stop_capture` | false | false | `start_capture` false, `stop_capture` true | true |
 | Theme / template I/O | `import_theme`, `export_theme`, `import_template`, `export_template` | false | import may overwrite | true | true |
 
@@ -241,16 +241,16 @@ list-style tools so "all tools" is not just an analyzer claim:
 
 - `list_analyzers` stays the compact catalog (option keys + defaults); `get_analyzer`
   is the detail call (full labels/ranges/help and the about copy).
-- `list_notes` returns a **compact note summary** by default (id, time, optional range,
-  tool, title, values text, and a body excerpt); `get_note` (or `full: true`) returns the
-  full markdown body and frozen snapshot. This mirrors the CLI's `notes --full`.
+- `list_annotations` returns a **compact annotation summary** by default (id, time, optional range,
+  tool, title, values text, and a body excerpt); `get_annotation` (or `full: true`) returns the
+  full markdown body and frozen snapshot. This mirrors the CLI's `annotations --full`.
 - `get_state` keeps its bounded project/analysis summary; option defaults are small
   numbers, not free-form data.
 - Array-valued list tools also answer `structuredContent` (the 2025-06-18 revision
   requires an object): `list_analyzers` → `{ analyzers }`, the device enumerations →
   `{ devices }`, `list_processes` → `{ processes }`. The text form is unchanged, so the
   CLI and older clients keep parsing it.
-- `get_graph`, `get_theme`, and `get_note` remain explicit full-object reads; they are
+- `get_graph`, `get_theme`, and `get_annotation` remain explicit full-object reads; they are
   the "detail" calls for their list counterparts.
 
 ## Consistency and tests
@@ -282,7 +282,7 @@ list-style tools so "all tools" is not just an analyzer claim:
   `transient` semantics.
 - **Deferred:** per-tool `outputSchema`, a general structured-event contract, a
   configurable preview length, "did you mean?" suggestions for unknown tools/options, and
-  summary-aware note snapshots.
+  summary-aware annotation snapshots.
 
 ## M21.A — agent hardening
 
@@ -333,7 +333,7 @@ arrays.
 
 `save_project` / `open_project` / `new_project` now run in the headless session. They
 build `META`/`SETUP` from the session's source, shared params, per-tool options,
-window/view, and filter, and write the caller-supplied `notes`. `LAYOUT` is empty
+window/view, and filter, and write the caller-supplied `annotations`. `LAYOUT` is empty
 (there is no Workbench to restore). This is what makes a 1k-recording annotation run
 scriptable without keeping a GUI window alive.
 
@@ -359,7 +359,7 @@ to file sources; synths and captures keep their audio.
 - Shaping: matrix thinning keeps `values.len() == frames * bins`, series `times` and
   `values` stay aligned, event lists survive, `noteMetrics.bounds`, axis `hop`, and
   `axis: "compact"`.
-- Headless: `save_project` writes `SOURCE`/`SETUP`/`NOTES`, a fresh session's
+- Headless: `save_project` writes `SOURCE`/`SETUP`/`ANNOTATIONS`, a fresh session's
   `open_project` restores them, `new_project` clears the session.
 - Catalog: every analyzer has a family; the segmentation tools have `about` copy.
 - CLI stdout purity is checked by hand: the batch unit tests inject `out`, so they cannot

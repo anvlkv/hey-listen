@@ -82,23 +82,26 @@ exempt — `docs/` is prose and may be long on purpose — as are the generated 
 `.jscpd.json` fails when duplicated **lines** exceed the threshold (70-token
 minimum match). The threshold is a **ratchet**: it sits just above today's measured
 value and comes down as duplication is removed. Lower it in the same change that
-removes a clone. M15 removed the big clones and dropped the value from **1.5 to
-0.5** (measured ≈0.36 % of lines).
+removes a clone. M15 removed the big clones (**1.5 → 0.5**); the M15.B follow-up
+removed the remaining test/fixture/chart/CSS pairs and dropped it to **0.2**, then
+eliminated the last one (the duplicate id-macro derive list) and **measured zero
+clones** — so it sits at **0.01**, i.e. any new 70-token match fails the gate.
 
 The clone pairs M15 removed:
 
 | Duplication | Where |
 | --- | --- |
-| ~250 lines, 17 clone pairs | `components/analyzer/MatrixView.tsx` ↔ `SpectrogramTab.tsx` — the pan / zoom / note-drag / reframe interaction, written twice → one `chartInteraction.ts` |
+| ~250 lines, 17 clone pairs | `components/analyzer/MatrixView.tsx` ↔ `SpectrogramTab.tsx` — the pan / zoom / annotation-drag / reframe interaction, written twice → one `chartInteraction.ts` |
 | ~60 lines | `ChannelSelect.tsx` ↔ `SelectField.tsx` ↔ `SourcePanel.tsx` — the same select trigger markup three times → one `SelectTrigger.tsx` |
-| 40 lines | `scripts/notes.test.ts` ↔ `scripts/themeFile.test.ts` — each test file defined its own `check` / `assertEqual` harness → `scripts/testHarness.ts` |
+| 40 lines | `scripts/annotations.test.ts` ↔ `scripts/themeFile.test.ts` — each test file defined its own `check` / `assertEqual` harness → `scripts/testHarness.ts` |
 | ~40 lines | `App.tsx` — the splitter down/move/up handlers, written three times → `lib/splitter.ts` + `components/Splitter.tsx` |
 
-What remains is small and mostly *within* a single file — a 26-line `match` arm
-pair in `state/analyzer/defs/`, an 18-line test-fixture pair, and 41 lines across
-three `src/styles/*` pairs (the pre-existing `.toolbar-*` vs `.params-*`,
-`.timeline-*` vs `.graph-*` resemblance). None is worth a shared abstraction yet;
-the threshold guards against *new* ones.
+The M15.B follow-up removed the pairs that remained: one WAV fixture
+(`tests/support/wav.rs`, `include!`d by both unit and integration tests), one derive
+list (`id_enum!`), shared graph-tab chrome, one chart-image
+registration hook, one compare uPlot stack, test request/save helpers, and the
+cross-file CSS control rules (`src/styles/shared.css`). The threshold guards against
+*new* ones.
 
 ### No dead code
 
@@ -110,7 +113,7 @@ Two things about it are worth knowing before you edit it:
 - **`ignoreExportsUsedInFile: true`** is on. Solid state modules legitimately
   export a value or type that only their own file reads (a signal's `setX` called
   by that module's actions, a one-use `Props` type). Without this, ~50 of the
-  first report's 72 "unused exports" were that single false-positive class. Note
+  first report's 72 "unused exports" were that single false-positive class. Annotation
   the smell hiding underneath: if nothing *outside* the file needs a symbol, it
   probably should not carry `export` at all.
 - **`ignoreIssues` is a burn-down list**, not a dumping ground. Each entry was a

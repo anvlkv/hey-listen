@@ -14,7 +14,7 @@ import { compareTime } from "./time";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import { createComparison } from "../../state/compare/run";
 import { createCompareLive } from "../../state/compare/live";
-import { compareFamily, comparePanelId } from "../../state/compare/id";
+import { compareViewFamily, comparePanelId } from "../../state/compare/id";
 import { chooseCompareReference } from "../../state/compare/picker";
 import type { CompareBinding } from "../../state/compare/views";
 import { dockApi } from "../../state/workbench";
@@ -67,7 +67,7 @@ export default function CompareTab(props: {
   /** Only the time-axis families show the fine-tune slider and the relative note. */
   const timeAxis = () =>
     ["series", "matrix", "spectrogram", "events", "notes", "waveform"].includes(
-      compareFamily(props.tool),
+      compareViewFamily(props.tool),
     );
 
   // The tab is created before the comparison resolves, so its title gains the two
@@ -166,7 +166,7 @@ export default function CompareTab(props: {
                 </Show>
                 <div class="compare-body">
                   <Switch>
-                    <Match when={compareFamily(props.tool) === "spectrum"}>
+                    <Match when={compareViewFamily(props.tool) === "spectrum"}>
                       <CompareSpectrum
                         tool={props.tool}
                         comparison={comparison()}
@@ -175,7 +175,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={compareFamily(props.tool) === "series"}>
+                    <Match when={compareViewFamily(props.tool) === "series"}>
                       <CompareSeries
                         tool={props.tool}
                         comparison={comparison()}
@@ -184,7 +184,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={["matrix", "spectrogram"].includes(compareFamily(props.tool))}>
+                    <Match when={["matrix", "spectrogram"].includes(compareViewFamily(props.tool))}>
                       <CompareMatrix
                         tool={props.tool}
                         comparison={comparison()}
@@ -193,7 +193,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={compareFamily(props.tool) === "events"}>
+                    <Match when={compareViewFamily(props.tool) === "events"}>
                       <CompareEvents
                         tool={props.tool}
                         comparison={comparison()}
@@ -202,7 +202,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={compareFamily(props.tool) === "notes"}>
+                    <Match when={compareViewFamily(props.tool) === "notes"}>
                       <CompareNotes
                         tool={props.tool}
                         comparison={comparison()}
@@ -211,7 +211,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={compareFamily(props.tool) === "modulation"}>
+                    <Match when={compareViewFamily(props.tool) === "modulation"}>
                       <CompareModulation
                         tool={props.tool}
                         comparison={comparison()}
@@ -220,7 +220,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={compareFamily(props.tool) === "waveform"}>
+                    <Match when={compareViewFamily(props.tool) === "waveform"}>
                       <CompareWaveform
                         tool={props.tool}
                         comparison={comparison()}
@@ -229,7 +229,7 @@ export default function CompareTab(props: {
                         time={time}
                       />
                     </Match>
-                    <Match when={compareFamily(props.tool) === "scalar"}>
+                    <Match when={compareViewFamily(props.tool) === "scalar"}>
                       <CompareReadouts comparison={comparison()} swapped={swapped()} />
                     </Match>
                   </Switch>

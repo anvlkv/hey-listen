@@ -7,15 +7,15 @@
 use std::io::{self, Write};
 
 use super::error::ProjectError;
-use super::sections::{AnalysisSetup, Meta, Note, SourceDescriptor, StoredResult};
+use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
 use super::{
     Crc32, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, FLAGS,
-    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_COMPARE, SECTION_DATA,
-    SECTION_LAYOUT, SECTION_META, SECTION_NOTES, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE,
+    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_ANNOTATIONS, SECTION_COMPARE,
+    SECTION_DATA, SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE,
     VERSION,
 };
 use crate::audio::analysis::compare::SavedComparison;
-use crate::state::SourcePcm;
+use crate::state::SourceData;
 
 /// Everything a save needs: the frontend-supplied setup + layout, plus the
 /// core-owned source PCM that becomes the `DATA` section. `META`'s timestamps and
@@ -28,11 +28,11 @@ pub struct SaveProject<'a> {
     pub setup: AnalysisSetup,
     pub layout: serde_json::Value,
     pub results: Vec<StoredResult>,
-    /// The project's notes (M14).
-    pub notes: Vec<Note>,
+    /// The project's annotations (M14).
+    pub annotations: Vec<Annotation>,
     /// Saved comparison snapshots, one per comparison open at save time (M25.C).
     pub compare: Vec<SavedComparison>,
-    pub pcm: Option<&'a SourcePcm>,
+    pub pcm: Option<&'a SourceData>,
 }
 
 /// Write a complete project file to `writer`. `now_ms` is the modification time
@@ -55,7 +55,7 @@ pub fn write_project<W: Write>(
     let setup_bytes = postcard::to_stdvec(&save.setup).map_err(encode)?;
     let layout_bytes = serde_json::to_vec(&save.layout).map_err(encode)?;
     let results_bytes = postcard::to_stdvec(&save.results).map_err(encode)?;
-    let notes_bytes = postcard::to_stdvec(&save.notes).map_err(encode)?;
+    let annotations_bytes = postcard::to_stdvec(&save.annotations).map_err(encode)?;
     let compare_bytes = postcard::to_stdvec(&save.compare).map_err(encode)?;
 
     // The section plan, in id order. `DATA`'s length is analytic.
@@ -66,7 +66,7 @@ pub fn write_project<W: Write>(
         (SECTION_SETUP, setup_bytes.len() as u64),
         (SECTION_LAYOUT, layout_bytes.len() as u64),
         (SECTION_RESULTS, results_bytes.len() as u64),
-        (SECTION_NOTES, notes_bytes.len() as u64),
+        (SECTION_ANNOTATIONS, annotations_bytes.len() as u64),
         (SECTION_COMPARE, compare_bytes.len() as u64),
     ];
     let count = plan.len() as u32;
@@ -102,7 +102,7 @@ pub fn write_project<W: Write>(
     hashing.write_all(&setup_bytes)?;
     hashing.write_all(&layout_bytes)?;
     hashing.write_all(&results_bytes)?;
-    hashing.write_all(&notes_bytes)?;
+    hashing.write_all(&annotations_bytes)?;
     hashing.write_all(&compare_bytes)?;
 
     // Trailing checksum, over everything written so far.
@@ -114,7 +114,7 @@ pub fn write_project<W: Write>(
 }
 
 /// The `DATA` section length for a source, computed without touching the samples.
-fn data_len(pcm: Option<&SourcePcm>) -> u64 {
+fn data_len(pcm: Option<&SourceData>) -> u64 {
     let total = pcm.map(|p| p.samples.len()).unwrap_or(0);
     let chunk_samples = DATA_CHUNK_SAMPLES.max(1) as u64;
     let chunk_count = if total == 0 {
@@ -127,7 +127,7 @@ fn data_len(pcm: Option<&SourcePcm>) -> u64 {
 
 /// Write the `DATA` section: header, interleaved `f32` chunks, trailing chunk
 /// index, and a footer pointing at the index.
-fn write_data<W: Write>(writer: &mut W, pcm: Option<&SourcePcm>) -> Result<(), ProjectError> {
+fn write_data<W: Write>(writer: &mut W, pcm: Option<&SourceData>) -> Result<(), ProjectError> {
     let samples: &[f32] = pcm.map(|p| p.samples.as_slice()).unwrap_or(&[]);
     let sample_rate = pcm.map(|p| p.sample_rate).unwrap_or(0);
     let channels = pcm.map(|p| p.channels.max(1)).unwrap_or(1);

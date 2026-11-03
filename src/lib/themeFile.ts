@@ -68,8 +68,8 @@ export interface ChartTheme {
   playhead: string;
   /** Timeline mid-line colour. */
   midline: string;
-  /** Note annotation marker colour (Timeline pins + chart note markers). */
-  note: string;
+  /** Annotation annotation marker colour (Timeline pins + chart annotation markers). */
+  annotation: string;
   /** Rhythm marker: detected onsets. */
   markerOnset: string;
   /** Rhythm marker: detected beats. */

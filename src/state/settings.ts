@@ -87,75 +87,82 @@ export { fontScale };
 export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
 
 /**
- * The **Notes panel** (M14) — a right rail, the mirror of the Sidebar. It is UI
+ * The **Annotations panel** (M14) — a right rail, the mirror of the Sidebar. It is UI
  * chrome (not project content), so its open/closed state and width are persisted
- * app-level in `localStorage`, exactly like the font scale; the notes themselves
- * are project data (`state/notes/`). See `docs/notes.md` → The Notes panel.
+ * app-level in `localStorage`, exactly like the font scale; the annotations themselves
+ * are project data (`state/annotations/`). See `docs/annotations.md` → The Annotations panel.
  */
 
 /** Default rail width, in px. */
-export const NOTES_DEFAULT_WIDTH = 280;
+export const ANNOTATIONS_DEFAULT_WIDTH = 280;
 /** Narrowest rail width, in px (mirrors the Sidebar's clamp). */
-export const NOTES_MIN_WIDTH = 160;
+export const ANNOTATIONS_MIN_WIDTH = 160;
 /** Widest rail width, in px. */
-export const NOTES_MAX_WIDTH = 520;
+export const ANNOTATIONS_MAX_WIDTH = 520;
 
-const NOTES_STORAGE_KEY = "hey-listen:notes-panel";
+const ANNOTATIONS_STORAGE_KEY = "hey-listen:annotations-panel";
 
-interface NotesPanelPrefs {
+interface AnnotationsPanelPrefs {
   open: boolean;
   width: number;
 }
 
 /** Clamp a rail width to `[MIN, MAX]`. */
-export function clampNotesWidth(width: number): number {
-  const value = Number.isFinite(width) ? width : NOTES_DEFAULT_WIDTH;
-  return Math.round(Math.min(NOTES_MAX_WIDTH, Math.max(NOTES_MIN_WIDTH, value)));
+export function clampAnnotationsWidth(width: number): number {
+  const value = Number.isFinite(width) ? width : ANNOTATIONS_DEFAULT_WIDTH;
+  return Math.round(Math.min(ANNOTATIONS_MAX_WIDTH, Math.max(ANNOTATIONS_MIN_WIDTH, value)));
 }
 
-function loadNotesPanel(): NotesPanelPrefs {
+function loadAnnotationsPanel(): AnnotationsPanelPrefs {
   try {
-    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
-    if (raw == null) return { open: false, width: NOTES_DEFAULT_WIDTH };
-    const parsed = JSON.parse(raw) as Partial<NotesPanelPrefs>;
+    const raw = localStorage.getItem(ANNOTATIONS_STORAGE_KEY);
+    if (raw == null) return { open: false, width: ANNOTATIONS_DEFAULT_WIDTH };
+    const parsed = JSON.parse(raw) as Partial<AnnotationsPanelPrefs>;
     return {
       open: parsed.open === true,
-      width: clampNotesWidth(parsed.width ?? NOTES_DEFAULT_WIDTH),
+      width: clampAnnotationsWidth(parsed.width ?? ANNOTATIONS_DEFAULT_WIDTH),
     };
   } catch {
-    return { open: false, width: NOTES_DEFAULT_WIDTH };
+    return { open: false, width: ANNOTATIONS_DEFAULT_WIDTH };
   }
 }
 
-const initialNotesPanel = loadNotesPanel();
+const initialAnnotationsPanel = loadAnnotationsPanel();
 
-/** Whether the Notes rail is shown (hidden by default). */
-export const [notesPanelOpen, setNotesPanelOpenSignal] = createSignal(initialNotesPanel.open);
-/** The Notes rail's width, in px (clamped like the Sidebar). */
-export const [notesPanelWidth, setNotesPanelWidthSignal] = createSignal(initialNotesPanel.width);
+/** Whether the Annotations rail is shown (hidden by default). */
+export const [annotationsPanelOpen, setAnnotationsPanelOpenSignal] = createSignal(
+  initialAnnotationsPanel.open,
+);
+/** The Annotations rail's width, in px (clamped like the Sidebar). */
+export const [annotationsPanelWidth, setAnnotationsPanelWidthSignal] = createSignal(
+  initialAnnotationsPanel.width,
+);
 
-function persistNotesPanel() {
+function persistAnnotationsPanel() {
   try {
-    const prefs: NotesPanelPrefs = { open: notesPanelOpen(), width: notesPanelWidth() };
-    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(prefs));
+    const prefs: AnnotationsPanelPrefs = {
+      open: annotationsPanelOpen(),
+      width: annotationsPanelWidth(),
+    };
+    localStorage.setItem(ANNOTATIONS_STORAGE_KEY, JSON.stringify(prefs));
   } catch {
     // Not persisting is fine; the panel still works for this session.
   }
 }
 
-/** Show/hide the Notes rail, persisting the choice. */
-export function setNotesPanelOpen(open: boolean) {
-  setNotesPanelOpenSignal(open);
-  persistNotesPanel();
+/** Show/hide the Annotations rail, persisting the choice. */
+export function setAnnotationsPanelOpen(open: boolean) {
+  setAnnotationsPanelOpenSignal(open);
+  persistAnnotationsPanel();
 }
 
-/** Toggle the Notes rail. */
-export function toggleNotesPanel() {
-  setNotesPanelOpen(!notesPanelOpen());
+/** Toggle the Annotations rail. */
+export function toggleAnnotationsPanel() {
+  setAnnotationsPanelOpen(!annotationsPanelOpen());
 }
 
-/** Set the Notes rail width (clamped), persisting the choice. */
-export function setNotesPanelWidth(width: number) {
-  setNotesPanelWidthSignal(clampNotesWidth(width));
-  persistNotesPanel();
+/** Set the Annotations rail width (clamped), persisting the choice. */
+export function setAnnotationsPanelWidth(width: number) {
+  setAnnotationsPanelWidthSignal(clampAnnotationsWidth(width));
+  persistAnnotationsPanel();
 }

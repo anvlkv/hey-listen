@@ -1,21 +1,13 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import {
-  createEffect,
-  createMemo,
-  createRoot,
-  createSignal,
-  onCleanup,
-  Show,
-  untrack,
-} from "solid-js";
+import { createEffect, createMemo, createRoot, createSignal, Show } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
-import { noteMarkers } from "./notePlugins";
+import { annotationMarkers } from "./annotationPlugins";
 import { paddedYRange } from "./range";
 import { X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import {
@@ -26,7 +18,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
-import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
+import { useUplotImage } from "./chartImage";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
@@ -204,19 +196,9 @@ export default function RhythmView(props: {
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   // Export the rendered onset-strength chart (M12).
-  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
-  registerChartImage(
-    untrack(() => props.id),
-    imageProvider,
-  );
-  onCleanup(() =>
-    unregisterChartImage(
-      untrack(() => props.id),
-      imageProvider,
-    ),
-  );
+  useUplotImage(() => props.id, zoom.instance);
 
-  /** Right-click the envelope: reframe the timeline window, or add a note here. */
+  /** Right-click the envelope: reframe the timeline window, or add an annotation here. */
   const openMenu = createUplotReframeHandler(zoom, setMenu);
 
   /** Tempo-salience curve over the BPM range (tempo / downbeat tools only). */
@@ -296,7 +278,7 @@ export default function RhythmView(props: {
                   mirrorCursor("time"),
                   syncView("time"),
                   playheadRule(),
-                  noteMarkers(props.id),
+                  annotationMarkers(props.id),
                   rhythmMarkers(markers),
                 ]}
                 onCreate={zoom.onReady}

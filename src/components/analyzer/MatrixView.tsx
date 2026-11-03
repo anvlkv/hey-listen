@@ -1,4 +1,4 @@
-import { createEffect, createMemo, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, Show, untrack } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
@@ -11,7 +11,7 @@ import {
   buildHeatmapImage,
   drawHoverCross,
   drawMirrorCursor,
-  drawNoteOverlay,
+  drawAnnotationOverlay,
   drawPlayhead,
   drawTimeAxis,
 } from "./chartCanvas";
@@ -23,7 +23,7 @@ import {
   type PlotBox,
 } from "./chartGeometry";
 import { activeThemeId, chartTheme } from "../../state/themes";
-import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
+import { useCanvasImage } from "./chartImage";
 import {
   analyzerById,
   formatHz,
@@ -102,17 +102,7 @@ export default function MatrixView(props: {
   });
 
   // Export the rendered heatmap (M12).
-  const imageProvider = () => chart.canvas() ?? null;
-  registerChartImage(
-    untrack(() => props.id),
-    imageProvider,
-  );
-  onCleanup(() =>
-    unregisterChartImage(
-      untrack(() => props.id),
-      imageProvider,
-    ),
-  );
+  useCanvasImage(() => props.id, chart.canvas);
 
   /** Offscreen frames×bins image (time ×, band ↑), rebuilt on data change. */
   const image = createMemo<HTMLCanvasElement | null>(() => {
@@ -150,10 +140,10 @@ export default function MatrixView(props: {
     drawMirrorCursor(ctx, v, box, props.id);
     // Read inside `draw` so the repaint effect below tracks the transport position.
     drawPlayhead(ctx, v, box);
-    drawNoteOverlay(ctx, v, box, props.id, chart.selection());
+    drawAnnotationOverlay(ctx, v, box, props.id, chart.selection());
   }
 
-  /** Pitch-class row rules (chromagram note grid). */
+  /** Pitch-class row rules (chromagram annotation grid). */
   function drawNoteGrid(ctx: CanvasRenderingContext2D, value: MatrixResult, box: PlotBox) {
     if (value.bins < 2) return;
     ctx.save();

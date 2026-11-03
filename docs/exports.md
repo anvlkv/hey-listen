@@ -7,7 +7,8 @@
 > **re-run** the tool at the current settings rather than shipping a result back over
 > IPC, so the file always matches the live project.
 
-Every analyzer computes a typed result (`AnyAnalysisResult`) over the analysis window.
+Every analyzer computes a typed Rust result (`AnalysisResult`; the frontend's union of
+the same payloads is `AnyAnalysisResult`) over the analysis window.
 Today it is only ever *shown*: there is no way to save the numbers or the picture. This
 document adds two exports per analyzer — the **data** (JSON / CSV) and the **chart
 image** (PNG) — built so the same surface is reachable from the UI, the MCP server, and
@@ -65,7 +66,7 @@ frame, one column per frequency band.
 | View kind | Shape |
 | --- | --- |
 | `series` (incl. `frameRms` / `loudnessMomentary`) | `time_s,value` |
-| `pitch` | `time_s,f0_hz` (blank cell for an unvoiced frame) |
+| `series` — pitch (`PitchResult`) | `time_s,f0_hz` (blank cell for an unvoiced frame) |
 | `spectrum` | `freq_hz,mean_db,min_db,max_db` |
 | `spectrogram` / `matrix` | wide: first column `time_s`, then one column per bin, header row = bin centre frequencies (`440.0` … or band index for index-axis matrices such as MFCC/chroma) |
 | `waveform` | `time_s,min,max` (one row per envelope bucket) |
@@ -170,7 +171,7 @@ The **data** exports are pure compute over a result, so headless covers them ful
 ## Testing
 
 - **CSV renderer** — Rust unit tests over each result type (wide matrix header/rows,
-  gaps for pitch, readouts, rhythm events, note rows). The renderer is Rust-only, so
+  gaps for pitch, readouts, rhythm events, annotation rows). The renderer is Rust-only, so
   the UI, MCP, and CLI cannot drift.
 - **Envelope** — a JSON export round-trips: applying its `window`/`params`/`options` to
   the same source reproduces the result.

@@ -1,14 +1,16 @@
-//! `project` / `compare --save` / `notes` operation mapping (M25.D).
+//! `project` / `compare --save` / `annotations` operation mapping (M25.D).
 
 use super::*;
 use crate::audio::analyzers::ToolId;
 
 #[test]
-fn project_maps_source_tabs_notes_and_window() {
-    let notes_path =
-        std::env::temp_dir().join(format!("hey_cli_project_notes_{}.json", std::process::id()));
+fn project_maps_source_tabs_annotations_and_window() {
+    let annotations_path = std::env::temp_dir().join(format!(
+        "hey_cli_project_annotations_{}.json",
+        std::process::id()
+    ));
     std::fs::write(
-        &notes_path,
+        &annotations_path,
         json!([{ "title": "n1", "body": "b", "timeSecs": 0.1 }]).to_string(),
     )
     .unwrap();
@@ -16,7 +18,7 @@ fn project_maps_source_tabs_notes_and_window() {
         ("dest", json!("/tmp/out.heyl")),
         ("source", json!("/tmp/in.wav")),
         ("open-tool", json!(["spectrum", "waveform"])),
-        ("notes", json!(notes_path.to_string_lossy())),
+        ("annotations", json!(annotations_path.to_string_lossy())),
         ("start", json!("0.1")),
         ("end", json!("0.2")),
         ("reference", json!(true)),
@@ -28,7 +30,7 @@ fn project_maps_source_tabs_notes_and_window() {
             source,
             synth,
             open_tools,
-            notes,
+            annotations,
             reference,
             ..
         } => {
@@ -36,14 +38,14 @@ fn project_maps_source_tabs_notes_and_window() {
             assert_eq!(source.as_deref(), Some("/tmp/in.wav"));
             assert!(synth.is_none());
             assert_eq!(open_tools, &[ToolId::Spectrum, ToolId::Waveform]);
-            assert_eq!(notes.len(), 1);
+            assert_eq!(annotations.len(), 1);
             assert!(*reference);
         }
         other => panic!("unexpected command: {other:?}"),
     }
     assert_eq!(request.start, Some(0.1));
     assert_eq!(request.end, Some(0.2));
-    let _ = std::fs::remove_file(notes_path);
+    let _ = std::fs::remove_file(annotations_path);
 }
 
 #[test]

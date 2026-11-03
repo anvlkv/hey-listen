@@ -56,7 +56,7 @@ export const [fftSize, setFftSize] = createSignal<number>(2048);
  * frame). Rendered as the FFT-size field tooltip.
  */
 export const FFT_SIZE_HELP: Record<number, string> = {
-  512: "Shortest window: fastest and best time resolution (good for transients), but coarse frequency bins — low notes and close partials blur together.",
+  512: "Shortest window: fastest and best time resolution (good for transients), but coarse frequency bins — low annotations and close partials blur together.",
   1024: "Finer frequency bins than 512 while staying responsive; a good fit for speech and percussive material.",
   2048: "Balanced default — a good compromise between frequency detail and time resolution.",
   4096: "Finer frequency detail; the longer window smooths fast transients. Best for sustained tones.",

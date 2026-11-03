@@ -2,7 +2,7 @@ import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
 import AboutDialog from "./components/AboutDialog";
 import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
-import NotesPanel from "./components/NotesPanel";
+import AnnotationsPanel from "./components/AnnotationsPanel";
 import Sidebar from "./components/Sidebar";
 import SourcePanel from "./components/SourcePanel";
 import Splitter from "./components/Splitter";
@@ -14,9 +14,9 @@ import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu, aboutOpen, setAboutOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
 import {
-  notesPanelOpen,
-  notesPanelWidth,
-  setNotesPanelWidth,
+  annotationsPanelOpen,
+  annotationsPanelWidth,
+  setAnnotationsPanelWidth,
   sourcePanelPinned,
 } from "./state/settings";
 import { createSplitter } from "./lib/splitter";
@@ -78,11 +78,11 @@ export default function App() {
     write: setSidebarWidth,
     clamp: clampSidebar,
   });
-  // The notes rail is on the right, so dragging the splitter left widens it.
-  const notesSplitter = createSplitter({
+  // The annotations rail is on the right, so dragging the splitter left widens it.
+  const annotationsSplitter = createSplitter({
     axis: "x",
-    read: notesPanelWidth,
-    write: setNotesPanelWidth,
+    read: annotationsPanelWidth,
+    write: setAnnotationsPanelWidth,
     sign: -1,
   });
 
@@ -129,16 +129,19 @@ export default function App() {
             handlers={sidebarSplitter}
           />
           <Workbench />
-          <Show when={notesPanelOpen()}>
+          <Show when={annotationsPanelOpen()}>
             <Splitter
               orientation="vertical"
-              testId="splitter.notes"
+              testId="splitter.annotations"
               label="Drag to resize the annotations panel"
               ariaLabel="Resize the annotations panel"
-              handlers={notesSplitter}
+              handlers={annotationsSplitter}
             />
-            <NotesPanel
-              style={{ flex: `0 0 ${notesPanelWidth()}px`, width: `${notesPanelWidth()}px` }}
+            <AnnotationsPanel
+              style={{
+                flex: `0 0 ${annotationsPanelWidth()}px`,
+                width: `${annotationsPanelWidth()}px`,
+              }}
             />
           </Show>
         </div>

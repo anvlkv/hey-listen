@@ -10,7 +10,7 @@ use crate::audio::decode::StreamSummary;
 use crate::audio::graph::{self, GraphError, GraphSpec};
 use crate::audio::STREAM_CHUNK_SAMPLES;
 use crate::commands::stream;
-use crate::state::{window_state, SourcePcm};
+use crate::state::{window_state, SourceData};
 
 /// Install (or clear) the project's filter graph. Validated as a filter (one
 /// global input); an invalid graph clears the filter and surfaces the error.
@@ -76,7 +76,7 @@ pub async fn render_synth(
     stream::send_end_sentinel(&on_chunk).map_err(GraphError::Stream)?;
 
     let frames = pcm.len() as u64;
-    window_state(&window).audio.set_source(Some(SourcePcm {
+    window_state(&window).audio.set_source(Some(SourceData {
         samples: pcm,
         sample_rate: rate,
         channels: 1,

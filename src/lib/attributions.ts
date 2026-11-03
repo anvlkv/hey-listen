@@ -16,11 +16,12 @@ export interface Attribution {
 }
 
 /** The bundled icon font's attribution — the one attribution that is *required*. */
-export const FONT_AWESOME: Attribution & { note: string } = {
+export const FONT_AWESOME: Attribution & { annotation: string } = {
   name: "Font Awesome Free 7",
   license: "Icons CC BY 4.0 · Fonts SIL OFL 1.1 · Code MIT",
   url: "https://fontawesome.com/license/free",
-  note: "© Fonticons, Inc. The bundled icon font and glyphs throughout the UI. The full license text ships at public/fonts/fontawesome/LICENSE.txt.",
+  annotation:
+    "© Fonticons, Inc. The bundled icon font and glyphs throughout the UI. The full license text ships at public/fonts/fontawesome/LICENSE.txt.",
 };
 
 /** Runtime third-party software, most prominent first. */

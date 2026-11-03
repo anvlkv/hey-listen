@@ -1,10 +1,11 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal } from "solid-js";
 import Button from "./Button";
 import GraphEditor from "./GraphEditor";
 import Icon from "./Icon";
 import Tooltip from "./Tooltip";
+import { ClearGraphButton, GraphError, GraphNotices } from "./graphEditor/GraphTabChrome";
 import { createNumberDrag } from "../lib/dragNumber";
-import { graphWarning, outputConnected, resetGraph, SYNTH_GRAPH } from "../state/graph";
+import { SYNTH_GRAPH } from "../state/graph";
 import { renderSynth, rendering, synthError } from "../state/synth";
 
 /**
@@ -31,18 +32,7 @@ export default function SynthGraphTab() {
       <span class="graph-toolbar-hint" data-testid="graph.hint">
         {nodes()} node{nodes() === 1 ? "" : "s"}
       </span>
-      <Show when={!outputConnected("synth")}>
-        <span class="graph-warn" data-testid="graph.warning">
-          Output is not connected — the render is silent
-        </span>
-      </Show>
-      <Show when={graphWarning()}>
-        {(message) => (
-          <span class="graph-warn" data-testid="graph.connection.warning" title={message()}>
-            {message()}
-          </span>
-        )}
-      </Show>
+      <GraphNotices graph="synth" silent="Output is not connected — the render is silent" />
       <Tooltip label="Rendered length, in seconds (drag up/down to change)">
         <label class="graph-field">
           <span>Length</span>
@@ -68,23 +58,8 @@ export default function SynthGraphTab() {
         <Icon name="play" />
         {rendering() ? "Rendering…" : "Render"}
       </Button>
-      <Show when={synthError()}>
-        {(message) => (
-          <span class="graph-error" data-testid="graph.error" title={message()}>
-            {message()}
-          </span>
-        )}
-      </Show>
-      <Tooltip label="Remove every node and link from this graph">
-        <Button
-          class="graph-btn icon-btn"
-          data-testid="graph.clear"
-          aria-label="Clear graph"
-          onClick={() => resetGraph("synth")}
-        >
-          <Icon name="trash" />
-        </Button>
-      </Tooltip>
+      <GraphError message={synthError} />
+      <ClearGraphButton graph="synth" />
     </GraphEditor>
   );
 }

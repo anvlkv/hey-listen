@@ -9,11 +9,11 @@ use crate::audio::analyzers::{self, AnalyzerId, ToolId};
 
 use super::export_args;
 use super::inputs::{
-    parse_params, read_filter_graph, read_notes, read_synth_graph, read_windows, split_kv,
+    parse_params, read_annotations, read_filter_graph, read_synth_graph, read_windows, split_kv,
 };
-use super::types::{BatchCommand, Command, NotesOp, OptionPatch, Request};
+use super::types::{AnnotationsOp, BatchCommand, Command, OptionPatch, Request};
 
-mod note_args;
+mod annotation_args;
 
 /// Whether `name` is a batch subcommand (used to tell a real usage error from a
 /// `.heyl` file path that the plugin's parser rejected).
@@ -54,14 +54,14 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 path,
             };
         }
-        BatchCommand::Notes => {
+        BatchCommand::Annotations => {
             let path = string(matches, "file")
-                .ok_or("notes needs a project file: `hey-listen notes <FILE.heyl>`")?;
-            request.command = Command::Notes {
+                .ok_or("annotations needs a project file: `hey-listen annotations <FILE.heyl>`")?;
+            request.command = Command::Annotations {
                 path,
                 json: flag(matches, "json"),
                 full: flag(matches, "full"),
-                op: note_args::note_op(matches)?,
+                op: annotation_args::annotation_op(matches)?,
                 to: string(matches, "to"),
             };
         }
@@ -97,8 +97,8 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 }
                 None => None,
             };
-            let notes = match string(matches, "notes") {
-                Some(path) => read_notes(&path)?,
+            let annotations = match string(matches, "annotations") {
+                Some(path) => read_annotations(&path)?,
                 None => Vec::new(),
             };
             request.command = Command::ProjectSave {
@@ -107,7 +107,7 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
                 synth,
                 name: string(matches, "name"),
                 open_tools: tool_ids(matches, "open-tool")?,
-                notes,
+                annotations,
                 reference: flag(matches, "reference"),
             };
         }
@@ -178,12 +178,14 @@ fn validate(request: &Request) -> Result<(), String> {
                 ));
             }
         }
-        Command::Notes {
+        Command::Annotations {
             op, to, json, full, ..
         } => {
             let mutating = matches!(
                 op,
-                NotesOp::Add { .. } | NotesOp::Update { .. } | NotesOp::Delete { .. }
+                AnnotationsOp::Add { .. }
+                    | AnnotationsOp::Update { .. }
+                    | AnnotationsOp::Delete { .. }
             );
             if to.is_some() && !mutating {
                 return Err(
@@ -193,7 +195,8 @@ fn validate(request: &Request) -> Result<(), String> {
             }
             if mutating && (*json || *full) {
                 return Err(
-                    "`--json` / `--full` list the notes; a mutation prints one JSON record".into(),
+                    "`--json` / `--full` list the annotations; a mutation prints one JSON record"
+                        .into(),
                 );
             }
         }
@@ -256,7 +259,7 @@ pub(super) fn result_count(request: &Request) -> usize {
         Command::Analyzers { .. } => 0,
         Command::Analyze => request.files.len() * window_result_count(request),
         Command::Synth { .. } => tool_count(request),
-        Command::Notes { .. } => 0,
+        Command::Annotations { .. } => 0,
         Command::Compare { .. } => tool_count(request),
         Command::ProjectSave { .. } => 1,
     }

@@ -80,7 +80,7 @@ Commands:
   compare         Diff one analyzer across two project files
   project         Build a .heyl project (source + setup + tabs), no window
   synth           Render a synth graph and (optionally) analyze the result
-  notes           List or edit the notes in a project file (.heyl)
+  annotations           List or edit the annotations in a project file (.heyl)
 
 Options:
   -m, --mcp      Run the stdio MCP entry instead of the GUI
@@ -187,23 +187,23 @@ JSONL; the saved path is reported on stderr.
 | `ID` | Optional analyzer id. With it, print the description, about copy, option metadata (defaults / ranges / help), and summary keys. **(M21)** |
 | `--json` | Emit the analyzer catalog (or the one analyzer) as JSON, matching MCP's `list_analyzers` / `get_analyzer`. Otherwise a plain table. |
 
-### `notes <FILE.heyl>` (M14; editing since M25.D)
+### `annotations <FILE.heyl>` (M14; editing since M25.D)
 
-List, get, add, update or delete the **notes** stored in a project file, without a window
-(see [`notes.md`](notes.md)). The note shape is the same one MCP's `save_project` takes:
+List, get, add, update or delete the **annotations** stored in a project file, without a window
+(see [`annotations.md`](annotations.md)). The annotation shape is the same one MCP's `save_project` takes:
 `title`, `body`, `timeSecs`, optional `range` / `tool`.
 
 | Option | Meaning |
 | --- | --- |
-| `--json` | List: emit each note as one JSON line (JSONL) instead of a table. |
+| `--json` | List: emit each annotation as one JSON line (JSONL) instead of a table. |
 | `--full` | List: include the full markdown body (default: a one-line excerpt). |
-| `--get <ID>` | Print one note (full body and frozen values). |
-| `--add <FILE.json>` | Append the notes in a JSON array file. |
-| `--update <ID> --set FIELD=VALUE` | Patch one note. Fields: `title`, `body`, `timeSecs` (`time` / `at`), `range` (`start,end` seconds, an object, or `none`), `tool` (an analyzer id or `none`). `none` / `null` clears an optional field. |
-| `--delete <ID>` | Remove one note. |
+| `--get <ID>` | Print one annotation (full body and frozen values). |
+| `--add <FILE.json>` | Append the annotations in a JSON array file. |
+| `--update <ID> --set FIELD=VALUE` | Patch one annotation. Fields: `title`, `body`, `timeSecs` (`time` / `at`), `range` (`start,end` seconds, an object, or `none`), `tool` (an analyzer id or `none`). `none` / `null` clears an optional field. |
+| `--delete <ID>` | Remove one annotation. |
 | `--to <FILE.heyl>` | Write a changed project to a **copy** instead of editing it in place (works with `--add` / `--update` / `--delete`). |
 
-A file with no `NOTES` section prints nothing and exits `0`; a missing / unreadable /
+A file with no `ANNOTATIONS` section prints nothing and exits `0`; a missing / unreadable /
 non-project file, an unknown id, or an invalid field is an `error` (exit `1`); a bad flag
 or using flags together (`--json` with a mutation, two operations, `--to` without one) is
 a usage error (exit `2`). Mutations rewrite the project **atomically** (a sibling temp
@@ -212,27 +212,27 @@ an open app does not watch the file, so **reload it** after an external edit.
 
 ```bash
 # Add two annotations from a JSON array file:
-hey-listen notes mix.heyl --add /tmp/notes.json
+hey-listen annotations mix.heyl --add /tmp/annotations.json
 
 # Rename one and give it a span, in place:
-hey-listen notes mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
+hey-listen annotations mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
 
 # Print it back, or remove it:
-hey-listen notes mix.heyl --get n1
-hey-listen notes mix.heyl --delete n1
+hey-listen annotations mix.heyl --get n1
+hey-listen annotations mix.heyl --delete n1
 
 # Edit a copy:
-hey-listen notes mix.heyl --add /tmp/notes.json --to mix-annotated.heyl
+hey-listen annotations mix.heyl --add /tmp/annotations.json --to mix-annotated.heyl
 ```
 
-The `analyze` / `synth` commands do **not** gain note flags — they run against files, not
-projects, so there is nowhere to store a note.
+The `analyze` / `synth` commands do **not** gain annotation flags — they run against files, not
+projects, so there is nowhere to store an annotation.
 
 ### `project <OUT.heyl>` (M25.D)
 
 Build a **project file** from a source + setup + tabs, with no window — the CLI face of
 the headless MCP sequence `open_audio_file` / `render_synth` → `set_*` → `open_tool` →
-`save_project`. The result opens in the app with the same source, setup, filter, notes
+`save_project`. The result opens in the app with the same source, setup, filter, annotations
 and Workbench tabs. Nothing is analyzed unless you run `analyze` / `compare` separately.
 
 | Option | Meaning |
@@ -241,20 +241,20 @@ and Workbench tabs. Nothing is analyzed unless you run `analyze` / `compare` sep
 | `--synth <GRAPH.json>` | Render a synth graph as the source; `--seconds` sets its length (default 5). |
 | `--name <NAME>` | Project display name (default: the output file stem). |
 | `--open-tool <ID>` | Analyzer tab to restore when the project opens (repeatable). |
-| `--notes <FILE.json>` | Annotations to write: a JSON array of note objects (`title`, `body`, `timeSecs`, optional `range` / `tool`), the same shape MCP's `save_project` takes. |
+| `--annotations <FILE.json>` | Annotations to write: a JSON array of annotation objects (`title`, `body`, `timeSecs`, optional `range` / `tool`), the same shape MCP's `save_project` takes. |
 | `--start` / `--end` | Analysis window (default `0` … full duration). |
 | `-p` / `-o` / `--filter` | Shared params, per-tool options, and a filter `GraphSpec` saved into the project. Name the tool in `-o` (`-o mfcc.nMfcc=13`). |
 | `--reference` | Write a reference project (no embedded audio) for a file source. |
 | `--pretty` | Pretty-print the one saved-project record. |
 
-Prints one JSON line (`{ path, name, embedded, notes, openTools }`). Parent folders are
+Prints one JSON line (`{ path, name, embedded, annotations, openTools }`). Parent folders are
 created. A failure to decode/render/save is an `error` line (exit `1`); bad arguments are
 a usage error (exit `2`).
 
 ```bash
-# An audio file plus the tabs and notes to restore:
+# An audio file plus the tabs and annotations to restore:
 hey-listen project call.heyl --source call.wav --open-tool noteMetrics \
-  --open-tool spectrogram --notes notes.json --start 1.2 --end 3.4
+  --open-tool spectrogram --annotations annotations.json --start 1.2 --end 3.4
 
 # A project from a synth graph:
 hey-listen project demo.heyl --synth demo.json --seconds 2.5 --open-tool spectrum
@@ -330,7 +330,7 @@ way. `--pretty` prints a single (human-readable) JSON object — for one file / 
 | Code | Meaning |
 | --- | --- |
 | `0` | Every file/tool succeeded. |
-| `1` | At least one file/tool failed, or `notes` could not read the project (the failing line carries `error`). |
+| `1` | At least one file/tool failed, or `annotations` could not read the project (the failing line carries `error`). |
 | `2` | Usage error (unknown subcommand/flag, bad `K=V`, missing `-t`). |
 
 > **Usage errors must not silently open the GUI.** `plugins.cli` parsing reports a
@@ -397,7 +397,7 @@ hey-listen analyzers noteMetrics
 hey-listen analyze *.wav -t levels --summary | jq -c '{file, summary}'
 
 # Show the annotations in a saved project (JSONL, full bodies):
-hey-listen notes mix.heyl --json --full | jq -c '{time: .timeSecs, tool, values: .values.text}'
+hey-listen annotations mix.heyl --json --full | jq -c '{time: .timeSecs, tool, values: .values.text}'
 
 # Filter, then analyze, over a whole folder:
 hey-listen analyze ./takes/*.wav -t levels --filter lp.json | jq -c '{file, peak:.result.peakDb}'
@@ -409,12 +409,12 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
 
 - `analyzers`, `analyze`, `synth` — decode a file, run analyzers, render a synth
   graph, list the catalog, with shared params / per-tool options / a filter graph.
-- `notes` — list **and edit** a saved project's notes (M14; get/add/update/delete since
+- `annotations` — list **and edit** a saved project's annotations (M14; get/add/update/delete since
   M25.D).
 - `compare` — diff two project files, optionally saving the reference snapshots back
   into the owner (`--save`, M25.D).
 - `project` — build a `.heyl` from a file or synth source with the analysis setup,
-  filter, notes and Workbench tabs to restore (M25.D). Nothing needs a window.
+  filter, annotations and Workbench tabs to restore (M25.D). Nothing needs a window.
 
 Planned in the compute subset (M13):
 
@@ -440,7 +440,7 @@ Deliberately out of scope:
   preview/capture. These need the app's windows (see [`mcp.md`](mcp.md) →
   Limitations). Project save/open is **not** a CLI subcommand, but it is available
   through the headless MCP server (`heylisten-mcp --headless`), which writes the
-  session's source + setup + notes.
+  session's source + setup + annotations.
 - **Device/process enumeration** (`devices`) — deferred. On macOS enumerating
   outputs goes through the same `supports_output` → AudioUnit path that makes the
   GUI picker prompt for microphone/audio-capture permission; a batch CLI must never
@@ -463,7 +463,7 @@ Deliberately out of scope:
 | --- | --- |
 | `src-tauri/tauri.conf.json` | the `plugins.cli` interface: the `analyzers` / `analyze` / `synth` subcommands + their args. |
 | `src-tauri/src/cli/mod.rs` | the plugin flags + the `setup` entry: `--mcp` → MCP, a subcommand → batch, else GUI. |
-| `src-tauri/src/cli/batch/` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `notes`). |
+| `src-tauri/src/cli/batch/` | the batch logic: `Matches` → a request → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `annotations`). |
 | `src-tauri/src/mcp/dispatch/` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
 | `src-tauri/src/audio/{decode,analyzers}.rs`, `src-tauri/src/audio/{analysis,graph}/` | the engine functions the batch command calls. |
 

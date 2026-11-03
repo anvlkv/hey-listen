@@ -175,10 +175,10 @@ and hop are echoed.
 > `audio::analysis::tests::note_metrics`, `audio::analyzers::tests`, and
 > `mcp::dispatch::tests`.
 >
-> **Terminology:** a **note** here is a detected acoustic segment, not the project's
-> user-authored **annotation** (M14). The UI labels the right rail **Annotations**; the
-> data model and MCP/CLI keep the historical `Note` / `*_note` / `NOTES` names for
-> compatibility. See [`notes.md`](notes.md) → Terminology.
+> **Terminology:** a **note** in this doc is a detected acoustic segment, never the
+> project's user-authored **annotation** (M14). Every surface — the `Annotation` type, the
+> `ANNOTATIONS` section, the `*_annotation` / `annotations` tools and the rail — says
+> **annotation**. See [`annotations.md`](annotations.md) → Terminology.
 
 **Problem.** `onsets` returns start times only, so note ends, gaps, and note count are
 implicit. There is no per-note level or envelope summary.
@@ -186,7 +186,7 @@ implicit. There is no per-note level or envelope summary.
 **Changes.**
 
 - New `noteMetrics` analyzer. Its records are detected audio **note segments**; they do
-  not collide with the project's **annotations** (the M14 `Note` payload).
+  not collide with the project's **annotations** (the M14 `Annotation` payload).
 - Segmentation:
   - frame RMS from the shared helper;
   - gate at `max(gateFloorDb, windowPeakDb − gateDb)` with `hysteresisDb`;
@@ -439,7 +439,7 @@ median f0). M21.B adds the series window gate and `syllableGapMs`.
 - **CLI:** the new ids are available through `hey-listen analyze` automatically once
   they are in the Rust catalog; options use the existing `-o <tool>.<key>=<value>`
   form.
-- **Notes:** add `valuesText` cases in `src/state/notes/format.ts` for `noteMetrics` and
+- **Notes:** add `valuesText` cases in `src/state/annotations/format.ts` for `noteMetrics` and
   `modulation` (`frameRms` uses the generic series path).
 
 ### Where the MCP work lives
@@ -462,7 +462,7 @@ contract:
 
 - Rust unit tests for every behavior above, placed beside the tool modules so
   `tests.rs` stays under the line budget.
-- `scripts/notes.test.ts` cases for the new values-line formatters.
+- `scripts/annotations.test.ts` cases for the new values-line formatters.
 - `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `npm run maid`.
 - Regenerate `src/bindings/**` with `cargo test`; never hand-edit it.
 - Optional e2e: render a synthetic AM/FM source with the synth graph, run the three

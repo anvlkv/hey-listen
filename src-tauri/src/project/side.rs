@@ -14,7 +14,7 @@ use crate::audio::analysis::compare::CompareSetup;
 use crate::audio::analysis::{canonical_option_key, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
-use crate::project::{read_project, AnalysisSetup, Note, SourceDescriptor};
+use crate::project::{read_project, AnalysisSetup, Annotation, SourceDescriptor};
 use crate::state::WindowState;
 
 /// One loaded project: its core state and the setup the diff runs with.
@@ -30,7 +30,7 @@ pub struct Side {
     /// The saved `LAYOUT` (graphs, popouts, `filterSpec`).
     pub layout: Value,
     /// The project's annotations.
-    pub notes: Vec<Note>,
+    pub annotations: Vec<Annotation>,
     /// Whether the file actually carried `DATA` (a reference project does not).
     pub embedded: bool,
     /// The core state holding this side's PCM and filter.
@@ -84,7 +84,7 @@ pub fn load_side(path: &str, filter_override: Option<&GraphSpec>) -> Result<Side
         created_ms,
         source: loaded.source,
         layout: loaded.layout,
-        notes: loaded.notes,
+        annotations: loaded.annotations,
         embedded,
         state,
         options: setup.tool_options.clone(),

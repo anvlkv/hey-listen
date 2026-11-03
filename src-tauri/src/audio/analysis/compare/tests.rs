@@ -8,7 +8,7 @@ use super::stats::DeltaStats;
 use super::*;
 
 use crate::audio::analysis::{Axis, RhythmResult, Shape, SharedParams, ToolOptions, WindowKind};
-use crate::state::{SourcePcm, WindowState};
+use crate::state::{SourceData, WindowState};
 
 mod relative;
 
@@ -16,7 +16,7 @@ const RATE: u32 = 48_000;
 
 fn state_with(samples: Vec<f32>) -> WindowState {
     let state = WindowState::default();
-    state.audio.set_source(Some(SourcePcm {
+    state.audio.set_source(Some(SourceData {
         samples,
         sample_rate: RATE,
         channels: 1,
@@ -63,6 +63,13 @@ fn compare_pair(
     b: (&WindowState, CompareSetup),
 ) -> Comparison {
     compare_pair_at(tool, a, b, 0.0)
+}
+
+/// Compare a full-scale A against a half-scale B over the same 1 s window.
+fn half_scale_comparison(tool: AnalyzerId) -> Comparison {
+    let a = state_with(tone(1.0, 440.0, 1.0));
+    let b = state_with(tone(1.0, 440.0, 0.5));
+    compare_pair(tool, (&a, setup(0.0, 1.0)), (&b, setup(0.0, 1.0)))
 }
 
 fn compare_pair_at(
@@ -179,13 +186,7 @@ fn a_differing_channel_is_a_mismatch() {
 
 #[test]
 fn a_level_delta_names_its_fields() {
-    let a = state_with(tone(1.0, 440.0, 1.0));
-    let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair(
-        AnalyzerId::Levels,
-        (&a, setup(0.0, 1.0)),
-        (&b, setup(0.0, 1.0)),
-    );
+    let comparison = half_scale_comparison(AnalyzerId::Levels);
     let Some(ComparisonDiff::Scalar(diff)) = &comparison.diff else {
         panic!("expected a scalar delta");
     };
@@ -257,13 +258,7 @@ fn stats_describe_the_delta() {
 
 #[test]
 fn compact_shaping_keeps_stats_and_drops_arrays() {
-    let a = state_with(tone(1.0, 440.0, 1.0));
-    let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair(
-        AnalyzerId::FrameRms,
-        (&a, setup(0.0, 1.0)),
-        (&b, setup(0.0, 1.0)),
-    );
+    let comparison = half_scale_comparison(AnalyzerId::FrameRms);
     let value = comparison.to_value(Shape::Compact, None, Axis::Array);
     assert_eq!(value["diff"]["kind"], "series");
     assert_eq!(value["diff"]["values"].as_array().unwrap().len(), 0);
@@ -275,13 +270,7 @@ fn compact_shaping_keeps_stats_and_drops_arrays() {
 
 #[test]
 fn summary_shaping_omits_the_results() {
-    let a = state_with(tone(1.0, 440.0, 1.0));
-    let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair(
-        AnalyzerId::Levels,
-        (&a, setup(0.0, 1.0)),
-        (&b, setup(0.0, 1.0)),
-    );
+    let comparison = half_scale_comparison(AnalyzerId::Levels);
     let value = comparison.to_value(Shape::Summary, None, Axis::Array);
     assert!(value["a"].get("result").is_none());
     assert!(value["a"]["summary"]["text"].is_string());
@@ -289,13 +278,7 @@ fn summary_shaping_omits_the_results() {
 
 #[test]
 fn full_shaping_returns_the_delta_arrays() {
-    let a = state_with(tone(1.0, 440.0, 1.0));
-    let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair(
-        AnalyzerId::FrameRms,
-        (&a, setup(0.0, 1.0)),
-        (&b, setup(0.0, 1.0)),
-    );
+    let comparison = half_scale_comparison(AnalyzerId::FrameRms);
     let value = comparison.to_value(Shape::Full, None, Axis::Array);
     assert!(!value["diff"]["values"].as_array().unwrap().is_empty());
     assert!(value["a"]["result"]["times"].is_array());
@@ -303,13 +286,7 @@ fn full_shaping_returns_the_delta_arrays() {
 
 #[test]
 fn max_points_thins_the_delta_arrays_and_keeps_them_aligned() {
-    let a = state_with(tone(1.0, 440.0, 1.0));
-    let b = state_with(tone(1.0, 440.0, 0.5));
-    let comparison = compare_pair(
-        AnalyzerId::FrameRms,
-        (&a, setup(0.0, 1.0)),
-        (&b, setup(0.0, 1.0)),
-    );
+    let comparison = half_scale_comparison(AnalyzerId::FrameRms);
     let value = comparison.to_value(Shape::Full, Some(8), Axis::Array);
     let diff = &value["diff"];
     for key in ["times", "values", "a", "b"] {

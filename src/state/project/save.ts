@@ -1,6 +1,6 @@
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
-import { notes } from "../notes";
+import { annotations } from "../annotations";
 import { setWindowTitle } from "../source";
 import { markClean } from "./dirty";
 import { basename, projectLabel } from "./paths";
@@ -37,7 +37,7 @@ async function write(path: string, embedSource = true): Promise<boolean> {
       source: currentDescriptor(),
       setup: currentSetup(),
       layout: await currentLayout(),
-      notes: deepClone(notes()),
+      annotations: deepClone(annotations()),
       embedSource,
       // The core writes the saved snapshot of each comparison open at save time (M25.C).
       compareOpen: await currentCompareOpen(),
