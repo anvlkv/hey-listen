@@ -2151,3 +2151,55 @@ An ISO 226 reference over the spectrum, and mid/side + inter-channel correlation
 > fluctuation, masking, ISO 226) plus labelled physical proxies (tonality, stereo), with
 > `calibrationDbSpl` as a per-tool option and no `SharedParams` change. See ADR-25 and
 > [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
+
+## M32 — Automated Lighthouse audit (drafted)
+
+A repeatable, automated Lighthouse pass over every surface the app can render — the
+fixtures, the `preview.html` shell, and each theme — so performance, accessibility, and
+best-practice regressions are measured instead of noticed by hand.
+
+- **TBD** — the harness (Lighthouse CI vs. a project script) and how it drives the
+  preview shell and the fixture matrix.
+- **TBD** — the surface matrix (fixtures × themes × viewports) and the budget thresholds
+  per category.
+- **TBD** — where reports are stored and how a failing budget gates a change.
+
+## M32.B — Consequent improvement pass (drafted)
+
+The follow-up to M32: fix what the audit and its budgets surface, in priority order. The
+scope is decided by M32's findings rather than guessed here.
+
+- **TBD** — the finding → fix list, ordered by impact.
+- **TBD** — which fixes land as code (DOM / layout / paint), theme tokens, or test budgets.
+
+## M33 — Install CLI from the app menu (drafted)
+
+Let the desktop app install its `hey-listen` batch CLI onto the user's machine from a menu
+action, instead of asking them to locate the bundled binary themselves.
+
+- **TBD** — packaged artifact and the install location(s) per platform (PATH shim vs.
+  symlink).
+- **TBD** — privilege / consent model, versioning (installed CLI vs. app), and
+  uninstall / repair.
+- **TBD** — the menu entry, success / failure reporting, and headless parity.
+
+## M34 — Improved documentation and help (drafted)
+
+Make the app explain itself — in-app help for analyzers, the graph editors, and the project
+model — plus a clearer entry path into the existing `docs/`.
+
+- **TBD** — the help surfaces (about popovers, a Help menu, contextual links) and how they
+  reuse `docs/` instead of duplicating it.
+- **TBD** — the getting-started / onboarding path and first-run content.
+- **TBD** — the docs-organization pass (entry points, navigation) keeping `docs/` the
+  single source.
+
+## M35 — Landing page rework + Remotion workflow video (drafted)
+
+Rework the landing page in `site/` and add a short Remotion-produced video showing the real
+workflow — open a source, filter, analyze, annotate, compare — end to end.
+
+- **TBD** — page structure, copy (`site/copy.json`), and which features lead.
+- **TBD** — the video: script / storyboard, captured footage vs. recreated UI, length,
+  theme(s), and where it embeds.
+- **TBD** — keeping the site's screenshots and roadmap page in sync with the app.
