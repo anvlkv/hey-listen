@@ -85,7 +85,10 @@ function markdownToHtml(md) {
 
 // --- roadmap milestones -----------------------------------------------------
 
-/** The `## Mx — Title ✅` / `## Mx — Title (planned)` headers, with status. */
+/**
+ * The `## Mx — Title ✅` / `## Mx — Title (planned)` / `## Mx — Title (drafted)`
+ * headers, with status. A heading with no marker is treated as planned.
+ */
 function roadmapMilestones(md) {
   const items = [];
   for (const line of md.split("\n")) {
@@ -93,22 +96,24 @@ function roadmapMilestones(md) {
     if (!match) continue;
     const raw = match[1].trim();
     const done = raw.includes("✅");
+    const drafted = !done && /\(drafted\)/i.test(raw);
     const title = raw
       .replace(/✅/g, " ")
-      .replace(/\((?:planned|delivered)\)/gi, " ")
+      .replace(/\((?:planned|delivered|drafted)\)/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
-    items.push({ title, done });
+    items.push({ title, status: done ? "done" : drafted ? "drafted" : "planned" });
   }
   return items;
 }
 
 function timelineHtml(items) {
+  const CLASS = { done: "is-done", drafted: "is-drafted", planned: "is-pending" };
   const rows = items.map(
-    ({ title, done }) => `        <li class="milestone ${done ? "is-done" : "is-pending"}">
-          <span class="milestone-mark" aria-hidden="true">${done ? "&#10003;" : ""}</span>
+    ({ title, status }) => `        <li class="milestone ${CLASS[status]}">
+          <span class="milestone-mark" aria-hidden="true">${status === "done" ? "&#10003;" : ""}</span>
           <span class="milestone-title">${inline(title)}</span>
-          <span class="milestone-status">${done ? "done" : "planned"}</span>
+          <span class="milestone-status">${status}</span>
         </li>`,
   );
   return `      <ol class="timeline">\n${rows.join("\n")}\n      </ol>`;
@@ -193,7 +198,7 @@ ${ackBody}
 );
 
 const milestones = roadmapMilestones(roadmap);
-const done = milestones.filter((m) => m.done).length;
+const done = milestones.filter((m) => m.status === "done").length;
 
 await writeFile(
   path.join(SITE, "roadmap.html"),
