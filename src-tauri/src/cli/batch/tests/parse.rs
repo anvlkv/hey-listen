@@ -3,6 +3,39 @@
 use super::*;
 use crate::export::ExportFormat;
 
+// --- Config agreement ---------------------------------------------------
+
+/// `tauri.conf.json` and [`BatchCommand`] must name the same subcommands: the config
+/// declares them for clap, and [`build_request`] parses the names back at runtime.
+#[test]
+fn tauri_config_declares_every_batch_subcommand() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
+    let config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let declared: Vec<String> = config["plugins"]["cli"]["subcommands"]
+        .as_object()
+        .expect("plugins.cli.subcommands")
+        .keys()
+        .cloned()
+        .collect();
+    let expected: Vec<String> =
+        <crate::cli::batch::BatchCommand as strum::IntoEnumIterator>::iter()
+            .map(|command| command.to_string())
+            .collect();
+    for command in &expected {
+        assert!(
+            declared.contains(command),
+            "tauri.conf.json is missing the `{command}` subcommand"
+        );
+    }
+    for name in &declared {
+        assert!(
+            expected.contains(name),
+            "tauri.conf.json declares the unknown subcommand `{name}`"
+        );
+    }
+}
+
 // --- Matches -> Request mapping --------------------------------------
 
 #[test]

@@ -1,9 +1,14 @@
 import { createEffect, createRoot } from "solid-js";
-import type { Note } from "../bindings/Note";
+import type { Annotation } from "../bindings/Annotation";
 import { analyzerBus, readBusMessage } from "./chartSync";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
-import { focusedNoteId, notes, replaceNotes, setFocusedNoteId } from "./notes";
+import {
+  selectedAnnotationId,
+  annotations,
+  replaceAnnotations,
+  setSelectedAnnotationId,
+} from "./annotations";
 import { applyProjectTitle, projectDisplayName, projectPath } from "./project";
 import {
   setView,
@@ -62,15 +67,15 @@ registerUiState("project", (value) => {
   applyProjectTitle((value as ProjectState).name);
 });
 
-// Notes ride the project's shared UI state so a project's windows stay in lockstep
-// (ADR-11/ADR-18). A remote focus is applied without the UI side effects (opening the
-// chart / selecting) that a local `selectNote` performs.
-registerUiState("notes", (value) => {
-  replaceNotes((value as Note[]) ?? []);
+// Annotations ride the project's shared UI state so a project's windows stay in lockstep
+// (ADR-11/ADR-18). A remote selection is applied without the UI side effects (opening
+// the chart) that a local `selectAnnotation` performs.
+registerUiState("annotations", (value) => {
+  replaceAnnotations((value as Annotation[]) ?? []);
 });
 
-registerUiState("focusedNoteId", (value) => {
-  setFocusedNoteId((value as string | null) ?? null);
+registerUiState("selectedAnnotationId", (value) => {
+  setSelectedAnnotationId((value as string | null) ?? null);
 });
 
 for (const group of ["time", "freq", "mod"] as const) {
@@ -120,8 +125,8 @@ export async function initUiState(): Promise<void> {
     );
     createEffect(() => pushUiState("params", sharedParams()));
     createEffect(() => pushUiState("toolOptions", deepClone(toolOptions)));
-    createEffect(() => pushUiState("notes", deepClone(notes())));
-    createEffect(() => pushUiState("focusedNoteId", focusedNoteId()));
+    createEffect(() => pushUiState("annotations", deepClone(annotations())));
+    createEffect(() => pushUiState("selectedAnnotationId", selectedAnnotationId()));
     // The project name is owned by the project window (a popout's source is only a
     // stub, so it must not push its derived name back).
     if (!isPopoutWindow) {

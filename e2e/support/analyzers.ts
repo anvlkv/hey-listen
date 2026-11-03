@@ -13,7 +13,8 @@ async function describeAnalyzer(id: string, scope: string): Promise<string> {
   const error = await countWithin(scope, ".analyzer-error");
   const canvas = await countWithin(scope, "canvas");
   const readouts = await countWithin(scope, ".readout-value");
-  return `busy=${busy} empty=${empty} error=${error} canvas=${canvas} readouts=${readouts}`;
+  const cards = await countWithin(scope, ".readout-card-value");
+  return `busy=${busy} empty=${empty} error=${error} canvas=${canvas} readouts=${readouts} cards=${cards}`;
 }
 
 /** Wait until an analyzer has a rendered result (or surfaced an error). */
@@ -92,24 +93,36 @@ export async function cardValue(id: string, label: string): Promise<string | nul
  * `getImageData` over 1816×1228 is ~9 MB of pixels), while still changing whenever
  * anything visible is drawn. `"none"` means the canvas is missing or zero-sized.
  */
+/** Hash a selector's first canvas over a pixel `stride` and an `band` of rows. */
+async function canvasHash(selector: string, stride: number, band: number): Promise<string> {
+  return (await browser.execute(
+    (sel: string, step: number, rows: number) => {
+      const c = document.querySelector(sel) as HTMLCanvasElement | null;
+      const ctx = c?.getContext("2d");
+      if (!c || !ctx || c.width === 0) return "none";
+      const y = rows > 0 ? Math.max(0, Math.floor(c.height / 2) - rows / 2) : 0;
+      const height = rows > 0 ? rows : c.height;
+      const { data } = ctx.getImageData(0, y, c.width, height);
+      let hash = 0;
+      for (let i = 0; i < data.length; i += 4 * step) {
+        hash = (hash * 31 + data[i] + data[i + 1] * 3 + data[i + 2] * 7) | 0;
+      }
+      return rows > 0 ? `${c.width}:${hash}` : `${c.width}x${c.height}:${hash}`;
+    },
+    selector,
+    stride,
+    band,
+  )) as string;
+}
+
 export async function canvasSignature(selector: string): Promise<string> {
-  return (await browser.execute((sel: string) => {
-    const c = document.querySelector(sel) as HTMLCanvasElement | null;
-    const ctx = c?.getContext("2d");
-    if (!c || !ctx || c.width === 0) return "none";
-    const { data } = ctx.getImageData(0, 0, c.width, c.height);
-    let hash = 0;
-    for (let i = 0; i < data.length; i += 4 * 97) {
-      hash = (hash * 31 + data[i] + data[i + 1] * 3 + data[i + 2] * 7) | 0;
-    }
-    return `${c.width}x${c.height}:${hash}`;
-  }, selector)) as string;
+  return canvasHash(selector, 97, 0);
 }
 
 /**
  * A signature of a **band of rows** across a selector's first canvas.
  *
- * A full-height rule (the mirrored cursor, the preview playhead, a note's rule) only
+ * A full-height rule (the mirrored cursor, the preview playhead, an annotation's rule) only
  * occupies a couple of pixels, which the sparse sample of [`canvasSignature`] can miss
  * entirely — so this reads a band of rows instead of one. A **band** (rather than a single
  * row) because the mirrored cursor is *dashed*: a dashed rule's on/off phase is fixed
@@ -117,17 +130,7 @@ export async function canvasSignature(selector: string): Promise<string> {
  * consecutive rows always cover a `[4, 4]` dash cycle. `"none"` means no canvas.
  */
 export async function rowSignature(selector: string): Promise<string> {
-  return (await browser.execute((sel: string) => {
-    const c = document.querySelector(sel) as HTMLCanvasElement | null;
-    const ctx = c?.getContext("2d");
-    if (!c || !ctx || c.width === 0) return "none";
-    const { data } = ctx.getImageData(0, Math.max(0, Math.floor(c.height / 2) - 4), c.width, 8);
-    let hash = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      hash = (hash * 31 + data[i] + data[i + 1] * 3 + data[i + 2] * 7) | 0;
-    }
-    return `${c.width}:${hash}`;
-  }, selector)) as string;
+  return canvasHash(selector, 1, 8);
 }
 
 /**

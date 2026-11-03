@@ -3,7 +3,7 @@ import type { AnalyzerId, AnyAnalysisResult } from "./types";
 
 /**
  * The latest result per analyzer tool, kept by the mounted tabs so a note can capture
- * a **frozen values snapshot** from a live chart (`state/notes/`, M14). Not persisted
+ * a **frozen values snapshot** from a live chart (`state/annotations/`, M14). Not persisted
  * — the analyzers re-derive results on load.
  */
 const [latestResults, setLatestResults] = createSignal<

@@ -13,9 +13,9 @@ export type ReadoutResult = LevelsResult | LufsResult | LraResult;
 const seconds = (value: number) => `${value.toFixed(3)} s`;
 
 /**
- * Readouts shown above the (chartless) readout tools. Chart-backed tools
- * (waveform, spectrum, spectrogram, series, matrix, rhythm) build their readouts
- * in their own view.
+ * Readouts shown above the (chartless) readout tools. Every chart-backed view
+ * (waveform, spectrum, spectrogram, series, matrix, rhythm, noteMetrics, modulation)
+ * builds its own readouts.
  */
 export function readoutsFor(result: ReadoutResult): ReadoutSpec[] {
   switch (result.tool) {

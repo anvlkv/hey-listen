@@ -28,12 +28,12 @@ reference.**
 | --- | --- |
 | An agent drives the live window, tabs/UI following | MCP **bridge** to the running app |
 | An agent analyzes files with nothing open | MCP **headless** (auto-fallback) |
-| Build a `.heyl` with a source, setup, filter, tabs, notes | MCP headless `save_project`, or CLI `project` |
+| Build a `.heyl` with a source, setup, filter, tabs, annotations | MCP headless `save_project`, or CLI `project` |
 | Compare two projects (file vs file, or app windows) | MCP `compare_analysis` (headless or bridged), or CLI `compare` |
 | Save a project **with** its comparison | MCP: `compare_analysis` then `save_project`; CLI: `compare --save` |
 | Shell script / CI bulk-analyzes files | **Batch CLI** |
-| Read notes from a saved `.heyl` project | **Batch CLI** `notes` (list/get) |
-| Add / update / delete annotations in a project file | **Batch CLI** `notes --add/--update/--delete`, or MCP `save_project`'s `notes` when building |
+| Read annotations from a saved `.heyl` project | **Batch CLI** `annotations` (list/get) |
+| Add / update / delete annotations in a project file | **Batch CLI** `annotations --add/--update/--delete`, or MCP `save_project`'s `annotations` when building |
 
 ## The reliable workflow
 
@@ -103,13 +103,13 @@ the rest answer *"requires the app"* headless.
 | Source | `open_audio_file`, `close_source`, `render_synth`, `list_input_devices`, `list_output_devices`, `list_processes` | yes |
 | Analyze | `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `set_filter_graph` | yes |
 | Tabs | `open_tool`, `close_tool` | yes — headless they maintain `SETUP.openTools` (no webview), which `save_project` writes and the app restores |
-| Project | `save_project`, `open_project`, `new_project` | yes (source + setup + notes + `openTools`; parent folders are created) |
+| Project | `save_project`, `open_project`, `new_project` | yes (source + setup + annotations + `openTools`; parent folders are created) |
 | Project window | `open_project_window` | app-only (opens/raises a window at a `.heyl` and returns its label) |
 | Compare | `compare_analysis`, `list_projects` | `compare_analysis` yes: a project **path** headless, a live label bridged, or `saved: true`; `list_projects` is answered by the server |
 | Export (data) | `export_analysis`, `export_all` | yes (`export_all` headless takes an explicit `tools` list) |
 | Graphs | `get_graph`, `set_synth_graph` | app-only (editor layouts) |
 | Preview/capture | `preview`, `stop_preview`, `set_output_gain`, `start_capture`, `stop_capture` | app-only |
-| Notes | `list_notes`, `get_note`, `create_note`, `update_note`, `delete_note`, `set_focused_note` | app-only (but `save_project` writes the `notes` you pass headless) |
+| Annotations | `list_annotations`, `get_annotation`, `create_annotation`, `update_annotation`, `delete_annotation`, `set_selected_annotation` | app-only (but `save_project` writes the `annotations` you pass headless) |
 | Export (chart) | `export_chart` | app-only (needs the rendered canvas) |
 | Themes | `list_themes`, `get_theme`, `set_theme`, `import_theme`, `export_theme` | headless lists bundled only |
 
@@ -129,7 +129,7 @@ reference as a second window and returns the label to pass as `with`.
 ## Projects, tabs, and comparisons from a script
 
 A project = source + `SETUP` (window, params, options, `openTools`) + `LAYOUT` (graphs,
-filter, popouts) + notes + saved comparison snapshots. All of it is scriptable; nothing
+filter, popouts) + annotations + saved comparison snapshots. All of it is scriptable; nothing
 below opens a window.
 
 **Headless MCP (no app)** — one session, one project:
@@ -142,7 +142,7 @@ set_filter_graph { graph, enabled: true }# a GraphSpec (no editor headless)
 open_tool { tool: "spectrum" }            # repeat; records SETUP.openTools
 compare_analysis { tool, with: "/abs/reference.heyl", summaryOnly: true }
                                           # stores the reference snapshot in the session
-save_project { path, openTools: [...], notes: [...], embedSource: true }
+save_project { path, openTools: [...], annotations: [...], embedSource: true }
                                           # creates parent dirs; writes COMPARE too
 get_state                                 # → openTools + savedComparisons + window/params
 ```
@@ -166,9 +166,9 @@ If the project already has a saved comparison and you only want to re-read it, u
 **CLI (shell, no window)**:
 
 ```bash
-# Build a project with tabs, notes and a window:
+# Build a project with tabs, annotations and a window:
 hey-listen project out.heyl --source call.wav --open-tool noteMetrics \
-  --open-tool spectrogram --notes notes.json --start 1.2 --end 3.4
+  --open-tool spectrogram --annotations annotations.json --start 1.2 --end 3.4
 
 # Compare two project files and write the owner with the snapshot:
 hey-listen compare a.heyl b.heyl -t spectrum --save a-with-comparison.heyl \
@@ -234,10 +234,11 @@ noteMetrics  # gate + hysteresis + min note/gap; spans, levels, f0, voice qualit
   `spectralFlatness` for noisiness.
 - `onsets` and `spectralFlux` are **ungated** — a cross-check, not a segmenter.
 - `loudnessMomentary` is a 400 ms EBU R128 block; it smears short calls.
-- Set `minF0Hz`/`maxF0Hz` per corpus. The defaults (60–1200 Hz pitch, 50–2000 `noteMetrics`)
-  are speech/music ranges — a 75 Hz penguin or ~3 kHz swift needs an explicit range.
+- Set `minF0Hz`/`maxF0Hz` per corpus. The defaults are per tool (YIN 50–2000,
+  autocorrelation 60–1200, harmonic ratio 50–4000, `noteMetrics` 50–2000) — a 75 Hz
+  penguin or ~3 kHz swift needs an explicit range.
 
-`list_notes` returns compact summaries by default; pass `full: true` (or `get_note`) for
+`list_annotations` returns compact summaries by default; pass `full: true` (or `get_annotation`) for
 the full markdown body and frozen values snapshot.
 
 ## Batch CLI
@@ -253,7 +254,7 @@ Commands:
   analyzers [ID] [--json]   catalog, or one analyzer's options + summary keys
   analyze                   decode file(s) and run analyzer(s) over them
   synth                     render a synth graph, then (optionally) analyze it
-  notes                     list or edit notes in a project file (.heyl)
+  annotations               list or edit annotations in a project file (.heyl)
   compare A.heyl B.heyl     diff one analyzer across two saved projects (--save writes it)
   project OUT.heyl          build a project from a source + setup + tabs, no window
 
@@ -315,28 +316,28 @@ Build a project file with no window — the CLI face of the headless
 | `--source <AUDIO>` / `--synth <GRAPH.json>` | The source (exactly one). `--seconds` sets a synth's length (default 5). |
 | `--name <NAME>` | Display name (default: the output file stem). |
 | `--open-tool <ID>` | Analyzer tab to restore (repeatable). |
-| `--notes <FILE.json>` | Annotations: a JSON array of note objects (`title`, `body`, `timeSecs`, optional `range`/`tool`). |
+| `--annotations <FILE.json>` | Annotations: a JSON array of annotation objects (`title`, `body`, `timeSecs`, optional `range`/`tool`). |
 | `--start` / `--end` | Analysis window (default 0 … full duration). |
 | `-p` / `-o` / `--filter` | Shared params, per-tool options (`-o mfcc.nMfcc=13`), and a filter `GraphSpec` saved into the project. |
 | `--reference` | Keep only the file `SOURCE` path (no embedded audio). |
 
-One JSON line: `{ path, name, embedded, notes, openTools }`; parent folders are created.
+One JSON line: `{ path, name, embedded, annotations, openTools }`; parent folders are created.
 
-### `notes <FILE.heyl>`
+### `annotations <FILE.heyl>`
 
 List or edit a project's annotations, no window: `--json` / `--full` list, `--get <ID>`,
-`--add <FILE.json>` (an array of note objects), `--update <ID> --set FIELD=VALUE`
+`--add <FILE.json>` (an array of annotation objects), `--update <ID> --set FIELD=VALUE`
 (`title`, `body`, `timeSecs`/`time`/`at`, `range=start,end` or `none`, `tool=id` or
 `none`), `--delete <ID>`. Mutations rewrite the project atomically; `--to <COPY.heyl>`
-edits a copy. An open app does not watch the file — reload after editing. (The MCP note
-tools operate on the live project and stay app-only; headless, pass `notes` to
+edits a copy. An open app does not watch the file — reload after editing. (The MCP annotation
+tools operate on the live project and stay app-only; headless, pass `annotations` to
 `save_project` when building, or use this CLI.)
 
 ```bash
-hey-listen notes mix.heyl --add notes.json
-hey-listen notes mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
-hey-listen notes mix.heyl --get n1
-hey-listen notes mix.heyl --delete n1
+hey-listen annotations mix.heyl --add annotations.json
+hey-listen annotations mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
+hey-listen annotations mix.heyl --get n1
+hey-listen annotations mix.heyl --delete n1
 ```
 
 ### Output, exit codes, examples
@@ -378,7 +379,7 @@ hey-listen compare before.heyl after.heyl -t spectrum --summary
 
 Bridged MCP is needed for **visual** work: Workbench tabs that render, editor-layout graph
 editing (`get_graph` / `set_synth_graph`), live preview/capture, annotations
-(`create_note` & co.), chart-image export, and a live two-window comparison. Everything
+(`create_annotation` & co.), chart-image export, and a live two-window comparison. Everything
 else is scriptable without a window: sources, analysis, filters, project files **with
 their tabs and comparisons** (`save_project` + `open_tool`, or CLI `project`), and
 headless comparisons against a project file (`compare_analysis { with: path }`, or CLI

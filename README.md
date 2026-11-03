@@ -15,7 +15,7 @@ An audio analysis workbench: capture, filter, and analyze sound from files, live
   project = one source.
 - **Filter.** A Filter graph runs upstream of playback *and* every analyzer; a
   Synth tab renders fundsp synthesis into the timeline.
-- **Analyze.** ~27 analyzers, computed off the main thread so the UI stays live:
+- **Analyze.** Every analyzer in `AnalyzerId`, computed off the main thread so the UI stays live:
   waveform, levels, and the frame-RMS amplitude envelope; spectrum, spectrogram, mel
   spectrogram, MFCC, chromagram, and the spectral descriptors; pitch (pYIN / YIN /
   autocorrelation); tempo, onsets, and downbeats; and EBU R128 loudness. Shared params
@@ -32,9 +32,9 @@ over files with no window, printing one JSON object per file/tool.
 
 ## For developers
 
-The one rule worth reading first: **Timeline, Sidebar, Workbench, and Source are
-fixed regions, not tabs.** The only tabs are the Workbench tabs — the graph
-editors (filter / synth) and the analyzer tools — and they live inside the
+The one rule worth reading first: **Timeline, Sidebar, Workbench, Source, and
+Annotations are fixed regions, not tabs.** The only tabs are the Workbench tabs —
+the graph editors (filter / synth) and the analyzer tools — and they live inside the
 Workbench, managed by `dockview`.
 
 Two processes, one boundary: a Rust core (all audio I/O, decode, analysis, the

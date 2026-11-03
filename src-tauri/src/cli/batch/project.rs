@@ -2,7 +2,7 @@
 //!
 //! This is the CLI face of the headless MCP `open_audio_file` / `render_synth` →
 //! `set_*` → `open_tool` → `save_project` sequence: it drives the same session, so a
-//! project written here opens in the app with the same source, setup, filter, notes
+//! project written here opens in the app with the same source, setup, filter, annotations
 //! and Workbench tabs. Nothing is analyzed unless asked for separately.
 
 use std::io::Write;
@@ -27,7 +27,7 @@ pub(super) fn run_project_save(
         synth,
         name,
         open_tools,
-        notes,
+        annotations,
         reference,
     } = &request.command
     else {
@@ -66,7 +66,7 @@ pub(super) fn run_project_save(
             "path": path,
             "name": name,
             "openTools": open_tools,
-            "notes": Value::Array(notes.clone()),
+            "annotations": Value::Array(annotations.clone()),
             "embedSource": !reference,
         }),
     ) {

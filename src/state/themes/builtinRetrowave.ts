@@ -95,7 +95,7 @@ export const BUILTIN_RETROWAVE_NEON: ThemeFile = {
     ruler: "#160b26",
     rulerTick: "#4a2a6e",
     playhead: "#ff4fd8",
-    note: "#c084fc",
+    annotation: "#c084fc",
     markerBeat: "rgba(143, 168, 255, 0.75)",
     filtered: "#ffb454",
     handleFill: "rgba(255, 79, 216, 0.6)",

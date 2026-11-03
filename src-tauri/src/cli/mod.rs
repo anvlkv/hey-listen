@@ -84,7 +84,7 @@ pub fn parse<R: Runtime>(app: &AppHandle<R>) -> Entry {
 }
 
 /// Whether the process was launched as a **non-GUI** entry: `--mcp` / `--headless` or
-/// a batch subcommand (`analyzers` / `analyze` / `synth` / `notes`).
+/// a batch subcommand (`analyzers` / `analyze` / `synth` / `annotations`).
 ///
 /// Used before the Tauri builder is assembled to skip GUI-only plugins (the WebDriver
 /// server binds a port and logs a preamble; that must not reach the CLI's stdout).

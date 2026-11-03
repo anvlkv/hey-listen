@@ -10,7 +10,7 @@ use crate::audio::analysis;
 use crate::audio::analyzers::{self, AnalyzerId};
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
-use crate::state::SourcePcm;
+use crate::state::SourceData;
 
 use super::args::{self, analyzer, tool_id};
 use super::HeadlessSession;
@@ -180,7 +180,7 @@ impl HeadlessSession {
 
         let channels = summary.channels.max(1);
         let rate = summary.sample_rate.max(1);
-        self.state.audio.set_source(Some(SourcePcm {
+        self.state.audio.set_source(Some(SourceData {
             samples,
             sample_rate: rate,
             channels,
@@ -224,7 +224,7 @@ impl HeadlessSession {
         let rate = 48_000u32;
         let pcm = graph::render_mono(&spec, seconds, rate).map_err(|err| err.to_string())?;
 
-        self.state.audio.set_source(Some(SourcePcm {
+        self.state.audio.set_source(Some(SourceData {
             samples: pcm,
             sample_rate: rate,
             channels: 1,

@@ -90,7 +90,7 @@ export const BUILTIN_NORD: ThemeFile = {
     ruler: "#292e39",
     rulerTick: "#4c566a",
     playhead: "#ebcb8b",
-    note: "#b48ead",
+    annotation: "#b48ead",
     filtered: "#d08770",
     handleFill: "rgba(136, 192, 208, 0.6)",
   },

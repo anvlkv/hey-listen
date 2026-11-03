@@ -1,7 +1,7 @@
 import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
-import type { Note } from "../../bindings/Note";
+import type { Annotation } from "../../bindings/Annotation";
 import { isAnalyzerId } from "../analyzer";
-import { noteById } from "../notes";
+import { annotationById } from "../annotations";
 import { themeById } from "../themes";
 import type { ToolId } from "../workbench";
 
@@ -83,14 +83,14 @@ export function toolId(id: string): ToolId {
   return id as ToolId;
 }
 
-/** One note by id, or a thrown error (the MCP tools fail loudly on a bad id). */
-export function requireNote(id: string): Note {
-  const note = noteById(id);
-  if (!note) throw new Error(`unknown note: ${id}`);
-  return note;
+/** One annotation by id, or a thrown error (the MCP tools fail loudly on a bad id). */
+export function requireAnnotation(id: string): Annotation {
+  const annotation = annotationById(id);
+  if (!annotation) throw new Error(`unknown annotation: ${id}`);
+  return annotation;
 }
 
-/** Read a note range argument (`{ startSecs, endSecs }`) or `null`. */
+/** Read an annotation range argument (`{ startSecs, endSecs }`) or `null`. */
 export function rangeArg(value: unknown): AnalysisWindow | null {
   if (value == null) return null;
   const object = asArgs(value);

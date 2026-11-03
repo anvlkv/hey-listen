@@ -24,8 +24,8 @@ const SHARED_PARAM_KEYS: [&str; 8] = [
     "freqMaxHz",
 ];
 
-/// Read an annotations JSON file (an array of note objects) for `project --notes`.
-pub(super) fn read_notes(path: &str) -> Result<Vec<Value>, String> {
+/// Read an annotations JSON file (an array of annotation objects) for `project --annotations`.
+pub(super) fn read_annotations(path: &str) -> Result<Vec<Value>, String> {
     let text = std::fs::read_to_string(path).map_err(|err| format!("cannot read {path}: {err}"))?;
     let value: Value = serde_json::from_str(&text).map_err(|err| format!("{path}: {err}"))?;
     match value {

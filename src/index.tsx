@@ -28,7 +28,7 @@ void attachConsole();
 
 void start();
 
-/** Render this window: a popout shows a single tool or note, a project window the app. */
+/** Render this window: a popout shows a single tool or annotation, a project window the app. */
 async function start(): Promise<void> {
   const root = document.getElementById("root");
   if (!root) {
@@ -43,7 +43,7 @@ async function start(): Promise<void> {
         target ? (
           <PopoutApp
             toolId={target.kind === "tool" ? target.id : undefined}
-            noteId={target.kind === "note" ? target.id : undefined}
+            annotationId={target.kind === "annotation" ? target.id : undefined}
             compare={target.kind === "compare" ? target.view : undefined}
           />
         ) : (
@@ -56,14 +56,14 @@ async function start(): Promise<void> {
   }
 }
 
-/** What this window pops out: a Workbench **tool**, a **note**, or a **comparison**. */
+/** What this window pops out: a Workbench **tool**, a **annotation**, or a **comparison**. */
 type PopoutTarget =
   | { kind: "tool"; id: string }
-  | { kind: "note"; id: string }
+  | { kind: "annotation"; id: string }
   | { kind: "compare"; view: CompareViewDto };
 
 /**
- * The tool, note or comparison this window pops out, or `null` for a regular project
+ * The tool, annotation or comparison this window pops out, or `null` for a regular project
  * window.
  *
  * Rust registers which kind a popout is (ADR-11), so the window asks for all three and
@@ -76,13 +76,13 @@ type PopoutTarget =
 async function popoutTarget(): Promise<PopoutTarget | null> {
   const query = Promise.all([
     invoke<string | null>("popout_tool"),
-    invoke<string | null>("popout_note"),
+    invoke<string | null>("popout_annotation"),
     invoke<CompareViewDto | null>("popout_compare"),
   ])
-    .then(([tool, note, compare]): PopoutTarget | null => {
+    .then(([tool, annotation, compare]): PopoutTarget | null => {
       if (compare != null) return { kind: "compare", view: compare };
       if (tool != null) return { kind: "tool", id: tool };
-      if (note != null) return { kind: "note", id: note };
+      if (annotation != null) return { kind: "annotation", id: annotation };
       return null;
     })
     .catch((err) => {

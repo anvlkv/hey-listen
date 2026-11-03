@@ -35,7 +35,7 @@ pub enum BatchCommand {
     Analyzers,
     Analyze,
     Synth,
-    Notes,
+    Annotations,
     Compare,
     Project,
 }
@@ -54,13 +54,13 @@ pub enum Command {
         /// The graph file path (used as the `file` label in the output).
         path: String,
     },
-    /// `notes <FILE.heyl>` — list, add, get, update or delete a saved project's notes.
-    Notes {
+    /// `annotations <FILE.heyl>` — list, add, get, update or delete a saved project's annotations.
+    Annotations {
         path: String,
         json: bool,
         full: bool,
-        /// What to do with the notes (list by default).
-        op: NotesOp,
+        /// What to do with the annotations (list by default).
+        op: AnnotationsOp,
         /// For a mutation, write to this copy instead of in place.
         to: Option<String>,
     },
@@ -85,27 +85,27 @@ pub enum Command {
         /// The analyzer tabs to restore (`SETUP.openTools`).
         open_tools: Vec<ToolId>,
         /// Annotations to write (the same objects MCP's `save_project` takes).
-        notes: Vec<Value>,
+        annotations: Vec<Value>,
         /// Write a reference project (no embedded audio) for a file source.
         reference: bool,
     },
 }
 
-/// What a `notes` invocation does (exactly one operation, or a plain listing).
+/// What an `annotations` invocation does (exactly one operation, or a plain listing).
 #[derive(Debug, Clone)]
-pub enum NotesOp {
-    /// List every note, sorted by time.
+pub enum AnnotationsOp {
+    /// List every annotation, sorted by time.
     List,
-    /// Append the notes in this JSON array file.
+    /// Append the annotations in this JSON array file.
     Add { file: String },
-    /// Print one note by id (the full body and frozen values).
+    /// Print one annotation by id (the full body and frozen values).
     Get { id: String },
-    /// Patch one note; `patch` is the parsed `--set K=V` list.
+    /// Patch one annotation; `patch` is the parsed `--set K=V` list.
     Update {
         id: String,
         patch: Vec<(String, Value)>,
     },
-    /// Remove one note by id.
+    /// Remove one annotation by id.
     Delete { id: String },
 }
 

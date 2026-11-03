@@ -5,7 +5,7 @@ use tauri::WebviewWindow;
 
 use crate::audio::decode::{self, DecodeError, ProbeInfo, StreamSummary};
 use crate::commands::stream;
-use crate::state::{window_state, SourcePcm};
+use crate::state::{window_state, SourceData};
 
 /// Inspect a file's container/codec metadata (codec, sample rate, channels,
 /// duration) without decoding it.
@@ -47,7 +47,7 @@ pub async fn stream_file(
     .await
     .map_err(|err| DecodeError::Decode(err.to_string()))??;
 
-    window_state(&window).audio.set_source(Some(SourcePcm {
+    window_state(&window).audio.set_source(Some(SourceData {
         samples,
         sample_rate: summary.sample_rate,
         channels: summary.channels,

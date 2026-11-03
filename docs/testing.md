@@ -24,11 +24,9 @@ The suite runs against the **release** binary (`npm run tauri build`);
 Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
 `wdio`/`wdio-webdriver` capabilities, `withGlobalTauri`, the `@wdio/tauri-plugin`
 import, `wdio.conf.ts`, `e2e/{.fixtures,support,specs,artifacts}`, the `npm run test:e2e` and
-`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: 17 spec files —
-A shell (3), B sources (4), C graphs (8), D analyzers (27), E correctness (5), F
-cross-cutting (6), G timeline (5), H open-audio (1), I errors (6), J project + popout (2),
-K MCP (5), L MCP UI (5), M themes (4), N notes (4), O cross-window cursor (1),
-P notes interactions (4), Q preview transport (6).
+`npm run typecheck:e2e` scripts, and the `e2e` CI job. Coverage: one spec file per section
+below (`e2e/specs/`, A shell → T close-main), including the parametrized **D** matrix over
+every id in `AnalyzerId` — the sections are the list; do not restate their counts here.
 
 **IPC mocking.** `browser.tauri.mock()` cannot intercept this app's calls: the
 plugin patches `window.__TAURI__.core.invoke`, but Tauri injects
@@ -193,11 +191,13 @@ whole workflow), **Manual** (documented steps, run by a human, not in CI).
 
 ### D. Analyzer tools — every tool
 
-One parametrized smoke test iterates over all 28 tool ids and, for each: opens the
-tab from the Sidebar, waits for the result view to render non-empty, opens the
-**about** and **params** popovers, re-clicks to confirm **no duplicate tab**, then
-closes. This is what "cover every tool" means — a single, data-driven test, not 27
-copies. The ids and view kinds come from `src/state/analyzer/`:
+One parametrized smoke test iterates over **every id in `AnalyzerId`** and, for each:
+opens the tab from the Sidebar, waits for the result view to render non-empty, opens
+the **about** and **params** popovers, re-clicks to confirm **no duplicate tab**, then
+closes. This is what "cover every tool" means — a single, data-driven test, not one
+copy per tool. The matrix lives in `e2e/support/tools.ts` and mirrors
+`AnalyzerView["kind"]` in `src/state/analyzer/types.ts` (the renderer's vocabulary,
+not the Rust `Family` or the Sidebar `Section`):
 
 | Tool | id | View | Smoke asserts |
 | --- | --- | --- | --- |
@@ -219,13 +219,14 @@ copies. The ids and view kinds come from `src/state/analyzer/`:
 | Spectral crest factor | `spectralCrest` | series | series line rendered |
 | Harmonic ratio | `harmonicRatio` | series | series line rendered |
 | Zero-crossing rate | `zeroCrossingRate` | series | series line rendered |
+| AM/FM modulation | `modulation` | modulation | AM/FM spectra rendered |
 | Pitch (pYIN) | `pitchPyin` | series | pitch track rendered |
 | Pitch (YIN) | `pitchYin` | series | pitch track rendered |
 | Pitch (autocorr) | `pitchAutocorr` | series | pitch track rendered |
 | Note segments | `noteMetrics` | noteMetrics | summary cards + per-note table rows |
-| Tempo | `tempo` | readouts | BPM + confidence readouts |
-| Onsets | `onsets` | events | onset markers rendered |
-| Downbeats | `downbeats` | events | downbeat markers rendered |
+| Tempo | `tempo` | rhythm | envelope + beat markers rendered |
+| Onsets | `onsets` | rhythm | onset markers rendered |
+| Downbeats | `downbeats` | rhythm | downbeat markers rendered |
 | Integrated LUFS | `loudnessIntegrated` | readouts | LUFS readout present |
 | Loudness (momentary) | `loudnessMomentary` | series | loudness series rendered |
 | Loudness range | `loudnessRange` | readouts | LRA readout present |
@@ -375,7 +376,7 @@ project, discard it, load it back and confirm the annotation survives, then dele
 | --- | --- | --- | --- |
 | N1 | Add from the rail | The rail opens from the Toolbar; `Add` creates a row whose frozen values line contains `peak` (from the focused spectrum chart); the count reads `1` | Scenario |
 | N2 | Persistence | The annotation survives `save_project` → `new_project` → `load_project` | Scenario |
-| N3 | Own window | The row's popout action opens a `note-*` Tauri window showing just that annotation's editor; saving there commits and closes it, and the rail shows the new heading | Scenario |
+| N3 | Own window | The row's popout action opens an `annotation-*` Tauri window showing just that annotation's editor; saving there commits and closes it, and the rail shows the new heading | Scenario |
 | N4 | Delete | The row's delete button removes the annotation (the empty state returns) | Scenario |
 
 ### O. Cross-window cursor sync (M14 follow-up)
@@ -405,23 +406,23 @@ covered.
 > toggles exactly once and repaints the chart) is an extra case in `d-analyzers.spec.ts`,
 > and `scripts/previewSpeed.test.ts` unit-checks the varispeed slider's log scale.
 
-### P. Notes — the interaction model (M14 follow-up)
+### P. Annotations — the interaction model (M14 follow-up)
 
-What the flow spec (`n-notes`) leaves out: what creating, selecting and analyzing a note
+What the flow spec (`n-annotations`) leaves out: what creating, selecting and analyzing an annotation
 do to the analysis window, closing the rail, the Timeline lane gesture, and the **matrix**
-tools where note creation used to throw.
+tools where annotation creation used to throw.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | P1 | Create / select ≠ reframe | `Add` opens the editor (keeping the frozen values line) and neither it nor selecting the row moves the analysis window | Scenario |
 | P2 | Analyze reframes | The row's `Analyze` is the only action that moves the window onto the annotation (a range becomes it) | Scenario |
-| P3 | Closing the rail | Closing unfocuses the annotation and the Toolbar button carries the count | Scenario |
-| P4 | Matrix tools | A note is created on the mel spectrogram — the regression where a `MatrixResult` (which carries `times` *and* `bins`) was classified as a series and threw | Scenario |
+| P3 | Closing the rail | Closing clears the annotation's selection and the Toolbar button carries the count | Scenario |
+| P4 | Matrix tools | An annotation is created on the mel spectrogram — the regression where a `MatrixResult` (which carries `times` *and* `bins`) was classified as a series and threw | Scenario |
 
 ### Q. Preview transport (M14 follow-up)
 
 The Timeline's transport: the **varispeed** slider, the **playhead** a preview paints on
-the open charts, the **note-at-the-playhead** action, the Timeline scrollbar, and the
+the open charts, the **annotation-at-the-playhead** action, the Timeline scrollbar, and the
 looped region **following the analysis window** when it moves. Audio cannot be heard
 headlessly and WebKit suspends `requestAnimationFrame` (and throttles timers) for the
 window WebDriver drives, so the transport advances in coarse steps and the assertions are
@@ -429,22 +430,22 @@ what it *drives* — not frame-by-frame smoothness. The playhead cases stub
 `preview_region` through the IPC seam: the runners have no audio output device, so the
 real command rejects with `NoDevice` (which correctly stops the preview and surfaces in
 the toolbar's `toolbar.preview.error`, see I6), while the transport clock, the playhead
-and the note time are all frontend-side.
+and the annotation time are all frontend-side.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | Q1 | Speed scale | The slider is logarithmic with 1× at the centre (ten arrow steps read 1.15×, a linear track would read 1.10×) | Scenario |
 | Q2 | uPlot playhead | Starting the transport paints the rule on a uPlot chart's canvas and stopping erases it (the idle state is captured once the canvas settles) | Scenario |
-| Q3 | Note at the playhead | With the window moved off the source start, the transport's button drops a note at the transport's position | Scenario |
+| Q3 | Annotation at the playhead | With the window moved off the source start, the transport's button drops an annotation at the transport's position | Scenario |
 | Q4 | Timeline scrollbar | Zooming the Timeline view reveals a scroll thumb | Smoke |
 | Q5 | Heatmap playhead | The same rule appears on a canvas heatmap (the other painter path), and the settled idle signature returns once the transport stops | Scenario |
 | Q6 | Preview follows the window | Moving the whole window while previewing reloads `preview_region` **once** at the settle, with the *new* window (not the stale region, and not per pointer move) | Scenario |
 
-> **Unit + store coverage (not wdio):** the pure note helpers (clamping, labels,
-> excerpts, the window-frame lookup `noteFrameAt`, and the snapshot comparison) are
-> checked by `npm run test:unit` (`scripts/notes.test.ts`), and the `NOTES` section is
-> round-trip tested by `cargo test` (the `project` module — a point note with values
-> and a range note) and the batch CLI's `notes` subcommand (`cli::batch`). The engine's
+> **Unit + store coverage (not wdio):** the pure annotation helpers (clamping, labels,
+> excerpts, the window-frame lookup `annotationFrameAt`, and the snapshot comparison) are
+> checked by `npm run test:unit` (`scripts/annotations.test.ts`), and the `ANNOTATIONS` section is
+> round-trip tested by `cargo test` (the `project` module — a point annotation with values
+> and a range annotation) and the batch CLI's `annotations` subcommand (`cli::batch`). The engine's
 > source-second re-basing is asserted by `cargo test`
 > (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`), and the
 > Timeline scrollbar's clamping / thumb geometry by
@@ -590,7 +591,7 @@ stay the last suite file (closing `main` cannot be undone).
 ## Running
 
 ```sh
-npm run test:unit             # pure-helper unit checks (analyzer options, themes, notes, comparison ids/layout; no app needed)
+npm run test:unit             # pure-helper unit checks (analyzer options, themes, annotations, comparison ids/layout; no app needed)
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)
@@ -650,14 +651,14 @@ npm run dev      # then open http://localhost:1420/preview.html
 `npm run screenshots` (`screenshots.wdio.conf.ts` → `e2e/screenshots/capture.spec.ts`)
 drives the **release** binary through the same embedded WebDriver `test:e2e` uses and
 writes the marketing page's PNGs into `site/assets/`: `hero.png` (the whole window — the
-Workbench grid with the notes rail open), `pitch.png` (the Pitch (autocorrelation)
+Workbench grid with the annotations rail open), `pitch.png` (the Pitch (autocorrelation)
 popout window), and the `spectrum.png` / `tempo.png` / `filter.png` details. It lives
 outside `e2e/specs/` on purpose, so CI never runs it: it is a manual, GUI-only task (it
 launches a window and plays a moment of audio).
 
 The shots come from a **project file**, not a scripted sequence of calls: the spec opens
 `PROJECT` — a `.heyl` that carries the source audio (the PCM is embedded), the Workbench
-**grid**, the band-pass filter, the analysis window and the notes — and captures what it
+**grid**, the band-pass filter, the analysis window and the annotations — and captures what it
 restores. That file is deliberately *not* in the repo, so a fresh clone has to point
 `PROJECT` at its own project to recapture. Two things bite here:
 

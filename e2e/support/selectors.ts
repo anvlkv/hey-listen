@@ -19,7 +19,7 @@ export const SEL = {
   popout: '[data-testid="region.popout"]',
   splitterTimeline: '[data-testid="splitter.timeline"]',
   splitterSidebar: '[data-testid="splitter.sidebar"]',
-  splitterNotes: '[data-testid="splitter.notes"]',
+  splitterAnnotations: '[data-testid="splitter.annotations"]',
 
   // Sidebar.
   sidebarSearch: '[data-testid="sidebar.search"]',
@@ -39,18 +39,18 @@ export const SEL = {
   aboutDialog: '[data-testid="about.dialog"]',
   outputGain: '[data-testid="toolbar.output.gain"]',
   outputMeter: '[data-testid="toolbar.output.meter"]',
-  toolbarNotes: '[data-testid="toolbar.notes"]',
-  // The note count inside the Toolbar button, shown while the rail is closed.
-  toolbarNotesCount: '[data-testid="toolbar.notes.count"]',
+  toolbarAnnotations: '[data-testid="toolbar.annotations"]',
+  // The annotation count inside the Toolbar button, shown while the rail is closed.
+  toolbarAnnotationsCount: '[data-testid="toolbar.annotations.count"]',
 
-  // Notes panel (M14).
-  notesRegion: '[data-testid="region.notes"]',
-  notesAdd: '[data-testid="notes.add"]',
-  notesCollapse: '[data-testid="notes.collapse"]',
-  notesEmpty: '[data-testid="notes.empty"]',
-  notesRows: '[data-testid="notes.rows"]',
-  notesCount: '[data-testid="notes.count"]',
-  timelineNoteHint: '[data-testid="timeline.note.hint"]',
+  // Annotations panel (M14).
+  annotationsRegion: '[data-testid="region.annotations"]',
+  annotationsAdd: '[data-testid="annotations.add"]',
+  annotationsCollapse: '[data-testid="annotations.collapse"]',
+  annotationsEmpty: '[data-testid="annotations.empty"]',
+  annotationsRows: '[data-testid="annotations.rows"]',
+  annotationsCount: '[data-testid="annotations.count"]',
+  timelineAnnotationHint: '[data-testid="timeline.annotation.hint"]',
 
   // MCP popover.
   toolbarMcp: '[data-testid="toolbar.mcp"]',
@@ -74,8 +74,8 @@ export const SEL = {
   timelineCanvas: '[data-testid="timeline.canvas"]',
   timelineReplace: '[data-testid="timeline.replace"]',
   timelinePreview: '[data-testid="timeline.preview"]',
-  // The transport's note-at-the-playhead action (enabled only while previewing).
-  timelineNoteAtCursor: '[data-testid="timeline.noteAtCursor"]',
+  // The transport's annotation-at-the-playhead action (enabled only while previewing).
+  timelineAnnotationAtCursor: '[data-testid="timeline.annotationAtCursor"]',
   timelineScroll: '[data-testid="timeline.scroll"]',
   timelineScrollThumb: '[data-testid="timeline.scroll.thumb"]',
   // The channel select keeps its ARIA label (shared with the toolbar popover).
@@ -125,5 +125,5 @@ export const analyzerParams = (id: string) => `[data-testid="analyzer.params.${i
 /** An analyzer's "About" popover trigger. */
 export const analyzerAbout = (id: string) => `[data-testid="analyzer.about.${id}"]`;
 
-/** The first note row in the Notes panel (ids are uuid-based, so match the prefix). */
-export const firstNoteRow = '[data-testid^="note.row."]';
+/** The first annotation row in the Annotations panel (ids are uuid-based, so match the prefix). */
+export const firstAnnotationRow = '[data-testid^="annotation.row."]';

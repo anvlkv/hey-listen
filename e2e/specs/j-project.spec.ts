@@ -19,7 +19,7 @@ import {
   openTool,
   openFixture,
   mockReturn,
-  restoreMocks,
+  closeAllTabs,
   menuAction,
   waitForSourceLoaded,
   waitFor,
@@ -28,9 +28,9 @@ import {
   waitForAnalyzer,
   invokeCore,
   count,
-  closeAllTabs,
 } from "../support/helpers.ts";
 import { popOutTab } from "../support/popouts.ts";
+import { projectSessionHooks } from "../support/session.ts";
 import { closeCurrentWindow, closeWindowsMatching, windowLabels } from "../support/windows.ts";
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
@@ -50,28 +50,9 @@ async function revealSourcePanel(): Promise<void> {
 }
 
 describe("H. Project file & multi-window", () => {
-  before(async () => {
-    await waitForApp();
-    await closeAllTabs();
-    // Replacing a source / discarding unsaved work asks the core to confirm.
-    await mockReturn("confirm", true);
-  });
-
-  afterEach(async () => {
-    // A case may close the window it was driving (H3 closes its popout), which pins the
-    // session to a dead label; recover before touching the IPC seam.
-    await browser.tauri.switchWindow("main").catch(() => {});
-    await restoreMocks();
-    await mockReturn("confirm", true);
-  });
-
-  // Leave a single-window app behind: the specs that follow (K, L) assume the project
-  // window, and H2 pops a tab out into a real `popout-*` window. Close it here — the
-  // spec that opens a secondary window is the one that should close it.
-  after(async () => {
-    await closeWindowsMatching(/^popout-\d+$/);
-    await browser.tauri.switchWindow("main").catch(() => {});
-  });
+  // H2 pops a tab out into a real `popout-*` window; close it here so the specs that
+  // follow (K, L) start on a single project window.
+  projectSessionHooks(/^popout-\d+$/);
 
   it("H1 — a saved project reloads its source and setup", async () => {
     await openFixture("sine440");

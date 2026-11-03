@@ -23,7 +23,7 @@ use crate::audio::STREAM_CHUNK_SAMPLES;
 use crate::commands::source::AUDIO_EXTENSIONS;
 use crate::commands::{focused_label, stream};
 use crate::project::{
-    read_project, write_project, AnalysisSetup, Meta, Note, ProjectError, SaveProject,
+    read_project, write_project, AnalysisSetup, Annotation, Meta, ProjectError, SaveProject,
     SourceDescriptor, StoredResult,
 };
 use crate::state::window_state;
@@ -47,9 +47,9 @@ pub struct SaveProjectArgs {
     pub source: Option<SourceDescriptor>,
     pub setup: AnalysisSetup,
     pub layout: serde_json::Value,
-    /// The project's notes (M14).
+    /// The project's annotations (M14).
     #[serde(default)]
-    pub notes: Vec<Note>,
+    pub annotations: Vec<Annotation>,
     /// Embed the source PCM in `DATA` (default). `false` writes a **reference**
     /// project: the `SOURCE` descriptor keeps the file path and the loader decodes it
     /// again. Useful when many annotation projects would otherwise duplicate audio.
@@ -78,8 +78,8 @@ pub struct LoadedProjectDto {
     pub layout: serde_json::Value,
     /// Cached results (empty until result caching lands; readers tolerate this).
     pub results: Vec<StoredResult>,
-    /// The project's notes (empty when the file has no `NOTES` section).
-    pub notes: Vec<Note>,
+    /// The project's annotations (empty when the file has no `NOTES` section).
+    pub annotations: Vec<Annotation>,
     /// Saved comparisons (empty when the file has no `COMPARE` section).
     pub compare: Vec<SavedComparisonInfo>,
     pub sample_rate: u32,
@@ -117,7 +117,7 @@ pub async fn save_project(
             setup: project.setup,
             layout: project.layout,
             results: Vec::new(),
-            notes: project.notes,
+            annotations: project.annotations,
             compare,
             pcm: if reference { None } else { guard.as_ref() },
         };
@@ -166,7 +166,7 @@ pub async fn load_project(
         setup,
         layout,
         results,
-        notes,
+        annotations,
         compare,
         pcm,
         ..
@@ -210,7 +210,7 @@ pub async fn load_project(
         setup,
         layout,
         results,
-        notes,
+        annotations,
         compare: compare_infos,
         sample_rate,
         channels,

@@ -3,7 +3,7 @@
 //! The binary format is Rust-owned ([`crate::project`]), so the headless session can
 //! write a real `.heyl` without a webview. It fills `META`/`SETUP` from the session
 //! (source, shared params, per-tool options, window/view, filter) and accepts the
-//! annotations (`notes`) the caller supplies. `LAYOUT` is empty: there is no
+//! annotations (`annotations`) the caller supplies. `LAYOUT` is empty: there is no
 //! Workbench in headless mode, so there is nothing to restore.
 //!
 //! `embedSource: false` writes a **reference** project: the `SOURCE` descriptor keeps
@@ -21,7 +21,7 @@ use serde_json::{json, Map, Value};
 use crate::audio::analysis::{canonical_option_key, ToolOptions};
 use crate::audio::analyzers::ToolId;
 use crate::project::{
-    read_project, write_project, AnalysisSetup, AnalysisWindow, Note, SaveProject,
+    read_project, write_project, AnalysisSetup, AnalysisWindow, Annotation, SaveProject,
     SourceDescriptor, SourceKind,
 };
 
@@ -31,7 +31,7 @@ use super::HeadlessSession;
 impl HeadlessSession {
     /// Write the session's current project to `path`.
     ///
-    /// Arguments: `path` (required), `name`, `notes` (an array of `Note` objects;
+    /// Arguments: `path` (required), `name`, `annotations` (an array of `Annotation` objects;
     /// `id`/`createdMs`/`updatedMs` default harmlessly), `openTools` (tool ids to
     /// restore when the app opens the file), and `embedSource` (default `true`).
     pub(super) fn save_project(&mut self, args: &Value) -> Result<Value, String> {
@@ -52,7 +52,8 @@ impl HeadlessSession {
                     .map(str::to_string)
             })
             .unwrap_or_else(|| "Untitled project".to_string());
-        let notes: Vec<Note> = crate::project::notes::parse_notes(args.get("notes"), now)?;
+        let annotations: Vec<Annotation> =
+            crate::project::annotations::parse_annotations(args.get("annotations"), now)?;
         let open_tools = args
             .get("openTools")
             .and_then(Value::as_array)
@@ -74,7 +75,7 @@ impl HeadlessSession {
         let setup = self.analysis_setup(open_tools.clone());
         self.open_tools = open_tools;
         let source = self.source_descriptor();
-        let notes_len = notes.len();
+        let annotations_len = annotations.len();
 
         {
             let guard = self
@@ -91,7 +92,7 @@ impl HeadlessSession {
                 // No Workbench in headless mode; leave the layout empty.
                 layout: json!({ "dockview": Value::Null, "graphs": {}, "popouts": [] }),
                 results: Vec::new(),
-                notes,
+                annotations,
                 compare: self.state.saved_comparisons(),
                 pcm: if reference { None } else { guard.as_ref() },
             };
@@ -116,7 +117,7 @@ impl HeadlessSession {
             "path": path,
             "name": name,
             "embedded": !reference,
-            "notes": notes_len,
+            "annotations": annotations_len,
         }))
     }
 

@@ -1,7 +1,7 @@
 import type { SerializedDockview } from "dockview";
 import { sanitizeLayout } from "../src/lib/dockviewLayout";
 import {
-  compareFamily,
+  compareViewFamily,
   comparePanelId,
   isCompareId,
   parseCompareTool,
@@ -47,15 +47,15 @@ check("a non-compare or unknown tool id is not a compare panel", () => {
 });
 
 check("the family gate maps every chart kind to a compare family", () => {
-  assertEqual(compareFamily("spectralCentroid"), "series");
-  assertEqual(compareFamily("spectrum"), "spectrum");
-  assertEqual(compareFamily("levels"), "scalar");
-  assertEqual(compareFamily("mfcc"), "matrix");
-  assertEqual(compareFamily("spectrogram"), "spectrogram");
-  assertEqual(compareFamily("onsets"), "events");
-  assertEqual(compareFamily("noteMetrics"), "notes");
-  assertEqual(compareFamily("modulation"), "modulation");
-  assertEqual(compareFamily("waveform"), "waveform");
+  assertEqual(compareViewFamily("spectralCentroid"), "series");
+  assertEqual(compareViewFamily("spectrum"), "spectrum");
+  assertEqual(compareViewFamily("levels"), "scalar");
+  assertEqual(compareViewFamily("mfcc"), "matrix");
+  assertEqual(compareViewFamily("spectrogram"), "spectrogram");
+  assertEqual(compareViewFamily("onsets"), "events");
+  assertEqual(compareViewFamily("noteMetrics"), "notes");
+  assertEqual(compareViewFamily("modulation"), "modulation");
+  assertEqual(compareViewFamily("waveform"), "waveform");
 });
 
 /** A serialized layout with one group (or a caller-built grid), cast for the sanitiser. */

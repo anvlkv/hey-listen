@@ -30,10 +30,12 @@ export function isCompareId(panelId: string): boolean {
 }
 
 /**
- * A comparison's chart family. It mirrors the Rust `Family` where the view cares
- * (the core computes the delta for every family, so MCP/CLI compare any tool).
+ * A comparison's **display** family: the Rust result `Family` plus the two view-only
+ * splits (`modulation`, `waveform`), with `scalar` for the readouts. Derived from
+ * `AnalyzerView["kind"]`; the core computes the delta for every `Family`, so MCP/CLI
+ * compare any tool. Do not confuse it with `Family` (the wire shape).
  */
-export type CompareFamily =
+export type CompareViewFamily =
   | "series"
   | "spectrum"
   | "spectrogram"
@@ -44,8 +46,8 @@ export type CompareFamily =
   | "waveform"
   | "scalar";
 
-/** The family of a tool's result, derived from its chart view descriptor. */
-export function compareFamily(tool: AnalyzerId): CompareFamily {
+/** The display family of a tool's result, derived from its chart view descriptor. */
+export function compareViewFamily(tool: AnalyzerId): CompareViewFamily {
   switch (analyzerById(tool).view.kind) {
     case "series":
       return "series";

@@ -13,6 +13,49 @@
 //! The catalog data lives in [`catalog`]; the option metadata (split out to keep the
 //! files small) in [`options`]; the `list_analyzers` payload lives here.
 
+/// Derive a typed id enum (`Section`, `Family`, `AnalyzerId`, `ToolId`).
+///
+/// The derive list and its camelCase wire spelling live here once instead of being
+/// cloned into each enum. Two leading slots tune it: the extra derives (a **catalog**
+/// id derives `serde`; a **wire** id hand-writes it so `postcard` stores the string —
+/// see `wire_id!` in [`id`]) and any attribute that must accompany them.
+macro_rules! id_enum {
+    (
+        [$($extra_derive:path),*]
+        [$($extra_attr:meta),*]
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($(#[$variant_meta:meta])* $variant:ident),* $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(
+            Debug,
+            Clone,
+            Copy,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Hash,
+            $($extra_derive,)*
+            strum::EnumString,
+            strum::Display,
+            strum::AsRefStr,
+            strum::IntoStaticStr,
+            strum::EnumIter,
+            strum::VariantNames,
+            ts_rs::TS,
+        )]
+        $(#[$extra_attr])*
+        #[strum(serialize_all = "camelCase")]
+        #[ts(export, rename_all = "camelCase")]
+        $vis enum $name {
+            $($(#[$variant_meta])* $variant),*
+        }
+    };
+}
+
 mod catalog;
 mod family;
 mod id;
@@ -26,32 +69,17 @@ use serde_json::{json, Map, Value};
 
 use crate::audio::analysis::ToolOptions;
 
-/// The Sidebar grouping of an analyzer (mirrors `AnalyzerSection` in the frontend).
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::EnumString,
-    strum::Display,
-    strum::AsRefStr,
-    strum::IntoStaticStr,
-    strum::EnumIter,
-    strum::VariantNames,
-    ts_rs::TS,
-)]
-#[serde(rename_all = "camelCase")]
-#[strum(serialize_all = "camelCase")]
-#[ts(export, rename_all = "camelCase")]
-pub enum Section {
-    Time,
-    Spectral,
-    Pitch,
-    Rhythm,
-    Loudness,
+id_enum! {
+    [serde::Serialize, serde::Deserialize]
+    [serde(rename_all = "camelCase")]
+    /// The Sidebar grouping of an analyzer (mirrors `AnalyzerSection` in the frontend).
+    pub enum Section {
+        Time,
+        Spectral,
+        Pitch,
+        Rhythm,
+        Loudness,
+    }
 }
 
 /// One analyzer's agent-facing metadata (mirrors `AnalyzerDef` in the frontend,

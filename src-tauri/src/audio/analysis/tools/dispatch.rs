@@ -28,6 +28,32 @@ fn gated_series(
     result.gate = apply_gate(&mut result, mono, frame, hop, options);
     result
 }
+/// Build a rhythm result on the shared onset-strength grid.
+#[allow(clippy::too_many_arguments)]
+fn rhythm_result(
+    bpm: f32,
+    confidence: f32,
+    onset_strength: Vec<f32>,
+    env_hop: usize,
+    sample_rate: u32,
+    onset_times: Vec<f32>,
+    beat_times: Vec<f32>,
+    downbeat_times: Vec<f32>,
+) -> RhythmResult {
+    RhythmResult {
+        bpm,
+        confidence,
+        hop_size: env_hop,
+        times: frame_times(onset_strength.len(), env_hop, sample_rate),
+        // Filled in by `run_window` — the tool only sees the sliced region.
+        window_start: 0.0,
+        onset_strength,
+        onset_times,
+        beat_times,
+        downbeat_times,
+    }
+}
+
 pub fn run(
     tool: AnalyzerId,
     mono: &[f32],
@@ -211,34 +237,30 @@ pub fn run(
         AnalyzerId::Tempo => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
-            Ok(AnalysisResult::Tempo(RhythmResult {
-                bpm: est.bpm,
-                confidence: est.confidence,
-                hop_size: env_hop,
-                times: frame_times(onset_strength.len(), env_hop, sample_rate),
-                // Filled in by `run_window` — the tool only sees the sliced region.
-                window_start: 0.0,
+            Ok(AnalysisResult::Tempo(rhythm_result(
+                est.bpm,
+                est.confidence,
                 onset_strength,
-                onset_times: vec![],
-                beat_times: est.beat_times.iter().map(|&t| t as f32).collect(),
-                downbeat_times: vec![],
-            }))
+                env_hop,
+                sample_rate,
+                vec![],
+                est.beat_times.iter().map(|&t| t as f32).collect(),
+                vec![],
+            )))
         }
         AnalyzerId::Onsets => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
             let times = oxiaudio::dsp::detect_onsets(&lib_buf(), fft, hop).map_err(oxi_err)?;
-            Ok(AnalysisResult::Onsets(RhythmResult {
-                bpm: 0.0,
-                confidence: 0.0,
-                hop_size: env_hop,
-                times: frame_times(onset_strength.len(), env_hop, sample_rate),
-                // Filled in by `run_window` — the tool only sees the sliced region.
-                window_start: 0.0,
+            Ok(AnalysisResult::Onsets(rhythm_result(
+                0.0,
+                0.0,
                 onset_strength,
-                onset_times: times.iter().map(|&t| t as f32).collect(),
-                beat_times: vec![],
-                downbeat_times: vec![],
-            }))
+                env_hop,
+                sample_rate,
+                times.iter().map(|&t| t as f32).collect(),
+                vec![],
+                vec![],
+            )))
         }
         AnalyzerId::Downbeats => {
             let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
@@ -249,18 +271,16 @@ pub fn run(
                 est.bpm,
                 options.bar_length(),
             );
-            Ok(AnalysisResult::Downbeats(RhythmResult {
-                bpm: est.bpm,
-                confidence: est.confidence,
-                hop_size: env_hop,
-                times: frame_times(onset_strength.len(), env_hop, sample_rate),
-                // Filled in by `run_window` — the tool only sees the sliced region.
-                window_start: 0.0,
+            Ok(AnalysisResult::Downbeats(rhythm_result(
+                est.bpm,
+                est.confidence,
                 onset_strength,
-                onset_times: vec![],
-                beat_times: est.beat_times.iter().map(|&t| t as f32).collect(),
-                downbeat_times: downbeats.iter().map(|&t| t as f32).collect(),
-            }))
+                env_hop,
+                sample_rate,
+                vec![],
+                est.beat_times.iter().map(|&t| t as f32).collect(),
+                downbeats.iter().map(|&t| t as f32).collect(),
+            )))
         }
         AnalyzerId::LoudnessIntegrated => {
             let lufs = oxiaudio::dsp::loudness_lufs(&lib_buf());

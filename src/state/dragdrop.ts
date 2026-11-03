@@ -9,7 +9,7 @@ import { openPath } from "./source";
  * does not reliably expose local file paths through HTML5 `dataTransfer`, so we
  * use the window API and let symphonia (behind `probe_file`) decide real support.
  *
- * Note: Tauri's native handler consumes **every** drag over the WebView (its WRY
+ * Annotation: Tauri's native handler consumes **every** drag over the WebView (its WRY
  * listener always returns `true` and never defers to WebKit), so an in-page HTML5
  * drag-and-drop would neither deliver its `drop` nor avoid this handler's overlay.
  * The graph editor's palette drag is therefore **pointer-based** — see

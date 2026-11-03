@@ -82,7 +82,7 @@ pub async fn open_popout_window(
     create_popout(app, window.label(), tool_id)
 }
 
-/// Close every popout window of the calling project (tool **and** note views).
+/// Close every popout window of the calling project (tool **and** annotation views).
 ///
 /// Used at the start of a **project load** (and a new project): those replace the whole
 /// project, so a popout — a view of the old state — cannot be reused. Left open, it keeps
@@ -137,7 +137,7 @@ pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<ToolId>) -> R
             continue;
         }
         let Some(tool) = registry.popout_tool(&label) else {
-            continue; // a note popout, not a tool view
+            continue; // an annotation popout, not a tool view
         };
         let wanted = tools.iter().any(|candidate| candidate == &tool);
         let first = kept.insert(tool);
@@ -158,33 +158,36 @@ pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<ToolId>) -> R
     Ok(())
 }
 
-/// Open a popout window for a single note.
+/// Open a popout window for a single annotation.
 ///
 /// Like [`open_popout_window`], the new window is a *view* of the *calling* window's
-/// project: its label is aliased (with the note id) to the caller's, so every command
-/// resolves to the same [`crate::state::WindowState`]. A note that already has a
-/// window is **raised** instead of opened twice, and the frontend asks [`popout_note`]
-/// which note to render.
+/// project: its label is aliased (with the annotation id) to the caller's, so every command
+/// resolves to the same [`crate::state::WindowState`]. An annotation that already has a
+/// window is **raised** instead of opened twice, and the frontend asks [`popout_annotation`]
+/// which annotation to render.
 #[tauri::command]
-pub async fn open_note_window(window: tauri::WebviewWindow, note_id: String) -> Result<(), String> {
+pub async fn open_annotation_window(
+    window: tauri::WebviewWindow,
+    annotation_id: String,
+) -> Result<(), String> {
     let app = window.app_handle();
     let registry = app.state::<crate::state::WindowRegistry>();
 
-    // A note already shown in this project's windows is raised, not duplicated.
-    if let Some(existing) = registry.note_popout_for(window.label(), &note_id) {
+    // An annotation already shown in this project's windows is raised, not duplicated.
+    if let Some(existing) = registry.annotation_popout_for(window.label(), &annotation_id) {
         if let Some(popout) = app.get_webview_window(&existing) {
             raise(&popout);
             return Ok(());
         }
     }
 
-    let label = next_label("note");
+    let label = next_label("annotation");
     let parent = window.label().to_string();
 
     // Register the alias *before* the window loads, so its frontend can ask
-    // `popout_note` / `load_shared_source` and resolve to the parent project right
+    // `popout_annotation` / `load_shared_source` and resolve to the parent project right
     // away (no race with the window's first paint).
-    registry.add_note_popout(&label, &parent, &note_id);
+    registry.add_annotation_popout(&label, &parent, &annotation_id);
 
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title("Hey Listen")
@@ -209,13 +212,13 @@ pub fn popout_tool(window: tauri::WebviewWindow) -> Option<ToolId> {
         .popout_tool(window.label())
 }
 
-/// The note a popout window shows, or `None` for a regular project window.
+/// The annotation a popout window shows, or `None` for a regular project window.
 #[tauri::command]
-pub fn popout_note(window: tauri::WebviewWindow) -> Option<String> {
+pub fn popout_annotation(window: tauri::WebviewWindow) -> Option<String> {
     window
         .app_handle()
         .state::<crate::state::WindowRegistry>()
-        .popout_note(window.label())
+        .popout_annotation(window.label())
 }
 
 /// The tools currently popped out of the calling window's project.

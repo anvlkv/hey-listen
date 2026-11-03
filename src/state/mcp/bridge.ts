@@ -15,7 +15,7 @@ interface McpRequest {
 /** Subscribe to tool calls from the MCP server. Call once per project window. */
 export async function initMcp(): Promise<void> {
   try {
-    // Tool calls mutate shared stores (window, params, tabs, notes). Run them one at a
+    // Tool calls mutate shared stores (window, params, tabs, annotations). Run them one at a
     // time so a parallel batch (e.g. several `open_tool` calls) cannot interleave and
     // answer from a half-applied state; `handle` never throws, so the chain survives a
     // failed tool.

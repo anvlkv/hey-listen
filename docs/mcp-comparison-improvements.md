@@ -112,7 +112,7 @@ clients keep working.
 - `npm run maid` — green (prettier, eslint, the 400-line budget, duplication, knip,
   rustfmt + clippy).
 - Runtime, fresh headless MCP binary (`heylisten-mcp --headless`): `list_analyzers`
-  answers `structuredContent.analyzers` (29 entries); `frameRms` with `axis: "compact"`
+  answers `structuredContent.analyzers` (one entry per analyzer); `frameRms` with `axis: "compact"`
   returns `{ start, hop, length, end }`; `maxPoints: 8` returns 8 aligned
   `times`/`values`. The running GUI still serves the pre-fix release build until it is
   rebuilt.

@@ -1,7 +1,12 @@
 import { batch, type Accessor } from "solid-js";
 import { stopFollowing } from "../../state/capture";
-import { notesSorted } from "../../state/notes";
-import { createLaneDrag, noteHandleAt, noteHintText, type LaneSelection } from "../notes/lane";
+import { annotationsSorted } from "../../state/annotations";
+import {
+  createLaneDrag,
+  annotationHandleAt,
+  annotationHintText,
+  type LaneSelection,
+} from "../annotations/lane";
 import { source } from "../../state/source";
 import {
   setWindowEnd,
@@ -12,12 +17,12 @@ import {
   windowStart,
 } from "../../state/timeline";
 import { HANDLE_HIT, MOVE_HIT, PREVIEW_THROTTLE, RULER_H } from "./constants";
-import { NOTE_STRIP_H } from "../notes/strip";
+import { ANNOTATION_STRIP_H } from "../annotations/strip";
 
 /**
  * Pointer interaction for the Timeline canvas: drag to pan, drag the start/end
- * handles (with an edge preview), drag the move bar to slide the window, drag a note
- * handle / draw a note selection in the bottom lane, wheel-zoom, and the toolbar zoom
+ * handles (with an edge preview), drag the move bar to slide the window, drag an annotation
+ * handle / draw an annotation selection in the bottom lane, wheel-zoom, and the toolbar zoom
  * actions. The component-local capabilities arrive in [`TimelineInteractionDeps`]; the
  * shared store reads/writes are imported directly. See `docs/source-model.md`.
  */
@@ -32,7 +37,7 @@ export interface TimelineInteractionDeps {
   span: () => number;
   plotW: () => number;
   applyView: (a: number, b: number) => void;
-  setNoteHint: (hint: { x: number; y: number; text: string } | null) => void;
+  setAnnotationHint: (hint: { x: number; y: number; text: string } | null) => void;
   previewEdge: (kind: "start" | "end") => void;
   endPreview: () => void;
 }
@@ -45,7 +50,7 @@ export interface TimelineInteraction {
   zoomBy: (factor: number) => void;
   zoomToWindow: () => void;
   fitAll: () => void;
-  /** The span being dragged out in the note lane, for the canvas to draw. */
+  /** The span being dragged out in the annotation lane, for the canvas to draw. */
   selection: Accessor<LaneSelection>;
 }
 
@@ -58,13 +63,13 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     origWindowStart: number;
     origWindowEnd: number;
   } | null = null;
-  /** Whether the note lane owns the current gesture (a handle drag or a selection). */
+  /** Whether the annotation lane owns the current gesture (a handle drag or a selection). */
   let laneActive = false;
   let lastPreview = 0;
 
-  /** The Timeline's lane holds **Timeline notes** (no chart). */
+  /** The Timeline's lane holds **Timeline annotations** (no chart). */
   const lane = createLaneDrag(() => ({
-    notes: () => notesSorted(),
+    annotations: () => annotationsSorted(),
     tool: () => null,
     timeAt: deps.t2x,
     timeFromX: (x) => deps.x2t(x),
@@ -80,10 +85,10 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     return e.clientY - rect.top;
   }
 
-  /** The top of the bottom note lane (where notes are created, grabbed and resized). */
+  /** The top of the bottom annotation lane (where annotations are created, grabbed and resized). */
   function laneTop(): number {
     const rect = deps.canvas().getBoundingClientRect();
-    return rect.height - NOTE_STRIP_H;
+    return rect.height - ANNOTATION_STRIP_H;
   }
 
   function minWindow(): number {
@@ -98,11 +103,11 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     const x = pointerX(e);
     const y = pointerY(e);
 
-    // The note lane owns the bottom strip: grab a handle to move / resize a note, or
+    // The annotation lane owns the bottom strip: grab a handle to move / resize an annotation, or
     // drag empty space to select a span for a new one.
     if (y >= laneTop() && lane.down(x)) {
       laneActive = true;
-      deps.setNoteHint(null);
+      deps.setAnnotationHint(null);
       canvas.setPointerCapture(e.pointerId);
       return;
     }
@@ -140,8 +145,10 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     if (!drag) {
       const x = pointerX(e);
       const y = pointerY(e);
-      const hovered = y >= laneTop() ? noteHandleAt(notesSorted(), deps.t2x, x) : null;
-      deps.setNoteHint(hovered ? { x, y, text: noteHintText(hovered.note) } : null);
+      const hovered = y >= laneTop() ? annotationHandleAt(annotationsSorted(), deps.t2x, x) : null;
+      deps.setAnnotationHint(
+        hovered ? { x, y, text: annotationHintText(hovered.annotation) } : null,
+      );
       return;
     }
     const x = pointerX(e);

@@ -2,16 +2,16 @@ import { columnExtent, type ChannelPick, type Peaks } from "../../lib/waveform";
 import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { filteredSamples } from "../../state/filtered";
 import { filterActive } from "../../state/graph";
-import { noteSpan } from "../../lib/note";
-import { focusedNoteId, notesSorted } from "../../state/notes";
-import { notesPanelOpen } from "../../state/settings";
+import { annotationSpan } from "../../lib/annotation";
+import { selectedAnnotationId, annotationsSorted } from "../../state/annotations";
+import { annotationsPanelOpen } from "../../state/settings";
 import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
 import { LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
 import { formatRulerTime, niceStep } from "./format";
-import { NOTE_STRIP_H } from "../notes/strip";
-import { drawLane, type LaneSelection } from "../notes/lane";
+import { ANNOTATION_STRIP_H } from "../annotations/strip";
+import { drawLane, type LaneSelection } from "../annotations/lane";
 
 /**
  * The filtered overlay's opacity: 85% opaque, so the filtered envelope **blends with**
@@ -22,7 +22,7 @@ const FILTERED_OVERLAY_ALPHA = 0.85;
 
 /**
  * Canvas painting for the Timeline. `drawTimeline` is the entry point (called by
- * `Timeline.tsx` from its repaint effect); the ruler, handle, move-handle and note
+ * `Timeline.tsx` from its repaint effect); the ruler, handle, move-handle and annotation
  * helpers are module-private. The component-local values arrive as accessors in
  * [`TimelineDrawDeps`] so every read still happens inside the caller's reactive
  * scope — the same tracking the inline `draw()` had.
@@ -38,13 +38,13 @@ export interface TimelineDrawDeps {
   x2t: (x: number) => number;
   span: () => number;
   plotW: () => number;
-  /** The span being dragged out in the note lane (for the live selection). */
+  /** The span being dragged out in the annotation lane (for the live selection). */
   laneSelection: () => LaneSelection;
 }
 
 /**
  * Paint the whole timeline: background, waveform (raw plus the filtered overlay),
- * ruler, window handles, note pins and the playhead.
+ * ruler, window handles, annotation pins and the playhead.
  */
 export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: TimelineDrawDeps): void {
   const w = deps.cssW();
@@ -133,7 +133,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     drawHandle(ctx, we, waveTop, waveH, t.series);
   }
 
-  drawNotes(ctx, waveTop, waveH, w, deps, !!s);
+  drawAnnotations(ctx, waveTop, waveH, w, deps, !!s);
   drawChartCursor(ctx, deps.t2x, h);
 
   const ph = deps.playSec();
@@ -253,14 +253,14 @@ function drawChartCursor(
 }
 
 /**
- * The note lane (M14): the strip along the bottom of the waveform where notes are
+ * The annotation lane (M14): the strip along the bottom of the waveform where annotations are
  * created, moved and resized. The lane's background and the live selection come from
- * `notes/lane.ts`; the notes are drawn on top — a **range** as a shaded span with a
- * handle on each edge, a **point** note as a single tab — with a full-height stem for
- * the focused one. A **closed rail** draws them dull (and never focuses one). See
- * `components/notes/lane.ts` and `docs/notes.md` → Surfacing.
+ * `annotations/lane.ts`; the annotations are drawn on top — a **range** as a shaded span with a
+ * handle on each edge, a **point** annotation as a single tab — with a full-height stem for
+ * the selected one. A **closed rail** draws them dull (and never selects one). See
+ * `components/annotations/lane.ts` and `docs/annotations.md` → Surfacing.
  */
-function drawNotes(
+function drawAnnotations(
   ctx: CanvasRenderingContext2D,
   waveTop: number,
   waveH: number,
@@ -268,61 +268,61 @@ function drawNotes(
   deps: TimelineDrawDeps,
   hasSource: boolean,
 ): void {
-  const list = notesSorted();
+  const list = annotationsSorted();
   const theme = chartTheme();
   const t2x = deps.t2x;
-  const stripTop = waveTop + waveH - NOTE_STRIP_H;
-  const geom = { xFor: t2x, top: stripTop, height: NOTE_STRIP_H, left: 0, right: w };
+  const stripTop = waveTop + waveH - ANNOTATION_STRIP_H;
+  const geom = { xFor: t2x, top: stripTop, height: ANNOTATION_STRIP_H, left: 0, right: w };
   drawLane(ctx, geom, {
     background: theme.ruler,
-    color: theme.note,
+    color: theme.annotation,
     hintColor: theme.axis,
-    hint: hasSource && list.length === 0 ? "Drag to add a note" : null,
+    hint: hasSource && list.length === 0 ? "Drag to add an annotation" : null,
     selection: deps.laneSelection(),
   });
   if (list.length === 0) return;
-  const focusId = focusedNoteId();
-  // A closed rail keeps the pins but quiets them (see `analyzer/notePlugins.ts`).
-  const quiet = notesPanelOpen() ? 1 : 0.55;
+  const selectedId = selectedAnnotationId();
+  // A closed rail keeps the pins but quiets them (see `analyzer/annotationPlugins.ts`).
+  const quiet = annotationsPanelOpen() ? 1 : 0.55;
 
-  for (const note of list) {
-    const span = noteSpan(note);
+  for (const annotation of list) {
+    const span = annotationSpan(annotation);
     const x0 = t2x(span.start);
     const x1 = t2x(span.end);
     if (Math.max(x0, x1) < -14 || Math.min(x0, x1) > w + 14) continue;
-    const focused = note.id === focusId;
+    const selected = annotation.id === selectedId;
     const isRange = span.end > span.start;
     if (isRange) {
-      ctx.globalAlpha = focused ? 0.22 : 0.12 * quiet;
-      ctx.fillStyle = theme.note;
+      ctx.globalAlpha = selected ? 0.22 : 0.12 * quiet;
+      ctx.fillStyle = theme.annotation;
       ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
       ctx.globalAlpha = 1;
     }
     const p0 = Math.round(x0);
     const p1 = Math.round(x1);
-    // A faint stem up out of the lane (full height for the focused note) so the anchor
-    // is still readable against the waveform; a focused range also rules its end.
-    ctx.globalAlpha = focused ? 1 : 0.7 * quiet;
-    ctx.strokeStyle = theme.note;
-    ctx.lineWidth = focused ? 1.5 : 1;
+    // A faint stem up out of the lane (full height for the selected annotation) so the anchor
+    // is still readable against the waveform; a selected range also rules its end.
+    ctx.globalAlpha = selected ? 1 : 0.7 * quiet;
+    ctx.strokeStyle = theme.annotation;
+    ctx.lineWidth = selected ? 1.5 : 1;
     ctx.beginPath();
-    ctx.moveTo(p0 + 0.5, focused ? waveTop : stripTop - 7);
+    ctx.moveTo(p0 + 0.5, selected ? waveTop : stripTop - 7);
     ctx.lineTo(p0 + 0.5, stripTop + 0.5);
-    if (isRange && focused) {
+    if (isRange && selected) {
       ctx.moveTo(p1 + 0.5, waveTop);
       ctx.lineTo(p1 + 0.5, stripTop + 0.5);
     }
     ctx.stroke();
-    ctx.globalAlpha = focused ? 1 : 0.85 * quiet;
-    ctx.fillStyle = theme.note;
+    ctx.globalAlpha = selected ? 1 : 0.85 * quiet;
+    ctx.fillStyle = theme.annotation;
     if (isRange) {
       // The span bar between two grab handles, one per edge.
       ctx.fillRect(p0, stripTop + 4, Math.max(1, p1 - p0), 3);
-      ctx.fillRect(p0 - 3, stripTop + 1, 6, NOTE_STRIP_H - 2);
-      ctx.fillRect(p1 - 3, stripTop + 1, 6, NOTE_STRIP_H - 2);
+      ctx.fillRect(p0 - 3, stripTop + 1, 6, ANNOTATION_STRIP_H - 2);
+      ctx.fillRect(p1 - 3, stripTop + 1, 6, ANNOTATION_STRIP_H - 2);
     } else {
-      const cap = focused ? 8 : 6;
-      ctx.fillRect(p0 - 1, stripTop + 1, 2, NOTE_STRIP_H - 2);
+      const cap = selected ? 8 : 6;
+      ctx.fillRect(p0 - 1, stripTop + 1, 2, ANNOTATION_STRIP_H - 2);
       ctx.fillRect(p0 - cap / 2, stripTop + 1, cap, 3);
     }
     ctx.globalAlpha = 1;

@@ -5,11 +5,11 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 ## Entities
 
 - **Project** — one source + timeline + setup + results. 1:1 with a window.
-- **Source** — enum: `File { path }`, `Input { kind, device_id?, target_pid? }`,
-  `Synth { graph }`.
+- **Source** — the project's single audio source, persisted as a `SourceDescriptor`
+  (`kind: SourceKind` plus the optional kind-specific fields); see the sketch below.
 - **SourceData** — the PCM backing the timeline (interleaved `f32`, sample rate,
   channels, total frames). Grows for inputs; static for file/synth.
-- **Timeline** — whole recording + `AnalysisWindow { start, end }` (frame or
+- **Timeline** — whole recording + `AnalysisWindow { startSecs, endSecs }` (source
   seconds) + zoom state.
 - **GraphSpec** — a fundsp editor graph (`nodes` + `edges`, with positional
   params), built in a Workbench graph tab (`filter` or `synth`) and compiled to a
@@ -39,15 +39,15 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   for each comparison open at save time; restored as a Workbench tab and used until an
   explicit reconnect. See [`project-file-format.md`](project-file-format.md).
 - **AnalyzerId / ToolId / SourceKind / WindowKind** — the typed string identifiers
-  (ADR-28, M15.B). `AnalyzerId` names the 29 analyzers, `ToolId` adds the `filter` /
-  `synth` graph tabs, `SourceKind` the six source kinds, and `WindowKind` the window
-  function. Each serializes as its original camelCase string (JSON and `postcard`), so
-  the wire format is unchanged; Rust consumers work on the enum.
+  (ADR-28, M15.B). `AnalyzerId` names every analyzer, `ToolId` adds the `filter` /
+  `synth` graph tabs, `SourceKind` every source kind, and `WindowKind` the window
+  function. Each serializes as its original wire string (camelCase ids; lowercase
+  single-word ids), so the wire format is unchanged; Rust consumers work on the enum.
 - **AnalysisResult** — cached output of a tool over a window (typed payload +
   the params/window it was computed for). Every time it carries is in **source
   seconds**: the tools run on the window's slice, and the engine re-bases the result
   onto the source timeline before it leaves (`windowStart` records the origin), so
-  the payload, the charts, a note's `timeSecs`, and an export all agree. See
+  the payload, the charts, an annotation's `timeSecs`, and an export all agree. See
   [`analysis-tools.md`](analysis-tools.md) → Chart rendering.
 - **SharedParams** — analysis params synced across tools (FFT size, hop/overlap, window function, channel, frequency range, …).
 - **ToolOptions** — per-tool params that are *not* shared (band/coefficient counts,
@@ -66,13 +66,13 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   filter / synth `GraphSpec`s + an optional layout + a **window / view policy**
   (`fractional` / `absolute` / `full` / `fixedLength`). Stored as JSON
   (`.heyltemplate`), not the binary project container.
-- **Annotation** (stored as `Note`) — user-authored commentary on the project: an audio
+- **Annotation** — user-authored commentary on the project: an audio
   **time** anchor (`timeSecs`) with an optional `range`, an optional **analyzer tool id**
   it was taken from (absent = a Timeline annotation), a markdown `body`, and a **frozen**
   `values` snapshot (the chart's readout at that time, with its `window` / `params` /
   `options` provenance). The annotation's heading is the **first line of the body**; the
   model's optional `title` field is retained but no longer set or shown. Stored in the
-  project file's `NOTES` section. See [`notes.md`](notes.md) → Terminology.
+  project file's `ANNOTATIONS` section. See [`annotations.md`](annotations.md) → Terminology.
 - **Note segment** (not persisted) — a detected run of audio above an amplitude gate,
   returned by the `noteMetrics` analyzer: start/end, duration, the gaps around it, RMS /
   peak level, a normalized envelope, and the M19 voice-quality **proxies** (voiced
@@ -80,7 +80,7 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   periodicity used as the HNR proxy). It is analysis output, not project content.
 
 > **Planned / delivered.** `ThemeFile` shipped in M11 (see [`theming.md`](theming.md))
-> and `Note` in M14 (see [`notes.md`](notes.md)); the export envelope shipped in M12
+> and `Annotation` in M14 (see [`annotations.md`](annotations.md)); the export envelope shipped in M12
 > (see [`exports.md`](exports.md)); `AnalysisTemplate` (M13) is still planned. The
 > export envelope is a view over an existing `AnalysisResult`. `Comparison` shipped in
 > M25 as a transient view; **M25.C** saves the reference side as a `SavedComparison`
@@ -97,10 +97,18 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
 ## Sketch (Rust)
 
 ```rust
-enum Source {
-    File { path: String },
-    Input { kind: SourceKind, device_id: Option<String>, target_pid: Option<u32> },
-    Synth { graph: GraphSpec },
+// On the wire and on disk the source is a kind-tagged **struct** (`postcard` cannot
+// encode internally-tagged enums): `SourceKind` names file / mic / system / process /
+// mix / synth, and the kind-specific fields are optional.
+struct SourceDescriptor {
+    kind: SourceKind,
+    path: Option<String>,
+    device_id: Option<String>,
+    mix_mic_device_id: Option<String>,
+    mix_system_device_id: Option<String>,
+    target_pid: Option<u32>,
+    gain: f32,
+    graph: Option<GraphSpec>,
 }
 
 // A fundsp editor graph (see `src-tauri/src/audio/graph/`).
@@ -113,29 +121,30 @@ struct AnalysisWindow { start_secs: f64, end_secs: f64 }
 // M25: the core computes both sides. The reference may be live or saved (M25.C).
 struct Comparison {
     tool: AnalyzerId,
-    a: CompareSide,                  // project label + window/params/options + result
-    b: CompareSide,
+    a: ComparisonSide,
+    b: ComparisonSide,
     comparability: Comparability,    // aligned, alignment, overlap (informational),
                                      // mismatches, filters_differ
-    diff: Option<Diff>,              // per-family stats; arrays only when requested
+    diff: Option<ComparisonDiff>,    // per-family stats; arrays only when requested
 }
 
-struct CompareSide {
-    label: String,                   // window label / display name
-    window: AnalysisWindow,
-    params: SharedParams,
-    options: ToolOptions,
+struct ComparisonSide {
+    project: Option<String>,         // display name (window labels are session-scoped)
+    source: Option<SourceShape>,
+    setup: CompareSetup,             // start/end + SharedParams + ToolOptions
+    options: Map<String, Value>,     // the **effective** options
+    summary: ResultSummary,
     result: AnalysisResult,
 }
 
 // Project content since M25.C: the reference side as it was last compared.
 struct SavedComparison {
-    tool: String,
+    tool: AnalyzerId,
     reference_name: String,          // display name (labels are session-scoped)
     source: SourceShape,
     window: AnalysisWindow,
     params: SharedParams,
-    options: BTreeMap<String, f64>,
+    options: ToolOptions,
     filter_fingerprint: Option<String>,
     b_offset: f64,                   // fine-tune offset, seconds (M25.B)
     saved_ms: u64,
@@ -145,9 +154,9 @@ struct SavedComparison {
 struct SharedParams {
     // frame analysis
     fft_size: usize,             // 512..8192
-    hop: f64,                    // fraction of fft_size, or frames
+    hop: f64,                    // fraction of fft_size (0.25 = 75% overlap)
     randomized_overlap: bool,
-    window_fn: WindowFn,         // Hann / Hamming / Blackman / rectangular
+    window_fn: WindowKind,       // Hann / Hamming / Blackman / rectangular
 
     // signal conditioning
     channel: Option<usize>,      // None = downmix (mono); Some(n) = 0-based channel
@@ -173,33 +182,55 @@ struct ToolOptions {
     window_ms: Option<u32>,
     f_min_hz: Option<f32>,
     f_max_hz: Option<f32>,
+    // M17–M21: envelope / segmentation / modulation + the M21.B gate
+    frame_ms: Option<f32>,
+    hop_ms: Option<f32>,
+    gate_db: Option<f32>,
+    gate_floor_db: Option<f32>,
+    hysteresis_db: Option<f32>,
+    min_note_ms: Option<f32>,
+    min_gap_ms: Option<f32>,
+    syllable_gap_ms: Option<f32>,
+    envelope_points: Option<usize>,
+    pitch_frame_ms: Option<f32>,
+    pitch_hop_ms: Option<f32>,
+    mod_min_hz: Option<f32>,
+    mod_max_hz: Option<f32>,
+    detrend: Option<usize>,
+    min_voiced_secs: Option<f32>,
+    top_peaks: Option<usize>,
 }
 
-struct Project {
-    version: u32,
-    source: Source,
+// The save command's payload is `SaveProject` and the loader returns `LoadedProject`;
+// the audio itself is the binary file's `DATA` section, not a struct field.
+struct SaveProject<'a> {
+    name: String,
+    created_ms: Option<u64>,
+    source: Option<SourceDescriptor>,
     setup: AnalysisSetup,
+    layout: serde_json::Value,
     results: Vec<AnalysisResult>,
-    notes: Vec<Note>,
-    // SourceData is stored separately in the binary file's DATA section
+    annotations: Vec<Annotation>,
+    compare: Vec<SavedComparison>,
+    pcm: Option<&'a SourceData>,
 }
 
-// An annotation (M14; stored as `Note`): a time anchor (+ optional span) tied to an
+// An annotation (M14; stored as `Annotation`): a time anchor (+ optional span) tied to an
 // analyzer chart, with a markdown body and a frozen snapshot of that chart's values.
-struct Note {
+struct Annotation {
     id: String,                      // stable id (uuid)
     created_ms: u64,
     updated_ms: u64,
     time_secs: f64,                  // the anchor instant (source seconds)
     range: Option<AnalysisWindow>,   // optional span; None = a point
-    tool: Option<String>,            // analyzer id; None = a Timeline note
+    tool: Option<AnalyzerId>,        // analyzer id; None = a Timeline annotation
     title: Option<String>,           // optional plain-text title
     body: String,                    // markdown
-    values: Option<NoteValues>,      // frozen chart snapshot
+    values: Option<AnnotationValues>,      // frozen chart snapshot
 }
 
-struct NoteValues {
-    tool: String,
+struct AnnotationValues {
+    tool: AnalyzerId,
     label: String,                   // e.g. "Spectrum @ 2.34 s"
     text: String,                    // the compact values line (the subtitle)
     window: AnalysisWindow,
@@ -237,11 +268,7 @@ struct AnalysisTemplate {
 See [`project-file-format.md`](project-file-format.md) for how these map to
 on-disk sections.
 
-> **Serialized `Source` (M6).** On the wire and on disk, `Source` is stored as a
-> `kind`-tagged **struct** (`SourceDescriptor` in `src-tauri/src/project/sections.rs`),
-> not a Serde enum: `postcard` cannot encode internally-tagged enums. It carries
-> `kind` (`file` / `mic` / `system` / `process` / `mix` / `synth`) plus the
-> kind-specific fields (`path`, `deviceId`, `mixMicDeviceId`, `mixSystemDeviceId`,
-> `targetPid`, `gain`, `graph`), all optional. The audio itself is embedded in the
-> `DATA` section, so the descriptor is provenance for the picker (and, for synth,
-> the rendered graph).
+> **Serialized source (M6).** `SourceDescriptor` is a `kind`-tagged **struct**, not a
+> Serde enum: `postcard` cannot encode internally-tagged enums. The audio itself is
+> embedded in the `DATA` section, so the descriptor is provenance for the picker (and,
+> for synth, the rendered graph). See `src-tauri/src/project/sections.rs`.

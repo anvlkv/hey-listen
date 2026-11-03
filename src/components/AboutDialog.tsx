@@ -49,7 +49,7 @@ export default function AboutDialog(props: {
 
           <section class="about-section">
             <h3 class="about-heading">{FONT_AWESOME.name}</h3>
-            <p class="about-text">{FONT_AWESOME.note}</p>
+            <p class="about-text">{FONT_AWESOME.annotation}</p>
             <p class="about-text">
               {FONT_AWESOME.license} ·{" "}
               <button type="button" class="about-link" onClick={() => openLink(FONT_AWESOME.url)}>

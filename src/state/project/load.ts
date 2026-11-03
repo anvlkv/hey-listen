@@ -19,7 +19,7 @@ import {
 import { loadGraph, setFilterEnabled } from "../graph";
 import { restoreSavedComparisons } from "../compare/views";
 import { resetHistory } from "../history";
-import { replaceNotes } from "../notes";
+import { replaceAnnotations } from "../annotations";
 import {
   closeSource,
   setError,
@@ -181,9 +181,9 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
     );
   }, 0);
 
-  // 6. The project's notes (M14): replace the store (this marks the project clean
+  // 6. The project's annotations (M14): replace the store (this marks the project clean
   //    again via the baseline below). Applied before the undo history is reset.
-  replaceNotes(loaded.notes ?? []);
+  replaceAnnotations(loaded.annotations ?? []);
 
   // 7. Start a fresh undo history for the loaded project (undo must not step
   //    back across the project boundary).

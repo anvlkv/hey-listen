@@ -12,7 +12,7 @@ fn temp_path(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn save_project_writes_source_setup_and_notes() {
+fn save_project_writes_source_setup_and_annotations() {
     let mut session = HeadlessSession::default();
     session
         .dispatch(
@@ -47,7 +47,7 @@ fn save_project_writes_source_setup_and_notes() {
                 "path": path.to_string_lossy(),
                 "name": "Test",
                 "openTools": ["spectrogram", "nope"],
-                "notes": [
+                "annotations": [
                     {
                         "title": "n1",
                         "body": "hello",
@@ -59,7 +59,7 @@ fn save_project_writes_source_setup_and_notes() {
             }),
         )
         .unwrap();
-    assert_eq!(saved["notes"], 2);
+    assert_eq!(saved["annotations"], 2);
     assert_eq!(saved["embedded"], true);
 
     let mut file = std::fs::File::open(&path).unwrap();
@@ -76,9 +76,9 @@ fn save_project_writes_source_setup_and_notes() {
     );
     assert_eq!(loaded.setup.window.start_secs, 0.05);
     assert_eq!(loaded.setup.view.end_secs, 0.25);
-    assert_eq!(loaded.notes.len(), 2);
-    assert_eq!(loaded.notes[0].title.as_deref(), Some("n1"));
-    assert!(loaded.notes[1].id.starts_with("headless-"));
+    assert_eq!(loaded.annotations.len(), 2);
+    assert_eq!(loaded.annotations[0].title.as_deref(), Some("n1"));
+    assert!(loaded.annotations[1].id.starts_with("headless-"));
     assert!(loaded.pcm.is_some());
     let _ = std::fs::remove_file(&path);
 }
@@ -103,7 +103,7 @@ fn open_project_restores_the_session_and_new_project_clears_it() {
     session
         .dispatch(
             "save_project",
-            json!({ "path": path.to_string_lossy(), "notes": [] }),
+            json!({ "path": path.to_string_lossy(), "annotations": [] }),
         )
         .unwrap();
 
@@ -191,7 +191,7 @@ fn open_project_ignores_display_only_tool_options() {
         setup,
         layout: serde_json::Value::Null,
         results: Vec::new(),
-        notes: Vec::new(),
+        annotations: Vec::new(),
         compare: Vec::new(),
         pcm: None,
     };

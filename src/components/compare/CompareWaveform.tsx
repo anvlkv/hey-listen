@@ -1,13 +1,13 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
+import { cursor } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
 import { Show, untrack } from "solid-js";
 import Readout from "../analyzer/Readout";
 import { createUplotZoom } from "../analyzer/uplotZoom";
-import { mirrorCursor, syncView } from "../analyzer/syncPlugins";
 import { timeTooltip } from "../analyzer/chartCommon";
 import { compareMarkers } from "./peerPlugins";
 import ComparePlot from "./ComparePlot";
+import CompareTimeChart from "./CompareTimeChart";
 import { compareSides, liveMarkers } from "./sides";
 import { timeAxis, valueAxis } from "./axes";
 import { bucketTimes } from "./waveform";
@@ -136,23 +136,11 @@ export default function CompareWaveform(props: {
       >
         <ComparePlot zoom={zoom}>
           <Show when={activeThemeId()} keyed>
-            <SolidUplot
-              autoResize
-              pluginBus={analyzerBus}
-              plugins={[
-                cursor(),
-                tooltip(Tooltip),
-                mirrorCursor(
-                  "time",
-                  untrack(() => props.time.axis()),
-                ),
-                syncView(
-                  "time",
-                  untrack(() => props.time.axis()),
-                ),
-                markers(),
-              ]}
-              onCreate={zoom.onReady}
+            <CompareTimeChart
+              zoom={zoom}
+              Tooltip={Tooltip}
+              axis={() => props.time.axis()}
+              markers={markers()}
               data={overlay()}
               series={[
                 {},

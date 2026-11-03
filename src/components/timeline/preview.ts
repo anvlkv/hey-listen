@@ -20,7 +20,8 @@ export interface PreviewController {
  * Preview playback for the analysis window. `tick` polls the audio engine's
  * playhead on a **timer** (not `requestAnimationFrame`), because the transport's position
  * is a *clock*, not a paint: rAF is suspended while the window is occluded, which froze
- * the position (and the drawn playhead, and the time a note-at-the-playhead lands on)
+ * the position (and the drawn playhead, and the time an annotation-at-the-playhead
+ * action lands on)
  * even though the core kept looping the audio. A `null` position means the core stopped
  * (ended or failed), which ends the preview.
  *

@@ -10,7 +10,7 @@ import type { NotesDiffDto } from "../../state/compare/types";
 
 export type NoteRowKind = "pair" | "onlyA" | "onlyB";
 
-export interface NoteRow {
+export interface NoteTableRow {
   kind: NoteRowKind;
   aStart: number | null;
   bStart: number | null;
@@ -24,8 +24,8 @@ export interface NoteRow {
 }
 
 /** Flatten a notes delta into ordered table rows (matched pairs and unmatched notes). */
-export function noteRows(diff: NotesDiffDto): NoteRow[] {
-  const rows: NoteRow[] = diff.pairs.map((pair) => ({
+export function noteRows(diff: NotesDiffDto): NoteTableRow[] {
+  const rows: NoteTableRow[] = diff.pairs.map((pair) => ({
     kind: "pair",
     aStart: pair.aStart,
     bStart: pair.bStart,
@@ -65,11 +65,11 @@ export function noteRows(diff: NotesDiffDto): NoteRow[] {
       rmsDeltaDb: null,
     });
   }
-  const time = (row: NoteRow) => row.aStart ?? row.bStart ?? 0;
+  const time = (row: NoteTableRow) => row.aStart ?? row.bStart ?? 0;
   return rows.sort((x, y) => time(x) - time(y));
 }
 
 /** The row label a table shows (`#` column). */
-export function rowLabel(row: NoteRow, index: number): string {
+export function rowLabel(row: NoteTableRow, index: number): string {
   return row.kind === "pair" ? `${index + 1}` : row.kind === "onlyA" ? "A only" : "B only";
 }

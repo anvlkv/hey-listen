@@ -24,12 +24,12 @@ fn ui_only_tools_require_the_app() {
         "set_theme",
         "import_theme",
         "export_theme",
-        "list_notes",
-        "get_note",
-        "create_note",
-        "update_note",
-        "delete_note",
-        "set_focused_note",
+        "list_annotations",
+        "get_annotation",
+        "create_annotation",
+        "update_annotation",
+        "delete_annotation",
+        "set_selected_annotation",
     ] {
         let err = session.dispatch(tool, json!({})).unwrap_err();
         assert!(err.contains("requires the app"), "{tool}: {err}");

@@ -14,7 +14,7 @@ use crate::audio::playback::Playback;
 
 /// The current source's PCM (interleaved `f32`).
 #[derive(Debug, Clone)]
-pub struct SourcePcm {
+pub struct SourceData {
     pub samples: Vec<f32>,
     pub sample_rate: u32,
     pub channels: u16,
@@ -25,7 +25,7 @@ pub struct SourcePcm {
 pub struct AudioState {
     /// The source PCM. The `Arc`/`Mutex` lets the capture thread append while the
     /// command layer reads.
-    pub source: Arc<Mutex<Option<SourcePcm>>>,
+    pub source: Arc<Mutex<Option<SourceData>>>,
     /// While true, live-capture chunks are appended to `source`.
     pub recording: Arc<AtomicBool>,
     /// The active filter graph, applied before preview (and, from M4, analysis).
@@ -40,7 +40,7 @@ pub struct AudioState {
 /// without holding the whole [`AudioState`].
 #[derive(Clone)]
 pub struct RecordingSink {
-    source: Arc<Mutex<Option<SourcePcm>>>,
+    source: Arc<Mutex<Option<SourceData>>>,
     recording: Arc<AtomicBool>,
 }
 
@@ -80,7 +80,7 @@ impl AudioState {
     }
 
     /// Replace the source PCM (file decode / synth render).
-    pub fn set_source(&self, source: Option<SourcePcm>) {
+    pub fn set_source(&self, source: Option<SourceData>) {
         self.recording.store(false, Ordering::Relaxed);
         *self
             .source
@@ -114,7 +114,7 @@ impl AudioState {
             .source
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        *guard = Some(SourcePcm {
+        *guard = Some(SourceData {
             samples: Vec::new(),
             sample_rate,
             channels,

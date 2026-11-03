@@ -449,7 +449,7 @@ destructive in-place edit of the current setup (guarded by a confirm). See
 
 **Status: planned (M13).**
 
-## ADR-18 — Notes are project content: a time + chart anchor with a frozen values snapshot
+## ADR-18 — Annotations are project content: a time + chart anchor with a frozen values snapshot
 
 **Context:** the app can analyse audio from many angles but has no place to record an
 *observation* — "the third harmonic spikes here", "this is a room reflection". Such a
@@ -458,85 +458,87 @@ must survive the window / params moving on. It is neither an analyzer (it produc
 `AnalysisResult`) nor a Workbench tab (those are content, and the fixed-region rule keeps
 non-tab chrome out of `dockview`).
 
-**Decision:** add a **note** — a small serde payload anchored to an audio **time** (a
+**Decision:** add a **annotation** — a small serde payload anchored to an audio **time** (a
 point, optionally a `range`) and to an optional **analyzer tool id** (absent = a
-Timeline note), carrying a **markdown** body and a **frozen** `values` snapshot (the
+Timeline annotation), carrying a **markdown** body and a **frozen** `values` snapshot (the
 chart's readout at that time, with its `window` / `params` / `options` provenance,
-refreshed whenever the note is edited or dragged).
+refreshed whenever the annotation is edited or dragged).
 
-- Notes are **data**: persisted in a new **`NOTES` section (`0x07`, postcard)** of the
+- Annotations are **data**: persisted in a new **`ANNOTATIONS` section (`0x07`, postcard)** of the
   `.heyl` container, owned by the frontend store and broadcast across a project's windows
-  as shared **UI state** (`uiState` keys `notes` + `focusedNoteId`, ADR-11); note edits
-  mark the project dirty and are one undo step.
+  as shared **UI state** (`uiState` keys `annotations` + `selectedAnnotationId`, ADR-11; the MCP wire
+  key stays `selectedAnnotationId`); annotation edits mark the project dirty and are one undo step.
 - The **panel is chrome**: a new **fixed region** (a right rail), not a tab, hidden by
   default and toggled from the Toolbar, resizable, and view-persisted (open/closed +
   width) — so the "only tabs are Workbench tabs" rule holds.
-- **Surfacing** is by group: every note a **Timeline** anchor; a chart draws its **own**
-  notes; exactly one **selected** note draws on **every time-based chart** (the `time` sync
-  group), never on the frequency-axis `spectrum`. Selecting a note opens/raises its chart
+- **Surfacing** is by group: every annotation a **Timeline** anchor; a chart draws its **own**
+  annotations; exactly one **selected** annotation draws on **every time-based chart** (the `time` sync
+  group), never on the frequency-axis `spectrum`. Selecting an annotation opens/raises its chart
   but **never moves the analysis window** — that is the row's explicit **Analyze** action
   (ADR-19). The anchors live in a thin **strip along the bottom** of the Timeline and of
   each time chart, clear of the window move handle and of a chart's drag/zoom area; a
   **range** is a selection there, with a handle on each edge. With the rail closed the
-  focus is dropped and the anchors are drawn **dull** (a note is only "focused" while you
+  focus is dropped and the anchors are drawn **dull** (an annotation is only "focused" while you
   are working with the panel).
 - The body is **markdown**, stored raw and rendered **sanitized**, with an editor that
   commits **explicitly** (Done / ⌘↵; Escape discards) rather than on blur.
-- A note can be **popped out into its own window** — a real Tauri window aliased to the
+- An annotation can be **popped out into its own window** — a real Tauri window aliased to the
   parent project, exactly like an analyzer tab's *Pop out to window* (ADR-11), raised
   rather than duplicated.
-- Reachable headless as **read-only** over a saved project (CLI `notes <file.heyl>`); the
-  MCP `*_note` tools are **app-only** (a note lives in a project).
+- Reachable headless over a saved project (CLI `annotations <file.heyl>`: list / get since
+  M14; add / update / delete since M25.D); the MCP `*_annotation` tools are **app-only** (a
+  annotation lives in a project).
 
 **Consequence:** the project gains a commentary layer that is portable, self-describing
 (a frozen snapshot, not a dangling number), and visible wherever the annotated moment is
 drawn — while staying out of the analyzer/tab model. Costs: a new container section, a
-markdown renderer dependency, and the window plumbing for a note's own window. The frozen
+markdown renderer dependency, and the window plumbing for an annotation's own window. The frozen
 snapshot can drift from the live analysis, so a row shows the **current** readout with the
 frozen one struck through beneath when they differ (rather than a silent live value, or a
 stale hint). To keep the units honest, every analyzer chart draws **source seconds**
 (results are re-based by the engine, see
-[`analysis-tools.md`](analysis-tools.md) → Chart rendering), so a note never needs a
-per-chart conversion. See [`notes.md`](notes.md).
+[`analysis-tools.md`](analysis-tools.md) → Chart rendering), so an annotation never needs a
+per-chart conversion. See [`annotations.md`](annotations.md).
 
 **Status: delivered (M14), revised after review** (bottom strip, draggable range edges,
-explicit-save editor, source-second axes, note window, and the count chip replacing the
+explicit-save editor, source-second axes, annotation window, and the count chip replacing the
 badge), then again for the interaction model — see **ADR-19**.
 
-## ADR-19 — A note is selected, not focused: the window moves only on Analyze
+## ADR-19 — An annotation is selected, not refocused: the window moves only on Analyze
 
-**Context:** ADR-18 gave notes "focus follows the click": clicking a note highlighted it,
+**Context:** ADR-18 gave annotations "focus follows the click": clicking an annotation highlighted it,
 opened its chart **and** moved the analysis window onto its time. In use that was wrong.
-A note is a remark *about* a moment the user has already chosen; clicking it — or, worse,
+An annotation is a remark *about* a moment the user has already chosen; clicking it — or, worse,
 grabbing its handle by a pixel — yanked the analysis away from what they were looking at,
-and creating a (point) note felt like it reframed the window. The two intents ("show me
-this note" vs. "analyse this span") were fused into one gesture.
+and creating a (point) annotation felt like it reframed the window. The two intents ("show me
+this annotation" vs. "analyse this span") were fused into one gesture.
 
 **Decision:** split them.
 
-- **Select** (`selectNote`) — highlight the note and open (or raise) the chart it belongs
-to. This is what the row heading, the row's chart action and the lane are wired to. It
-  **never** touches the analysis window, so selecting or creating a note can never reframe
-  the analysis.
-- **Analyze** (`analyzeNote`) — the row's explicit **Analyze** action, and the *only*
-  thing that moves the window onto a note: a range becomes the window exactly, a point
+- **Select** (`selectAnnotation`) — highlight the annotation and open (or raise) the chart it belongs
+  to. This is what the row heading, the row's chart action and the lane are wired to. It
+  **never** touches the analysis window, so selecting or creating an annotation can never reframe
+  the analysis. The persisted state is `selectedAnnotationId`, and the MCP wire names are the same
+  (`set_selected_annotation`, `get_state.selectedAnnotationId`).
+- **Analyze** (`analyzeAnnotation`) — the row's explicit **Analyze** action, and the *only*
+  thing that moves the window onto an annotation: a range becomes the window exactly, a point
   gets a window of the current width (or a tenth of the source) starting at its time.
-  Offered on **both** kinds of note (a point has a moment worth analysing too).
-- The **focused** note is a **panel** concept: closing the rail drops the focus, which
-  also clears the charts' full-height overlay and the Timeline's stem. The lane anchors
-  stay as an index of where the notes are, drawn dull.
+  Offered on **both** kinds of annotation (a point has a moment worth analysing too).
+- The **selected** annotation is a **panel** concept: closing the rail clears the selection,
+  which also clears the charts' full-height overlay and the Timeline's stem. The lane
+  anchors stay as an index of where the annotations are, drawn dull.
 
 **Consequence:** browsing the rail (or the lane) is now a read-only act, and reframing is
-always one deliberate click. Costs: one more icon in the row, and "where is this note?"
-is answered by Analyze rather than by the click itself. See [`notes.md`](notes.md).
+always one deliberate click. Costs: one more icon in the row, and "where is this annotation?"
+is answered by Analyze rather than by the click itself. See [`annotations.md`](annotations.md).
 
 **Status: delivered (M14 follow-up).**
 
 ## ADR-20 — Annotations and detected notes are distinct terms
 
-**Context:** M14 introduced user-authored **notes** (markdown anchored to a time and a
+**Context:** M14 introduced user-authored **annotations** (markdown anchored to a time and a
 chart). M18 adds **note segmentation**, whose result is a list of detected audio notes.
-Calling both "notes" makes the UI rail and the analyzer table ambiguous, and the M14
+Calling both "annotations" makes the UI rail and the analyzer table ambiguous, and the M14
 docs already used "annotation" as a synonym for the commentary payload.
 
 **Decision:** reserve the terms by origin:
@@ -547,15 +549,14 @@ docs already used "annotation" as a synonym for the commentary payload.
 - **Note / note segment** — what the engine detects (M18, `noteMetrics`). The analyzer is
   titled **Note segments** and its table is *detected notes*.
 
-**Compatibility:** the `Note` type, the frontend `notes` store, the project file's
-`NOTES` section, and the MCP/CLI `*_note` / `notes` names stay unchanged. Renaming them
-would break the project format and the public agent surface for a display-only gain; the
-glossary in [`notes.md`](notes.md) → Terminology maps the historical names to
-**annotation**.
+**One vocabulary:** the `Annotation` type, the frontend `annotations` store, the project
+file's `ANNOTATIONS` section and the MCP/CLI `*_annotation` / `annotations` names all use
+the same word; the only thing still called a **note** is the musical segment the
+`noteMetrics` analyzer detects.
 
 **Consequence:** every user-facing surface can say the precise thing without a schema,
-file-format, or MCP-tool break. The cost is that code names (`Note`, `notes`) are still
-the M14 spelling — documented at the type, store, and tool catalog.
+file-format, or MCP-tool alias. There is no compatibility name: a project annotation is
+only ever an **annotation**, and a detected segment is only ever a **note**.
 
 **Status: delivered (M18).**
 
@@ -606,14 +607,14 @@ start. There is no pause or seek, and the core reports no position once it stops
 
 **Consequence:** charts and the Timeline agree on what is being auditioned, pause/resume
 is meaningful, and a paused project still shows where it stopped. Source changes remain the
-only implicit reset. See [`notes.md`](notes.md) → Preview playback.
+only implicit reset. See [`annotations.md`](annotations.md) → Preview playback.
 
 **Status: proposed (M23).**
 
 ## ADR-23 — One command registry drives keyboard, palette, and shortcut UI
 
 **Context:** keyboard behaviour is split between native menu accelerators, component-local
-handlers (note editor, scrollbar, context menus) and browser defaults. There is no
+handlers (annotation editor, scrollbar, context menus) and browser defaults. There is no
 inventory, no discoverability, and no way to rebind anything.
 
 **Decision:** a single **command registry** is the source of truth: each command declares
@@ -670,7 +671,7 @@ The CLI needs the compiled filter spec in `LAYOUT` to reproduce the app's condit
 See [`comparison.md`](comparison.md).
 
 **Status: implemented (M25, views completed in M25.A); partially superseded.**
-`audio/analysis/compare/` computes the diff for every family; `commands/compare.rs` owns
+`audio/analysis/compare/` computes the diff for every family; `commands/compare/` owns
 the IPC/lifecycle surface; the frontend's `state/compare/` + `components/compare/` chart
 every family (series, spectrum, readouts, matrix/spectrogram, rhythm/events,
 `noteMetrics`, modulation, waveform); the CLI's `compare` reads `LAYOUT.filterSpec`.
@@ -791,7 +792,7 @@ available later. Keeping the reference project open just to see the diff is frag
 > payload that omits an absent optional key on the JSON wire (`SeriesResult`'s
 > `frameSize` / `gate`, `NoteMetricsResult`'s `syllables`) is therefore stored through a
 > positional wrapper that writes every field (`StoredSeries`, `StoredNoteMetrics`);
-> without it a saved series / grouped-notes comparison was unreadable. The JSON wire is
+> without it a saved series / grouped-annotations comparison was unreadable. The JSON wire is
 > unchanged.
 >
 > **Amended (M25.C follow-up):** a snapshot also records the reference project's
@@ -834,7 +835,7 @@ deviation (a compare popout's live change is not in the owner window's dirty fla
 
 **Context:** the Rust core carried a lot of enumerable state as bare strings and
 compared it with hand-written `match` arms and `&'static str` tables in several places:
-the 29 analyzer tool ids (`AnalysisResult::tool_id`, `family_of`, `about`, the catalog),
+the analyzer ids (`AnalysisResult::tool_id`, `family_of`, `about`, the catalog),
 the result `Family`, the catalog `Section`, the project `SourceDescriptor.kind`
 (`file`/`mic`/…), the live `CaptureKind`, capture event kinds, the window function
 (already a `WindowKind` enum, but matched by hand), the menu/theme/CLI action ids, and
@@ -857,7 +858,7 @@ registry and the MCP/CLI surfaces — kept in step only by tests and discipline.
 CLI ids, kebab-case for capture event kinds), so the string is identical on the wire and
 in code: the IPC JSON, the `postcard` project file and the regenerated `src/bindings/`
 stay **byte-for-byte unchanged** — this is type safety, not a format bump.
-- `AnalyzerId` is the single source of truth for the 29 tool ids. `AnalysisResult` stays a
+- `AnalyzerId` is the single source of truth for every tool id. `AnalysisResult` stays a
 typed union (its variants map 1:1 to `AnalyzerId`), and `tool_id()` returns `AnalyzerId`.
 `ToolId` is generated from the same variant list (plus `filter` / `synth`), so the
 analyzer subset and the Workbench tab ids cannot drift. An `EnumIter`-driven test runs

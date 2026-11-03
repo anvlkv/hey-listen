@@ -23,7 +23,7 @@ export type { ChartTheme };
  * - `overlayCentroid` / `overlayRolloff` — spectrogram contours: green / red-orange.
  * - `markerOnset` / `markerBeat` / `markerDownbeat` — rhythm markers: green / violet /
  *   crimson (the downbeat is drawn heavier).
- * - `note` — annotation anchors: magenta/violet.
+ * - `annotation` — annotation anchors: magenta/violet.
  * - `select` — the drag-to-zoom tint.
  *
  * A theme that changes one must keep it distinct from the others it shares a chart with.
@@ -56,7 +56,7 @@ export const DARK_CHART: ChartTheme = {
   rulerTick: "#333333",
   playhead: "#ffd166",
   midline: "rgba(255, 255, 255, 0.08)",
-  note: "#e879f9",
+  annotation: "#e879f9",
   markerOnset: "rgba(120, 220, 150, 0.7)",
   markerBeat: "rgba(178, 155, 255, 0.75)",
   markerDownbeat: "rgba(255, 92, 122, 0.95)",
@@ -91,7 +91,7 @@ export const LIGHT_CHART: ChartTheme = {
   rulerTick: "#cbd0d7",
   playhead: "#c77800",
   midline: "rgba(0, 0, 0, 0.08)",
-  note: "#a21caf",
+  annotation: "#a21caf",
   markerOnset: "rgba(18, 120, 68, 0.85)",
   markerBeat: "rgba(90, 60, 190, 0.75)",
   markerDownbeat: "rgba(198, 40, 62, 0.95)",

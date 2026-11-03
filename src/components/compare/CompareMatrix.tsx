@@ -9,7 +9,7 @@ import {
   type MatrixView as MatrixViewConfig,
 } from "../../state/analyzer";
 import { chartTheme } from "../../state/themes";
-import { compareFamily } from "../../state/compare/id";
+import { compareViewFamily } from "../../state/compare/id";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, MatrixDiffDto, Span } from "../../state/compare/types";
 import CompareCanvas from "./CompareCanvas";
@@ -41,7 +41,7 @@ const MODES: { id: Mode; label: string }[] = [
  * zero, with its legend under the readouts.
  *
  * A differing grid shows the two heatmaps side by side instead — no interpolation, and
- * no Δ. The canvas is read-only: a compare view never edits notes or the timeline.
+ * no Δ. The canvas is read-only: a compare view never edits annotations or the timeline.
  */
 export default function CompareMatrix(props: {
   tool: AnalyzerId;
@@ -52,7 +52,7 @@ export default function CompareMatrix(props: {
   time: CompareTime;
 }) {
   const [mode, setMode] = createSignal<Mode>("a");
-  const family = () => compareFamily(props.tool);
+  const family = () => compareViewFamily(props.tool);
   const spectrogram = () => family() === "spectrogram";
 
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */

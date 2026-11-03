@@ -2,15 +2,15 @@ import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
 import { clamp01, spectroColormap } from "./colormap";
 import { formatTimeTick } from "./axisFormat";
-import { drawNoteMarkers, noteGroups } from "./notePlugins";
-import type { LaneSelection } from "../notes/lane";
+import { drawAnnotationMarkers, annotationGroups } from "./annotationPlugins";
+import type { LaneSelection } from "../annotations/lane";
 import type { AnalyzerId } from "../../state/analyzer";
 import type { ChartView, PlotBox } from "./chartGeometry";
 
 /**
  * Drawing primitives shared by the plain-canvas heatmaps (`MatrixView` /
  * `SpectrogramTab`): the canvas frame, the offscreen heatmap image, the time axis,
- * the hover cross, the shared cursor mirror, the preview playhead, and the note overlay.
+ * the hover cross, the shared cursor mirror, the preview playhead, and the annotation overlay.
  * They keep the two heatmaps pixel-identical without duplicating the drawing code.
  */
 
@@ -208,9 +208,9 @@ export function drawPlayhead(ctx: CanvasRenderingContext2D, view: ChartView, box
   verticalRule(ctx, box, x, chartTheme().playhead, 1.5);
 }
 
-/** This chart's own notes, other charts' notes (muted), and the focused note (M14) —
- * plus the lane's live selection, if one is being dragged out. */
-export function drawNoteOverlay(
+/** This chart's own annotations, other charts' annotations (muted), and the selected annotation (M14)
+ * — plus the lane's live selection, if one is being dragged out. */
+export function drawAnnotationOverlay(
   ctx: CanvasRenderingContext2D,
   view: ChartView,
   box: PlotBox,
@@ -218,7 +218,7 @@ export function drawNoteOverlay(
   selection: LaneSelection = null,
 ): void {
   const span = Math.max(view.t1 - view.t0, 1e-9);
-  drawNoteMarkers(
+  drawAnnotationMarkers(
     ctx,
     {
       xFor: (time) => box.x + ((time - view.t0) / span) * box.width,
@@ -227,7 +227,7 @@ export function drawNoteOverlay(
       left: box.x,
       right: box.x + box.width,
     },
-    noteGroups(tool),
+    annotationGroups(tool),
     { selection },
   );
 }

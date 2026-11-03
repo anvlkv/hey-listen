@@ -7,6 +7,7 @@
    `@import` rules must precede every other rule, so keep this list at the top. */
 @import "./icons.css";
 @import "./styles/base.css";
+@import "./styles/shared.css";
 @import "./styles/toolbar.css";
 @import "./styles/layout.css";
 @import "./styles/source.css";
@@ -24,4 +25,4 @@
 @import "./styles/panels.css";
 @import "./styles/mcp.css";
 @import "./styles/about.css";
-@import "./styles/notes.css";
+@import "./styles/annotations.css";

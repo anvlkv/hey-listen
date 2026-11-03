@@ -8,41 +8,26 @@
 
 use super::AnalyzerId;
 
-/// How a tool's result is shaped on the wire.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::EnumString,
-    strum::Display,
-    strum::AsRefStr,
-    strum::IntoStaticStr,
-    strum::EnumIter,
-    strum::VariantNames,
-    ts_rs::TS,
-)]
-#[serde(rename_all = "camelCase")]
-#[strum(serialize_all = "camelCase")]
-#[ts(export, rename_all = "camelCase")]
-pub enum Family {
-    /// Scalars only (level meters, integrated loudness, LRA).
-    Scalar,
-    /// One scalar per frame, with a time axis (`frameRms`, spectral series, pitch).
-    Series,
-    /// A spectrum: parallel bin arrays (`freqs` + magnitudes), no time axis.
-    Spectrum,
-    /// A frame × band matrix (`melSpectrogram`, `mfcc`, `chromagram`, contrast).
-    Matrix,
-    /// A frame × bin heatmap with a scaled hop (`spectrogram`).
-    Spectrogram,
-    /// A time axis plus detected event lists (`tempo`, `onsets`, `downbeats`).
-    Events,
-    /// Detected note records with spans and gaps (`noteMetrics`).
-    Notes,
+id_enum! {
+    [serde::Serialize, serde::Deserialize]
+    [serde(rename_all = "camelCase")]
+    /// How a tool's result is shaped on the wire.
+    pub enum Family {
+        /// Scalars only (level meters, integrated loudness, LRA).
+        Scalar,
+        /// One scalar per frame, with a time axis (`frameRms`, spectral series, pitch).
+        Series,
+        /// A spectrum: parallel bin arrays (`freqs` + magnitudes), no time axis.
+        Spectrum,
+        /// A frame × band matrix (`melSpectrogram`, `mfcc`, `chromagram`, contrast).
+        Matrix,
+        /// A frame × bin heatmap with a scaled hop (`spectrogram`).
+        Spectrogram,
+        /// A time axis plus detected event lists (`tempo`, `onsets`, `downbeats`).
+        Events,
+        /// Detected note records with spans and gaps (`noteMetrics`).
+        Notes,
+    }
 }
 
 impl Family {

@@ -1,4 +1,4 @@
-//! Batch CLI logic: `analyzers` / `analyze` / `synth` / `notes` / `compare` / `project`.
+//! Batch CLI logic: `analyzers` / `analyze` / `synth` / `annotations` / `compare` / `project`.
 //!
 //! A **windowless front end over the shared headless session** ([`HeadlessSession`],
 //! the same engine facade `heylisten-mcp --headless` drives). It maps the parsed
@@ -12,18 +12,18 @@
 //! `audio::graph` functions the GUI commands do. See `docs/cli.md` (ADR-14).
 //!
 //! The implementation is split by subcommand: [`args`] maps the matches onto a
-//! [`Request`], [`analyze`] / [`analyzers`] / [`notes`] / [`synth`] run each
+//! [`Request`], [`analyze`] / [`analyzers`] / [`annotations`] / [`synth`] run each
 //! subcommand, and [`output`] writes the JSONL.
 
 mod analyze;
 mod analyzers;
+mod annotations;
 mod args;
 mod compare;
 mod compare_save;
 mod export;
 mod export_args;
 mod inputs;
-mod notes;
 mod output;
 mod project;
 mod synth;
@@ -43,8 +43,8 @@ use crate::mcp::dispatch::HeadlessSession;
 
 use analyze::run_analyze;
 use analyzers::run_analyzers;
+use annotations::run_annotations;
 use compare::run_compare;
-use notes::run_notes;
 use project::run_project_save;
 use synth::run_synth;
 
@@ -93,13 +93,13 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
     match &request.command {
         Command::Analyzers { id, json } => run_analyzers(&mut session, id.as_deref(), *json, out),
         Command::Analyze => run_analyze(&mut session, request, out),
-        Command::Notes {
+        Command::Annotations {
             path,
             json,
             full,
             op,
             to,
-        } => run_notes(path, *json, *full, op, to.as_deref(), out),
+        } => run_annotations(path, *json, *full, op, to.as_deref(), out),
         Command::Compare { .. } => run_compare(request, out),
         Command::ProjectSave { .. } => run_project_save(&mut session, request, out),
         Command::Synth {

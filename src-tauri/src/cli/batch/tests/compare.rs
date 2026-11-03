@@ -4,7 +4,7 @@ use super::*;
 use crate::project::{
     write_project, AnalysisSetup, AnalysisWindow, SaveProject, SourceDescriptor, SourceKind,
 };
-use crate::state::SourcePcm;
+use crate::state::SourceData;
 
 /// Write a `.heyl` project whose source is a mono 8 kHz sine at `amplitude`.
 pub(super) fn write_project_file(name: &str, amplitude: f32, window: (f64, f64)) -> String {
@@ -15,7 +15,7 @@ pub(super) fn write_project_file(name: &str, amplitude: f32, window: (f64, f64))
             amplitude * (t * 440.0 * std::f32::consts::TAU).sin()
         })
         .collect();
-    let pcm = SourcePcm {
+    let pcm = SourceData {
         samples,
         sample_rate: rate,
         channels: 1,
@@ -40,7 +40,7 @@ pub(super) fn write_project_file(name: &str, amplitude: f32, window: (f64, f64))
         },
         layout: serde_json::json!({ "dockview": null, "graphs": {} }),
         results: Vec::new(),
-        notes: Vec::new(),
+        annotations: Vec::new(),
         compare: Vec::new(),
         pcm: Some(&pcm),
     };

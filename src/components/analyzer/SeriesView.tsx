@@ -1,14 +1,14 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
-import { createSignal, For, Show, untrack, onCleanup } from "solid-js";
+import { createSignal, For, Show, untrack } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { referenceLine, semitoneGrid } from "./seriesPlugins";
-import { noteMarkers } from "./notePlugins";
+import { annotationMarkers } from "./annotationPlugins";
 import { paddedYRange } from "./range";
 import { coverage, seriesReadouts } from "./readouts";
 import {
@@ -27,7 +27,7 @@ import {
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
-import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
+import { useUplotImage } from "./chartImage";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
@@ -116,17 +116,7 @@ export default function SeriesView(props: {
 
   // Export the rendered chart (M12). Re-evaluated on demand, so a resize/zoom is
   // captured exactly as it is on screen.
-  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
-  registerChartImage(
-    untrack(() => props.id),
-    imageProvider,
-  );
-  onCleanup(() =>
-    unregisterChartImage(
-      untrack(() => props.id),
-      imageProvider,
-    ),
-  );
+  useUplotImage(() => props.id, zoom.instance);
 
   // The registry's formatter is static for a tool, so build the tooltip once.
   const Tooltip = timeTooltip(untrack(() => view().formatY));
@@ -205,7 +195,7 @@ export default function SeriesView(props: {
                     mirrorCursor("time"),
                     syncView("time"),
                     playheadRule(),
-                    noteMarkers(props.id),
+                    annotationMarkers(props.id),
                     ...(view().reference ? [referenceLine(view().reference!)] : []),
                     ...(view().semitoneGrid ? [semitoneGrid()] : []),
                   ]}

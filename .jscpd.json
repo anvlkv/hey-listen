@@ -1,6 +1,6 @@
 {
   "min-tokens": 70,
-  "threshold": 0.5,
+  "threshold": 0.01,
   "gitignore": true,
   "reporters": ["console"],
   "format": ["typescript", "tsx", "javascript", "jsx", "css", "rust"],

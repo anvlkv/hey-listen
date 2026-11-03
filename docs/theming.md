@@ -86,10 +86,10 @@ A theme is a versioned JSON payload (`src/lib/themeFile.ts`). The extension is
   `overlayRolloff` colour the spectrogram contour overlays (M11.A). `markerOnset` /
   `markerBeat` / `markerDownbeat` colour the rhythm markers (`markerBeat` also draws the
   note-segments **f0** overlay), `select` the drag-to-zoom tint, and `hover` / `mirror` /
-  `playhead` / `note` the cursors and note anchors (see `state/themes/chart.ts` for the
-  full role list — a theme that changes one must keep it distinct from the rest it shares
-  a chart with). **M25 (planned)** adds `compareA` / `compareB` for the two sides of a
-  cross-project comparison (B's read-only cursor and playhead use `compareB`); built-in
+  `playhead` / `annotation` the cursors and annotation anchors, and `compareA` / `compareB` /
+  `compareDelta` the two sides of a cross-project comparison (B's read-only cursor and
+  playhead use `compareB`); see `state/themes/chart.ts` for the full role list — a theme
+  that changes one must keep it distinct from the rest it shares a chart with. Built-in
   themes inherit the base values, and a theme may overlay them like any other role.
 - **Meter colours** (the `levels` tool) are the `ui` variables `--meter-low` /
   `--meter-mid` / `--meter-high` / `--meter-peak` / `--meter-unlit`.
@@ -155,7 +155,7 @@ fallbacks); the picker may group suggestions by base for convenience.
 4. `colormap.ts` reads `active.colormap` (or the base ramp).
 5. `GraphEditor`'s `flowStyle()` merges `FLOW_STYLE_<base>` with `active.flow`.
 6. `--chart-hover` / `--chart-select` are written on the root from `chartTheme()`, so
-   uPlot's own crosshair and drag-select follow the palette (see the note above).
+   uPlot's own crosshair and drag-select follow the palette (see the annotation above).
 
 Every chart **keyed** on the theme re-renders: the uPlot views remount on
 `activeThemeId()` (the wrapper fixes `series` / `scales` at mount) and the canvas
@@ -224,7 +224,7 @@ over the same registry (see [`mcp.md`](mcp.md)):
   bundled themes only (`list_themes` / `get_theme`), since it has no webview and
   cannot resolve the app config dir; `set_theme` / `import_theme` / `export_theme`
   return "requires the app".
-- CLI: no theme flag in the first pass (batch output is data, not chrome); note it as a
+- CLI: no theme flag in the first pass (batch output is data, not chrome); annotation it as a
   possible later addition.
 
 ## Files

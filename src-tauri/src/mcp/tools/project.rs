@@ -1,6 +1,6 @@
 //! Project file operations and the annotation catalog (app-only: an annotation lives
-//! in a project). The tool ids keep the M14 `*_note` spelling; these are project
-//! annotations, not `noteMetrics`' detected note segments.
+//! in a project). These are project annotations, not `noteMetrics`' detected note
+//! segments.
 
 use serde_json::{json, Value};
 
@@ -19,7 +19,7 @@ pub(super) fn tools() -> Vec<Value> {
              (`openTools`) and its saved comparison snapshots — a comparison that is open in \
              the app, or was computed by `compare_analysis` headless, is written to `COMPARE` \
              and reopens as a compare tab. In headless mode `path` is required and the file is \
-             built from the session's source + setup + the `notes` you pass (there is no \
+             built from the session's source + setup + the `annotations` you pass (there is no \
              Workbench layout; `openTools` are restored as tabs when the app opens the file, \
              defaulting to the tabs opened with `open_tool`). `embedSource: false` writes a \
              reference project instead of embedding the audio.",
@@ -28,7 +28,7 @@ pub(super) fn tools() -> Vec<Value> {
                 "properties": {
                     "path": { "type": "string", "description": "Destination .heyl path." },
                     "name": { "type": "string", "description": "Project name (default: the file stem)." },
-                    "notes": {
+                    "annotations": {
                         "type": "array",
                         "description": "Headless: annotations to write (id/createdMs/updatedMs are filled when omitted). Default: none.",
                         "items": { "type": "object" },
@@ -97,25 +97,25 @@ pub(super) fn tools() -> Vec<Value> {
             json!({ "type": "object", "properties": {}, "additionalProperties": false }),
         ),
         tool(
-            "list_notes",
+            "list_annotations",
             "List annotations",
             ToolClass::OBSERVE,
-            "List every annotation in the project (stored as a note). By default each is a \
+            "List every annotation in the project (stored as `Annotation`). By default each is a \
              compact summary — id, time (source seconds), optional range, tool, title, the \
-             values text, and a one-line body excerpt. Pass `full: true` (or call `get_note`) \
+             values text, and a one-line body excerpt. Pass `full: true` (or call `get_annotation`) \
              for the full markdown body and frozen values snapshot. App-only (an annotation \
              lives in a project). Not the detected note segments returned by the \
              `noteMetrics` analyzer.",
             json!({
                 "type": "object",
                 "properties": {
-                    "full": { "type": "boolean", "description": "Return the full notes (markdown body + frozen values) instead of compact summaries." },
+                    "full": { "type": "boolean", "description": "Return the full annotations (markdown body + frozen values) instead of compact summaries." },
                 },
                 "additionalProperties": false,
             }),
         ),
         tool(
-            "get_note",
+            "get_annotation",
             "Get annotation",
             ToolClass::OBSERVE,
             "Read one annotation by `id`.",
@@ -127,9 +127,9 @@ pub(super) fn tools() -> Vec<Value> {
             }),
         ),
         tool(
-            "create_note",
+            "create_annotation",
             "Create annotation",
-            ToolClass::NOTE_WRITE,
+            ToolClass::ANNOTATION_WRITE,
             "Create an annotation anchored at `time` (source seconds), optionally a `range` \
              span, and optionally tied to the analyzer `tool` it was taken from (omit for a \
              Timeline annotation). `title` is plain text, `body` is markdown. The frozen \
@@ -153,9 +153,9 @@ pub(super) fn tools() -> Vec<Value> {
             }),
         ),
         tool(
-            "update_note",
+            "update_annotation",
             "Update annotation",
-            ToolClass::NOTE_WRITE,
+            ToolClass::ANNOTATION_WRITE,
             "Patch an annotation by `id`: `title` / `body` / `time` / `range` / `tool`. Pass \
              `recomputeValues: true` to refresh the frozen values snapshot from the live \
              chart. Only the supplied keys change. App-only.",
@@ -175,9 +175,9 @@ pub(super) fn tools() -> Vec<Value> {
             }),
         ),
         tool(
-            "delete_note",
+            "delete_annotation",
             "Delete annotation",
-            ToolClass::NOTE_DELETE,
+            ToolClass::ANNOTATION_DELETE,
             "Remove an annotation by `id`. App-only.",
             json!({
                 "type": "object",
@@ -187,11 +187,12 @@ pub(super) fn tools() -> Vec<Value> {
             }),
         ),
         tool(
-            "set_focused_note",
-            "Focus annotation",
+            "set_selected_annotation",
+            "Select annotation",
             ToolClass::SETTINGS,
-            "Focus one annotation (`id`) or clear the focus (`null`). The focused annotation \
-             is drawn on every time-based chart. App-only.",
+            "Select one annotation (`id`) or clear the selection (`null`). The wire name keeps \
+             the M14 selected annotation is drawn on every \
+             time-based chart. App-only.",
             json!({
                 "type": "object",
                 "properties": { "id": { "type": ["string", "null"] } },

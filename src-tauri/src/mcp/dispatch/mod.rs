@@ -11,7 +11,7 @@
 //! UI-only tools — editor-layout graph editing (`get_graph` / `set_synth_graph`) and
 //! live preview/capture (real device I/O with no UI to configure it) — answer
 //! "requires the app". Project save/load is supported headless from the session's own
-//! state (source, setup, notes, open tabs); `open_tool` / `close_tool` maintain the
+//! state (source, setup, annotations, open tabs); `open_tool` / `close_tool` maintain the
 //! `SETUP.openTools` restore list rather than a webview, and no `LAYOUT` is written.
 //! `set_filter_graph` is supported
 //! headless too, but takes a `GraphSpec` directly (there is no graph editor). See

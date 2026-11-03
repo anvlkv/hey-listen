@@ -1,6 +1,6 @@
 //! The typed ids for analyzers and Workbench tabs (M15.B, ADR-28).
 //!
-//! `AnalyzerId` is the single source of truth for the 29 analysis tool ids. The
+//! `AnalyzerId` is the single source of truth for every analysis tool id. The
 //! `workbench_ids!` list below defines it **and** `ToolId` (the same ids plus the two
 //! graph editors, `filter` / `synth`), so the two enums cannot drift: the conversion
 //! and the tab-id subset are generated from one variant list.
@@ -40,59 +40,30 @@ macro_rules! wire_id {
     };
 }
 
-/// Define `AnalyzerId` and `ToolId` from one variant list.
+/// Define `AnalyzerId` and `ToolId` from one variant list. Both are **wire** ids: their
+/// `serde` is hand-written by [`wire_id!`], so `id_enum!` gets no extra derives.
 macro_rules! workbench_ids {
     ($($variant:ident),* $(,)?) => {
-        /// The analyzer tool ids (the 29 tools in `docs/analysis-tools.md`).
-        #[derive(
-            Debug,
-            Clone,
-            Copy,
-            PartialEq,
-            Eq,
-            PartialOrd,
-            Ord,
-            Hash,
-            strum::EnumString,
-            strum::Display,
-            strum::AsRefStr,
-            strum::IntoStaticStr,
-            strum::EnumIter,
-            strum::VariantNames,
-            ts_rs::TS,
-        )]
-        #[strum(serialize_all = "camelCase")]
-        #[ts(export, rename_all = "camelCase")]
-        pub enum AnalyzerId {
-            $($variant),*
+        id_enum! {
+            []
+            []
+            /// The analyzer tool ids (every analyzer in `docs/analysis-tools.md`).
+            pub enum AnalyzerId {
+                $($variant),*
+            }
         }
 
-        /// A Workbench tab id: an analyzer, or one of the graph editors.
-        #[derive(
-            Debug,
-            Clone,
-            Copy,
-            PartialEq,
-            Eq,
-            PartialOrd,
-            Ord,
-            Hash,
-            strum::EnumString,
-            strum::Display,
-            strum::AsRefStr,
-            strum::IntoStaticStr,
-            strum::EnumIter,
-            strum::VariantNames,
-            ts_rs::TS,
-        )]
-        #[strum(serialize_all = "camelCase")]
-        #[ts(export, rename_all = "camelCase")]
-        pub enum ToolId {
-            /// The filter graph editor tab.
-            Filter,
-            /// The synth graph editor tab.
-            Synth,
-            $($variant),*
+        id_enum! {
+            []
+            []
+            /// A Workbench tab id: an analyzer, or one of the graph editors.
+            pub enum ToolId {
+                /// The filter graph editor tab.
+                Filter,
+                /// The synth graph editor tab.
+                Synth,
+                $($variant),*
+            }
         }
 
         impl From<AnalyzerId> for ToolId {

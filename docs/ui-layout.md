@@ -8,7 +8,7 @@ synth) and, from M4, the **analyzer tabs**.
 
 ```
 ┌──────────┬───────────────────────────┬────────┐
-│          │  Workbench                │ Notes  │
+│          │  Workbench                │ Annotations  │
 │  Sidebar │  (dockview — Workbench    │ (right │
 │  (tool   │   tabs: graph editors +   │ rail;  │
 │  picker) │   analyzers)              │ collap-│
@@ -20,7 +20,7 @@ synth) and, from M4, the **analyzer tabs**.
 └──────────┴───────────────────────────┴────────┘
 ```
 
-(The native window title bar sits above the Toolbar; it is not shown here. The **Notes**
+(The native window title bar sits above the Toolbar; it is not shown here. The **Annotations**
 rail runs the full height of the main area and **pushes** the Workbench — it does not
 overlay it; it is hidden by default.)
 
@@ -94,13 +94,13 @@ compact "Add audio" state has a fixed height).
   shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), an
   **Appearance** popover (UI scale + theme — see [Theming](#theming)), a **Templates**
   popover (save / apply / import / export analysis templates — see
-  [`templates.md`](templates.md)), a **Notes** toggle (an icon button that shows /
+  [`templates.md`](templates.md)), a **Annotations** toggle (an icon button that shows /
   hides the right rail — see [Annotations panel](#annotations-panel)), an **MCP** popover (the Model
   Context Protocol server's on/off, port, live status, and a copyable `mcpServers`
   snippet — see [`mcp.md`](mcp.md)), and an **About** button (app identity +
   attributions — see [Icons, tooltips, and About](#icons-tooltips-and-about)). The
   popover triggers are icons (`sliders` / `circle-half-stroke` / `plug` /
-  `circle-question`) with tooltips; the **Notes** toggle is the `note-sticky` icon.
+  `circle-question`) with tooltips; the **Annotations** toggle is the `annotation-sticky` icon.
   The temporary **`Rust backend:`** status (the M0 IPC-ping scaffold) is gone.
 - **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
   decrease (Shift for fine control) — in addition to typing. There is no slider; an
@@ -146,10 +146,10 @@ popover. See [`theming.md`](theming.md).
   rule in `src/icons.css` renders it, so the CSS needs no per-icon rules. Attribution
   is in the About dialog; the license ships with the font.
   - **Sidebar rows** use the tool's **chart-type** icon (`VIEW_ICONS`, keyed by the
-    analyzer's `view.kind`: waveform / series / spectrum / rhythm / matrix /
-    spectrogram / readouts), tucked into the **bottom-right corner** of the row. Two
-    tools of the same chart type share an icon. Section titles and subtitles are plain
-    text (no icons).
+    analyzer's `AnalyzerView["kind"]`: waveform / series / spectrum / rhythm / matrix /
+    spectrogram / readouts / noteMetrics / modulation), tucked into the **bottom-right
+    corner** of the row. Two tools of the same chart type share an icon. Section titles
+    and subtitles are plain text (no icons).
 - **Compaction:** self-evident controls are **icon-only** (popover triggers, zoom,
   MCP copy, graph clear, import / export / delete / reveal, the timeline's replace and
   zoom, record / pause / stop, the theme-mode buttons, the sidebar rows); primary and
@@ -170,13 +170,13 @@ popover. See [`theming.md`](theming.md).
 
 ## Fixed regions
 
-| Region | Role | Notes |
+| Region | Role | Annotations |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider + the note lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; carries the **Filter switch** (the on/bypassed indicator and bypass control in one — it reads **off** while the filter graph is still the identity seed); **overlays the filtered signal** when a filter is active; carries the **note anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider + the annotation lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; carries the **Filter switch** (the on/bypassed indicator and bypass control in one — it reads **off** while the filter graph is still the identity seed); **overlays the filtered signal** when a filter is active; carries the **annotation anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor |
 | **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
-| **Annotations** (right rail; code/test ids say `notes`) | the project's annotations — a list of markdown annotations anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
+| **Annotations** (right rail; code/test ids say `annotations`) | the project's annotations — a list of markdown annotations anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
 
 None of these are closable, draggable, or tabbed.
 
@@ -217,8 +217,8 @@ None of these are closable, draggable, or tabbed.
   project's views). Its window label is `compare-<n>`. The window is transient, but since
   M25.C its comparison content is saved and restores as a **tab**, not as a window. See
   [`comparison.md`](comparison.md).
-- A **note** pops out the same way (`open_note_window`, from the Annotations rail's row): a
-  real window that renders just that note's editor, aliased to the same project and
+- A **annotation** pops out the same way (`open_annotation_window`, from the Annotations rail's row): a
+  real window that renders just that annotation's editor, aliased to the same project and
   raised rather than duplicated. A popout of either kind is never a project window:
   the MCP server routes its tool calls to the owning project, and `list_projects`
   lists only real projects.
@@ -282,35 +282,37 @@ tab).
 
 The **Annotations** region is a **right rail** — a fixed region (not a tab), the mirror of the
 Sidebar and the home of the project's annotations (M14; see
-[`notes.md`](notes.md)). It is **hidden by default** and toggled from the Toolbar
-(`note-sticky`) or its own header chevron; its width is draggable (clamped like the
+[`annotations.md`](annotations.md)). It is **hidden by default** and toggled from the Toolbar
+(`annotation-sticky`) or its own header chevron; its width is draggable (clamped like the
 Sidebar, 160–520 px) and it **pushes** the Workbench rather than overlaying it. Open/
 closed state and width are **view settings** persisted app-level (like the font scale),
 not project state.
 
-Each row is one note, **sorted by time**. A row is a compact, visually separated
+Each row is one annotation, **sorted by time**. A row is a compact, visually separated
 **title bar** — its heading (the body's first line) with the row actions as borderless
-icons (`open chart` when the note has an analyzer, `edit`, `popout`, `delete`) on the
-right — over its tool + time subtitle, its **current** values line (the frozen snapshot
-is shown struck through beneath when it differs), and its **full rendered body** (clamped
-to a height, expandable with a chevron). Selecting the heading **focuses** the note — it
-then appears on every time-based chart and its chart is opened/raised. Editing **swaps**
-the body for a textarea with an explicit save/discard (a blur does not save). The
-`popout` action opens the note in its **own window**, raised rather than duplicated. The
-header has an **Add note** button (a **point** note at the analysis window's start, using
-the focused analyzer as its chart), and the Toolbar button carries its **count** as a
+icons (`analyze`, `open chart` when the annotation has an analyzer, `edit`, `popout`,
+`delete`) on the right — over its tool + time subtitle, its **current** values line (the
+frozen snapshot is shown struck through beneath when it differs), and its **full
+rendered body** (clamped to a height, expandable with a chevron). Selecting the heading
+**selects** the annotation (the persisted selection) — it then appears on every time-based
+chart and its chart is opened/raised; only the row's **Analyze** action moves the
+analysis window (ADR-19). Editing **swaps** the body for a textarea with an explicit
+save/discard (a blur does not save). The `popout` action opens the annotation in its **own
+window**, raised rather than duplicated. The header has an **Add annotation** button (a
+**point** annotation at the analysis window's start, using the focused analyzer as its
+chart), and the Toolbar button carries its **count** as a
 muted pill inside the button while the rail is closed. **Ranges are made where the audio
-is**: dragging a span in the note **lane** along the bottom of the Timeline or of any time
-chart creates a range note there, and a range then shows a **handle on each edge** in that
-lane so either end can be dragged (a point note has one handle, which moves it).
+is**: dragging a span in the annotation **lane** along the bottom of the Timeline or of any time
+chart creates a range annotation there, and a range then shows a **handle on each edge** in that
+lane so either end can be dragged (a point annotation has one handle, which moves it).
 
-Notes are surfaced in three places: every note in the note **lane** along the bottom of
+Annotations are surfaced in three places: every annotation in the annotation **lane** along the bottom of
 the Timeline (a range shows a handle on each edge, so either end is draggable, and dragging
-a span in the lane marks a new one), a chart's **own** notes in that chart's lane (with the
-notes from other charts drawn **muted**), and the **focused** note as a full-height rule
+a span in the lane marks a new one), a chart's **own** annotations in that chart's lane (with the
+annotations from other charts drawn **muted**), and the **selected** annotation as a full-height rule
 with a label on **all time-based charts** (never the frequency-axis `spectrum`). The
 Timeline also mirrors the **hovered chart's cursor** as a dashed rule. See
-[`notes.md`](notes.md) → Surfacing.
+[`annotations.md`](annotations.md) → Surfacing.
 
 ## Source picker
 

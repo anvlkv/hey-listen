@@ -24,7 +24,7 @@ import type {
  * per-note table.
  *
  * These are **detected audio note segments** — not the project's user-authored
- * annotations (`docs/notes.md`). The chart places every note on the source timeline
+ * annotations (`docs/annotations.md`). The chart places every note on the source timeline
  * (its own envelope, with the gaps left empty); the table is the detail: start/end,
  * the silence around each note, its level, its level against the loudest note, plus
  * the M19 voice-quality **proxies** (voicing, f0, jitter, shimmer, HNR) where the

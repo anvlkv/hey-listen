@@ -49,12 +49,9 @@ describe("D. Analyzer tools — smoke (every tool)", () => {
       await openTool(tool.id);
       const panel = analyzerPanel(tool.id);
       try {
-        // `tempo` is labelled "readouts" in the matrix, but the registry renders it
-        // through the rhythm view (a canvas + a readout row), so treat it as a chart.
-        // `noteMetrics` is a card + chart + table view; the table is the point here.
-        const isCardReadouts =
-          tool.view === "noteMetrics" || (tool.view === "readouts" && tool.id !== "tempo");
-        if (isCardReadouts) {
+        // `readouts` is card-only (levels, integrated loudness, LRA); `noteMetrics` is a
+        // card + chart + table view, where the table is the point.
+        if (tool.view === "readouts" || tool.view === "noteMetrics") {
           await waitForReadouts(tool.id);
           expect(await $$(`${panel} .readout-card-value`).length).toBeGreaterThan(0);
           if (tool.view === "noteMetrics") {

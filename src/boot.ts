@@ -8,7 +8,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
  * reported by a handler that is already installed.
  *
  * A failure during the first paint is otherwise invisible: no window, no error, and
- * nothing in the log file. Note the direction of the log plugin's APIs — `attachConsole`
+ * nothing in the log file. Annotation the direction of the log plugin's APIs — `attachConsole`
  * mirrors *Rust* logs into the webview console; it does **not** forward the frontend's
  * `console.*` to the log file. So every startup failure is reported twice: to the
  * webview console (visible in `npm run tauri dev`) and explicitly to the Tauri log

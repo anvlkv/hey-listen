@@ -213,8 +213,8 @@
             }
           ]
         },
-        "notes": {
-          "description": "List, get, add, update or delete the notes in a project file (.heyl)",
+        "annotations": {
+          "description": "List, get, add, update or delete the annotations in a project file (.heyl)",
           "args": [
             {
               "name": "file",
@@ -224,7 +224,7 @@
             },
             {
               "name": "json",
-              "description": "Emit each note as one JSON line (JSONL) instead of a table"
+              "description": "Emit each annotation as one JSON line (JSONL) instead of a table"
             },
             {
               "name": "full",
@@ -233,17 +233,17 @@
             {
               "name": "add",
               "takesValue": true,
-              "description": "Append the notes in this JSON array file (title/body/timeSecs/range/tool)"
+              "description": "Append the annotations in this JSON array file (title/body/timeSecs/range/tool)"
             },
             {
               "name": "get",
               "takesValue": true,
-              "description": "Print one note by id (full body and frozen values)"
+              "description": "Print one annotation by id (full body and frozen values)"
             },
             {
               "name": "update",
               "takesValue": true,
-              "description": "Patch one note by id; give the fields with --set"
+              "description": "Patch one annotation by id; give the fields with --set"
             },
             {
               "name": "set",
@@ -254,7 +254,7 @@
             {
               "name": "delete",
               "takesValue": true,
-              "description": "Remove one note by id"
+              "description": "Remove one annotation by id"
             },
             {
               "name": "to",
@@ -412,9 +412,9 @@
               "description": "Analyzer tab to restore when the project opens (repeatable), e.g. --open-tool spectrum"
             },
             {
-              "name": "notes",
+              "name": "annotations",
               "takesValue": true,
-              "description": "Annotations JSON file: an array of note objects (title/body/timeSecs/range/tool)"
+              "description": "Annotations JSON file: an array of annotation objects (title/body/timeSecs/range/tool)"
             },
             {
               "name": "reference",

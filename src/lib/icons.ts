@@ -53,7 +53,7 @@ export const ICON_GLYPHS = {
   // --- Theme actions ----------------------------------------------------------
   copy: "f0c5",
   check: "f00c",
-  "note-sticky": "f249",
+  "annotation-sticky": "f249",
   "file-import": "f56f",
   "file-export": "f56e",
   // --- Attribution ------------------------------------------------------------

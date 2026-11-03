@@ -5,40 +5,12 @@
 //! This is the "no app, just the CLI" path described in `docs/mcp.md`.
 
 use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
-/// Write a minimal 16-bit PCM mono WAV with a half-scale 440 Hz sine.
-fn write_sine_wav(path: &Path, rate: u32, frames: usize) {
-    let bits = 16u16;
-    let block_align = bits / 8;
-    let byte_rate = rate * u32::from(block_align);
-    let data_len = frames as u32 * u32::from(block_align);
-
-    let mut buf = Vec::new();
-    buf.extend_from_slice(b"RIFF");
-    buf.extend_from_slice(&(36 + data_len).to_le_bytes());
-    buf.extend_from_slice(b"WAVE");
-    buf.extend_from_slice(b"fmt ");
-    buf.extend_from_slice(&16u32.to_le_bytes());
-    buf.extend_from_slice(&1u16.to_le_bytes()); // PCM
-    buf.extend_from_slice(&1u16.to_le_bytes()); // mono
-    buf.extend_from_slice(&rate.to_le_bytes());
-    buf.extend_from_slice(&byte_rate.to_le_bytes());
-    buf.extend_from_slice(&block_align.to_le_bytes());
-    buf.extend_from_slice(&bits.to_le_bytes());
-    buf.extend_from_slice(b"data");
-    buf.extend_from_slice(&data_len.to_le_bytes());
-
-    for f in 0..frames {
-        let t = f as f32 / rate as f32;
-        let sample = (t * 440.0 * std::f32::consts::TAU).sin() * 0.5;
-        let value = (sample * f32::from(i16::MAX)) as i16;
-        buf.extend_from_slice(&value.to_le_bytes());
-    }
-
-    std::fs::write(path, buf).unwrap();
+mod wav {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/support/wav.rs"));
 }
+use wav::write_sine_wav;
 
 /// A minimal stdio MCP client over a child process.
 struct Client {

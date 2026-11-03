@@ -1,5 +1,37 @@
-import type { NodeKindDef } from "../types";
+import type { NodeKindDef, ParamDef } from "../types";
 import { timeParam } from "../params";
+
+/** A stereo reverb's room size, in metres. */
+const room = (minimum = 10): ParamDef => ({
+  key: "room",
+  label: "Room",
+  default: minimum,
+  min: minimum,
+  max: 30,
+  step: 0.5,
+  unit: "m",
+});
+
+/** A reverb's decay time, in seconds. */
+const decay = (): ParamDef => ({
+  key: "time",
+  label: "Time",
+  default: 2,
+  min: 0.1,
+  max: 20,
+  step: 0.1,
+  unit: "s",
+});
+
+/** A reverb mix control (`damping` or `diffusion`). */
+const mix = (key: string, label: string): ParamDef => ({
+  key,
+  label,
+  default: 0.5,
+  min: 0,
+  max: 1,
+  step: 0.01,
+});
 
 /** Node kinds: reverb. */
 export const REVERB: NodeKindDef[] = [
@@ -33,11 +65,7 @@ export const REVERB: NodeKindDef[] = [
     category: "reverb",
     inputs: 2,
     outputs: 2,
-    params: [
-      { key: "room", label: "Room", default: 10, min: 10, max: 30, step: 0.5, unit: "m" },
-      { key: "time", label: "Time", default: 2, min: 0.1, max: 20, step: 0.1, unit: "s" },
-      { key: "damping", label: "Damping", default: 0.5, min: 0, max: 1, step: 0.01 },
-    ],
+    params: [room(), decay(), mix("damping", "Damping")],
     hint: "Stereo room reverb (32-channel FDN) — inputs: left, right; outputs: left, right.",
   },
   {
@@ -47,9 +75,9 @@ export const REVERB: NodeKindDef[] = [
     inputs: 2,
     outputs: 2,
     params: [
-      { key: "room", label: "Room", default: 10, min: 10, max: 30, step: 0.5, unit: "m" },
-      { key: "time", label: "Time", default: 2, min: 0.1, max: 20, step: 0.1, unit: "s" },
-      { key: "diffusion", label: "Diffusion", default: 0.5, min: 0, max: 1, step: 0.01 },
+      room(),
+      decay(),
+      mix("diffusion", "Diffusion"),
       { key: "mod_speed", label: "Mod", default: 1, min: 0, max: 2, step: 0.01 },
       {
         key: "loop_filter",
@@ -70,8 +98,8 @@ export const REVERB: NodeKindDef[] = [
     inputs: 2,
     outputs: 2,
     params: [
-      { key: "time", label: "Time", default: 2, min: 0.1, max: 20, step: 0.1, unit: "s" },
-      { key: "diffusion", label: "Diffusion", default: 0.5, min: 0, max: 1, step: 0.01 },
+      decay(),
+      mix("diffusion", "Diffusion"),
       {
         key: "loop_filter",
         label: "Loop filter",
@@ -90,10 +118,7 @@ export const REVERB: NodeKindDef[] = [
     category: "reverb",
     inputs: 2,
     outputs: 2,
-    params: [
-      { key: "room", label: "Room", default: 15, min: 15, max: 30, step: 0.5, unit: "m" },
-      { key: "time", label: "Time", default: 2, min: 0.1, max: 20, step: 0.1, unit: "s" },
-    ],
+    params: [room(15), decay()],
     hint: "Stereo reverb with a slow fade-in envelope — inputs: left, right.",
   },
   // Control sources (usable in either graph).

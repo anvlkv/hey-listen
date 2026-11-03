@@ -132,7 +132,7 @@ fn initialize_result(params: &Value) -> Value {
                          headless session or `analyze --windows FILE`. When no app is running \
                          this server runs \
                          headless: it also supports `save_project` / `open_project` / \
-                         `new_project` (source + setup + notes + openTools; no Workbench layout) \
+                         `new_project` (source + setup + annotations + openTools; no Workbench layout) \
                          plus the compute tools, including `compare_analysis` against a project \
                          file.",
     })

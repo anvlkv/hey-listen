@@ -13,19 +13,6 @@
   background: var(--panel);
 }
 
-.analyzer-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: none;
-  height: 34px;
-  padding: 0 10px;
-  font-size: 0.75rem;
-  color: var(--fg-body);
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--border-soft);
-}
-
 .analyzer-status {
   color: var(--fg-muted);
 }

@@ -1,16 +1,16 @@
 /**
- * Markdown → sanitized HTML for a note's body (M14) and an analyzer's About copy.
+ * Markdown → sanitized HTML for an annotation's body (M14) and an analyzer's About copy.
  *
- * Note bodies are **raw markdown** (stored as-is); rendering is **sanitized** so a
- * pasted note cannot inject markup, scripts, or event handlers. `marked` renders
+ * Annotation bodies are **raw markdown** (stored as-is); rendering is **sanitized** so a
+ * pasted annotation cannot inject markup, scripts, or event handlers. `marked` renders
  * (GFM), then DOMPurify strips anything outside its HTML allow-list. The About copy
- * is trusted registry text, but rides the same pipeline. See `docs/notes.md` →
+ * is trusted registry text, but rides the same pipeline. See `docs/annotations.md` →
  * Markdown and `docs/dependencies.md`.
  *
  * `marked` and `dompurify` are loaded with a **dynamic import** (and cached): they are
- * only needed once a note preview or an About panel is shown, so keeping them out of
+ * only needed once an annotation preview or an About panel is shown, so keeping them out of
  * the initial bundle avoids paying ~130 kB up front. The app can therefore render a
- * preview asynchronously (see `components/NotesPanel.tsx` and
+ * preview asynchronously (see `components/AnnotationsPanel.tsx` and
  * `components/analyzer/AnalyzerTab.tsx`).
  */
 
@@ -31,7 +31,7 @@ function loadRenderer(): Promise<Render> {
   ));
 }
 
-/** Render a note body to sanitized HTML. */
+/** Render an annotation body to sanitized HTML. */
 export async function renderMarkdown(body: string): Promise<string> {
   const render = await loadRenderer();
   return render(body);

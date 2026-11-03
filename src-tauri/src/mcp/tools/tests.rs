@@ -49,7 +49,12 @@ fn tool_names_are_unique() {
 fn observe_tools_are_read_only_and_replacing_tools_are_destructive() {
     let tools = super::list();
     let find = |name: &str| tools.iter().find(|tool| tool["name"] == name).unwrap();
-    for name in ["get_state", "list_analyzers", "get_analyzer", "get_note"] {
+    for name in [
+        "get_state",
+        "list_analyzers",
+        "get_analyzer",
+        "get_annotation",
+    ] {
         assert_eq!(find(name)["annotations"]["readOnlyHint"], true, "{name}");
     }
     for name in ["open_audio_file", "open_project", "new_project"] {

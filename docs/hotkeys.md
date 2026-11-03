@@ -43,7 +43,7 @@ interface CommandDef {
 ```
 
 The registry is a flat list (`state/keybindings/registry.ts`). Commands do not import
-components directly; they call store/action functions (`openTool`, transport, notes, …) so
+components directly; they call store/action functions (`openTool`, transport, annotations, …) so
 the registry stays testable without the shell.
 
 ### Binding syntax
@@ -98,7 +98,7 @@ Defaults are a proposal; every one is rebindable except the read-only native men
 the playhead. It works whenever the Timeline/canvas or the page body has focus, and never
 steals Space from a text field or a focused button (where Space belongs to the control).
 
-| Command | Default | Notes |
+| Command | Default | Annotations |
 | --- | --- | --- |
 | Play / Pause | `Space` | Primary action; resumes from the playhead when it is in the window. |
 | Stop (keep playhead) | `Shift+Space` | Silences; the line stays where it is. |
@@ -162,7 +162,7 @@ the whole keyboard surface in one place.
 - Opens with `Mod+K` (from anywhere, including a text field), as a modal Kobalte dialog
   with a combobox input — portaled into the current document so popped-out windows work.
 - Sources, in sections: **Commands** (registry), **Tools** (every analyzer + the two graph
-  editors), **Open tabs**, and **Recent** (the last few commands/tools). Notes can be a
+  editors), **Open tabs**, and **Recent** (the last few commands/tools). Annotations can be a
   later source.
 - Fuzzy matching over title, category, keywords and tool description; arrow keys move,
   `Enter` runs, `Escape` closes, `Tab` accepts the highlighted completion.
@@ -193,7 +193,7 @@ the whole keyboard surface in one place.
   "bindings": {
     "transport.playPause": "Space",
     "timeline.fitAll": "0",
-    "notes.delete": null
+    "annotations.delete": null
   }
 }
 ```
@@ -230,7 +230,7 @@ the whole keyboard surface in one place.
 - **E2E** (`q4-keyboard`, named to sort **before** `t-close-main`): `Space` toggles the
   transport; arrows seek; `N` adds an annotation at the playhead; `Mod+K` opens the palette
   and runs a command; `?` opens the explorer; rebinding makes the old key inert and the new
-  one work; a conflicting binding is rejected; typing in the note editor and the analyzer
+  one work; a conflicting binding is rejected; typing in the annotation editor and the analyzer
   search never triggers a command; bindings survive a reload; a focused button keeps
   Space/Enter.
 - **Selectors:** `palette.dialog`, `palette.input`, `palette.item.<id>`,

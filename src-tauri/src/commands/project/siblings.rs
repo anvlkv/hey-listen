@@ -104,15 +104,25 @@ mod tests {
         dir
     }
 
+    /// Create `names` in `dir` as dummy files.
+    fn plant(dir: &Path, names: &[&str]) {
+        for name in names {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+    }
+
+    /// A file's path as the command returns it.
+    fn path_of(dir: &Path, name: &str) -> String {
+        dir.join(name).to_string_lossy().into_owned()
+    }
+
     #[test]
     fn steps_through_project_files_in_name_order() {
         let dir = temp_dir("order");
-        for name in ["b.heyl", "a.heyl", "c.txt", "d.HEYL"] {
-            std::fs::write(dir.join(name), b"x").unwrap();
-        }
-        let a = dir.join("a.heyl").to_string_lossy().into_owned();
-        let b = dir.join("b.heyl").to_string_lossy().into_owned();
-        let d = dir.join("d.HEYL").to_string_lossy().into_owned();
+        plant(&dir, &["b.heyl", "a.heyl", "c.txt", "d.HEYL"]);
+        let a = path_of(&dir, "a.heyl");
+        let b = path_of(&dir, "b.heyl");
+        let d = path_of(&dir, "d.HEYL");
 
         // Case-insensitive name order: a, b, d (c.txt is not a project).
         assert_eq!(adjacent_project(b.clone(), 1), Some(d.clone()));
@@ -126,12 +136,10 @@ mod tests {
     #[test]
     fn both_neighbours_come_from_one_read() {
         let dir = temp_dir("neighbours");
-        for name in ["b.heyl", "a.heyl", "d.HEYL"] {
-            std::fs::write(dir.join(name), b"x").unwrap();
-        }
-        let a = dir.join("a.heyl").to_string_lossy().into_owned();
-        let b = dir.join("b.heyl").to_string_lossy().into_owned();
-        let d = dir.join("d.HEYL").to_string_lossy().into_owned();
+        plant(&dir, &["b.heyl", "a.heyl", "d.HEYL"]);
+        let a = path_of(&dir, "a.heyl");
+        let b = path_of(&dir, "b.heyl");
+        let d = path_of(&dir, "d.HEYL");
 
         assert_eq!(
             adjacent_projects(b),

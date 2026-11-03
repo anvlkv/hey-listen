@@ -9,7 +9,7 @@
 //!
 //! The catalog is split by area — [`observe`] (read-only), [`source`] (source +
 //! analysis control), [`workbench`] (tabs, graphs, preview, capture), [`project`]
-//! (project files + notes), and [`themes`] — assembled here. [`schema`] holds the
+//! (project files + annotations), and [`themes`] — assembled here. [`schema`] holds the
 //! shared constructors.
 
 mod compare;

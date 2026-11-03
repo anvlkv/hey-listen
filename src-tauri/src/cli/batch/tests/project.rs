@@ -13,14 +13,14 @@ fn project_request(out: String, source: String) -> Request {
         synth: None,
         name: None,
         open_tools: vec![ToolId::Spectrum, ToolId::Waveform],
-        notes: vec![serde_json::json!({ "title": "n1", "body": "b", "timeSecs": 0.1 })],
+        annotations: vec![serde_json::json!({ "title": "n1", "body": "b", "timeSecs": 0.1 })],
         reference: false,
     };
     request
 }
 
 #[test]
-fn project_save_writes_source_tabs_notes_and_window() {
+fn project_save_writes_source_tabs_annotations_and_window() {
     let wav = std::env::temp_dir().join(format!("hey_cli_project_save_{}.wav", std::process::id()));
     write_sine_wav(&wav, 8_000, 8_000);
     let out_dir = std::env::temp_dir().join(format!("hey_cli_project_out_{}", std::process::id()));
@@ -36,7 +36,7 @@ fn project_save_writes_source_tabs_notes_and_window() {
 
     let value = run_single(&request);
     assert_eq!(value["openTools"], json!(["spectrum", "waveform"]));
-    assert_eq!(value["notes"], 1);
+    assert_eq!(value["annotations"], 1);
 
     let mut file = std::fs::File::open(&out).unwrap();
     let loaded = read_project(&mut file).unwrap();
@@ -46,7 +46,7 @@ fn project_save_writes_source_tabs_notes_and_window() {
     );
     assert_eq!(loaded.setup.window.start_secs, 0.1);
     assert_eq!(loaded.setup.window.end_secs, 0.5);
-    assert_eq!(loaded.notes.len(), 1);
+    assert_eq!(loaded.annotations.len(), 1);
     assert!(loaded.pcm.is_some());
 
     let _ = std::fs::remove_dir_all(&out_dir);

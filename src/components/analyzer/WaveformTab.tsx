@@ -1,6 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
@@ -9,7 +9,7 @@ import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { referenceLine } from "./seriesPlugins";
-import { noteMarkers } from "./notePlugins";
+import { annotationMarkers } from "./annotationPlugins";
 import {
   TIME_AXIS_SPACE,
   timeAxisValues,
@@ -26,7 +26,7 @@ import {
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
-import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
+import { useUplotImage } from "./chartImage";
 import { createAnalysis, toolOptions, type WaveformResult } from "../../state/analyzer";
 
 /** A ~72 dB window anchored on the frame peak, never above 0 dBFS. */
@@ -52,9 +52,7 @@ export default function WaveformTab() {
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   // Export the rendered waveform (M12).
-  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
-  registerChartImage("waveform", imageProvider);
-  onCleanup(() => unregisterChartImage("waveform", imageProvider));
+  useUplotImage("waveform", zoom.instance);
 
   const dbMode = () => (toolOptions.waveform?.dbScale ?? 0) !== 0;
 
@@ -127,7 +125,7 @@ export default function WaveformTab() {
                       mirrorCursor("time"),
                       syncView("time"),
                       playheadRule(),
-                      noteMarkers("waveform"),
+                      annotationMarkers("waveform"),
                       ...(dbMode() ? [referenceLine({ value: 0, label: "0 dBFS" })] : []),
                     ]}
                     onCreate={zoom.onReady}

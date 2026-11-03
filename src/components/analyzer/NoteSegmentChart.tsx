@@ -1,11 +1,11 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
-import { noteMarkers } from "./notePlugins";
+import { annotationMarkers } from "./annotationPlugins";
 import { noteSegments } from "./noteSegmentPlugins";
 import {
   cents,
@@ -30,7 +30,7 @@ import { chartAxisStyle, createUplotReframeHandler, timeRangeLabel } from "./cha
 import { gapAt, noteAt, segmentEnvelope } from "../../lib/noteSegments";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
-import { registerChartImage, unregisterChartImage } from "../../state/exportRegistry";
+import { useUplotImage } from "./chartImage";
 import type { AnalyzerId, NoteMetricsResult } from "../../state/analyzer";
 
 /**
@@ -47,7 +47,7 @@ import type { AnalyzerId, NoteMetricsResult } from "../../state/analyzer";
  * f0, jitter, shimmer, and the HNR proxy.
  *
  * x is source seconds and joins the `"time"` sync group; the bottom lane still belongs
- * to the project's own annotations (`noteMarkers`). See `docs/analysis-tools.md` →
+ * to the project's own annotations (`annotationMarkers`). See `docs/analysis-tools.md` →
  * Chart rendering.
  */
 export default function NoteSegmentChart(props: {
@@ -60,17 +60,7 @@ export default function NoteSegmentChart(props: {
   const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
 
   // Export the per-note segment chart (M12).
-  const imageProvider = () => zoom.instance()?.ctx.canvas ?? null;
-  registerChartImage(
-    untrack(() => props.id),
-    imageProvider,
-  );
-  onCleanup(() =>
-    unregisterChartImage(
-      untrack(() => props.id),
-      imageProvider,
-    ),
-  );
+  useUplotImage(() => props.id, zoom.instance);
 
   const notes = () => props.result()?.notes ?? [];
   const hasF0 = () => notes().some((note) => note.f0MedianHz != null);
@@ -250,7 +240,7 @@ export default function NoteSegmentChart(props: {
               mirrorCursor("time"),
               syncView("time"),
               playheadRule(),
-              noteMarkers(props.id),
+              annotationMarkers(props.id),
               noteSegments(
                 () => ({
                   windowStart: props.result()?.windowStart ?? 0,

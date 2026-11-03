@@ -168,16 +168,16 @@ pub struct AnalysisWindow {
     pub end_secs: f64,
 }
 
-/// `NOTES` section entry: an annotation on the project (M14).
+/// `ANNOTATIONS` section entry: an annotation on the project (M14).
 ///
-/// A note anchors to an audio **time** (a point, or an optional `range` span) and,
-/// optionally, to an **analyzer tool id** (absent = a Timeline note). Its `body` is
+/// An annotation anchors to an audio **time** (a point, or an optional `range` span) and,
+/// optionally, to an **analyzer tool id** (absent = a Timeline annotation). Its `body` is
 /// markdown; the optional `values` is a **frozen** snapshot of the chart's readout at
-/// that time. See `docs/notes.md`.
+/// that time. See `docs/annotations.md`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct Note {
+pub struct Annotation {
     /// Stable id (uuid v4 string).
     pub id: String,
     /// Creation time, in Unix milliseconds.
@@ -189,7 +189,7 @@ pub struct Note {
     /// Optional span; absent = a point anchor.
     #[serde(default)]
     pub range: Option<AnalysisWindow>,
-    /// The analyzer id the note was taken from; absent = a Timeline note.
+    /// The analyzer id the annotation was taken from; absent = a Timeline annotation.
     #[serde(default)]
     pub tool: Option<AnalyzerId>,
     /// Optional plain-text title.
@@ -198,21 +198,21 @@ pub struct Note {
     /// The markdown body (raw).
     #[serde(default)]
     pub body: String,
-    /// The frozen values snapshot (absent for Timeline notes).
+    /// The frozen values snapshot (absent for Timeline annotations).
     #[serde(default)]
-    pub values: Option<NoteValues>,
+    pub values: Option<AnnotationValues>,
 }
 
-/// The frozen chart readout a note carries as its subtitle (`docs/notes.md`).
+/// The frozen chart readout an annotation carries as its subtitle (`docs/annotations.md`).
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct NoteValues {
+pub struct AnnotationValues {
     /// The analyzer the snapshot was taken from.
     pub tool: AnalyzerId,
     /// Human-readable label (e.g. `Spectrum @ 2.34 s`).
     pub label: String,
-    /// The compact values line (the note's subtitle).
+    /// The compact values line (the annotation's subtitle).
     pub text: String,
     /// The analysis window the snapshot was captured with.
     pub window: AnalysisWindow,

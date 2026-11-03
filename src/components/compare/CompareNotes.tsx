@@ -20,7 +20,7 @@ const key = (secs: number) => secs.toFixed(5);
  * is the detail — one row per matched pair (with A, B and Δ) plus a row for every note
  * only one project has.
  *
- * These are **detected audio notes**, not the project's annotations (`docs/notes.md`).
+ * These are **detected audio notes**, not the project's annotations (`docs/annotations.md`).
  */
 export default function CompareNotes(props: {
   tool: AnalyzerId;

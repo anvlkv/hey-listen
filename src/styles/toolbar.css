@@ -125,14 +125,14 @@
   background: var(--border-2);
 }
 
-.toolbar-btn-notes[aria-pressed="true"] {
+.toolbar-btn-annotations[aria-pressed="true"] {
   color: var(--accent);
   border-color: var(--accent);
 }
 
 /* The Notes toggle: an icon plus its tally, so the count is *in* the button (the
    font-scale clip rule in `base.css` would cut a badge that hung outside it). */
-.toolbar-btn-notes {
+.toolbar-btn-annotations {
   display: inline-flex;
   gap: 6px;
   align-items: center;
@@ -140,7 +140,7 @@
 }
 
 /* A muted pill, not a notification badge — the count is a tally, not an alert. */
-.notes-count-chip {
+.annotations-count-chip {
   min-width: 16px;
   padding: 0 5px;
   font-size: 0.6875rem;
@@ -215,45 +215,4 @@
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.toolbar-switch-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.toolbar-switch-control {
-  display: inline-flex;
-  align-items: center;
-  width: 30px;
-  height: 16px;
-  padding: 2px;
-  background: var(--control-2);
-  border: 1px solid var(--border-2);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 100ms linear;
-}
-
-.toolbar-switch-thumb {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--switch-thumb);
-  transition: transform 100ms ease;
-}
-
-.toolbar-switch[data-checked] .toolbar-switch-control,
-.toolbar-switch-control[data-checked] {
-  background: var(--primary-bg);
-  border-color: var(--border-accent);
-}
-
-.toolbar-switch[data-checked] .toolbar-switch-thumb,
-.toolbar-switch-control[data-checked] .toolbar-switch-thumb {
-  transform: translateX(14px);
-  background: var(--switch-thumb-on);
 }
