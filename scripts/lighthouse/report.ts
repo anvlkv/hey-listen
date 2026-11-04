@@ -2,16 +2,23 @@
  * Aggregate the per-run Lighthouse reports into `summary.json` and a browsable
  * `index.html`. The HTML is the report's entry point (serve it with
  * `npm run lighthouse:serve`); each row links to the untouched Lighthouse report.
+ *
+ * The index is a **navigator**, not a reimplementation of the report UI: every
+ * per-run HTML is rendered by Lighthouse's own `ReportGenerator`. Lighthouse has no
+ * multi-URL report, so this page is the only thing that puts the full matrix in one
+ * place. Full-category aggregates and the `color-contrast` sweep are kept separate —
+ * their scores are not comparable.
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { relative } from "node:path";
-import type { AuditFailure } from "./audit";
-import { CATEGORIES, REPORT_DIR, type Category } from "./config";
+import type { AuditFailure, ContrastResult } from "./audit";
+import { CATEGORIES, REPORT_DIR, THEMES, type Category, type Profile } from "./config";
 import type { SurfaceKind } from "../../src/preview/surfaces";
 
 /** One audited surface × theme × viewport. */
 export interface RunSummary {
+  profile: Profile;
   surface: string;
   title: string;
   kind: SurfaceKind;
@@ -23,6 +30,8 @@ export interface RunSummary {
   scores: Record<Category, number | null>;
   metrics: Record<string, number | null>;
   failures: AuditFailure[];
+  /** The `color-contrast` audit's result (present for both profiles). */
+  contrast: ContrastResult | null;
   error: string | null;
 }
 
@@ -40,14 +49,31 @@ export interface AuditFailureSummary {
   surfaces: string[];
 }
 
+/** The theme sweep's one-number-per-theme result. */
+export interface VisualThemeSummary {
+  theme: string;
+  runs: number;
+  failingRuns: number;
+  maxFailingNodes: number;
+  worstRatio: number | null;
+}
+
 export interface Summary {
   generatedAt: string;
   lighthouseVersion: string | null;
   runs: RunSummary[];
-  aggregates: {
-    overall: Record<Category, Aggregate>;
-    byViewport: Record<string, Record<Category, Aggregate>>;
-    byTheme: Record<string, Record<Category, Aggregate>>;
+  full: {
+    runs: number;
+    aggregates: {
+      overall: Record<Category, Aggregate>;
+      byViewport: Record<string, Record<Category, Aggregate>>;
+      bySurface: Record<string, Record<Category, Aggregate>>;
+    };
+  };
+  visual: {
+    runs: number;
+    failingRuns: number;
+    byTheme: VisualThemeSummary[];
   };
   auditFailures: AuditFailureSummary[];
 }
@@ -104,28 +130,58 @@ function auditFailureSummary(runs: RunSummary[]): AuditFailureSummary[] {
   return [...byAudit.values()].sort((a, b) => b.runs - a.runs || a.id.localeCompare(b.id));
 }
 
+/** Whether a run's contrast sweep found a failure (an error counts separately). */
+function contrastFails(run: RunSummary): boolean {
+  return (run.contrast?.failingNodes ?? 0) > 0 || run.contrast?.score === 0;
+}
+
+function visualSummary(runs: RunSummary[]): Summary["visual"] {
+  const byTheme = THEMES.map((theme): VisualThemeSummary => {
+    const themeRuns = runs.filter((run) => run.theme === theme);
+    const nodes = themeRuns.map((run) => run.contrast?.failingNodes ?? 0);
+    const ratios = themeRuns
+      .map((run) => run.contrast?.worstRatio)
+      .filter((ratio): ratio is number => ratio != null);
+    return {
+      theme,
+      runs: themeRuns.length,
+      failingRuns: themeRuns.filter(contrastFails).length,
+      maxFailingNodes: themeRuns.length === 0 ? 0 : Math.max(...nodes),
+      worstRatio: ratios.length === 0 ? null : Math.min(...ratios),
+    };
+  }).filter((theme) => theme.runs > 0);
+
+  return { runs: runs.length, failingRuns: runs.filter(contrastFails).length, byTheme };
+}
+
 /** Build the aggregate summary (persisted next to the reports). */
 export function buildSummary(runs: RunSummary[], lighthouseVersion: string | null): Summary {
+  const fullRuns = runs.filter((run) => run.profile === "full");
+  const visualRuns = runs.filter((run) => run.profile === "visual");
   return {
     generatedAt: new Date().toISOString(),
     lighthouseVersion,
     runs,
-    aggregates: {
-      overall: aggregateGroup(runs),
-      byViewport: Object.fromEntries(
-        Object.entries(groupBy(runs, (run) => run.viewport)).map(([key, group]) => [
-          key,
-          aggregateGroup(group),
-        ]),
-      ),
-      byTheme: Object.fromEntries(
-        Object.entries(groupBy(runs, (run) => run.theme)).map(([key, group]) => [
-          key,
-          aggregateGroup(group),
-        ]),
-      ),
+    full: {
+      runs: fullRuns.length,
+      aggregates: {
+        overall: aggregateGroup(fullRuns),
+        byViewport: Object.fromEntries(
+          Object.entries(groupBy(fullRuns, (run) => run.viewport)).map(([key, group]) => [
+            key,
+            aggregateGroup(group),
+          ]),
+        ),
+        bySurface: Object.fromEntries(
+          Object.entries(groupBy(fullRuns, (run) => run.surface)).map(([key, group]) => [
+            key,
+            aggregateGroup(group),
+          ]),
+        ),
+      },
     },
-    auditFailures: auditFailureSummary(runs),
+    visual: visualSummary(visualRuns),
+    auditFailures: auditFailureSummary(fullRuns),
   };
 }
 
@@ -159,6 +215,13 @@ function scoreCell(score: number | null): string {
   return `<td class="num ${scoreClass(score)}">${scoreText(score)}</td>`;
 }
 
+function contrastCell(contrast: ContrastResult | null): string {
+  if (!contrast) return `<td class="num">–</td>`;
+  const label = scoreText(contrast.score);
+  const nodes = contrast.failingNodes > 0 ? ` <small>(${contrast.failingNodes})</small>` : "";
+  return `<td class="num ${scoreClass(contrast.score)}">${label}${nodes}</td>`;
+}
+
 function aggregateRow(label: string, aggregate: Record<Category, Aggregate>): string {
   const cells = CATEGORIES.map((category) => {
     const { mean, min } = aggregate[category];
@@ -169,13 +232,28 @@ function aggregateRow(label: string, aggregate: Record<Category, Aggregate>): st
 }
 
 function renderHtml(summary: Summary): string {
-  const overall = aggregateRow("All runs", summary.aggregates.overall);
-  const viewportRows = Object.entries(summary.aggregates.byViewport)
+  const overall = aggregateRow("All full runs", summary.full.aggregates.overall);
+  const viewportRows = Object.entries(summary.full.aggregates.byViewport)
     .map(([key, value]) => aggregateRow(`Viewport ${key}`, value))
     .join("\n");
-  const themeRows = Object.entries(summary.aggregates.byTheme)
+  const surfaceRows = Object.entries(summary.full.aggregates.bySurface)
     .map(([key, value]) => aggregateRow(key, value))
     .join("\n");
+
+  const visualRows =
+    summary.visual.byTheme.length === 0
+      ? `<tr><td colspan="5" class="empty">No color sweep was run.</td></tr>`
+      : summary.visual.byTheme
+          .map((theme) => {
+            const status = theme.failingRuns === 0 ? "s-good" : "s-bad";
+            return (
+              `<tr><td>${esc(theme.theme)}</td><td class="num">${theme.runs}</td>` +
+              `<td class="num ${status}">${theme.failingRuns}</td>` +
+              `<td class="num">${theme.maxFailingNodes}</td>` +
+              `<td class="num">${theme.worstRatio == null ? "–" : theme.worstRatio.toFixed(2)}</td></tr>`
+            );
+          })
+          .join("\n");
 
   const failureRows =
     summary.auditFailures.length === 0
@@ -196,8 +274,9 @@ function renderHtml(summary: Summary): string {
         ? `<span class="s-bad" title="${esc(run.error)}">failed</span>`
         : `<a href="${esc(relative(REPORT_DIR, run.reportHtml))}">report</a>`;
       return (
-        `<tr><td>${esc(run.surface)}</td><td>${esc(run.title)}</td><td>${esc(run.theme)}</td>` +
-        `<td>${esc(run.viewport)}</td>${cells}<td>${report}</td></tr>`
+        `<tr><td>${esc(run.profile)}</td><td>${esc(run.surface)}</td><td>${esc(run.title)}</td>` +
+        `<td>${esc(run.theme)}</td><td>${esc(run.viewport)}</td>${cells}` +
+        `${contrastCell(run.contrast)}<td>${report}</td></tr>`
       );
     })
     .join("\n");
@@ -228,23 +307,32 @@ function renderHtml(summary: Summary): string {
 </head>
 <body>
 <h1>Hey Listen — Lighthouse audit</h1>
-<p>${esc(summary.generatedAt)} · ${summary.runs.length} runs · Lighthouse ${esc(summary.lighthouseVersion ?? "unknown")} ·
-scores are out of 100 (mean / worst per group)</p>
+<p>${esc(summary.generatedAt)} · ${summary.full.runs} full runs + ${summary.visual.runs} color runs ·
+Lighthouse ${esc(summary.lighthouseVersion ?? "unknown")} · scores are out of 100 (mean / worst per group)</p>
 <p>Each <strong>report</strong> link opens Lighthouse's own standalone HTML report (the official
-<code>ReportGenerator</code> renderer). This page only aggregates the per-run LHRs — one index for
-216 reports, not a replacement for the Lighthouse report UI.</p>
+<code>ReportGenerator</code> renderer). This page only aggregates the per-run LHRs — Lighthouse has
+no multi-URL report, so this is the navigator over the individual reports.</p>
 
-<h2>Aggregates</h2>
+<h2>Full-category runs (baseline theme)</h2>
 <table>
 <thead><tr><th>Scope</th>${CATEGORIES.map((category) => `<th class="num">${esc(category)}</th>`).join("")}</tr></thead>
 <tbody>
 ${overall}
 ${viewportRows}
-${themeRows}
+${surfaceRows}
 </tbody>
 </table>
 
-<h2>Failing audits</h2>
+<h2>Theme contrast sweep</h2>
+<p>Only <code>color-contrast</code> is run for every theme (one viewport; the surfaces cover the
+theme-token consumers). Contrast is a binary audit, so “failing runs” is the useful number,
+not a category score.</p>
+<table>
+<thead><tr><th>Theme</th><th class="num">Runs</th><th class="num">Failing</th><th class="num">Max nodes</th><th class="num">Worst ratio</th></tr></thead>
+<tbody>${visualRows}</tbody>
+</table>
+
+<h2>Failing audits (full runs)</h2>
 <table>
 <thead><tr><th>Audit</th><th>Category</th><th class="num">Runs</th><th class="num">Worst</th><th>Surfaces</th></tr></thead>
 <tbody>${failureRows}</tbody>
@@ -253,7 +341,7 @@ ${themeRows}
 <h2>Every run</h2>
 <div class="scroll">
 <table>
-<thead><tr><th>Surface</th><th>Title</th><th>Theme</th><th>Viewport</th>${CATEGORIES.map((category) => `<th class="num">${esc(category)}</th>`).join("")}<th>Detail</th></tr></thead>
+<thead><tr><th>Profile</th><th>Surface</th><th>Title</th><th>Theme</th><th>Viewport</th>${CATEGORIES.map((category) => `<th class="num">${esc(category)}</th>`).join("")}<th class="num">Contrast</th><th>Detail</th></tr></thead>
 <tbody>${runRows}</tbody>
 </table>
 </div>

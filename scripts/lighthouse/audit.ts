@@ -26,13 +26,29 @@ export interface AuditFailure {
   displayValue: string | null;
 }
 
+/** The result of the `color-contrast` audit (the visual profile's one check). */
+export interface ContrastResult {
+  score: number | null;
+  failingNodes: number;
+  /** The lowest contrast ratio among the failing nodes, if readable. */
+  worstRatio: number | null;
+}
+
 /** The compact result of one Lighthouse run. */
 export interface AuditResult {
   lighthouseVersion: string | null;
   scores: Record<Category, number | null>;
   metrics: Record<string, number | null>;
   failures: AuditFailure[];
+  contrast: ContrastResult | null;
   error: string | null;
+}
+
+/** What a run asks Lighthouse to collect. */
+export interface AuditOptions {
+  timeoutMs?: number;
+  /** The visual profile runs only these audits instead of the category set. */
+  onlyAudits?: readonly string[];
 }
 
 type RunnerResult = NonNullable<Awaited<ReturnType<typeof lighthouse>>>;
@@ -97,9 +113,24 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+function parseContrast(audit: Lhr["audits"][string] | undefined): ContrastResult | null {
+  if (!audit) return null;
+  const details = audit.details as { items?: unknown } | undefined;
+  const items = Array.isArray(details?.items) ? details.items : [];
+  let worst: number | null = null;
+  for (const item of items) {
+    const explanation = (item as { node?: { explanation?: string } }).node?.explanation ?? "";
+    const match = /contrast of ([\d.]+)/.exec(explanation);
+    if (!match) continue;
+    const ratio = Number(match[1]);
+    if (Number.isFinite(ratio) && (worst == null || ratio < worst)) worst = ratio;
+  }
+  return { score: audit.score ?? null, failingNodes: items.length, worstRatio: worst };
+}
+
 function parseLhr(lhr: Lhr): Omit<AuditResult, "error"> {
   const scores = Object.fromEntries(
-    CATEGORIES.map((category) => [category, lhr.categories[category]?.score ?? null]),
+    CATEGORIES.map((category) => [category, lhr.categories?.[category]?.score ?? null]),
   ) as Record<Category, number | null>;
 
   const metrics: Record<string, number | null> = {};
@@ -110,7 +141,7 @@ function parseLhr(lhr: Lhr): Omit<AuditResult, "error"> {
 
   const failures: AuditFailure[] = [];
   for (const category of CATEGORIES) {
-    for (const ref of lhr.categories[category]?.auditRefs ?? []) {
+    for (const ref of lhr.categories?.[category]?.auditRefs ?? []) {
       const audit = lhr.audits[ref.id];
       if (!audit || audit.score == null || audit.score >= 1) continue;
       if (NON_GRADED.has(audit.scoreDisplayMode ?? "")) continue;
@@ -124,7 +155,13 @@ function parseLhr(lhr: Lhr): Omit<AuditResult, "error"> {
     }
   }
 
-  return { lighthouseVersion: lhr.lighthouseVersion, scores, metrics, failures };
+  return {
+    lighthouseVersion: lhr.lighthouseVersion,
+    scores,
+    metrics,
+    failures,
+    contrast: parseContrast(lhr.audits["color-contrast"]),
+  };
 }
 
 function emptyResult(error: string): AuditResult {
@@ -132,7 +169,35 @@ function emptyResult(error: string): AuditResult {
     Category,
     number | null
   >;
-  return { lighthouseVersion: null, scores, metrics: {}, failures: [], error };
+  return { lighthouseVersion: null, scores, metrics: {}, failures: [], contrast: null, error };
+}
+
+/** Kill Chrome and wait for the process, so no child handle keeps the runner alive. */
+async function stopChrome(chrome: chromeLauncher.LaunchedChrome): Promise<void> {
+  const child = chrome.process;
+  if (child.exitCode != null) return;
+  const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+  try {
+    chrome.kill();
+  } catch {
+    // Already gone.
+  }
+  if (child.exitCode != null) return;
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 1000);
+    exited.then(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+  if (child.exitCode == null) {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // Already gone.
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 /**
@@ -143,8 +208,9 @@ export async function runLighthouse(
   url: string,
   outBase: string,
   viewport: Viewport,
-  timeoutMs = 180_000,
+  options: AuditOptions = {},
 ): Promise<AuditResult> {
+  const timeoutMs = options.timeoutMs ?? 180_000;
   await mkdir(dirname(outBase), { recursive: true });
   await rm(`${outBase}.report.json`, { force: true });
   await rm(`${outBase}.report.html`, { force: true });
@@ -152,19 +218,15 @@ export async function runLighthouse(
   let chrome: chromeLauncher.LaunchedChrome | null = null;
   try {
     chrome = await chromeLauncher.launch({ chromeFlags: chromeFlags(), logLevel: "error" });
-    const result = await withTimeout(
-      lighthouse(
-        url,
-        {
-          port: chrome.port,
-          output: "json",
-          logLevel: "error",
-          onlyCategories: [...CATEGORIES],
-        },
-        configFor(viewport),
-      ),
-      timeoutMs,
-    );
+    const flags = {
+      port: chrome.port,
+      output: "json" as const,
+      logLevel: "error" as const,
+      ...(options.onlyAudits
+        ? { onlyAudits: [...options.onlyAudits] }
+        : { onlyCategories: [...CATEGORIES] }),
+    };
+    const result = await withTimeout(lighthouse(url, flags, configFor(viewport)), timeoutMs);
     if (!result) throw new Error("lighthouse returned no result");
 
     // The official renderer (report/generator/report-generator.js), not a custom one.
@@ -174,10 +236,6 @@ export async function runLighthouse(
   } catch (err) {
     return emptyResult(err instanceof Error ? err.message : String(err));
   } finally {
-    try {
-      chrome?.kill();
-    } catch {
-      // Chrome already exited (e.g. after a timeout).
-    }
+    if (chrome) await stopChrome(chrome);
   }
 }

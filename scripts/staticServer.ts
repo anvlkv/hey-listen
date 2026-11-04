@@ -70,7 +70,13 @@ export function serveStatic(root: string, options: { port?: number } = {}): Prom
       const port = typeof address === "object" && address ? address.port : 0;
       resolvePromise({
         url: `http://127.0.0.1:${port}`,
-        close: () => new Promise((done) => server.close(() => done())),
+        close: () =>
+          new Promise((done) => {
+            // Keep-alive sockets from the audited page would otherwise keep
+            // `close()` (and the Node process) alive after the matrix finishes.
+            server.closeAllConnections();
+            server.close(() => done());
+          }),
       });
     });
   });
