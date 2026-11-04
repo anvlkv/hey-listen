@@ -77,8 +77,9 @@ npm run tauri dev
 ```
 
 Other scripts: `npm run dev` (Vite only), `npm run build`, `npm run typecheck`.
-UI QA: `npm run lighthouse` audits every preview surface × built-in theme × laptop
-viewport (see [`docs/testing.md`](docs/testing.md) → Lighthouse audit and the first
+UI QA: `npm run lighthouse` runs a full-category baseline across every preview surface
+and laptop viewport, plus a `color-contrast` sweep across every built-in theme (see
+[`docs/testing.md`](docs/testing.md) → Lighthouse audit and the first
 [`docs/lighthouse-audit-1.md`](docs/lighthouse-audit-1.md)).
 Run `cargo check` in `src-tauri/` for the Rust side — the first build is slow
 (many deps). Run `cargo test` after changing a boundary type: it regenerates the

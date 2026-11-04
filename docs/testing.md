@@ -675,12 +675,15 @@ shipped bundle. It then serves that folder and runs Lighthouse through its **Nod
 report is produced by Lighthouse's own `ReportGenerator`; the generated `index.html` is
 only a navigator across the per-run LHRs (Lighthouse renders one report per URL).
 
-- **Surfaces** — `PREVIEW_SURFACES` in `src/preview/surfaces.ts`: the empty and
-  source states, the annotations rail, **one analyzer per chart view kind** (the tools
-  share renderers), both graph editors, the compare and popout chrome, and the About
-  dialog.
-- **Themes** — every built-in theme, read from `src/state/themes/builtins.ts`.
-- **Viewports** — 1280×800 and 1920×1080 (`small` / `large`).
+- **Full profile** — every category, the neutral `builtin:dark` baseline, every
+  surface in `PREVIEW_SURFACES`, both viewports. Layout/behaviour and performance do
+  not depend on the palette, so one theme is enough.
+- **Visual profile** — `color-contrast` only, every built-in theme, the surfaces that
+  expose the theme-token consumers (`VISUAL_SURFACE_IDS`), at 1280×800. Colors do not
+  depend on the laptop width, so one viewport is enough.
+
+Themes come from `src/state/themes/builtins.ts`; the full surface list is
+`PREVIEW_SURFACES` in `src/preview/surfaces.ts`.
 
 A surface is a URL: `preview.html?fixture=<surface>&theme=<theme-id>`. A classic inline
 script applies the theme banner-style (`localStorage`) before the bundle, and
@@ -700,18 +703,21 @@ Regenerate it after an engine/result-shape change with `npm run lighthouse:fixtu
 
 Reports land in the gitignored `reports/lighthouse/`: one `.report.json` / `.report.html`
 per run, plus `summary.json` and a linked `index.html`. Serve the overview with
-`npm run lighthouse:serve` (default `http://127.0.0.1:4174/index.html`). Useful flags:
+`npm run lighthouse:serve` (default `http://127.0.0.1:4174/index.html`; if that port is
+busy, `npm run lighthouse:serve -- --port=0` picks a free one). Useful flags:
 
 ```sh
-npm run lighthouse -- --quick                 # one theme + viewport, all surfaces
+npm run lighthouse -- --quick                 # one theme + viewport, both profiles
+npm run lighthouse -- --profile=full          # skip the theme contrast sweep
 npm run lighthouse -- --only=nord --only=spectrum
 npm run lighthouse -- --no-build              # reuse the last preview build
 npm run lighthouse -- --check                 # scripts/lighthouse/budgets.json
 ```
 
-`--only` is AND across repeats (each term must appear in the surface / theme /
-viewport label). `--check` gates **every run** against the per-category budgets and
-exits non-zero; the first full pass and its findings are in
+`--only` is AND across repeats (each term must appear in the profile / surface / theme /
+viewport label). `--check` gates every full run against the per-category budgets and
+every visual run against `color-contrast`, then exits non-zero on a miss; the first
+split pass and its findings are in
 [`lighthouse-audit-1.md`](lighthouse-audit-1.md). The preview cannot see native window
 chrome, menus, devices or file dialogs, and the fixture JSON is preview-only — the
 report's "What is not audited" section lists the boundaries.

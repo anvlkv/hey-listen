@@ -2164,16 +2164,17 @@ best-practice regressions are measured instead of noticed by hand.
   `chrome-launcher`) over the matrix. Each run's HTML report is rendered by
   Lighthouse's own `ReportGenerator`. `npm run lighthouse:serve` opens the generated
   index; fixtures come from `npm run lighthouse:fixtures`.
-- **Surface matrix.** `PREVIEW_SURFACES` (`src/preview/surfaces.ts`) is the one list:
-  the shell states, one analyzer per `AnalyzerView` kind, both graph editors, the
-  compare and popout chrome, and the About dialog × every built-in theme ×
-  1280×800 / 1920×1080.
+- **Profiles.** The **full** pass runs every category on the neutral `builtin:dark`
+  baseline × every surface × 1280×800 / 1920×1080; the **visual** pass runs only
+  `color-contrast` across every built-in theme on the surfaces that expose the theme
+  tokens (one viewport). Surfaces are `PREVIEW_SURFACES` (`src/preview/surfaces.ts`).
 - **Fixtures.** A deterministic 4 s signal (`src/preview/signal.ts`) rendered to WAV
   and analysed by the batch CLI into `src/preview/fixtures/analysis.json`, plus the
   empty state; `src/preview/stub.ts` answers only the IPC a surface reads.
 - **Reports and budgets.** Per-run JSON + HTML and `summary.json` / `index.html` land
   in the gitignored `reports/lighthouse/`; `scripts/lighthouse/budgets.json` + `--check`
-  is the gate. The first full pass is [`lighthouse-audit-1.md`](lighthouse-audit-1.md).
+  gates full categories and the contrast sweep. The first full pass is
+  [`lighthouse-audit-1.md`](lighthouse-audit-1.md).
 
 ## M32.B — Consequent improvement pass (drafted)
 

@@ -8,14 +8,21 @@ durable summary; the raw report is generated (not committed) under
 Lighthouse has no multi-URL report.
 
 - **Date:** 2026-11-04
-- **Lighthouse:** 13.6.0, desktop preset, headless Chrome
+- **Lighthouse:** 13.6.0 via the Node API (`lighthouse` + `chrome-launcher`), desktop
+  config, headless Chrome
+- **Profiles:**
+  - **full** — every category, the neutral `builtin:dark` baseline, every surface, both
+    laptop viewports: 18 surfaces × 2 viewports = **36 runs**
+  - **visual** — `color-contrast` only, every built-in theme, the five surfaces that
+    expose the theme-token consumers, 1280×800: 6 themes × 5 surfaces = **30 runs**
+- **Total:** **66 runs**. Layout/behaviour and performance do not depend on the palette,
+  so the full matrix uses one theme; colors do not depend on the laptop width, so the
+  theme sweep uses one viewport.
 - **Viewports:** 1280×800 (`small`) and 1920×1080 (`large`), device scale 1
-- **Matrix:** 18 surfaces × 6 built-in themes × 2 viewports = **216 runs**
-- **Categories:** performance, accessibility, best-practices, SEO
-- **Harness:** `npm run lighthouse` (`scripts/lighthouse/run.ts`) — Lighthouse 13 via
-  its **Node API** (`lighthouse` + `chrome-launcher`, desktop config), rendering each
-  run's official HTML report with Lighthouse's `ReportGenerator`. The surface list is
-  `src/preview/surfaces.ts`; themes come from `src/state/themes/builtins.ts`.
+- **Categories:** performance, accessibility, best-practices, SEO (full runs);
+  `color-contrast` (visual runs)
+- **Harness:** `npm run lighthouse` (`scripts/lighthouse/run.ts`); surface list in
+  `src/preview/surfaces.ts`; themes from `src/state/themes/builtins.ts`
 - **Fixtures:** a deterministic 4 s WAV (`src/preview/signal.ts`) and its generated
   analyzer results (`src/preview/fixtures/analysis.json`, keyed by every analyzer in
   `AnalyzerId`), plus the empty state. One representative analyzer per
@@ -23,33 +30,39 @@ Lighthouse has no multi-URL report.
 
 ## Headline scores
 
+Full-category runs (36; mean / min):
+
 | Scope | Performance | Accessibility | Best practices | SEO |
 | --- | --- | --- | --- | --- |
-| All 216 runs (mean / min) | **91.7 / 83** | **86.5 / 82** | **96.0 / 96** | **90.0 / 90** |
-| small (1280×800) | 91.8 / 85 | 86.5 / 82 | 96.0 / 96 | 90.0 / 90 |
-| large (1920×1080) | 91.6 / 83 | 86.5 / 82 | 96.0 / 96 | 90.0 / 90 |
+| All full runs | **89.9 / 81** | **86.5 / 82** | **96.0 / 96** | **90.0 / 90** |
+| small (1280×800) | 90.4 / 83 | 86.5 / 82 | 96.0 / 96 | 90.0 / 90 |
+| large (1920×1080) | 89.4 / 81 | 86.5 / 82 | 96.0 / 96 | 90.0 / 90 |
 
-The six themes score identically at the **category** level (an audit is pass/fail, not
-a count of failing nodes). The number of contrast failures does vary per theme — see
-[A1](#a1--contrast-tokens-fail-in-every-theme).
+The theme sweep is separate: all 30 color runs fail `color-contrast` (0), but the
+number of failing nodes and the worst ratio differ per theme — see
+[A1](#a1--contrast-tokens-fail-in-every-theme). Those runs do not have category scores,
+so they are not mixed into the table above.
 
 | Surface | Performance | Accessibility | Best practices | SEO |
 | --- | --- | --- | --- | --- |
-| empty | 99 | 84 | 96 | 90 |
-| source | 99 | 84 | 96 | 90 |
-| annotations | 99 | 82 | 96 | 90 |
-| waveform / levels / frameRms / spectrum / melSpectrogram / modulation | 87 | 86 | 96 | 90 |
+| empty | 100 | 84 | 96 | 90 |
+| source | 98 | 84 | 96 | 90 |
+| annotations | 97 | 82 | 96 | 90 |
+| waveform / levels / frameRms / melSpectrogram / modulation | 84–85 | 86 | 96 | 90 |
+| spectrum | 89 | 86 | 96 | 90 |
 | spectrogram | 86 | 86 | 96 | 90 |
-| noteMetrics | 87 | 87 | 96 | 90 |
-| tempo | 88 | 86 | 96 | 90 |
-| filter / synth | 99 | 87 | 96 | 90 |
-| compare / compareSeries | 88 | 86 | 96 | 90 |
+| noteMetrics | 84 | 87 | 96 | 90 |
+| tempo | 84 | 86 | 96 | 90 |
+| filter / synth | 96–97 | 87 | 96 | 90 |
+| compare | 82 | 86 | 96 | 90 |
+| compareSeries | 86 | 86 | 96 | 90 |
 | popout | **100** | 94 | 96 | 90 |
-| about | 99 | 92 | 96 | 90 |
+| about | 100 | 92 | 96 | 90 |
 
-The performance gap is concentrated in **analyzer tabs** (86–88); the accessibility
-gap is app-wide — the toolbar/sidebar/source contrast, the annotations rail (82), and
-the analyzer tabs (86–87). The chrome-only states are performance-clean (99–100).
+The performance gap is concentrated in **analyzer tabs and the compare view** (81–89);
+the accessibility gap is app-wide — the annotations rail (82), the analyzer tabs (86–87),
+and the toolbar/sidebar/source contrast. The shell, graph and dialog surfaces are
+performance-clean (96–100).
 
 ## Findings for M32.B
 
@@ -58,18 +71,18 @@ can start without re-reading the report.
 
 ### A1 — Contrast tokens fail in every theme
 
-`color-contrast` is a weighted audit (weight 7) and fails on every surface in every
-theme. The failures are not one bad element: the secondary/tertiary text tokens are
-below 4.5:1 on the panel backgrounds.
+`color-contrast` is a weighted audit (weight 7) and fails on every full run and every
+theme in the sweep. The failures are not one bad element: the secondary/tertiary text
+tokens are below 4.5:1 on the panel backgrounds.
 
-| Theme | Failing selectors (union) | Worst ratio | Worst element |
-| --- | --- | --- | --- |
-| `builtin:dark` | 12 | 3.05 | `.sidebar-subtitle` |
-| `builtin:light` | 5 | 2.45 | `.sidebar-subtitle` |
-| `builtin:retrowave-neon` | 5 | 2.64 | `.sidebar-subtitle` |
-| `builtin:nord` | 17 | 2.19 | `.sidebar-subtitle` |
-| `builtin:solarized-dark` | 26 | 2.14 | `.sidebar-subtitle` |
-| `builtin:solarized-light` | 22 | 2.04 | `.sidebar-subtitle` |
+| Theme | Failing selectors (sweep union) | Max nodes in one run | Worst ratio | Worst element |
+| --- | --- | --- | --- | --- |
+| `builtin:dark` | 11 | 27 | 3.05 | `.sidebar-subtitle` |
+| `builtin:light` | 4 | 21 | 2.45 | `.sidebar-subtitle` |
+| `builtin:retrowave-neon` | 4 | 21 | 2.64 | `.sidebar-subtitle` |
+| `builtin:nord` | 16 | 55 | 2.19 | `.sidebar-subtitle` |
+| `builtin:solarized-dark` | 23 | 61 | 2.14 | `.sidebar-subtitle` |
+| `builtin:solarized-light` | 20 | 56 | 2.04 | `.sidebar-subtitle` |
 
 Recurring culprits and their consumers:
 
@@ -91,7 +104,6 @@ Recurring culprits and their consumers:
   (`src/styles/timeline.css:68`, `:110`): 4.16 in Solarized, 3.91 in Solarized-light.
 - **`--accent-2`** link text fails on `.about-link`: 3.05 (solarized-light), 3.79
   (retrowave), 3.20 (nord).
-- `.analyzer-title` is 4.16 in solarized-dark.
 
 Fix direction: raise the secondary/tertiary ramp in `src/styles/base.css` (lines
 21–55 and 100–134) and in each `ui` overlay (`builtinNord.ts`, `builtinRetrowave.ts`,
@@ -143,8 +155,8 @@ or use `aria-labelledby` for the visible label plus a visually hidden action wor
 
 ### B1 — Spurious startup error on every launch
 
-`errors-in-console` (weight 1, the only weighted best-practices failure) fires on all
-216 runs with:
+`errors-in-console` (weight 1, the only weighted best-practices failure) fires on every
+full run with:
 
 > `[startup] the popout query did not answer within 2000ms; rendering the project window`
 
@@ -173,23 +185,24 @@ file. Add the asset (or point both pages at an existing icon, e.g. copy
 one-line `<meta name="description">` to `index.html` and `preview.html`. The app is a
 desktop shell, but the tag is free and keeps the SEO signal green.
 
-### P1 — Analyzer tabs: LCP is the whole performance gap
+### P1 — Analyzer tabs and compare: LCP is the performance gap
 
-Performance is 99–100 on the shell and graph/chrome surfaces, but 86–88 on analyzer
-tabs. The weighted audits that differ are:
+Performance is 96–100 on the shell and graph/chrome surfaces, but 81–89 on analyzer
+tabs and the compare view. The weighted audits that differ are:
 
 | Audit | Weight | Analyzer tabs | Chrome surfaces |
 | --- | --- | --- | --- |
-| `largest-contentful-paint` | 25 | **2.3 s** (score ≈ 0.52) | ~0.9 s (score ≈ 1.0) |
-| `total-blocking-time` | 30 | ~71 ms (score ≈ 0.99) | ~60 ms |
-| `speed-index` | 10 | ~1.34 s (score ≈ 0.91) | ~1.17 s |
+| `largest-contentful-paint` | 25 | **2.27 s mean** (score ≈ 0.5 on the slow runs) | ~0.9 s mean |
+| `total-blocking-time` | 30 | ~124 ms (score ≈ 0.9) | ~114 ms |
+| `speed-index` | 10 | ~1.40 s (score ≈ 0.8–0.9) | ~1.14 s |
 
-FCP is ~482 ms and CLS is 0, so the gap is LCP. The LCP element is the analyzer's
-empty-state hint (`div.analyzer-empty > span.empty-state-hint`), which is painted
-while the first result is computed and then replaced by the chart. The LCP breakdown
-reports ~580 ms of element render delay and a 128 ms long task at ~2.2 s; the canvas
-chart itself is not an LCP candidate, so removing the empty state late does not move
-the LCP earlier.
+FCP is ~483 ms and CLS is 0, so the gap is LCP. In the slow runs the LCP element is the
+analyzer/compare empty-state hint (`div.analyzer-empty > span.empty-state-hint`),
+painted while the first result is computed and then replaced by the chart or comparison;
+a canvas chart is not an LCP candidate, so the element's removal does not move the LCP
+earlier. The LCP breakdown reports ~750–900 ms of element render delay in those runs.
+Performance is a single pass and noisy (one `spectrum` run scored 94 with a 0.5 s LCP);
+the mean/min in [Headline scores](#headline-scores) is the stable signal.
 
 Contributors measured in the preview build (and the real app build for comparison):
 
@@ -227,17 +240,24 @@ chrome surfaces, and the fixture-weight caveat should disappear.
 `scripts/lighthouse/budgets.json` currently targets:
 
 ```json
-{ "performance": 0.9, "accessibility": 0.95, "best-practices": 0.9, "seo": 0.9 }
+{
+  "performance": 0.9,
+  "accessibility": 0.95,
+  "best-practices": 0.9,
+  "seo": 0.9,
+  "contrast": 1
+}
 ```
 
-`npm run lighthouse -- --check` fails if **any** run misses a budget. The first full
-matrix fails on performance (min 83) and accessibility (min 82), and meets
-best-practices (96) and SEO (90 exactly). That is the intended M32.B worklist; after
-the fixes, tighten accessibility/best-practices/SEO to 1.0 and performance to ≥0.95.
+`npm run lighthouse -- --check` fails if **any** full run misses a category budget or
+any visual run fails `color-contrast`. The first split pass fails on performance
+(min 81), accessibility (min 82), and every visual contrast run (all six themes). That
+is the intended M32.B worklist; after the fixes, tighten performance to ≥0.95 and keep
+contrast at 1.
 
-CI wiring is deliberately not added yet: a 216-run job takes ~57 minutes on a laptop.
-Once M32.B lands, gate a reduced matrix (one theme × both viewports) on PRs and run
-the full matrix nightly.
+CI wiring is deliberately not added yet: the split matrix takes ~13.5 minutes on a
+laptop. Once M32.B lands, gate `npm run lighthouse -- --quick` (~5 minutes) on PRs and
+run the full profile nightly.
 
 ## What is not audited
 
@@ -254,12 +274,14 @@ the full matrix nightly.
 ## Reproduce
 
 ```sh
-npm run lighthouse                  # full matrix (~57 min); builds the preview shell
-npm run lighthouse -- --quick       # one theme + viewport, every surface
+npm run lighthouse                    # full + visual profiles (~13.5 min)
+npm run lighthouse -- --quick         # one theme/viewport, both profiles (~5 min)
+npm run lighthouse -- --profile=full  # skip the theme contrast sweep
 npm run lighthouse -- --only=nord --only=spectrum
-npm run lighthouse -- --no-build    # reuse .lighthouse/site
-npm run lighthouse -- --check       # apply scripts/lighthouse/budgets.json
-npm run lighthouse:serve            # http://127.0.0.1:4174/index.html
+npm run lighthouse -- --no-build      # reuse .lighthouse/site
+npm run lighthouse -- --check         # apply scripts/lighthouse/budgets.json
+npm run lighthouse:serve              # http://127.0.0.1:4174/index.html
+npm run lighthouse:serve -- --port=0  # ...or a free port if 4174 is busy
 ```
 
 Regenerate the analysis fixtures after an engine/result-shape change:
