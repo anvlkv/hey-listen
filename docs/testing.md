@@ -595,6 +595,7 @@ npm run test:unit             # pure-helper unit checks (analyzer options, theme
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)
+npm run lighthouse           # M32 surface × theme × viewport audit (see below)
 ```
 
 Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
@@ -668,6 +669,55 @@ group, so the grid only exists in a restored layout.
 graph back in the editor, but the *analysis* does not pick it up until the graph is
 pushed to the core again (the popout window boots its own copy and lands it in the shared
 core after the project's own), so the spec calls `set_filter_graph` once the popout is up.
+
+### Lighthouse audit (M32)
+
+`npm run lighthouse` is the automated performance / accessibility / best-practices / SEO
+pass over the preview shell. It builds **`preview.html` for production** (not the app):
+`HEYLISTEN_LIGHTHOUSE=1 vite build` writes `.lighthouse/site`, so `dist/` remains the
+shipped bundle. It then serves that folder and runs Lighthouse (desktop preset,
+headless Chrome) over the matrix:
+
+- **Surfaces** — `PREVIEW_SURFACES` in `src/preview/surfaces.ts`: the empty and
+  source states, the annotations rail, **one analyzer per chart view kind** (the tools
+  share renderers), both graph editors, the compare and popout chrome, and the About
+  dialog.
+- **Themes** — every built-in theme, read from `src/state/themes/builtins.ts`.
+- **Viewports** — 1280×800 and 1920×1080 (`small` / `large`).
+
+A surface is a URL: `preview.html?fixture=<surface>&theme=<theme-id>`. A classic inline
+script applies the theme banner-style (`localStorage`) before the bundle, and
+`src/preview/fixtures.ts` seeds the source, annotations, compare binding or dialog and
+opens the tab. It installs `src/preview/stub.ts` through the app's test seam so
+`run_analysis` returns the generated fixtures; the rest of IPC resolves to `null`, as
+the preview shell always did. The E2E WebdriverIO plugin is **not** loaded in preview
+(it would poll for a Tauri core that is not there).
+
+Fixtures are deterministic and generated, not committed as audio:
+`src/preview/signal.ts` is a 4 s tremolo/chirp/noise-bursts/dyad signal rendered by
+both the browser and `scripts/lighthouse/generate-fixtures.ts`. The latter writes a
+WAV, runs the release app's batch CLI (`analyze --all --full`) and thins the arrays
+into `src/preview/fixtures/analysis.json` (committed; keyed by `AnalyzerId`).
+Regenerate it after an engine/result-shape change with `npm run lighthouse:fixtures`
+(needs the release binary).
+
+Reports land in the gitignored `reports/lighthouse/`: one `.report.json` / `.report.html`
+per run, plus `summary.json` and a linked `index.html`. Serve the overview with
+`npm run lighthouse:serve` (default `http://127.0.0.1:4174/index.html`). Useful flags:
+
+```sh
+npm run lighthouse -- --quick                 # one theme + viewport, all surfaces
+npm run lighthouse -- --only=nord --only=spectrum
+npm run lighthouse -- --no-build              # reuse the last preview build
+npm run lighthouse -- --check                 # scripts/lighthouse/budgets.json
+```
+
+`--only` is AND across repeats (each term must appear in the surface / theme /
+viewport label). `--check` gates **every run** against the per-category budgets and
+exits non-zero; the first full pass and its findings are in
+[`lighthouse-audit-1.md`](lighthouse-audit-1.md). The preview cannot see native window
+chrome, menus, devices or file dialogs, and the fixture JSON is preview-only — the
+report's "What is not audited" section lists the boundaries.
 
 ### When the shell does not render
 

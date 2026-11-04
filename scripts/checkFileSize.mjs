@@ -42,6 +42,8 @@ const SKIP_DIRS = new Set([
   "artifacts",
   ".fixtures",
   "public",
+  ".lighthouse",
+  "reports",
 ]);
 
 /** Pruned by path: ts-rs writes these from the Rust types (`cargo test`). */

@@ -3,6 +3,37 @@ import solid from "vite-plugin-solid";
 import process from "node:process";
 const host = process.env.TAURI_DEV_HOST;
 
+/**
+ * `npm run lighthouse` builds the preview shell instead of the app: same plugins and
+ * chunking, but `preview.html` is the input and the output lands outside `dist/`
+ * (which stays the shipped app). See `scripts/lighthouse/run.ts`.
+ */
+const LIGHTHOUSE = process.env.HEYLISTEN_LIGHTHOUSE === "1";
+
+/** Vendor chunk split shared by both builds. */
+const rolldown = {
+  // Silence the informational plugin-timing diagnostic ("[PLUGIN_TIMINGS]");
+  // it is noise in the Tauri build log. Set `bundlerTimings: true` to restore it.
+  checks: { bundlerTimings: false },
+  output: {
+    codeSplitting: {
+      groups: [
+        { name: "dockview", test: /node_modules[\\/]dockview/ },
+        { name: "kobalte", test: /node_modules[\\/]@kobalte/ },
+        { name: "uplot", test: /node_modules[\\/](@dschz[\\/]solid-uplot|uplot)/ },
+      ],
+    },
+  },
+};
+
+// Hey Listen is a desktop app: every chunk is read from the local bundle (no
+// network, no CDN), so the 500 kB web-app heuristic is not a meaningful budget —
+// startup cost is parse time on disk-backed assets. The large vendor libraries are
+// already split below; what remains is the app's own code plus Solid, which grows
+// with the analyzer catalog and its help copy. Raised so the informational warning
+// does not fire on that, while still catching a runaway single chunk.
+const CHUNK_WARNING_LIMIT = 800;
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [solid()],
@@ -29,30 +60,18 @@ export default defineConfig(() => ({
     },
   },
 
-  build: {
-    // Hey Listen is a desktop app: every chunk is read from the local bundle (no
-    // network, no CDN), so the 500 kB web-app heuristic is not a meaningful budget —
-    // startup cost is parse time on disk-backed assets. The large vendor libraries are
-    // already split below; what remains is the app's own code plus Solid, which grows
-    // with the analyzer catalog and its help copy. Raised so the informational warning
-    // does not fire on that, while still catching a runaway single chunk.
-    chunkSizeWarningLimit: 800,
+  build: LIGHTHOUSE
+    ? {
+        outDir: ".lighthouse/site",
+        emptyOutDir: true,
+        chunkSizeWarningLimit: CHUNK_WARNING_LIMIT,
+        rolldownOptions: { ...rolldown, input: { preview: "preview.html" } },
+      }
+    : {
+        chunkSizeWarningLimit: CHUNK_WARNING_LIMIT,
 
-    // Split the large vendor libraries into their own chunks instead of one
-    // >500 kB bundle (Rolldown's manual chunking).
-    rolldownOptions: {
-      // Silence the informational plugin-timing diagnostic ("[PLUGIN_TIMINGS]");
-      // it is noise in the Tauri build log. Set `bundlerTimings: true` to restore it.
-      checks: { bundlerTimings: false },
-      output: {
-        codeSplitting: {
-          groups: [
-            { name: "dockview", test: /node_modules[\\/]dockview/ },
-            { name: "kobalte", test: /node_modules[\\/]@kobalte/ },
-            { name: "uplot", test: /node_modules[\\/](@dschz[\\/]solid-uplot|uplot)/ },
-          ],
-        },
+        // Split the large vendor libraries into their own chunks instead of one
+        // >500 kB bundle (Rolldown's manual chunking).
+        rolldownOptions: rolldown,
       },
-    },
-  },
 }));

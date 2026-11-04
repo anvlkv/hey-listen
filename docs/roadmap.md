@@ -2152,25 +2152,37 @@ An ISO 226 reference over the spectrum, and mid/side + inter-channel correlation
 > `calibrationDbSpl` as a per-tool option and no `SharedParams` change. See ADR-25 and
 > [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
 
-## M32 — Automated Lighthouse audit (drafted)
+## M32 — Automated Lighthouse audit ✅
 
 A repeatable, automated Lighthouse pass over every surface the app can render — the
 fixtures, the `preview.html` shell, and each theme — so performance, accessibility, and
 best-practice regressions are measured instead of noticed by hand.
 
-- **TBD** — the harness (Lighthouse CI vs. a project script) and how it drives the
-  preview shell and the fixture matrix.
-- **TBD** — the surface matrix (fixtures × themes × viewports) and the budget thresholds
-  per category.
-- **TBD** — where reports are stored and how a failing budget gates a change.
+- **Harness.** `npm run lighthouse` (`scripts/lighthouse/run.ts`) builds the preview
+  shell for production (`HEYLISTEN_LIGHTHOUSE=1 vite build` → `.lighthouse/site`),
+  serves it, and runs Lighthouse 13 over the matrix. `npm run lighthouse:serve` opens
+  the generated report; fixtures come from `npm run lighthouse:fixtures`.
+- **Surface matrix.** `PREVIEW_SURFACES` (`src/preview/surfaces.ts`) is the one list:
+  the shell states, one analyzer per `AnalyzerView` kind, both graph editors, the
+  compare and popout chrome, and the About dialog × every built-in theme ×
+  1280×800 / 1920×1080.
+- **Fixtures.** A deterministic 4 s signal (`src/preview/signal.ts`) rendered to WAV
+  and analysed by the batch CLI into `src/preview/fixtures/analysis.json`, plus the
+  empty state; `src/preview/stub.ts` answers only the IPC a surface reads.
+- **Reports and budgets.** Per-run JSON + HTML and `summary.json` / `index.html` land
+  in the gitignored `reports/lighthouse/`; `scripts/lighthouse/budgets.json` + `--check`
+  is the gate. The first full pass is [`lighthouse-audit-1.md`](lighthouse-audit-1.md).
 
 ## M32.B — Consequent improvement pass (drafted)
 
-The follow-up to M32: fix what the audit and its budgets surface, in priority order. The
-scope is decided by M32's findings rather than guessed here.
+The follow-up to M32: fix what the audit and its budgets surface, in priority order.
+The scope is decided by [`lighthouse-audit-1.md`](lighthouse-audit-1.md) rather than
+re-guessed here.
 
-- **TBD** — the finding → fix list, ordered by impact.
-- **TBD** — which fixes land as code (DOM / layout / paint), theme tokens, or test budgets.
+- **TBD** — the finding → fix list, ordered by impact (the audit doc's A1–A5 / B1–B2 /
+  C1 / P1 section is the proposed order).
+- **TBD** — which fixes land as code (DOM / layout / paint), theme tokens, or test
+  budgets.
 
 ## M33 — Install CLI from the app menu (drafted)
 

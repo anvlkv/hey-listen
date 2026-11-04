@@ -3,23 +3,24 @@
   Developer preview page — NOT part of the app.
 
   Renders the real UI in a plain browser (no Tauri, no Rust core) so layout / CSS /
-  component work can be iterated on and screenshotted without launching the app.
+  component work can be iterated on and screenshotted without launching the app, and
+  so the Lighthouse harness (`npm run lighthouse`) can audit each surface.
 
   It stubs the minimal Tauri v2 internals the shell touches at startup
-  (`window.__TAURI_INTERNALS__`) so `index.tsx` boots instead of throwing — every
-  `invoke(...)` resolves to `null`. That means there is **no audio source or analysis
-  data**: the Timeline is empty and analyzers show their empty state. Set a fake source
-  from the console if a view needs one, e.g.:
-
-    const m = await import("/src/state/source.ts");
-    m.finalizeSource({ name: "preview", detail: "preview",
-      samples: new Float32Array(48000), sampleRate: 48000, channels: 1 });
+  (`window.__TAURI_INTERNALS__`) so `index.tsx` boots instead of throwing. With no
+  `fixture`, the UI is the empty project (every `invoke(...)` resolves to `null`).
+  With `?fixture=<id>`, `src/preview/fixtures.ts` installs a fixture-aware IPC stub,
+  seeds the deterministic source / annotations / comparison and opens the surface's
+  tab. The ids are `PREVIEW_SURFACES` in `src/preview/surfaces.ts`; `?theme=<built-in
+  id>` applies a theme before the first paint.
 
   Usage (dev server only):
 
-    npm run dev                     # then open http://localhost:1420/preview.html
+    npm run dev                     # then open:
+    http://localhost:1420/preview.html?fixture=spectrum&theme=builtin:nord
 
-  `vite build` builds only `index.html`, so this file is never bundled or shipped.
+  `vite build` builds only `index.html`, so this file is never bundled or shipped;
+  `npm run lighthouse` builds it separately into `.lighthouse/site`.
 -->
 <html lang="en">
   <head>
@@ -29,6 +30,31 @@
     <link rel="icon" type="image/svg+xml" href="/tauri.svg" />
     <!-- Same pre-module guard as index.html (uPlot reads navigator.language at module scope). -->
     <script src="/locale.js"></script>
+    <!--
+      Harness parameters, applied before the app bundle loads so the first paint is
+      already the requested surface/theme (no flash of the default). `fixture` selects
+      a preview surface (see `src/preview/surfaces.ts`); `theme` is any built-in id.
+    -->
+    <script>
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const fixture = params.get("fixture") ?? "empty";
+        window.__HEYLISTEN_PREVIEW__ = { fixture };
+        const theme = params.get("theme");
+        if (theme) {
+          // Point both slots at the theme: the dark slot is active under the default
+          // `dark` mode, and the theme's own base still selects the light/dark styles.
+          try {
+            localStorage.setItem(
+              "hey-listen:theme",
+              JSON.stringify({ mode: "dark", darkThemeId: theme, lightThemeId: theme }),
+            );
+          } catch {
+            // Storage may be unavailable; the default theme still renders.
+          }
+        }
+      })();
+    </script>
   </head>
 
   <body>
@@ -36,8 +62,13 @@
     <script>
       // Minimal Tauri v2 internals stub: enough for `@tauri-apps/api` (invoke, event
       // listen, window title) to resolve instead of throwing. Dev preview only.
+      // The popout surface is the one target the shell cannot choose after boot:
+      // `index.tsx` asks for it before the fixture module runs, so the answer lives
+      // here. Everything else is seeded by `src/preview/fixtures.ts`.
+      const previewFixture = new URLSearchParams(location.search).get("fixture");
       window.__TAURI_INTERNALS__ = {
-        invoke: async () => null,
+        invoke: async (cmd) =>
+          cmd === "popout_tool" && previewFixture === "popout" ? "spectrum" : null,
         transformCallback: (cb) => {
           const id = Math.floor(Math.random() * 1e9);
           window[id] = cb;
@@ -51,5 +82,6 @@
       };
     </script>
     <script src="/src/index.tsx" type="module"></script>
+    <script src="/src/preview/fixtures.ts" type="module"></script>
   </body>
 </html>
