@@ -33,6 +33,7 @@ mod themes;
 use std::io::Write as _;
 
 use tauri::{Manager, WebviewWindowBuilder};
+use tauri_plugin_prevent_default::Flags;
 
 /// Run the stdio MCP entry (`heylisten-mcp`, or `hey-listen --mcp`).
 ///
@@ -53,6 +54,11 @@ pub fn run() {
     // argv before the builder is assembled (the plugin's own parse runs later, in
     // `setup`).
     let cli_invocation = cli::is_cli_invocation();
+
+    let prevent = tauri_plugin_prevent_default::Builder::new()
+        .with_flags(Flags::CONTEXT_MENU)
+        .build();
+
     let mut builder = tauri::Builder::default()
         // File + **stderr** logging. The batch CLI writes JSONL to stdout, so logs must
         // never share that stream (the file target keeps the GUI's history).
@@ -70,7 +76,7 @@ pub fn run() {
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
                 .build(),
         )
-        .plugin(tauri_plugin_prevent_default::init())
+        .plugin(prevent)
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // CLI flags are declared in `tauri.conf.json` (`plugins.cli`); the app reads

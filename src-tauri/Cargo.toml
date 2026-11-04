@@ -63,6 +63,10 @@ cpal = "0.16"                                        # preview playback (Output;
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSProcessInfo", "NSString"] }
 
+# windows: The platform-windows feature must be enabled for `tauri-plugin-prevent-default`
+[target.'cfg(target_os = "windows")'.dependencies]
+tauri-plugin-prevent-default = { version = "6", features = ["platform-windows"] }
+
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
