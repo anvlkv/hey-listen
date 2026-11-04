@@ -151,7 +151,29 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         Some("Shift+CmdOrCtrl+Z"),
     )?;
-    let edit = Submenu::with_items(app, "Edit", true, &[&undo, &redo])?;
+    // The clipboard items must be **predefined**: macOS dispatches Cmd+C / Cmd+X /
+    // Cmd+V / Cmd+A through the Edit menu's key equivalents to the focused responder,
+    // so without them a text field (e.g. the annotation editor) cannot copy or paste
+    // at all — the WebView never sees the shortcut.
+    let sep_after_redo = PredefinedMenuItem::separator(app)?;
+    let cut = PredefinedMenuItem::cut(app, None)?;
+    let copy = PredefinedMenuItem::copy(app, None)?;
+    let paste = PredefinedMenuItem::paste(app, None)?;
+    let select_all = PredefinedMenuItem::select_all(app, None)?;
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &undo,
+            &redo,
+            &sep_after_redo,
+            &cut,
+            &copy,
+            &paste,
+            &select_all,
+        ],
+    )?;
 
     let view = Submenu::with_items(
         app,

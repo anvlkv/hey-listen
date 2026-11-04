@@ -78,7 +78,10 @@ compact "Add audio" state has a fixed height).
   attributions) rather than the native panel. File actions are emitted to the
   frontend via `app:menu`; the rest are native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
   (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
-  [`roadmap.md`](roadmap.md) → Backlog). An **Analysis** menu carries **Compare
+  [`roadmap.md`](roadmap.md) → Backlog), followed by the **predefined** Cut / Copy / Paste /
+  Select All items. Those must stay predefined: macOS dispatches `Cmd+C` / `X` / `V` / `A`
+  through the Edit menu's key equivalents to the focused responder, so without them text
+  fields (such as the annotation editor) cannot copy or paste at all. An **Analysis** menu carries **Compare
   with…** (M25; acts on the focused analyzer tab). See `src-tauri/src/menu.rs`.
   **Previous/Next Project** step through the `.heyl` files in the current project's
   folder (name order, ends stop); they need a saved project (M25.D). The same step is a
