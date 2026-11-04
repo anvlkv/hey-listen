@@ -8,6 +8,11 @@ dist
 /e2e/artifacts/
 logs/
 
+# Lighthouse harness (M32): the preview build, its temp WAV/analysis dump, and the
+# generated report. The committed surface/fixture sources live under `src/preview/`.
+/.lighthouse/
+/reports/lighthouse/
+
 # ts-rs's fallback export dir: `cargo test` run outside `src-tauri/` misses
 # `src-tauri/.cargo/config.toml` and writes here instead of `src/bindings/`.
 /src-tauri/bindings/

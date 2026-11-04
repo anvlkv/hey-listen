@@ -3,10 +3,6 @@
 // failure in any module below (or during the first render) is reported instead of
 // disappearing into a blank window. See `src/boot.ts`.
 import { reportStartupFailure } from "./boot";
-// E2E scaffolding (M8): the WebdriverIO Tauri plugin installs `window.wdioTauri`
-// and the `invoke` interception the suite's IPC mocks ride on. It is inert in a
-// normal run (nothing calls it), so it ships with the app the E2E suite drives.
-import "@wdio/tauri-plugin";
 import { render } from "solid-js/web";
 import { invoke } from "./lib/ipc";
 import { attachConsole } from "@tauri-apps/plugin-log";
@@ -30,6 +26,20 @@ void start();
 
 /** Render this window: a popout shows a single tool or annotation, a project window the app. */
 async function start(): Promise<void> {
+  // E2E scaffolding (M8): the WebdriverIO Tauri plugin installs `window.wdioTauri`
+  // and the `invoke` interception the suite's IPC mocks ride on. Loaded dynamically
+  // (and before the first paint) so the Lighthouse preview — which has no Tauri core
+  // for the plugin to attach to — does not pay for its polling and console
+  // forwarding. It ships with the app the E2E suite drives.
+  if (!window.__HEYLISTEN_PREVIEW__) {
+    try {
+      await import("@wdio/tauri-plugin");
+    } catch (err) {
+      // Test scaffolding must never block the app: report and render without it.
+      reportStartupFailure("the E2E plugin failed to load", err);
+    }
+  }
+
   const root = document.getElementById("root");
   if (!root) {
     reportStartupFailure("the #root element is missing from index.html");

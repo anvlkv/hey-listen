@@ -13,6 +13,13 @@ src-tauri/gen
 e2e/artifacts
 e2e/.fixtures
 
+# Lighthouse harness (M32): the preview build and the generated report
+.lighthouse
+reports
+
+# Generated analysis fixtures (scripts/lighthouse/generate-fixtures.ts)
+src/preview/fixtures
+
 # Vendored font assets keep their embedded license comments verbatim
 public/fonts
 
