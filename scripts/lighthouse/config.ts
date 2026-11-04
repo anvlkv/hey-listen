@@ -15,7 +15,6 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const SITE_DIR = join(ROOT, ".lighthouse", "site");
 export const REPORT_DIR = join(ROOT, "reports", "lighthouse");
 export const BUDGETS_PATH = join(ROOT, "scripts", "lighthouse", "budgets.json");
-export const LIGHTHOUSE_CLI = join(ROOT, "node_modules", "lighthouse", "cli", "index.js");
 
 /** Lighthouse categories this harness runs. */
 export const CATEGORIES = ["performance", "accessibility", "best-practices", "seo"] as const;

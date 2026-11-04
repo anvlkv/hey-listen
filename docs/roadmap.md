@@ -2160,8 +2160,10 @@ best-practice regressions are measured instead of noticed by hand.
 
 - **Harness.** `npm run lighthouse` (`scripts/lighthouse/run.ts`) builds the preview
   shell for production (`HEYLISTEN_LIGHTHOUSE=1 vite build` → `.lighthouse/site`),
-  serves it, and runs Lighthouse 13 over the matrix. `npm run lighthouse:serve` opens
-  the generated report; fixtures come from `npm run lighthouse:fixtures`.
+  serves it, and runs Lighthouse 13 through its **Node API** (`lighthouse` +
+  `chrome-launcher`) over the matrix. Each run's HTML report is rendered by
+  Lighthouse's own `ReportGenerator`. `npm run lighthouse:serve` opens the generated
+  index; fixtures come from `npm run lighthouse:fixtures`.
 - **Surface matrix.** `PREVIEW_SURFACES` (`src/preview/surfaces.ts`) is the one list:
   the shell states, one analyzer per `AnalyzerView` kind, both graph editors, the
   compare and popout chrome, and the About dialog × every built-in theme ×

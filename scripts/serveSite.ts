@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Serve the marketing site (`site/`) locally for preview.
  *
@@ -8,7 +7,8 @@
  */
 
 import { fileURLToPath } from "node:url";
-import { serveStatic } from "./staticServer.mjs";
+import process from "node:process";
+import { serveStatic } from "./staticServer";
 
 const ROOT = fileURLToPath(new URL("../site", import.meta.url));
 const PORT = Number(process.env.PORT) || 4173;

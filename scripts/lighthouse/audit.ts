@@ -1,16 +1,21 @@
 /**
- * One Lighthouse run: launch the CLI against a preview surface, then read the JSON
- * report back into the compact shape the aggregate report uses.
+ * One Lighthouse run through the Node API.
  *
- * The CLI (not the user-flow API) is deliberate: a fresh Chrome per audit is the
- * cleanest way to keep category scores comparable across 200 runs, and the preview
- * shell settles before the load event, so no custom page interaction is needed.
+ * The harness owns Chrome (`chrome-launcher`) and calls `lighthouse()` directly, so it
+ * gets the **LHR** object back instead of re-reading a CLI JSON file, and renders the
+ * official standalone HTML report with Lighthouse's own `ReportGenerator` (the same
+ * renderer the CLI uses). A Chrome instance is launched per run so category scores
+ * stay isolated; the desktop config is `lighthouse/core/config/desktop-config.js`
+ * with only the screen size overridden.
  */
 
-import { spawn } from "node:child_process";
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { CATEGORIES, LIGHTHOUSE_CLI, type Category, type Viewport } from "./config";
+import lighthouse from "lighthouse";
+import * as chromeLauncher from "chrome-launcher";
+import desktopConfig from "lighthouse/core/config/desktop-config.js";
+import { ReportGenerator } from "lighthouse/report/generator/report-generator.js";
+import { CATEGORIES, type Category, type Viewport } from "./config";
 
 /** A failing audit in one run. */
 export interface AuditFailure {
@@ -30,24 +35,8 @@ export interface AuditResult {
   error: string | null;
 }
 
-interface ReportAudit {
-  score?: number | null;
-  scoreDisplayMode?: string;
-  title?: string;
-  displayValue?: string;
-  numericValue?: number;
-}
-
-interface ReportCategory {
-  score?: number | null;
-  auditRefs?: { id: string }[];
-}
-
-interface Report {
-  lighthouseVersion?: string;
-  audits?: Record<string, ReportAudit>;
-  categories?: Record<string, ReportCategory>;
-}
+type RunnerResult = NonNullable<Awaited<ReturnType<typeof lighthouse>>>;
+type Lhr = RunnerResult["lhr"];
 
 /** The performance metrics carried into the summary (numericValue, ms / unitless). */
 const METRIC_IDS = [
@@ -61,75 +50,73 @@ const METRIC_IDS = [
 /** Score display modes that are not pass/fail audits. */
 const NON_GRADED = new Set(["notApplicable", "informative", "manual", "error"]);
 
-function baseArgs(url: string, outBase: string, viewport: Viewport): string[] {
-  const chromeFlags = [
+function chromeFlags(): string[] {
+  return [
     "--headless=new",
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-gpu",
     "--hide-scrollbars",
     ...(process.platform === "linux" ? ["--no-sandbox", "--disable-dev-shm-usage"] : []),
-  ].join(" ");
-  return [
-    LIGHTHOUSE_CLI,
-    url,
-    "--output=json",
-    "--output=html",
-    `--output-path=${outBase}`,
-    `--only-categories=${CATEGORIES.join(",")}`,
-    "--preset=desktop",
-    "--form-factor=desktop",
-    `--screenEmulation.width=${viewport.width}`,
-    `--screenEmulation.height=${viewport.height}`,
-    "--screenEmulation.deviceScaleFactor=1",
-    "--screenEmulation.mobile=false",
-    `--chrome-flags=${chromeFlags}`,
-    "--max-wait-for-load=60000",
-    "--quiet",
-    "--no-enable-error-reporting",
   ];
 }
 
-function runProcess(args: string[], timeoutMs: number): Promise<{ code: number; stderr: string }> {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, args, { stdio: ["ignore", "ignore", "pipe"] });
-    let stderr = "";
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-      if (stderr.length > 8000) stderr = stderr.slice(-8000);
-    });
-    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      resolve({ code: -1, stderr: String(err) });
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      resolve({ code: code ?? -1, stderr });
-    });
+/** The desktop preset, with the run's laptop viewport. */
+function configFor(viewport: Viewport) {
+  return {
+    ...desktopConfig,
+    settings: {
+      ...desktopConfig.settings,
+      formFactor: "desktop" as const,
+      screenEmulation: {
+        ...desktopConfig.settings?.screenEmulation,
+        mobile: false,
+        width: viewport.width,
+        height: viewport.height,
+        deviceScaleFactor: 1,
+        disabled: false,
+      },
+    },
+  };
+}
+
+/** Reject after `ms`, so a wedged Chrome cannot hang the matrix. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
   });
 }
 
-function parseReport(report: Report): Omit<AuditResult, "error"> {
+function parseLhr(lhr: Lhr): Omit<AuditResult, "error"> {
   const scores = Object.fromEntries(
-    CATEGORIES.map((category) => [category, report.categories?.[category]?.score ?? null]),
+    CATEGORIES.map((category) => [category, lhr.categories[category]?.score ?? null]),
   ) as Record<Category, number | null>;
 
   const metrics: Record<string, number | null> = {};
   for (const id of METRIC_IDS) {
-    const value = report.audits?.[id]?.numericValue;
+    const value = lhr.audits[id]?.numericValue;
     metrics[id] = typeof value === "number" ? value : null;
   }
 
   const failures: AuditFailure[] = [];
   for (const category of CATEGORIES) {
-    for (const ref of report.categories?.[category]?.auditRefs ?? []) {
-      const audit = report.audits?.[ref.id];
+    for (const ref of lhr.categories[category]?.auditRefs ?? []) {
+      const audit = lhr.audits[ref.id];
       if (!audit || audit.score == null || audit.score >= 1) continue;
       if (NON_GRADED.has(audit.scoreDisplayMode ?? "")) continue;
       failures.push({
         id: ref.id,
-        title: audit.title ?? ref.id,
+        title: audit.title,
         category,
         score: audit.score,
         displayValue: audit.displayValue ?? null,
@@ -137,7 +124,7 @@ function parseReport(report: Report): Omit<AuditResult, "error"> {
     }
   }
 
-  return { lighthouseVersion: report.lighthouseVersion ?? null, scores, metrics, failures };
+  return { lighthouseVersion: lhr.lighthouseVersion, scores, metrics, failures };
 }
 
 function emptyResult(error: string): AuditResult {
@@ -149,7 +136,7 @@ function emptyResult(error: string): AuditResult {
 }
 
 /**
- * Run one audit into `outBase` (`<outBase>.report.json` / `.report.html`).
+ * Run one audit into `outBase` (`<outBase>.report.html` / `.report.json`).
  * `outBase`'s directory must exist.
  */
 export async function runLighthouse(
@@ -162,13 +149,35 @@ export async function runLighthouse(
   await rm(`${outBase}.report.json`, { force: true });
   await rm(`${outBase}.report.html`, { force: true });
 
-  const { code, stderr } = await runProcess(baseArgs(url, outBase, viewport), timeoutMs);
-  if (code !== 0) return emptyResult(stderr.trim() || `lighthouse exited ${code}`);
-
+  let chrome: chromeLauncher.LaunchedChrome | null = null;
   try {
-    const report = JSON.parse(await readFile(`${outBase}.report.json`, "utf8")) as Report;
-    return { ...parseReport(report), error: null };
+    chrome = await chromeLauncher.launch({ chromeFlags: chromeFlags(), logLevel: "error" });
+    const result = await withTimeout(
+      lighthouse(
+        url,
+        {
+          port: chrome.port,
+          output: "json",
+          logLevel: "error",
+          onlyCategories: [...CATEGORIES],
+        },
+        configFor(viewport),
+      ),
+      timeoutMs,
+    );
+    if (!result) throw new Error("lighthouse returned no result");
+
+    // The official renderer (report/generator/report-generator.js), not a custom one.
+    await writeFile(`${outBase}.report.html`, ReportGenerator.generateReportHtml(result.lhr));
+    await writeFile(`${outBase}.report.json`, JSON.stringify(result.lhr));
+    return { ...parseLhr(result.lhr), error: null };
   } catch (err) {
-    return emptyResult(`could not read the report: ${String(err)}`);
+    return emptyResult(err instanceof Error ? err.message : String(err));
+  } finally {
+    try {
+      chrome?.kill();
+    } catch {
+      // Chrome already exited (e.g. after a timeout).
+    }
   }
 }

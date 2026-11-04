@@ -7,7 +7,7 @@
  */
 
 import process from "node:process";
-import { serveStatic } from "../staticServer.mjs";
+import { serveStatic } from "../staticServer";
 import { REPORT_DIR } from "./config";
 
 const portArg = process.argv.find((arg) => arg.startsWith("--port="));
