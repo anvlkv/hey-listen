@@ -63,9 +63,6 @@
   // NEVER delete one of these to satisfy knip: each is load-bearing through a
   // mechanism knip cannot see.
   "ignoreDependencies": [
-    // Spawned as a CLI subprocess (`node_modules/lighthouse/cli/index.js`) by the
-    // M32 harness, not imported — knip cannot see the path string.
-    "lighthouse",
     // Kept for version alignment with the Rust `tauri-plugin-store` — see
     // docs/dependencies.md → Frontend: "(MCP) store bindings … the package keeps
     // the plugin versions aligned". The popover reads settings via commands.

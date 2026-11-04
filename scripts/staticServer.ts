@@ -1,8 +1,7 @@
-#!/usr/bin/env node
 /**
  * A tiny, dependency-free static file server over Node's built-in `http`/`fs`.
  *
- * Shared by `scripts/serveSite.mjs` (the marketing-site preview) and the Lighthouse
+ * Shared by `scripts/serveSite.ts` (the marketing-site preview) and the Lighthouse
  * runner/report server, so the MIME table and the "never escape the root" guard live
  * in one place. Returns a handle with the bound URL and a `close()`.
  */
@@ -11,7 +10,7 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 
-const TYPES = {
+const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -29,14 +28,15 @@ const TYPES = {
   ".ttf": "font/ttf",
 };
 
+export interface StaticServer {
+  url: string;
+  close: () => Promise<void>;
+}
+
 /**
  * Serve `root` on `port` (0 = an OS-assigned free port), bound to loopback.
- *
- * @param {string} root Absolute directory to serve.
- * @param {{ port?: number }} [options]
- * @returns {Promise<{ url: string, close: () => Promise<void> }>}
  */
-export function serveStatic(root, options = {}) {
+export function serveStatic(root: string, options: { port?: number } = {}): Promise<StaticServer> {
   const server = createServer(async (req, res) => {
     try {
       const pathname = decodeURIComponent(new URL(req.url ?? "/", "http://localhost").pathname);

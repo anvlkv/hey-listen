@@ -230,6 +230,9 @@ function renderHtml(summary: Summary): string {
 <h1>Hey Listen — Lighthouse audit</h1>
 <p>${esc(summary.generatedAt)} · ${summary.runs.length} runs · Lighthouse ${esc(summary.lighthouseVersion ?? "unknown")} ·
 scores are out of 100 (mean / worst per group)</p>
+<p>Each <strong>report</strong> link opens Lighthouse's own standalone HTML report (the official
+<code>ReportGenerator</code> renderer). This page only aggregates the per-run LHRs — one index for
+216 reports, not a replacement for the Lighthouse report UI.</p>
 
 <h2>Aggregates</h2>
 <table>

@@ -630,22 +630,17 @@ service log).
 For pure layout / CSS / component iteration, **`preview.html`** (repo root) renders the
 real shell in a plain browser — no Tauri, no Rust core — so it can be inspected and
 screenshotted without launching the app. It stubs the minimal Tauri internals
-(`window.__TAURI_INTERNALS__`) so `src/index.tsx` boots instead of throwing; every
-`invoke(...)` resolves to `null`, so there is no audio source or analysis data (the
-Timeline is empty and analyzers show their empty state). Set a fake source from the
-console if a view needs one:
-
-```js
-const m = await import("/src/state/source.ts");
-m.finalizeSource({ name: "preview", detail: "preview",
-  samples: new Float32Array(48000), sampleRate: 48000, channels: 1 });
-```
+(`window.__TAURI_INTERNALS__`) so `src/index.tsx` boots instead of throwing. With no
+`fixture` query, every `invoke(...)` resolves to `null` (empty project). The Lighthouse
+section below describes the seeded surfaces (`?fixture=<id>&theme=<theme-id>`), which
+are also the quickest way to open a populated view by hand.
 
 ```sh
 npm run dev      # then open http://localhost:1420/preview.html
 ```
 
-`vite build` builds only `index.html`, so `preview.html` is never bundled or shipped.
+`vite build` builds only `index.html`, so `preview.html` is never bundled or shipped;
+`npm run lighthouse` builds it separately into `.lighthouse/site`.
 
 ### Marketing screenshots
 
@@ -675,8 +670,10 @@ core after the project's own), so the spec calls `set_filter_graph` once the pop
 `npm run lighthouse` is the automated performance / accessibility / best-practices / SEO
 pass over the preview shell. It builds **`preview.html` for production** (not the app):
 `HEYLISTEN_LIGHTHOUSE=1 vite build` writes `.lighthouse/site`, so `dist/` remains the
-shipped bundle. It then serves that folder and runs Lighthouse (desktop preset,
-headless Chrome) over the matrix:
+shipped bundle. It then serves that folder and runs Lighthouse through its **Node API**
+(`lighthouse` + `chrome-launcher`, the desktop config) over the matrix. Each run's HTML
+report is produced by Lighthouse's own `ReportGenerator`; the generated `index.html` is
+only a navigator across the per-run LHRs (Lighthouse renders one report per URL).
 
 - **Surfaces** — `PREVIEW_SURFACES` in `src/preview/surfaces.ts`: the empty and
   source states, the annotations rail, **one analyzer per chart view kind** (the tools

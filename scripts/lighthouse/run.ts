@@ -20,7 +20,7 @@ import { readFile } from "node:fs/promises";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
-import { serveStatic } from "../staticServer.mjs";
+import { serveStatic } from "../staticServer";
 import { PREVIEW_SURFACES } from "../../src/preview/surfaces";
 import { runLighthouse } from "./audit";
 import {

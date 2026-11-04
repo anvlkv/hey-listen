@@ -2,15 +2,20 @@
 
 The first automated pass over every surface the app can render. This document is the
 durable summary; the raw report is generated (not committed) under
-`reports/lighthouse/` and served with `npm run lighthouse:serve`.
+`reports/lighthouse/` and served with `npm run lighthouse:serve`. Each run's
+`report.report.html` is Lighthouse's **official** standalone report (rendered by
+`ReportGenerator`); `index.html` is only a navigator/aggregate over the LHRs, because
+Lighthouse has no multi-URL report.
 
 - **Date:** 2026-11-04
 - **Lighthouse:** 13.6.0, desktop preset, headless Chrome
 - **Viewports:** 1280×800 (`small`) and 1920×1080 (`large`), device scale 1
 - **Matrix:** 18 surfaces × 6 built-in themes × 2 viewports = **216 runs**
 - **Categories:** performance, accessibility, best-practices, SEO
-- **Harness:** `npm run lighthouse` (`scripts/lighthouse/run.ts`); surface list in
-  `src/preview/surfaces.ts`; themes from `src/state/themes/builtins.ts`
+- **Harness:** `npm run lighthouse` (`scripts/lighthouse/run.ts`) — Lighthouse 13 via
+  its **Node API** (`lighthouse` + `chrome-launcher`, desktop config), rendering each
+  run's official HTML report with Lighthouse's `ReportGenerator`. The surface list is
+  `src/preview/surfaces.ts`; themes come from `src/state/themes/builtins.ts`.
 - **Fixtures:** a deterministic 4 s WAV (`src/preview/signal.ts`) and its generated
   analyzer results (`src/preview/fixtures/analysis.json`, keyed by every analyzer in
   `AnalyzerId`), plus the empty state. One representative analyzer per

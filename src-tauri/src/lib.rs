@@ -56,7 +56,7 @@ pub fn run() {
     let cli_invocation = cli::is_cli_invocation();
 
     let prevent = tauri_plugin_prevent_default::Builder::new()
-        .with_flags(Flags::CONTEXT_MENU)
+        .with_flags(Flags::debug())
         .build();
 
     let mut builder = tauri::Builder::default()
