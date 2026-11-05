@@ -4,7 +4,6 @@ import Icon from "./Icon";
 import LiveControls from "./source/LiveControls";
 import LiveSourceInputs from "./source/LiveSourceInputs";
 import SourceKindSelect from "./source/SourceKindSelect";
-import { usesDevices } from "./source/kinds";
 import { createNumberDrag } from "../lib/dragNumber";
 import { openFileDialog, source } from "../state/source";
 import { openTool } from "../state/workbench";
@@ -15,7 +14,6 @@ import {
   mixMicDeviceId,
   mixSystemDeviceId,
   recording,
-  refreshDevices,
   refreshProcesses,
   setStartDelay,
   setTargetDuration,
@@ -42,7 +40,6 @@ import {
  */
 export default function SourcePanel() {
   let processesRequested = false;
-  let devicesRequested = false;
 
   // Numeric timing fields also accept drag-to-adjust (M7).
   const startDrag = createNumberDrag({
@@ -64,18 +61,13 @@ export default function SourcePanel() {
     void stopMonitor();
   });
 
-  // Enumerate as late as possible. Walking the OS audio stack asks the OS for
-  // access on macOS (a mic TCC prompt), so it must never happen for a project that
-  // stays on a file / synth source — only once a live kind is picked here or a live
-  // kind is restored with a project. See `docs/source-model.md` → OS permissions.
-  createEffect(() => {
-    if (!devicesRequested && usesDevices(choice())) {
-      devicesRequested = true;
-      void refreshDevices();
-    }
-  });
+  // Fetch the process list the first time "Application" is selected. Capture
+  // *devices* are never listed here: `ensureSession` requests them after the
+  // monitoring session opens, because macOS refuses to enumerate inputs until that
+  // session has answered the microphone consent prompt — asking earlier would show
+  // an error while the prompt was still up. See `docs/source-model.md` → OS
+  // permissions.
 
-  // Fetch the process list the first time "Application" is selected.
   createEffect(() => {
     if (choice() === "process" && !processesRequested) {
       processesRequested = true;

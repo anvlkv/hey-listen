@@ -15,6 +15,7 @@ import {
   choice,
   countdown,
   deviceId,
+  devices,
   gain,
   mixMicDeviceId,
   mixSystemDeviceId,
@@ -27,11 +28,13 @@ import {
   setMonitoring,
   setPaused,
   setRecording,
+  setSourcesError,
   startDelay,
   targetDuration,
   targetPid,
 } from "./signals";
-import { KIND_LABEL, type CaptureKind } from "./types";
+import { refreshDevices } from "./enumerate";
+import { KIND_LABEL, usesDevices, type CaptureKind } from "./types";
 
 /**
  * Live-capture session engine (flexaudio sources): the growing PCM buffer, the
@@ -77,7 +80,8 @@ let unlisten: UnlistenFn | null = null;
 
 /**
  * Subscribe to capture status events. Device enumeration is **not** done here — it
- * is deferred until a live kind is selected (see `refreshDevices`).
+ * waits for a live capture session to open (see `ensureSession`), because macOS
+ * refuses to enumerate inputs before microphone consent is decided.
  */
 export async function initCapture() {
   try {
@@ -272,6 +276,10 @@ async function ensureSession(): Promise<boolean> {
   for (const chunk of pendingChunks) appendChunk(session, chunk);
   pendingChunks = [];
   setMonitoring(true);
+  // The session opening is what decides microphone consent (macOS refuses to
+  // enumerate inputs before it), so the device list is only fetched now — never
+  // while the consent prompt is still up. See `docs/source-model.md`.
+  if (usesDevices(kind) && devices().length === 0) void refreshDevices();
   return true;
 }
 
@@ -283,6 +291,7 @@ export async function startMonitor() {
   if (recording()) return;
   await haltSession();
   setCaptureError(null);
+  setSourcesError(null);
   await ensureSession();
 }
 

@@ -10,8 +10,3 @@ export const SOURCE_CHOICES: SelectOption<SourceChoice>[] = [
   { value: "mix", label: "Mic + system" },
   { value: "synth", label: "Synth (graph)" },
 ];
-
-/** Kinds whose inputs list devices (see `LiveSourceInputs`); the rest need none. */
-export function usesDevices(kind: SourceChoice): boolean {
-  return kind === "mic" || kind === "system" || kind === "mix";
-}
