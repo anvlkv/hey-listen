@@ -19,6 +19,12 @@ modules keep their own cheap, focused tests.
 The suite runs against the **release** binary (`npm run tauri build`);
 `appBinaryPath` → `src-tauri/target/release/hey-listen`.
 
+**The WebDriver plugins are E2E-only.** The Rust plugins (`tauri-plugin-wdio`,
+`tauri-plugin-wdio-webdriver`) and the frontend `@wdio/tauri-plugin` are registered
+only when `@wdio/tauri-service` launched the app, which sets `TAURI_WEBDRIVER_PORT`
+on the spawned process. A manual launch (dev, preview, a user's `.heyl` file) neither
+binds port 4445 nor logs `[WDIO]` messages.
+
 ### Implemented (M8)
 
 Delivered: `tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` in `lib.rs`, the
@@ -716,11 +722,13 @@ npm run lighthouse -- --check                 # scripts/lighthouse/budgets.json
 
 `--only` is AND across repeats (each term must appear in the profile / surface / theme /
 viewport label). `--check` gates every full run against the per-category budgets and
-every visual run against `color-contrast`, then exits non-zero on a miss; the first
-split pass and its findings are in
-[`lighthouse-audit-1.md`](lighthouse-audit-1.md). The preview cannot see native window
-chrome, menus, devices or file dialogs, and the fixture JSON is preview-only — the
-report's "What is not audited" section lists the boundaries.
+every visual run against `color-contrast`, then exits non-zero on a miss. The budgets
+are **performance 0.95, accessibility / best-practices / SEO 1.0, contrast 1.0**, and
+the current matrix passes every run. The first pass and its findings are in
+[`lighthouse-audit-1.md`](lighthouse-audit-1.md); the improvement pass and the new
+scores are in [`lighthouse-audit-2.md`](lighthouse-audit-2.md). The preview cannot see
+native window chrome, menus, devices or file dialogs, and the fixture JSON is
+preview-only — the report's "What is not audited" section lists the boundaries.
 
 ### When the shell does not render
 

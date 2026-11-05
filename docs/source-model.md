@@ -102,6 +102,13 @@ must be tested against a packaged build.
 - `NSMicrophoneUsageDescription` for mic capture.
 - `NSAudioCaptureUsageDescription` (+ TCC `kTCCServiceAudioCapture`) for system /
   process capture (process taps need macOS 14.4+).
+- **`com.apple.security.device.audio-input`** in `src-tauri/entitlements.plist`, wired
+  through `bundle.macOS.entitlements`. The bundle is signed with the **hardened
+  runtime**, which gates `kTCCServiceMicrophone` on that entitlement: without it macOS
+  denies the mic request **without ever showing the prompt** (system audio is
+  unaffected, because it uses the separate Audio Capture service). Tauri merges the
+  entitlements on `tauri build`; `tauri dev` runs an unbundled binary with no
+  microphone consent, which is another reason to test capture against a packaged build.
 
 The prompt is raised **only when the audio stack is actually used**, never at launch.
 That turned out to need *two* deferrals, not one:

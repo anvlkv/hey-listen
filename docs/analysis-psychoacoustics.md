@@ -60,9 +60,11 @@ CLI):
   is added to `SharedParams` (which is `postcard`-encoded and would need a format bump).
   The shared `freqMinHz` / `freqMaxHz` keep their existing meaning as a **spectral band
   limit** applied to the STFT the psychoacoustic tools consume.
-- **Results are not persisted yet** (`RESULTS` is written empty), so new
-  `AnalysisResult` variants need no container change; they regenerate
-  `src/bindings/**` via `cargo test`.
+- **Cached results are additive.** `RESULTS` stores one entry per analyzer result, so a
+  new `AnalysisResult` variant needs no container change — the postcard mirror in
+  `results/stored.rs` gains a variant (its match is exhaustive) and `src/bindings/**`
+  regenerates via `cargo test`. See [`project-file-format.md`](project-file-format.md) →
+  Cached results.
 - **Models are named, not invented.** Loudness commits to **ISO 532-2 (Moore–Glasberg,
   stationary)**, sharpness to **DIN 45692**, roughness to a **Daniel–Weber**-style model,
   fluctuation strength to the **Osses–García–Kohlrausch (2016)** family, masking to an

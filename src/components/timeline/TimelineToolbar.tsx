@@ -119,7 +119,7 @@ export default function TimelineToolbar(props: {
           >
             <Slider.Track class="gain-track">
               <Slider.Fill class="gain-fill" />
-              <Slider.Thumb class="gain-thumb">
+              <Slider.Thumb class="gain-thumb" aria-label="Preview speed">
                 <Slider.Input
                   class="gain-input"
                   data-testid="timeline.speed"

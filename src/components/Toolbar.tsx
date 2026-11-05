@@ -141,8 +141,12 @@ export default function Toolbar() {
             >
               <Slider.Track class="gain-track">
                 <Slider.Fill class="gain-fill" />
-                <Slider.Thumb class="gain-thumb">
-                  <Slider.Input class="gain-input" data-testid="toolbar.output.gain" />
+                <Slider.Thumb class="gain-thumb" aria-label="Preview output gain">
+                  <Slider.Input
+                    class="gain-input"
+                    data-testid="toolbar.output.gain"
+                    aria-label="Preview output gain"
+                  />
                 </Slider.Thumb>
               </Slider.Track>
             </Slider>

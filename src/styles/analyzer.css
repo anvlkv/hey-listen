@@ -99,6 +99,13 @@
   text-align: center;
 }
 
+/* First computation: the centred spinner is the only thing shown, so hide the empty
+   state it would otherwise overlap. The body's children stay mounted (their canvas
+   and effects must not be torn down and rebuilt between the empty and result states). */
+.analyzer-first-load .analyzer-empty {
+  visibility: hidden;
+}
+
 .empty-state-icon {
   font-size: 1.75rem;
   line-height: 1;

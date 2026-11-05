@@ -89,7 +89,7 @@
 }
 
 /* The picker + capture controls. Stacks vertically in the narrow corner panel;
-   the empty-state strip lays them inline and wraps. */
+   the empty-state strip lays them out on a grid of fixed-minimum cells. */
 .src-controls {
   display: flex;
   flex-direction: column;
@@ -98,11 +98,11 @@
 }
 
 .app-bottom-solo .src-controls {
-  flex: 1;
-  flex-direction: row;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, max-content));
+  justify-content: flex-start;
   align-items: center;
-  gap: 10px 16px;
+  gap: 8px 16px;
   min-width: 0;
 }
 

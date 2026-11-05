@@ -9,6 +9,7 @@ import { attachConsole } from "@tauri-apps/plugin-log";
 import App from "./App";
 import PopoutApp from "./PopoutApp";
 import type { CompareViewDto } from "./state/compare/types";
+import { isProjectWindow } from "./lib/windowRole";
 
 /**
  * How long the popout query may take before the project window is rendered instead.
@@ -27,16 +28,20 @@ void start();
 /** Render this window: a popout shows a single tool or annotation, a project window the app. */
 async function start(): Promise<void> {
   // E2E scaffolding (M8): the WebdriverIO Tauri plugin installs `window.wdioTauri`
-  // and the `invoke` interception the suite's IPC mocks ride on. Loaded dynamically
-  // (and before the first paint) so the Lighthouse preview — which has no Tauri core
-  // for the plugin to attach to — does not pay for its polling and console
-  // forwarding. It ships with the app the E2E suite drives.
+  // and the `invoke` interception the suite's IPC mocks ride on. It is E2E-only, so
+  // the app loads it only when the E2E service launched it (`TAURI_WEBDRIVER_PORT`)
+  // — a manual launch never installs it. Loaded dynamically (and before the first
+  // paint) so the Lighthouse preview — which has no Tauri core for the plugin to
+  // attach to — does not pay for its polling and console forwarding.
   if (!window.__HEYLISTEN_PREVIEW__) {
-    try {
-      await import("@wdio/tauri-plugin");
-    } catch (err) {
-      // Test scaffolding must never block the app: report and render without it.
-      reportStartupFailure("the E2E plugin failed to load", err);
+    const e2e = await invoke<boolean>("e2e_enabled").catch(() => false);
+    if (e2e) {
+      try {
+        await import("@wdio/tauri-plugin");
+      } catch (err) {
+        // Test scaffolding must never block the app: report and render without it.
+        reportStartupFailure("the E2E plugin failed to load", err);
+      }
     }
   }
 
@@ -46,7 +51,9 @@ async function start(): Promise<void> {
     return;
   }
 
-  const target = await popoutTarget();
+  // A project window renders immediately; a popout view (tool, annotation or
+  // comparison, all non-project labels) asks which view it is.
+  const target = isProjectWindow ? null : await popoutTarget();
   try {
     render(
       () =>
@@ -73,9 +80,9 @@ type PopoutTarget =
   | { kind: "compare"; view: CompareViewDto };
 
 /**
- * The tool, annotation or comparison this window pops out, or `null` for a regular project
- * window.
+ * The tool, annotation or comparison this popout window shows, or `null` when it is none.
  *
+ * Asked only by a popout view (`!isProjectWindow`): a project window renders without it.
  * Rust registers which kind a popout is (ADR-11), so the window asks for all three and
  * takes whichever answers (only one can). The first paint must never be gated on a
  * command that can fail or never answer: a rejected query renders the project window
@@ -84,31 +91,44 @@ type PopoutTarget =
  * wedged command it is otherwise all the user ever sees.
  */
 async function popoutTarget(): Promise<PopoutTarget | null> {
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  // Whoever settles first wins: stop the timer, and let the timeout stay silent.
+  const settle = () => {
+    settled = true;
+    clearTimeout(timer);
+  };
+
   const query = Promise.all([
     invoke<string | null>("popout_tool"),
     invoke<string | null>("popout_annotation"),
     invoke<CompareViewDto | null>("popout_compare"),
   ])
     .then(([tool, annotation, compare]): PopoutTarget | null => {
+      settle();
       if (compare != null) return { kind: "compare", view: compare };
       if (tool != null) return { kind: "tool", id: tool };
       if (annotation != null) return { kind: "annotation", id: annotation };
       return null;
     })
     .catch((err) => {
+      settle();
       reportStartupFailure("the popout query failed; rendering the project window", err);
       return null;
     });
 
-  return Promise.race([
-    query,
-    new Promise<null>((resolve) =>
-      setTimeout(() => {
-        reportStartupFailure(
-          `the popout query did not answer within ${POPOUT_QUERY_TIMEOUT_MS}ms; rendering the project window`,
-        );
-        resolve(null);
-      }, POPOUT_QUERY_TIMEOUT_MS),
-    ),
-  ]);
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      // The query answered in time; a settled race must not log a false failure.
+      if (settled) return;
+      reportStartupFailure(
+        `the popout query did not answer within ${POPOUT_QUERY_TIMEOUT_MS}ms; rendering the project window`,
+      );
+      settled = true;
+      resolve(null);
+    }, POPOUT_QUERY_TIMEOUT_MS);
+  });
+
+  return Promise.race([query, timeout]);
 }

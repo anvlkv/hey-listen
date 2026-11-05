@@ -6,13 +6,14 @@
  * old single-file `state/analyzer.ts` did, so importers need no changes. The parts
  * live in focused siblings: `types` (registry + result types), `format`/`view`
  * (chart descriptor helpers), `defs` (the registry data), `lookup` (queries),
- * `results` (latest-result signals), `options` (per-tool options), and `analysis`
- * (the debounced runner).
+ * `results` (latest-result signals), `options` (per-tool options), `analysis`
+ * (the debounced runner), and `cache` (the result cache the project file persists).
  */
 export { ANALYZER_SECTIONS } from "./defs";
 export { formatHz } from "./format";
 export { analyzerById, analyzersInSection, isAnalyzerId, matchesQuery } from "./lookup";
 export { latestResult } from "./results";
+export { currentResults, seedResults } from "./cache";
 export {
   applyOptionPatch,
   engineOptions,

@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { computePeaks, type Peaks } from "../lib/waveform";
+import { onDevicePixelRatioChange } from "../lib/devicePixelRatio";
 import { channelFor } from "../state/analysis";
 import { stopFollowing } from "../state/capture";
 import { filteredSamples } from "../state/filtered";
@@ -170,9 +171,11 @@ export default function Timeline() {
     const ro = new ResizeObserver(() => syncCanvasSize());
     ro.observe(wrap);
     syncCanvasSize();
+    const stopDpr = onDevicePixelRatioChange(syncCanvasSize);
     canvas.addEventListener("wheel", interaction.onWheel, { passive: false });
     onCleanup(() => {
       ro.disconnect();
+      stopDpr();
       canvas.removeEventListener("wheel", interaction.onWheel);
     });
   });

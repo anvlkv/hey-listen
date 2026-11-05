@@ -16,6 +16,7 @@ import {
 import {
   currentDescriptor,
   currentLayout,
+  currentResults,
   currentSetup,
   defaultFileName,
   currentCompareOpen,
@@ -38,6 +39,8 @@ async function write(path: string, embedSource = true): Promise<boolean> {
       setup: currentSetup(),
       layout: await currentLayout(),
       annotations: deepClone(annotations()),
+      // The cached analyzer results, so the file restores them instead of re-running.
+      results: currentResults(),
       embedSource,
       // The core writes the saved snapshot of each comparison open at save time (M25.C).
       compareOpen: await currentCompareOpen(),

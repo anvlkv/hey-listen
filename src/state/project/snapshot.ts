@@ -1,9 +1,10 @@
+import type { CachedResultInput } from "../../bindings/CachedResultInput";
 import type { SourceDescriptor } from "../../bindings/SourceDescriptor";
 import { deepClone } from "../../lib/clone";
 import { toSpec } from "../../lib/graph";
 import { invoke } from "../../lib/ipc";
 import { sharedParams } from "../analysis";
-import { isAnalyzerId, toolOptions } from "../analyzer";
+import { currentResults as cachedResults, isAnalyzerId, toolOptions } from "../analyzer";
 import type { AnalyzerId } from "../analyzer";
 import { choice, deviceId, gain, mixMicDeviceId, mixSystemDeviceId, targetPid } from "../capture";
 import { parseCompareTool } from "../compare/id";
@@ -79,6 +80,15 @@ export async function currentLayout(): Promise<LayoutDto> {
     // compare unfiltered, with a warning.
     filterSpec: filterActive() ? toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges) : null,
   };
+}
+
+/**
+ * The analyzer results to persist: the result cache's entries for the current source
+ * and applied filter (`state/analyzer/cache.ts`). A project restores them on load, so
+ * its tabs do not re-run the analyzers.
+ */
+export function currentResults(): CachedResultInput[] {
+  return cachedResults();
 }
 
 /**

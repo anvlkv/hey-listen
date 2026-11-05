@@ -7,7 +7,8 @@
  * options, open tools, windows), and `LAYOUT` (dockview + graph editor state). On
  * load the core streams the audio back for the Timeline waveform and installs the
  * PCM for preview/analysis; this module restores the stores and the Workbench tabs,
- * so the analyzers re-derive their results from the embedded audio.
+ * seeding the analyzer result cache from `RESULTS` so the tabs show the saved results
+ * instead of recomputing them.
  *
  * This entry point re-exports the names importers use, so they need no changes. The
  * parts live in focused siblings: `types` (the section DTOs), `paths` (the `.heyl`

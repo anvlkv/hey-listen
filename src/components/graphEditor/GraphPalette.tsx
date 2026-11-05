@@ -143,7 +143,7 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
             type="button"
             class="graph-palette-toggle icon-btn"
             aria-expanded={!collapsed()}
-            aria-label={collapsed() ? "Expand node palette" : "Collapse node palette"}
+            aria-label={collapsed() ? "Nodes — expand palette" : "Nodes — collapse palette"}
             onClick={() => setCollapsed(!collapsed())}
           >
             <Icon name={collapsed() ? "angle-right" : "angle-down"} />

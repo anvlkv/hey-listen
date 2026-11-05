@@ -71,6 +71,9 @@ function reply(
       return null;
     case "focus_popout":
       return false;
+    case "e2e_enabled":
+      // The preview shell is not an E2E run, so `index.tsx` must not load the plugin.
+      return false;
     case "theme_dir":
       return "/tmp/hey-listen-themes";
     case "load_shared_source":

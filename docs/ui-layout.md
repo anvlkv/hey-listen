@@ -167,9 +167,9 @@ popover. See [`theming.md`](theming.md).
 - **About** (`src/components/AboutDialog.tsx`) — a modal opened from the Toolbar's
   `circle-question` button and from native **Help → About** (on macOS, the app menu),
   which emits `about` on `app:menu`. It carries the app identity and the **required
-  attributions** (Font Awesome first, then the runtime dependencies), and points to
-  `ACKNOWLEDGEMENTS.md` (the individual contributors to those dependencies); license
-  links open in the system browser via the `open_external_url` command.
+  attribution** (Font Awesome), and links to `ACKNOWLEDGEMENTS.md` for the individual
+  contributors behind every dependency; license links open in the system browser via
+  the `open_external_url` command.
 
 ## Fixed regions
 
@@ -200,6 +200,12 @@ None of these are closable, draggable, or tabbed.
 - Tabs are dragged to reorder / **split / join** groups. The drag runs on
   dockview's **pointer** strategy (`dndStrategy: "pointer"`): the system WebView
   does not drive HTML5 drag-and-drop reliably, which left edge drops inoperative.
+- Every group header carries a **Tabs (N)** menu with a search field, so an
+  overflowing strip never hides a tab behind a truncated title. It lists every tab of
+  that group (in tab order) with the **fully wrapped** title — long names are never
+  ellipsized there — and clicking one activates it and closes the menu. It replaces
+  dockview's built-in overflow dropdown, which is hidden, so there is exactly one tab
+  menu per group (`WorkbenchTabsMenu`).
 - Any Workbench tab can be **popped out** into its own window (M7): right-click the
   tab → **Pop out to window**. On macOS a `window.open` popup crashes loading
   `tauri://…` (the custom URL-scheme handler is only wired for a full wry webview), so

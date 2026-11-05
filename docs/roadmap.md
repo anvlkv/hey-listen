@@ -92,10 +92,11 @@
 > double-clicked project opens it (macOS `RunEvent::Opened` / command line, drained
 > via `take_pending_open_paths`). `state/project/` collects the descriptor + setup +
 > layout and restores every store and the Workbench (dockview) layout on load.
-> Result caching is deferred — `RESULTS` is written empty and the analyzers
-> re-derive on load — as is `i16`/FLAC `DATA` (the core owns `f32` and always
-> writes `format = 0`). See [`project-file-format.md`](project-file-format.md) →
-> Implemented / Deferred.
+> `RESULTS` was written empty when M6 shipped; it now stores one entry per cached
+> analyzer result and the loader seeds the frontend's cache with it (see
+> [`project-file-format.md`](project-file-format.md) → Cached results). `i16`/FLAC
+> `DATA` remain deferred (the core owns `f32` and always writes `format = 0`). See
+> [`project-file-format.md`](project-file-format.md) → Implemented / Deferred.
 
 ## M7 — Multi-window + polish + packaging ✅
 
@@ -237,8 +238,9 @@ originally scoped, an annotation follows the item.
   self-evident controls are compacted to **icon + tooltip**, and the native `title`
   hints on controls became the app's own **`Tooltip`** component. A modal **About**
   dialog (the Toolbar's `circle-question` button and native **Help → About**) carries
-  the app identity and the required **attributions** (Font Awesome + the runtime
-  dependencies). See [`ui-layout.md`](ui-layout.md) → "Icons, tooltips, and About".
+  the app identity and the required **attribution** (Font Awesome), linking to
+  `ACKNOWLEDGEMENTS.md` for every dependency contributor. See
+  [`ui-layout.md`](ui-layout.md) → "Icons, tooltips, and About".
 - **Spectrum layers ✅.** Toggleable **min / max / mean** magnitude layers in the
   spectrum chart (per-tool params).
 - **Drag & drop file ✅.** Drop an audio file onto the window to open it.
@@ -1070,8 +1072,8 @@ Full modulation spectra, not a single rate: slow breathing and a fast trill can 
 > **Decision:** these are first-class analyzers, not MCP client-side math.
 > No `SharedParams` fields are added (postcard compatibility); the pitch range is a
 > per-tool option, and the shared frequency range stays spectral-only. pYIN's own range
-> stays upstream. New results are not persisted yet, so no container change; the
-> per-note measures are labelled as proxies.
+> stays upstream. A new result gains a variant in `results/stored.rs`, the postcard
+> mirror `RESULTS` and `COMPARE` store; the per-note measures are labelled as proxies.
 
 ## M21 — MCP + CLI analysis ergonomics (cross-cutting) ✅
 
@@ -2176,16 +2178,41 @@ best-practice regressions are measured instead of noticed by hand.
   gates full categories and the contrast sweep. The first full pass is
   [`lighthouse-audit-1.md`](lighthouse-audit-1.md).
 
-## M32.B — Consequent improvement pass (drafted)
+## M32.A — Consequent improvement pass ✅
 
-The follow-up to M32: fix what the audit and its budgets surface, in priority order.
-The scope is decided by [`lighthouse-audit-1.md`](lighthouse-audit-1.md) rather than
-re-guessed here.
+The follow-up to M32: fix what the audit and its budgets surfaced. The scope is decided
+by [`lighthouse-audit-1.md`](lighthouse-audit-1.md); the before/after is
+[`lighthouse-audit-2.md`](lighthouse-audit-2.md).
 
-- **TBD** — the finding → fix list, ordered by impact (the audit doc's A1–A5 / B1–B2 /
-  C1 / P1 section is the proposed order).
-- **TBD** — which fixes land as code (DOM / layout / paint), theme tokens, or test
-  budgets.
+- **Findings fixed.** Contrast tokens in every built-in theme (with a
+  `scripts/themeContrast.test.ts` guard), the three unnamed sliders, the main landmark,
+  the annotation/About target sizes, the palette's accessible name, the startup popout
+  race, the favicon 404 and the missing meta description. Every full run now scores
+  **100** accessibility / best-practices / SEO and **≥ 97** performance; all theme
+  contrast sweeps pass.
+- **Budgets.** `scripts/lighthouse/budgets.json` tightened to performance 0.95 and the
+  three other categories + contrast 1.0; `npm run lighthouse -- --check` passes.
+- **Performance.** The first-load busy state no longer paints the analyzer empty-state
+  hint under the spinner, which removes the LCP element that held the analyzer and
+  compare surfaces at 81–89 (they now score 97–99).
+- **Related fix from the same pass — analyzer results persist.** The project file's
+  `RESULTS` section is now written and restored (`src/state/analyzer/cache.ts`,
+  `src-tauri/src/commands/project/results.rs`), so opening a project shows its saved
+  results instead of re-running every analyzer. See
+  [`project-file-format.md`](project-file-format.md) → Cached results.
+- **Related fix — Workbench tabs menu.** Each dockview group header carries a
+  **Tabs (N)** menu with search and wrapping titles, replacing the truncating built-in
+  overflow dropdown. See [`ui-layout.md`](ui-layout.md) → Workbench tabs.
+- **Related fix — E2E-only WebDriver.** The WebDriver plugins and frontend
+  `@wdio/tauri-plugin` load only when `@wdio/tauri-service` launched the app
+  (`TAURI_WEBDRIVER_PORT`), so normal runs no longer bind port 4445 or log `[WDIO]`.
+  Project windows also render immediately instead of awaiting the popout query, which
+  removes the cold-start stall when opening a `.heyl` file. See
+  [`testing.md`](testing.md).
+- **Related UI fixes.** The About dialog keeps the required Font Awesome attribution and
+  links to `ACKNOWLEDGEMENTS.md`; the first-use **Add audio** strip is a two-column
+  layout; canvases repaint when the window moves to a display with a different
+  DPR. See [`ui-layout.md`](ui-layout.md).
 
 ## M33 — Install CLI from the app menu (drafted)
 

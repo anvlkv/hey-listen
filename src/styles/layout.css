@@ -46,7 +46,8 @@
 }
 
 /* Solo bottom row (no source yet): a compact, fixed-height "Add audio" strip.
-   The source panel lays out horizontally so it fits without scrolling. */
+   The source panel is a two-column grid (copy left, controls right) so the controls
+   keep a usable width instead of being squeezed into one wrapping row. */
 .app-bottom-solo {
   align-items: stretch;
 }
@@ -56,9 +57,10 @@
   width: auto;
   min-width: 0;
   border-right: none;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: minmax(200px, 22rem) minmax(0, 1fr);
   align-items: center;
-  gap: 20px;
+  gap: 12px 24px;
   padding: 10px 16px;
   overflow: hidden;
 }

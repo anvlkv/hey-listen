@@ -44,9 +44,11 @@ through every surface (GUI, MCP, batch CLI):
   shared `freqMinHz` / `freqMaxHz` remains a **spectral band limit**. A convenience
   control that fans a shared pitch range out to the per-tool options can be added later
   without a schema change.
-- **Results are not persisted yet** (`RESULTS` is written empty), so new
-  `AnalysisResult` variants need no container change. They do regenerate
-  `src/bindings/**` via `cargo test`.
+- **Cached results are additive.** `RESULTS` stores one entry per analyzer result, so a
+  new `AnalysisResult` variant needs no container change — the postcard mirror in
+  `results/stored.rs` gains a variant (its match is exhaustive) and `src/bindings/**`
+  regenerates via `cargo test`. See [`project-file-format.md`](project-file-format.md) →
+  Cached results.
 - **Proxies are named as proxies.** The per-note measures are not clinical jitter,
   shimmer, or HNR. `harmonic_ratio` is a 0–1 autocorrelation periodicity ratio, not HNR
   in dB. The UI and docs must say so.

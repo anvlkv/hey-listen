@@ -389,9 +389,9 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 - The UI asks for full arrays (the charts need them); MCP/CLI default to compact/raw-free.
 - A saved snapshot is one analysis result per comparison (a 512-frame spectrogram is
   roughly 0.5 MB `postcard`); it is loaded with the project, not recomputed.
-- No result cache is introduced. Re-running the same comparison recomputes; a shared
-  cache keyed by `(project, tool, window, params, options, filter)` is a possible
-  follow-up (it is also what `RESULTS` caching would need).
+- No shared compare cache is introduced. Re-running the same comparison recomputes; the
+  analyzer result cache (`state/analyzer/cache.ts`, persisted as `RESULTS`) covers plain
+  analyzer runs only.
 
 ## Not in scope (M25, M25.B, M25.C)
 

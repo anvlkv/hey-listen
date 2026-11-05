@@ -9,6 +9,10 @@
  * callers — and unwrap the command's `{ summary, result }` response. Auto-run only
  * happens while a tab is mounted, so closed tools are never recomputed. See
  * `docs/analysis-tools.md`.
+ *
+ * Every run first consults the [result cache](cache.ts): a result computed for the
+ * same source, window, params and filter — or restored from the project file — is
+ * adopted immediately, so reopening a project does not re-run every analyzer.
  */
 import { createEffect, createSignal, on, onCleanup } from "solid-js";
 import { invoke } from "../../lib/ipc";
@@ -22,10 +26,12 @@ import {
   resampleTo,
   sharedParams,
   windowFn,
+  type SharedParamsDto,
 } from "../analysis";
 import { filterRevision } from "../graph";
 import { source, status } from "../source";
 import { windowEnd, windowStart } from "../timeline";
+import { cachedResult, resultCacheKey, storeResult, type CachedResult } from "./cache";
 import { engineOptions } from "./options";
 import { setLatestResult } from "./results";
 import type { AnalyzerId, AnyAnalysisResult } from "./types";
@@ -39,6 +45,15 @@ export interface AnalysisHandle<T> {
   error: () => string | null;
   /** Re-run now (bypassing the debounce). */
   run: () => void;
+}
+
+/** The inputs one `run_analysis` call is made from, plus their cache key. */
+interface RequestInputs {
+  start: number;
+  end: number;
+  params: SharedParamsDto;
+  options: Record<string, number>;
+  key: string | null;
 }
 
 /**
@@ -61,11 +76,37 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
    */
   const options = () => engineOptions(tool);
 
-  async function run() {
+  /** The request inputs for the current state, or `null` when there is nothing to run. */
+  function inputs(): RequestInputs | null {
     const src = source();
     const start = windowStart();
     const end = windowEnd();
-    if (!src || src.frames <= 0 || !(end > start)) {
+    if (!src || src.frames <= 0 || !(end > start)) return null;
+    const params = sharedParams();
+    const snapshot = options();
+    return {
+      start,
+      end,
+      params,
+      options: snapshot,
+      key: resultCacheKey({ tool, start, end, params, options: snapshot }),
+    };
+  }
+
+  /** Adopt a cached result: no invoke, and any in-flight run is invalidated. */
+  function adopt(cached: CachedResult) {
+    generation++;
+    if (timer != null) clearTimeout(timer);
+    timer = undefined;
+    setResult(() => cached.result as T);
+    setLatestResult(tool, cached.result);
+    setError(null);
+    setLoading(false);
+  }
+
+  async function run() {
+    const request = inputs();
+    if (!request) {
       generation++;
       setResult(null);
       setError(null);
@@ -74,11 +115,26 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
       return;
     }
 
+    // A result for exactly these inputs (computed earlier, or seeded from the project
+    // file) is adopted instead of re-running the analyzer.
+    const cached = cachedResult(request.key);
+    if (cached) {
+      adopt(cached);
+      return;
+    }
+
     const token = ++generation;
     setLoading(true);
     try {
       const response = await invoke<{ summary: unknown; result?: T }>("run_analysis", {
-        request: { tool, start, end, params: sharedParams(), options: options(), shape: "full" },
+        request: {
+          tool,
+          start: request.start,
+          end: request.end,
+          params: request.params,
+          options: request.options,
+          shape: "full",
+        },
       });
       if (token !== generation) return;
       const payload = response.result;
@@ -88,6 +144,19 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
       } else {
         setResult(() => payload);
         setLatestResult(tool, payload as unknown as AnyAnalysisResult);
+        if (request.key != null) {
+          storeResult(
+            {
+              tool,
+              start: request.start,
+              end: request.end,
+              params: request.params,
+              options: request.options,
+              result: payload as unknown as AnyAnalysisResult,
+            },
+            request.key,
+          );
+        }
       }
       setError(null);
     } catch (err) {
@@ -100,6 +169,12 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
 
   function schedule() {
     if (timer != null) clearTimeout(timer);
+    timer = undefined;
+    // A known result is adopted immediately; only a cache miss waits for the debounce.
+    if (cachedResult(inputs()?.key ?? null)) {
+      void run();
+      return;
+    }
     timer = window.setTimeout(() => {
       timer = undefined;
       void run();
