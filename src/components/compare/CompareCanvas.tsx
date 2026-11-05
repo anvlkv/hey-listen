@@ -1,4 +1,5 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { onDevicePixelRatioChange } from "../../lib/devicePixelRatio";
 import { beginFrame, drawTimeAxis } from "../analyzer/chartCanvas";
 import { plotBox, type ChartSize, type PlotBox } from "../analyzer/chartGeometry";
 import { activeThemeId } from "../../state/themes";
@@ -46,7 +47,11 @@ export default function CompareCanvas(props: {
     const observer = new ResizeObserver(sync);
     observer.observe(initialWrap);
     sync();
-    onCleanup(() => observer.disconnect());
+    const stopDpr = onDevicePixelRatioChange(sync);
+    onCleanup(() => {
+      observer.disconnect();
+      stopDpr();
+    });
   });
 
   createEffect(() => {

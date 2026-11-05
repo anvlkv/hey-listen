@@ -2,6 +2,7 @@
 import type { AnalysisSetup } from "./AnalysisSetup";
 import type { AnalyzerId } from "./AnalyzerId";
 import type { Annotation } from "./Annotation";
+import type { CachedResultInput } from "./CachedResultInput";
 import type { SourceDescriptor } from "./SourceDescriptor";
 import type { JsonValue } from "./serde_json/JsonValue";
 
@@ -28,4 +29,8 @@ embedSource: boolean,
  * The comparison tools open at save time (tabs or popouts, M25.C). The core
  * writes each one's last successful reference snapshot from its own state.
  */
-compareOpen: Array<AnalyzerId>, };
+compareOpen: Array<AnalyzerId>, 
+/**
+ * The frontend's analyzer result cache (one entry per tool), written as `RESULTS`.
+ */
+results: Array<CachedResultInput>, };

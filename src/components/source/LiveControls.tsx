@@ -55,8 +55,8 @@ export default function LiveControls(props: { startDrag: NumberDrag; stopDrag: N
         </Slider.Label>
         <Slider.Track class="gain-track">
           <Slider.Fill class="gain-fill" />
-          <Slider.Thumb class="gain-thumb">
-            <Slider.Input class="gain-input" />
+          <Slider.Thumb class="gain-thumb" aria-label="Input gain">
+            <Slider.Input class="gain-input" aria-label="Input gain" />
           </Slider.Thumb>
         </Slider.Track>
         <span class="src-readout">{Math.round(gain() * 100)}%</span>

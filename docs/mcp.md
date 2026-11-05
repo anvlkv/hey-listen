@@ -385,8 +385,8 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   themes, the active mode, and `set_theme` / `import_theme` / `export_theme` need the
   app. With the app running they run in the webview against the same registry the UI
   drives (see [`theming.md`](theming.md)).
-- **Result caching is still deferred** (`RESULTS` is written empty), so `run_analysis`
-  always recomputes.
+- **The MCP `run_analysis` path does not read the result cache.** The cache the project
+  file persists (`RESULTS`) lives in the frontend; a headless or MCP run recomputes.
 - **Windows release:** use `heylisten-mcp` (the app binary has no console).
 - **Bundling the bridge:** the `heylisten-mcp` binary is built next to the app
   (`target/{debug,release}/heylisten-mcp`) but is **not** shipped inside the

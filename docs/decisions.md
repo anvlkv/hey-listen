@@ -28,8 +28,9 @@ be versioned carefully (see
 > **Implemented (M6):** `src-tauri/src/project/` reads/writes the container and
 > `commands/project.rs` exposes `save_project` / `load_project`. The checksum is a
 > CRC-32 (the doc's "xxHash/CRC") and `SOURCE` is a `kind`-tagged struct, since
-> `postcard` cannot encode internally-tagged enums. `RESULTS` is written empty for
-> now (result caching deferred) — see the format doc.
+> `postcard` cannot encode internally-tagged enums. `RESULTS` was written empty when
+> M6 shipped; it now carries one entry per cached analyzer result — see the format
+> doc's Cached results.
 
 ## ADR-3 — One window = one project
 

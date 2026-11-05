@@ -24,11 +24,14 @@ use crate::commands::source::AUDIO_EXTENSIONS;
 use crate::commands::{focused_label, stream};
 use crate::project::{
     read_project, write_project, AnalysisSetup, Annotation, Meta, ProjectError, SaveProject,
-    SourceDescriptor, StoredResult,
+    SourceDescriptor,
 };
 use crate::state::window_state;
 
+pub mod results;
 pub mod siblings;
+
+use results::{to_cached, to_stored};
 
 /// The project's file extension (magic `HEYL`, and `bundle.fileAssociations` in
 /// `tauri.conf.json`).
@@ -59,6 +62,9 @@ pub struct SaveProjectArgs {
     /// writes each one's last successful reference snapshot from its own state.
     #[serde(default)]
     pub compare_open: Vec<AnalyzerId>,
+    /// The frontend's analyzer result cache (one entry per tool), written as `RESULTS`.
+    #[serde(default)]
+    pub results: Vec<results::CachedResultInput>,
 }
 
 fn embed_source_default() -> bool {
@@ -76,8 +82,8 @@ pub struct LoadedProjectDto {
     pub source: Option<SourceDescriptor>,
     pub setup: AnalysisSetup,
     pub layout: serde_json::Value,
-    /// Cached results (empty until result caching lands; readers tolerate this).
-    pub results: Vec<StoredResult>,
+    /// The cached analyzer results, restored into the frontend's result cache.
+    pub results: Vec<results::CachedResultOutput>,
     /// The project's annotations (empty when the file has no `NOTES` section).
     pub annotations: Vec<Annotation>,
     /// Saved comparisons (empty when the file has no `COMPARE` section).
@@ -116,7 +122,7 @@ pub async fn save_project(
             source: project.source,
             setup: project.setup,
             layout: project.layout,
-            results: Vec::new(),
+            results: to_stored(project.results),
             annotations: project.annotations,
             compare,
             pcm: if reference { None } else { guard.as_ref() },
@@ -165,7 +171,7 @@ pub async fn load_project(
         source,
         setup,
         layout,
-        results,
+        results: stored_results,
         annotations,
         compare,
         pcm,
@@ -209,7 +215,7 @@ pub async fn load_project(
         source,
         setup,
         layout,
-        results,
+        results: to_cached(stored_results),
         annotations,
         compare: compare_infos,
         sample_rate,

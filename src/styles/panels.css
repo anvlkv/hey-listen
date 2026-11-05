@@ -206,3 +206,105 @@
     transform: rotate(360deg);
   }
 }
+
+/* --- Workbench tabs menu (the app's own tab overflow) ------------------- */
+
+/* The group header's right action: our tabs menu, sized to the tab strip. */
+.tabs-menu-host {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.tabs-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pop-panel-tabs {
+  width: 320px;
+  max-width: min(420px, 80vw);
+}
+
+.tabs-menu-search {
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+}
+
+.tabs-menu-search::placeholder {
+  color: var(--fg-disabled);
+}
+
+.tabs-menu-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.tabs-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+/* Long titles wrap here — never ellipsized: showing the whole title is the point. */
+.tabs-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tabs-menu-item:hover {
+  background: var(--control-hover);
+}
+
+.tabs-menu-item[aria-current="page"] {
+  background: var(--control);
+  border-color: var(--accent);
+}
+
+.tabs-menu-empty {
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  padding: 6px 8px;
+}
+
+/* Our tabs menu replaces dockview's built-in overflow dropdown (which truncated
+   long titles and had no search), so hide it: exactly one menu per group. */
+.app-workbench .dv-tabs-overflow-dropdown-default {
+  display: none;
+}
+
+/* Defensive: if dockview's own overflow list ever shows, let its titles wrap. */
+.app-workbench .dv-tabs-overflow-container {
+  min-width: 260px;
+}
+
+.app-workbench .dv-tabs-overflow-container .dv-tab .dv-default-tab-content {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

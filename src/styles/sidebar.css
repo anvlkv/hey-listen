@@ -1,7 +1,7 @@
 .sidebar-empty {
   margin-top: 12px;
   font-size: 0.75rem;
-  color: var(--fg-disabled);
+  color: var(--fg-muted);
 }
 
 .sidebar-section-title {

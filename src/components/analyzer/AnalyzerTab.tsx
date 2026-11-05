@@ -14,9 +14,11 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
  * app Toolbar's "Analysis params" popover, not here. See
  * `docs/analysis-tools.md` → "Shared parameters".
  *
- * Busy indication: while the **first** result is computing, a spinner is centred
- * over the body; while a result is being **recomputed** (a previous one is still
- * shown), a small spinner sits in the bottom-right corner.
+ * Busy indication: while the **first** result is computing, the body's empty state is
+ * hidden (`analyzer-first-load`) and a spinner is centred over it — the children stay
+ * mounted, so a chart's canvas and its interactions are not torn down and rebuilt
+ * mid-run. While a result is being **recomputed** (a previous one is still shown), a
+ * small spinner sits in the bottom-right corner.
  */
 export default function AnalyzerTab(props: {
   id: AnalyzerId;
@@ -36,7 +38,11 @@ export default function AnalyzerTab(props: {
   const [aboutHtml] = createResource(aboutOpen, () => renderMarkdown(def().about));
 
   return (
-    <div class="analyzer" data-testid={`analyzer.${props.id}`}>
+    <div
+      class="analyzer"
+      classList={{ "analyzer-first-load": props.loading && !props.hasResult }}
+      data-testid={`analyzer.${props.id}`}
+    >
       <div class="analyzer-toolbar">
         <span class="analyzer-title">{def().title}</span>
         <Show when={props.loading}>

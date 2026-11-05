@@ -1,9 +1,18 @@
-//! App-shell commands: opening a URL in the user's browser.
+//! App-shell commands: opening a URL in the user's browser, and telling the
+//! frontend whether the E2E service launched this process.
 //!
 //! The About dialog lists license pages; a webview anchor would not leave the app
 //! (Tauri does not navigate to external URLs by default), so the frontend asks the
 //! core to hand the URL to the OS instead. Only `http(s)` is allowed, so the command
 //! cannot be turned into a generic "launch anything" primitive.
+
+/// Whether this process was launched by the E2E service (`TAURI_WEBDRIVER_PORT`
+/// set), i.e. the only case where the WebDriver plugins are registered and the
+/// frontend should load `@wdio/tauri-plugin`. See `docs/testing.md`.
+#[tauri::command]
+pub fn e2e_enabled() -> bool {
+    std::env::var(tauri_plugin_wdio_webdriver::PORT_ENV_VAR).is_ok()
+}
 
 /// Open `url` in the system browser.
 #[tauri::command]

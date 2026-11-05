@@ -1,7 +1,7 @@
 {
-  "performance": 0.9,
-  "accessibility": 0.95,
-  "best-practices": 0.9,
-  "seo": 0.9,
+  "performance": 0.95,
+  "accessibility": 1,
+  "best-practices": 1,
+  "seo": 1,
   "contrast": 1
 }

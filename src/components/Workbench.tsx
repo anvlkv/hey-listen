@@ -3,6 +3,7 @@ import "dockview/dist/styles/dockview.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { render } from "solid-js/web";
 import ToolContent from "./ToolContent";
+import WorkbenchTabsMenu from "./WorkbenchTabsMenu";
 import { scheduleStampTabIds, observeTabIds } from "./workbenchTabIds";
 import { exportAllOpenAnalyses, exportAnalysis, exportChart } from "../lib/export";
 import { isAnalyzerId } from "../state/analyzer";
@@ -26,7 +27,7 @@ import { popoutCompare, closeCompare } from "../state/compare/views";
  * The tabs are the graph editors (filter / synth) and the analyzer tools. Each
  * panel's content is a Solid root rendered into the panel element and disposed when
  * dockview unmounts it (the graph state lives in `state/graph.ts` and analyzer
- * results are re-derived, so closing a tab is safe).
+ * results come from the result cache, so closing a tab is safe).
  */
 
 /** A tab-menu export has no panel to report into; log rather than swallow it. */
@@ -153,6 +154,14 @@ export default function Workbench() {
           },
           dispose: () => dispose?.(),
         };
+      },
+      // Every group header carries the app's own tabs menu (search + wrapping titles)
+      // instead of dockview's truncating overflow dropdown (see `panels.css`).
+      createRightHeaderActionComponent: (group) => {
+        const element = document.createElement("div");
+        element.className = "tabs-menu-host";
+        const dispose = render(() => <WorkbenchTabsMenu group={group} api={api} />, element);
+        return { element, init: () => {}, dispose };
       },
     });
 

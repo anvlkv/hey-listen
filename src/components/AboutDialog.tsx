@@ -1,14 +1,14 @@
 import { Dialog } from "@kobalte/core/dialog";
-import { For } from "solid-js";
 import Icon from "./Icon";
 import { invoke } from "../lib/ipc";
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from "../lib/appInfo";
-import { ATTRIBUTIONS, FONT_AWESOME, type Attribution } from "../lib/attributions";
+import { FONT_AWESOME } from "../lib/attributions";
 
 /**
- * The **About** dialog: app identity plus the required attributions (Font Awesome,
- * and the runtime dependency list). Opened from the Toolbar's `circle-question`
- * button and from the native Help → About menu item.
+ * The **About** dialog: app identity plus the required Font Awesome attribution,
+ * linking to `ACKNOWLEDGEMENTS.md` for the full dependency contributor list. Opened
+ * from the Toolbar's `circle-question` button and from the native Help → About menu
+ * item.
  *
  * It is a modal Kobalte `Dialog` (ADR-8) rendered by `App`, so it exists in project
  * windows only. License URLs are opened in the system browser by the core
@@ -59,35 +59,25 @@ export default function AboutDialog(props: {
           </section>
 
           <section class="about-section">
-            <h3 class="about-heading">Third-party software</h3>
             <p class="about-text">
-              With thanks to the many individual contributors behind these projects — see{" "}
-              <span class="about-mono">ACKNOWLEDGEMENTS.md</span> in the repository.
+              Built on Tauri, SolidJS and Rust, with thanks to every open-source maintainer listed
+              in <span class="about-mono">ACKNOWLEDGEMENTS.md</span>.
             </p>
-            <ul class="about-list">
-              <For each={ATTRIBUTIONS}>
-                {(item: Attribution) => (
-                  <li class="about-item">
-                    <span class="about-dep">{item.name}</span>
-                    <span class="about-license">{item.license}</span>
-                    <button
-                      type="button"
-                      class="about-link about-link-sm"
-                      title={item.url}
-                      onClick={() => openLink(item.url)}
-                    >
-                      <Icon name="link" /> {item.url.replace(/^https?:\/\//, "")}
-                    </button>
-                  </li>
-                )}
-              </For>
-            </ul>
+            <button
+              type="button"
+              class="about-link about-link-button"
+              onClick={() =>
+                openLink("https://github.com/anvlkv/hey-listen/blob/main/ACKNOWLEDGEMENTS.md")
+              }
+            >
+              View acknowledgements
+            </button>
           </section>
 
           <p class="about-foot">
-            Full license texts ship with the app (see{" "}
-            <span class="about-mono">public/fonts/fontawesome/LICENSE.txt</span> and each
-            dependency).
+            Font Awesome license:{" "}
+            <span class="about-mono">public/fonts/fontawesome/LICENSE.txt</span> · full
+            acknowledgements in the repository.
           </p>
         </Dialog.Content>
       </Dialog.Portal>

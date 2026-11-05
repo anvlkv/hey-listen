@@ -3,11 +3,14 @@ import type { AnalyzerId } from "./AnalyzerId";
 import type { SharedParams } from "./SharedParams";
 
 /**
- * `RESULTS` section entry: a cached analysis result.
+ * `RESULTS` section entry: one cached analysis result.
  *
- * Result caching is not wired up yet — the frontend re-derives results from the
- * embedded audio on load — so the section is written empty. The type is defined
- * now so the format stays forward-compatible when the cache lands.
+ * `save_project` writes one entry per cached analyzer result — the tool, the window it
+ * covers, the shared params and per-tool options it was computed with, and the result
+ * as postcard bytes ([`StoredAnalysisResult`](crate::audio::analysis::StoredAnalysisResult),
+ * the postcard-safe mirror of `AnalysisResult`). A load seeds the frontend's cache with
+ * them; an entry keyed for other params, another window or a different filter is simply
+ * recomputed.
  */
 export type StoredResult = { 
 /**
@@ -23,6 +26,6 @@ params: SharedParams,
  */
 options: { [key in string]: number }, 
 /**
- * The tool result, `postcard`-encoded (empty until caching lands).
+ * The tool result, postcard-encoded (see the type's doc comment).
  */
 result: Array<number>, };

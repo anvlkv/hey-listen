@@ -53,7 +53,7 @@ const SIDEBAR_MAX = 520;
 export default function App() {
   const [bottomHeight, setBottomHeight] = createSignal(BOTTOM_DEFAULT);
   const [sidebarWidth, setSidebarWidth] = createSignal(SIDEBAR_DEFAULT);
-  let main!: HTMLDivElement;
+  let main!: HTMLElement;
   let disposeDragDrop: (() => void) | undefined;
 
   const clamp = (height: number) => {
@@ -113,7 +113,7 @@ export default function App() {
   return (
     <div class="app-shell" data-testid="app">
       <Toolbar />
-      <div class="app-main" ref={(node) => (main = node)}>
+      <main class="app-main" ref={(node) => (main = node)}>
         <div class="app-top">
           <Sidebar
             style={{
@@ -167,7 +167,7 @@ export default function App() {
             <Timeline />
           </Show>
         </div>
-      </div>
+      </main>
       <Show when={dragActive()}>
         <div
           style={{

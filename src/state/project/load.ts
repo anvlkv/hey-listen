@@ -1,7 +1,7 @@
 import { invoke } from "../../lib/ipc";
 import { pcmStream } from "../../lib/pcmStream";
 import { applySharedParams } from "../analysis";
-import { loadToolOptions } from "../analyzer";
+import { loadToolOptions, seedResults } from "../analyzer";
 import {
   KIND_LABEL,
   recording,
@@ -44,7 +44,7 @@ import type { AnalysisWindowDto, LoadedProjectDto, SourceDescriptorDto } from ".
 
 /**
  * Open a project file and restore every store + the Workbench tabs, so the analyzers
- * re-derive their results from the embedded audio (see
+ * show the results the file cached and re-run only what it does not (see
  * [`project-file-format.md`](../../../docs/project-file-format.md)).
  */
 
@@ -149,6 +149,11 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
 
   // 4. Source picker.
   applyDescriptor(loaded.source);
+
+  // 4b. Seed the analyzer result cache. The source, graphs, filter, shared params and
+  //     window are the loaded project's now, so a seeded entry is keyed for exactly
+  //     what a tab asks for and is adopted instead of recomputing the result.
+  seedResults(loaded.results);
 
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
   restoreLayout(loaded.layout?.dockview ?? null);

@@ -1,12 +1,13 @@
 import type { AnalysisSetup } from "../../bindings/AnalysisSetup";
 import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
 import type { AnalyzerId } from "../../bindings/AnalyzerId";
+import type { CachedResultInput } from "../../bindings/CachedResultInput";
+import type { CachedResultOutput } from "../../bindings/CachedResultOutput";
 import type { GraphSpec } from "../../bindings/GraphSpec";
 import type { Meta } from "../../bindings/Meta";
 import type { Annotation } from "../../bindings/Annotation";
 import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import type { SourceDescriptor } from "../../bindings/SourceDescriptor";
-import type { StoredResult } from "../../bindings/StoredResult";
 import type { GraphLayout } from "../graph";
 
 /**
@@ -49,6 +50,8 @@ export interface SaveProjectArgs {
   setup: AnalysisSetupDto;
   layout: LayoutDto;
   annotations: Annotation[];
+  /** The analyzer result cache, written as the file's `RESULTS` section. */
+  results: CachedResultInput[];
   /** Embed the source PCM (default). `false` writes a reference project. */
   embedSource?: boolean;
   /** The comparison tools open at save time; the core writes their snapshots (M25.C). */
@@ -61,7 +64,8 @@ export interface LoadedProjectDto {
   source: SourceDescriptorDto | null;
   setup: AnalysisSetupDto;
   layout: LayoutDto;
-  results: StoredResult[];
+  /** Cached analyzer results: the loader seeds the frontend's result cache with them. */
+  results: CachedResultOutput[];
   annotations: Annotation[];
   /** Saved comparisons (empty when the file has no `COMPARE` section, M25.C). */
   compare: SavedComparisonInfo[];

@@ -68,6 +68,7 @@
 
 .params-range {
   align-items: center;
+  color: var(--fg-muted);
 }
 
 .params-range-inputs {
@@ -141,7 +142,7 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--fg-disabled);
+  color: var(--fg-muted);
 }
 
 .sidebar-subtitle:first-of-type {

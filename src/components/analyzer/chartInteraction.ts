@@ -9,6 +9,7 @@ import {
   type Accessor,
 } from "solid-js";
 import { analyzerBus, readBusMessage, publishChartView } from "../../state/chartSync";
+import { onDevicePixelRatioChange } from "../../lib/devicePixelRatio";
 import { ANNOTATION_STRIP_H } from "../annotations/strip";
 import { createLaneDrag, type LaneSelection } from "../annotations/lane";
 import { timeRangeLabel } from "./chartCommon";
@@ -321,10 +322,12 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     const observer = new ResizeObserver(() => syncSize());
     observer.observe(node);
     syncSize();
+    const stopDpr = onDevicePixelRatioChange(syncSize);
     // Non-passive so the wheel can zoom instead of scrolling the page.
     el.addEventListener("wheel", onWheel, { passive: false });
     onCleanup(() => {
       observer.disconnect();
+      stopDpr();
       el.removeEventListener("wheel", onWheel);
     });
   });

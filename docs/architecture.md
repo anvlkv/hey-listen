@@ -194,13 +194,13 @@ milestone annotations record the details.
 > `open_source`/`close_source` remain the planned unification of the source kinds.
 
 > **Implemented (M6):** `save_project(path, { name, createdMs, source, setup, layout })`
-> writes the frontend's descriptor/setup/layout plus the core-owned PCM (ADR-9) as
-> the file's `DATA` section, and `load_project(path, onChunk)` validates the file,
-> streams `DATA` back to the frontend (for the Timeline waveform), installs the PCM
+> writes the frontend's descriptor/setup/layout/result cache plus the core-owned PCM
+> (ADR-9) as the file's `DATA` section, and `load_project(path, onChunk)` validates the
+> file, streams `DATA` back to the frontend (for the Timeline waveform), installs the PCM
 > in the core, and returns the parsed `META`/`SOURCE`/`SETUP`/`LAYOUT`/`RESULTS`. The
-> frontend (`state/project/`) restores every store and the dockview layout; the
-> analyzer tabs then re-derive their results. See `project-file-format.md` →
-> Implemented.
+> frontend (`state/project/`) restores every store and the dockview layout, then seeds
+> its analyzer result cache from `RESULTS`, so the tabs show the saved results and only
+> re-run what the file does not cover. See `project-file-format.md` → Implemented.
 
 **Channels / events** (Rust → frontend):
 
@@ -382,8 +382,9 @@ thread); analysis runs in Rust.
 - Each tool carries a generation counter; a new request bumps it and invalidates
   in-flight results (latest-wins). Long analyses check the counter between
   blocks to abort early.
-- Results are cached keyed by `(source, window, params)` so unchanged tools are
-  not recomputed.
+- Results are cached keyed by the source identity, window, shared params, per-tool
+  options and the applied filter (`state/analyzer/cache.ts`), so an unchanged tool is
+  not recomputed; the same cache is the `RESULTS` section of a saved project.
 
 ## Security
 

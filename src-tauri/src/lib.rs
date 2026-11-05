@@ -87,9 +87,12 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init());
 
     // E2E testing (M8): the embedded WebDriver server + the execute/mocking plugin.
-    // GUI only — a CLI process must stay a plain stdout/stderr program. See
-    // `docs/testing.md`.
-    if !cli_invocation {
+    // Registered only when the E2E service launched the app — `@wdio/tauri-service`
+    // (embedded provider) sets `TAURI_WEBDRIVER_PORT` on the process it spawns. A
+    // normal launch must not bind port 4445 or log `[WDIO]` chatter. GUI only — a
+    // CLI process must stay a plain stdout/stderr program. See `docs/testing.md`.
+    let e2e = std::env::var(tauri_plugin_wdio_webdriver::PORT_ENV_VAR).is_ok();
+    if !cli_invocation && e2e {
         builder = builder
             .plugin(tauri_plugin_wdio::init())
             .plugin(tauri_plugin_wdio_webdriver::init());
@@ -280,6 +283,7 @@ pub fn run() {
             commands::themes::pick_theme_export_path,
             commands::themes::reveal_theme_dir,
             commands::app::open_external_url,
+            commands::app::e2e_enabled,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

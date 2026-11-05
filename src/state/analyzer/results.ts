@@ -3,8 +3,9 @@ import type { AnalyzerId, AnyAnalysisResult } from "./types";
 
 /**
  * The latest result per analyzer tool, kept by the mounted tabs so a note can capture
- * a **frozen values snapshot** from a live chart (`state/annotations/`, M14). Not persisted
- * — the analyzers re-derive results on load.
+ * a **frozen values snapshot** from a live chart (`state/annotations/`, M14). The
+ * project file persists the separate [result cache](cache.ts), which a load seeds, so a
+ * reopened project does not re-run every analyzer.
  */
 const [latestResults, setLatestResults] = createSignal<
   Partial<Record<AnalyzerId, AnyAnalysisResult>>

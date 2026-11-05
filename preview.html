@@ -26,8 +26,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Hey Listen — an audio analysis workbench: capture, filter, and analyze audio from files, live inputs, and synthesis."
+    />
     <title>Hey Listen — UI preview</title>
-    <link rel="icon" type="image/svg+xml" href="/tauri.svg" />
+    <link rel="icon" type="image/png" href="/icon.png" />
     <!-- Same pre-module guard as index.html (uPlot reads navigator.language at module scope). -->
     <script src="/locale.js"></script>
     <!--
@@ -67,8 +71,14 @@
       // here. Everything else is seeded by `src/preview/fixtures.ts`.
       const previewFixture = new URLSearchParams(location.search).get("fixture");
       window.__TAURI_INTERNALS__ = {
-        invoke: async (cmd) =>
-          cmd === "popout_tool" && previewFixture === "popout" ? "spectrum" : null,
+        invoke: async (cmd) => {
+          // These two run before `src/preview/fixtures.ts` installs the full stub
+          // (a project window renders immediately now), and the UI iterates their
+          // replies — return the empty shapes rather than `null`.
+          if (cmd === "get_ui_state") return {};
+          if (cmd === "list_themes") return [];
+          return cmd === "popout_tool" && previewFixture === "popout" ? "spectrum" : null;
+        },
         transformCallback: (cb) => {
           const id = Math.floor(Math.random() * 1e9);
           window[id] = cb;

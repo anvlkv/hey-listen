@@ -2,7 +2,8 @@
 
 The first automated pass over every surface the app can render. This document is the
 durable summary; the raw report is generated (not committed) under
-`reports/lighthouse/` and served with `npm run lighthouse:serve`. Each run's
+`reports/lighthouse/` and served with `npm run lighthouse:serve`. The follow-up
+improvement pass and its scores are in [`lighthouse-audit-2.md`](lighthouse-audit-2.md). Each run's
 `report.report.html` is Lighthouse's **official** standalone report (rendered by
 `ReportGenerator`); `index.html` is only a navigator/aggregate over the LHRs, because
 Lighthouse has no multi-URL report.
@@ -64,7 +65,7 @@ the accessibility gap is app-wide — the annotations rail (82), the analyzer ta
 and the toolbar/sidebar/source contrast. The shell, graph and dialog surfaces are
 performance-clean (96–100).
 
-## Findings for M32.B
+## Findings for M32.A
 
 Ordered by impact on the category scores. Each item names the owner file so the fix
 can start without re-reading the report.
@@ -217,7 +218,7 @@ Contributors measured in the preview build (and the real app build for compariso
   tool with no dockview/sidebar/timeline. That isolates the shell + Workbench mount as
   the cost, not the analysis fixture alone.
 
-Recommended direction for M32.B:
+Recommended direction for M32.A:
 
 1. Keep the toolbar/sidebar/timeline on the critical path and **defer the Workbench
    vendors** (dockview, uPlot, Kobalte UI that only tab content needs) until a tab is
@@ -232,7 +233,7 @@ Recommended direction for M32.B:
    headers, while the desktop app reads bundled files from disk. Do not optimize the
    app for them.
 
-Re-run the matrix after M32.B; the analyzer surfaces should converge toward the
+Re-run the matrix after M32.A; the analyzer surfaces should converge toward the
 chrome surfaces, and the fixture-weight caveat should disappear.
 
 ## Budgets and gating
@@ -252,11 +253,11 @@ chrome surfaces, and the fixture-weight caveat should disappear.
 `npm run lighthouse -- --check` fails if **any** full run misses a category budget or
 any visual run fails `color-contrast`. The first split pass fails on performance
 (min 81), accessibility (min 82), and every visual contrast run (all six themes). That
-is the intended M32.B worklist; after the fixes, tighten performance to ≥0.95 and keep
+is the intended M32.A worklist; after the fixes, tighten performance to ≥0.95 and keep
 contrast at 1.
 
 CI wiring is deliberately not added yet: the split matrix takes ~13.5 minutes on a
-laptop. Once M32.B lands, gate `npm run lighthouse -- --quick` (~5 minutes) on PRs and
+laptop. Once M32.A lands, gate `npm run lighthouse -- --quick` (~5 minutes) on PRs and
 run the full profile nightly.
 
 ## What is not audited

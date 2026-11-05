@@ -35,6 +35,29 @@ streaming for very large audio.
 | 0x07 | `ANNOTATIONS` | postcard | the project's annotations (`Annotation` list: anchor time + optional range, tool, markdown body, frozen values) |
 | 0x08 | `COMPARE` | postcard | saved comparison snapshots (M25.C): one reference analysis result + setup per tool |
 
+## Cached results (`RESULTS`)
+
+The `RESULTS` section (id `0x06`) carries the analyzer results the project had already
+computed, as a `postcard` `Vec<StoredResult>` — one entry per cached analyzer result:
+
+| Field | Meaning |
+| --- | --- |
+| `tool` | The analyzer id that produced the result. |
+| `start` / `end` | The analysis window it covers (source seconds). |
+| `params` | The shared params it was computed with. |
+| `options` | The per-tool options it was computed with. |
+| `result` | The result itself, postcard-encoded. |
+
+`save_project` writes the frontend's result cache (`src/state/analyzer/cache.ts`), which
+holds one entry per tool for the current source **and** applied filter. On load the
+frontend seeds that cache from the section, so the analyzer tabs show the saved results
+instead of re-running every analyzer. The cache key is the source, the window, the
+shared params, the per-tool options and the filter: an entry that does not match the
+restored setup is simply recomputed, and a tool without an entry runs as usual. An
+entry this build cannot decode is logged and skipped, so the section stays
+forward-compatible. Its payload is the postcard-safe mirror of `AnalysisResult`
+(`StoredAnalysisResult`), for the reason the `COMPARE` section gives [below](#comparisons-m25c).
+
 ## Annotations (M14)
 
 The `ANNOTATIONS` section (id `0x07`) carries the project's **annotations** as a `postcard`
@@ -177,9 +200,8 @@ commands in `src-tauri/src/commands/project.rs` bridge it to the frontend, with
   also carries the full `LAYOUT.dockview`, so the layout is authoritative; a **headless**
   save has no dockview, and the loader opens the listed tabs to fill an empty Workbench
   (M25.D).
-- **`RESULTS`** is a `postcard` `Vec<StoredResult>`; it is written **empty** today
-  (result caching is deferred — see below). The type is defined now so the format
-  stays forward-compatible.
+- **`RESULTS`** is a `postcard` `Vec<StoredResult>`, one entry per cached analyzer result
+  (see [Cached results](#cached-results-results)).
 
 ### File association
 
@@ -221,11 +243,6 @@ files live under `themes/`). A template reuses the `SETUP` / `LAYOUT` *payload t
 
 ### Deferred
 
-- **Result caching.** `RESULTS` is written empty and the analyzers re-derive their
-  results from the embedded audio on load. Persisting the cached results needs a
-  central result registry keyed by `(source, window, params)` (the architecture's
-  planned cache) and `Deserialize` on `AnalysisResult`; both are out of scope for
-  M6.
 - **`i16` `DATA`.** The format allows it (`format` byte), but the core stores `f32`
   and always writes `format = 0`.
 - **FLAC-compressed `DATA`** (the optional future optimization) is not implemented.
