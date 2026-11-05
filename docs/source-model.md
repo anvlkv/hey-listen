@@ -113,12 +113,16 @@ must be tested against a packaged build.
 The prompt is raised **only when the audio stack is actually used**, never at launch.
 That turned out to need *two* deferrals, not one:
 
-- **Capture devices.** `flexaudio`'s enumeration scans cpal's *input* devices, which is
-  itself a microphone access on macOS, so `initCapture()` does not enumerate. The Source
-  panel requests the list (`list_devices`) when the user picks a live kind (**Mic** /
-  **System** / **Mix**), and the monitoring capture session opens at that same moment.
-  The **Application** kind lists processes on its own first selection — read-only, and
-  (per `flexaudio`) not something that triggers a prompt.
+- **Capture devices.** `flexaudio`'s enumeration scans cpal's *input* devices, and on
+  macOS it refuses to enumerate at all until microphone consent is decided (it returns
+  its "consent is undecided" error for `Purpose::Enumeration` and deliberately does **not**
+  prompt). So `initCapture()` never enumerates, and the Source panel does not either:
+  the monitoring capture session opens first (that is what raises the prompt), and
+  `ensureSession` calls `list_devices` once the stream is running — see `usesDevices`
+  in `state/capture/types.ts`. Enumerating before the session would show an error while
+  the prompt was still up, and the list would never be re-fetched after consent. The
+  **Application** kind lists processes on its own first selection — read-only, and (per
+  `flexaudio`) not something that triggers a prompt.
 - **Output devices.** Listing them is *also* an audio-stack access: cpal's
   `output_devices()` filters with `supports_output()`, which calls
   `supported_output_configs()` and therefore **instantiates a HAL AudioUnit per device**

@@ -6,10 +6,10 @@ import { setDevices, setProcesses, setSourcesError } from "./signals";
  * Enumerate capture devices (microphones + system output endpoints).
  *
  * Deliberately **not** called at startup: enumeration walks the OS audio stack, and
- * on macOS cpal's input scan trips the **microphone** TCC prompt. Deferring it keeps
- * a file / synth project from asking for the mic — call it only once the user is
- * actually choosing a live source (the Source panel does). See
- * `docs/source-model.md` → "OS permissions (macOS)".
+ * on macOS it cannot even list inputs until microphone consent is decided. So the
+ * capture session opens first (which raises the consent prompt), and `ensureSession`
+ * requests the list once that session is running. See `docs/source-model.md` →
+ * "OS permissions (macOS)".
  */
 export async function refreshDevices() {
   try {

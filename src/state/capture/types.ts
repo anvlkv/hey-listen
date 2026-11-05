@@ -18,3 +18,11 @@ export const KIND_LABEL: Record<CaptureKind, string> = {
 /** Enumerated capture devices / processes (ts-rs bindings). */
 export type DeviceInfo = DeviceDto;
 export type ProcessInfo = ProcessDto;
+
+/**
+ * Kinds whose inputs list devices (see `LiveSourceInputs`); the rest need none.
+ * Also the kinds that can only be enumerated once microphone consent is decided.
+ */
+export function usesDevices(kind: SourceChoice): boolean {
+  return kind === "mic" || kind === "system" || kind === "mix";
+}

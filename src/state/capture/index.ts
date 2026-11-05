@@ -39,7 +39,7 @@ export {
   captureError,
   level,
 } from "./signals";
-export { refreshDevices, refreshProcesses } from "./enumerate";
+export { refreshProcesses } from "./enumerate";
 export { cancelCountdown } from "./countdown";
 export {
   initCapture,
