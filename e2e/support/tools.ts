@@ -54,4 +54,5 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "criticalBands", title: "Critical bands", view: "matrix" },
   { id: "loudness", title: "Loudness (sone/phon)", view: "loudness" },
   { id: "specificLoudness", title: "Specific loudness", view: "matrix" },
+  { id: "sharpness", title: "Sharpness", view: "series" },
 ];

@@ -3,16 +3,21 @@
 use super::support::effective_hop;
 use super::*;
 
-const RATE: u32 = 48_000;
+pub(crate) const RATE: u32 = 48_000;
 
-fn sine(hz: f32, seconds: f32) -> Vec<f32> {
+/// A `hz` sine of the given peak amplitude, over `seconds`.
+pub(crate) fn tone(amplitude: f32, hz: f32, seconds: f32) -> Vec<f32> {
     let frames = (seconds * RATE as f32) as usize;
     (0..frames)
-        .map(|i| 0.5 * (std::f32::consts::TAU * hz * i as f32 / RATE as f32).sin())
+        .map(|i| amplitude * (std::f32::consts::TAU * hz * i as f32 / RATE as f32).sin())
         .collect()
 }
 
-fn params(fft_size: usize) -> SharedParams {
+fn sine(hz: f32, seconds: f32) -> Vec<f32> {
+    tone(0.5, hz, seconds)
+}
+
+pub(crate) fn params(fft_size: usize) -> SharedParams {
     SharedParams {
         fft_size,
         hop: 0.25,
@@ -31,6 +36,21 @@ mod loudness;
 mod modulation;
 mod note_metrics;
 mod pitch;
+
+/// The loudness-model tools' options with the given dB SPL calibration.
+pub(crate) fn calibration(db_spl: f32) -> ToolOptions {
+    ToolOptions {
+        calibration_db_spl: Some(db_spl),
+        ..ToolOptions::default()
+    }
+}
+
+/// The median of the present values in a gapped series.
+pub(crate) fn median(values: &[Option<f32>]) -> f32 {
+    let mut present: Vec<f32> = values.iter().flatten().copied().collect();
+    present.sort_by(f32::total_cmp);
+    present.get(present.len() / 2).copied().unwrap_or(0.0)
+}
 
 #[test]
 fn waveform_reports_half_scale_sine() {

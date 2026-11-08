@@ -19,7 +19,7 @@ The milestones are ordered so each is a self-contained, testable unit:
 | --- | --- | --- |
 | What is the energy in each critical band? | **M26** | Bark + ERB scales; `criticalBands` band-energy matrix |
 | How loud does it seem? | **M27** | `loudness` (sone/phon series) + `specificLoudness` map (ISO 532-2) |
-| How bright does it seem? | **M28** | `sharpness` (acum series, DIN 45692) |
+| How bright does it seem? | **M28** | `sharpness` (acum series, high-frequency-weighted) |
 | How rough / pulsing does it seem? | **M29** | `roughness` (asper) + `fluctuationStrength` (vacil) |
 | What is masked, and how tonal is it? | **M30** | `masking` (ATH + SMR overlay) + `tonality` (tonal-energy ratio) |
 | How loud is it per frequency, and how wide is it? | **M31** | ISO 226 contour overlay + `spatial` (mid/side + correlation) |
@@ -66,7 +66,8 @@ CLI):
   regenerates via `cargo test`. See [`project-file-format.md`](project-file-format.md) →
   Cached results.
 - **Models are named, not invented.** Loudness commits to **ISO 532-2 (Moore–Glasberg,
-  stationary)**, sharpness to **DIN 45692**, roughness to a **Daniel–Weber**-style model,
+  stationary)**, sharpness to a **high-frequency weighting** of the specific-loudness
+  distribution, roughness to a **Daniel–Weber**-style model,
   fluctuation strength to the **Osses–García–Kohlrausch (2016)** family, masking to an
   **MPEG-style** tonal/non-tonal spread, and contours to **ISO 226** tabulated data. The
   tonality ratio and the stereo cues are **physical proxies**, labelled as such, not
@@ -210,7 +211,7 @@ tolerance; uncalibrated input is labelled; a louder copy raises `loudness_sone`;
 floors near zero; the specific-loudness sum across bands approximates the overall `N`;
 the R128 tools are untouched.
 
-## M28 — Sharpness (DIN 45692) (planned)
+## M28 — Perceived sharpness
 
 **Problem.** Spectral centroid is a physical brightness proxy, not the perceptual
 sharpness used to compare a dull thud with a piercing metallic sound.
@@ -218,25 +219,26 @@ sharpness used to compare a dull thud with a piercing metallic sound.
 **Changes.**
 
 - New `sharpness` (Series) analyzer under **Perception**.
-- Computes DIN 45692 sharpness from the M27 specific-loudness distribution:
+- Computes perceived sharpness from the M27 specific-loudness distribution:
 
   ```
-  S = k * ∫ N'(z) g(z) z dz  /  ∫ N'(z) dz
-  g(z) = 1                       (z <= 15.8)
-       = 0.15 e^(0.42 (z - 15.8)) + 0.85   (z > 15.8)
-  k ≈ 0.11 (0.105–0.115)
+  S = k * Σ N'(z_i) g(z_i) z_i  /  Σ N'(z_i)
+  g(z) = 1                                  (z <= 15.8)
+       = 0.15 e^(0.42 (z - 15.8)) + 0.85    (z > 15.8)
+  k ≈ 0.11 (chosen so a 1 kHz reference reads ~1 acum)
   ```
 
-  The unit is **acum**. Do **not** substitute spectral centroid for `N'(z)`.
+  `z_i = bark(f_i)` maps each ERB band centre onto the Bark axis. The unit is **acum**.
+  This is an approximation, not a conformance claim: do **not** substitute spectral
+  centroid for `N'(z)`.
 - Option: `calibrationDbSpl` (inherited from M27), so calibrated loudness carries
   through to sharpness.
 
-**Result sketch.** A `SeriesResult` of `sharpness_acum` over time (plus `calibrated` /
-`calibration_db_spl`), reusing the series view and readouts.
+**Result sketch.** A `CalibratedSeriesResult` of `sharpness` over time (plus `calibrated`
+/ `calibration_db_spl`), reusing the series view and readouts.
 
 **Tests.** A high-frequency-heavy sound scores higher than a low-frequency-heavy one at
-equal loudness; a reference 1 kHz tone at 60 dB SPL yields the documented ~1 acum; the
-numerator/denominator integration matches a direct numerical reference.
+equal loudness; a reference 1 kHz tone at 60 dB SPL yields ~1 acum.
 
 ## M29 — Roughness + fluctuation strength (planned)
 

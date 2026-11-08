@@ -50,4 +50,12 @@ pub(super) const PERCEPTION: &[AnalyzerInfo] = &[
             "perception",
         ],
     },
+    AnalyzerInfo {
+        id: AnalyzerId::Sharpness,
+        title: "Sharpness",
+        description:
+            "Perceived sharpness — high-frequency emphasis of the specific-loudness distribution",
+        section: Section::Perception,
+        keywords: &["sharpness", "brightness", "acum", "perception"],
+    },
 ];

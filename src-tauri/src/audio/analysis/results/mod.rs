@@ -11,15 +11,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::analyzers::AnalyzerId;
 
+mod calibrated_series;
 mod loudness;
 mod modulation;
 mod notes;
+mod scalars;
 mod series;
 mod stored;
 
+pub use calibrated_series::*;
 pub use loudness::*;
 pub use modulation::*;
 pub use notes::*;
+pub use scalars::*;
 pub use series::*;
 pub use stored::*;
 
@@ -187,22 +191,6 @@ pub struct RhythmResult {
     pub downbeat_times: Vec<f32>,
 }
 
-/// Integrated loudness (EBU R128).
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct LufsResult {
-    pub lufs: f32,
-}
-
-/// Loudness range (LRA), in LU.
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct LraResult {
-    pub lra: f32,
-}
-
 /// A tool's result, tagged by the tool id that produced it.
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(tag = "tool", rename_all = "camelCase")]
@@ -240,6 +228,7 @@ pub enum AnalysisResult {
     CriticalBands(MatrixResult),
     Loudness(LoudnessResult),
     SpecificLoudness(MatrixResult),
+    Sharpness(CalibratedSeriesResult),
 }
 
 impl AnalysisResult {
@@ -279,6 +268,7 @@ impl AnalysisResult {
             AnalysisResult::CriticalBands(_) => AnalyzerId::CriticalBands,
             AnalysisResult::Loudness(_) => AnalyzerId::Loudness,
             AnalysisResult::SpecificLoudness(_) => AnalyzerId::SpecificLoudness,
+            AnalysisResult::Sharpness(_) => AnalyzerId::Sharpness,
         }
     }
 
@@ -297,6 +287,15 @@ impl AnalysisResult {
             | AnalysisResult::ZeroCrossingRate(r)
             | AnalysisResult::LoudnessMomentary(r)
             | AnalysisResult::FrameRms(r) => Some(r),
+            _ => None,
+        }
+    }
+
+    /// The calibrated scalar-per-frame series this result carries, when the tool
+    /// returns one (mirrors [`Self::series`] for the calibrated family).
+    pub fn calibrated_series(&self) -> Option<&CalibratedSeriesResult> {
+        match self {
+            AnalysisResult::Sharpness(r) => Some(r),
             _ => None,
         }
     }
@@ -339,6 +338,10 @@ impl AnalysisResult {
                 shift_times(&mut result.times, shift);
             }
             AnalysisResult::Loudness(result) => {
+                result.window_start = start;
+                shift_times(&mut result.times, shift);
+            }
+            AnalysisResult::Sharpness(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }

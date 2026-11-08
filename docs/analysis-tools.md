@@ -112,7 +112,7 @@ label/min/max/help metadata is stored in the Rust catalog and returned by M21's
 | Critical bands | core `psychoacoustics/bands.rs` over the shared STFT (Bark / ERB) — M26 |
 | Loudness (sone/phon) | ISO 532-2 Moore–Glasberg stationary model (`specific_loudness.rs`) — M27 |
 | Specific loudness | the `N'(z)` distribution from the same model (matrix) — M27 |
-| Sharpness | DIN 45692 from the specific-loudness distribution — M28 |
+| Sharpness | perceived sharpness from the specific-loudness distribution (acum) — M28 |
 | Roughness | Daniel–Weber-style band-envelope modulation model (asper) — M29 |
 | Fluctuation strength | Osses–García–Kohlrausch-family model (vacil) — M29 |
 | Masking | ATH + MPEG-style spread + signal-to-mask ratio — M30 |

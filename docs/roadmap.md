@@ -2117,12 +2117,21 @@ Perceived loudness, distinct from the EBU R128 LUFS tools.
 
 > See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M27.
 
-## M28 — Sharpness (DIN 45692) (planned)
+## M28 — Perceived sharpness ✅
+
+> **Delivered.** `analysis/tools/sharpness.rs` computes perceived sharpness from the
+> M27 specific-loudness distribution: each ERB band centre is mapped onto the Bark axis,
+> the distribution is weighted toward its high-frequency part, and the loudness-weighted
+> mean position scales to **acum** (`k = 0.11`, so a 1 kHz reference tone reads about
+> 1 acum). The new **`sharpness`** (series) analyzer sits under **Perception** and shares
+> the `calibrationDbSpl` option; it returns the reusable `CalibratedSeriesResult`, so the
+> existing series chart renders it unchanged. Tests pin the 1 kHz / 60 dB SPL ≈ 1 acum
+> anchor, the bright-vs-dull ordering, and the uncalibrated label.
 
 Perceptual high-frequency emphasis from the specific-loudness distribution.
 
-- New **`sharpness`** analyzer (Perception): `S = k ∫ N'(z) g(z) z dz / ∫ N'(z) dz` with
-  the DIN 45692 `g(z)` weighting and `k ≈ 0.11`; unit **acum**. Needs M27.
+- New **`sharpness`** analyzer (Perception): `S = k Σ N'(z) g(z) z / Σ N'(z)` with a
+  high-frequency weighting `g(z)` and `k ≈ 0.11`; unit **acum**. Needs M27.
 - Option `calibrationDbSpl` (inherited).
 - **Tests.** High-frequency-heavy beats low-frequency-heavy at equal loudness; a 1 kHz /
   60 dB SPL reference reads ~1 acum.

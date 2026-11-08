@@ -11,6 +11,7 @@ use super::super::{
 use super::critical_bands::critical_bands;
 use super::gate::apply_gate;
 use super::loudness::{loudness, specific_loudness};
+use super::sharpness::sharpness;
 use super::{
     chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, modulation, note_metrics,
     spectral_contrast, spectrogram, spectrum, waveform,
@@ -131,6 +132,12 @@ pub fn run(
             options,
         )?)),
         AnalyzerId::SpecificLoudness => Ok(AnalysisResult::SpecificLoudness(specific_loudness(
+            mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
+        AnalyzerId::Sharpness => Ok(AnalysisResult::Sharpness(sharpness(
             mono,
             sample_rate,
             params,
