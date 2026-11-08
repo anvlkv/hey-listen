@@ -2,22 +2,22 @@
 
 ## The one rule
 
-**Timeline, Sidebar, Workbench, Source, and Annotations are fixed regions — not tabs.** The
-only tabs in the app are **Workbench tabs**: the **graph editors** (filter /
-synth) and, from M4, the **analyzer tabs**.
+**Timeline, Sidebar, Activity bar, Workbench, Source, and Annotations are fixed
+regions — not tabs.** The only tabs in the app are **Workbench tabs**: the **graph
+editors** (filter / synth) and, from M4, the **analyzer tabs**.
 
 ```
-┌──────────┬───────────────────────────┬────────┐
-│          │  Workbench                │ Annotations  │
-│  Sidebar │  (dockview — Workbench    │ (right │
-│  (tool   │   tabs: graph editors +   │ rail;  │
-│  picker) │   analyzers)              │ collap-│
-│          │                           │ sible) │
-├──────────┼───────────────────────────┤        │  ← draggable splitters
-│ Source   │  Timeline (waveform +     │        │
-│ (file/   │  window range)            │        │
-│ mic/…)   │                           │        │
-└──────────┴───────────────────────────┴────────┘
+┌──────────┬──────────┬───────────────────────────┬─────────┐
+│ Activity │ Sidebar  │  Workbench                │ Annot-  │
+│   bar    │ (tool    │  (dockview — Workbench    │ ations  │
+│ (section │ picker)  │   tabs: graph editors +   │ (right  │
+│ + graph  │          │   analyzers)              │ rail;   │
+│  icons)  │          │                           │ collap- │
+├──────────┼──────────┼───────────────────────────┤  sible) │
+│          │ Source   │  Timeline (waveform +     │         │
+│          │ (file/   │  window range)            │         │
+│          │ mic/…)   │                           │         │
+└──────────┴──────────┴───────────────────────────┴─────────┘
 ```
 
 (The native window title bar sits above the Toolbar; it is not shown here. The **Annotations**
@@ -145,10 +145,15 @@ popover. See [`theming.md`](theming.md).
 
 - **Icons** come from **Font Awesome 7 Free (Solid)** — one bundled OTF
   (`public/fonts/fontawesome/`) drives every icon. The curated set lives in
-  `src/lib/icons.ts` (`ICON_GLYPHS`, plus `VIEW_ICONS` / `GRAPH_ICONS`), rendered by
+  `src/lib/icons.ts` (`ICON_GLYPHS`, plus `VIEW_ICONS` / `GRAPH_ICONS` /
+  `SECTION_ICONS`), rendered by
   `src/components/Icon.tsx`; the code point is written to `data-icon` and the `.fa`
   rule in `src/icons.css` renders it, so the CSS needs no per-icon rules. Attribution
   is in the About dialog; the license ships with the font.
+  - **Activity-bar entries** use one icon per analyzer section (`SECTION_ICONS`, keyed
+    by the generated `AnalyzerSection`: time / spectral / pitch / rhythm / loudness)
+    plus the two graph-editor icons (`GRAPH_ICONS`). Each entry carries a tooltip and
+    an `aria-label`; the active section is highlighted with a short accent bar.
   - **Sidebar rows** use the tool's **chart-type** icon (`VIEW_ICONS`, keyed by the
     analyzer's `AnalyzerView["kind"]`: waveform / series / spectrum / rhythm / matrix /
     spectrogram / readouts / noteMetrics / modulation), tucked into the **bottom-right
@@ -179,7 +184,8 @@ popover. See [`theming.md`](theming.md).
 | Region | Role | Annotations |
 | --- | --- | --- |
 | **Timeline** (bottom-right) | waveform + analysis-window range slider + the annotation lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; carries the **Filter switch** (the on/bypassed indicator and bypass control in one — it reads **off** while the filter graph is still the identity seed); **overlays the filtered signal** when a filter is active; carries the **annotation anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor |
-| **Sidebar** (top-left) | tool picker | opens Workbench tabs — analyzers first (grouped by domain), then the graph editors; a search box filters the analyzer list |
+| **Activity bar** (far left) | category switcher (VSCode-style) | one icon per analyzer section plus the two graph editors; selecting a section filters the Sidebar to it (selecting again shows all); the graph entries open their tabs directly; not a tab, not resizable |
+| **Sidebar** (top-left) | tool picker (analyzers only) | lists the analyzer tools, grouped by domain (or one section when the Activity bar narrows it); a search box filters the analyzer list; opens Workbench tabs |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
 | **Annotations** (right rail; code/test ids say `annotations`) | the project's annotations — a list of markdown annotations anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
@@ -279,16 +285,22 @@ None of these are closable, draggable, or tabbed.
   > `readBusMessage` (`state/chartSync.ts`), which reads every field in every run. See
   > `docs/roadmap.md` → M14 follow-up.
 
-## Sidebar
+## Activity bar + Sidebar
+
+The vertical **Activity bar** (far left, fixed 44 px width) is a VSCode-style category
+switcher: one icon per analyzer section — time / spectral / pitch / rhythm / loudness
+(`src/state/analyzer/defs.ts` → `ANALYZER_SECTIONS`) — plus the two graph editors
+(`filter`, `synth`) pinned at the bottom. Selecting a section filters the **Sidebar**
+to that section's analyzers (selecting it again returns to "everything", the default);
+the graph entries open their Workbench tab directly. The Activity bar is a fixed region
+— not a tab, and not resizable.
 
 The Sidebar's **width is draggable** (a splitter between it and the Workbench,
 clamped to 160–520 px). It lists every available analyzer tool (see
-[`analysis-tools.md`](analysis-tools.md)) and, below them, the two graph editors —
-**analyzers come first**, grouped by domain (time / spectral / pitch / rhythm /
-**loudness). A **sticky search box** at the top filters the analyzer list by
-title, description, and keywords; the graph editors are always shown. Clicking an
-entry opens its tab in the Workbench (no-op if already open; selects the existing
-tab).
+[`analysis-tools.md`](analysis-tools.md)), grouped by domain unless the Activity bar has
+narrowed it to one section. A **sticky search box** at the top filters the analyzer list
+by title, description, and keywords (within the visible section). Clicking an entry
+opens its tab in the Workbench (no-op if already open; selects the existing tab).
 
 ## Annotations panel
 

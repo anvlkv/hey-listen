@@ -15,7 +15,7 @@
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SEL, sidebarTool, tab } from "../support/selectors.ts";
+import { SEL, activity, tab } from "../support/selectors.ts";
 import {
   click,
   closeAllTabs,
@@ -57,7 +57,7 @@ describe("S. Project UX fixes", () => {
 
     // Opening a tab only changes the layout; with no source and pristine graphs the
     // project is still empty, so replacing it must not raise the discard dialog.
-    await click(sidebarTool("filter"));
+    await click(activity("filter"));
     await waitFor(async () => (await count(tab("filter"))) > 0, "the filter tab did not open");
 
     await startInvokeCounts();
