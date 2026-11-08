@@ -2214,16 +2214,99 @@ by [`lighthouse-audit-1.md`](lighthouse-audit-1.md); the before/after is
   layout; canvases repaint when the window moves to a display with a different
   DPR. See [`ui-layout.md`](ui-layout.md).
 
-## M33 — Install CLI from the app menu (drafted)
+## M33 — Reliability, a console CLI, and self-update
 
-Let the desktop app install its `hey-listen` batch CLI onto the user's machine from a menu
-action, instead of asking them to locate the bundled binary themselves.
+The milestone that turns a sharp-but-rough tool into a shippable one. Four phases, each
+self-contained and committable. A and B fix what the two read-only reviews found
+([`audit.md`](audit.md), [`hey-listen-report.md`](hey-listen-report.md)); C and D add the
+delivery story the fixed tool needs (self-update via GitHub Releases, then a first-class
+CLI install). The finding lists live in those two docs and are **linked, not restated**
+here — each phase's scope references them by id.
 
-- **TBD** — packaged artifact and the install location(s) per platform (PATH shim vs.
-  symlink).
-- **TBD** — privilege / consent model, versioning (installed CLI vs. app), and
-  uninstall / repair.
-- **TBD** — the menu entry, success / failure reporting, and headless parity.
+### M33.A — Reliability & ergonomics hardening
+
+Fix every **P1/P2/P3** finding in [`audit.md`](audit.md) and the **bug-level** items in
+[`hey-listen-report.md`](hey-listen-report.md) (§2.3, §3.2, and §6 items 2–4 and 6), each
+with a regression test. No new surface — these are fixes to delivered code.
+
+- **Project store safety** (audit P1): atomic save (temp sibling → flush → sync → rename)
+  behind one shared helper used by GUI, headless MCP and CLI `project`/`annotations`; a
+  request-id/serialized source install so an out-of-order decode cannot make the timeline
+  describe the wrong audio; checked-arithmetic, bounds-first project reads so a malformed
+  `DATA` header cannot force an oversized allocation.
+- **MCP transport limits & lifecycle** (audit P2): bound handshake/message sizes, read
+  deadlines and a session cap on the loopback server; probe the advertised endpoint/PID and
+  fall back to headless on a stale `mcp.json`; drop the response waiter on every early
+  return (guard); let socket shutdown interrupt the stdio bridge's stdin reader; snapshot
+  the PCM under a short lock instead of holding the source mutex across disk I/O; treat a
+  chained-stream reset as an error (rebuild the decoder or reject), not silent truncation.
+- **Shared-settings & output integrity** (audit P2/P3): validate headless param/option
+  overrides for type, per-tool applicability and catalog range before applying them;
+  reconcile the popout snapshot after subscribing (no stale state can win); propagate
+  writer/flush/CSV-sidecar errors into a nonzero exit; pin the CLI unknown-analyzer exit
+  contract; count the `synth` source-summary record in `--pretty`; correct the `maxPoints`
+  guidance; only mark an OS-open path handled once it loaded.
+- **Report bug fixes**: make the log plugin non-fatal/lazy for batch subcommands (no
+  sandbox abort, no log-file race); give `pitchPyin`/`harmonicRatio` a real pitch range
+  (no 2000 Hz cap) so cross-tracker agreement works above 2 kHz; stop silently dropping
+  annotation bodies behind `--full`; reset the analysis window on save. The
+  negative-`--b-offset` quirk is documented and covered by a test.
+- **Gate:** the full maid + `cargo test` stays green; every fix ships with a targeted
+  regression test (a failing writer, an out-of-order decode, a stale advertisement, an
+  oversized client, a bad override, …) rather than a green build as evidence.
+
+### M33.B — A console binary for the batch CLI
+
+Ship a GUI-free console binary for the batch subcommands — report §6.1 — so scripts stop
+paying app-boot (and the log plugin's sandbox/race) per command, Windows gets stdout back,
+and a bare GUI-less host can run the batch CLI. This is also the artifact C updates and D
+installs. See **ADR-29**; ADR-14 is revised (the batch subcommands leave the app binary,
+which keeps only `--mcp`/`--headless` + the `.heyl` open path via `tauri-plugin-cli`).
+
+- **The binary.** `hey-listen-cli` — a plain console binary (like `heylisten-mcp`) that
+  runs `analyzers` / `analyze` / `compare` / `project` / `annotations` / `synth` over the
+  same `cli::batch::run` and headless session; no Tauri app, no window, no log plugin. The
+  JSONL envelope is byte-identical to today's.
+- **One interface, no hand-rolled drift.** The interface stays specified once; the console
+  binary parses it with `clap` derive, and a consistency test pins the envelope contract
+  (and the flag/alias vocabulary) so the two entry points cannot silently diverge. A
+  `HEY_LISTEN_CLI`/`HEY_LISTEN_BIN` discovery path is the documented migration for the
+  scripts that currently discover the app binary (`docs/cli.md`).
+- **Bundling.** The console binary ships beside the app as the thing the menu in D installs
+  (`externalBin` sidecar — now the right tool, because the app *spawns* it to install it).
+  `heylisten-mcp` stays a separate, unbundled client binary.
+
+### M33.C — Self-update via GitHub Releases
+
+The updater from [`tauri.app/plugin/updater`](https://v2.tauri.app/plugin/updater/) with a
+**static JSON** feed published to GitHub Releases, and a **CLI-follows-app** rule. See
+**ADR-30** and [`updater.md`](updater.md).
+
+- **Plugin.** `tauri-plugin-updater` (Rust) + `@tauri-apps/plugin-updater` (JS), initialized
+  desktop-only; `createUpdaterArtifacts: true`; the public key in `plugins.updater.pubkey`;
+  `endpoints` pointing at the release feed; `updater:default` in capabilities; a
+  `@tauri-apps/plugin-process` relaunch. The private key is a repo secret — never committed.
+- **Delivery.** The release workflow signs the bundles (`TAURI_SIGNING_PRIVATE_KEY`),
+  uploads the `.tar.gz`/`.AppImage`/`.msi`/`.exe` + `.sig` artifacts, and publishes a
+  `latest.json` feed per platform via tauri-action, so `check()` finds and verifies updates.
+- **CLI follows the app.** The installed `hey-listen-cli` records the app version it came
+  from; on launch the app (or the updater) refreshes an out-of-date installed CLI from the
+  updated bundle, so updating the app updates the CLI too — the rule D's install respects.
+
+### M33.D — Install CLI from the app menu + docs
+
+The original M33, now concrete because B gave it a real artifact. See **ADR-31**.
+
+- **Menu action.** A native menu entry ("Install Command Line Tool…") that installs
+  `hey-listen-cli` to a per-platform location (PATH shim vs. symlink), reports
+  success/failure/version, and offers **Update / Repair / Uninstall** when it already
+  exists — driven by the app/CLI version comparison from C.
+- **Consent & parity.** The install is user-initiated and reports the exact path it wrote;
+  the installed CLI's version stays pinned to the app, so the C rule is the only update
+  path (no independent CLI drift).
+- **Docs.** [`updater.md`](updater.md) is the updater/install reference;
+  [`cli.md`](cli.md), [`packaging.md`](packaging.md) and [`mcp.md`](mcp.md) are brought in
+  step with the console binary, the new exit/output contracts, and the release feed.
 
 ## M34 — Improved documentation and help (drafted)
 

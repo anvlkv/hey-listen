@@ -889,3 +889,109 @@ matching frontend imports after each phase, and care that `serde` and `strum` ag
 the wire spelling. See ADR-2 and [`code-hygiene.md`](code-hygiene.md).
 
 **Status: accepted (M15.B, delivered with `strum` 0.28).**
+
+## ADR-29 — The batch CLI is a console binary, not a subcommand of the app
+
+**Context:** ADR-14 made the batch CLI a subcommand of the app binary because the
+interface is declared with `tauri-plugin-cli`, and `Cli` cannot be constructed outside a
+Tauri app. The field report
+([`hey-listen-report.md`](hey-listen-report.md) §3.2, §6.1) measured the cost: every batch
+command boots the Tauri app, so scripts pay full app setup per command, inherit the log
+plugin's sandbox abort and log-file race, and cannot run on a bare GUI-less host; on
+Windows the app binary has no console, so stdout is lost. Those are lifecycle failures,
+not engine gaps.
+
+**Decision:** the batch subcommands move to a **plain console binary, `hey-listen-cli`**,
+built next to the app like `heylisten-mcp`. It runs `analyzers` / `analyze` / `compare` /
+`project` / `annotations` / `synth` over the same `cli::batch::run` and the shared headless
+session, with no Tauri app, no window, and no log plugin — so it boots a bare host, never
+aborts over a log path, and writes stdout on Windows. The app binary keeps `--mcp` /
+`--headless` (and the `.heyl` open path) via `tauri-plugin-cli`; its batch subcommands are
+retired.
+
+- **One interface, no hand-rolled drift.** The console binary parses with `clap` derive.
+  The interface is specified once in that definition; the JSONL **envelope** is the pinned
+  contract (a test asserts the two entry points produce the same shapes), rather than a
+  second JSON schema that can silently disagree. ADR-14's "no hand-rolled parser" is
+  superseded for the batch CLI specifically; `tauri-plugin-cli` remains for the app
+  binary's two flags.
+- **Discovery & migration.** `hey-listen-cli` is the documented binary; the
+  `HEY_LISTEN_CLI`/`HEY_LISTEN_BIN` → `PATH` → app-bundle resolution order in the consumer
+  scripts now prefers it. The app-binary spelling (`hey-listen analyze`) is removed and
+  documented as a migration.
+- **Bundling.** The console binary ships beside the app (`externalBin` sidecar — correct
+  now, because the menu in ADR-31 *spawns* it to install it). `heylisten-mcp` stays a
+  separate, unbundled MCP client binary.
+
+**Consequence:** scripts stop paying app-boot per command; the batch CLI gains a Windows
+stdout and a headless host. The cost is a second argument parser to keep in step with the
+engine — mitigated by sharing `cli::batch::run` + the headless session and by the
+envelope-consistency test — and a one-time consumer migration off the app-binary spelling.
+See [`cli.md`](cli.md) and ADR-14 (revised).
+
+**Status: accepted (M33.B).**
+
+## ADR-30 — Self-update via the Tauri updater over a GitHub Releases static feed
+
+**Context:** releases are built by GitHub Actions and published as GitHub Releases
+([`packaging.md`](packaging.md)), but the app never checks for a newer build and the
+bundles are unsigned. A user must re-download manually. The updater plugin requires a
+signature (which cannot be disabled) and a feed of signed artifacts per platform.
+
+**Decision:** use `tauri-plugin-updater` with a **static JSON** feed published to GitHub
+Releases, and sign with a Tauri key pair.
+
+- **Plugin.** `tauri-plugin-updater` (Rust) + `@tauri-apps/plugin-updater` (JS),
+  initialized desktop-only; `bundle.createUpdaterArtifacts: true`; the **public** key in
+  `plugins.updater.pubkey`; `endpoints` point at the static feed
+  (`…/releases/latest/download/latest.json`); `updater:default` in capabilities; a
+  `@tauri-apps/plugin-process` relaunch after install.
+- **Keys.** `tauri signer generate` produces a key pair. The **private** key is a repo
+  secret (`TAURI_SIGNING_PRIVATE_KEY`, with an optional password secret); the public key
+  is committed in `tauri.conf.json`. Losing the private key strands already-installed
+  users — it is stored like any signing secret, never in the repo or a `.env` file.
+- **Delivery.** The release workflow sets `createUpdaterArtifacts` so each platform emits
+  its updater bundle + `.sig`, uploads them, and publishes a `latest.json` per
+  `OS-ARCH` via tauri-action, so `check()` validates the whole feed before comparing
+  versions. Version bumps stay in the three pinned places (`tauri.conf.json`, `Cargo.toml`,
+  `package.json`).
+- **CLI follows the app.** The installed `hey-listen-cli` records the app version it was
+  installed from; the updater (or app launch) refreshes an out-of-date installed CLI from
+  the updated bundle. The app version is the single source of truth for what the CLI
+  should be — there is no independent CLI release channel.
+
+**Consequence:** users get a signed, in-app update path with no separate server (GitHub
+Releases is the CDN), and the installed CLI stays in lockstep with the app. Costs: a new
+plugin + JS binding, signing-key discipline in CI, and updater-artifact size in each
+release. See [`updater.md`](updater.md).
+
+**Status: accepted (M33.C).**
+
+## ADR-31 — The app installs its own console CLI from a menu
+
+**Context:** M33's original ask — install the batch CLI without hunting for the bundled
+binary — becomes concrete once ADR-29 ships `hey-listen-cli` as a bundled artifact. The
+question is the mechanism: a menu action that copies a real binary to a PATH location,
+tracked so it can update (ADR-30) and be repaired/uninstalled.
+
+**Decision:** a native menu entry ("Install Command Line Tool…") installs
+`hey-listen-cli` to a per-platform location and records the version it wrote.
+
+- **Install.** The app resolves a writable, per-user location on `PATH` (a `~/.local/bin` /
+  `~/bin` shim or symlink on macOS/Linux; a `%LOCALAPPDATA%`-based shim on Windows), copies
+  or links the bundled console binary there, and reports the exact path. The action is
+  user-initiated and consent is the click itself; no elevation is requested (the target is
+  user-writable).
+- **Version & lifecycle.** The install records the app version it came from; the menu
+  becomes **Update / Repair / Uninstall** when a CLI already exists, comparing the recorded
+  version to the app. ADR-30 is the only update path — the menu never installs a version
+  the app itself is not running.
+- **Reporting.** Success/failure and the written path surface in the menu or an app dialog;
+  a failure leaves any existing install untouched (copy-then-swap).
+
+**Consequence:** a user can make `hey-listen-cli` available on `PATH` in one action, and
+its lifecycle (update/repair/uninstall) is owned by the app, in step with the updater.
+Cost: a small install/version-tracking surface and a menu item. See
+[`updater.md`](updater.md) and [`packaging.md`](packaging.md).
+
+**Status: accepted (M33.D).**
