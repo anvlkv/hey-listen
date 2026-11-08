@@ -2277,7 +2277,7 @@ which keeps only `--mcp`/`--headless` + the `.heyl` open path via `tauri-plugin-
   (`externalBin` sidecar — now the right tool, because the app *spawns* it to install it).
   `heylisten-mcp` stays a separate, unbundled client binary.
 
-### M33.C — Self-update via GitHub Releases
+### M33.C — Self-update via GitHub Releases ✅
 
 The updater from [`tauri.app/plugin/updater`](https://v2.tauri.app/plugin/updater/) with a
 **static JSON** feed published to GitHub Releases, and a **CLI-follows-app** rule. See

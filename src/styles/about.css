@@ -141,6 +141,57 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* --- Updates (M33.C) ---------------------------------------------------- */
+
+.about-updates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.about-updates .about-text {
+  margin: 0;
+}
+
+/* The feed's release notes: monospace, scrollable, selectable. */
+.about-updates-notes {
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: var(--fg-dim);
+  background: var(--panel-3);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.about-updates-progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  background: var(--control);
+  border-radius: 3px;
+}
+
+.about-updates-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+
+.about-updates-error {
+  color: var(--danger-fg);
+}
+
 /* --- Icon buttons ------------------------------------------------------- */
 
 /* These come last so they win over the per-component button padding above. */

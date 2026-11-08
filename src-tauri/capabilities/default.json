@@ -9,6 +9,8 @@
     "log:default",
     "clipboard-manager:allow-write-text",
     "wdio:default",
-    "wdio-webdriver:default"
+    "wdio-webdriver:default",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

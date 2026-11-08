@@ -46,8 +46,20 @@ A manual `workflow_dispatch` run takes the tag as an input and republishes.
 > Building on 22.04 again would mean building newer PipeWire headers there (a PPA or from
 > source) rather than the distro's.
 
-Bundles are **unsigned**: macOS Gatekeeper and Windows SmartScreen warn on first
-launch. Code signing / notarization is out of scope until signing keys exist.
+Bundles are **not code-signed** for the OS: macOS Gatekeeper and Windows SmartScreen
+warn on first launch. Code signing / notarization is out of scope until signing keys
+exist.
+
+**Update artifacts *are* signed (M33.C).** `bundle.createUpdaterArtifacts` is on, so each
+build also emits its updater artifact and a `.sig` next to its bundles (the formats are
+listed in [`updater.md`](updater.md) → Configuration), and `tauri-action` publishes the
+`latest.json` feed the app's `plugins.updater.endpoints` reads. Signing uses the
+`TAURI_SIGNING_PRIVATE_KEY` secret (plus the optional
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`), both registered by `npm run setup:updater`
+([`scripts/setup-updater.mjs`](../scripts/setup-updater.mjs)) — see
+[`updater.md`](updater.md) → Keys. The updater verifies every download against the public
+key committed in `tauri.conf.json`, so an artifact signed by any other key is never
+installed.
 
 > **The MCP client binary is not bundled.** `heylisten-mcp` (M9) — a plain console binary
 > built next to the app (`target/{debug,release}/`) — is **not** shipped inside the

@@ -1,5 +1,6 @@
 import { Dialog } from "@kobalte/core/dialog";
 import Icon from "./Icon";
+import AboutUpdates from "./AboutUpdates";
 import { invoke } from "../lib/ipc";
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from "../lib/appInfo";
 import { FONT_AWESOME } from "../lib/attributions";
@@ -46,6 +47,11 @@ export default function AboutDialog(props: {
             Capture, filter, and analyze audio — from files, live inputs, and synthesis. Built on
             Tauri, SolidJS, and Rust DSP.
           </Dialog.Description>
+
+          <section class="about-section">
+            <h3 class="about-heading">Updates</h3>
+            <AboutUpdates />
+          </section>
 
           <section class="about-section">
             <h3 class="about-heading">{FONT_AWESOME.name}</h3>

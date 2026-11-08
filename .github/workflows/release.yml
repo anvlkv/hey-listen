@@ -79,6 +79,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing (M33.C, ADR-30). `bundle.createUpdaterArtifacts` makes each
+          # build emit its updater bundle + `.sig`; these two secrets sign them, and
+          # tauri-action uploads the artifacts and publishes the `latest.json` feed the
+          # app's `plugins.updater.endpoints` reads. The private key is never in the repo —
+          # `npm run setup:updater` (scripts/setup-updater.mjs) generates the pair, injects
+          # the public key into `tauri.conf.json` and registers the secrets. The password is
+          # optional: it exists only when the private key was generated encrypted.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: "Hey Listen v__VERSION__"

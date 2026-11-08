@@ -7,6 +7,7 @@
 pub mod analysis;
 pub mod app;
 pub mod capture;
+pub mod cli_install;
 pub mod compare;
 pub mod decode;
 pub mod export;
@@ -18,6 +19,8 @@ pub mod source;
 pub mod stream;
 pub mod themes;
 pub mod ui;
+#[cfg(desktop)]
+pub mod update;
 pub mod window;
 
 use tauri::{AppHandle, Manager, Runtime};

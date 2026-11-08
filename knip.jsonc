@@ -67,6 +67,10 @@
     // docs/dependencies.md → Frontend: "(MCP) store bindings … the package keeps
     // the plugin versions aligned". The popover reads settings via commands.
     "@tauri-apps/plugin-store",
+    // Same rule for the updater (M33.C): the app drives update checks through the core's
+    // `check_update` / `install_update` commands (progress streams over an IPC channel),
+    // so the JS binding is not imported — the Rust `tauri-plugin-updater` is the plugin.
+    "@tauri-apps/plugin-updater",
     // Required at runtime by `@wdio/cli` (`runner: "local"`); resolved dynamically.
     "@wdio/local-runner",
   ],

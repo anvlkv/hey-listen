@@ -49,6 +49,7 @@ pub enum MenuAction {
     Redo,
     About,
     Compare,
+    CheckForUpdates,
 }
 
 /// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
@@ -213,11 +214,20 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         None::<&str>,
     )?;
 
+    // Updates (M33.C) open the same About dialog, with the update status in it.
+    let check_updates = MenuItem::with_id(
+        app,
+        MenuAction::CheckForUpdates.as_ref(),
+        "Check for Updates…",
+        true,
+        None::<&str>,
+    )?;
+
     // About lives in the macOS application menu; elsewhere it lives under Help.
     #[cfg(target_os = "macos")]
-    let help = Submenu::with_items(app, "Help", true, &[] as &[&dyn IsMenuItem<R>])?;
+    let help = Submenu::with_items(app, "Help", true, &[&check_updates])?;
     #[cfg(not(target_os = "macos"))]
-    let help = Submenu::with_items(app, "Help", true, &[&about])?;
+    let help = Submenu::with_items(app, "Help", true, &[&about, &check_updates])?;
 
     #[cfg(target_os = "macos")]
     let app_menu = Submenu::with_items(
@@ -347,6 +357,7 @@ mod tests {
         assert_eq!(MenuAction::Redo.as_ref(), "redo");
         assert_eq!(MenuAction::About.as_ref(), "about");
         assert_eq!(MenuAction::Compare.as_ref(), "compare");
+        assert_eq!(MenuAction::CheckForUpdates.as_ref(), "checkForUpdates");
         for action in MenuAction::iter() {
             assert_eq!(action.as_ref().parse::<MenuAction>(), Ok(action));
         }

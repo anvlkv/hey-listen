@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { redo, undo } from "./history";
 import { openPath } from "./source";
+import { checkForUpdates } from "./update";
 import { chooseCompareReference, showCompareNotice } from "./compare/picker";
 import { focusedAnalyzer } from "./workbench";
 import {
@@ -128,6 +129,12 @@ export async function initMenu() {
           break;
         case "about":
           setAboutOpen(true);
+          break;
+        case "checkForUpdates":
+          // Help → Check for Updates… opens the About dialog (its Updates section shows
+          // the result) and starts a check. See `docs/updater.md`.
+          setAboutOpen(true);
+          void checkForUpdates();
           break;
         case "compare": {
           // Analysis → Compare with… acts on the focused analyzer tab; with none, a

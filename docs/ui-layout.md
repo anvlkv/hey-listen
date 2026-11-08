@@ -169,7 +169,9 @@ popover. See [`theming.md`](theming.md).
   which emits `about` on `app:menu`. It carries the app identity and the **required
   attribution** (Font Awesome), and links to `ACKNOWLEDGEMENTS.md` for the individual
   contributors behind every dependency; license links open in the system browser via
-  the `open_external_url` command.
+  the `open_external_url` command. Its **Updates** section (`AboutUpdates.tsx`, M33.C)
+  shows the self-update state and is what **Help → Check for Updates…** (the
+  `checkForUpdates` menu action) opens — see [`updater.md`](updater.md).
 
 ## Fixed regions
 

@@ -974,7 +974,11 @@ Releases is the CDN), and the installed CLI stays in lockstep with the app. Cost
 plugin + JS binding, signing-key discipline in CI, and updater-artifact size in each
 release. See [`updater.md`](updater.md).
 
-**Status: accepted (M33.C).**
+**Status: accepted, delivered (M33.C).** The commands are `check_update` /
+`install_update` in `src-tauri/src/commands/update.rs`; the surface is the About dialog's
+Updates section (`src/components/AboutUpdates.tsx`), reached from *Help → Check for
+Updates…*. The installed CLI is refreshed on launch by
+`src-tauri/src/commands/cli_install.rs`. See [`updater.md`](updater.md).
 
 ## ADR-31 — The app installs its own console CLI from a menu
 
