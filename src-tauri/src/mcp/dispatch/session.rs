@@ -86,7 +86,7 @@ impl HeadlessSession {
     /// the tools the agent touched) — mirroring the GUI's `toolOptions`.
     fn tool_options(&self) -> Value {
         let mut map = Map::new();
-        for analyzer in analyzers::ANALYZERS {
+        for analyzer in analyzers::ANALYZERS.iter() {
             map.insert(analyzer.id.to_string(), self.options_for(analyzer.id));
         }
         Value::Object(map)

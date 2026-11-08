@@ -5,8 +5,13 @@
 
 use super::{AnalyzerId, AnalyzerInfo, Section};
 
-/// Every analyzer, grouped by section, in the order the Sidebar shows them.
-pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
+mod perception;
+
+/// The non-Perception analyzers, grouped by section, in Sidebar order.
+///
+/// The Perception entries live in [`perception`] (a separate file to stay inside the
+/// source-size budget); [`all`] concatenates the two in the order the Sidebar shows them.
+const BASE: &[AnalyzerInfo] = &[
     // Time domain
     AnalyzerInfo {
         id: AnalyzerId::Waveform,
@@ -368,20 +373,9 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
             "compression",
         ],
     },
-    // Perception
-    AnalyzerInfo {
-        id: AnalyzerId::CriticalBands,
-        title: "Critical bands",
-        description: "Bark or ERB critical-band energy over time",
-        section: Section::Perception,
-        keywords: &[
-            "critical",
-            "band",
-            "bark",
-            "erb",
-            "psychoacoustic",
-            "perception",
-            "energy",
-        ],
-    },
 ];
+
+/// Every analyzer, in Sidebar order: the base entries followed by the Perception group.
+pub(super) fn all() -> Vec<&'static AnalyzerInfo> {
+    BASE.iter().chain(perception::PERCEPTION.iter()).collect()
+}
