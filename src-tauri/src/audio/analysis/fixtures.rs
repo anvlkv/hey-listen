@@ -4,9 +4,9 @@
 //! headless tests all use the same sample payloads instead of repeating them.
 
 use super::{
-    AnalysisResult, GapMetric, LevelsResult, LraResult, LufsResult, MatrixResult, ModulationPeak,
-    ModulationResult, NoteMetric, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult,
-    SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, GapMetric, LevelsResult, LoudnessResult, LraResult, LufsResult, MatrixResult,
+    ModulationPeak, ModulationResult, NoteMetric, NoteMetricsResult, PitchResult, RhythmResult,
+    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 pub(crate) fn series() -> SeriesResult {
@@ -62,6 +62,20 @@ pub(crate) fn matrix() -> MatrixResult {
         values: vec![1.0, 2.0, 3.0, 4.0],
         min_value: 1.0,
         max_value: 4.0,
+    }
+}
+
+/// A representative Moore–Glasberg loudness track (M27).
+pub(crate) fn loudness() -> LoudnessResult {
+    LoudnessResult {
+        sample_rate: 48_000,
+        hop_size: 480,
+        window_start: 0.0,
+        times: vec![0.0, 0.01, 0.02, 0.03],
+        loudness_sone: vec![Some(1.0), None, Some(3.0), Some(2.0)],
+        loudness_phon: vec![Some(40.0), None, Some(55.85), Some(50.0)],
+        calibrated: true,
+        calibration_db_spl: 94.0,
     }
 }
 
@@ -229,6 +243,8 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::LoudnessIntegrated(LufsResult { lufs: -23.0 }),
         AnalysisResult::LoudnessMomentary(series),
         AnalysisResult::LoudnessRange(LraResult { lra: 12.0 }),
-        AnalysisResult::CriticalBands(matrix),
+        AnalysisResult::CriticalBands(matrix.clone()),
+        AnalysisResult::Loudness(loudness()),
+        AnalysisResult::SpecificLoudness(matrix),
     ]
 }

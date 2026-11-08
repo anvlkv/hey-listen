@@ -5,11 +5,13 @@ mod critical_bands;
 mod dispatch;
 mod features;
 mod gate;
+mod loudness;
 mod modulation;
 mod modulation_dsp;
 mod note_quality;
 mod notes;
 mod pitch_track;
+mod shared;
 mod spectrum;
 mod time;
 

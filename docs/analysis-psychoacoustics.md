@@ -107,8 +107,8 @@ CLI):
   energies_db)` integrates STFT magnitude into Bark or ERB bands (sum of power per band,
   converted back to dBFS, or dB SPL when calibrated). Shared by every later tool.
 
-- `specific_loudness.rs` — Moore–Glasberg (ISO 532-2) stationary loudness: outer/middle
-  ear transfer, excitation pattern on the ERB-rate axis, excitation → specific loudness
+- `loudness.rs` — Moore–Glasberg (ISO 532-2) stationary loudness: outer/middle ear
+  transfer, excitation pattern on the ERB-rate axis, excitation → specific loudness
   `N'(z)` with the model's compressive exponent, and summation to overall loudness `N`
   (sones) and loudness level `LN` (phons) via `LN = 40 N^0.35` (`N < 1`) else
   `40 + 10 log2 N`. (M27.)

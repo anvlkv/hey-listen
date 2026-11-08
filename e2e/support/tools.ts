@@ -52,4 +52,6 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "loudnessMomentary", title: "Loudness (momentary)", view: "series" },
   { id: "loudnessRange", title: "Loudness range", view: "readouts" },
   { id: "criticalBands", title: "Critical bands", view: "matrix" },
+  { id: "loudness", title: "Loudness (sone/phon)", view: "loudness" },
+  { id: "specificLoudness", title: "Specific loudness", view: "matrix" },
 ];

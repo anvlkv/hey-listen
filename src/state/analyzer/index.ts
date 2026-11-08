@@ -31,6 +31,7 @@ export type {
   AnalyzerView,
   AnyAnalysisResult,
   LevelsResult,
+  LoudnessResult,
   LraResult,
   LufsResult,
   MatrixResult,

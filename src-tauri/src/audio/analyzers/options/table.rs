@@ -4,6 +4,19 @@
 use super::OptionInfo;
 use crate::audio::analyzers::AnalyzerId;
 
+/// The loudness calibration option, shared by `loudness` and `specificLoudness` (M27).
+const CALIBRATION: OptionInfo = OptionInfo {
+    key: "calibrationDbSpl",
+    label: "Calibration",
+    default: 0.0,
+    min: 0.0,
+    max: 140.0,
+    help: "dB SPL of a full-scale sine; 0 = uncalibrated (relative sones).",
+};
+
+/// The one-option table both loudness tools share.
+const CALIBRATION_OPTIONS: &[OptionInfo] = &[CALIBRATION];
+
 /// Per-analyzer engine-option metadata, keyed by analyzer id. Analyzers without
 /// their own options are absent (the `list_analyzers` option map is then empty).
 pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
@@ -350,4 +363,6 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
             help: "Critical-band scale: 0 = Bark, 1 = ERB.",
         }],
     ),
+    (AnalyzerId::Loudness, CALIBRATION_OPTIONS),
+    (AnalyzerId::SpecificLoudness, CALIBRATION_OPTIONS),
 ];

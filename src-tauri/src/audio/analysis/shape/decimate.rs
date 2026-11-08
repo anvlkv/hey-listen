@@ -37,7 +37,8 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         | AnalysisResult::Mfcc(r)
         | AnalysisResult::Chromagram(r)
         | AnalysisResult::SpectralContrast(r)
-        | AnalysisResult::CriticalBands(r) => {
+        | AnalysisResult::CriticalBands(r)
+        | AnalysisResult::SpecificLoudness(r) => {
             thin_frames(object, max, r.frames, r.bins, "values", false);
         }
         // Scalar-per-frame series.
@@ -52,6 +53,10 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         | AnalysisResult::ZeroCrossingRate(_)
         | AnalysisResult::FrameRms(_)
         | AnalysisResult::LoudnessMomentary(_) => aligned(object, max, &["times", "values"]),
+        // Loudness carries two gapped tracks over one time axis.
+        AnalysisResult::Loudness(_) => {
+            aligned(object, max, &["times", "loudnessSone", "loudnessPhon"])
+        }
         // Pitch tracks are series with gapped values.
         AnalysisResult::PitchPyin(_)
         | AnalysisResult::PitchYin(_)

@@ -11,11 +11,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::analyzers::AnalyzerId;
 
+mod loudness;
 mod modulation;
 mod notes;
 mod series;
 mod stored;
 
+pub use loudness::*;
 pub use modulation::*;
 pub use notes::*;
 pub use series::*;
@@ -236,6 +238,8 @@ pub enum AnalysisResult {
     LoudnessMomentary(SeriesResult),
     LoudnessRange(LraResult),
     CriticalBands(MatrixResult),
+    Loudness(LoudnessResult),
+    SpecificLoudness(MatrixResult),
 }
 
 impl AnalysisResult {
@@ -273,6 +277,8 @@ impl AnalysisResult {
             AnalysisResult::LoudnessMomentary(_) => AnalyzerId::LoudnessMomentary,
             AnalysisResult::LoudnessRange(_) => AnalyzerId::LoudnessRange,
             AnalysisResult::CriticalBands(_) => AnalyzerId::CriticalBands,
+            AnalysisResult::Loudness(_) => AnalyzerId::Loudness,
+            AnalysisResult::SpecificLoudness(_) => AnalyzerId::SpecificLoudness,
         }
     }
 
@@ -313,7 +319,8 @@ impl AnalysisResult {
             | AnalysisResult::Mfcc(result)
             | AnalysisResult::Chromagram(result)
             | AnalysisResult::SpectralContrast(result)
-            | AnalysisResult::CriticalBands(result) => {
+            | AnalysisResult::CriticalBands(result)
+            | AnalysisResult::SpecificLoudness(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }
@@ -328,6 +335,10 @@ impl AnalysisResult {
             | AnalysisResult::ZeroCrossingRate(result)
             | AnalysisResult::LoudnessMomentary(result)
             | AnalysisResult::FrameRms(result) => {
+                result.window_start = start;
+                shift_times(&mut result.times, shift);
+            }
+            AnalysisResult::Loudness(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }

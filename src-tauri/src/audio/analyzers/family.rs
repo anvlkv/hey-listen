@@ -57,7 +57,8 @@ pub fn family_of(id: AnalyzerId) -> Family {
         | AnalyzerId::Mfcc
         | AnalyzerId::Chromagram
         | AnalyzerId::SpectralContrast
-        | AnalyzerId::CriticalBands => Family::Matrix,
+        | AnalyzerId::CriticalBands
+        | AnalyzerId::SpecificLoudness => Family::Matrix,
         AnalyzerId::NoteMetrics => Family::Notes,
         AnalyzerId::Tempo | AnalyzerId::Onsets | AnalyzerId::Downbeats => Family::Events,
         AnalyzerId::Waveform
@@ -75,7 +76,8 @@ pub fn family_of(id: AnalyzerId) -> Family {
         | AnalyzerId::PitchPyin
         | AnalyzerId::PitchYin
         | AnalyzerId::PitchAutocorr
-        | AnalyzerId::LoudnessMomentary => Family::Series,
+        | AnalyzerId::LoudnessMomentary
+        | AnalyzerId::Loudness => Family::Series,
     }
 }
 

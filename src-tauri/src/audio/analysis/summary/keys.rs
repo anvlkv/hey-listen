@@ -83,6 +83,18 @@ const MODULATION: &[&str] = &[
     "voicedFraction",
 ];
 
+/// The Moore–Glasberg loudness summary (M27): the sone N5 / mean / max, the N5 in
+/// phons, and the calibration state.
+const LOUDNESS: &[&str] = &[
+    "frames",
+    "n5Sone",
+    "meanSone",
+    "maxSone",
+    "n5Phon",
+    "calibrated",
+    "calibrationDbSpl",
+];
+
 /// The summary item keys `tool` produces. Analyzers that are not listed fall back to
 /// the generic series shape (every scalar-per-frame tool).
 pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
@@ -94,7 +106,9 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
         | AnalyzerId::Mfcc
         | AnalyzerId::Chromagram
         | AnalyzerId::SpectralContrast
-        | AnalyzerId::CriticalBands => MATRIX,
+        | AnalyzerId::CriticalBands
+        | AnalyzerId::SpecificLoudness => MATRIX,
+        AnalyzerId::Loudness => LOUDNESS,
         AnalyzerId::FrameRms => FRAME_RMS,
         AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
         AnalyzerId::NoteMetrics => NOTES,

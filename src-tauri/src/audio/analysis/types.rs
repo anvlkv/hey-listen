@@ -133,6 +133,8 @@ pub struct ToolOptions {
     pub min_voiced_secs: Option<f32>,
     pub top_peaks: Option<usize>,
     pub scale: Option<usize>,
+    /// The dB SPL of a full-scale sine (M27); `0` or absent means **uncalibrated**.
+    pub calibration_db_spl: Option<f32>,
 }
 
 /// How a modulation envelope is detrended before its spectrum is taken (M20).
@@ -380,5 +382,14 @@ impl ToolOptions {
             Some(0) | None => crate::audio::analysis::psychoacoustics::Scale::Bark,
             Some(_) => crate::audio::analysis::psychoacoustics::Scale::Erb,
         }
+    }
+
+    /// The loudness calibration (M27): the dB SPL of a full-scale sine. `0` (or any
+    /// non-finite value) is uncalibrated, so the result carries relative sones.
+    pub(super) fn calibration_db_spl(&self) -> f32 {
+        self.calibration_db_spl
+            .filter(|value| value.is_finite())
+            .unwrap_or(0.0)
+            .clamp(0.0, 140.0)
     }
 }

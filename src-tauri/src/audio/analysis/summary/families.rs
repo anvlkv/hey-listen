@@ -7,6 +7,7 @@
 //! simply absent.
 
 use super::super::shape::{flat_peak, matrix_peak, spectrogram_peak};
+use super::loudness::loudness;
 use super::SummaryBuilder;
 use crate::audio::analysis::{
     AnalysisResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
@@ -31,7 +32,9 @@ pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
         | AnalysisResult::Mfcc(r)
         | AnalysisResult::Chromagram(r)
         | AnalysisResult::SpectralContrast(r)
-        | AnalysisResult::CriticalBands(r) => matrix(&mut b, tool, r),
+        | AnalysisResult::CriticalBands(r)
+        | AnalysisResult::SpecificLoudness(r) => matrix(&mut b, tool, r),
+        AnalysisResult::Loudness(r) => loudness(&mut b, r),
         AnalysisResult::FrameRms(r) => frame_rms(&mut b, r),
         AnalysisResult::PitchPyin(r)
         | AnalysisResult::PitchYin(r)
@@ -93,6 +96,7 @@ fn matrix(b: &mut SummaryBuilder, tool: AnalyzerId, r: &MatrixResult) {
         let unit = match tool {
             AnalyzerId::MelSpectrogram | AnalyzerId::SpectralContrast => Some("dB"),
             AnalyzerId::CriticalBands => Some("dBFS"),
+            AnalyzerId::SpecificLoudness => Some("sone/Bark"),
             _ => None,
         };
         b.push("peakValue", "peak value", f64::from(value), unit);

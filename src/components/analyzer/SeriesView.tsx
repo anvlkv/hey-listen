@@ -1,34 +1,10 @@
-import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
-import uPlot from "uplot";
-import { createSignal, For, Show, untrack } from "solid-js";
+import { For, Show } from "solid-js";
 import Readout from "./Readout";
-import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import ZoomControls from "./ZoomControls";
-import { createUplotZoom } from "./uplotZoom";
-import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
-import { referenceLine, semitoneGrid } from "./seriesPlugins";
-import { annotationMarkers } from "./annotationPlugins";
-import { paddedYRange } from "./range";
+import ReframeMenu from "./ReframeMenu";
+import TimeSeriesChart from "./TimeSeriesChart";
+import { useTimeChart, timeSeriesData } from "./timeChart";
+import { NoAudioState } from "./chartCommon";
 import { coverage, seriesReadouts } from "./readouts";
-import {
-  frequencyAxisValues,
-  TIME_AXIS_SPACE,
-  timeAxisValues,
-  X_AXIS_SIZE,
-  Y_AXIS_SIZE,
-  Y_AXIS_SPACE,
-} from "./axisFormat";
-import {
-  chartAxisStyle,
-  createUplotReframeHandler,
-  NoAudioState,
-  timeRangeLabel,
-  timeTooltip,
-} from "./chartCommon";
-import { analyzerBus } from "../../state/chartSync";
-import { useUplotImage } from "./chartImage";
-import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
   type AnalysisHandle,
@@ -40,38 +16,6 @@ import {
 } from "../../state/analyzer";
 
 const isPitch = (id: AnalyzerId) => id.startsWith("pitch");
-
-/** A log-scale y-range with a little headroom, clamped so it never reaches 0. */
-function logYRange(_u: unknown, min: number, max: number): [number, number] {
-  const lo = min > 0 ? min : 0.1;
-  const hi = max > lo ? max : lo * 10;
-  return [lo / 1.15, hi * 1.15];
-}
-
-/** Impulse ("stem") path builder: a vertical line from the plot floor to each value. */
-const stemsPath = (
-  u: uPlot,
-  seriesIdx: number,
-  idx0: number,
-  idx1: number,
-): uPlot.Series.Paths | null => {
-  const path = new Path2D();
-  const base = u.bbox.top + u.bbox.height;
-  const xs = u.data[0];
-  const ys = u.data[seriesIdx];
-  if (!xs || !ys) return null;
-  for (let i = idx0; i <= idx1; i++) {
-    const value = ys[i];
-    const x = xs[i];
-    if (typeof value !== "number" || typeof x !== "number" || !Number.isFinite(value)) continue;
-    const px = u.valToPos(x, "x", true);
-    const py = u.valToPos(value, "y", true);
-    if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
-    path.moveTo(px, base);
-    path.lineTo(px, py);
-  }
-  return { stroke: path };
-};
 
 /** The voiced share of a pitch result (server-provided; falls back to the values). */
 function voicedShare(result: SeriesResult): number {
@@ -111,28 +55,9 @@ export default function SeriesView(props: {
 }) {
   const view = () => analyzerById(props.id).view as SeriesViewConfig;
   const result = () => props.analysis.result() as SeriesResult | null;
-  const zoom = createUplotZoom("time");
-  const [menu, setMenu] = createSignal<ReframeTarget | null>(null);
+  const { zoom, menu, setMenu, openMenu } = useTimeChart(() => props.id);
 
-  // Export the rendered chart (M12). Re-evaluated on demand, so a resize/zoom is
-  // captured exactly as it is on screen.
-  useUplotImage(() => props.id, zoom.instance);
-
-  // The registry's formatter is static for a tool, so build the tooltip once.
-  const Tooltip = timeTooltip(untrack(() => view().formatY));
-  const seriesStyle = () => view().style ?? "line";
-  const seriesPaths = () => {
-    const style = seriesStyle();
-    if (style === "stepped") return uPlot.paths.stepped?.({ align: 1 });
-    if (style === "stems") return stemsPath;
-    return undefined;
-  };
-
-  const data = (): [number[], (number | null)[]] => {
-    const r = result();
-    if (!r || r.times.length === 0) return [[], []];
-    return [r.times, r.values];
-  };
+  const data = (): [number[], (number | null)[]] => timeSeriesData(result(), (r) => r.values);
 
   /** A chart needs at least two frames and some non-gap values. */
   const plottable = () => {
@@ -141,7 +66,6 @@ export default function SeriesView(props: {
   };
 
   /** Right-click: reframe the timeline window from the time under the pointer. */
-  const openMenu = createUplotReframeHandler(zoom, setMenu);
 
   return (
     <Show when={result()} fallback={<NoAudioState />}>
@@ -179,65 +103,20 @@ export default function SeriesView(props: {
                 </div>
               }
             >
-              <ZoomControls
-                onZoomIn={zoom.zoomIn}
-                onZoomOut={zoom.zoomOut}
-                onFit={zoom.fit}
-                label={timeRangeLabel(zoom.range())}
+              <TimeSeriesChart
+                id={props.id}
+                zoom={zoom}
+                data={data()}
+                yLabel={view().yLabel}
+                formatY={view().formatY}
+                seriesStyle={view().style}
+                points={view().points}
+                yScale={view().yScale}
+                yRange={view().yRange}
+                reference={view().reference}
+                semitoneGrid={view().semitoneGrid}
+                frequencyY={isPitch(props.id)}
               />
-              <Show when={activeThemeId()} keyed>
-                <SolidUplot
-                  autoResize
-                  pluginBus={analyzerBus}
-                  plugins={[
-                    cursor(),
-                    tooltip(Tooltip),
-                    mirrorCursor("time"),
-                    syncView("time"),
-                    playheadRule(),
-                    annotationMarkers(props.id),
-                    ...(view().reference ? [referenceLine(view().reference!)] : []),
-                    ...(view().semitoneGrid ? [semitoneGrid()] : []),
-                  ]}
-                  onCreate={zoom.onReady}
-                  data={data()}
-                  series={[
-                    {},
-                    {
-                      label: view().yLabel,
-                      stroke: chartTheme().series,
-                      width: 1,
-                      fill: seriesStyle() === "area" ? chartTheme().waveFill : undefined,
-                      points: { show: view().points ?? false, size: 4 },
-                      paths: seriesPaths(),
-                    },
-                  ]}
-                  scales={{
-                    x: { time: false },
-                    y:
-                      view().yScale === "log"
-                        ? { distr: 3, log: 10, range: logYRange }
-                        : { range: view().yRange ? () => view().yRange! : paddedYRange },
-                  }}
-                  axes={[
-                    {
-                      ...chartAxisStyle(),
-                      label: "time (s)",
-                      size: X_AXIS_SIZE,
-                      space: TIME_AXIS_SPACE,
-                      values: timeAxisValues,
-                    },
-                    {
-                      ...chartAxisStyle(),
-                      label: view().yLabel,
-                      size: Y_AXIS_SIZE,
-                      space: Y_AXIS_SPACE,
-                      // Pitch tools plot f0 in Hz, so label that axis in kHz too.
-                      values: isPitch(props.id) ? frequencyAxisValues : undefined,
-                    },
-                  ]}
-                />
-              </Show>
             </Show>
           </div>
           <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />

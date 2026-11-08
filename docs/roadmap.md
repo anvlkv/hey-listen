@@ -2090,7 +2090,19 @@ build on.
 
 > See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M26.
 
-## M27 — Loudness (sone/phon) + specific-loudness map (planned)
+## M27 — Loudness (sone/phon) + specific-loudness map ✅
+
+> **Delivered.** `analysis/psychoacoustics/loudness.rs` ports the stationary
+> Moore–Glasberg signal chain (outer/middle-ear transfer, roex excitation pattern on the
+> ERB-rate axis, specific loudness, diotic binaural summation), with its reference
+> tables in `psychoacoustics/loudness/tables.rs`. The new **`loudness`** (series: sones
+> and phons per frame, with an N5 / mean / max summary) and **`specificLoudness`**
+> (matrix: N'(z) over ERB bands) analyzers sit under **Perception** and share the new
+> `calibrationDbSpl` option (`0` = uncalibrated, labelled; a positive value is the dB
+> SPL of a full-scale sine). The `loudness` chart shows the sone curve with the
+> calibration state. Tests pin the 1 kHz / 40 dB SPL ≈ 1 sone anchor, silence, the
+> louder-copy raise, and the band-sum ↔ total-loudness identity. The EBU R128 LUFS
+> tools are unchanged.
 
 Perceived loudness, distinct from the EBU R128 LUFS tools.
 
