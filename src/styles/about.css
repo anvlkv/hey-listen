@@ -192,6 +192,31 @@
   color: var(--danger-fg);
 }
 
+/* --- Command Line Tool dialog (M33.D) ----------------------------------- */
+
+.cli-tool-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.cli-tool-status .about-text {
+  margin: 0;
+}
+
+/* A mismatched install: visible, but not an error. */
+.cli-tool-warning {
+  color: var(--warn);
+}
+
+.cli-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 /* --- Icon buttons ------------------------------------------------------- */
 
 /* These come last so they win over the per-component button padding above. */

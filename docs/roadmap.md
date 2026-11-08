@@ -2294,7 +2294,7 @@ The updater from [`tauri.app/plugin/updater`](https://v2.tauri.app/plugin/update
   from; on launch the app (or the updater) refreshes an out-of-date installed CLI from the
   updated bundle, so updating the app updates the CLI too — the rule D's install respects.
 
-### M33.D — Install CLI from the app menu + docs
+### M33.D — Install CLI from the app menu + docs ✅
 
 The original M33, now concrete because B gave it a real artifact. See **ADR-31**.
 
@@ -2308,6 +2308,13 @@ The original M33, now concrete because B gave it a real artifact. See **ADR-31**
 - **Docs.** [`updater.md`](updater.md) is the updater/install reference;
   [`cli.md`](cli.md), [`packaging.md`](packaging.md) and [`mcp.md`](mcp.md) are brought in
   step with the console binary, the new exit/output contracts, and the release feed.
+
+> **Delivered:** *Help → Install Command Line Tool…* (the `installCliTool` menu action)
+> opens `src/components/CliToolDialog.tsx`, which reports `cli_tool_status` and calls the
+> M33.C `cli_tool_install` / `cli_tool_uninstall`, labelling the action **Install** /
+> **Update** / **Repair** from the recorded version and offering **Uninstall** when a copy
+> exists. [`updater.md`](updater.md) is the reference; [`ui-layout.md`](ui-layout.md) lists
+> the item.
 
 ## M34 — Improved documentation and help (drafted)
 
