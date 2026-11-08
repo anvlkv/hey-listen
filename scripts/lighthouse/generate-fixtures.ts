@@ -3,17 +3,17 @@
  * Generate the analysis fixtures the preview surfaces render.
  *
  * 1. Render the deterministic signal (`src/preview/signal.ts`) to a temporary WAV.
- * 2. Run the release app's **batch CLI** over it for every analyzer (`analyze --all
- *    --full --out`), the same engine the app uses.
+ * 2. Run the **batch CLI** (`hey-listen-cli analyze --all --full --out`) over it for
+ *    every analyzer, the same engine the app uses.
  * 3. Thin the raw arrays to display-sized grids and write
  *    `src/preview/fixtures/analysis.json`, keyed by analyzer id.
  *
- * The CLI is a Tauri binary (it needs the platform event loop), so this is a
+ * The CLI is a console binary (no display needed), but this is still a
  * developer-machine step, not a build step: the generated JSON is committed, and
  * `npm run lighthouse` reads it. Re-run it after an engine/result-shape change.
  *
  *   npm run lighthouse:fixtures
- *   HEYLISTEN_BIN=/path/to/hey-listen npm run lighthouse:fixtures
+ *   HEY_LISTEN_CLI=/path/to/hey-listen-cli npm run lighthouse:fixtures
  */
 
 import { execFileSync } from "node:child_process";
@@ -26,13 +26,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WORK = join(ROOT, ".lighthouse", "fixtures");
 const OUT_JSON = join(ROOT, "src", "preview", "fixtures", "analysis.json");
 const BIN =
+  process.env.HEY_LISTEN_CLI ??
   process.env.HEYLISTEN_BIN ??
   join(
     ROOT,
     "src-tauri",
     "target",
     "release",
-    `hey-listen${process.platform === "win32" ? ".exe" : ""}`,
+    `hey-listen-cli${process.platform === "win32" ? ".exe" : ""}`,
   );
 
 /** Maximum points per displayed axis. The charts are a few hundred px wide. */
@@ -161,7 +162,7 @@ interface Envelope {
 function main() {
   if (!existsSync(BIN)) {
     console.error(
-      `generate-fixtures: no app binary at ${BIN}\nBuild one (npm run tauri build) or set HEYLISTEN_BIN.`,
+      `generate-fixtures: no console binary at ${BIN}\nBuild one (cargo build --release --bin hey-listen-cli) or set HEY_LISTEN_CLI.`,
     );
     process.exitCode = 1;
     return;

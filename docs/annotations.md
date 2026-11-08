@@ -309,7 +309,7 @@ annotations, and since M25.D it also edits them (append / patch / remove), rewri
 **atomically**. See [`cli.md`](cli.md).
 
 ```text
-hey-listen annotations <FILE.heyl>
+hey-listen-cli annotations <FILE.heyl>
 
 Options:
       --json                 List: emit each annotation as one JSON line (JSONL) instead of a table.

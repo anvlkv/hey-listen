@@ -1,7 +1,9 @@
-//! Request mapping: turn parsed `tauri-plugin-cli` matches into a [`Request`], with
-//! the shared validation and the `-p` / `-o` / graph-file parsing helpers.
-
-use tauri_plugin_cli::Matches;
+//! Request mapping: turn parsed arguments into a [`Request`], with the shared
+//! validation and the `-p` / `-o` / graph-file parsing helpers.
+//!
+//! The mapping is generic over [`ArgSource`], so the console binary (`clap`, ADR-29)
+//! and the `tauri-plugin-cli` matches the tests feed in resolve a request through the
+//! same rules — there is one mapping, not two.
 
 use crate::audio::analyzers;
 
@@ -13,18 +15,14 @@ use super::types::{AnnotationsOp, BatchCommand, Command, Request};
 
 mod annotation_args;
 mod parse;
+mod source;
 
 pub(super) use parse::{flag, string};
 use parse::{optional_number, parse_option_patches, request_tools, strings, tool_ids};
+pub use source::ArgSource;
 
-/// Whether `name` is a batch subcommand (used to tell a real usage error from a
-/// `.heyl` file path that the plugin's parser rejected).
-pub fn is_subcommand(name: &str) -> bool {
-    name.parse::<BatchCommand>().is_ok()
-}
-
-/// Map a matched batch subcommand onto a [`Request`], or a usage-error message.
-pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
+/// Map a subcommand's arguments onto a [`Request`], or a usage-error message.
+pub fn build_request(name: &str, matches: &dyn ArgSource) -> Result<Request, String> {
     let command = name
         .parse::<BatchCommand>()
         .map_err(|_| format!("unknown subcommand: {name}"))?;
@@ -119,7 +117,7 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
 }
 
 /// Parse the options shared by `analyze` and `synth` (everything but the command).
-fn common(matches: &Matches) -> Result<Request, String> {
+fn common(matches: &dyn ArgSource) -> Result<Request, String> {
     let (tools, unknown_tools) = request_tools(matches);
     let request = Request {
         command: Command::Analyze,

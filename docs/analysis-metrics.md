@@ -155,7 +155,7 @@ wrong tool for short calls; it is not changed by this milestone.
 - Returns a `SeriesResult` (values in dBFS) extended with an optional `frameSize` (in
   samples) so the result is self-describing. The existing `SeriesView` and
   `seriesReadouts` render it with no new chart component.
-- Available in the GUI, headless MCP, and `hey-listen analyze` through the normal catalog
+- Available in the GUI, headless MCP, and `hey-listen-cli analyze` through the normal catalog
   and dispatcher.
 
 **Tests.** A half-scale sine reads about −9 dBFS per frame; a silent frame floors at
@@ -172,7 +172,7 @@ and hop are echoed.
 > voiced-share ruler, gap bands with durations, the gate, and a per-note f0 overlay on a
 > right-hand axis; hovering a note highlights its table row), and a scrollable per-note
 > table. The catalog entry and option metadata ship with it, so it works in the GUI,
-> headless MCP, and `hey-listen analyze`; result times are re-based onto source seconds
+> headless MCP, and `hey-listen-cli analyze`; result times are re-based onto source seconds
 > like every other time-bearing result. Tests live in
 > `audio::analysis::tests::note_metrics`, `audio::analyzers::tests`, and
 > `mcp::dispatch::tests`.
@@ -401,7 +401,7 @@ is honored.
 >   returns `syllables` (merged spans with `noteCount` and their own `rmsDb`/`peakDb`
 >   over the merged span) in addition to the unchanged note spans, and the summary adds
 >   `syllableCount`. Amplitude belongs to the syllable, not an individual note.
-> - **Many windows, one process.** `hey-listen analyze --windows FILE` runs one
+> - **Many windows, one process.** `hey-listen-cli analyze --windows FILE` runs one
 >   `start,end[,tool…]` line per window in a single process (the rule: **many files →
 >   batch CLI; many windows in one file → one headless session or `--windows`**).
 >
@@ -438,7 +438,7 @@ median f0). M21.B adds the series window gate and `syllableGapMs`.
 - **MCP:** add the ids to `list_analyzers` (GUI and Rust catalog), expose option
   metadata, and document `includeData` for `noteMetrics` / the full modulation
   spectra. `get_state` already reports tool-option defaults.
-- **CLI:** the new ids are available through `hey-listen analyze` automatically once
+- **CLI:** the new ids are available through `hey-listen-cli analyze` automatically once
   they are in the Rust catalog; options use the existing `-o <tool>.<key>=<value>`
   form.
 - **Notes:** add `valuesText` cases in `src/state/annotations/format.ts` for `noteMetrics` and

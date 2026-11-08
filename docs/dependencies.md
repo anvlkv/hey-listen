@@ -7,7 +7,8 @@
 | `tauri` / `tauri-build` | 2 | desktop shell + build | MIT / Apache-2.0 |
 | `tauri-plugin-dialog` | 2 | native open/save/confirm dialogs | MIT / Apache-2.0 |
 | `tauri-plugin-window-state` | 2 | remember window size/position across launches | MIT / Apache-2.0 |
-| `tauri-plugin-cli` | 2 | CLI flag definitions + parsing (`--mcp` / `--headless`, M9; the batch subcommands, M10) | MIT / Apache-2.0 |
+| `tauri-plugin-cli` | 2 | the app binary's flags (`--mcp` / `--headless`, M9) | MIT / Apache-2.0 |
+| `clap` | 4 (`derive`) | the `hey-listen-cli` console binary's interface + parser (M33.B, ADR-29) | MIT / Apache-2.0 |
 | `tauri-plugin-store` | 2 | persistent key-value store (`mcp-settings.json`, M9) | MIT / Apache-2.0 |
 | `tauri-plugin-clipboard-manager` | 2 | write the copyable MCP config to the clipboard (M9) | MIT / Apache-2.0 |
 | `tauri-plugin-log` | 2 | file + stdout logging (rotated per session / size) | MIT / Apache-2.0 |
@@ -96,7 +97,11 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli`
   program (no GUI), so it can run headless. On macOS the follow-up also depends on
   `objc2` / `objc2-foundation` (already in the tree via Tauri) for the App Nap
   opt-out, both in the bundle's `Info.plist` and at runtime. See [`mcp.md`](mcp.md).
-- **Batch CLI (M10):** a **subcommand of the app binary**, declared in the existing
-  `tauri-plugin-cli` (`plugins.cli`) — no new crate, no new binary. It reuses the
-  headless session (`mcp/dispatch/`) and the same engine functions, so it adds no
-  dependencies. See [`cli.md`](cli.md).
+- **Batch CLI (M10, console binary since M33.B):** `hey-listen-cli` is a third binary
+  in the same crate (`src/bin/hey-listen-cli.rs`) — a plain console program that links
+  the lib but never starts Tauri. Its interface is `clap` 4 with the `derive` feature
+  (one new dependency, MIT / Apache-2.0; `clap` was already in the tree via
+  `tauri-plugin-cli` but without `derive`). It reuses the headless session
+  (`mcp/dispatch/`) and the same engine functions, so it adds no DSP or store
+  dependencies. The app binary keeps `tauri-plugin-cli` for its two flags. See
+  [`cli.md`](cli.md) and ADR-29.

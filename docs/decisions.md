@@ -351,7 +351,12 @@ in step with the engine (mitigated by sharing the headless session). `--filter` 
 server exposes — the CLI takes the graph directly, as does headless `render_synth`.
 See [`cli.md`](cli.md).
 
-**Status: delivered (M10).** See [`cli.md`](cli.md); the batch logic lives in
+**Status: delivered (M10); superseded for the batch CLI by ADR-29 (M33.B).** The batch
+subcommands left the app binary for the `hey-listen-cli` console binary, and
+`plugins.cli` now declares only `--mcp` / `--headless` (plus the `.heyl` open path).
+Everything above still describes the *engine* contract ADR-29 preserves: the one shared
+headless session, the JSONL envelope, the `-p` / `-o` vocabulary and the `0`/`1`/`2`
+exit codes. See [`cli.md`](cli.md); the batch logic stays in
 `src-tauri/src/cli/batch/`.
 
 ## ADR-15 — Themes are data: a `ThemeFile` over a built-in base, resolved by slots
@@ -917,7 +922,7 @@ retired.
   binary's two flags.
 - **Discovery & migration.** `hey-listen-cli` is the documented binary; the
   `HEY_LISTEN_CLI`/`HEY_LISTEN_BIN` → `PATH` → app-bundle resolution order in the consumer
-  scripts now prefers it. The app-binary spelling (`hey-listen analyze`) is removed and
+  scripts now prefers it. The app-binary spelling (`hey-listen-cli analyze`) is removed and
   documented as a migration.
 - **Bundling.** The console binary ships beside the app (`externalBin` sidecar — correct
   now, because the menu in ADR-31 *spawns* it to install it). `heylisten-mcp` stays a
@@ -929,7 +934,11 @@ engine — mitigated by sharing `cli::batch::run` + the headless session and by 
 envelope-consistency test — and a one-time consumer migration off the app-binary spelling.
 See [`cli.md`](cli.md) and ADR-14 (revised).
 
-**Status: accepted (M33.B).**
+**Status: delivered (M33.B).** The console binary is `src-tauri/src/bin/hey-listen-cli.rs`
+(interface in `cli/batch/clap_args.rs`, staged as a `bundle.externalBin` sidecar by
+`scripts/prepareSidecar.mjs`); the app binary keeps only `--mcp` / `--headless` and the
+`.heyl` open path. `cli/batch/tests/console.rs` pins the mapping against the retired
+`plugins.cli` one. See [`cli.md`](cli.md) and [`packaging.md`](packaging.md).
 
 ## ADR-30 — Self-update via the Tauri updater over a GitHub Releases static feed
 

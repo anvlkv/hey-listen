@@ -176,7 +176,7 @@ part is GUI-only.
 - **Batch CLI** ([`cli.md`](cli.md)): `analyze` / `synth` gain
   `--template <FILE.heyltemplate>`, which applies the template's shared params, per-tool
   options, filter graph, and window policy (against each file's duration) before running
-  the analyzers — so `hey-listen analyze *.wav --template voice.heyltemplate` reproduces
+  the analyzers — so `hey-listen-cli analyze *.wav --template voice.heyltemplate` reproduces
   a saved setup over a folder. Only the compute subset applies headless (no tabs / no
   layout).
 

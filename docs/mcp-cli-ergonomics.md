@@ -384,7 +384,7 @@ than they appeared to, and a 1k-window sweep paid one process per window.
 - **Syllables.** `noteMetrics` accepts `syllableGapMs`; above 0 it returns a `syllables`
   array of merged spans (with `noteCount` and per-syllable RMS/peak) beside the unchanged
   notes. The summary adds `syllableCount`.
-- **Many windows, one process.** `hey-listen analyze --windows FILE` reads one
+- **Many windows, one process.** `hey-listen-cli analyze --windows FILE` reads one
   `start,end[,tool…]` per line and runs them in one process. The rule: **many files →
   batch CLI; many windows in one file → one headless session or `--windows`**.
 

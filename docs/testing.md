@@ -342,16 +342,16 @@ the resulting server state.
 > open_audio_file → run_analysis → open_tool` over its stdio (run by `cargo test`).
 > It is not part of the wdio suite (no webview).
 >
-> **Batch CLI (Rust, M10):** the command's work is a plain function over a request
-> struct, so `cargo test` covers it with no Tauri app and no display — the `spectrum`
-> peak over a generated WAV, the JSONL line count for a two-file batch, and the exit
-> code for an unknown tool; the `Matches` → request mapping is unit-tested with
-> synthetic `Matches`. The end-to-end `hey-listen analyze …` invocation needs the
-> platform event loop (a display), like the app and the `--mcp` path, so it is verified
-> by hand rather than in the wdio suite. **M21.A:** stdout is JSONL-only (logs go to
-> stderr; the WebDriver plugins are not registered for a CLI invocation), which the
-> batch unit tests cannot see because they inject `out` — check it by hand with
-> `hey-listen analyzers --json | jq` after changing the logger. See [`cli.md`](cli.md).
+> **Batch CLI (Rust, M10; console binary since M33.B):** the command's work is a plain
+> function over a request struct, so `cargo test` covers it with no Tauri app and no
+> display — the `spectrum` peak over a generated WAV, the JSONL line count for a
+> two-file batch, and the exit code for an unknown tool; the mapping is unit-tested both
+> through the real `clap` parser and against synthetic `Matches`, and the two are asserted
+> to agree (`cli/batch/tests/console.rs`). `hey-listen-cli analyze …` is a console program,
+> so it can be run by hand with no display; it is not in the wdio suite, which drives the
+> GUI. **M21.A:** stdout is JSONL-only (there is no log plugin in the console binary), which
+> the batch unit tests cannot see because they inject `out` — check it by hand with
+> `hey-listen-cli analyzers --json | jq`. See [`cli.md`](cli.md).
 
 ### M. Exchangeable themes (M11)
 
@@ -702,10 +702,10 @@ the preview shell always did. The E2E WebdriverIO plugin is **not** loaded in pr
 Fixtures are deterministic and generated, not committed as audio:
 `src/preview/signal.ts` is a 4 s tremolo/chirp/noise-bursts/dyad signal rendered by
 both the browser and `scripts/lighthouse/generate-fixtures.ts`. The latter writes a
-WAV, runs the release app's batch CLI (`analyze --all --full`) and thins the arrays
+WAV, runs `hey-listen-cli analyze --all --full` and thins the arrays
 into `src/preview/fixtures/analysis.json` (committed; keyed by `AnalyzerId`).
 Regenerate it after an engine/result-shape change with `npm run lighthouse:fixtures`
-(needs the release binary).
+(needs a release `hey-listen-cli`; set `HEY_LISTEN_CLI` to point at one).
 
 Reports land in the gitignored `reports/lighthouse/`: one `.report.json` / `.report.html`
 per run, plus `summary.json` and a linked `index.html`. Serve the overview with
@@ -791,11 +791,10 @@ is a manual smoke against a signed bundle, not part of CI.
 
 - No per-tool numeric regression suites — the five spot-checks (E) are the only
   value assertions; everything else is "renders + no error".
-- **The batch CLI is not in the wdio suite.** It is a windowless subcommand of the
-  app binary, so its engine work is covered by the crate's own unit tests
-  (`cli::batch` — see [`cli.md`](cli.md) → Testing); invoking the binary end to end
-  needs a display (the same platform event loop as `--mcp`), so that is a manual
-  smoke, not a wdio spec.
+- **The batch CLI is not in the wdio suite.** It is a console binary
+  (`hey-listen-cli`), so its engine work is covered by the crate's own unit tests
+  (`cli::batch` — see [`cli.md`](cli.md) → Testing); invoking it end to end is a manual
+  smoke, not a wdio spec (the wdio suite drives the GUI).
 - No IPC mocks for every command — `browser.tauri.execute()` is used only where a
   UI path can't be driven (the native file dialog, synth fixture setup) or to force
   an error path (I2–I4, I6); never to skip a real, drivable UI path. The audio device

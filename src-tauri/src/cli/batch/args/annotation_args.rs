@@ -3,14 +3,14 @@
 //! Split out of [`super`] to keep each file inside the source-size budget.
 
 use serde_json::Value;
-use tauri_plugin_cli::Matches;
 
 use super::super::inputs::split_kv;
 use super::super::types::AnnotationsOp;
+use super::source::ArgSource;
 use super::{string, strings};
 
 /// Which `annotations` operation the flags select (at most one).
-pub(super) fn annotation_op(matches: &Matches) -> Result<AnnotationsOp, String> {
+pub(super) fn annotation_op(matches: &dyn ArgSource) -> Result<AnnotationsOp, String> {
     let add = string(matches, "add");
     let get = string(matches, "get");
     let update = string(matches, "update");

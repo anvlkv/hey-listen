@@ -4,15 +4,13 @@
 //! Split from [`super::args`] to keep each file inside the source-size budget. The
 //! generic `string` / `flag` accessors and `result_count` come from there.
 
-use tauri_plugin_cli::Matches;
-
 use crate::export::ExportFormat;
 
-use super::args::{flag, result_count, string};
+use super::args::{flag, result_count, string, ArgSource};
 use super::types::{Command, OutputTarget, Request};
 
 /// `json` (default) or `csv`; `--csv` is shorthand for `--format csv`.
-pub(super) fn parse_format(matches: &Matches) -> Result<ExportFormat, String> {
+pub(super) fn parse_format(matches: &dyn ArgSource) -> Result<ExportFormat, String> {
     let explicit = string(matches, "format");
     let csv = flag(matches, "csv");
     match explicit.as_deref() {

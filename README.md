@@ -27,7 +27,7 @@ An audio analysis workbench: capture, filter, and analyze sound from files, live
 [Model Context Protocol](https://modelcontextprotocol.io) server lets an AI agent
 open sources, run every tool, edit graphs, preview, and save on the live window.
 
-**Batch it from a shell.** `hey-listen analyze <FILE>...` runs the same engine
+**Batch it from a shell.** `hey-listen-cli analyze <FILE>...` runs the same engine
 over files with no window, printing one JSON object per file/tool.
 
 ## For developers
@@ -57,7 +57,7 @@ Start with the [architecture](docs/architecture.md) and
 - [Project file format](docs/project-file-format.md) — binary layout and streaming
 - [Analysis tools](docs/analysis-tools.md) — oxiaudio inventory, tool/tab model, shared params
 - [MCP server](docs/mcp.md) — agent access, the stdio bridge, UI following
-- [Batch CLI](docs/cli.md) — `hey-listen analyze`: bulk-analyze files from a shell, no window
+- [Batch CLI](docs/cli.md) — `hey-listen-cli analyze`: bulk-analyze files from a shell, no window
 - [Agent skill — audio analysis](.agents/skills/audio-analysis/SKILL.md) — driving the engine via the MCP server or the batch CLI
 - [Dependencies & licenses](docs/dependencies.md)
 - [Packaging](docs/packaging.md) — release/CI process and the build matrix
