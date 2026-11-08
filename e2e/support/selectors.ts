@@ -10,6 +10,7 @@ export const SEL = {
   // Shell & fixed regions.
   app: '[data-testid="app"]',
   toolbar: '[data-testid="region.toolbar"]',
+  activitybar: '[data-testid="region.activitybar"]',
   sidebar: '[data-testid="region.sidebar"]',
   workbench: '[data-testid="region.workbench"]',
   bottom: '[data-testid="region.bottom"]',
@@ -109,6 +110,9 @@ export const SEL = {
 
 /** A Sidebar tool entry (`filter`, `synth`, or an analyzer id). */
 export const sidebarTool = (id: string) => `[data-testid="sidebar.tool.${id}"]`;
+
+/** An activity-bar entry (an analyzer section, or `filter` / `synth`). */
+export const activity = (id: string) => `[data-testid="activity.${id}"]`;
 
 /** A graph node of a given kind (each node carries `data-kind`). */
 export const graphNode = (kind: string) => `[data-testid="graph.node"][data-kind="${kind}"]`;

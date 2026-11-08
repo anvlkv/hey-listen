@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
 import AboutDialog from "./components/AboutDialog";
+import ActivityBar from "./components/ActivityBar";
 import CliToolDialog from "./components/CliToolDialog";
 import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
 import AnnotationsPanel from "./components/AnnotationsPanel";
@@ -116,6 +117,7 @@ export default function App() {
       <Toolbar />
       <main class="app-main" ref={(node) => (main = node)}>
         <div class="app-top">
+          <ActivityBar />
           <Sidebar
             style={{
               flex: `0 0 ${sidebarWidth()}px`,

@@ -4,19 +4,22 @@
  * The Workbench is the only tabbed region (managed by `dockview`); these helpers
  * open/focus/close a tool's tab and read the tab strip.
  */
-import { sidebarTool, tab } from "./selectors.ts";
+import { activity, sidebarTool, tab } from "./selectors.ts";
 import { click, count, waitForSelector } from "./dom.ts";
 
-/** Open a tool from the Sidebar (or focus it if already open). */
+/** Open a tool from the Sidebar or activity bar (or focus it if already open). */
 export async function openTool(id: string): Promise<void> {
-  await waitForSelector(sidebarTool(id), `the sidebar entry for "${id}" is missing`);
-  const entry = await $(sidebarTool(id));
-  await entry.click();
+  // The graph editors are activity-bar entries, not Sidebar rows.
+  const entry = id === "filter" || id === "synth" ? activity(id) : sidebarTool(id);
+  const label = id === "filter" || id === "synth" ? "activity bar" : "sidebar";
+  await waitForSelector(entry, `the ${label} entry for "${id}" is missing`);
+  const target = await $(entry);
+  await target.click();
   try {
     await waitForTab(id, 8_000);
   } catch {
     // A first click can be swallowed while a portal/overlay settles; retry in-page.
-    await click(sidebarTool(id));
+    await click(entry);
     await waitForTab(id);
   }
 }

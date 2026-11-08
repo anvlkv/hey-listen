@@ -1,4 +1,5 @@
 import type { AnalyzerView } from "../state/analyzer";
+import type { AnalyzerSection } from "../state/analyzer/types";
 
 /**
  * The icon registry — a curated subset of **Font Awesome 7 Free (Solid)**.
@@ -59,6 +60,12 @@ export const ICON_GLYPHS = {
   // --- Attribution ------------------------------------------------------------
   "font-awesome": "f2b4",
   link: "f0c1",
+  // --- Activity bar / sidebar sections -----------------------------------------
+  clock: "f017",
+  signal: "f012",
+  music: "f001",
+  drum: "f569",
+  "ear-listen": "f2a2",
   // --- Chart types (see [`VIEW_ICONS`]) ---------------------------------------
   "chart-line": "f201",
   "chart-area": "f1fe",
@@ -100,4 +107,17 @@ export const VIEW_ICONS: Record<AnalyzerView["kind"], IconName> = {
 export const GRAPH_ICONS: Record<"filter" | "synth", IconName> = {
   filter: "filter",
   synth: "wand-magic-sparkles",
+};
+
+/**
+ * The icon for each Sidebar section, shown in the vertical activity bar. Keyed by the
+ * generated `AnalyzerSection` so adding a section (e.g. `perception`) is a compile
+ * error until an icon is chosen — the same guard `VIEW_ICONS` gives the view kinds.
+ */
+export const SECTION_ICONS: Record<AnalyzerSection, IconName> = {
+  time: "clock",
+  spectral: "signal",
+  pitch: "music",
+  rhythm: "drum",
+  loudness: "volume-high",
 };

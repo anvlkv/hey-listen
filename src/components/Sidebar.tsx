@@ -2,21 +2,23 @@ import { createMemo, createSignal, For, Show, type JSX } from "solid-js";
 import Icon from "./Icon";
 import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
-import { GRAPH_ICONS, VIEW_ICONS, type IconName } from "../lib/icons";
+import { VIEW_ICONS, type IconName } from "../lib/icons";
 import { markdownSummary } from "../lib/markdown";
-import { openTool, openTools, toolsInGroup, type ToolDef } from "../state/workbench";
+import { openTool, openTools, type ToolDef } from "../state/workbench";
 import {
   ANALYZER_SECTIONS,
   analyzersInSection,
   matchesQuery,
   type AnalyzerDef,
 } from "../state/analyzer";
+import { activeSection } from "../state/activityBar";
 
 /**
  * Sidebar (fixed region): the tool picker. A **search box** at the top filters the
- * analyzer list by title, description, and keywords; the analyzers come **first**,
- * grouped by domain, then the two graph editors. Clicking an entry opens (or
- * focuses) its tab in the Workbench. See `docs/ui-layout.md` and
+ * analyzer list by title, description, and keywords; the analyzers are grouped by
+ * domain. Clicking an entry opens (or focuses) its tab in the Workbench. The
+ * vertical **activity bar** (far left) narrows this list to one section; the two
+ * graph editors live there instead. See `docs/ui-layout.md` and
  * `docs/analysis-tools.md`.
  *
  * Each row carries the tool's **chart-type** icon in its bottom-right corner
@@ -34,7 +36,6 @@ const toTool = (def: AnalyzerDef): SidebarTool => ({
   id: def.id,
   title: def.title,
   description: def.description,
-  group: "analyzer",
   tooltip: markdownSummary(def.about, 240),
   icon: VIEW_ICONS[def.view.kind],
 });
@@ -66,8 +67,16 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
     </div>
   );
 
+  // The activity bar narrows the list to one section; `null` (the default) shows
+  // every section grouped, so the Sidebar still lists every tool until a category is
+  // picked.
+  const visibleSections = () => {
+    const section = activeSection();
+    return section ? ANALYZER_SECTIONS.filter((item) => item.id === section) : ANALYZER_SECTIONS;
+  };
+
   const anyMatches = createMemo(() =>
-    ANALYZER_SECTIONS.some((section) => analyzersInSection(section.id).some(matches)),
+    visibleSections().some((section) => analyzersInSection(section.id).some(matches)),
   );
 
   return (
@@ -95,7 +104,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
             </div>
           }
         >
-          <For each={ANALYZER_SECTIONS}>
+          <For each={visibleSections()}>
             {(section) => {
               const list = createMemo(() =>
                 analyzersInSection(section.id).filter(matches).map(toTool),
@@ -109,15 +118,6 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
             }}
           </For>
         </Show>
-
-        <div class="sidebar-section-title sidebar-section-gap">Graphs</div>
-        <Tools
-          tools={toolsInGroup("graph").map((tool) => ({
-            ...tool,
-            tooltip: tool.description,
-            icon: GRAPH_ICONS[tool.id as "filter" | "synth"],
-          }))}
-        />
       </ScrollArea>
     </aside>
   );

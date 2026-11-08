@@ -1,0 +1,59 @@
+/* Vertical activity bar (VSCode-style, far left): one icon per analyzer section,
+   plus the two graph editors pinned at the bottom. Fixed region — not a tab, not
+   resizable. See `docs/ui-layout.md`. */
+
+.app-activitybar {
+  flex: 0 0 44px;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel-2);
+  border-right: 1px solid var(--border);
+}
+
+.activitybar-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* The graph editors sit at the bottom, below a divider-less gap (VSCode's layout). */
+.activitybar-group-bottom {
+  margin-top: auto;
+}
+
+.activitybar-item {
+  position: relative;
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.activitybar-item:hover {
+  background: var(--control);
+  color: var(--fg);
+}
+
+.activitybar-item-active {
+  color: var(--accent);
+  background: var(--panel-3);
+}
+
+/* The active-section indicator: a short accent bar on the bar's left edge. */
+.activitybar-item-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--accent);
+}

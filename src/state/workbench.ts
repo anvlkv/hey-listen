@@ -21,39 +21,29 @@ import type { ToolId as GeneratedToolId } from "../bindings/ToolId";
 /** A Workbench tab id, generated from the Rust `ToolId` (M15.B / ADR-28). */
 export type ToolId = GeneratedToolId;
 
-export type ToolGroup = "graph" | "analyzer";
-
-export interface ToolDef {
+export type ToolDef = {
   id: ToolId;
   title: string;
   description: string;
-  group: ToolGroup;
-}
+};
 
 export const TOOLS: ToolDef[] = [
   {
     id: "filter",
     title: "Filter graph",
     description: "Shape the signal before preview and analysis",
-    group: "graph",
   },
   {
     id: "synth",
     title: "Synth graph",
     description: "Build a fundsp synth and render it to the timeline",
-    group: "graph",
   },
   ...ANALYZERS.map((analyzer): ToolDef => ({
     id: analyzer.id,
     title: analyzer.title,
     description: analyzer.description,
-    group: "analyzer",
   })),
 ];
-
-export function toolsInGroup(group: ToolGroup): ToolDef[] {
-  return TOOLS.filter((tool) => tool.group === group);
-}
 
 export function toolById(id: ToolId): ToolDef {
   const tool = TOOLS.find((item) => item.id === id);

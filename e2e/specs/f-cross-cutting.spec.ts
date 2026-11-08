@@ -7,7 +7,7 @@
 
 import {
   SEL,
-  sidebarTool,
+  activity,
   tab,
   analyzerPanel,
   analyzerAbout,
@@ -32,7 +32,7 @@ import {
 
 /** Kobalte portals every popover panel with this class. */
 const POP_PANEL = ".pop-panel";
-/** The Sidebar tools (analyzer entries + the two graph editors) share this prefix. */
+/** The Sidebar analyzer entries share this prefix. */
 const SIDEBAR_TOOL = '[data-testid^="sidebar.tool."]';
 
 /** The zoom readout selector for a chart. */
@@ -51,7 +51,7 @@ describe("F. Cross-cutting analyzer behavior", () => {
     await openFixture("sine440");
   });
 
-  it("F1 search filters the analyzer list but keeps the graph editors", async () => {
+  it("F1 search filters the analyzer list but keeps the activity bar", async () => {
     const total = await $$(SIDEBAR_TOOL).length;
     expect(total).toBeGreaterThan(0);
 
@@ -63,9 +63,9 @@ describe("F. Cross-cutting analyzer behavior", () => {
       timeoutMsg: "the analyzer list did not filter on the search query",
     });
 
-    // The Graphs section is not filtered, so both graph editors stay visible.
-    expect(await $(sidebarTool("filter")).isDisplayed()).toBe(true);
-    expect(await $(sidebarTool("synth")).isDisplayed()).toBe(true);
+    // The activity bar is not filtered, so both graph editors stay reachable.
+    expect(await $(activity("filter")).isDisplayed()).toBe(true);
+    expect(await $(activity("synth")).isDisplayed()).toBe(true);
 
     await search.setValue("");
   });
