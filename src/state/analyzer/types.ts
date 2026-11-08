@@ -19,6 +19,7 @@ import type { MatrixResult as MatrixPayload } from "../../bindings/MatrixResult"
 import type { RhythmResult as RhythmPayload } from "../../bindings/RhythmResult";
 import type { LufsResult as LufsPayload } from "../../bindings/LufsResult";
 import type { LraResult as LraPayload } from "../../bindings/LraResult";
+import type { LoudnessResult as LoudnessPayload } from "../../bindings/LoudnessResult";
 import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
 import type { ModulationResult as ModulationPayload } from "../../bindings/ModulationResult";
 
@@ -97,6 +98,11 @@ export interface ModulationView {
   kind: "modulation";
 }
 
+/** Sone/phon loudness over time (M27). */
+export interface LoudnessView {
+  kind: "loudness";
+}
+
 export type AnalyzerView =
   | SeriesView
   | MatrixView
@@ -106,7 +112,8 @@ export type AnalyzerView =
   | ReadoutsView
   | RhythmView
   | NoteMetricsView
-  | ModulationView;
+  | ModulationView
+  | LoudnessView;
 
 /** A per-tool param rendered in the params popover (below the shared params). */
 export interface ToolParamField {
@@ -203,6 +210,11 @@ export interface LraResult extends LraPayload {
   tool: "loudnessRange";
 }
 
+/** Moore–Glasberg loudness (sones/phons) over time (M27). */
+export interface LoudnessResult extends LoudnessPayload {
+  tool: "loudness";
+}
+
 /** Any analyzer result returned over IPC. */
 export type AnyAnalysisResult =
   | WaveformResult
@@ -216,4 +228,5 @@ export type AnyAnalysisResult =
   | NoteMetricsResult
   | ModulationResult
   | LufsResult
-  | LraResult;
+  | LraResult
+  | LoudnessResult;

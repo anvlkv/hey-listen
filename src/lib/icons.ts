@@ -101,6 +101,8 @@ export const VIEW_ICONS: Record<AnalyzerView["kind"], IconName> = {
   noteMetrics: "table-list",
   /** Two spectra against a modulation-rate axis (M20). */
   modulation: "chart-line",
+  /** A filled sone curve over time (M27). */
+  loudness: "chart-area",
 };
 
 /** The icon for the two graph editors (a Sidebar row). */

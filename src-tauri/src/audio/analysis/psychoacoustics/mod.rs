@@ -2,9 +2,11 @@
 //!
 //! [`scales`] holds the Bark and ERB conversions (both directions) and
 //! [`bands`] turns the shared STFT magnitude into per-critical-band energy.
-//! Later milestones (loudness, sharpness, masking) build on the same two.
+//! [`loudness`] is the Moore–Glasberg stationary loudness model built on both.
+//! Later milestones (sharpness, masking) build on the same blocks.
 
 pub mod bands;
+pub mod loudness;
 pub mod scales;
 
 pub use scales::Scale;

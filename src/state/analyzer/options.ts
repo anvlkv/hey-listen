@@ -39,6 +39,7 @@ const ENGINE_KEYS = [
   "minVoicedSecs",
   "topPeaks",
   "scale",
+  "calibrationDbSpl",
 ] as const;
 
 /** snake_case aliases accepted at the MCP / CLI boundary (mirrors the Rust side). */
@@ -69,6 +70,7 @@ const OPTION_ALIASES: Record<string, string> = {
   mod_max_hz: "modMaxHz",
   min_voiced_secs: "minVoicedSecs",
   top_peaks: "topPeaks",
+  calibration_db_spl: "calibrationDbSpl",
 };
 
 const ENGINE_KEY_SET = new Set<string>(ENGINE_KEYS);

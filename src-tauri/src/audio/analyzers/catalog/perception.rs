@@ -4,18 +4,50 @@
 use super::super::{AnalyzerId, AnalyzerInfo, Section};
 
 /// The perceptual (auditory-model) tools, shown after the Loudness section.
-pub(super) const PERCEPTION: &[AnalyzerInfo] = &[AnalyzerInfo {
-    id: AnalyzerId::CriticalBands,
-    title: "Critical bands",
-    description: "Bark or ERB critical-band energy over time",
-    section: Section::Perception,
-    keywords: &[
-        "critical",
-        "band",
-        "bark",
-        "erb",
-        "psychoacoustic",
-        "perception",
-        "energy",
-    ],
-}];
+pub(super) const PERCEPTION: &[AnalyzerInfo] = &[
+    AnalyzerInfo {
+        id: AnalyzerId::CriticalBands,
+        title: "Critical bands",
+        description: "Bark or ERB critical-band energy over time",
+        section: Section::Perception,
+        keywords: &[
+            "critical",
+            "band",
+            "bark",
+            "erb",
+            "psychoacoustic",
+            "perception",
+            "energy",
+        ],
+    },
+    AnalyzerInfo {
+        id: AnalyzerId::Loudness,
+        title: "Loudness (sone/phon)",
+        description: "Perceived loudness — ISO 532-2 stationary sones over time",
+        section: Section::Perception,
+        keywords: &[
+            "loudness",
+            "sone",
+            "phon",
+            "moore",
+            "glasberg",
+            "iso",
+            "perception",
+        ],
+    },
+    AnalyzerInfo {
+        id: AnalyzerId::SpecificLoudness,
+        title: "Specific loudness",
+        description: "N'(z) specific-loudness map over ERB bands",
+        section: Section::Perception,
+        keywords: &[
+            "specific",
+            "loudness",
+            "erb",
+            "sone",
+            "moore",
+            "glasberg",
+            "perception",
+        ],
+    },
+];

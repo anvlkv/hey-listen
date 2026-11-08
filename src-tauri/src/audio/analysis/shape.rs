@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::{
-    AnalysisResult, MatrixResult, NoteMetric, NoteMetricsResult, PitchResult, RhythmResult,
-    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, LoudnessResult, MatrixResult, NoteMetric, NoteMetricsResult, PitchResult,
+    RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 mod decimate;
@@ -90,7 +90,9 @@ pub fn compact(result: &AnalysisResult) -> Value {
         | AnalysisResult::Mfcc(r)
         | AnalysisResult::Chromagram(r)
         | AnalysisResult::SpectralContrast(r)
-        | AnalysisResult::CriticalBands(r) => compact_matrix(object, r),
+        | AnalysisResult::CriticalBands(r)
+        | AnalysisResult::SpecificLoudness(r) => compact_matrix(object, r),
+        AnalysisResult::Loudness(r) => compact_loudness(object, r),
         AnalysisResult::PitchPyin(r)
         | AnalysisResult::PitchYin(r)
         | AnalysisResult::PitchAutocorr(r) => compact_pitch(object, r),
@@ -155,6 +157,13 @@ fn compact_matrix(object: &mut Map<String, Value>, r: &MatrixResult) {
 fn compact_gapped_series(object: &mut Map<String, Value>, r: &SeriesResult) {
     insert(object, "times", time_axis(&r.times));
     insert(object, "values", stats_gaps(&r.values));
+}
+
+/// The sone and phon tracks become stats; `calibrated` / `calibrationDbSpl` stay as-is.
+fn compact_loudness(object: &mut Map<String, Value>, r: &LoudnessResult) {
+    insert(object, "times", time_axis(&r.times));
+    insert(object, "loudnessSone", stats_gaps(&r.loudness_sone));
+    insert(object, "loudnessPhon", stats_gaps(&r.loudness_phon));
 }
 
 fn compact_pitch(object: &mut Map<String, Value>, r: &PitchResult) {

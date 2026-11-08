@@ -7,9 +7,9 @@
 //! and numbers are written at full precision.
 
 use crate::audio::analysis::{
-    AnalysisResult, LevelsResult, LraResult, LufsResult, MatrixResult, ModulationResult,
-    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult,
-    WaveformResult,
+    AnalysisResult, LevelsResult, LoudnessResult, LraResult, LufsResult, MatrixResult,
+    ModulationResult, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult,
+    SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 /// Render a result as CSV. Every result kind has a shape; none falls through to an
@@ -40,6 +40,8 @@ pub fn csv(result: &AnalysisResult) -> String {
         | AnalysisResult::Chromagram(value)
         | AnalysisResult::SpectralContrast(value)
         | AnalysisResult::CriticalBands(value) => matrix(&mut out, value),
+        AnalysisResult::Loudness(value) => loudness(&mut out, value),
+        AnalysisResult::SpecificLoudness(value) => matrix(&mut out, value),
         AnalysisResult::NoteMetrics(value) => notes(&mut out, value),
         AnalysisResult::Modulation(value) => modulation(&mut out, value),
         AnalysisResult::Tempo(value)
@@ -194,6 +196,25 @@ fn levels(out: &mut String, value: &LevelsResult) {
         ("rms_db", value.rms_db),
     ] {
         row(out, &[key.into(), number(measured)]);
+    }
+}
+
+fn loudness(out: &mut String, value: &LoudnessResult) {
+    row(
+        out,
+        &[
+            "time_s".into(),
+            "loudness_sone".into(),
+            "loudness_phon".into(),
+        ],
+    );
+    for ((&time, sone), phon) in value
+        .times
+        .iter()
+        .zip(&value.loudness_sone)
+        .zip(&value.loudness_phon)
+    {
+        row(out, &[number(time), optional(*sone), optional(*phon)]);
     }
 }
 

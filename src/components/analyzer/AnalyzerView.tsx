@@ -2,6 +2,7 @@ import { Match, Switch, untrack } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import SeriesView from "./SeriesView";
+import LoudnessView from "./LoudnessView";
 import MatrixView from "./MatrixView";
 import ReadoutsView from "./ReadoutsView";
 import RhythmView from "./RhythmView";
@@ -49,6 +50,9 @@ export default function AnalyzerView(props: { id: AnalyzerId }) {
         </Match>
         <Match when={def().view.kind === "modulation"}>
           <ModulationView id={props.id} analysis={analysis} />
+        </Match>
+        <Match when={def().view.kind === "loudness"}>
+          <LoudnessView id={props.id} analysis={analysis} />
         </Match>
         <Match when={def().view.kind === "readouts"}>
           <ReadoutsView analysis={analysis} />

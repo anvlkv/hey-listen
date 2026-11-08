@@ -9,6 +9,7 @@
 mod families;
 mod format;
 mod keys;
+mod loudness;
 #[cfg(test)]
 mod tests;
 

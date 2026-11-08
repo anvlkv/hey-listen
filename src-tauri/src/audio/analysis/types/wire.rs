@@ -69,6 +69,8 @@ struct ToolOptionsWire {
     top_peaks: Option<usize>,
     #[serde(default)]
     scale: Option<usize>,
+    #[serde(default, alias = "calibration_db_spl")]
+    calibration_db_spl: Option<f32>,
 }
 
 impl From<ToolOptionsWire> for ToolOptions {
@@ -102,6 +104,7 @@ impl From<ToolOptionsWire> for ToolOptions {
             min_voiced_secs: wire.min_voiced_secs,
             top_peaks: wire.top_peaks,
             scale: wire.scale,
+            calibration_db_spl: wire.calibration_db_spl,
         }
     }
 }
@@ -148,6 +151,7 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "minVoicedSecs" | "min_voiced_secs" => "minVoicedSecs",
         "topPeaks" | "top_peaks" => "topPeaks",
         "scale" => "scale",
+        "calibrationDbSpl" | "calibration_db_spl" => "calibrationDbSpl",
         _ => return None,
     })
 }
