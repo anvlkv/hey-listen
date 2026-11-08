@@ -89,7 +89,8 @@ pub fn compact(result: &AnalysisResult) -> Value {
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)
         | AnalysisResult::Chromagram(r)
-        | AnalysisResult::SpectralContrast(r) => compact_matrix(object, r),
+        | AnalysisResult::SpectralContrast(r)
+        | AnalysisResult::CriticalBands(r) => compact_matrix(object, r),
         AnalysisResult::PitchPyin(r)
         | AnalysisResult::PitchYin(r)
         | AnalysisResult::PitchAutocorr(r) => compact_pitch(object, r),

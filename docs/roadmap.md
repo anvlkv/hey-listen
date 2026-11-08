@@ -2064,7 +2064,16 @@ result shapes, option defaults, and test plan live in
 **M26 → M27 → M28** (sharpness needs specific loudness); **M29** and **M30** each need
 only M26; **M31** needs M26 for the band basis and M27 only for the contour comparison.
 
-## M26 — Auditory scales + critical-band energy (planned)
+## M26 — Auditory scales + critical-band energy ✅
+
+> **Delivered.** `analysis/psychoacoustics/scales.rs` has the Bark and ERB rate
+> conversions (both directions) and `bands.rs` builds the critical-band edges and
+> integrates STFT power into per-band dBFS. The new **`criticalBands`** analyzer sits
+> under the **Perception** section, takes the `scale` option (Bark default / ERB), and
+> returns a frame × band `MatrixResult` whose `bands` axis holds the band-centre Hz;
+> the existing matrix heatmap labels its rows in Hz. Tests pin monotonic, covering
+> edges, the 1 kHz band landing, the differing Bark/ERB band counts, and a narrow
+> range clamping to one band.
 
 Bark and ERB scales, and a critical-band energy matrix that the loudness / masking models
 build on.

@@ -3,4 +3,4 @@
 /**
  * A Workbench tab id: an analyzer, or one of the graph editors.
  */
-export type ToolId = "filter" | "synth" | "waveform" | "levels" | "frameRms" | "spectrum" | "spectrogram" | "melSpectrogram" | "mfcc" | "chromagram" | "spectralCentroid" | "spectralFlux" | "spectralRolloff" | "spectralFlatness" | "spectralContrast" | "spectralBandwidth" | "spectralEntropy" | "spectralCrest" | "harmonicRatio" | "zeroCrossingRate" | "modulation" | "pitchPyin" | "pitchYin" | "pitchAutocorr" | "noteMetrics" | "tempo" | "onsets" | "downbeats" | "loudnessIntegrated" | "loudnessMomentary" | "loudnessRange";
+export type ToolId = "filter" | "synth" | "waveform" | "levels" | "frameRms" | "spectrum" | "spectrogram" | "melSpectrogram" | "mfcc" | "chromagram" | "spectralCentroid" | "spectralFlux" | "spectralRolloff" | "spectralFlatness" | "spectralContrast" | "spectralBandwidth" | "spectralEntropy" | "spectralCrest" | "harmonicRatio" | "zeroCrossingRate" | "modulation" | "pitchPyin" | "pitchYin" | "pitchAutocorr" | "noteMetrics" | "tempo" | "onsets" | "downbeats" | "loudnessIntegrated" | "loudnessMomentary" | "loudnessRange" | "criticalBands";

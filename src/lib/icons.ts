@@ -120,4 +120,5 @@ export const SECTION_ICONS: Record<AnalyzerSection, IconName> = {
   pitch: "music",
   rhythm: "drum",
   loudness: "volume-high",
+  perception: "ear-listen",
 };

@@ -8,6 +8,7 @@ use super::super::{
     AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SeriesResult, SharedParams,
     ToolOptions, DB_FLOOR,
 };
+use super::critical_bands::critical_bands;
 use super::gate::apply_gate;
 use super::{
     chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, modulation, note_metrics,
@@ -112,6 +113,12 @@ pub fn run(
         )?)),
         AnalyzerId::SpectralContrast => Ok(AnalysisResult::SpectralContrast(spectral_contrast(
             lib_mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
+        AnalyzerId::CriticalBands => Ok(AnalysisResult::CriticalBands(critical_bands(
+            mono,
             sample_rate,
             params,
             options,

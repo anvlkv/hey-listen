@@ -368,4 +368,20 @@ pub(super) const ANALYZERS: &[AnalyzerInfo] = &[
             "compression",
         ],
     },
+    // Perception
+    AnalyzerInfo {
+        id: AnalyzerId::CriticalBands,
+        title: "Critical bands",
+        description: "Bark or ERB critical-band energy over time",
+        section: Section::Perception,
+        keywords: &[
+            "critical",
+            "band",
+            "bark",
+            "erb",
+            "psychoacoustic",
+            "perception",
+            "energy",
+        ],
+    },
 ];

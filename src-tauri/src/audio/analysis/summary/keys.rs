@@ -93,7 +93,8 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
         AnalyzerId::MelSpectrogram
         | AnalyzerId::Mfcc
         | AnalyzerId::Chromagram
-        | AnalyzerId::SpectralContrast => MATRIX,
+        | AnalyzerId::SpectralContrast
+        | AnalyzerId::CriticalBands => MATRIX,
         AnalyzerId::FrameRms => FRAME_RMS,
         AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
         AnalyzerId::NoteMetrics => NOTES,

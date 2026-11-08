@@ -79,6 +79,7 @@ id_enum! {
         Pitch,
         Rhythm,
         Loudness,
+        Perception,
     }
 }
 

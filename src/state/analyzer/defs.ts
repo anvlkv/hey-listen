@@ -8,6 +8,7 @@
  */
 import { LOUDNESS_ANALYZERS } from "./defs/loudness";
 import { MODULATION_ANALYZERS } from "./defs/modulation";
+import { PERCEPTION_ANALYZERS } from "./defs/perception";
 import { PITCH_ANALYZERS } from "./defs/pitch";
 import { RHYTHM_ANALYZERS } from "./defs/rhythm";
 import { SPECTRAL_FRAME_ANALYZERS } from "./defs/spectralFrames";
@@ -22,6 +23,7 @@ export const ANALYZER_SECTIONS: { id: AnalyzerSection; title: string }[] = [
   { id: "pitch", title: "Pitch / melody" },
   { id: "rhythm", title: "Rhythm / tempo" },
   { id: "loudness", title: "Loudness" },
+  { id: "perception", title: "Perception" },
 ];
 
 /** Every analyzer tool, in Sidebar order. */
@@ -33,4 +35,5 @@ export const ANALYZERS: AnalyzerDef[] = [
   ...PITCH_ANALYZERS,
   ...RHYTHM_ANALYZERS,
   ...LOUDNESS_ANALYZERS,
+  ...PERCEPTION_ANALYZERS,
 ];

@@ -51,4 +51,5 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "loudnessIntegrated", title: "Integrated LUFS", view: "readouts" },
   { id: "loudnessMomentary", title: "Loudness (momentary)", view: "series" },
   { id: "loudnessRange", title: "Loudness range", view: "readouts" },
+  { id: "criticalBands", title: "Critical bands", view: "matrix" },
 ];
