@@ -65,6 +65,8 @@ mod options;
 pub use family::{about, family_of, Family};
 pub use id::{AnalyzerId, ToolId};
 
+use std::sync::LazyLock;
+
 use serde_json::{json, Map, Value};
 
 use crate::audio::analysis::ToolOptions;
@@ -94,7 +96,7 @@ pub struct AnalyzerInfo {
 }
 
 /// Every analyzer, grouped by section, in the order the Sidebar shows them.
-pub const ANALYZERS: &[AnalyzerInfo] = catalog::ANALYZERS;
+pub static ANALYZERS: LazyLock<Vec<&'static AnalyzerInfo>> = LazyLock::new(catalog::all);
 
 /// An analyzer's human title (`"Spectrum"`).
 pub fn title(id: AnalyzerId) -> Option<&'static str> {

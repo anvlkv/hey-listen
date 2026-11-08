@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn every_analyzer_has_a_family() {
-        for analyzer in ANALYZERS {
+        for analyzer in ANALYZERS.iter() {
             // The match is exhaustive by construction; this pins the interesting ones.
             assert!(!family_of(analyzer.id).as_ref().is_empty());
         }
