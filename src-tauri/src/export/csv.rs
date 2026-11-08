@@ -38,7 +38,8 @@ pub fn csv(result: &AnalysisResult) -> String {
         AnalysisResult::MelSpectrogram(value)
         | AnalysisResult::Mfcc(value)
         | AnalysisResult::Chromagram(value)
-        | AnalysisResult::SpectralContrast(value) => matrix(&mut out, value),
+        | AnalysisResult::SpectralContrast(value)
+        | AnalysisResult::CriticalBands(value) => matrix(&mut out, value),
         AnalysisResult::NoteMetrics(value) => notes(&mut out, value),
         AnalysisResult::Modulation(value) => modulation(&mut out, value),
         AnalysisResult::Tempo(value)

@@ -56,7 +56,8 @@ pub fn family_of(id: AnalyzerId) -> Family {
         AnalyzerId::MelSpectrogram
         | AnalyzerId::Mfcc
         | AnalyzerId::Chromagram
-        | AnalyzerId::SpectralContrast => Family::Matrix,
+        | AnalyzerId::SpectralContrast
+        | AnalyzerId::CriticalBands => Family::Matrix,
         AnalyzerId::NoteMetrics => Family::Notes,
         AnalyzerId::Tempo | AnalyzerId::Onsets | AnalyzerId::Downbeats => Family::Events,
         AnalyzerId::Waveform

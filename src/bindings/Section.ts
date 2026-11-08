@@ -3,4 +3,4 @@
 /**
  * The Sidebar grouping of an analyzer (mirrors `AnalyzerSection` in the frontend).
  */
-export type Section = "time" | "spectral" | "pitch" | "rhythm" | "loudness";
+export type Section = "time" | "spectral" | "pitch" | "rhythm" | "loudness" | "perception";

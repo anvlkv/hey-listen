@@ -38,6 +38,7 @@ const ENGINE_KEYS = [
   "detrend",
   "minVoicedSecs",
   "topPeaks",
+  "scale",
 ] as const;
 
 /** snake_case aliases accepted at the MCP / CLI boundary (mirrors the Rust side). */

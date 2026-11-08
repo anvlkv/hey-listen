@@ -339,4 +339,15 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
             help: "Momentary window in ms; 0 uses the EBU R128 400 ms block.",
         }],
     ),
+    (
+        AnalyzerId::CriticalBands,
+        &[OptionInfo {
+            key: "scale",
+            label: "Scale",
+            default: 0.0,
+            min: 0.0,
+            max: 1.0,
+            help: "Critical-band scale: 0 = Bark, 1 = ERB.",
+        }],
+    ),
 ];

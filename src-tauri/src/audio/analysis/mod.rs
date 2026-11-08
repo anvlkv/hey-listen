@@ -16,6 +16,7 @@
 //! per-family tool implementations plus the [`run`] dispatcher.
 
 pub mod compare;
+pub mod psychoacoustics;
 mod pyin;
 mod results;
 mod shape;

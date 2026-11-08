@@ -116,6 +116,7 @@ workbench_ids! {
     LoudnessIntegrated,
     LoudnessMomentary,
     LoudnessRange,
+    CriticalBands,
 }
 
 wire_id!(AnalyzerId, "analyzer");

@@ -208,7 +208,7 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::MelSpectrogram(matrix.clone()),
         AnalysisResult::Mfcc(matrix.clone()),
         AnalysisResult::Chromagram(matrix.clone()),
-        AnalysisResult::SpectralContrast(matrix),
+        AnalysisResult::SpectralContrast(matrix.clone()),
         AnalysisResult::SpectralCentroid(series.clone()),
         AnalysisResult::SpectralFlux(series.clone()),
         AnalysisResult::SpectralRolloff(series.clone()),
@@ -229,5 +229,6 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::LoudnessIntegrated(LufsResult { lufs: -23.0 }),
         AnalysisResult::LoudnessMomentary(series),
         AnalysisResult::LoudnessRange(LraResult { lra: 12.0 }),
+        AnalysisResult::CriticalBands(matrix),
     ]
 }

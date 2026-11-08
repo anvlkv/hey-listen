@@ -132,6 +132,7 @@ pub struct ToolOptions {
     pub detrend: Option<usize>,
     pub min_voiced_secs: Option<f32>,
     pub top_peaks: Option<usize>,
+    pub scale: Option<usize>,
 }
 
 /// How a modulation envelope is detrended before its spectrum is taken (M20).
@@ -370,5 +371,14 @@ impl ToolOptions {
     /// The f0 search range for the modulation pitch track (M20), defaulting to YIN's.
     pub(super) fn mod_pitch_range(&self) -> (f32, f32) {
         self.f0_range(YIN_MIN_F0, YIN_MAX_F0)
+    }
+
+    /// The critical-band scale for `criticalBands` (M26): `0` or absent is Bark,
+    /// anything else is ERB.
+    pub(super) fn scale(&self) -> crate::audio::analysis::psychoacoustics::Scale {
+        match self.scale {
+            Some(0) | None => crate::audio::analysis::psychoacoustics::Scale::Bark,
+            Some(_) => crate::audio::analysis::psychoacoustics::Scale::Erb,
+        }
     }
 }

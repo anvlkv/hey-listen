@@ -36,7 +36,8 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)
         | AnalysisResult::Chromagram(r)
-        | AnalysisResult::SpectralContrast(r) => {
+        | AnalysisResult::SpectralContrast(r)
+        | AnalysisResult::CriticalBands(r) => {
             thin_frames(object, max, r.frames, r.bins, "values", false);
         }
         // Scalar-per-frame series.

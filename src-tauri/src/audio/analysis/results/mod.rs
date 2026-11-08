@@ -235,6 +235,7 @@ pub enum AnalysisResult {
     LoudnessIntegrated(LufsResult),
     LoudnessMomentary(SeriesResult),
     LoudnessRange(LraResult),
+    CriticalBands(MatrixResult),
 }
 
 impl AnalysisResult {
@@ -271,6 +272,7 @@ impl AnalysisResult {
             AnalysisResult::LoudnessIntegrated(_) => AnalyzerId::LoudnessIntegrated,
             AnalysisResult::LoudnessMomentary(_) => AnalyzerId::LoudnessMomentary,
             AnalysisResult::LoudnessRange(_) => AnalyzerId::LoudnessRange,
+            AnalysisResult::CriticalBands(_) => AnalyzerId::CriticalBands,
         }
     }
 
@@ -310,7 +312,8 @@ impl AnalysisResult {
             AnalysisResult::MelSpectrogram(result)
             | AnalysisResult::Mfcc(result)
             | AnalysisResult::Chromagram(result)
-            | AnalysisResult::SpectralContrast(result) => {
+            | AnalysisResult::SpectralContrast(result)
+            | AnalysisResult::CriticalBands(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }

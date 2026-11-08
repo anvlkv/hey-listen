@@ -68,6 +68,13 @@ export default function MatrixView(props: {
   const config = () => analyzerById(props.id).view as MatrixViewConfig;
   const result = () => props.analysis.result() as MatrixResult | null;
 
+  /** Format a band row: its `bands[i]` value (Hz) when the axis is values, else the row. */
+  const bandLabel = (band: number): string => {
+    const value = result();
+    const position = config().bandAxisIsValue && value ? (value.bands[band] ?? band) : band;
+    return config().formatBand(position);
+  };
+
   const chart = createChartInteraction<View, Hover, MatrixResult>({
     // A tab's id is fixed for its lifetime, so the interaction is built once (untracked).
     id: untrack(() => props.id),
@@ -176,7 +183,7 @@ export default function MatrixView(props: {
     for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
       const band = Math.round(frac * (value.bins - 1));
       const y = box.y + box.height - frac * box.height;
-      ctx.fillText(config().formatBand(band), box.x - 6, y);
+      ctx.fillText(bandLabel(band), box.x - 6, y);
     }
     ctx.textAlign = "left";
   }
@@ -203,7 +210,7 @@ export default function MatrixView(props: {
         <Readout label="Time" value={chart.hover() ? `${chart.hover()!.time.toFixed(3)} s` : "—"} />
         <Readout
           label={config().yLabel}
-          value={chart.hover() ? config().formatBand(chart.hover()!.band) : "—"}
+          value={chart.hover() ? bandLabel(chart.hover()!.band) : "—"}
         />
         <Readout
           label="Value"

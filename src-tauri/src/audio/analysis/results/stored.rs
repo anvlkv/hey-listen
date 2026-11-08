@@ -214,6 +214,7 @@ pub enum StoredAnalysisResult {
     LoudnessIntegrated(LufsResult),
     LoudnessMomentary(StoredSeries),
     LoudnessRange(LraResult),
+    CriticalBands(MatrixResult),
 }
 
 impl From<&AnalysisResult> for StoredAnalysisResult {
@@ -248,6 +249,7 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::LoudnessIntegrated(value) => Self::LoudnessIntegrated(value.clone()),
             AnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.into()),
             AnalysisResult::LoudnessRange(value) => Self::LoudnessRange(value.clone()),
+            AnalysisResult::CriticalBands(value) => Self::CriticalBands(value.clone()),
         }
     }
 }
@@ -284,6 +286,7 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::LoudnessIntegrated(value) => Self::LoudnessIntegrated(value),
             StoredAnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.into()),
             StoredAnalysisResult::LoudnessRange(value) => Self::LoudnessRange(value),
+            StoredAnalysisResult::CriticalBands(value) => Self::CriticalBands(value),
         }
     }
 }

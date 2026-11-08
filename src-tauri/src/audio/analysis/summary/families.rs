@@ -30,7 +30,8 @@ pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)
         | AnalysisResult::Chromagram(r)
-        | AnalysisResult::SpectralContrast(r) => matrix(&mut b, tool, r),
+        | AnalysisResult::SpectralContrast(r)
+        | AnalysisResult::CriticalBands(r) => matrix(&mut b, tool, r),
         AnalysisResult::FrameRms(r) => frame_rms(&mut b, r),
         AnalysisResult::PitchPyin(r)
         | AnalysisResult::PitchYin(r)
@@ -91,6 +92,7 @@ fn matrix(b: &mut SummaryBuilder, tool: AnalyzerId, r: &MatrixResult) {
         b.count("peakBand", "peak band", band);
         let unit = match tool {
             AnalyzerId::MelSpectrogram | AnalyzerId::SpectralContrast => Some("dB"),
+            AnalyzerId::CriticalBands => Some("dBFS"),
             _ => None,
         };
         b.push("peakValue", "peak value", f64::from(value), unit);

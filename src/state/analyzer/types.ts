@@ -60,6 +60,11 @@ export interface MatrixView {
   formatValue: (value: number) => string;
   /** Draw pitch-class row lines (chromagram). */
   noteGrid?: boolean;
+  /**
+   * `formatBand` receives the result's `bands[i]` value (e.g. Hz) rather than the row
+   * index — the critical-band matrix labels rows by band centre frequency (M26).
+   */
+  bandAxisIsValue?: boolean;
 }
 
 export interface WaveformView {

@@ -67,6 +67,8 @@ struct ToolOptionsWire {
     min_voiced_secs: Option<f32>,
     #[serde(default, alias = "top_peaks")]
     top_peaks: Option<usize>,
+    #[serde(default)]
+    scale: Option<usize>,
 }
 
 impl From<ToolOptionsWire> for ToolOptions {
@@ -99,6 +101,7 @@ impl From<ToolOptionsWire> for ToolOptions {
             detrend: wire.detrend,
             min_voiced_secs: wire.min_voiced_secs,
             top_peaks: wire.top_peaks,
+            scale: wire.scale,
         }
     }
 }
@@ -144,6 +147,7 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "detrend" => "detrend",
         "minVoicedSecs" | "min_voiced_secs" => "minVoicedSecs",
         "topPeaks" | "top_peaks" => "topPeaks",
+        "scale" => "scale",
         _ => return None,
     })
 }

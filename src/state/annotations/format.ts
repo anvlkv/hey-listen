@@ -156,7 +156,9 @@ export function valuesText(tool: AnalyzerId, result: AnyAnalysisResult, timeSecs
         band = b;
       }
     }
-    return `t ${t} s · ${view.yLabel} ${view.formatBand(band)}: ${view.formatValue(best)}`;
+    return `t ${t} s · ${view.yLabel} ${view.formatBand(
+      view.bandAxisIsValue ? (r.bands[band] ?? band) : band,
+    )}: ${view.formatValue(best)}`;
   }
   if ("times" in result) {
     const r = result as SeriesResult;
