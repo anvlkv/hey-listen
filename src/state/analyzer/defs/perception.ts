@@ -1,4 +1,5 @@
 import { fmtDb, formatHz } from "../format";
+import { series } from "../view";
 import type { AnalyzerDef } from "../types";
 
 /** Perceptual (auditory-model) tools (Sidebar section `perception`). */
@@ -120,6 +121,44 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       formatValue: (value) => `${value.toFixed(3)} sone/Bark`,
       bandAxisIsValue: true,
     },
+    params: [
+      {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 140,
+        step: 1,
+        suffix: "dB SPL",
+        title: "dB SPL of a full-scale sine; 0 = uncalibrated.",
+      },
+    ],
+  },
+  {
+    id: "sharpness",
+    title: "Sharpness",
+    description:
+      "Perceived sharpness — high-frequency emphasis of the specific-loudness distribution",
+    about:
+      "**What it shows.** Perceived sharpness per analysis frame, in acum, computed " +
+      "from the specific-loudness distribution: the distribution is weighted toward " +
+      "its high-frequency part, so a brighter sound scores higher than a dull, " +
+      "low-frequency one at the same loudness. A 1 kHz reference tone reads about " +
+      "1 acum.\n\n" +
+      "**Why use it.** Sharpness separates a dull thud from a piercing, metallic or " +
+      "hissy sound, which a physical brightness measure such as the spectral centroid " +
+      "only approximates.\n\n" +
+      "**Calibration matters.** With *Calibration* at 0 the input is **uncalibrated** " +
+      "and the values are relative. Set it to the dB SPL of a full-scale sine to read " +
+      "absolute acum, sharing the loudness model's calibration. This is a documented " +
+      "approximation of the perceived quantity, not a conformance claim for any " +
+      "standard.",
+    keywords: ["sharpness", "brightness", "acum", "perception", "high frequency"],
+    section: "perception",
+    view: series("sharpness (acum)", (value) => value.toFixed(2) + " acum", {
+      style: "area",
+    }),
     params: [
       {
         key: "calibrationDbSpl",

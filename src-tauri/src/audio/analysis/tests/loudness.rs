@@ -1,26 +1,10 @@
 //! The `loudness` / `specificLoudness` tools through the shared dispatcher (M27).
 
-use super::{params, RATE};
+use super::{calibration, median, params, tone, RATE};
 use crate::audio::analysis::psychoacoustics::bands::critical_band_edges;
 use crate::audio::analysis::psychoacoustics::scales::{cam, Scale};
 use crate::audio::analysis::{run, AnalysisResult, LoudnessResult, MatrixResult, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
-
-/// A `hz` sine of the given peak amplitude.
-fn tone(amplitude: f32, hz: f32, seconds: f32) -> Vec<f32> {
-    let frames = (seconds * RATE as f32) as usize;
-    let step = std::f32::consts::TAU * hz / RATE as f32;
-    (0..frames)
-        .map(|i| amplitude * (step * i as f32).sin())
-        .collect()
-}
-
-fn calibration(db_spl: f32) -> ToolOptions {
-    ToolOptions {
-        calibration_db_spl: Some(db_spl),
-        ..ToolOptions::default()
-    }
-}
 
 fn loudness_result(mono: &[f32], options: &ToolOptions) -> LoudnessResult {
     match run(AnalyzerId::Loudness, mono, RATE, &params(2048), options).expect("loudness") {
@@ -42,12 +26,6 @@ fn specific_result(mono: &[f32], options: &ToolOptions) -> MatrixResult {
         AnalysisResult::SpecificLoudness(result) => result,
         other => panic!("unexpected result: {other:?}"),
     }
-}
-
-fn median(values: &[Option<f32>]) -> f32 {
-    let mut present: Vec<f32> = values.iter().flatten().copied().collect();
-    present.sort_by(f32::total_cmp);
-    present.get(present.len() / 2).copied().unwrap_or(0.0)
 }
 
 #[test]

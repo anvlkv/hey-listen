@@ -12,6 +12,7 @@ mod note_quality;
 mod notes;
 mod pitch_track;
 mod shared;
+mod sharpness;
 mod spectrum;
 mod time;
 

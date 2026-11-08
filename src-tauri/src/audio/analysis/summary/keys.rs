@@ -95,6 +95,18 @@ const LOUDNESS: &[&str] = &[
     "calibrationDbSpl",
 ];
 
+/// The summary item keys a calibrated scalar series reports (M28): the value
+/// extents over the track plus the calibration state.
+const CALIBRATED_SERIES: &[&str] = &[
+    "frames",
+    "min",
+    "max",
+    "minTime",
+    "maxTime",
+    "calibrated",
+    "calibrationDbSpl",
+];
+
 /// The summary item keys `tool` produces. Analyzers that are not listed fall back to
 /// the generic series shape (every scalar-per-frame tool).
 pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
@@ -109,6 +121,7 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
         | AnalyzerId::CriticalBands
         | AnalyzerId::SpecificLoudness => MATRIX,
         AnalyzerId::Loudness => LOUDNESS,
+        AnalyzerId::Sharpness => CALIBRATED_SERIES,
         AnalyzerId::FrameRms => FRAME_RMS,
         AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
         AnalyzerId::NoteMetrics => NOTES,

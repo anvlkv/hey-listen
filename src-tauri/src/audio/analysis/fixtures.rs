@@ -4,9 +4,9 @@
 //! headless tests all use the same sample payloads instead of repeating them.
 
 use super::{
-    AnalysisResult, GapMetric, LevelsResult, LoudnessResult, LraResult, LufsResult, MatrixResult,
-    ModulationPeak, ModulationResult, NoteMetric, NoteMetricsResult, PitchResult, RhythmResult,
-    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, CalibratedSeriesResult, GapMetric, LevelsResult, LoudnessResult, LraResult,
+    LufsResult, MatrixResult, ModulationPeak, ModulationResult, NoteMetric, NoteMetricsResult,
+    PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 pub(crate) fn series() -> SeriesResult {
@@ -74,6 +74,23 @@ pub(crate) fn loudness() -> LoudnessResult {
         times: vec![0.0, 0.01, 0.02, 0.03],
         loudness_sone: vec![Some(1.0), None, Some(3.0), Some(2.0)],
         loudness_phon: vec![Some(40.0), None, Some(55.85), Some(50.0)],
+        calibrated: true,
+        calibration_db_spl: 94.0,
+    }
+}
+
+/// A representative calibrated scalar series (M28): the series fixture's track, in
+/// acum, under a 94 dB SPL calibration.
+pub(crate) fn calibrated_series() -> CalibratedSeriesResult {
+    let series = series();
+    CalibratedSeriesResult {
+        sample_rate: series.sample_rate,
+        hop_size: series.hop_size,
+        window_start: series.window_start,
+        times: series.times,
+        values: series.values,
+        min_value: series.min_value,
+        max_value: series.max_value,
         calibrated: true,
         calibration_db_spl: 94.0,
     }
@@ -246,5 +263,6 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::CriticalBands(matrix.clone()),
         AnalysisResult::Loudness(loudness()),
         AnalysisResult::SpecificLoudness(matrix),
+        AnalysisResult::Sharpness(calibrated_series()),
     ]
 }

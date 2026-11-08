@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::{
-    AnalysisResult, LoudnessResult, MatrixResult, NoteMetric, NoteMetricsResult, PitchResult,
-    RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, CalibratedSeriesResult, LoudnessResult, MatrixResult, NoteMetric,
+    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult,
+    WaveformResult,
 };
 
 mod decimate;
@@ -106,11 +107,13 @@ pub fn compact(result: &AnalysisResult) -> Value {
             insert(object, "fmDb", stats_f32(&r.fm_db));
         }
         other => {
-            // Every scalar-per-frame tool shares one compact shape; the scalar
-            // readouts (levels, integrated loudness, LRA) carry no series and pass
-            // through unchanged.
+            // Every scalar-per-frame tool shares one compact shape; the calibrated
+            // series has its own (same arrays plus the calibration state), and the
+            // scalar readouts (levels, integrated loudness, LRA) pass through unchanged.
             if let Some(r) = other.series() {
                 compact_gapped_series(object, r);
+            } else if let Some(r) = other.calibrated_series() {
+                compact_calibrated_series(object, r);
             }
         }
     }
@@ -164,6 +167,12 @@ fn compact_loudness(object: &mut Map<String, Value>, r: &LoudnessResult) {
     insert(object, "times", time_axis(&r.times));
     insert(object, "loudnessSone", stats_gaps(&r.loudness_sone));
     insert(object, "loudnessPhon", stats_gaps(&r.loudness_phon));
+}
+
+/// The sharpness track becomes stats; `calibrated` / `calibrationDbSpl` stay as-is.
+fn compact_calibrated_series(object: &mut Map<String, Value>, r: &CalibratedSeriesResult) {
+    insert(object, "times", time_axis(&r.times));
+    insert(object, "values", stats_gaps(&r.values));
 }
 
 fn compact_pitch(object: &mut Map<String, Value>, r: &PitchResult) {

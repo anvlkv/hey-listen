@@ -7,8 +7,8 @@
 //! and numbers are written at full precision.
 
 use crate::audio::analysis::{
-    AnalysisResult, LevelsResult, LoudnessResult, LraResult, LufsResult, MatrixResult,
-    ModulationResult, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult,
+    AnalysisResult, CalibratedSeriesResult, LevelsResult, LoudnessResult, LraResult, LufsResult,
+    MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult,
     SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
@@ -32,6 +32,7 @@ pub fn csv(result: &AnalysisResult) -> String {
         | AnalysisResult::HarmonicRatio(value)
         | AnalysisResult::ZeroCrossingRate(value)
         | AnalysisResult::LoudnessMomentary(value) => series(&mut out, value),
+        AnalysisResult::Sharpness(value) => calibrated_series(&mut out, value),
         AnalysisResult::PitchPyin(value)
         | AnalysisResult::PitchYin(value)
         | AnalysisResult::PitchAutocorr(value) => pitch(&mut out, value),
@@ -153,17 +154,23 @@ fn spectrogram(out: &mut String, value: &SpectrogramResult) {
 }
 
 fn series(out: &mut String, value: &SeriesResult) {
-    row(out, &["time_s".into(), "value".into()]);
-    for (time, measured) in value.times.iter().zip(value.values.iter()) {
+    time_value_rows(out, "value", &value.times, &value.values);
+}
+
+fn calibrated_series(out: &mut String, value: &CalibratedSeriesResult) {
+    time_value_rows(out, "value", &value.times, &value.values);
+}
+
+/// `time_s` plus one value per frame, with gaps as blank cells.
+fn time_value_rows(out: &mut String, header: &str, times: &[f32], values: &[Option<f32>]) {
+    row(out, &["time_s".into(), header.into()]);
+    for (time, measured) in times.iter().zip(values.iter()) {
         row(out, &[number(*time), optional(*measured)]);
     }
 }
 
 fn pitch(out: &mut String, value: &PitchResult) {
-    row(out, &["time_s".into(), "f0_hz".into()]);
-    for (time, measured) in value.times.iter().zip(value.values.iter()) {
-        row(out, &[number(*time), optional(*measured)]);
-    }
+    time_value_rows(out, "f0_hz", &value.times, &value.values);
 }
 
 fn matrix(out: &mut String, value: &MatrixResult) {

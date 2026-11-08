@@ -119,6 +119,7 @@ workbench_ids! {
     CriticalBands,
     Loudness,
     SpecificLoudness,
+    Sharpness,
 }
 
 wire_id!(AnalyzerId, "analyzer");

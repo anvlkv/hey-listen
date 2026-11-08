@@ -20,6 +20,7 @@ import type { RhythmResult as RhythmPayload } from "../../bindings/RhythmResult"
 import type { LufsResult as LufsPayload } from "../../bindings/LufsResult";
 import type { LraResult as LraPayload } from "../../bindings/LraResult";
 import type { LoudnessResult as LoudnessPayload } from "../../bindings/LoudnessResult";
+import type { CalibratedSeriesResult as CalibratedSeriesPayload } from "../../bindings/CalibratedSeriesResult";
 import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
 import type { ModulationResult as ModulationPayload } from "../../bindings/ModulationResult";
 
@@ -215,6 +216,11 @@ export interface LoudnessResult extends LoudnessPayload {
   tool: "loudness";
 }
 
+/** Perceived sharpness (acum) per frame, under a calibration (M28). */
+export interface CalibratedSeriesResult extends CalibratedSeriesPayload {
+  tool: AnalyzerId;
+}
+
 /** Any analyzer result returned over IPC. */
 export type AnyAnalysisResult =
   | WaveformResult
@@ -229,4 +235,5 @@ export type AnyAnalysisResult =
   | ModulationResult
   | LufsResult
   | LraResult
-  | LoudnessResult;
+  | LoudnessResult
+  | CalibratedSeriesResult;

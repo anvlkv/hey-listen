@@ -217,6 +217,7 @@ pub enum StoredAnalysisResult {
     CriticalBands(MatrixResult),
     Loudness(LoudnessResult),
     SpecificLoudness(MatrixResult),
+    Sharpness(CalibratedSeriesResult),
 }
 
 impl From<&AnalysisResult> for StoredAnalysisResult {
@@ -254,6 +255,7 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::CriticalBands(value) => Self::CriticalBands(value.clone()),
             AnalysisResult::Loudness(value) => Self::Loudness(value.clone()),
             AnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value.clone()),
+            AnalysisResult::Sharpness(value) => Self::Sharpness(value.clone()),
         }
     }
 }
@@ -293,6 +295,7 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::CriticalBands(value) => Self::CriticalBands(value),
             StoredAnalysisResult::Loudness(value) => Self::Loudness(value),
             StoredAnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value),
+            StoredAnalysisResult::Sharpness(value) => Self::Sharpness(value),
         }
     }
 }
