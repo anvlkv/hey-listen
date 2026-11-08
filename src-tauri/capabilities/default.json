@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the project windows (the main window, any window opened via New Window, and a tab or annotation popped out of one)",
-  "windows": ["main", "project-*", "popout-*", "annotation-*"],
+  "windows": ["main", "project-*", "popout-*", "annotation-*", "compare-*"],
   "permissions": [
     "core:default",
     "core:window:allow-set-title",
