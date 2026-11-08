@@ -118,7 +118,18 @@ pub fn run() {
         .plugin(tauri_plugin_cli::init())
         // MCP control persistence (`mcp-settings.json`) and the popover's Copy button.
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_clipboard_manager::init());
+        .plugin(tauri_plugin_clipboard_manager::init())
+        // `relaunch()` after an update installs (M33.C). The permission it needs is
+        // `process:allow-restart` in `capabilities/default.json`.
+        .plugin(tauri_plugin_process::init());
+
+    // Self-update (M33.C, ADR-30). GUI only: a CLI invocation (`--mcp`) has no window and
+    // must not register update commands or reach the network. `tauri-plugin-updater` is a
+    // desktop-only dependency. See `docs/updater.md`.
+    #[cfg(desktop)]
+    if !cli_invocation {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
 
     // E2E testing (M8): the embedded WebDriver server + the execute/mocking plugin.
     // Registered only when the E2E service launched the app — `@wdio/tauri-service`
@@ -181,6 +192,14 @@ pub fn run() {
             // MCP settings + server lifecycle: load the persisted config and, when it
             // is enabled, start the loopback endpoint the bridge connects to.
             app.manage(mcp::settings::McpController::load(app.handle()));
+            // The update the user was offered (M33.C), between check and install.
+            #[cfg(desktop)]
+            app.manage(commands::update::PendingUpdate::default());
+
+            // CLI follows the app (ADR-30): when an installed `hey-listen-cli` came from
+            // another app version, refresh it from this build. Off the UI thread, so a
+            // relaunch after an update never waits on a file copy.
+            commands::cli_install::refresh_on_startup(app.handle());
 
             // Native menu; File actions go to the focused window, the rest are native.
             let menu = menu::build(app.handle())?;
@@ -302,6 +321,13 @@ pub fn run() {
             commands::themes::reveal_theme_dir,
             commands::app::open_external_url,
             commands::app::e2e_enabled,
+            commands::cli_install::cli_tool_status,
+            commands::cli_install::cli_tool_install,
+            commands::cli_install::cli_tool_uninstall,
+            #[cfg(desktop)]
+            commands::update::check_update,
+            #[cfg(desktop)]
+            commands::update::install_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

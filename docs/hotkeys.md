@@ -153,9 +153,9 @@ steals Space from a text field or a focused button (where Space belongs to the c
 ### Native menu (read-only)
 
 `Mod+N` New · `Mod+O` Open · `Mod+S` Save · `Mod+Shift+S` Save As · `Mod+Shift+N` New
-Window · `Mod+Z` Undo · `Mod+Shift+Z` Redo · `Mod+Q` Quit · Help → About / Keyboard
-Shortcuts. These keep their OS accelerators; the explorer lists them so the user can see
-the whole keyboard surface in one place.
+Window · `Mod+Z` Undo · `Mod+Shift+Z` Redo · `Mod+Q` Quit · Help → About / Check for
+Updates… / Keyboard Shortcuts. These keep their OS accelerators; the explorer lists them
+so the user can see the whole keyboard surface in one place.
 
 ## Command palette
 
