@@ -7,11 +7,12 @@
 //! simply absent.
 
 use super::super::shape::{flat_peak, matrix_peak, spectrogram_peak};
+use super::calibrated_series::{calibrated_series, push_series_extents};
 use super::loudness::loudness;
 use super::SummaryBuilder;
 use crate::audio::analysis::{
-    AnalysisResult, CalibratedSeriesResult, MatrixResult, ModulationResult, NoteMetricsResult,
-    PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
+    AnalysisResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
+    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 use crate::audio::analyzers::AnalyzerId;
 
@@ -35,7 +36,9 @@ pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
         | AnalysisResult::CriticalBands(r)
         | AnalysisResult::SpecificLoudness(r) => matrix(&mut b, tool, r),
         AnalysisResult::Loudness(r) => loudness(&mut b, r),
-        AnalysisResult::Sharpness(r) => calibrated_series(&mut b, r),
+        AnalysisResult::Sharpness(r)
+        | AnalysisResult::Roughness(r)
+        | AnalysisResult::FluctuationStrength(r) => calibrated_series(&mut b, tool, r),
         AnalysisResult::FrameRms(r) => frame_rms(&mut b, r),
         AnalysisResult::PitchPyin(r)
         | AnalysisResult::PitchYin(r)
@@ -160,59 +163,6 @@ fn series(b: &mut SummaryBuilder, tool: AnalyzerId, r: &SeriesResult) {
     b.count("frames", "frames", r.frames);
     push_series_extents(b, &r.times, &r.values, unit);
     gate(b, r.gate.as_ref());
-}
-
-/// A calibrated scalar series (M28): the value extents in acum plus the calibration
-/// state, so an uncalibrated result is never read as absolute.
-fn calibrated_series(b: &mut SummaryBuilder, r: &CalibratedSeriesResult) {
-    b.count("frames", "frames", r.values.len());
-    push_series_extents(b, &r.times, &r.values, Some("acum"));
-    b.push(
-        "calibrated",
-        "calibrated",
-        if r.calibrated { 1.0 } else { 0.0 },
-        None,
-    );
-    b.push(
-        "calibrationDbSpl",
-        "calibration",
-        f64::from(r.calibration_db_spl),
-        Some("dB SPL"),
-    );
-}
-
-/// The extents of a gapped series and the times they occur at.
-fn push_series_extents(
-    b: &mut SummaryBuilder,
-    times: &[f32],
-    values: &[Option<f32>],
-    unit: Option<&'static str>,
-) {
-    let mut min: Option<(f64, f64)> = None;
-    let mut max: Option<(f64, f64)> = None;
-    for (index, value) in values.iter().enumerate() {
-        let Some(value) = value else { continue };
-        let value = f64::from(*value);
-        let time = times.get(index).map_or(0.0, |t| f64::from(*t));
-        if min.is_none_or(|(current, _)| value < current) {
-            min = Some((value, time));
-        }
-        if max.is_none_or(|(current, _)| value > current) {
-            max = Some((value, time));
-        }
-    }
-    if let Some((value, _)) = min {
-        b.push("min", "min", value, unit);
-    }
-    if let Some((value, _)) = max {
-        b.push("max", "max", value, unit);
-    }
-    if let Some((_, time)) = min {
-        b.push("minTime", "at", time, Some("s"));
-    }
-    if let Some((_, time)) = max {
-        b.push("maxTime", "at", time, Some("s"));
-    }
 }
 
 fn pitch(b: &mut SummaryBuilder, r: &PitchResult) {

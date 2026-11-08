@@ -173,4 +173,79 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       },
     ],
   },
+  {
+    id: "roughness",
+    title: "Roughness",
+    description: "Perceived roughness — band-envelope modulation near 70 Hz",
+    about:
+      "**What it shows.** Perceived roughness per analysis frame, in asper: the " +
+      "harsh, buzzy quality of rapidly beating energy. The sound is split into " +
+      "critical bands, each band's envelope is filtered near **70 Hz**, and the " +
+      "result is weighted across bands and across frequency. A 1 kHz tone at " +
+      "60 dB SPL, 100 % amplitude-modulated at 70 Hz, reads about 1 asper; a steady " +
+      "carrier reads about 0.\n\n" +
+      '**Why use it.** It separates a harsh, buzzy or rough sound — a rolled "r", ' +
+      "distortion, a growl — from a smooth one with the same spectrum. Slow pulsing " +
+      "belongs to *Fluctuation strength*, not here.\n\n" +
+      "**Calibration matters.** With *Calibration* at 0 the input is " +
+      "**uncalibrated** and the values are relative; set it to the dB SPL of a " +
+      "full-scale sine to read absolute asper and to let quiet sound score lower. " +
+      "This is a documented band-envelope model approximation of the perceived " +
+      "quantity, not a conformance claim for any standard.",
+    keywords: ["roughness", "asper", "harsh", "buzzy", "buzz", "perception"],
+    section: "perception",
+    view: series("roughness (asper)", (value) => value.toFixed(2) + " asper", {
+      style: "area",
+    }),
+    params: [
+      {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 140,
+        step: 1,
+        suffix: "dB SPL",
+        title: "dB SPL of a full-scale sine; 0 = uncalibrated.",
+      },
+    ],
+  },
+  {
+    id: "fluctuationStrength",
+    title: "Fluctuation strength",
+    description: "Perceived fluctuation strength — slow modulation near 4 Hz",
+    about:
+      "**What it shows.** Perceived fluctuation strength per analysis frame, in " +
+      "vacil: the slow pulsing or wobble of a sound. It is the same band-envelope " +
+      "model as *Roughness* with the modulation filter moved down to **4 Hz**. A " +
+      "1 kHz tone at 60 dB SPL, 100 % amplitude-modulated at 4 Hz, reads about " +
+      "1 vacil; a steady carrier reads about 0.\n\n" +
+      "**Why use it.** It rates tremolo, rumbling machinery and distant " +
+      "helicopters — fluctuations too slow to sound rough but fast enough to pulse. " +
+      "Rapid beating belongs to *Roughness*.\n\n" +
+      "**Calibration matters.** With *Calibration* at 0 the input is " +
+      "**uncalibrated** and the values are relative; set it to the dB SPL of a " +
+      "full-scale sine to read absolute vacil and to let quiet sound score lower. " +
+      "This is a documented band-envelope model approximation of the perceived " +
+      "quantity, not a conformance claim for any standard.",
+    keywords: ["fluctuation", "vacil", "pulsing", "pulse", "am", "perception"],
+    section: "perception",
+    view: series("fluctuation (vacil)", (value) => value.toFixed(2) + " vacil", {
+      style: "area",
+    }),
+    params: [
+      {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 140,
+        step: 1,
+        suffix: "dB SPL",
+        title: "dB SPL of a full-scale sine; 0 = uncalibrated.",
+      },
+    ],
+  },
 ];

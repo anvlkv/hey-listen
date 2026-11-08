@@ -58,4 +58,18 @@ pub(super) const PERCEPTION: &[AnalyzerInfo] = &[
         section: Section::Perception,
         keywords: &["sharpness", "brightness", "acum", "perception"],
     },
+    AnalyzerInfo {
+        id: AnalyzerId::Roughness,
+        title: "Roughness",
+        description: "Perceived roughness — band-envelope modulation near 70 Hz",
+        section: Section::Perception,
+        keywords: &["roughness", "asper", "harsh", "buzzy", "perception"],
+    },
+    AnalyzerInfo {
+        id: AnalyzerId::FluctuationStrength,
+        title: "Fluctuation strength",
+        description: "Perceived fluctuation strength — slow modulation near 4 Hz",
+        section: Section::Perception,
+        keywords: &["fluctuation", "vacil", "pulsing", "am", "perception"],
+    },
 ];

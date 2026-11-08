@@ -121,7 +121,9 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
         | AnalyzerId::CriticalBands
         | AnalyzerId::SpecificLoudness => MATRIX,
         AnalyzerId::Loudness => LOUDNESS,
-        AnalyzerId::Sharpness => CALIBRATED_SERIES,
+        AnalyzerId::Sharpness | AnalyzerId::Roughness | AnalyzerId::FluctuationStrength => {
+            CALIBRATED_SERIES
+        }
         AnalyzerId::FrameRms => FRAME_RMS,
         AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
         AnalyzerId::NoteMetrics => NOTES,

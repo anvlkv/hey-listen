@@ -55,4 +55,6 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "loudness", title: "Loudness (sone/phon)", view: "loudness" },
   { id: "specificLoudness", title: "Specific loudness", view: "matrix" },
   { id: "sharpness", title: "Sharpness", view: "series" },
+  { id: "roughness", title: "Roughness", view: "series" },
+  { id: "fluctuationStrength", title: "Fluctuation strength", view: "series" },
 ];

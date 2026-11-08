@@ -78,7 +78,9 @@ pub fn family_of(id: AnalyzerId) -> Family {
         | AnalyzerId::PitchAutocorr
         | AnalyzerId::LoudnessMomentary
         | AnalyzerId::Loudness
-        | AnalyzerId::Sharpness => Family::Series,
+        | AnalyzerId::Sharpness
+        | AnalyzerId::Roughness
+        | AnalyzerId::FluctuationStrength => Family::Series,
     }
 }
 
