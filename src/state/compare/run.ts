@@ -75,6 +75,13 @@ export function createComparison(
       setLoading(false);
       return;
     }
+    // A popout starts with an empty analysis window (0..0) until its shared timeline
+    // arrives from the core; running here would fail with "the analysis window is
+    // empty". Skip instead — `windowStart`/`windowEnd` are effect dependencies, so the
+    // comparison runs again the moment the window is set.
+    if (windowEnd() <= windowStart()) {
+      return;
+    }
     const token = ++generation;
     setLoading(true);
     try {
