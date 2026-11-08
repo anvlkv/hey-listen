@@ -2,16 +2,20 @@
 //!
 //! A **windowless front end over the shared headless session** ([`HeadlessSession`],
 //! the same engine facade `heylisten-mcp --headless` drives). It maps the parsed
-//! `tauri-plugin-cli` matches onto a plain [`Request`], then runs it and prints one
-//! self-describing JSON object per `file`/`tool` (JSONL, `jq`-streamable). Because the
-//! work hangs off a `Request` and writes to an `impl Write` — never a `WebviewWindow` —
-//! `cargo test` exercises it with no Tauri app and no display.
+//! arguments onto a plain [`Request`], then runs it and prints one self-describing JSON
+//! object per `file`/`tool` (JSONL, `jq`-streamable). Because the work hangs off a
+//! `Request` and writes to an `impl Write` — never a `WebviewWindow` — `cargo test`
+//! exercises it with no Tauri app and no display.
+//!
+//! The interface is [`clap_args`]: the `hey-listen-cli` console binary parses with
+//! `clap` derive and maps onto a [`Request`] here (ADR-29). The app binary keeps only
+//! `--mcp` / `--headless`; see `docs/cli.md`.
 //!
 //! There is no second DSP path: every step below is a `dispatch` call onto the headless
 //! session, which reaches the same `analysis::run_window` / `audio::decode` /
-//! `audio::graph` functions the GUI commands do. See `docs/cli.md` (ADR-14).
+//! `audio::graph` functions the GUI commands do.
 //!
-//! The implementation is split by subcommand: [`args`] maps the matches onto a
+//! The implementation is split by subcommand: [`args`] maps the arguments onto a
 //! [`Request`], [`analyze`] / [`analyzers`] / [`annotations`] / [`synth`] run each
 //! subcommand, and [`output`] writes the JSONL.
 
@@ -19,6 +23,7 @@ mod analyze;
 mod analyzers;
 mod annotations;
 mod args;
+mod clap_args;
 mod compare;
 mod compare_save;
 mod export;
@@ -32,7 +37,8 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-pub use args::{build_request, is_subcommand};
+pub use args::build_request;
+pub use clap_args::run as run_console;
 pub use types::*;
 
 use std::io::Write;

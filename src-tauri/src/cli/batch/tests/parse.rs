@@ -5,35 +5,25 @@ use crate::export::ExportFormat;
 
 // --- Config agreement ---------------------------------------------------
 
-/// `tauri.conf.json` and [`BatchCommand`] must name the same subcommands: the config
-/// declares them for clap, and [`build_request`] parses the names back at runtime.
+/// ADR-29: the batch subcommands belong to `hey-listen-cli`, not the app binary. The
+/// app's `plugins.cli` keeps only the two flags it resolves in `setup`.
 #[test]
-fn tauri_config_declares_every_batch_subcommand() {
+fn tauri_config_keeps_only_the_app_binary_flags() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
     let config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-    let declared: Vec<String> = config["plugins"]["cli"]["subcommands"]
-        .as_object()
-        .expect("plugins.cli.subcommands")
-        .keys()
-        .cloned()
+    let cli = &config["plugins"]["cli"];
+    assert!(
+        cli.get("subcommands").is_none(),
+        "the batch subcommands moved to `hey-listen-cli` (ADR-29)"
+    );
+    let flags: Vec<&str> = cli["args"]
+        .as_array()
+        .expect("plugins.cli.args")
+        .iter()
+        .map(|arg| arg["name"].as_str().expect("an arg name"))
         .collect();
-    let expected: Vec<String> =
-        <crate::cli::batch::BatchCommand as strum::IntoEnumIterator>::iter()
-            .map(|command| command.to_string())
-            .collect();
-    for command in &expected {
-        assert!(
-            declared.contains(command),
-            "tauri.conf.json is missing the `{command}` subcommand"
-        );
-    }
-    for name in &declared {
-        assert!(
-            expected.contains(name),
-            "tauri.conf.json declares the unknown subcommand `{name}`"
-        );
-    }
+    assert_eq!(flags, ["mcp", "headless"]);
 }
 
 // --- Matches -> Request mapping --------------------------------------

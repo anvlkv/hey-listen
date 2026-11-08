@@ -1,42 +1,25 @@
-//! The `tauri-plugin-cli` matches → value parsing helpers (kept apart from the request
-//! mapping in [`super`] for the source-size budget).
-
-use serde_json::Value;
-use tauri_plugin_cli::Matches;
+//! The argument-surface → value parsing helpers (kept apart from the request mapping in
+//! [`super`] for the source-size budget).
 
 use crate::audio::analysis::canonical_option_key;
 use crate::audio::analyzers::{AnalyzerId, ToolId};
 
 use super::super::inputs::split_kv;
 use super::super::types::OptionPatch;
+use super::source::ArgSource;
 
 // --- parsing helpers -----------------------------------------------------
 
-pub(super) fn strings(matches: &Matches, name: &str) -> Vec<String> {
-    matches
-        .args
-        .get(name)
-        .and_then(|arg| arg.value.as_array())
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default()
+pub(super) fn strings(matches: &dyn ArgSource, name: &str) -> Vec<String> {
+    matches.strings(name)
 }
 
-pub(in crate::cli::batch) fn string(matches: &Matches, name: &str) -> Option<String> {
-    matches
-        .args
-        .get(name)
-        .and_then(|arg| arg.value.as_str())
-        .map(str::to_string)
+pub(in crate::cli::batch) fn string(matches: &dyn ArgSource, name: &str) -> Option<String> {
+    matches.string(name)
 }
 
 /// A repeatable Workbench tool id (`--open-tool`), parsed once here.
-pub(super) fn tool_ids(matches: &Matches, name: &str) -> Result<Vec<ToolId>, String> {
+pub(super) fn tool_ids(matches: &dyn ArgSource, name: &str) -> Result<Vec<ToolId>, String> {
     strings(matches, name)
         .into_iter()
         .map(|id| {
@@ -46,15 +29,11 @@ pub(super) fn tool_ids(matches: &Matches, name: &str) -> Result<Vec<ToolId>, Str
         .collect()
 }
 
-pub(in crate::cli::batch) fn flag(matches: &Matches, name: &str) -> bool {
-    matches
-        .args
-        .get(name)
-        .and_then(|arg| arg.value.as_bool())
-        .unwrap_or(false)
+pub(in crate::cli::batch) fn flag(matches: &dyn ArgSource, name: &str) -> bool {
+    matches.flag(name)
 }
 
-pub(super) fn optional_number(matches: &Matches, name: &str) -> Result<Option<f64>, String> {
+pub(super) fn optional_number(matches: &dyn ArgSource, name: &str) -> Result<Option<f64>, String> {
     match string(matches, name) {
         Some(text) => text
             .parse::<f64>()
@@ -66,10 +45,8 @@ pub(super) fn optional_number(matches: &Matches, name: &str) -> Result<Option<f6
 
 /// Parse `-t` ids. A spelling that is not an analyzer id is **kept** for the run phase,
 /// which reports it as one `error` record and exits `1` (the documented CLI contract),
-/// instead of failing the whole invocation as a usage error. The other option, a bare
-/// `KEY=VALUE` (`-o K=V`), is scoped to the sole `--tool` (there is no other way to tell
-/// which tool it belongs to, since the plugin's matches do not preserve flag order).
-pub(super) fn request_tools(matches: &Matches) -> (Vec<AnalyzerId>, Vec<String>) {
+/// instead of failing the whole invocation as a usage error.
+pub(super) fn request_tools(matches: &dyn ArgSource) -> (Vec<AnalyzerId>, Vec<String>) {
     let mut known = Vec::new();
     let mut unknown = Vec::new();
     for tool in strings(matches, "tool") {
@@ -81,6 +58,9 @@ pub(super) fn request_tools(matches: &Matches) -> (Vec<AnalyzerId>, Vec<String>)
     (known, unknown)
 }
 
+/// Parse `-o` patches. A bare `KEY=VALUE` (`-o K=V`) is scoped to the sole `--tool`
+/// (there is no other way to tell which tool it belongs to, because neither parser
+/// reports the interleaved order of `-t` and `-o` flags).
 pub(super) fn parse_option_patches(
     tokens: &[String],
     tools: &[AnalyzerId],

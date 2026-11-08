@@ -643,7 +643,7 @@ in a **collapsible right panel** and are reachable from the UI, MCP, and the CLI
   the project dirty and are one undo step.
 - **Agent surface.** MCP `list_annotations` / `get_annotation` / `create_annotation` / `update_annotation` /
   `delete_annotation` / `set_selected_annotation` (app-only; headless has no project) and the annotations in
-  `get_state`; CLI `hey-listen annotations <FILE.heyl>` (read-only, table or `--json`).
+  `get_state`; CLI `hey-listen-cli annotations <FILE.heyl>` (read-only, table or `--json`).
 
 > **Decision (committed):** an annotation is **project content** anchored to a **time** and,
 > optionally, to an **analyzer tool id** — not a Workbench tab, not an analyzer result.
@@ -943,7 +943,7 @@ A plain amplitude envelope, independent of LUFS.
   (10) / `hopMs` (5).
 - Returns a `SeriesResult` (extended with an optional `frameSize`), so the existing
   series chart and readouts render it with no new component.
-- Available through the GUI, headless MCP, and `hey-listen analyze`.
+- Available through the GUI, headless MCP, and `hey-listen-cli analyze`.
 - **Not** `loudnessMomentary`: that stays EBU R128 and is unsuitable for short windows.
 - **Tests.** Sine level in dBFS, silence floor, sub-frame window, echoed frame/hop.
 
@@ -953,7 +953,7 @@ A plain amplitude envelope, independent of LUFS.
 > optional `frameSize` (samples), so the result is self-describing and the existing
 > series chart / readouts render it unchanged; the readouts add a **Frame** card when
 > present. The catalog entry, option metadata, and `-o` keys ship with it, so the tool
-> works in the GUI, the headless MCP server, and `hey-listen analyze`.
+> works in the GUI, the headless MCP server, and `hey-listen-cli analyze`.
 >
 > Tests: a half-scale sine reads ≈ −9 dBFS per frame, a silent frame floors at
 > −120 dBFS, a sub-frame window still yields one value, the configured frame/hop are
@@ -985,7 +985,7 @@ Explicit notes, ends, gaps, counts, and levels.
 > ruler, gap bands with durations, the gate, numbered notes, and a per-note f0 overlay
 > on a right-hand axis; hovering a note highlights its table row), and a scrollable
 > per-note table; the catalog entry and option metadata make it available in the GUI,
-> headless MCP, and `hey-listen analyze`, and times are re-based onto source seconds
+> headless MCP, and `hey-listen-cli analyze`, and times are re-based onto source seconds
 > like every result. Tests: `audio::analysis::tests::note_metrics`, the catalog default
 > checks, and the headless option/result flow.
 >
@@ -1022,7 +1022,7 @@ Per-note jitter, shimmer, and HNR proxies, built on the M18 segments.
 > The Note segments table shows the five columns, the segment chart's hover card shows
 > the whole per-note record (span, gaps, RMS/peak, levels versus the loudest note,
 > voiced, f0, jitter, shimmer, HNR proxy), and the catalog entry + option metadata make
-> the pitch options available through the GUI, headless MCP, and `hey-listen analyze`
+> the pitch options available through the GUI, headless MCP, and `hey-listen-cli analyze`
 > (snake_case aliases included).
 >
 > Tests: a steady note has near-zero jitter/shimmer and a high HNR proxy; vibrato
@@ -1211,7 +1211,7 @@ what they *omit*.
 > median from a handful of frames; `ModulationResult.fmReliable` suppresses an FM rate
 > from a short or quantized (staircase) run while still reporting the cents spread.
 > `noteMetrics.syllableGapMs` adds a `syllables` grouping (and `syllableCount`) beside
-> the unchanged annotations. `hey-listen analyze --windows FILE` runs many
+> the unchanged annotations. `hey-listen-cli analyze --windows FILE` runs many
 > `start,end[,tool…]` windows in one process. No DSP was replaced: the gate is an
 > explicit mask, and the reliability flags gate what is *reported*.
 
@@ -2256,7 +2256,7 @@ with a regression test. No new surface — these are fixes to delivered code.
   regression test (a failing writer, an out-of-order decode, a stale advertisement, an
   oversized client, a bad override, …) rather than a green build as evidence.
 
-### M33.B — A console binary for the batch CLI
+### M33.B — A console binary for the batch CLI ✅
 
 Ship a GUI-free console binary for the batch subcommands — report §6.1 — so scripts stop
 paying app-boot (and the log plugin's sandbox/race) per command, Windows gets stdout back,

@@ -76,6 +76,10 @@
     // captures (e2e/screenshots/capture.spec.ts). An OS-level prerequisite, not an
     // npm package, so it is not an "unlisted dependency".
     "magick",
+    // The Rust toolchain: `scripts/prepareSidecar.mjs` stages the `hey-listen-cli`
+    // sidecar for `bundle.externalBin` and reads the host triple from `rustc -vV`.
+    // An OS-level prerequisite (already required by the crate), not an npm package.
+    "rustc",
   ],
 
   // --- Dead-code worklist (now emptied) ----------------------------------------

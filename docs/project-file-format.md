@@ -70,7 +70,7 @@ version governs the section set and readers skip unknown ids, an `ANNOTATIONS` s
 **forward-compatible**: an older build opens the project and simply ignores it, and a
 file with no `ANNOTATIONS` section loads with zero annotations. Keeping annotations in their own section
 (rather than inside `SETUP`) keeps the analysis setup a pure `AnalysisSetup` and lets the
-CLI read just the annotations (`hey-listen annotations <FILE.heyl>`).
+CLI read just the annotations (`hey-listen-cli annotations <FILE.heyl>`).
 
 ## Comparisons (M25.C)
 

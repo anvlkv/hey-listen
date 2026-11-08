@@ -31,6 +31,9 @@ save source + setup + results to a binary project file.
 4. **Make minimal, focused changes** that match the existing structure and style.
 
 5. **Validate before claiming done:**
+   - **Fresh checkout:** run `npm run sidecar` once before any `cargo` command. Tauri's
+     build script resolves `bundle.externalBin` (`src-tauri/binaries/hey-listen-cli-<triple>`)
+     on every `cargo` invocation, not just `tauri build` — see `docs/packaging.md`.
    - `npm run typecheck` and `npm run build` (frontend)
    - `cargo check` in `src-tauri/` (Rust; first build is slow — many deps)
    - `npm run maid` — the quality gate (prettier, eslint, the 400-line budget,

@@ -54,7 +54,7 @@ can show it with one window open; restoring a saved comparison never invents a p
 | Workbench tab menu | Right-click an **analyzer** tab → **Compare with…** → pick another project. On a **compare** tab: *Change reference…*, *Pop out to window*, *Close tab*. Only the project window has the Workbench; a popout shows no tab strip. |
 | Native menu | **Analysis → Compare with…** acts on the focused analyzer tab (the root project window); with none focused it shows a transient hint instead of a dialog. |
 | MCP | `compare_analysis { tool, with, target?, bOffset?, saved? }` — a live project label (app) or a project file path (headless, M25.D). |
-| CLI | `hey-listen compare A.heyl B.heyl -t TOOL [--b-offset SECS]` (batch, no window). |
+| CLI | `hey-listen-cli compare A.heyl B.heyl -t TOOL [--b-offset SECS]` (batch, no window). |
 
 On the compare tab itself, **Compare with…** re-targets its reference. The picker lists
 every other **project** window (never a popout) with its display name, source shape and
@@ -351,7 +351,7 @@ reference and predict comparability. `get_state` reports the open compare views 
 ## CLI
 
 ```text
-hey-listen compare <A.heyl> <B.heyl> -t <TOOL> [options]
+hey-listen-cli compare <A.heyl> <B.heyl> -t <TOOL> [options]
 ```
 
 - Both positionals are project files. Each side's **saved setup** (window, shared params,
@@ -446,7 +446,8 @@ groups, re-point `activeGroup` / `activeView` if they were one),
 
 **Surfaces** — `src-tauri/src/mcp/tools/` (`mod` + `compare`, `get_state` / `list_projects`),
 `src/state/mcp/` (`dispatch`, `analyze`), `src-tauri/src/cli/batch/` (`compare`, `args`,
-`types`, `mod`), `src-tauri/tauri.conf.json` (`compare` subcommand).
+`types`, `clap_args` — the `compare` subcommand), `src-tauri/tauri.conf.json` (the app
+binary's flags only).
 
 ## Tests
 

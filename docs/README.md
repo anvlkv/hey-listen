@@ -41,7 +41,7 @@ fluctuation, masking / tonality, equal-loudness + spatial cues) are **planned** 
 | [templates.md](templates.md) | Analysis templates: source-less JSON presets (setup + graphs + layout) and window policies |
 | [annotations.md](annotations.md) | Annotations (stored as `Annotation`): markdown anchored to a time + chart, the frozen values snapshot, the right rail; the terminology split from M18 note segments |
 | [mcp.md](mcp.md) | The MCP server: agent access, the stdio bridge, UI following, tool list |
-| [cli.md](cli.md) | The batch CLI (`hey-listen analyze`): analyze files / render synth from a shell, no window |
+| [cli.md](cli.md) | The batch CLI (`hey-listen-cli analyze`): analyze files / render synth from a shell, no window |
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
 | [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
 | [decisions.md](decisions.md) | Architecture decision records (ADRs) |

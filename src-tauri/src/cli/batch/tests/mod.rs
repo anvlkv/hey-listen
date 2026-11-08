@@ -14,6 +14,7 @@ use crate::audio::graph::{GraphEdge, GraphNode, GraphSpec};
 
 mod annotations;
 mod compare;
+mod console;
 mod options;
 mod output;
 mod parse;

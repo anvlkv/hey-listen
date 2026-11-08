@@ -142,6 +142,12 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      # `bundle.externalBin` names `binaries/hey-listen-cli-<triple>`, and Tauri's build
+      # script resolves it on every `cargo` invocation — so the console binary has to be
+      # staged before clippy/tests (M33.B, ADR-29).
+      - name: Stage the CLI sidecar
+        run: npm run sidecar
+
       - name: Rust format + clippy
         working-directory: src-tauri
         run: |

@@ -373,7 +373,7 @@ snake_case aliases, validated like every other tool (M16).
   correctly. The compact shape for `masking` keeps the `SMR`/`Tg` stats and the
   `loudness`/`sharpness`/`roughness`/`fluctuationStrength` series keep their
   min/max/argmin/argmax like every series.
-- **CLI:** the new ids are available through `hey-listen analyze` automatically once in
+- **CLI:** the new ids are available through `hey-listen-cli analyze` automatically once in
   the Rust catalog; `-o <tool>.<key>=<value>` covers `scale` and `calibrationDbSpl`.
 - **Notes:** add `valuesText` cases in `src/state/annotations/format.ts` for the new
   readouts (loudness, sharpness, roughness/fluctuation, masking, spatial).

@@ -1,6 +1,6 @@
 ---
 name: audio-analysis
-description: Drive Hey Listen's audio-analysis engine programmatically — via the built-in MCP server (agent access + live UI following) or the batch CLI (`hey-listen analyze`, headless shell/CI). Covers picking the interface, the discover → run → read workflow, the tool inventory, result modes (summary / compact / full), event segmentation, comparisons, building/opening project files (sources, tabs, saved comparisons), and data/chart export. Use when a task needs to open a source, run analyzers, segment calls/syllables/notes, compare projects, save a project with its tabs/comparison, or read results from an MCP client or a shell.
+description: Drive Hey Listen's audio-analysis engine programmatically — via the built-in MCP server (agent access + live UI following) or the batch CLI (`hey-listen-cli analyze`, headless shell/CI). Covers picking the interface, the discover → run → read workflow, the tool inventory, result modes (summary / compact / full), event segmentation, comparisons, building/opening project files (sources, tabs, saved comparisons), and data/chart export. Use when a task needs to open a source, run analyzers, segment calls/syllables/notes, compare projects, save a project with its tabs/comparison, or read results from an MCP client or a shell.
 ---
 
 # Driving Hey Listen's analysis engine (MCP + CLI)
@@ -11,7 +11,7 @@ programmatic interfaces:
 1. **MCP server** — an agent drives a *running or headless* project: open sources, run
    tools, edit graphs, preview, compare, save projects. Bridged to the app the UI follows
    along; headless it is the engine + project subset.
-2. **Batch CLI** — `hey-listen analyze|compare|project <...>` runs the engine over files
+2. **Batch CLI** — `hey-listen-cli analyze|compare|project <...>` runs the engine over files
    with no window, printing one JSON object per file/tool. Deterministic; for shell/CI.
 
 Both return the **same envelope** — effective `window` / `params` / `options`, a canonical
@@ -167,11 +167,11 @@ If the project already has a saved comparison and you only want to re-read it, u
 
 ```bash
 # Build a project with tabs, annotations and a window:
-hey-listen project out.heyl --source call.wav --open-tool noteMetrics \
+hey-listen-cli project out.heyl --source call.wav --open-tool noteMetrics \
   --open-tool spectrogram --annotations annotations.json --start 1.2 --end 3.4
 
 # Compare two project files and write the owner with the snapshot:
-hey-listen compare a.heyl b.heyl -t spectrum --save a-with-comparison.heyl \
+hey-listen-cli compare a.heyl b.heyl -t spectrum --save a-with-comparison.heyl \
   --open-tool spectrum
 ```
 
@@ -334,10 +334,10 @@ tools operate on the live project and stay app-only; headless, pass `annotations
 `save_project` when building, or use this CLI.)
 
 ```bash
-hey-listen annotations mix.heyl --add annotations.json
-hey-listen annotations mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
-hey-listen annotations mix.heyl --get n1
-hey-listen annotations mix.heyl --delete n1
+hey-listen-cli annotations mix.heyl --add annotations.json
+hey-listen-cli annotations mix.heyl --update n1 --set title="Third harmonic" --set range=2.5,2.9
+hey-listen-cli annotations mix.heyl --get n1
+hey-listen-cli annotations mix.heyl --delete n1
 ```
 
 ### Output, exit codes, examples
@@ -353,26 +353,26 @@ to **stderr**, so stdout is pure JSONL.
 
 ```bash
 # One number per file:
-hey-listen analyze *.wav -t loudnessIntegrated | jq -c '{file, lufs: .result.lufs}'
+hey-listen-cli analyze *.wav -t loudnessIntegrated | jq -c '{file, lufs: .result.lufs}'
 
 # Sweep with summaries only:
-hey-listen analyze *.wav -t levels --summary | jq -c '{file, summary: .summary.text}'
+hey-listen-cli analyze *.wav -t levels --summary | jq -c '{file, summary: .summary.text}'
 
 # 4 s window at 10 s, big FFT, two tools:
-hey-listen analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
+hey-listen-cli analyze a.wav -t spectrum -p fftSize=8192 -t tempo --start 10 --end 14
 
 # Many windows in one file, one process:
-hey-listen analyze call.wav -t noteMetrics --windows windows.txt > call.jsonl
+hey-listen-cli analyze call.wav -t noteMetrics --windows windows.txt > call.jsonl
 
 # Gate a series to drop the recording's background:
-hey-listen analyze call.wav -t spectralCentroid -o spectralCentroid.gateDb=20 --full
+hey-listen-cli analyze call.wav -t spectralCentroid -o spectralCentroid.gateDb=20 --full
 
 # Discover ids, then explain one analyzer:
-hey-listen analyzers --json | jq -r '.[].id'
-hey-listen analyzers noteMetrics
+hey-listen-cli analyzers --json | jq -r '.[].id'
+hey-listen-cli analyzers noteMetrics
 
 # Diff two saved projects:
-hey-listen compare before.heyl after.heyl -t spectrum --summary
+hey-listen-cli compare before.heyl after.heyl -t spectrum --summary
 ```
 
 ## What still needs the app

@@ -387,8 +387,9 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   editor-layout graphs (`get_graph` / `set_synth_graph`) or drive live preview/capture —
   those need the app. The headless orchestration is a second (thin) dispatcher that must
   stay in step with the GUI handlers for the tools it covers. For scripting without an
-  MCP client at all, use the batch CLI instead — [`cli.md`](cli.md) (`hey-listen
-  analyze`), which drives the same headless session from a shell and prints JSON.
+  MCP client at all, use the batch CLI instead — [`cli.md`](cli.md)
+  (`hey-listen-cli analyze`), which drives the same headless session from a shell and
+  prints JSON.
 - **Themes are chrome.** `list_themes` / `get_theme` work headless, but only for the
   **bundled** themes (`src-tauri/src/themes.rs` → `BUILTIN_THEMES`) — headless has no
   webview to run the TS registry and cannot resolve the app config dir, so installed
@@ -428,8 +429,8 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src-tauri/src/mcp/bridge.rs` | the stdio ⇄ socket bridge + the advertisement probe. |
 | `src-tauri/src/mcp/dispatch/` | the headless session: the engine subset (no window); the shared `set_filter_graph`. |
 | `src-tauri/src/mcp/headless.rs` | the headless stdio loop. |
-| `src-tauri/src/cli/mod.rs` | the `tauri-plugin-cli` flags (`--mcp` / `--headless`) + the batch subcommand routing. |
-| `src-tauri/src/cli/batch/` | the batch CLI (`analyzers` / `analyze` / `synth`) over the headless session. |
+| `src-tauri/src/cli/mod.rs` | the app binary's `tauri-plugin-cli` flags (`--mcp` / `--headless`) + the retired-subcommand hint. |
+| `src-tauri/src/cli/batch/` | the batch CLI logic (`analyzers` / `analyze` / `synth` / …) over the headless session; its interface is `clap_args.rs`, its binary `src/bin/hey-listen-cli.rs`. |
 | `src-tauri/src/app_activity.rs` | the macOS user-initiated activity (opts out of App Nap). |
 | `src-tauri/Info.plist` | macOS bundle additions — `NSAppSleepDisabled` (opts out of App Nap). |
 | `src-tauri/src/audio/analyzers.rs` | the Rust analyzer catalog for headless `list_analyzers`. |

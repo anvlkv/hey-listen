@@ -77,12 +77,14 @@ src-tauri/src/
 Commands are registered once in `generate_handler![...]`; shared state is
 managed via `app.manage(...)`.
 
-**Binaries.** Two: `hey-listen` (the GUI, the bundle's `default-run`) and
-`heylisten-mcp` — a **plain console** binary that links the lib but never starts Tauri
-(the stdio MCP entry, M9). The batch CLI (M10) is **not** a third binary: because
-`tauri-plugin-cli` needs an app context, it is a **subcommand of the app binary**,
-resolved in `setup` and run **before any window is created** (`--mcp`/`--headless`
-route the same way). See [`cli.md`](cli.md).
+**Binaries.** Three: `hey-listen` (the GUI, the bundle's `default-run`),
+`heylisten-mcp` — an MCP stdio server — and `hey-listen-cli` — the **batch CLI**
+(M10, rehosted in M33.B). Both console binaries are plain programs that link the lib
+but never start Tauri, so they boot a bare host and write stdout on Windows. The batch
+CLI parses with `clap` derive (`cli/batch/clap_args.rs`) and maps onto the same
+`cli::batch::Request`; the app binary keeps only `--mcp` / `--headless` (via
+`tauri-plugin-cli`) plus the `.heyl` open path. `hey-listen-cli` ships as a
+`bundle.externalBin` sidecar. See [`cli.md`](cli.md) and ADR-29.
 
 **Per-window state (M7).** With N project windows (ADR-3), the core's project state
 — the source PCM, filter graph, preview player, capture session, and the project's

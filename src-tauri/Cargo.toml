@@ -48,6 +48,10 @@ ts-rs = { version = "12", features = ["serde-json-impl"] }
 # plumbing for the id enums that `serde` + `ts-rs` carry across the boundary
 # (`docs/decisions.md` → ADR-28, `docs/roadmap.md` → M15.B).
 strum = { version = "0.28", features = ["derive"] }
+# The `hey-listen-cli` console binary's interface (ADR-29). The app binary keeps its
+# two flags in `plugins.cli`; the batch subcommands parse here, in a plain console
+# process with no Tauri app, no window and no log plugin.
+clap = { version = "4", features = ["derive"] }
 
 # Audio I/O and processing
 flexaudio = "0.8"                                    # capture: mic / system / process / mix

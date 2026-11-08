@@ -49,10 +49,28 @@ A manual `workflow_dispatch` run takes the tag as an input and republishes.
 Bundles are **unsigned**: macOS Gatekeeper and Windows SmartScreen warn on first
 launch. Code signing / notarization is out of scope until signing keys exist.
 
-> **The console binary is not bundled.** `heylisten-mcp` (M9) — a plain console binary
+> **The MCP client binary is not bundled.** `heylisten-mcp` (M9) — a plain console binary
 > built next to the app (`target/{debug,release}/`) — is **not** shipped inside the
 > `.app` / installer. It is a *client* tool (an MCP client spawns it), not part of the
 > app, so bundling it as a sidecar (`externalBin`, which is meant to be *spawned by the
-> app* under `shell:allow-execute`) would be the wrong tool. See [`mcp.md`](mcp.md). The
-> batch CLI (M10) adds **no binary at all** — it is a subcommand of the app binary, so
-> it rides the normal bundle ([`cli.md`](cli.md)).
+> app*) would be the wrong tool. See [`mcp.md`](mcp.md).
+
+> **The batch CLI *is* bundled (M33.B).** `bundle.externalBin` names
+> `binaries/hey-listen-cli`, so the `hey-listen-cli` console binary ships beside the app —
+> the app spawns it to install it (M33.D, ADR-31). Tauri appends the target triple to the
+> file name, so `src-tauri/binaries/hey-listen-cli-<triple>` must exist **before any
+> `cargo` command** (Tauri's build script resolves it, not just the bundler). No binary is
+> committed:
+>
+> ```bash
+> npm run sidecar   # cargo build --bin hey-listen-cli + copy to src-tauri/binaries/
+> ```
+>
+> `tauri build` runs the same script through `beforeBuildCommand`, so releases (and
+> `tauri-action`) need no extra step; the CI `rust` job runs it once before
+> clippy/tests. `tauri dev` and a bare `cargo test` on a fresh checkout do need the
+> one-time `npm run sidecar`. The binary embeds the app's Tauri context, so the staging
+> build masks `externalBin` to break the chicken-and-egg (the file must exist to build
+> it) — a `cargo` build of the app crate is therefore paid twice during a release; a
+> follow-up could split the CLI into its own crate if that ever matters. See
+> [`cli.md`](cli.md).

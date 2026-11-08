@@ -32,8 +32,6 @@ mod state;
 mod test_support;
 mod themes;
 
-use std::io::Write as _;
-
 use tauri::{Manager, WebviewWindowBuilder};
 use tauri_plugin_prevent_default::Flags;
 
@@ -48,12 +46,32 @@ pub fn run_mcp(headless: bool) -> std::io::Result<()> {
     mcp::run(headless)
 }
 
+/// The `hey-listen-cli` console entry: parse `argv` with `clap`, run the batch command,
+/// and write JSONL to `out`.
+///
+/// A plain console program — no Tauri app, no window, no log plugin (ADR-29) — so it
+/// boots a bare host, writes stdout on Windows, and never aborts over a log path.
+/// `src/bin/hey-listen-cli.rs` drives it.
+pub fn run_batch_cli<I, T>(argv: I, out: &mut impl std::io::Write) -> i32
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    cli::console(argv, out)
+}
+
+/// Fold the batch CLI's final stdout flush into its exit code.
+pub fn finish_batch_cli(code: i32, flushed: std::io::Result<()>) -> i32 {
+    cli::finish(code, flushed)
+}
+
 /// The log plugin's targets for this entry.
 ///
-/// The GUI keeps its rotated log file. A **CLI** entry (`--mcp`, `--headless`, a batch
-/// subcommand) logs to **stderr only**: a sandboxed or concurrent headless/CI run must
-/// not abort because the log directory is unwritable or another instance holds the file,
-/// and it must never write into the batch CLI's stdout (hey-listen-report §2.3).
+/// The GUI keeps its rotated log file. The **CLI** entries (`--mcp`, `--headless`) log
+/// to **stderr only**: a sandboxed or concurrent headless/CI run must not abort because
+/// the log directory is unwritable or another instance holds the file, and it must never
+/// write into the MCP entry's stdout (hey-listen-report §2.3). The batch CLI is a
+/// separate console binary with no log plugin at all (ADR-29).
 fn log_targets(cli_invocation: bool) -> Vec<tauri_plugin_log::Target> {
     use tauri_plugin_log::{Target, TargetKind};
     let stderr = Target::new(TargetKind::Stderr);
@@ -70,11 +88,10 @@ fn log_targets(cli_invocation: bool) -> Vec<tauri_plugin_log::Target> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // A CLI invocation (`--mcp`, `analyzers`, `analyze`, …) must not register the
-    // WebDriver server: it binds a fixed port and prints a preamble, which would
-    // contaminate the batch CLI's JSONL and slow every headless call. Resolve it from
-    // argv before the builder is assembled (the plugin's own parse runs later, in
-    // `setup`).
+    // A CLI invocation (`--mcp`, `--headless`) must not register the WebDriver server:
+    // it binds a fixed port and prints a preamble, which would contaminate the MCP
+    // entry's stdout and slow every headless call. Resolve it from argv before the
+    // builder is assembled (the plugin's own parse runs later, in `setup`).
     let cli_invocation = cli::is_cli_invocation();
 
     let prevent = tauri_plugin_prevent_default::Builder::new()
@@ -120,8 +137,8 @@ pub fn run() {
             log::info!("hey-listen {} starting", env!("CARGO_PKG_VERSION"));
 
             // Resolve the CLI entry before any window is built. `--mcp` runs the stdio
-            // MCP session; a batch subcommand (`analyzers` / `analyze` / `synth`) runs
-            // windowless and exits; neither means the GUI. See `docs/cli.md`.
+            // MCP session; neither flag means the GUI. The batch subcommands live in
+            // the `hey-listen-cli` console binary (ADR-29). See `docs/cli.md`.
             let entry = cli::parse(app.handle());
             match entry {
                 cli::Entry::Mcp { headless } => {
@@ -133,22 +150,6 @@ pub fn run() {
                         std::process::exit(1);
                     }
                     std::process::exit(0);
-                }
-                cli::Entry::Batch(request) => {
-                    // The batch CLI is windowless too: print, flush, and exit before the
-                    // GUI (or its webview) is ever created. A flush failure is not success.
-                    #[cfg(target_os = "macos")]
-                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-                    let stdout = std::io::stdout();
-                    let mut out = std::io::BufWriter::new(stdout.lock());
-                    let code = cli::batch::run(&request, &mut out);
-                    let code = cli::finish(code, out.flush());
-                    std::process::exit(code);
-                }
-                cli::Entry::Usage(message) => {
-                    // A genuine CLI usage error must not silently open the GUI.
-                    eprintln!("{message}");
-                    std::process::exit(2);
                 }
                 cli::Entry::Gui => {}
             }
