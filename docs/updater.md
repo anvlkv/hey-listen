@@ -109,12 +109,34 @@ version is compared.
    re-copies the CLI from the bundle. It runs off the main thread, so startup never waits
    on it, and it only touches an install that already exists: a user who never asked for
    the tool does not silently get one.
-3. **Update / Repair / Uninstall** in the menu (M33.D) is the same comparison: it reports
-   the path and whether the installed CLI matches the app, and lets the user repair or
-   remove it.
+3. The **Command Line Tool** dialog (M33.D) is the same comparison: it reports the path
+   and whether the installed CLI matches the app, and lets the user install, repair or
+   remove it — see [Installing the command line tool](#installing-the-command-line-tool).
 
 The app version is the single source of truth for what the CLI should be; the CLI never
 updates independently.
+
+## Installing the command line tool
+
+*Help → Install Command Line Tool…* (the `installCliTool` menu action) opens the CLI
+dialog (`src/components/CliToolDialog.tsx`). It shows what `cli_tool_status` reports — the
+install path, whether that folder is on `PATH`, the recorded and current versions, and a
+**stale** warning — and offers one main action, labelled from that state:
+
+| State | Main action |
+| --- | --- |
+| Not installed | **Install** — copy the bundled tool and record the app version |
+| Installed from another version | **Update** — replace it with the copy this app ships |
+| Installed, matching version | **Repair** — overwrite the copy from the bundle |
+
+A copy that is installed also gets an **Uninstall** action, which removes the binary and
+its version record.
+
+The dialog calls `cli_tool_install` / `cli_tool_uninstall` (the M33.C commands in
+`src-tauri/src/commands/cli_install.rs`) and reports the written path on success or the
+error string on failure. The install is staged and renamed into place, so a failure leaves
+any existing copy untouched. The menu item itself always reads *Install Command Line
+Tool…* — the dialog holds the real state, so the label cannot go stale.
 
 ## Files
 
@@ -128,4 +150,6 @@ updates independently.
 | `src/state/update.ts` | frontend check/install/progress + relaunch |
 | `src/components/AboutUpdates.tsx` | the dialog's Updates section (status, notes, progress) |
 | `src-tauri/src/commands/cli_install.rs` | install / refresh / uninstall / status of `hey-listen-cli` |
-| `src-tauri/src/menu.rs` | the *Check for Updates…* item (and, in M33.D, the CLI menu) |
+| `src-tauri/src/menu.rs` | the *Check for Updates…* and *Install Command Line Tool…* items |
+| `src/state/menu.ts` | routes `checkForUpdates` / `installCliTool` to the dialogs |
+| `src/components/CliToolDialog.tsx` | the CLI status + Install / Update / Repair / Uninstall dialog |

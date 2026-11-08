@@ -1007,4 +1007,7 @@ its lifecycle (update/repair/uninstall) is owned by the app, in step with the up
 Cost: a small install/version-tracking surface and a menu item. See
 [`updater.md`](updater.md) and [`packaging.md`](packaging.md).
 
-**Status: accepted (M33.D).**
+**Status: accepted, delivered (M33.D).** The menu item and its dialog are
+`MenuAction::InstallCliTool` (`src-tauri/src/menu.rs` → *Help → Install Command Line
+Tool…*) and `src/components/CliToolDialog.tsx`; they read and drive the M33.C commands in
+`src-tauri/src/commands/cli_install.rs`. See [`updater.md`](updater.md).

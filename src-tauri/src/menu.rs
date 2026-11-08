@@ -50,6 +50,7 @@ pub enum MenuAction {
     About,
     Compare,
     CheckForUpdates,
+    InstallCliTool,
 }
 
 /// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
@@ -223,11 +224,21 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         None::<&str>,
     )?;
 
+    // The CLI install dialog (M33.D) reports the real state (Install / Update / Repair /
+    // Uninstall), so its label never has to change with the installed version.
+    let install_cli = MenuItem::with_id(
+        app,
+        MenuAction::InstallCliTool.as_ref(),
+        "Install Command Line Tool…",
+        true,
+        None::<&str>,
+    )?;
+
     // About lives in the macOS application menu; elsewhere it lives under Help.
     #[cfg(target_os = "macos")]
-    let help = Submenu::with_items(app, "Help", true, &[&check_updates])?;
+    let help = Submenu::with_items(app, "Help", true, &[&check_updates, &install_cli])?;
     #[cfg(not(target_os = "macos"))]
-    let help = Submenu::with_items(app, "Help", true, &[&about, &check_updates])?;
+    let help = Submenu::with_items(app, "Help", true, &[&about, &check_updates, &install_cli])?;
 
     #[cfg(target_os = "macos")]
     let app_menu = Submenu::with_items(
@@ -358,6 +369,7 @@ mod tests {
         assert_eq!(MenuAction::About.as_ref(), "about");
         assert_eq!(MenuAction::Compare.as_ref(), "compare");
         assert_eq!(MenuAction::CheckForUpdates.as_ref(), "checkForUpdates");
+        assert_eq!(MenuAction::InstallCliTool.as_ref(), "installCliTool");
         for action in MenuAction::iter() {
             assert_eq!(action.as_ref().parse::<MenuAction>(), Ok(action));
         }

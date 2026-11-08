@@ -3,7 +3,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { createSignal } from "solid-js";
 import type { DownloadEvent } from "../bindings/DownloadEvent";
 import type { UpdateMetadata } from "../bindings/UpdateMetadata";
-import { invoke } from "../lib/ipc";
+import { invoke, errorMessage } from "../lib/ipc";
 
 /** Where a self-update stands (M33.C). See `docs/updater.md` and ADR-30. */
 export type UpdatePhase =
@@ -40,10 +40,6 @@ const [updateState, setUpdateState] = createSignal<UpdateState>(IDLE);
 
 export { updateState };
 
-function message(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
 /** Ask the feed for a newer build; the dialog shows the answer. */
 export async function checkForUpdates(): Promise<void> {
   const phase = updateState().phase;
@@ -54,7 +50,7 @@ export async function checkForUpdates(): Promise<void> {
     const update = await invoke<UpdateMetadata | null>("check_update");
     setUpdateState({ ...IDLE, phase: update ? "available" : "upToDate", update });
   } catch (err) {
-    setUpdateState({ ...IDLE, error: message(err) });
+    setUpdateState({ ...IDLE, error: errorMessage(err) });
   }
 }
 
@@ -91,7 +87,7 @@ export async function installUpdate(): Promise<void> {
     setUpdateState({ ...IDLE, phase: "ready", update });
   } catch (err) {
     // The core keeps the offer pending, so the install button is ready for another try.
-    setUpdateState({ ...IDLE, phase: "available", update, error: message(err) });
+    setUpdateState({ ...IDLE, phase: "available", update, error: errorMessage(err) });
   }
 }
 

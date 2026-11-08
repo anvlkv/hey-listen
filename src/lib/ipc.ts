@@ -27,6 +27,11 @@ export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOption
   return override ? override<T>(cmd, args, options) : tauriInvoke<T>(cmd, args, options);
 }
 
+/** The readable message of a rejected call — Tauri rejects with an `Error` or a string. */
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 declare global {
   /** The E2E test seam, exposed on `globalThis` for `browser.tauri.execute()`. */
 

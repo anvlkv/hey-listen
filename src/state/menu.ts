@@ -42,6 +42,13 @@ const handled = new Set<string>();
 export const [aboutOpen, setAboutOpen] = createSignal(false);
 
 /**
+ * Whether the **Command Line Tool** dialog is open. Opened from the native
+ * Help → Install Command Line Tool… item (the `installCliTool` action); rendered by
+ * `App`. See `docs/updater.md`.
+ */
+export const [cliToolOpen, setCliToolOpen] = createSignal(false);
+
+/**
  * Confirm discarding unsaved work before replacing the project; `true` when it is
  * safe to proceed (nothing is dirty, the project is empty, or the user chose to
  * discard).
@@ -129,6 +136,11 @@ export async function initMenu() {
           break;
         case "about":
           setAboutOpen(true);
+          break;
+        case "installCliTool":
+          // Help → Install Command Line Tool… opens the dialog, which reads the real
+          // install state and offers Install / Update / Repair / Uninstall.
+          setCliToolOpen(true);
           break;
         case "checkForUpdates":
           // Help → Check for Updates… opens the About dialog (its Updates section shows

@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import "./App.css";
 import AboutDialog from "./components/AboutDialog";
+import CliToolDialog from "./components/CliToolDialog";
 import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
 import AnnotationsPanel from "./components/AnnotationsPanel";
 import Sidebar from "./components/Sidebar";
@@ -11,7 +12,7 @@ import Toolbar from "./components/Toolbar";
 import Workbench from "./components/Workbench";
 import { disposeCapture, initCapture, recording } from "./state/capture";
 import { dragActive, initDragDrop } from "./state/dragdrop";
-import { initMenu, aboutOpen, setAboutOpen } from "./state/menu";
+import { initMenu, aboutOpen, cliToolOpen, setAboutOpen, setCliToolOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
 import {
   annotationsPanelOpen,
@@ -200,6 +201,7 @@ export default function App() {
         </div>
       </Show>
       <AboutDialog open={aboutOpen()} onOpenChange={setAboutOpen} />
+      <CliToolDialog open={cliToolOpen()} onOpenChange={setCliToolOpen} />
       <ComparePicker />
       <CompareNotice />
     </div>

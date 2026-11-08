@@ -72,7 +72,8 @@ compact "Add audio" state has a fixed height).
   Open Recent → up to 10 files + Clear Menu / Save / Save As… —
   `CmdOrCtrl+N` / `O` / `S` / `Shift+S` — plus **Templates ▸** (Apply / Save as
   Template… / Import / Export, M13 planned) and Close on macOS / Quit elsewhere),
-  **View** (fullscreen), **Window** (minimize/maximize), and **Help** / About. On
+  **View** (fullscreen), **Window** (minimize/maximize), and **Help** (*Check for
+  Updates…*, *Install Command Line Tool…*, plus *About* off macOS). On
   macOS the standard application menu (About / Services / Hide / Quit) precedes
   them. **About** is a custom item that opens the in-app **About** dialog (identity +
   attributions) rather than the native panel. File actions are emitted to the
