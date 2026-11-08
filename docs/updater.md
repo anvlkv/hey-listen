@@ -36,7 +36,6 @@ receive updates — run it once, then keep the key.
 ```jsonc
 // src-tauri/tauri.conf.json
 {
-  "bundle": { "createUpdaterArtifacts": true },
   "plugins": {
     "updater": {
       "pubkey": "<content of publickey.pem>",
@@ -48,9 +47,11 @@ receive updates — run it once, then keep the key.
 }
 ```
 
-- `createUpdaterArtifacts: true` (the v2 shape) makes each build emit its updater bundle
-  **plus a `.sig`**: a `.app.tar.gz` on macOS, the `.AppImage` on Linux, and the
-  `.msi`/`.exe` on Windows.
+- `createUpdaterArtifacts` is **not** committed in `tauri.conf.json`. It is set to `true`
+  only in the release workflow (via the `TAURI_CONFIG` override), where the signing secret
+  exists — otherwise every local/CI `tauri build` (e.g. the E2E suite) would demand a
+  signing key. When enabled, each build emits its updater bundle **plus a `.sig`**: a
+  `.app.tar.gz` on macOS, the `.AppImage` on Linux, and the `.msi`/`.exe` on Windows.
 - TLS is enforced in production; the feed URL must be `https://`.
 - The endpoint supports `{{target}}`, `{{arch}}`, `{{current_version}}`; with the single
   static `latest.json` we rely on the feed's per-`OS-ARCH` `platforms` map instead.
@@ -66,8 +67,9 @@ check → download → install → download-and-install workflow) and
 
 `release.yml`:
 
-1. Sets `TAURI_SIGNING_PRIVATE_KEY` (and the optional password secret) in the build env so
-   Tauri signs each updater artifact.
+1. Sets `TAURI_SIGNING_PRIVATE_KEY` (and the optional password secret) in the build env, and
+   `TAURI_CONFIG` to `{"bundle":{"createUpdaterArtifacts":true}}` — the only place that
+   flag is enabled — so Tauri signs each updater artifact.
 2. Builds the platform matrix as today (`bundle.targets: "all"`), now also emitting the
    `.sig` files.
 3. tauri-action uploads the bundles + signatures to the GitHub Release and publishes a
@@ -142,9 +144,9 @@ Tool…* — the dialog holds the real state, so the label cannot go stale.
 
 | Path | Role |
 | --- | --- |
-| `src-tauri/tauri.conf.json` | `bundle.createUpdaterArtifacts`, `plugins.updater` (pubkey + endpoints) |
+| `src-tauri/tauri.conf.json` | `plugins.updater` (pubkey + endpoints) |
 | `src-tauri/capabilities/default.json` | `updater:default`, `process:allow-restart` |
-| `.github/workflows/release.yml` | signing env + `latest.json` publication |
+| `.github/workflows/release.yml` | signing env + `TAURI_CONFIG` (`createUpdaterArtifacts`) + `latest.json` publication |
 | `scripts/setup-updater.mjs` | the one-time key pair + public-key injection + `gh secret set` |
 | `src-tauri/src/commands/update.rs` | `check_update` / `install_update` + the download channel |
 | `src/state/update.ts` | frontend check/install/progress + relaunch |

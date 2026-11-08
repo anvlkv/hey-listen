@@ -88,6 +88,10 @@ jobs:
           # optional: it exists only when the private key was generated encrypted.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Only releases create updater artifacts. `createUpdaterArtifacts` is NOT in
+          # `tauri.conf.json` — if it were, every local/CI `tauri build` (e.g. the E2E
+          # suite) would demand a signing key. Enabled here, where the secrets exist.
+          TAURI_CONFIG: '{"bundle":{"createUpdaterArtifacts":true}}'
         with:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: "Hey Listen v__VERSION__"

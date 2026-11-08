@@ -54,7 +54,6 @@
     },
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": true,
     "category": "Music",
     "shortDescription": "Audio analysis workbench: capture, filter, and analyze audio.",
     "externalBin": ["binaries/hey-listen-cli"],
