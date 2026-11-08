@@ -50,8 +50,10 @@ Bundles are **not code-signed** for the OS: macOS Gatekeeper and Windows SmartSc
 warn on first launch. Code signing / notarization is out of scope until signing keys
 exist.
 
-**Update artifacts *are* signed (M33.C).** `bundle.createUpdaterArtifacts` is on, so each
-build also emits its updater artifact and a `.sig` next to its bundles (the formats are
+**Update artifacts *are* signed (M33.C).** `bundle.createUpdaterArtifacts` is enabled by the
+release workflow's `TAURI_CONFIG` override (not committed in `tauri.conf.json`, so a
+local/CI `tauri build` — e.g. the E2E suite — never demands a signing key), so each
+release emits its updater artifact and a `.sig` next to its bundles (the formats are
 listed in [`updater.md`](updater.md) → Configuration), and `tauri-action` publishes the
 `latest.json` feed the app's `plugins.updater.endpoints` reads. Signing uses the
 `TAURI_SIGNING_PRIVATE_KEY` secret (plus the optional

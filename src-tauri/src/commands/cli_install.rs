@@ -71,7 +71,7 @@ fn exe_name() -> &'static str {
     if cfg!(windows) {
         "hey-listen-cli.exe"
     } else {
-        "hey-listen-cli"
+        BINARY_NAME
     }
 }
 
