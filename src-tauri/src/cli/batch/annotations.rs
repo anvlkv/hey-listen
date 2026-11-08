@@ -10,13 +10,13 @@
 //! `none`). Values use `K=V` parsing: `none` / `null` clears an optional field.
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::path::Path;
 
 use serde_json::{json, Value};
 
 use crate::project::{
-    read_project, write_project, AnalysisWindow, Annotation, LoadedProject, SaveProject,
+    read_project, write_project_atomic, AnalysisWindow, Annotation, LoadedProject, SaveProject,
 };
 
 use super::output::emit;
@@ -49,13 +49,14 @@ fn list_annotations(path: &str, json: bool, full: bool, out: &mut impl Write) ->
 
     for annotation in &annotations {
         if json {
-            let mut value = serde_json::to_value(annotation).unwrap_or(Value::Null);
-            if !full {
-                if let Some(object) = value.as_object_mut() {
-                    object.insert("body".to_string(), json!(excerpt(&annotation.body)));
-                }
-            }
-            emit(out, &value, false);
+            // The body is project data, and what a reader extracts from it (tags, notes)
+            // often sits at its **end**: never silently replace it with an excerpt.
+            // `--full` widens the *table* label only (audit / hey-listen-report §3.2).
+            emit(
+                out,
+                &serde_json::to_value(annotation).unwrap_or(Value::Null),
+                false,
+            );
         } else {
             let time = match &annotation.range {
                 Some(range) => format!("{:.3}–{:.3}", range.start_secs, range.end_secs),
@@ -276,8 +277,8 @@ fn load(path: &str) -> Result<LoadedProject, String> {
     read_project(&mut file).map_err(|err| format!("{path}: {err}"))
 }
 
-/// Write `loaded` to `target` through a sibling temp file, so a failure cannot truncate
-/// the original project.
+/// Write `loaded` to `target` through the shared atomic helper, so a failure cannot
+/// truncate the original project.
 fn write_atomic(loaded: &LoadedProject, target: &str, now: u64) -> Result<(), String> {
     let save = SaveProject {
         name: loaded.meta.name.clone(),
@@ -290,20 +291,8 @@ fn write_atomic(loaded: &LoadedProject, target: &str, now: u64) -> Result<(), St
         compare: loaded.compare.clone(),
         pcm: loaded.pcm.as_ref(),
     };
-    if let Some(parent) = Path::new(target)
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("could not create {}: {err}", parent.display()))?;
-    }
-    let temp = format!("{target}.tmp");
-    {
-        let file = File::create(&temp).map_err(|err| format!("could not create {temp}: {err}"))?;
-        write_project(BufWriter::new(file), &save, now)
-            .map_err(|err| format!("could not write {temp}: {err}"))?;
-    }
-    std::fs::rename(&temp, target).map_err(|err| format!("could not replace {target}: {err}"))
+    write_project_atomic(Path::new(target), &save, now)
+        .map_err(|err| format!("could not replace {target}: {err}"))
 }
 
 fn fail(out: &mut impl Write, path: &str, message: &str) -> i32 {

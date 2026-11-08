@@ -66,6 +66,8 @@ pub enum GraphError {
     Cycle,
     #[error("could not stream rendered audio: {0}")]
     Stream(String),
+    #[error("the source was replaced before this render finished")]
+    Superseded,
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.

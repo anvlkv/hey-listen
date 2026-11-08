@@ -1,19 +1,21 @@
 //! Request mapping: turn parsed `tauri-plugin-cli` matches into a [`Request`], with
 //! the shared validation and the `-p` / `-o` / graph-file parsing helpers.
 
-use serde_json::Value;
 use tauri_plugin_cli::Matches;
 
-use crate::audio::analysis::canonical_option_key;
-use crate::audio::analyzers::{self, AnalyzerId, ToolId};
+use crate::audio::analyzers;
 
 use super::export_args;
 use super::inputs::{
-    parse_params, read_annotations, read_filter_graph, read_synth_graph, read_windows, split_kv,
+    parse_params, read_annotations, read_filter_graph, read_synth_graph, read_windows,
 };
-use super::types::{AnnotationsOp, BatchCommand, Command, OptionPatch, Request};
+use super::types::{AnnotationsOp, BatchCommand, Command, Request};
 
 mod annotation_args;
+mod parse;
+
+pub(super) use parse::{flag, string};
+use parse::{optional_number, parse_option_patches, request_tools, strings, tool_ids};
 
 /// Whether `name` is a batch subcommand (used to tell a real usage error from a
 /// `.heyl` file path that the plugin's parser rejected).
@@ -118,11 +120,12 @@ pub fn build_request(name: &str, matches: &Matches) -> Result<Request, String> {
 
 /// Parse the options shared by `analyze` and `synth` (everything but the command).
 fn common(matches: &Matches) -> Result<Request, String> {
-    let tools = request_tools(matches)?;
+    let (tools, unknown_tools) = request_tools(matches);
     let request = Request {
         command: Command::Analyze,
         files: Vec::new(),
         tools: tools.clone(),
+        unknown_tools,
         all: flag(matches, "all"),
         start: optional_number(matches, "start")?,
         end: optional_number(matches, "end")?,
@@ -167,7 +170,11 @@ fn validate(request: &Request) -> Result<(), String> {
             }
             let needs_tools = request.windows.is_empty()
                 || request.windows.iter().any(|window| window.tools.is_empty());
-            if needs_tools && request.tools.is_empty() && !request.all {
+            if needs_tools
+                && request.tools.is_empty()
+                && request.unknown_tools.is_empty()
+                && !request.all
+            {
                 return Err("analyze needs `-t <TOOL>` (or `--all`)".into());
             }
         }
@@ -203,7 +210,7 @@ fn validate(request: &Request) -> Result<(), String> {
         Command::Compare {
             save, open_tools, ..
         } => {
-            if request.tools.is_empty() && !request.all {
+            if request.tools.is_empty() && request.unknown_tools.is_empty() && !request.all {
                 return Err("compare needs `-t <TOOL>` (or `--all`)".into());
             }
             if !request.windows.is_empty() {
@@ -255,12 +262,14 @@ fn validate(request: &Request) -> Result<(), String> {
 
 /// How many result lines a request produces (for the `--pretty` check).
 pub(super) fn result_count(request: &Request) -> usize {
+    let unknown = request.unknown_tools.len();
     match &request.command {
         Command::Analyzers { .. } => 0,
-        Command::Analyze => request.files.len() * window_result_count(request),
-        Command::Synth { .. } => tool_count(request),
+        Command::Analyze => request.files.len() * (window_result_count(request) + unknown),
+        // `synth` emits one source-summary record when no tool was given.
+        Command::Synth { .. } => (tool_count(request) + unknown).max(1),
         Command::Annotations { .. } => 0,
-        Command::Compare { .. } => tool_count(request),
+        Command::Compare { .. } => tool_count(request) + unknown,
         Command::ProjectSave { .. } => 1,
     }
 }
@@ -291,104 +300,4 @@ fn window_result_count(request: &Request) -> usize {
             }
         })
         .sum()
-}
-
-// --- parsing helpers -----------------------------------------------------
-
-fn strings(matches: &Matches, name: &str) -> Vec<String> {
-    matches
-        .args
-        .get(name)
-        .and_then(|arg| arg.value.as_array())
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-pub(super) fn string(matches: &Matches, name: &str) -> Option<String> {
-    matches
-        .args
-        .get(name)
-        .and_then(|arg| arg.value.as_str())
-        .map(str::to_string)
-}
-
-/// A repeatable Workbench tool id (`--open-tool`), parsed once here.
-fn tool_ids(matches: &Matches, name: &str) -> Result<Vec<ToolId>, String> {
-    strings(matches, name)
-        .into_iter()
-        .map(|id| {
-            id.parse::<ToolId>()
-                .map_err(|_| format!("unknown tool in --{name}: {id}"))
-        })
-        .collect()
-}
-
-pub(super) fn flag(matches: &Matches, name: &str) -> bool {
-    matches
-        .args
-        .get(name)
-        .and_then(|arg| arg.value.as_bool())
-        .unwrap_or(false)
-}
-
-fn optional_number(matches: &Matches, name: &str) -> Result<Option<f64>, String> {
-    match string(matches, name) {
-        Some(text) => text
-            .parse::<f64>()
-            .map(Some)
-            .map_err(|_| format!("invalid --{name}: {text}")),
-        None => Ok(None),
-    }
-}
-
-/// Parse `-o` patches. A token is `[TOOL.]KEY=VALUE`; a bare `KEY=VALUE` is scoped to
-/// the sole `--tool` (there is no other way to tell which tool it belongs to, since the
-/// plugin's matches do not preserve the order of flags on the command line).
-fn request_tools(matches: &Matches) -> Result<Vec<AnalyzerId>, String> {
-    strings(matches, "tool")
-        .iter()
-        .map(|tool| {
-            tool.parse()
-                .map_err(|_| format!("unknown analyzer: {tool}"))
-        })
-        .collect()
-}
-
-fn parse_option_patches(
-    tokens: &[String],
-    tools: &[AnalyzerId],
-) -> Result<Vec<OptionPatch>, String> {
-    let mut patches = Vec::new();
-    for token in tokens {
-        let (lhs, value) = split_kv(token)?;
-        let (tool, key) = match lhs.split_once('.') {
-            Some((tool, key)) => (
-                tool.parse::<AnalyzerId>()
-                    .map_err(|_| format!("unknown analyzer in `-o`: {tool}"))?,
-                key.to_string(),
-            ),
-            None if tools.len() == 1 => (tools[0], lhs),
-            None => {
-                return Err(format!(
-                    "`-o {token}` must name its tool: use `-o <TOOL>.<KEY>=<VALUE>`"
-                ))
-            }
-        };
-        // Canonicalize camelCase / snake_case (`min_f0_hz` → `minF0Hz`) so the same
-        // keys MCP's `set_tool_options` takes work here too.
-        let key = canonical_option_key(&key)
-            .ok_or_else(|| format!("unknown option for {tool}: {key}"))?;
-        patches.push(OptionPatch {
-            tool,
-            key: key.to_string(),
-            value,
-        });
-    }
-    Ok(patches)
 }

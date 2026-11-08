@@ -31,7 +31,8 @@ pub use read::{read_project, LoadedProject};
 pub use sections::{
     AnalysisSetup, AnalysisWindow, Annotation, Meta, SourceDescriptor, SourceKind, StoredResult,
 };
-pub use write::{write_project, SaveProject};
+#[allow(unused_imports)] // `write_project` is the in-memory writer the tests use
+pub use write::{write_project, write_project_atomic, SaveProject};
 
 /// File magic at offset 0 (`"HEYL"`).
 pub const MAGIC: [u8; 4] = *b"HEYL";
@@ -150,7 +151,13 @@ impl Crc32 {
 }
 
 #[cfg(test)]
+mod test_support;
+
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]
 mod tests_compare;
+
+#[cfg(test)]
+mod tests_data;

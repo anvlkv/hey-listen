@@ -77,13 +77,15 @@ export async function openPaths(paths: string[]) {
   if (pending.length === 0) return;
   if (!(await confirmDiscard())) return;
   for (const path of pending) {
-    handled.add(path);
+    // Only a **successful** load is marked handled: a file that moved, was corrupt, or
+    // failed to decode must be retried by the next drop / OS-open, not ignored until
+    // restart.
     if (isProjectFile(path)) {
-      await loadProject(path);
+      if (await loadProject(path)) handled.add(path);
     } else {
       // A supported audio file opens as a fresh project with it as the source.
       await newProject();
-      await openPath(path);
+      if (await openPath(path)) handled.add(path);
     }
   }
 }

@@ -10,8 +10,8 @@ use super::{
     DEFAULT_HOP_MS, DEFAULT_HYSTERESIS_DB, DEFAULT_MIN_GAP_MS, DEFAULT_MIN_NOTE_MS,
     DEFAULT_MIN_VOICED_SECS, DEFAULT_MOD_MAX_HZ, DEFAULT_MOD_MIN_HZ, DEFAULT_N_BANDS,
     DEFAULT_N_MELS, DEFAULT_N_MFCC, DEFAULT_PITCH_FRAME_MS, DEFAULT_PITCH_HOP_MS, DEFAULT_ROLLOFF,
-    DEFAULT_TOP_PEAKS, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0, YIN_MAX_F0,
-    YIN_MIN_F0,
+    DEFAULT_TOP_PEAKS, DEFAULT_YIN_THRESHOLD, HARMONIC_MAX_F0, HARMONIC_MIN_F0, PYIN_MAX_F0,
+    PYIN_MIN_F0, YIN_MAX_F0, YIN_MIN_F0,
 };
 
 mod window;
@@ -194,6 +194,12 @@ impl ToolOptions {
 
     pub(super) fn harmonic_range(&self) -> (f32, f32) {
         self.f0_range(HARMONIC_MIN_F0, HARMONIC_MAX_F0)
+    }
+
+    /// pYIN's f0 search range (the detector takes it explicitly, unlike the crate's fixed
+    /// 50–2000 Hz window).
+    pub(super) fn pyin_range(&self) -> (f32, f32) {
+        self.f0_range(PYIN_MIN_F0, PYIN_MAX_F0)
     }
 
     pub(super) fn bar_length(&self) -> usize {

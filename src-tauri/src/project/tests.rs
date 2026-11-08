@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 
 use super::sections::{AnalysisWindow, AnnotationValues, StoredResult};
+use super::test_support::save_with;
 use super::*;
 use crate::audio::analysis::compare::{SavedComparison, SourceShape, Span};
 use crate::audio::analysis::{SharedParams, SpectrogramResult, StoredAnalysisResult, ToolOptions};
@@ -36,21 +37,6 @@ fn pcm(samples: usize) -> SourceData {
         samples: values,
         sample_rate: 48_000,
         channels: 2,
-    }
-}
-
-/// A minimal save payload; `pcm` is the only part the write/read tests vary.
-fn save_with<'a>(name: &str, pcm: Option<&'a SourceData>) -> SaveProject<'a> {
-    SaveProject {
-        name: name.to_string(),
-        created_ms: None,
-        source: None,
-        setup: AnalysisSetup::default(),
-        layout: serde_json::Value::Null,
-        results: Vec::new(),
-        annotations: Vec::new(),
-        compare: Vec::new(),
-        pcm,
     }
 }
 

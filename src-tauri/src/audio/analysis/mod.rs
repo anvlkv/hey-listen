@@ -16,6 +16,7 @@
 //! per-family tool implementations plus the [`run`] dispatcher.
 
 pub mod compare;
+mod pyin;
 mod results;
 mod shape;
 mod summary;
@@ -59,7 +60,8 @@ const YIN_MAX_F0: f32 = 2_000.0;
 /// Harmonic-ratio's default: wide enough for calls above 2 kHz.
 const HARMONIC_MIN_F0: f32 = 50.0;
 const HARMONIC_MAX_F0: f32 = 4_000.0;
-/// The range `oxiaudio`'s pYIN detector hardcodes (reported as its effective range).
+/// pYIN's default search range. The detector itself takes an explicit range (see
+/// [`pyin`]), so this is only the default when the tool has no `minF0Hz`/`maxF0Hz`.
 const PYIN_MIN_F0: f32 = 50.0;
 const PYIN_MAX_F0: f32 = 2_000.0;
 /// Cap on frames for the O(frames × lags) pitch / harmonic-ratio tools, so a long

@@ -20,8 +20,7 @@ export async function setWindowTitle(name?: string) {
 }
 
 /** Metadata returned by the backend's `probe_file` command (ts-rs binding). */
-/** Summary returned once the backend finished streaming a decoded file (ts-rs binding). */
-export type { ProbeInfo, StreamSummary };
+export type { ProbeInfo };
 
 /**
  * The current project's audio source: PCM backing the timeline. Static for files,
@@ -62,10 +61,28 @@ export const [error, setError] = createSignal<string | null>(null);
 /** Generation counter so a slow open can't clobber a newer one. */
 let openToken = 0;
 
+/**
+ * Claim the next source-replacement token.
+ *
+ * Every flow that replaces the source (open a file, load a project, render a synth)
+ * takes one, and passes it to the core, which installs the decoded audio only while its
+ * request is still the newest. That is what keeps the timeline, playback and analysis on
+ * the same audio when two replacements overlap and finish out of order.
+ */
+export function nextSourceToken(): number {
+  return ++openToken;
+}
+
+/** The newest claimed token (an older flow compares against it before applying). */
+export function currentSourceToken(): number {
+  return openToken;
+}
+
 /** Clear the timeline and drop the core-owned source PCM (ADR-9). */
 export function closeSource() {
-  openToken++;
-  void invoke("clear_audio_source");
+  // A newer token also makes any decode still in flight stale in the core.
+  const token = nextSourceToken();
+  void invoke("clear_audio_source", { requestId: token });
   setSource(null);
   setStatus("empty");
   setError(null);
@@ -109,9 +126,10 @@ export function finalizeSource(opts: {
 
 /**
  * Open a file source: probe it, then stream + assemble the decoded PCM.
- * Replaces any existing source (the whole timeline changes).
+ * Replaces any existing source (the whole timeline changes). Returns whether the file
+ * became the source (a failed or superseded open returns `false`).
  */
-export async function openPath(path: string, confirm = true) {
+export async function openPath(path: string, confirm = true): Promise<boolean> {
   // Replacing an existing source discards the timeline (and its analysis window).
   // The MCP server can pass `confirm = false` when the agent explicitly replaces.
   if (confirm && source() != null) {
@@ -119,11 +137,13 @@ export async function openPath(path: string, confirm = true) {
       message: "Replacing the current source discards the existing audio.",
       title: "Replace source?",
     });
-    if (!ok) return;
+    if (!ok) return false;
   }
 
-  const token = ++openToken;
-  void invoke("clear_audio_source");
+  const token = nextSourceToken();
+  // Await the clear: it claims `token` in the core, so a decode from an older open still
+  // running cannot install after this replacement started.
+  await invoke("clear_audio_source", { requestId: token }).catch(() => {});
   setSource(null);
   setError(null);
   setStatus("probing");
@@ -136,9 +156,9 @@ export async function openPath(path: string, confirm = true) {
       setError(String(err));
       setStatus("error");
     }
-    return;
+    return false;
   }
-  if (token !== openToken) return;
+  if (token !== openToken) return false;
 
   setStatus("decoding");
 
@@ -147,16 +167,20 @@ export async function openPath(path: string, confirm = true) {
   const stream = pcmStream();
   let summary: StreamSummary;
   try {
-    summary = await invoke<StreamSummary>("stream_file", { path, onChunk: stream.channel });
+    summary = await invoke<StreamSummary>("stream_file", {
+      path,
+      requestId: token,
+      onChunk: stream.channel,
+    });
     await stream.done;
   } catch (err) {
     if (token === openToken) {
       setError(String(err));
       setStatus("error");
     }
-    return;
+    return false;
   }
-  if (token !== openToken) return;
+  if (token !== openToken) return false;
 
   const samples = stream.samples();
   const channels = Math.max(1, summary.channels);
@@ -169,6 +193,7 @@ export async function openPath(path: string, confirm = true) {
     channels,
     probe,
   });
+  return true;
 }
 
 /** Show the native file picker and open the chosen file, if any. */

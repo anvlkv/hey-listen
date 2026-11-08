@@ -200,6 +200,12 @@ at its time), so both *creating* and *selecting* an annotation leave the analysi
 also clears every chart's full-height overlay and the Timeline's stem; the lane anchors stay
 (they are the index of where the annotations are) but are drawn **dull**.
 
+**Saving with annotations stores the whole source.** Curating annotations while listening to
+a fragment leaves the analysis window on that fragment; a **project save** that carries
+annotations resets the analysis window to the whole file (and moves the live window with it),
+so the saved project is not framed on the span being tagged (`lib/saveWindow.ts`). A save with
+no annotations keeps the window the user chose.
+
 **Planned (M23) — full-height rules on the Timeline.** While a span is dragged in the
 lane, when a range is selected, and when an annotation is hovered, the Timeline draws
 **vertical rules at the annotation's edges** across the waveform (plus a live `start → end (Δ)`

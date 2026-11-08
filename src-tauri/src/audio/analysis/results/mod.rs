@@ -125,8 +125,8 @@ pub struct PitchResult {
     pub values: Vec<Option<f32>>,
     pub min_value: f32,
     pub max_value: f32,
-    /// The f0 search window the detector actually used, in Hz. pYIN's fixed
-    /// 50–2000 Hz window shows here instead of a requested range it cannot honour.
+    /// The f0 search window the detector actually used, in Hz, so a request a detector
+    /// cannot honour shows here instead of being silently ignored.
     pub effective_min_f0_hz: f32,
     pub effective_max_f0_hz: f32,
     /// Frames with a detected pitch (non-gap `values`).

@@ -35,7 +35,11 @@ pub(super) fn run_synth(
 
     // With no tools, `synth` reports the rendered source instead of analyzing it.
     if request.tools.is_empty() && !request.all {
-        emit(out, &json!({ "file": path, "source": summary }), false);
+        emit(
+            out,
+            &json!({ "file": path, "source": summary }),
+            request.pretty,
+        );
         return 0;
     }
     let tools = tools_for(request);

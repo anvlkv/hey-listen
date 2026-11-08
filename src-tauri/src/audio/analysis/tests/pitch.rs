@@ -93,7 +93,7 @@ fn harmonic_ratio_defaults_reach_three_khz() {
 }
 
 #[test]
-fn pyin_reports_its_fixed_effective_range() {
+fn pyin_reports_its_effective_range() {
     let mono = sine(440.0, 0.5);
     let result = match run(
         AnalyzerId::PitchPyin,
@@ -107,9 +107,59 @@ fn pyin_reports_its_fixed_effective_range() {
         AnalysisResult::PitchPyin(r) => r,
         other => panic!("unexpected result: {other:?}"),
     };
-    // oxiaudio's pYIN hardcodes this window; report it instead of a range it ignores.
+    // The default range, reported back like the other pitch trackers.
     assert_eq!(result.effective_min_f0_hz, 50.0);
     assert_eq!(result.effective_max_f0_hz, 2_000.0);
+    let mean = mean_f0(&result);
+    assert!((mean - 440.0).abs() < 20.0, "mean f0 = {mean}");
+}
+
+/// The report's finding: pYIN hardcoded 50–2000 Hz, so a high fundamental was
+/// unreachable and cross-tracker agreement above 2 kHz could not be evaluated
+/// (hey-listen-report §2.2/§6.2).
+#[test]
+fn pyin_finds_a_three_khz_f0_with_an_explicit_range() {
+    let mono = sine(3_000.0, 0.5);
+    let result = match run(
+        AnalyzerId::PitchPyin,
+        &mono,
+        RATE,
+        &params(2048),
+        &pitch_options(50.0, 4_000.0),
+    )
+    .expect("pitch")
+    {
+        AnalysisResult::PitchPyin(r) => r,
+        other => panic!("unexpected result: {other:?}"),
+    };
+    assert_eq!(result.effective_max_f0_hz, 4_000.0);
+    let mean = mean_f0(&result);
+    // The detector reports semitone bin centres, so allow ~a semitone.
+    assert!((mean - 3_000.0).abs() < 120.0, "mean f0 = {mean}");
+}
+
+/// With the default 2 kHz ceiling the same tone is out of range: it must not be
+/// reported as its 1.5 kHz subharmonic.
+#[test]
+fn pyin_does_not_invent_a_subharmonic_when_the_range_excludes_the_tone() {
+    let mono = sine(3_000.0, 0.5);
+    let result = match run(
+        AnalyzerId::PitchPyin,
+        &mono,
+        RATE,
+        &params(2048),
+        &ToolOptions::default(),
+    )
+    .expect("pitch")
+    {
+        AnalysisResult::PitchPyin(r) => r,
+        other => panic!("unexpected result: {other:?}"),
+    };
+    let voiced: Vec<f32> = result.values.iter().flatten().copied().collect();
+    assert!(
+        voiced.iter().all(|f0| *f0 < 2_100.0),
+        "a 3 kHz tone was reported inside a 2 kHz range: {voiced:?}"
+    );
 }
 
 #[test]
@@ -180,4 +230,25 @@ fn f0_reliability_needs_enough_voiced_frames() {
         assert_eq!(result.voiced_frames, voiced);
         assert_eq!(result.f0_reliable, reliable, "voiced frames = {voiced}");
     }
+}
+
+/// Harmonic ratio takes the same explicit range: a 3 kHz tone inside a 2–4 kHz band
+/// scores high, so the tool is not silently capped at 2 kHz (hey-listen-report §6.2).
+#[test]
+fn harmonic_ratio_honours_an_explicit_high_range() {
+    let mono = sine(3_000.0, 0.5);
+    let result = match run(
+        AnalyzerId::HarmonicRatio,
+        &mono,
+        RATE,
+        &params(2048),
+        &pitch_options(2_000.0, 4_000.0),
+    )
+    .expect("harmonic ratio")
+    {
+        AnalysisResult::HarmonicRatio(r) => r,
+        other => panic!("unexpected result: {other:?}"),
+    };
+    let mean = mean_series(&result);
+    assert!(mean > 0.8, "mean harmonic ratio = {mean}");
 }

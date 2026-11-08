@@ -29,6 +29,10 @@ pub(super) fn default_params() -> SharedParams {
 }
 
 /// Merge a partial shared-params patch (camelCase keys), matching the frontend.
+///
+/// Every known key is **type-checked** and range-checked against the engine's own clamps
+/// before it is stored: a wrong-typed or out-of-range value is an error, never silently
+/// ignored while the call reports success (audit P2 #10).
 pub(super) fn merge_params(params: &mut SharedParams, value: &Value) -> Result<(), String> {
     let Some(map) = value.as_object() else {
         return Err("`params` must be an object".to_string());
@@ -36,52 +40,51 @@ pub(super) fn merge_params(params: &mut SharedParams, value: &Value) -> Result<(
     for (key, value) in map {
         match key.as_str() {
             "fftSize" => {
-                if let Some(size) = value.as_u64() {
-                    params.fft_size = size as usize;
-                }
+                let size = number_in(value, key, 64.0, 32_768.0)?;
+                params.fft_size = size as usize;
             }
-            "hop" => {
-                if let Some(hop) = value.as_f64() {
-                    params.hop = hop;
-                }
-            }
+            "hop" => params.hop = number_in(value, key, 0.01, 1.0)?,
             "randomizedOverlap" => {
-                if let Some(flag) = value.as_bool() {
-                    params.randomized_overlap = flag;
-                }
+                params.randomized_overlap = value
+                    .as_bool()
+                    .ok_or_else(|| "`randomizedOverlap` must be a boolean".to_string())?;
             }
             "windowFn" => {
                 params.window_fn = serde_json::from_value(value.clone())
                     .map_err(|err| format!("invalid `windowFn`: {err}"))?;
             }
             "channel" => {
-                params.channel = if value.is_null() {
-                    None
-                } else {
-                    value.as_u64().map(|channel| channel as usize)
+                params.channel = match value {
+                    Value::Null => None,
+                    other => Some(number_in(other, key, 0.0, 65_535.0)? as usize),
                 };
             }
             "resampleTo" => {
-                params.resample_to = if value.is_null() {
-                    None
-                } else {
-                    value.as_u64().map(|rate| rate as u32)
+                params.resample_to = match value {
+                    Value::Null => None,
+                    other => Some(number_in(other, key, 1.0, 768_000.0)? as u32),
                 };
             }
-            "freqMinHz" => {
-                if let Some(hz) = value.as_f64() {
-                    params.freq_min_hz = hz;
-                }
-            }
-            "freqMaxHz" => {
-                if let Some(hz) = value.as_f64() {
-                    params.freq_max_hz = hz;
-                }
-            }
+            "freqMinHz" => params.freq_min_hz = number_in(value, key, 0.0, 768_000.0)?,
+            "freqMaxHz" => params.freq_max_hz = number_in(value, key, 0.0, 768_000.0)?,
             other => return Err(format!("unknown shared param: {other}")),
         }
     }
     Ok(())
+}
+
+/// Read a required finite number for `key`, inside `[min, max]`.
+fn number_in(value: &Value, key: &str, min: f64, max: f64) -> Result<f64, String> {
+    let number = value
+        .as_f64()
+        .filter(|number| number.is_finite())
+        .ok_or_else(|| format!("`{key}` must be a finite number"))?;
+    if number < min || number > max {
+        return Err(format!(
+            "`{key}` must be between {min} and {max} (got {number})"
+        ));
+    }
+    Ok(number)
 }
 
 /// Read a required analyzer id from a tool's arguments (parsed once, here).
@@ -104,13 +107,36 @@ pub(super) fn tool_id(args: &Value) -> Result<ToolId, String> {
     value.parse().map_err(|_| format!("unknown tool: {value}"))
 }
 
-/// Merge per-tool option overrides into `entry`. Keys are canonical camelCase,
-/// with their snake_case aliases accepted; a value must be a number and an unknown
-/// key is an error (never silent).
+/// Merge per-tool option overrides into `entry`, **validating** them against the tool's
+/// catalog first (key applicability + declared range).
+///
+/// Keys are canonical camelCase with snake_case aliases accepted; a value must be a
+/// number. Used by every override surface (`set_tool_options`, `run_analysis`'s
+/// `options`, the CLI's `-o`), so none of them can accept an option that does not belong
+/// to the tool or a value outside its range (audit P2 #10).
 pub(super) fn merge_options(
     entry: &mut ToolOptions,
     tool: AnalyzerId,
     options: &serde_json::Map<String, Value>,
+) -> Result<(), String> {
+    apply_options(entry, tool, options, true)
+}
+
+/// Apply options from a **saved project** without the catalog check: they were clamped
+/// by the stores that wrote them, and an old file must still open.
+pub(super) fn restore_options(
+    entry: &mut ToolOptions,
+    tool: AnalyzerId,
+    options: &serde_json::Map<String, Value>,
+) -> Result<(), String> {
+    apply_options(entry, tool, options, false)
+}
+
+fn apply_options(
+    entry: &mut ToolOptions,
+    tool: AnalyzerId,
+    options: &serde_json::Map<String, Value>,
+    validate: bool,
 ) -> Result<(), String> {
     for (key, value) in options {
         let canonical =
@@ -118,6 +144,9 @@ pub(super) fn merge_options(
         let number = value
             .as_f64()
             .ok_or_else(|| format!("option {canonical} for {tool} must be a number"))?;
+        if validate {
+            crate::audio::analyzers::check_option(tool, canonical, number)?;
+        }
         match canonical {
             "nMels" => entry.n_mels = Some(number as usize),
             "nMfcc" => entry.n_mfcc = Some(number as usize),

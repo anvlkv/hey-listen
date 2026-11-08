@@ -5,6 +5,7 @@
 //! byte; the checksum is appended last.
 
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 
 use super::error::ProjectError;
 use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
@@ -111,6 +112,60 @@ pub fn write_project<W: Write>(
     inner.write_all(&u64::from(checksum).to_le_bytes())?;
     inner.flush()?;
     Ok(())
+}
+
+/// Write a project to `path` **atomically**: a sibling temporary file is written,
+/// flushed and synced, then renamed over the destination. A failure before the rename
+/// leaves the previous project untouched (audit P1 #1).
+///
+/// Every save surface (the GUI command, the headless MCP session and the CLI's
+/// `project` / `annotations` writers) goes through here, so none of them can truncate a
+/// good file and then fail. Parent directories are created first.
+pub fn write_project_atomic(
+    path: &Path,
+    save: &SaveProject,
+    now_ms: u64,
+) -> Result<(), ProjectError> {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent)?;
+    }
+    let temp = temp_sibling(path);
+    let written = write_temp(&temp, save, now_ms);
+    if let Err(err) = written {
+        let _ = std::fs::remove_file(&temp);
+        return Err(err);
+    }
+    if let Err(err) = std::fs::rename(&temp, path) {
+        let _ = std::fs::remove_file(&temp);
+        return Err(ProjectError::Io(err));
+    }
+    Ok(())
+}
+
+/// Write the complete project to `temp`, then flush and sync it to disk.
+fn write_temp(temp: &Path, save: &SaveProject, now_ms: u64) -> Result<(), ProjectError> {
+    let mut writer = io::BufWriter::new(std::fs::File::create(temp)?);
+    write_project(&mut writer, save, now_ms)?;
+    writer.flush()?;
+    let file = writer.into_inner().map_err(|err| err.into_error())?;
+    file.sync_all()?;
+    Ok(())
+}
+
+/// A unique sibling temporary path (same directory, so the rename stays on one file
+/// system). Two concurrent saves must not share it.
+fn temp_sibling(path: &Path) -> PathBuf {
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "project".to_string());
+    let temp_name = format!(".{name}.{}.{seq}.tmp", std::process::id());
+    path.with_file_name(temp_name)
 }
 
 /// The `DATA` section length for a source, computed without touching the samples.

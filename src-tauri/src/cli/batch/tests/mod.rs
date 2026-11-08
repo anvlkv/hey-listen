@@ -15,6 +15,7 @@ use crate::audio::graph::{GraphEdge, GraphNode, GraphSpec};
 mod annotations;
 mod compare;
 mod options;
+mod output;
 mod parse;
 mod parse_project;
 mod project;
@@ -115,6 +116,7 @@ pub(super) fn analyze_request(files: Vec<String>, tools: Vec<String>) -> Request
         command: Command::Analyze,
         files,
         tools: parse_tools(&tools),
+        unknown_tools: Vec::new(),
         all: false,
         start: None,
         end: None,

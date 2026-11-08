@@ -14,15 +14,40 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "**Why use it.** The most reliable of the three pitch tools and a good default " +
       "for monophonic melody or speech. Smoothing keeps it steadier and less prone " +
       "to octave jumps than plain YIN.\n\n" +
-      "**Range.** pYIN searches a fixed **50–2000 Hz** window. Above 2 kHz use " +
-      "*Pitch (YIN)* or *Pitch (autocorrelation)*, whose f0 range you can set in " +
-      "their tool params.\n\n" +
+      "**Range.** Set the f0 range below like the other pitch trackers; the search " +
+      "is not limited to 2 kHz (the default 50–2000 Hz is only a starting point).\n\n" +
       "**Reliability.** A median from only a handful of voiced frames is not a pitch: " +
       "below **8 voiced frames** the result's `f0Reliable` is false and the summary " +
       "omits the median. Read `voicedFrames` / `voicedFraction` before trusting a track.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
     view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
+    params: [
+      {
+        key: "minF0Hz",
+        label: "Min f0",
+        kind: "number",
+        value: 50,
+        min: 20,
+        max: 5000,
+        step: 5,
+        suffix: "Hz",
+        title:
+          "Lowest expected fundamental — the bottom of the pYIN search range. Lower it for deep voices or animal calls.",
+      },
+      {
+        key: "maxF0Hz",
+        label: "Max f0",
+        kind: "number",
+        value: 2000,
+        min: 40,
+        max: 8000,
+        step: 50,
+        suffix: "Hz",
+        title:
+          "Highest expected fundamental — raise it for high calls; pYIN searches above 2 kHz when you ask it to.",
+      },
+    ],
   },
   {
     id: "pitchYin",

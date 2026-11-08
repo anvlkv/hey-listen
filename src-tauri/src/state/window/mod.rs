@@ -58,15 +58,21 @@ impl WindowState {
         }
     }
 
-    /// Apply a UI-state patch; returns `true` when the value actually changed.
-    pub fn set_ui(&self, key: &str, value: serde_json::Value) -> bool {
+    /// Apply a UI-state patch; returns the revision it was stored at, or `None` when the
+    /// value did not change (so the caller can skip broadcasting it).
+    pub fn set_ui(&self, key: &str, value: serde_json::Value) -> Option<u64> {
         let mut ui = self.ui.lock().unwrap_or_else(|poison| poison.into_inner());
         if ui.get(key) == Some(&value) {
-            return false;
+            return None;
         }
         ui.insert(key.to_string(), value);
-        self.ui_revision.fetch_add(1, Ordering::Relaxed);
-        true
+        Some(self.ui_revision.fetch_add(1, Ordering::Relaxed) + 1)
+    }
+
+    /// The UI-state revision (monotonic within a process). A window that pulls the
+    /// snapshot uses it to drop patches the snapshot already contains.
+    pub fn ui_revision(&self) -> u64 {
+        self.ui_revision.load(Ordering::Relaxed)
     }
 
     /// The project's revision: UI plus audio changes, monotonic within a process.

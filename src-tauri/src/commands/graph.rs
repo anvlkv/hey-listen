@@ -51,17 +51,23 @@ pub async fn set_filter_graph(
 }
 
 /// Build a fundsp synth graph, render it to mono PCM, stream it to the frontend,
-/// and adopt it as the project source.
+/// and adopt it as the project source. `request_id` is the frontend's source token:
+/// the render is installed only while it is still the newest replacement.
 #[tauri::command]
 pub async fn render_synth(
     window: WebviewWindow,
     spec: GraphSpec,
     seconds: f64,
     sample_rate: u32,
+    request_id: u64,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<StreamSummary, GraphError> {
     let rate = sample_rate.clamp(8_000, 192_000);
     let seconds = seconds.clamp(0.01, 600.0);
+    let state = window_state(&window);
+    let Some(request) = state.audio.claim_source_request(request_id) else {
+        return Err(GraphError::Superseded);
+    };
 
     let pcm =
         tauri::async_runtime::spawn_blocking(move || graph::render_mono(&spec, seconds, rate))
@@ -76,11 +82,14 @@ pub async fn render_synth(
     stream::send_end_sentinel(&on_chunk).map_err(GraphError::Stream)?;
 
     let frames = pcm.len() as u64;
-    window_state(&window).audio.set_source(Some(SourceData {
-        samples: pcm,
-        sample_rate: rate,
-        channels: 1,
-    }));
+    state.audio.install_source(
+        request,
+        Some(SourceData {
+            samples: pcm,
+            sample_rate: rate,
+            channels: 1,
+        }),
+    );
 
     Ok(StreamSummary {
         sample_rate: rate,

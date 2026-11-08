@@ -103,9 +103,10 @@ fn initialize_result(params: &Value) -> Value {
                          the ids and `get_analyzer` before guessing option keys, ranges, or \
                          summary keys. For a quick answer run `run_analysis` with \
                          `summaryOnly: true`; the default result is compact, and `includeData` \
-                         returns raw arrays (`maxPoints` thins series only — never pass it for \
-                         `noteMetrics`, which would drop events; `axis: \"compact\"` replaces a \
-                         `times` array with `{ start, hop, length, end }`). Set \
+                         returns raw arrays (`maxPoints` thins series **and matrix** arrays, \
+                         keeping first/last points; it never thins event or note lists, so it is \
+                         safe — just useless — for `noteMetrics`/`onsets`; `axis: \"compact\"` \
+                         replaces a `times` array with `{ start, hop, length, end }`). Set \
                          `display: false` and `transient: true` for sweeps that must not move the \
                          user's window or persist overrides. To find sound events use \
                          `frameRms` plus `noteMetrics` (gated spans), not `onsets` / \
@@ -355,5 +356,38 @@ mod tests {
         let response = handle_message("{not json", &mut echo).unwrap();
         assert_eq!(response["error"]["code"], PARSE_ERROR);
         assert_eq!(response["id"], Value::Null);
+    }
+
+    /// The `initialize` guidance must describe the `maxPoints` contract that is actually
+    /// delivered: series **and matrix** arrays are thinned, event/note lists never are
+    /// (audit P3; `docs/mcp.md`).
+    #[test]
+    fn instructions_describe_the_max_points_contract() {
+        let instructions = initialize_result(&json!({}))["instructions"]
+            .as_str()
+            .expect("instructions")
+            .to_string();
+        assert!(
+            instructions.contains("never thins") && instructions.contains("matrix"),
+            "stale maxPoints guidance: {instructions}"
+        );
+        assert!(!instructions.contains("thins series only"));
+    }
+
+    /// `decimatable` mirrors the family: the event/note **lists** survive `maxPoints`, so
+    /// only the families without a thinnable array (notes, scalars) report `false`.
+    #[test]
+    fn decimatable_mirrors_the_result_family() {
+        use crate::audio::analyzers::{family_of, AnalyzerId, Family};
+        use strum::IntoEnumIterator;
+
+        for id in AnalyzerId::iter() {
+            let family = family_of(id);
+            let detail = crate::audio::analyzers::detail(id).expect("catalog detail");
+            assert_eq!(detail["decimatable"], family.decimatable(), "{id}");
+            if matches!(family, Family::Notes | Family::Scalar) {
+                assert_eq!(detail["decimatable"], false, "{id}");
+            }
+        }
     }
 }

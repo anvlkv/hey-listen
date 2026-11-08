@@ -45,19 +45,40 @@ use analyze::run_analyze;
 use analyzers::run_analyzers;
 use annotations::run_annotations;
 use compare::run_compare;
+use output::Output;
 use project::run_project_save;
 use synth::run_synth;
 
 /// Run a resolved batch request, writing JSONL (or one pretty object with `--pretty`)
 /// to `out`. Returns the process exit code: `0` when every file/tool succeeded, `1`
-/// when at least one failed. Usage errors are caught in [`build_request`] (exit `2`).
+/// when at least one failed **or the output could not be written**. Usage errors are
+/// caught in [`build_request`] (exit `2`).
 pub fn run(request: &Request, out: &mut impl Write) -> i32 {
+    // A write failure (a full disk, a closed pipe) must not be reported as success.
+    let mut output = Output::new(out);
+    let code = run_request(request, &mut output);
+    if output.failed() && code == 0 {
+        return 1;
+    }
+    code
+}
+
+fn run_request(request: &Request, out: &mut impl Write) -> i32 {
     // A comparison loads two project files itself (each side's setup + filter); it does
     // not use the headless session the other subcommands share.
     if matches!(request.command, Command::Compare { .. }) {
         return run_compare(request, out);
     }
     let mut session = HeadlessSession::default();
+
+    // An unknown `-t` id is reported as a result-line `error` and exits `1`, matching
+    // `docs/cli.md` (audit P3): every surface of the batch CLI reports per-result errors
+    // the same way. When no known tool remains there is nothing to run, so stop here
+    // rather than decoding a file for no result.
+    let unknown = report_unknown_tools(request, out);
+    if request.tools.is_empty() && !request.all && unknown {
+        return 1;
+    }
 
     // The --filter graph conditions the signal before analysis, through the same
     // headless `set_filter_graph` tool the MCP server exposes.
@@ -90,7 +111,7 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
         }
     }
 
-    match &request.command {
+    let code = match &request.command {
         Command::Analyzers { id, json } => run_analyzers(&mut session, id.as_deref(), *json, out),
         Command::Analyze => run_analyze(&mut session, request, out),
         Command::Annotations {
@@ -107,5 +128,34 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
             seconds,
             path,
         } => run_synth(&mut session, request, graph, *seconds, path, out),
+    };
+    if unknown && code == 0 {
+        1
+    } else {
+        code
     }
+}
+
+/// Emit one `error` record per unknown `-t` id; returns whether any was reported.
+fn report_unknown_tools(request: &Request, out: &mut impl Write) -> bool {
+    if request.unknown_tools.is_empty() {
+        return false;
+    }
+    for tool in &request.unknown_tools {
+        let mut record = json!({ "tool": tool, "error": format!("unknown analyzer: {tool}") });
+        // `analyze` is per file; the other commands label a single input (if any).
+        match &request.command {
+            Command::Analyze => {
+                for file in &request.files {
+                    record["file"] = json!(file);
+                    output::emit(out, &record, request.pretty);
+                }
+                continue;
+            }
+            Command::Synth { path, .. } => record["file"] = json!(path),
+            _ => {}
+        }
+        output::emit(out, &record, request.pretty);
+    }
+    true
 }

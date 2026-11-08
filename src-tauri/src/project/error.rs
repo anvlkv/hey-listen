@@ -13,6 +13,8 @@ pub enum ProjectError {
     Corrupt(String),
     #[error("could not encode the project data: {0}")]
     Encode(String),
+    #[error("the project was superseded by a newer source")]
+    Superseded,
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.

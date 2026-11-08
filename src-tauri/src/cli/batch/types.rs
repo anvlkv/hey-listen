@@ -137,6 +137,12 @@ pub struct Request {
     pub files: Vec<String>,
     /// Analyzer ids to run (`-t`, repeatable).
     pub tools: Vec<AnalyzerId>,
+    /// The `-t` spellings that are not analyzer ids.
+    ///
+    /// The CLI's contract is a per-result `error` record and exit `1` for an unknown id
+    /// (`docs/cli.md`), not a usage error, so the boundary keeps the rejected spelling to
+    /// report at run time. It is never used as a tool id.
+    pub unknown_tools: Vec<String>,
     /// Run every analyzer in the catalog (`--all`).
     pub all: bool,
     pub start: Option<f64>,

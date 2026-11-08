@@ -8,7 +8,7 @@
 
 use crate::audio::analysis::compare::SavedComparison;
 use crate::project::side::Side;
-use crate::project::{write_project, AnalysisWindow, SaveProject, SourceKind};
+use crate::project::{write_project_atomic, AnalysisWindow, SaveProject, SourceKind};
 
 use super::types::{Command, Request};
 
@@ -69,21 +69,9 @@ pub(super) fn save_owner(
         pcm: if can_reference { None } else { guard.as_ref() },
     };
 
-    if let Some(parent) = std::path::Path::new(path)
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("could not create {}: {err}", parent.display()))?;
-    }
-    let file =
-        std::fs::File::create(path).map_err(|err| format!("could not create {path}: {err}"))?;
-    write_project(
-        std::io::BufWriter::new(file),
-        &save,
-        crate::recent::now_ms(),
-    )
-    .map_err(|err| format!("could not write {path}: {err}"))?;
+    // Atomic: a failed save cannot truncate an existing owner project (audit P1 #1).
+    write_project_atomic(std::path::Path::new(path), &save, crate::recent::now_ms())
+        .map_err(|err| format!("could not write {path}: {err}"))?;
     // stdout stays pure JSONL; the saved path is a note for the shell.
     eprintln!("hey-listen: saved {path}");
     Ok(())
