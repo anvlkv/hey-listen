@@ -71,11 +71,13 @@ const DISCOVER_GRACE: Duration = Duration::from_millis(1200);
 
 /// The MCP **stdio entry** shared by `hey-listen --mcp` and `heylisten-mcp`.
 ///
-/// Auto-detects: when a running, MCP-enabled app is advertising its endpoint, it
-/// **bridges** to it (UI following, as delivered); otherwise it runs the
-/// **core-native headless** server. `force_headless` (`--headless`) skips the probe.
+/// Auto-detects: when a running, MCP-enabled app is advertising a **live** endpoint, it
+/// **bridges** to it (UI following, as delivered); otherwise it runs the **core-native
+/// headless** server. A stale `mcp.json` (a crashed app) does not count — the endpoint is
+/// probed, and a refused connection falls back to headless (audit P2 #7).
+/// `force_headless` (`--headless`) skips the probe.
 pub fn run(force_headless: bool) -> std::io::Result<()> {
-    if !force_headless && bridge::wait_for_info(DISCOVER_GRACE) {
+    if !force_headless && bridge::wait_for_live(DISCOVER_GRACE) {
         return bridge::run();
     }
     headless::run()
@@ -106,6 +108,14 @@ impl Pending {
         (id, rx)
     }
 
+    /// A guard that removes `id`'s waiter when dropped.
+    ///
+    /// A forwarded call must clean up on **every** early return — the emit can fail, and
+    /// the reply may time out — not only when the frontend answers (audit P2 #8).
+    pub fn waiter(&self, id: u64) -> Waiter<'_> {
+        Waiter { pending: self, id }
+    }
+
     /// Complete a forwarded call. Returns `true` when the id was still waiting.
     pub fn resolve(&self, id: u64, result: Result<Value, String>) -> bool {
         let waiter = self
@@ -117,6 +127,23 @@ impl Pending {
             Some(tx) => tx.send(result).is_ok(),
             None => false,
         }
+    }
+
+    /// Drop a forwarded call's waiter (a no-op when it was already resolved).
+    fn cancel(&self, id: u64) {
+        self.waiters
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .remove(&id);
+    }
+
+    /// How many forwarded calls are still waiting (tests pin the cleanup).
+    #[cfg(test)]
+    fn pending_len(&self) -> usize {
+        self.waiters
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .len()
     }
 
     /// Mark a window's frontend as listening for `mcp:request`.
@@ -133,5 +160,67 @@ impl Pending {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())
             .contains(label)
+    }
+}
+
+/// A registered waiter that removes itself on drop, however the call ends.
+pub struct Waiter<'a> {
+    pending: &'a Pending,
+    id: u64,
+}
+
+impl Drop for Waiter<'_> {
+    fn drop(&mut self) {
+        self.pending.cancel(self.id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    /// A forwarded call that fails to emit, and one that times out, must both drop their
+    /// waiter: before the fix they stayed in the map until a late reply or process exit
+    /// (audit P2 #8).
+    #[test]
+    fn a_dropped_waiter_is_cancelled() {
+        let pending = Pending::default();
+        let (id, _rx) = pending.register();
+        {
+            let _waiter = pending.waiter(id);
+        }
+        assert_eq!(pending.pending_len(), 0);
+        assert!(
+            !pending.resolve(id, Ok(Value::Null)),
+            "a cancelled waiter cannot be resolved"
+        );
+    }
+
+    #[test]
+    fn a_timed_out_waiter_is_cancelled() {
+        let pending = Pending::default();
+        let (id, rx) = pending.register();
+        let waiter = pending.waiter(id);
+
+        let started = Instant::now();
+        let error = rx
+            .recv_timeout(Duration::from_millis(20))
+            .expect_err("the window does not answer");
+        assert!(matches!(error, std::sync::mpsc::RecvTimeoutError::Timeout));
+        assert!(started.elapsed() >= Duration::from_millis(20));
+
+        drop(waiter);
+        assert_eq!(pending.pending_len(), 0, "the timeout left a waiter behind");
+    }
+
+    #[test]
+    fn an_answered_waiter_leaves_nothing_behind() {
+        let pending = Pending::default();
+        let (id, rx) = pending.register();
+        let _waiter = pending.waiter(id);
+        assert!(pending.resolve(id, Ok(Value::Null)));
+        assert!(rx.recv().expect("answered").is_ok());
+        assert_eq!(pending.pending_len(), 0);
     }
 }

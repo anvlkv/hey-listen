@@ -7,8 +7,8 @@
 //! token, and forwards bytes both ways.
 
 use std::io::{Read, Write};
-use std::net::{Shutdown, TcpStream};
-use std::path::PathBuf;
+use std::net::{Shutdown, SocketAddr, TcpStream};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use serde::Deserialize;
@@ -18,6 +18,11 @@ use super::INFO_FILE;
 /// How long to wait for the app to advertise itself before giving up.
 const DISCOVER_TIMEOUT: Duration = Duration::from_secs(15);
 
+/// How long to wait for the stdin forwarding thread after the socket closes. A normal MCP
+/// client keeps stdin open, so that thread can stay blocked in `read` forever; the bridge
+/// must not wait for it (audit P2 #9).
+const STDIN_GRACE: Duration = Duration::from_millis(500);
+
 /// The endpoint the running app advertises.
 #[derive(Debug, Deserialize)]
 struct Info {
@@ -25,22 +30,26 @@ struct Info {
     token: String,
 }
 
-/// Whether a running app has advertised its endpoint right now (no waiting).
-pub fn is_advertised() -> bool {
-    read_info().is_ok()
+/// Wait up to `grace` for a **live** app endpoint.
+///
+/// The advertisement file alone is not evidence: a crashed app leaves `mcp.json` behind,
+/// and bridging to that port would fail instead of starting the headless server
+/// (audit P2 #7). So the file must also answer on loopback. Returns `true` when a
+/// connection succeeds before the deadline.
+pub fn wait_for_live(grace: Duration) -> bool {
+    info_path()
+        .filter(|path| path.exists())
+        .is_some_and(|path| live_at(&path, grace))
 }
 
-/// Wait up to `grace` for the app to advertise its endpoint.
-///
-/// The auto-detecting entry point uses this as a short probe: a running, MCP-enabled
-/// app writes `mcp.json` at startup, so if the file appears we bridge to it;
-/// otherwise we fall through to the headless server. Returns `true` when the file is
-/// readable when the deadline passes.
-pub fn wait_for_info(grace: Duration) -> bool {
+/// Whether the endpoint advertised in `path` accepts a connection within `grace`.
+fn live_at(path: &Path, grace: Duration) -> bool {
     let deadline = Instant::now() + grace;
     loop {
-        if is_advertised() {
-            return true;
+        if let Ok(info) = read_info_at(path) {
+            if probe(info.port) {
+                return true;
+            }
         }
         if Instant::now() >= deadline {
             return false;
@@ -49,28 +58,46 @@ pub fn wait_for_info(grace: Duration) -> bool {
     }
 }
 
+/// Whether `port` on loopback accepts a connection right now (a short timeout, so a
+/// firewall-dropped SYN cannot hang discovery).
+fn probe(port: u16) -> bool {
+    let address = SocketAddr::from(([127, 0, 0, 1], port));
+    TcpStream::connect_timeout(&address, Duration::from_millis(300)).is_ok()
+}
+
 /// Run the bridge until stdin or the socket closes.
 pub fn run() -> std::io::Result<()> {
     let info = discover()?;
     let stream = connect(info.port)?;
+    pump(stream, &info.token, std::io::stdin(), std::io::stdout())
+}
+
+/// Pump bytes both ways between `stdin`/`stdout` and the app's socket, sending `token`
+/// as the first line.
+fn pump(
+    stream: TcpStream,
+    token: &str,
+    stdin: impl Read + Send + 'static,
+    mut stdout: impl Write,
+) -> std::io::Result<()> {
     stream.set_nodelay(true)?;
     let mut writer = stream.try_clone()?;
 
     // The token is the connection's first line (the server rejects a mismatch).
-    writer.write_all(info.token.as_bytes())?;
+    writer.write_all(token.as_bytes())?;
     writer.write_all(b"\n")?;
     writer.flush()?;
 
     // stdin → socket. Closing our write half on EOF tells the server the session
     // ended, which lets it return cleanly while the reader drains any last reply.
-    let upstream = std::thread::Builder::new()
+    let (upstream_done, upstream_finished) = std::sync::mpsc::channel();
+    let _upstream = std::thread::Builder::new()
         .name("mcp-stdin".into())
         .spawn(move || {
-            let stdin = std::io::stdin();
-            let mut handle = stdin.lock();
+            let mut stdin = stdin;
             let mut buffer = [0u8; 8192];
             loop {
-                match handle.read(&mut buffer) {
+                match stdin.read(&mut buffer) {
                     Ok(0) | Err(_) => break,
                     Ok(read) => {
                         if writer.write_all(&buffer[..read]).is_err() {
@@ -80,24 +107,26 @@ pub fn run() -> std::io::Result<()> {
                 }
             }
             let _ = writer.shutdown(Shutdown::Write);
+            let _ = upstream_done.send(());
         })?;
 
     // socket → stdout.
-    let stdout = std::io::stdout();
-    let mut output = stdout.lock();
     let mut reader = stream;
     let mut buffer = [0u8; 8192];
     loop {
         match reader.read(&mut buffer) {
             Ok(0) | Err(_) => break,
             Ok(read) => {
-                output.write_all(&buffer[..read])?;
-                output.flush()?;
+                stdout.write_all(&buffer[..read])?;
+                stdout.flush()?;
             }
         }
     }
 
-    let _ = upstream.join();
+    // Wait briefly for the stdin reader (it ends on EOF), but never indefinitely: the app
+    // closed the socket while the client still holds stdin open, so the reader is blocked
+    // in `read` and the bridge would hang (audit P2 #9).
+    let _ = upstream_finished.recv_timeout(STDIN_GRACE);
     Ok(())
 }
 
@@ -125,7 +154,11 @@ fn read_info() -> std::io::Result<Info> {
             "could not resolve the app data directory",
         )
     })?;
-    let bytes = std::fs::read(&path).map_err(|err| {
+    read_info_at(&path)
+}
+
+fn read_info_at(path: &Path) -> std::io::Result<Info> {
+    let bytes = std::fs::read(path).map_err(|err| {
         std::io::Error::new(
             err.kind(),
             format!(
@@ -203,5 +236,97 @@ fn connect(port: u16) -> std::io::Result<TcpStream> {
                 ))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{BufRead, BufReader};
+    use std::net::TcpListener;
+    use std::sync::{Arc, Mutex};
+
+    /// A port with nothing listening on it (bind, then release it).
+    fn closed_port() -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        listener.local_addr().expect("address").port()
+    }
+
+    fn write_info(path: &Path, port: u16) {
+        std::fs::write(path, format!("{{\"port\":{port},\"token\":\"t\"}}")).expect("write");
+    }
+
+    /// The pre-fix bug: a crashed app left `mcp.json` behind, and auto mode committed to
+    /// bridging to a dead endpoint instead of starting the headless server (audit P2 #7).
+    #[test]
+    fn a_stale_advertisement_is_not_live() {
+        let path = std::env::temp_dir().join("hey_listen_stale_mcp.json");
+        write_info(&path, closed_port());
+        assert!(!live_at(&path, Duration::from_millis(250)));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn a_serving_endpoint_is_live() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("address").port();
+        let path = std::env::temp_dir().join("hey_listen_live_mcp.json");
+        write_info(&path, port);
+        assert!(live_at(&path, Duration::from_millis(250)));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// A client that keeps stdin open must not keep the bridge alive after the app closes
+    /// its socket (audit P2 #9).
+    #[test]
+    fn the_pump_returns_after_the_socket_closes_with_stdin_open() {
+        struct BlockedStdin;
+        impl Read for BlockedStdin {
+            fn read(&mut self, _buffer: &mut [u8]) -> std::io::Result<usize> {
+                std::thread::sleep(Duration::from_secs(30));
+                Ok(0)
+            }
+        }
+
+        #[derive(Clone)]
+        struct Sink(Arc<Mutex<Vec<u8>>>);
+        impl Write for Sink {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().expect("sink").extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let address = listener.local_addr().expect("address");
+        let app = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept");
+            let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+            let mut hello = String::new();
+            reader.read_line(&mut hello).expect("handshake");
+            assert_eq!(hello.trim(), "token");
+            stream
+                .try_clone()
+                .expect("clone")
+                .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n")
+                .expect("reply");
+            stream
+                .shutdown(Shutdown::Both)
+                .expect("the app closes the session");
+        });
+
+        let socket = TcpStream::connect(address).expect("connect");
+        let sink = Sink(Arc::new(Mutex::new(Vec::new())));
+        let started = Instant::now();
+        pump(socket, "token", BlockedStdin, sink.clone()).expect("pump");
+        assert!(
+            started.elapsed() < Duration::from_secs(3),
+            "the bridge waited for the blocked stdin reader"
+        );
+        assert!(String::from_utf8_lossy(&sink.0.lock().expect("sink")).contains("result"));
+        app.join().expect("app thread");
     }
 }

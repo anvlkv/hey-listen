@@ -82,11 +82,24 @@ pub(super) fn run_export(
         return Err(());
     }
 
-    // CSV carries its provenance in a sidecar (`docs/exports.md`).
-    let sidecar_path = rendered["sidecar"].as_str().and_then(|sidecar| {
-        let meta = path.with_extension("meta.json");
-        std::fs::write(&meta, sidecar).ok().map(|()| meta)
-    });
+    // CSV carries its provenance in a sidecar (`docs/exports.md`). A sidecar that cannot
+    // be written fails the export: a CSV without its provenance is not the promised
+    // artifact (audit P2 #12).
+    let sidecar_path = match rendered["sidecar"].as_str() {
+        Some(sidecar) => {
+            let meta = path.with_extension("meta.json");
+            if let Err(err) = std::fs::write(&meta, sidecar) {
+                emit(
+                    out,
+                    &json!({ "file": label, "tool": tool, "error": format!("cannot write {}: {err}", meta.display()) }),
+                    false,
+                );
+                return Err(());
+            }
+            Some(meta)
+        }
+        None => None,
+    };
 
     let mut confirmation = json!({
         "file": label,

@@ -58,9 +58,25 @@ pub async fn close_window(window: tauri::WebviewWindow) {
 }
 
 /// Drop the core-owned source PCM and silence preview (the timeline is changing).
+///
+/// `request_id` is the frontend's open token when the clear is part of a source
+/// replacement: an older clear (a superseded open) is ignored, and the claim it registers
+/// makes any in-flight decode for that older open stale. Without one (a plain close), the
+/// clear invalidates every replacement in flight.
 #[tauri::command]
-pub fn clear_audio_source(window: WebviewWindow) {
-    window_state(&window).audio.clear();
+pub fn clear_audio_source(window: WebviewWindow, request_id: Option<u64>) {
+    let state = window_state(&window);
+    match request_id {
+        Some(token) => {
+            if let Some(request) = state.audio.claim_source_request(token) {
+                state.audio.clear_source(request);
+            }
+        }
+        None => {
+            state.audio.claim_internal_source_request();
+            state.audio.clear();
+        }
+    }
 }
 
 /// Start a fresh core recording buffer at Record; only the audio after this point

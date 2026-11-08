@@ -9,7 +9,8 @@ use std::fs::File;
 use std::path::Path;
 
 use serde::Serialize;
-use symphonia::core::codecs::audio::AudioDecoderOptions;
+use symphonia::core::codecs::audio::AudioCodecParameters;
+use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
 use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, TrackType};
@@ -34,6 +35,8 @@ pub enum DecodeError {
     UnknownSampleRate,
     #[error("decode error: {0}")]
     Decode(String),
+    #[error("the source was replaced before this file finished decoding")]
+    Superseded,
 }
 
 // `tauri` command errors must be `Serialize`; surface the human-readable message.
@@ -88,18 +91,42 @@ fn open_format(path: &str) -> Result<Box<dyn symphonia::core::formats::FormatRea
         .map_err(|_| DecodeError::UnsupportedFormat)
 }
 
+/// The container's audio track: the default one, else the first (some containers set no
+/// default flag, and `default_track` can otherwise pick a non-audio track).
+fn audio_track(
+    format: &dyn symphonia::core::formats::FormatReader,
+) -> Result<&symphonia::core::formats::Track, DecodeError> {
+    format
+        .default_track(TrackType::Audio)
+        .or_else(|| format.first_track(TrackType::Audio))
+        .ok_or(DecodeError::NoAudioTrack)
+}
+
+/// Build the audio decoder for the container's **current** audio track, returning the
+/// decoder, the track id it decodes, and the codec parameters.
+///
+/// Used both at the start of [`decode_file`] and again after a chained-stream reset, when
+/// the container's track list has changed.
+fn open_audio_decoder(
+    format: &dyn symphonia::core::formats::FormatReader,
+) -> Result<(Box<dyn AudioDecoder>, u32, AudioCodecParameters), DecodeError> {
+    let track = audio_track(format)?;
+    let params = track
+        .codec_params
+        .as_ref()
+        .and_then(|p| p.audio())
+        .ok_or(DecodeError::NoAudioTrack)?;
+    let decoder = get_codecs()
+        .make_audio_decoder(params, &AudioDecoderOptions::default())
+        .map_err(|_| DecodeError::UnsupportedCodec)?;
+    Ok((decoder, track.id, params.clone()))
+}
+
 /// Inspect a file's container/codec metadata without decoding it.
 pub fn probe(path: &str) -> Result<ProbeInfo, DecodeError> {
     let format = open_format(path)?;
 
-    // Prefer the default audio track; fall back to the first audio track (some
-    // containers set no default flag, and `default_track` can otherwise pick a
-    // non-audio track).
-    let track = format
-        .default_track(TrackType::Audio)
-        .or_else(|| format.first_track(TrackType::Audio))
-        .ok_or(DecodeError::NoAudioTrack)?;
-
+    let track = audio_track(format.as_ref())?;
     let params = track
         .codec_params
         .as_ref()
@@ -140,20 +167,7 @@ pub fn decode_file(
 ) -> Result<StreamSummary, DecodeError> {
     let mut format = open_format(path)?;
 
-    let track = format
-        .default_track(TrackType::Audio)
-        .or_else(|| format.first_track(TrackType::Audio))
-        .ok_or(DecodeError::NoAudioTrack)?;
-    let track_id = track.id;
-    let track_params = track
-        .codec_params
-        .as_ref()
-        .and_then(|p| p.audio())
-        .ok_or(DecodeError::NoAudioTrack)?;
-
-    let mut decoder = get_codecs()
-        .make_audio_decoder(track_params, &AudioDecoderOptions::default())
-        .map_err(|_| DecodeError::UnsupportedCodec)?;
+    let (mut decoder, mut track_id, track_params) = open_audio_decoder(format.as_ref())?;
 
     let mut sample_rate = track_params.sample_rate.unwrap_or(0);
     let mut channels = track_params
@@ -172,7 +186,24 @@ pub fn decode_file(
         let packet = match format.next_packet() {
             Ok(Some(packet)) => packet,
             Ok(None) => break, // end of stream
-            Err(SymphoniaError::ResetRequired) => break,
+            Err(SymphoniaError::ResetRequired) => {
+                // A chained stream (e.g. a second Ogg logical stream) changed the track
+                // list. Rebuild the decoder for the updated list and keep going; a stream
+                // we cannot decode is an explicit error, never silent truncation
+                // (audit P2 #5).
+                let (next, id, params) = open_audio_decoder(format.as_ref())?;
+                decoder = next;
+                track_id = id;
+                // A chained stream may change the rate / channel count; the decoded
+                // buffers update these anyway, but keep the defaults in step.
+                sample_rate = params.sample_rate.unwrap_or(sample_rate);
+                channels = params
+                    .channels
+                    .as_ref()
+                    .map(|c| c.count() as u16)
+                    .unwrap_or(channels);
+                continue;
+            }
             // Skip the offending packet and keep going.
             Err(SymphoniaError::IoError(_)) | Err(SymphoniaError::DecodeError(_)) => continue,
             Err(err) => return Err(DecodeError::Decode(err.to_string())),
@@ -225,6 +256,61 @@ mod tests {
 
     const RATE: u32 = 8_000;
     const FRAMES: usize = 4_000;
+
+    /// Write half a second of a mono sine as Ogg/Vorbis (a complete logical stream).
+    ///
+    /// oxiaudio's Vorbis encoder accepts only 44.1 / 48 kHz.
+    fn write_vorbis(path: &Path, hz: f32) {
+        use oxiaudio::{AudioBuffer, ChannelLayout, SampleFormat};
+        const OGG_RATE: u32 = 44_100;
+        let samples: Vec<f32> = (0..OGG_RATE / 2)
+            .map(|i| (std::f32::consts::TAU * hz * i as f32 / OGG_RATE as f32).sin() * 0.5)
+            .collect();
+        let buffer = AudioBuffer {
+            samples,
+            sample_rate: OGG_RATE,
+            channels: ChannelLayout::Mono,
+            format: SampleFormat::F32,
+        };
+        oxiaudio::encode_vorbis_file(&buffer, path).expect("encode vorbis");
+    }
+
+    /// A chained Ogg stream (two complete logical streams back to back) must decode
+    /// **both** streams. The pre-fix reader treated the container's `ResetRequired` as
+    /// end-of-audio, so everything after the first stream vanished without an error
+    /// (audit P2 #5).
+    #[test]
+    fn decodes_a_chained_ogg_stream() {
+        let dir = std::env::temp_dir();
+        let first = dir.join("hey_listen_chain_a.ogg");
+        let second = dir.join("hey_listen_chain_b.ogg");
+        let chained = dir.join("hey_listen_chained.ogg");
+        write_vorbis(&first, 440.0);
+        write_vorbis(&second, 660.0);
+        let mut bytes = std::fs::read(&first).expect("read first");
+        bytes.extend_from_slice(&std::fs::read(&second).expect("read second"));
+        std::fs::write(&chained, bytes).expect("write chained");
+
+        let once = decode_file(first.to_str().unwrap(), |_| Ok(())).expect("first stream");
+        let twice = decode_file(chained.to_str().unwrap(), |_| Ok(())).expect("chained");
+        assert!(once.frames > 0, "the first stream decoded nothing");
+        assert!(
+            twice.frames > once.frames,
+            "the second logical stream was dropped ({} frames vs {})",
+            twice.frames,
+            once.frames
+        );
+        assert!(
+            twice.frames >= once.frames * 3 / 2,
+            "only part of the chained stream decoded ({} frames vs {})",
+            twice.frames,
+            once.frames
+        );
+
+        let _ = std::fs::remove_file(&first);
+        let _ = std::fs::remove_file(&second);
+        let _ = std::fs::remove_file(&chained);
+    }
 
     #[test]
     fn probe_and_decode_wav() {

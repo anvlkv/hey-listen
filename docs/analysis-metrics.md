@@ -31,10 +31,10 @@ through every surface (GUI, MCP, batch CLI):
 
 - **In this repo:** new analyzers, shared DSP helpers, result types, chart views,
   option validation, MCP/CLI catalogs, docs, and tests.
-- **Not in this repo:** pYIN's own frequency range. `oxiaudio 0.2.1` hardcodes pYIN to
-  **50–2000 Hz** and quantizes its output to semitone bins. The repo can expose the
-  limit honestly and offer range-limited YIN/autocorrelation as the alternative; a
-  configurable pYIN is an upstream change.
+- **pYIN's frequency range.** `oxiaudio 0.2.1` hardcodes pYIN to 50–2000 Hz and quantizes
+  its output to semitone bins. M16 exposed the limit honestly and pointed at range-limited
+  YIN/autocorrelation; **M33.A** carries a ranged pYIN in this repo
+  (`audio/analysis/pyin.rs`) so the per-tool range is honoured.
 - **No project-file schema break.** `AnalysisSetup.shared` is `postcard`-encoded, so
   adding fields to `SharedParams` would need a format-version bump and a migration. New
   per-tool options live in the existing flexible `tool_options` map
@@ -80,8 +80,9 @@ Caps: bound the number of frames (existing `MAX_*` style), the number of notes
 > **Delivered.** YIN now takes `PitchTracker::with_range`; autocorrelation and harmonic
 > ratio already accepted the range and are now wired to per-tool defaults in the UI;
 > harmonic ratio defaults to 50–4000 Hz; `PitchResult` carries
-> `effectiveMinF0Hz`/`effectiveMaxF0Hz`; pYIN's fixed 50–2000 Hz window is reported (and
-> drawn as an f0-range readout, with the chart's empty state naming it); option keys are
+> `effectiveMinF0Hz`/`effectiveMaxF0Hz`; pYIN's range (fixed at 50–2000 Hz in M16, now a
+> real `minF0Hz`/`maxF0Hz` range from M33.A) is reported and drawn as an f0-range readout,
+> with the chart's empty state naming it; option keys are
 > canonical camelCase with snake_case aliases, unknown keys are rejected in the GUI MCP
 > path, headless, and the CLI, and `list_analyzers` carries compact keys/defaults. The
 > tests below all pass (`audio::analysis::tests::pitch`, `mcp::dispatch::tests`,
@@ -109,13 +110,12 @@ why the wide `harmonicRatio` default and range-limited YIN matter.
   (`pitchYin`, `pitchAutocorr`, `harmonicRatio`, and the new note / modulation tools).
   There is no new shared param: `freqMinHz` / `freqMaxHz` stays spectral-only, and each
   tool falls back to its own default when its options are absent.
-- Add `effectiveMinF0Hz` / `effectiveMaxF0Hz` to `PitchResult`. pYIN reports the
-  intersection of its fixed **50–2000** window with the request; YIN/autocorrelation
-  report the resolved range. This makes a clamped pYIN range visible instead of a silent
-  lie.
-- pYIN: clamp to 50–2000 (and report the effective range). Do **not** fall back to
-  another detector silently. The About/empty-state copy says to use YIN or
-  autocorrelation above 2 kHz; the UI's existing 50–2000 message is corrected.
+- Add `effectiveMinF0Hz` / `effectiveMaxF0Hz` to `PitchResult`. Every pitch tool reports
+  the resolved range, so a clamp is visible instead of a silent lie. (M16 clamped pYIN to
+  the crate's fixed 50–2000 Hz window; **M33.A** replaced that with a ranged pYIN so the
+  option is honoured — see [`analysis-tools.md`](analysis-tools.md) → Pitch ranges.)
+- pYIN: honour `minF0Hz` / `maxF0Hz` (M33.A). Do **not** fall back to another detector
+  silently.
 - Align `harmonicRatio` defaults with the intended use (proposed **50–4000**) and keep
   the per-tool override.
 - Fix option-key handling:
@@ -130,8 +130,8 @@ why the wide `harmonicRatio` default and range-limited YIN matter.
   without guessing.
 
 **Tests.** A 75 Hz sine is detected with `minF0Hz: 50`; a 3 kHz sine is detected by
-range-limited YIN and by `harmonicRatio` with `maxF0Hz: 4000`; pYIN reports 50–2000;
-snake_case aliases work; unknown keys fail; the shared spectral range does not change a
+range-limited YIN and by `harmonicRatio` with `maxF0Hz: 4000`; pYIN finds 3 kHz with an
+explicit 50–4000 range (M33.A) and reports its effective range; snake_case aliases work; unknown keys fail; the shared spectral range does not change a
 pitch tool's f0 search.
 
 ## M17 — Frame-RMS amplitude envelope ✅
@@ -479,8 +479,8 @@ contract:
   the region. M21.B's `gateDb` covers the scalar series; a per-note modulation option
   reusing the M18 segments is still deferred. The FM result reports its run span, and
   `fmReliable` says whether its rate can be trusted.
-- pYIN remains 50–2000 Hz until `oxiaudio` exposes a range; M16 reports the effective
-  range and points callers to YIN/autocorrelation.
+- pYIN is ranged in the engine (M33.A, `audio/analysis/pyin.rs`) because `oxiaudio` exposes
+  no ranged pYIN; its default remains 50–2000 Hz.
 - A shared **pitch range** control (one setting for every pitch tool) is a UX
   convenience, not part of M16: it can fan out to the per-tool `minF0Hz` / `maxF0Hz`
   options without a schema change. Revisit after M16 if the per-tool settings feel

@@ -13,8 +13,12 @@
 //! - `list_projects` is answered here (the server knows every project window);
 //! - every other tool takes an optional `target` label to pick a specific window,
 //!   defaulting to the focused one.
+//!
+//! The per-session transport (handshake, bounded line reader, session cap) lives in
+//! [`session`].
 
-use std::io::{BufRead, BufReader, Write};
+mod session;
+
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,7 +30,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::state::WindowRegistry;
 
-use super::{protocol, Pending, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
+use super::{Pending, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
+use session::Sessions;
 
 /// Serve the endpoint until `shutdown` is set.
 ///
@@ -38,8 +43,9 @@ use super::{protocol, Pending, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
 /// hung server. [`super::settings::McpController::stop`] interrupts the parked call with
 /// a loopback connection.
 ///
-/// Each accepted connection gets its own thread (an agent holds one session); those
-/// threads are detached and end when their socket closes.
+/// Each accepted connection gets its own thread (an agent holds one session), up to
+/// [`session::MAX_SESSIONS`]; beyond that a connection is dropped without a thread, so a
+/// local peer cannot exhaust the process before it proves it has the token (audit P2 #6).
 pub fn accept_loop<R: Runtime>(
     app: AppHandle<R>,
     listener: TcpListener,
@@ -51,6 +57,7 @@ pub fn accept_loop<R: Runtime>(
         log::warn!("MCP server unavailable (could not go blocking): {err}");
         return;
     }
+    let sessions = Sessions::new();
     loop {
         let stream = match listener.accept() {
             Ok((stream, _)) => stream,
@@ -66,12 +73,18 @@ pub fn accept_loop<R: Runtime>(
         if shutdown.load(Ordering::SeqCst) {
             break;
         }
+        // Bound the resource a local peer can take before it proves it has the token.
+        let Some(permit) = sessions.try_enter() else {
+            log::warn!("MCP connection refused: too many sessions are already open");
+            continue;
+        };
         log::info!("MCP connection accepted");
         let app = app.clone();
         let token = token.clone();
         let _ = std::thread::Builder::new()
             .name("mcp-conn".into())
             .spawn(move || {
+                let _permit = permit;
                 if let Err(err) = serve(app, stream, token) {
                     log::debug!("MCP connection ended: {err}");
                 }
@@ -81,43 +94,8 @@ pub fn accept_loop<R: Runtime>(
 
 /// Serve one MCP session: validate the token, then handle newline-delimited messages.
 fn serve<R: Runtime>(app: AppHandle<R>, stream: TcpStream, token: String) -> std::io::Result<()> {
-    // The listener is blocking, so this normally already holds — say it explicitly so a
-    // future change to the listener's mode cannot turn `read_line` into `WouldBlock`.
-    stream.set_nonblocking(false)?;
-    stream.set_nodelay(true)?;
-    let reader_stream = stream.try_clone()?;
-    let mut reader = BufReader::new(reader_stream);
-    let mut writer = stream;
-
-    // Handshake: the first line is the token the bridge read from `mcp.json`.
-    let mut hello = String::new();
-    if reader.read_line(&mut hello)? == 0 {
-        return Ok(());
-    }
-    if hello.trim() != token {
-        log::warn!("MCP connection rejected: bad token (stale mcp.json?)");
-        return Ok(());
-    }
-
     let mut dispatch = |tool: &str, arguments: Value| dispatch(&app, tool, arguments);
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader.read_line(&mut line)? == 0 {
-            break; // the bridge/agent closed the session
-        }
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if let Some(response) = protocol::handle_message(trimmed, &mut dispatch) {
-            let mut bytes = serde_json::to_vec(&response)?;
-            bytes.push(b'\n');
-            writer.write_all(&bytes)?;
-            writer.flush()?;
-        }
-    }
-    Ok(())
+    session::serve(&stream, &token, &mut dispatch)
 }
 
 /// Route one tool call to the target project window and wait for its reply.
@@ -156,6 +134,9 @@ fn dispatch<R: Runtime>(
         return Err("the project window is still starting up — try again in a moment".to_string());
     }
     let (id, rx) = pending.register();
+    // Clean the waiter up on every early return: a failed emit or a timeout must not
+    // leave an entry behind until a late reply arrives (audit P2 #8).
+    let _waiter = pending.waiter(id);
     let payload = json!({ "id": id, "tool": tool, "arguments": arguments, "target": label });
     app.emit_to(&label, REQUEST_EVENT, payload)
         .map_err(|err| format!("could not reach the project window: {err}"))?;

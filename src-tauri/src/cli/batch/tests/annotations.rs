@@ -376,3 +376,18 @@ fn run_reports_a_missing_project() {
     let values = lines(&out);
     assert!(values[0]["error"].is_string());
 }
+
+#[test]
+fn json_listing_never_truncates_the_body() {
+    let path = write_project_file("hey_listen_cli_annotations_body.heyl");
+    // Without `--full`: the JSON record still carries the whole body, so a reader that
+    // extracts tags from the end of the body cannot silently get an excerpt
+    // (hey-listen-report §3.2).
+    let values = run_annotations(&matches(&[
+        ("file", json!(path.clone())),
+        ("json", json!(true)),
+    ]));
+    assert_eq!(values[1]["body"], "Peak at **880 Hz**\nsecond line");
+    assert_eq!(values[0]["body"], "a timeline annotation");
+    let _ = std::fs::remove_file(&path);
+}

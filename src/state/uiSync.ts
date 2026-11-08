@@ -1,5 +1,6 @@
 import { invoke } from "../lib/ipc";
 import { listenThisWindow } from "../lib/windowEvents";
+import type { UiSnapshot } from "../bindings/UiSnapshot";
 
 /**
  * Cross-window UI-state sync.
@@ -25,6 +26,14 @@ import { listenThisWindow } from "../lib/windowEvents";
  */
 
 type Apply = (value: unknown) => void;
+
+/** One `ui-state` broadcast, as the core emits it. */
+interface UiStateEvent {
+  key: string;
+  value: unknown;
+  /** The revision the core stored the patch at. */
+  revision?: number;
+}
 
 const applies = new Map<string, Apply>();
 
@@ -88,13 +97,32 @@ function flush(key: string) {
 /**
  * Pull the project's shared state into the local stores, then start mirroring the
  * project's other windows. Call once, after the stores are registered.
+ *
+ * The listener is attached **before** the snapshot is fetched: a peer write in the gap
+ * must not be lost (audit P2 #11). Patches that arrive during the fetch are buffered;
+ * once the snapshot is applied, only the buffered patches **newer than the snapshot's
+ * revision** are replayed (the rest are already in the snapshot), in revision order.
  */
 export async function initUiSync(): Promise<void> {
-  const snapshot = await invoke<Record<string, unknown>>("get_ui_state");
-  for (const [key, value] of Object.entries(snapshot)) applies.get(key)?.(value);
-  synced = true;
-
-  await listenThisWindow<{ key: string; value: unknown; source: string }>("ui-state", (event) => {
+  const queued: UiStateEvent[] = [];
+  let receiving = true;
+  await listenThisWindow<UiStateEvent>("ui-state", (event) => {
+    if (receiving) {
+      queued.push(event.payload);
+      return;
+    }
     applies.get(event.payload.key)?.(event.payload.value);
   });
+
+  const snapshot = await invoke<UiSnapshot>("get_ui_state");
+  for (const [key, value] of Object.entries(snapshot.values)) applies.get(key)?.(value);
+
+  // Replay the patches the snapshot does not already contain, oldest first.
+  receiving = false;
+  queued
+    .filter((event) => (event.revision ?? 0) > snapshot.revision)
+    .sort((a, b) => (a.revision ?? 0) - (b.revision ?? 0))
+    .forEach((event) => applies.get(event.key)?.(event.value));
+
+  synced = true;
 }

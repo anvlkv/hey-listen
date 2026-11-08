@@ -165,6 +165,21 @@ recording would otherwise duplicate every recording's raw `f32` (4.4 MB for 25 s
   saved comparisons and simply ignore them.
 - `checksum` validates the whole file on load.
 
+## Writing is atomic
+
+Every save (GUI, headless MCP `save_project`, CLI `project` / `annotations` / `compare
+--save`) goes through one helper, `project::write_project_atomic`: the complete file is
+written to a unique sibling temporary file, flushed and `sync_all`ed, then renamed over
+the destination. A write error, a full disk or a crash before the rename therefore leaves
+the previous project intact instead of truncating it; the temporary file is removed on a
+pre-rename failure. Readers never see a partial file, because the rename is atomic on the
+same file system.
+
+The loader is also bounds-first: every `DATA` allocation (the chunk index, the sample
+buffer) is validated against the section's actual length with checked arithmetic before it
+is made, so a crafted header with a recomputed checksum is a `Corrupt` error rather than an
+oversized allocation.
+
 ## Implemented (M6)
 
 Implemented in `src-tauri/src/project/` (`mod` = constants + CRC-32, `sections` =

@@ -7,30 +7,30 @@
 //! while handing the PCM to the core for preview/analysis.
 
 use std::fs::File;
-use std::io::BufWriter;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+use tauri::{AppHandle, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::audio::analysis::compare::SavedComparisonInfo;
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::STREAM_CHUNK_SAMPLES;
-use crate::commands::source::AUDIO_EXTENSIONS;
-use crate::commands::{focused_label, stream};
+use crate::commands::stream;
 use crate::project::{
-    read_project, write_project, AnalysisSetup, Annotation, Meta, ProjectError, SaveProject,
+    read_project, write_project_atomic, AnalysisSetup, Annotation, Meta, ProjectError, SaveProject,
     SourceDescriptor,
 };
 use crate::state::window_state;
 
+pub mod open_paths;
 pub mod results;
 pub mod siblings;
 
+pub use open_paths::{
+    handle_open_paths, opened_paths_from_args, opened_paths_from_urls, OpenedFiles, OPEN_EVENT,
+};
 use results::{to_cached, to_stored};
 
 /// The project's file extension (magic `HEYL`, and `bundle.fileAssociations` in
@@ -101,21 +101,27 @@ pub async fn save_project(
     path: String,
     project: SaveProjectArgs,
 ) -> Result<(), ProjectError> {
-    // Clone the `Arc` so the blocking write can lock the PCM without borrowing the state.
+    // Clone the project-state handle so the blocking write can snapshot the PCM without
+    // borrowing the window.
     let state = window_state(&window);
-    let source = state.audio.source.clone();
     // One snapshot per comparison open at save time; a closed comparison is dropped.
     let compare_open = project.compare_open.clone();
     let compare = state.saved_comparisons_for(&compare_open);
 
     tauri::async_runtime::spawn_blocking(move || {
-        let guard = source.lock().unwrap_or_else(|poison| poison.into_inner());
         // A reference project only makes sense for a file source: the loader can
         // decode the path again. Synths and live captures keep their audio.
         let reference = !project.embed_source
             && project.source.as_ref().is_some_and(|source| {
                 source.kind == crate::project::SourceKind::File && source.path.is_some()
             });
+        // Snapshot the PCM under a **short** lock: the disk write must not hold it, or a
+        // large save to slow storage stalls the capture appender (audit P2 #4).
+        let pcm = if reference {
+            None
+        } else {
+            state.audio.snapshot_source()
+        };
         let save = SaveProject {
             name: project.name,
             created_ms: project.created_ms,
@@ -125,18 +131,11 @@ pub async fn save_project(
             results: to_stored(project.results),
             annotations: project.annotations,
             compare,
-            pcm: if reference { None } else { guard.as_ref() },
+            pcm: pcm.as_ref(),
         };
         // A script (MCP `save_project`) can target a folder that does not exist yet;
-        // create it rather than failing at the last step of a long run.
-        if let Some(parent) = Path::new(&path)
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            std::fs::create_dir_all(parent)?;
-        }
-        let file = File::create(&path)?;
-        write_project(BufWriter::new(file), &save, crate::recent::now_ms())?;
+        // the helper creates it rather than failing at the last step of a long run.
+        write_project_atomic(Path::new(&path), &save, crate::recent::now_ms())?;
         // The save succeeded, so a comparison no longer open can be forgotten.
         state.retain_saved_comparisons(&compare_open);
         Ok(())
@@ -151,8 +150,18 @@ pub async fn save_project(
 pub async fn load_project(
     window: WebviewWindow,
     path: String,
+    request_id: Option<u64>,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<LoadedProjectDto, ProjectError> {
+    let state = window_state(&window);
+    // Claim before the (long) read/decode so a newer source replacement supersedes this
+    // load, and this load can never install over one that started later (audit P1 #2).
+    let request = match request_id {
+        Some(token) => state.audio.claim_source_request(token),
+        None => Some(state.audio.claim_internal_source_request()),
+    }
+    .ok_or(ProjectError::Superseded)?;
+
     let loaded = tauri::async_runtime::spawn_blocking(move || {
         let mut file = File::open(&path)?;
         let mut loaded = read_project(&mut file)?;
@@ -195,9 +204,9 @@ pub async fn load_project(
             stream::send_f32_chunk(&on_chunk, chunk)
                 .map_err(|err| ProjectError::Io(std::io::Error::other(err)))?;
         }
-        window_state(&window).audio.set_source(Some(pcm));
+        state.audio.install_source(request, Some(pcm));
     } else {
-        window_state(&window).audio.set_source(None);
+        state.audio.install_source(request, None);
     }
 
     // A load replaces the project's comparisons: the `COMPARE` snapshots become the
@@ -251,147 +260,4 @@ pub async fn pick_project_save_path(app: AppHandle, default_name: String) -> Opt
 
 fn join_error(err: impl std::fmt::Display) -> ProjectError {
     ProjectError::Io(std::io::Error::other(err.to_string()))
-}
-
-// --- file associations / open-file requests ----------------------------------
-
-/// Event carrying opened `.heyl` paths to a running frontend (file association).
-pub const OPEN_EVENT: &str = "app:open-project";
-
-/// `.heyl` paths requested before the frontend was ready (command line / macOS
-/// `open`). Drained by [`take_pending_open_paths`] — once, by the first window.
-#[derive(Default)]
-pub struct OpenedFiles {
-    pending: Mutex<Vec<String>>,
-    /// Set once the first frontend has drained the queue, so later windows (a new
-    /// project window) don't re-open paths that were already handled.
-    drained: AtomicBool,
-}
-
-/// Paths the OS delivered before `setup` ran. macOS hands a cold-launched app the
-/// open-documents Apple Event **before** `RunEvent::Ready` (which is when `setup`
-/// manages [`OpenedFiles`]), so they cannot be queued in the managed state yet.
-/// [`OpenedFiles::adopt_early`] drains this once the state exists.
-static EARLY_OPEN_PATHS: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-/// Queue a path unless it is already queued (the OS may repeat a request).
-fn queue_unique(queue: &mut Vec<String>, path: String) {
-    if !queue.iter().any(|existing| existing == &path) {
-        queue.push(path);
-    }
-}
-
-impl OpenedFiles {
-    fn queue(&self, path: String) {
-        let mut guard = self
-            .pending
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
-        queue_unique(&mut guard, path);
-    }
-
-    /// Move paths that arrived before this state existed into the queue.
-    pub fn adopt_early(&self) {
-        let mut early = EARLY_OPEN_PATHS
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
-        let mut guard = self
-            .pending
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
-        for path in early.drain(..) {
-            queue_unique(&mut guard, path);
-        }
-    }
-
-    fn take(&self) -> Vec<String> {
-        if self.drained.swap(true, Ordering::SeqCst) {
-            return Vec::new();
-        }
-        std::mem::take(
-            &mut *self
-                .pending
-                .lock()
-                .unwrap_or_else(|poison| poison.into_inner()),
-        )
-    }
-}
-
-/// Drain the pending open-file requests (the frontend calls this on startup).
-#[tauri::command]
-pub fn take_pending_open_paths(state: State<'_, OpenedFiles>) -> Vec<String> {
-    state.take()
-}
-
-/// Remember a project file as recently used and refresh the File → Open Recent menu.
-///
-/// Writes the recent list to disk and rebuilds the native menu; async so the file
-/// write runs on the async runtime rather than the main thread (the menu rebuild
-/// hops to the main thread itself).
-#[tauri::command]
-pub async fn add_recent_project(app: AppHandle, path: String) {
-    crate::recent::record(&app, &path);
-    let _ = crate::menu::rebuild(&app);
-}
-
-/// Queue file-open requests and notify a running frontend. Paths are queued so a
-/// request that arrives before the frontend is listening is not lost; once windows
-/// exist, the request is routed to the focused one (multi-window, M7).
-pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Vec<String>) {
-    if paths.is_empty() {
-        return;
-    }
-    // Queue for the first frontend to drain (cold start / before any window listens).
-    // On a cold launch the OS can deliver the request before `setup` manages this
-    // state — `state()` would panic (and `panic = "abort"` turns that into SIGABRT),
-    // so fall back to the process-level queue `setup` adopts.
-    match app.try_state::<OpenedFiles>() {
-        Some(state) => {
-            for path in &paths {
-                state.queue(path.clone());
-            }
-        }
-        None => {
-            let mut early = EARLY_OPEN_PATHS
-                .lock()
-                .unwrap_or_else(|poison| poison.into_inner());
-            for path in &paths {
-                queue_unique(&mut early, path.clone());
-            }
-        }
-    }
-    // If a window already exists, also route the request to the focused one.
-    if let Some(label) = focused_label(app) {
-        let _ = app.emit_to(label, OPEN_EVENT, paths);
-    }
-}
-
-/// `.heyl` or supported audio paths among command-line arguments (Windows/Linux
-/// file association).
-pub fn opened_paths_from_args(args: impl Iterator<Item = String>) -> Vec<String> {
-    args.skip(1).filter(|arg| is_openable_path(arg)).collect()
-}
-
-/// `.heyl` / audio paths among macOS `open` URLs.
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
-pub fn opened_paths_from_urls(urls: Vec<tauri::Url>) -> Vec<String> {
-    urls.iter()
-        .filter_map(|url| url.to_file_path().ok())
-        .map(|path| path.to_string_lossy().into_owned())
-        .filter(|path| is_openable_path(path))
-        .collect()
-}
-
-/// A path the OS can ask us to open: a `.heyl` project or a supported audio file
-/// (audio files open as a fresh project with that file as the source).
-fn is_openable_path(path: &str) -> bool {
-    has_extension(path, &[PROJECT_EXTENSION]) || has_extension(path, AUDIO_EXTENSIONS)
-}
-
-fn has_extension(path: &str, extensions: &[&str]) -> bool {
-    Path::new(path)
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| extensions.iter().any(|want| ext.eq_ignore_ascii_case(want)))
-        .unwrap_or(false)
 }

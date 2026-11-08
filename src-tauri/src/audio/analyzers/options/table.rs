@@ -276,6 +276,27 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
         ],
     ),
     (
+        AnalyzerId::PitchPyin,
+        &[
+            OptionInfo {
+                key: "minF0Hz",
+                label: "Min f0",
+                default: 50.0,
+                min: 20.0,
+                max: 5_000.0,
+                help: "Lowest expected fundamental — the bottom of the pYIN search.",
+            },
+            OptionInfo {
+                key: "maxF0Hz",
+                label: "Max f0",
+                default: 2_000.0,
+                min: 40.0,
+                max: 8_000.0,
+                help: "Highest expected fundamental — pYIN searches above 2 kHz, unlike the plain library call.",
+            },
+        ],
+    ),
+    (
         AnalyzerId::PitchAutocorr,
         &[
             OptionInfo {

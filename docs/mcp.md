@@ -212,6 +212,12 @@ projects with their comparisons visible. `target` and `display` are app-only.
 
   Read the endpoint/token/pid/version from `mcp.json`; check the pid is alive before
   connecting (a stale file is removed when the server stops, but a crash can leave it).
+  The stdio entry does this itself: auto mode bridges only to an endpoint that answers
+  on loopback, and falls back to the headless server when the advertisement is stale
+  (`--headless` skips the probe). The transport is bounded: a new connection has **10 s**
+  to present the token and a handshake line is capped at 256 bytes, each message line at
+  4 MiB, at most **8 sessions** run at once, and an idle authenticated session is closed
+  after 30 minutes.
 - `initialize` echoes the client's requested `protocolVersion` (so newer clients
   negotiate their own revision) and advertises the `tools` capability only.
 - `tools/call` returns a `CallToolResult`: the payload as `content[0].text` (pretty
@@ -224,6 +230,9 @@ projects with their comparisons visible. `target` and `display` are app-only.
 ## Security
 
 - The server is **off by default** — nothing listens until the user enables it.
+- Nothing before the token is unbounded: the handshake has a deadline and a size cap,
+  every message line is capped, and the session count is limited, so a local peer cannot
+  hold threads or grow buffers without the token.
 - The endpoint binds `127.0.0.1` only and requires a random token (advertised in the
   app data dir, readable by the user), so another local process cannot drive the app
   casually. There is no network exposure.
@@ -318,11 +327,12 @@ sample count).
 (the f0 series plus a voiced-frame summary), so a tracker that finds almost no voiced
 frames (a near-empty track) is self-evident rather than looking like a normal success.
 
-**`effectiveMinF0Hz` / `effectiveMaxF0Hz` (M16).** Every pitch result reports the f0
-window the detector actually searched. YIN and autocorrelation resolve it from their
-`minF0Hz`/`maxF0Hz` options (defaults: YIN 50–2000, autocorrelation 60–1200, harmonic
-ratio 50–4000); pYIN reports its fixed 50–2000 Hz window, so a wider request is visible
-as a clamp rather than a silent lie. Use YIN or autocorrelation above 2 kHz.
+**`effectiveMinF0Hz` / `effectiveMaxF0Hz` (M16, widened in M33.A).** Every pitch result
+reports the f0 window the detector actually searched. All four pitch tools resolve it from
+their `minF0Hz`/`maxF0Hz` options (defaults: pYIN and YIN 50–2000, autocorrelation
+60–1200, harmonic ratio 50–4000), so a request wider than a detector can honour is visible
+as a clamp rather than a silent lie. pYIN is ranged (M33.A): raise `maxF0Hz` to search
+above 2 kHz.
 
 **pYIN spike (open).** `pitchPyin` returned a single voiced frame on the Blue-capped
 Ifrit clip while YIN and autocorrelation tracked normally. The detector itself lives in

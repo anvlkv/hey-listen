@@ -111,6 +111,31 @@ pub fn option_defaults(id: AnalyzerId) -> Map<String, Value> {
         .collect()
 }
 
+/// Check one per-tool option override against the tool's catalog entry.
+///
+/// The key must be an option the tool **declares** (an option of another tool is not
+/// silently accepted), and the value must be inside its declared range. Callers use this
+/// before storing an override, so a headless/CLI request cannot report parameters the
+/// engine will not honour (audit P2 #10). A saved project restores its options without
+/// this check, so an old file still opens.
+pub fn check_option(id: AnalyzerId, key: &str, value: f64) -> Result<(), String> {
+    let Some(option) = options::options_for(id)
+        .iter()
+        .find(|option| option.key == key)
+    else {
+        return Err(format!(
+            "`{key}` is not an option of {id} — call get_analyzer for the keys it takes"
+        ));
+    };
+    if !value.is_finite() || value < option.min || value > option.max {
+        return Err(format!(
+            "`{key}` for {id} must be between {} and {} (got {value})",
+            option.min, option.max
+        ));
+    }
+    Ok(())
+}
+
 /// One tool's **effective** options: its declared defaults overlaid with the non-`null`
 /// fields set on `overrides`. Shared by `get_state`, `run_analysis`, and exports so
 /// every surface reports the same values — and so none leaks the all-`Option`
@@ -284,7 +309,9 @@ mod tests {
         assert_eq!(find("pitchYin")["options"]["maxF0Hz"], 2000.0);
         assert_eq!(find("pitchYin")["options"]["yinThreshold"], 0.12);
         assert_eq!(find("harmonicRatio")["options"]["maxF0Hz"], 4000.0);
-        assert!(find("pitchPyin")["options"].as_object().unwrap().is_empty());
+        // pYIN takes a real f0 range now, like the other pitch trackers.
+        assert_eq!(find("pitchPyin")["options"]["minF0Hz"], 50.0);
+        assert_eq!(find("pitchPyin")["options"]["maxF0Hz"], 2000.0);
     }
 
     #[test]

@@ -13,7 +13,6 @@
 
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::BufWriter;
 use std::path::Path;
 
 use serde_json::{json, Map, Value};
@@ -21,11 +20,11 @@ use serde_json::{json, Map, Value};
 use crate::audio::analysis::{canonical_option_key, ToolOptions};
 use crate::audio::analyzers::ToolId;
 use crate::project::{
-    read_project, write_project, AnalysisSetup, AnalysisWindow, Annotation, SaveProject,
+    read_project, write_project_atomic, AnalysisSetup, AnalysisWindow, Annotation, SaveProject,
     SourceDescriptor, SourceKind,
 };
 
-use super::args::{default_params, merge_options};
+use super::args::{default_params, restore_options};
 use super::HeadlessSession;
 
 impl HeadlessSession {
@@ -77,13 +76,14 @@ impl HeadlessSession {
         let source = self.source_descriptor();
         let annotations_len = annotations.len();
 
+        // Snapshot the PCM under a short lock and release it before the disk write, so a
+        // slow save cannot stall live capture (audit P2 #4).
+        let pcm = if reference {
+            None
+        } else {
+            self.state.audio.snapshot_source()
+        };
         {
-            let guard = self
-                .state
-                .audio
-                .source
-                .lock()
-                .unwrap_or_else(|poison| poison.into_inner());
             let save = SaveProject {
                 name: name.clone(),
                 created_ms: None,
@@ -94,20 +94,10 @@ impl HeadlessSession {
                 results: Vec::new(),
                 annotations,
                 compare: self.state.saved_comparisons(),
-                pcm: if reference { None } else { guard.as_ref() },
+                pcm: pcm.as_ref(),
             };
-            // A batch script saves into a fresh tree; create the folder rather than
-            // failing on the last step of a long run.
-            if let Some(parent) = Path::new(&path)
-                .parent()
-                .filter(|parent| !parent.as_os_str().is_empty())
-            {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| format!("could not create {}: {err}", parent.display()))?;
-            }
-            let file =
-                File::create(&path).map_err(|err| format!("could not create {path}: {err}"))?;
-            write_project(BufWriter::new(file), &save, now)
+            // Atomic: a failed save cannot truncate the previous project (audit P1 #1).
+            write_project_atomic(Path::new(&path), &save, now)
                 .map_err(|err| format!("could not write {path}: {err}"))?;
         }
 
@@ -153,7 +143,7 @@ impl HeadlessSession {
                 .map(|(key, value)| (key.clone(), json!(value)))
                 .collect();
             let mut options = ToolOptions::default();
-            merge_options(&mut options, *tool, &patch)?;
+            restore_options(&mut options, *tool, &patch)?;
             self.options.insert(*tool, options);
         }
 

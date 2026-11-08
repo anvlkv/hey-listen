@@ -181,7 +181,9 @@ fn read_section<R: Read + Seek>(
     reader: &mut R,
     entry: &SectionEntry,
 ) -> Result<Vec<u8>, ProjectError> {
-    let mut bytes = vec![0u8; entry.length as usize];
+    let length = usize::try_from(entry.length)
+        .map_err(|_| ProjectError::Corrupt("a section is too large".to_string()))?;
+    let mut bytes = vec![0u8; length];
     reader.seek(SeekFrom::Start(entry.offset))?;
     reader.read_exact(&mut bytes)?;
     Ok(bytes)
@@ -204,6 +206,11 @@ fn from_json<R: Read + Seek>(
 }
 
 /// Parse the `DATA` section via its trailing chunk index.
+///
+/// Every allocation is validated against the section's actual length **before** it is
+/// made, with checked arithmetic: a crafted header with a valid checksum (a huge frame
+/// count, an index that runs past the section, a chunk extent that overflows) is a
+/// `Corrupt` error, never an oversized allocation or an overflow panic (audit P1 #3).
 fn read_data<R: Read + Seek>(
     reader: &mut R,
     entry: &SectionEntry,
@@ -227,44 +234,80 @@ fn read_data<R: Read + Seek>(
         )));
     }
     let frames = u64::from_le_bytes(header[8..16].try_into().unwrap());
-    let declared_chunks = u32::from_le_bytes(header[20..24].try_into().unwrap()) as usize;
+    let declared_chunks = u32::from_le_bytes(header[20..24].try_into().unwrap());
 
     reader.seek(SeekFrom::Start(start + entry.length - DATA_FOOTER_LEN))?;
     let mut footer = [0u8; DATA_FOOTER_LEN as usize];
     reader.read_exact(&mut footer)?;
-    let chunk_count = u64::from_le_bytes(footer[0..8].try_into().unwrap()) as usize;
+    let chunk_count = u64::from_le_bytes(footer[0..8].try_into().unwrap());
     let index_offset = u64::from_le_bytes(footer[8..16].try_into().unwrap());
 
-    if chunk_count != declared_chunks {
+    if chunk_count != u64::from(declared_chunks) {
         return Err(ProjectError::Corrupt(
             "DATA chunk count mismatch".to_string(),
         ));
     }
-    if index_offset < DATA_HEADER_LEN || index_offset > entry.length - DATA_FOOTER_LEN {
+    // The chunks and the index live between the header and the footer.
+    let payload_end = entry.length - DATA_FOOTER_LEN;
+    let index_bytes = chunk_count
+        .checked_mul(DATA_INDEX_ENTRY_LEN)
+        .ok_or_else(|| ProjectError::Corrupt("DATA index is out of bounds".to_string()))?;
+    let index_end = index_offset
+        .checked_add(index_bytes)
+        .ok_or_else(|| ProjectError::Corrupt("DATA index is out of bounds".to_string()))?;
+    if index_offset < DATA_HEADER_LEN || index_end > payload_end {
         return Err(ProjectError::Corrupt(
             "DATA index offset is out of bounds".to_string(),
         ));
     }
 
+    // The declared sample count must fit the space before the index, so a malformed
+    // header cannot make the reader reserve more than the section actually holds.
+    let sample_count = frames
+        .checked_mul(u64::from(channels))
+        .ok_or_else(|| ProjectError::Corrupt("DATA sample count overflows".to_string()))?;
+    let sample_bytes = sample_count
+        .checked_mul(4)
+        .ok_or_else(|| ProjectError::Corrupt("DATA sample bytes overflow".to_string()))?;
+    if sample_bytes > index_offset - DATA_HEADER_LEN {
+        return Err(ProjectError::Corrupt(
+            "DATA declares more samples than the section holds".to_string(),
+        ));
+    }
+
+    let chunk_count = usize::try_from(chunk_count)
+        .map_err(|_| ProjectError::Corrupt("DATA has too many chunks".to_string()))?;
+    let mut index = vec![
+        0u8;
+        usize::try_from(index_bytes).map_err(|_| ProjectError::Corrupt(
+            "DATA index is too large".to_string()
+        ))?
+    ];
     reader.seek(SeekFrom::Start(start + index_offset))?;
-    let mut index = vec![0u8; chunk_count * DATA_INDEX_ENTRY_LEN as usize];
     reader.read_exact(&mut index)?;
 
-    let mut samples = Vec::with_capacity(frames as usize * channels as usize);
+    let capacity = usize::try_from(sample_count)
+        .map_err(|_| ProjectError::Corrupt("DATA is too large for this platform".to_string()))?;
+    let mut samples = Vec::with_capacity(capacity);
     let mut buffer: Vec<u8> = Vec::new();
     for i in 0..chunk_count {
         let base = i * DATA_INDEX_ENTRY_LEN as usize;
         let offset = u64::from_le_bytes(index[base..base + 8].try_into().unwrap());
         let length = u64::from_le_bytes(index[base + 8..base + 16].try_into().unwrap());
-        if length % 4 != 0
-            || offset < DATA_HEADER_LEN
-            || offset + length > entry.length - DATA_FOOTER_LEN
-        {
+        let end = offset
+            .checked_add(length)
+            .ok_or_else(|| ProjectError::Corrupt("DATA chunk is out of bounds".to_string()))?;
+        // Chunks must end before the index (never inside it or the footer).
+        if length % 4 != 0 || offset < DATA_HEADER_LEN || end > index_offset {
             return Err(ProjectError::Corrupt(
                 "DATA chunk is out of bounds".to_string(),
             ));
         }
-        buffer.resize(length as usize, 0);
+        buffer.resize(
+            usize::try_from(length)
+                .map_err(|_| ProjectError::Corrupt("DATA chunk is too large".to_string()))?,
+            0,
+        );
         reader.seek(SeekFrom::Start(start + offset))?;
         reader.read_exact(&mut buffer)?;
         let (chunks, _) = buffer.as_chunks::<4>();

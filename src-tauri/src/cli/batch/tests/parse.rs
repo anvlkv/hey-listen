@@ -97,11 +97,28 @@ fn compare_maps_two_projects_its_tools_and_window_overrides() {
 }
 
 #[test]
-fn unknown_tool_is_rejected_when_parsing() {
+fn an_unknown_tool_is_kept_for_the_run_phase() {
+    // The documented contract is one `error` record and exit 1, not a usage error, so
+    // the request is built and the rejected spelling rides along to be reported.
     let m = matches(&[("file", json!(["a.wav"])), ("tool", json!(["nope"]))]);
-    assert!(build_request("analyze", &m)
-        .unwrap_err()
-        .contains("unknown analyzer"));
+    let request = build_request("analyze", &m).expect("an unknown id is not a usage error");
+    assert!(request.tools.is_empty());
+    assert_eq!(request.unknown_tools, ["nope"]);
+}
+
+#[test]
+fn a_negative_b_offset_parses_as_one_token() {
+    // A bare `--b-offset -0.25` reads as a flag to the plugin's parser, so a negative
+    // value must be passed as `--b-offset=-0.25` (one token) — documented in
+    // `docs/cli.md`; this pins that the value itself parses.
+    let m = matches(&[
+        ("a", json!("a.heyl")),
+        ("b", json!("b.heyl")),
+        ("tool", json!(["levels"])),
+        ("b-offset", json!("-0.25")),
+    ]);
+    let request = build_request("compare", &m).expect("a negative offset");
+    assert_eq!(request.b_offset, -0.25);
 }
 
 #[test]

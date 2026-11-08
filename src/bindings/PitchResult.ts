@@ -19,8 +19,8 @@ windowStart: number,
  */
 values: Array<number | null>, minValue: number, maxValue: number, 
 /**
- * The f0 search window the detector actually used, in Hz. pYIN's fixed
- * 50–2000 Hz window shows here instead of a requested range it cannot honour.
+ * The f0 search window the detector actually used, in Hz, so a request a detector
+ * cannot honour shows here instead of being silently ignored.
  */
 effectiveMinF0Hz: number, effectiveMaxF0Hz: number, 
 /**

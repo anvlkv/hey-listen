@@ -925,7 +925,8 @@ silently doing nothing.
 > **Delivered:** per-tool `minF0Hz`/`maxF0Hz` reach YIN, autocorrelation, and harmonic
 > ratio (YIN via `PitchTracker::with_range`); harmonic-ratio defaults widened to
 > 50–4000 Hz; `PitchResult` reports `effectiveMinF0Hz`/`effectiveMaxF0Hz` (pYIN's fixed
-> 50–2000 Hz window is now visible in the chart and its empty-state copy); option keys are
+> 50–2000 Hz window is now visible in the chart and its empty-state copy — **M33.A** later
+> made that window a real `minF0Hz`/`maxF0Hz` range); option keys are
 > canonical camelCase with snake_case aliases and **unknown keys fail** in the GUI MCP
 > path, the headless dispatcher, and the CLI; `list_analyzers` carries each tool's compact
 > option keys/defaults. Tests: 75 Hz and 3 kHz detection, harmonic ratio at 3 kHz, pYIN's
@@ -2223,7 +2224,7 @@ delivery story the fixed tool needs (self-update via GitHub Releases, then a fir
 CLI install). The finding lists live in those two docs and are **linked, not restated**
 here — each phase's scope references them by id.
 
-### M33.A — Reliability & ergonomics hardening
+### M33.A — Reliability & ergonomics hardening ✅
 
 Fix every **P1/P2/P3** finding in [`audit.md`](audit.md) and the **bug-level** items in
 [`hey-listen-report.md`](hey-listen-report.md) (§2.3, §3.2, and §6 items 2–4 and 6), each

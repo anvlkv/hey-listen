@@ -12,6 +12,7 @@ mod export;
 mod modulation;
 mod project;
 mod shaping;
+mod validation;
 
 #[test]
 fn ui_only_tools_require_the_app() {

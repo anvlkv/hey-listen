@@ -84,7 +84,7 @@ label/min/max/help metadata is stored in the Rust catalog and returned by M21's
 
 | Tool | oxiaudio |
 | --- | --- |
-| Pitch (pYIN) | `dsp::detect_pitch` (default pYIN) |
+| Pitch (pYIN) | core ranged pYIN (`audio/analysis/pyin.rs`) — same algorithm as `dsp::detect_pitch_pyin`, with an explicit f0 range |
 | Pitch (YIN) | `dsp::detect_pitch_yin` |
 | Pitch (autocorr) | `dsp::detect_pitch_autocorr` |
 | Note segments | core frame-RMS gate + segmentation (`audio/analysis/tools/notes.rs`) — M18 |
@@ -191,13 +191,15 @@ across tabs (`state/chartSync.ts`). The **spectrum** tool returns per-bin
 params now live in the app **Toolbar** (an “Analysis params” popover); a tool's own
 params popover holds only its non-shared options.
 
-**Pitch ranges (M16).** The three pitch tools expose an f0 range as a per-tool option:
-YIN and autocorrelation honour `minF0Hz`/`maxF0Hz` directly, and harmonic ratio does
-too. pYIN cannot — `oxiaudio 0.2.1` hardcodes it to **50–2000 Hz** — so its result
-reports the effective window instead of pretending a wider request took effect. Every
-pitch result carries `effectiveMinF0Hz`/`effectiveMaxF0Hz`, drawn as an **f0 range**
-readout on the chart and named in its empty-state copy. Use YIN or autocorrelation
-above 2 kHz.
+**Pitch ranges (M16, widened in M33.A).** Every pitch tool exposes an f0 range as a
+per-tool option: YIN, autocorrelation, harmonic ratio and **pYIN** all honour
+`minF0Hz`/`maxF0Hz`. `oxiaudio 0.2.1`'s `detect_pitch_pyin` hardcodes 50–2000 Hz, so the
+engine carries a ranged pYIN (`audio/analysis/pyin.rs`, the same Beta-prior + Viterbi
+algorithm with the tau bounds — and the reported bins — taken from the requested range).
+Every pitch result carries `effectiveMinF0Hz`/`effectiveMaxF0Hz`, drawn as an **f0 range**
+readout on the chart and named in its empty-state copy, so a request the detector could
+not honour is visible instead of silently truncated. The default is still 50–2000 Hz;
+raise `maxF0Hz` for high calls.
 
 **Amplitude envelope (M17).** `frameRms` returns a plain frame-centred RMS series in
 dBFS (`frameMs` 10 / `hopMs` 5 by default), independent of EBU R128 loudness. Its

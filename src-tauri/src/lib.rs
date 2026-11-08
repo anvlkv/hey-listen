@@ -28,6 +28,8 @@ mod menu;
 mod project;
 mod recent;
 mod state;
+#[cfg(test)]
+mod test_support;
 mod themes;
 
 use std::io::Write as _;
@@ -46,6 +48,26 @@ pub fn run_mcp(headless: bool) -> std::io::Result<()> {
     mcp::run(headless)
 }
 
+/// The log plugin's targets for this entry.
+///
+/// The GUI keeps its rotated log file. A **CLI** entry (`--mcp`, `--headless`, a batch
+/// subcommand) logs to **stderr only**: a sandboxed or concurrent headless/CI run must
+/// not abort because the log directory is unwritable or another instance holds the file,
+/// and it must never write into the batch CLI's stdout (hey-listen-report §2.3).
+fn log_targets(cli_invocation: bool) -> Vec<tauri_plugin_log::Target> {
+    use tauri_plugin_log::{Target, TargetKind};
+    let stderr = Target::new(TargetKind::Stderr);
+    if cli_invocation {
+        return vec![stderr];
+    }
+    vec![
+        stderr,
+        Target::new(TargetKind::LogDir {
+            file_name: Some("hey-listen".to_string()),
+        }),
+    ]
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // A CLI invocation (`--mcp`, `analyzers`, `analyze`, …) must not register the
@@ -60,17 +82,12 @@ pub fn run() {
         .build();
 
     let mut builder = tauri::Builder::default()
-        // File + **stderr** logging. The batch CLI writes JSONL to stdout, so logs must
-        // never share that stream (the file target keeps the GUI's history).
+        // File + **stderr** logging for the GUI. The batch CLI writes JSONL to stdout, so
+        // logs must never share that stream (the file target keeps the GUI's history).
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
-                .targets([
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stderr),
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
-                        file_name: Some("hey-listen".to_string()),
-                    }),
-                ])
+                .targets(log_targets(cli_invocation))
                 .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
                 .max_file_size(2_000_000)
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
@@ -119,13 +136,13 @@ pub fn run() {
                 }
                 cli::Entry::Batch(request) => {
                     // The batch CLI is windowless too: print, flush, and exit before the
-                    // GUI (or its webview) is ever created.
+                    // GUI (or its webview) is ever created. A flush failure is not success.
                     #[cfg(target_os = "macos")]
                     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
                     let stdout = std::io::stdout();
                     let mut out = std::io::BufWriter::new(stdout.lock());
                     let code = cli::batch::run(&request, &mut out);
-                    let _ = out.flush();
+                    let code = cli::finish(code, out.flush());
                     std::process::exit(code);
                 }
                 cli::Entry::Usage(message) => {
@@ -256,8 +273,8 @@ pub fn run() {
             commands::project::load_project,
             commands::project::pick_project_open_path,
             commands::project::pick_project_save_path,
-            commands::project::take_pending_open_paths,
-            commands::project::add_recent_project,
+            commands::project::open_paths::take_pending_open_paths,
+            commands::project::open_paths::add_recent_project,
             commands::project::siblings::adjacent_project,
             commands::project::siblings::adjacent_projects,
             commands::window::open_project_window,
@@ -307,5 +324,24 @@ fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::
             commands::project::handle_open_paths(app, paths);
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::log_targets;
+
+    /// A CLI entry never opens the log file: a sandboxed or concurrent headless run used
+    /// to abort on the log path (hey-listen-report §2.3).
+    #[test]
+    fn a_cli_entry_logs_to_stderr_only() {
+        let targets = log_targets(true);
+        assert_eq!(targets.len(), 1);
+    }
+
+    /// The GUI keeps both its stderr mirror and its rotated log file.
+    #[test]
+    fn the_gui_keeps_its_log_file() {
+        assert_eq!(log_targets(false).len(), 2);
     }
 }

@@ -112,9 +112,10 @@ Decode each file and run one or more analyzers over a window.
 | `--template <FILE.heyltemplate>` | Apply a template's shared params, per-tool options, filter graph, and window policy before running (M13, planned). |
 
 Analyzer ids are **not** enumerated in `plugins.cli` (that would duplicate the catalog
-in JSON); they are validated by the engine against `audio/analyzers.rs` when they run, so
-an unknown id produces one `error` line and exit `1` (`{"file":…,"tool":…,"error":"unknown analyzer: …"}`).
-A malformed `K=V`, an unknown param/option key, a missing file or `-t`, a bad
+in JSON); an id that is not in `audio/analyzers.rs` produces one `error` line per file
+and exit `1` (`{"file":…,"tool":…,"error":"unknown analyzer: …"}`), and the run continues
+with any known ids. A malformed `K=V`, an unknown param/option key, an option that does
+not belong to its tool or is outside the catalog range, a missing file or `-t`, a bad
 `--seconds`/`--start`/`--end` value, or a `--pretty` stream that is not a single result is
 a **usage error** (printed to stderr, exit `2`) — it never falls through to the GUI.
 
@@ -138,7 +139,7 @@ older absolute-intersection behavior.
 | `--all` | Compare every analyzer in the catalog. |
 | `--start` / `--end` | Override **both** sides' windows. |
 | `--a-start` / `--a-end` / `--b-start` / `--b-end` | Override one side's window. |
-| `--b-offset <SECS>` | Move side B on the relative axis (positive = later). Default `0`. **(M25.B)** |
+| `--b-offset <SECS>` | Move side B on the relative axis (positive = later). Default `0`. A **negative** value must be one token — `--b-offset=-0.25` — because the option parser reads a bare `-0.25` as a flag. **(M25.B)** |
 | `--overlap` | Clip both sides to their absolute-time intersection before comparing. |
 | `-p, --param <K=V>` | Patch a shared param on **both** sides. |
 | `-o, --option [TOOL.]K=V` | Patch a per-tool option on **both** sides. |
@@ -196,7 +197,7 @@ List, get, add, update or delete the **annotations** stored in a project file, w
 | Option | Meaning |
 | --- | --- |
 | `--json` | List: emit each annotation as one JSON line (JSONL) instead of a table. |
-| `--full` | List: include the full markdown body (default: a one-line excerpt). |
+| `--full` | List: widen the **table** label to the whole markdown body (default: a one-line excerpt). `--json` records always carry the full `body`, so a script never loses it. |
 | `--get <ID>` | Print one annotation (full body and frozen values). |
 | `--add <FILE.json>` | Append the annotations in a JSON array file. |
 | `--update <ID> --set FIELD=VALUE` | Patch one annotation. Fields: `title`, `body`, `timeSecs` (`time` / `at`), `range` (`start,end` seconds, an object, or `none`), `tool` (an analyzer id or `none`). `none` / `null` clears an optional field. |
@@ -323,14 +324,19 @@ A whole file that cannot be opened fails without a `tool` (there is no tool yet)
 ```
 
 `synth` uses the graph file path as its `file` label, so its lines are shaped the same
-way. `--pretty` prints a single (human-readable) JSON object — for one file / one tool.
+way. `--pretty` prints a single (human-readable) JSON object — for one file / one tool,
+and for a `synth` run without `-t` (its one source-summary record).
+
+**Output failures are failures.** A write/flush that fails (a full destination, a closed
+pipe) or a CSV export whose `.meta.json` provenance sidecar cannot be written exits
+non-zero instead of reporting success with missing output.
 
 **Exit codes:**
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Every file/tool succeeded. |
-| `1` | At least one file/tool failed, or `annotations` could not read the project (the failing line carries `error`). |
+| `1` | At least one file/tool/analyzer id failed, the output could not be written (stdout, file or CSV sidecar), or `annotations` could not read the project (the failing line carries `error`). |
 | `2` | Usage error (unknown subcommand/flag, bad `K=V`, missing `-t`). |
 
 > **Usage errors must not silently open the GUI.** `plugins.cli` parsing reports a

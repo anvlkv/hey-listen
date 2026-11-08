@@ -22,6 +22,8 @@ import { resetHistory } from "../history";
 import { replaceAnnotations } from "../annotations";
 import {
   closeSource,
+  currentSourceToken,
+  nextSourceToken,
   setError,
   setSource,
   setStatus,
@@ -195,8 +197,12 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   resetHistory();
 }
 
-/** Open a project file (already chosen) and adopt it as the current project. */
-export async function loadProject(path: string): Promise<void> {
+/**
+ * Open a project file (already chosen) and adopt it as the current project. Returns
+ * whether the project became the current one (a failed or superseded load returns
+ * `false`).
+ */
+export async function loadProject(path: string): Promise<boolean> {
   // Loading replaces the source, so stop any live capture first (its poll loop would
   // otherwise keep publishing the capture buffer over the loaded timeline).
   if (recording()) await stopCapture();
@@ -206,11 +212,15 @@ export async function loadProject(path: string): Promise<void> {
   setProjectError(null);
   setStatus("decoding");
 
+  // Claim a source-replacement token: a newer open supersedes this load, and this load
+  // (and its decode) can never install over one that started later.
+  const token = nextSourceToken();
   const stream = pcmStream();
 
   try {
     const loaded = await invoke<LoadedProjectDto>("load_project", {
       path,
+      requestId: token,
       onChunk: stream.channel,
     });
     // A load replaces every view of the project (the core has already installed the new
@@ -225,6 +235,7 @@ export async function loadProject(path: string): Promise<void> {
     // Wait for the core's end-of-stream sentinel before assembling (large chunks
     // arrive asynchronously — see `lib/pcmStream.ts`).
     await stream.done;
+    if (token !== currentSourceToken()) return false;
     beginBaseline();
     applyProject(loaded, stream.samples());
     setProjectPath(path);
@@ -233,9 +244,13 @@ export async function loadProject(path: string): Promise<void> {
     void setWindowTitle(basename(path));
     rememberRecent(path);
     endBaseline();
+    return true;
   } catch (err) {
-    setProjectError(String(err));
-    setStatus("error");
+    if (token === currentSourceToken()) {
+      setProjectError(String(err));
+      setStatus("error");
+    }
+    return false;
   } finally {
     setProjectStatus("idle");
   }

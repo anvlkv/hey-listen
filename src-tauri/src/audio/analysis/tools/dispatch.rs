@@ -6,7 +6,7 @@ use super::super::support::{
 };
 use super::super::{
     AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SeriesResult, SharedParams,
-    ToolOptions, DB_FLOOR, PYIN_MAX_F0, PYIN_MIN_F0,
+    ToolOptions, DB_FLOOR,
 };
 use super::gate::apply_gate;
 use super::{
@@ -190,12 +190,15 @@ pub fn run(
             sample_rate,
             options,
         ))),
-        AnalyzerId::PitchPyin => Ok(AnalysisResult::PitchPyin(pitch_series(
-            oxiaudio::dsp::detect_pitch_pyin(&lib_buf(), pitch_fft, pitch_hop),
-            pitch_hop,
-            sample_rate,
-            (PYIN_MIN_F0, PYIN_MAX_F0),
-        ))),
+        AnalyzerId::PitchPyin => {
+            let (min_f0, max_f0) = options.pyin_range();
+            Ok(AnalysisResult::PitchPyin(pitch_series(
+                super::super::pyin::detect(&lib_buf(), pitch_fft, pitch_hop, min_f0, max_f0),
+                pitch_hop,
+                sample_rate,
+                (min_f0, max_f0),
+            )))
+        }
         AnalyzerId::PitchYin => {
             let (min_f0, max_f0) = options.yin_range();
             let frames = oxiaudio::dsp::PitchTracker::new(pitch_fft, pitch_hop)

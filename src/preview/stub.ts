@@ -52,7 +52,7 @@ function reply(
       return tool ? comparisonFixture(entries, tool) : null;
     }
     case "get_ui_state":
-      return {};
+      return { values: {}, revision: 0 };
     case "list_themes":
       return [];
     case "compare_targets":

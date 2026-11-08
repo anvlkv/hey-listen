@@ -4,7 +4,14 @@ import { toSpec } from "../lib/graph";
 import { pcmStream } from "../lib/pcmStream";
 import { recording, stopCapture } from "./capture";
 import { SYNTH_GRAPH } from "./graph";
-import { finalizeSource, setError, setStatus, source } from "./source";
+import {
+  currentSourceToken,
+  finalizeSource,
+  nextSourceToken,
+  setError,
+  setStatus,
+  source,
+} from "./source";
 import type { StreamSummary } from "../bindings/StreamSummary";
 
 /**
@@ -40,15 +47,19 @@ export async function renderSynth(seconds: number, confirm = true) {
 
   const spec = toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges);
   const stream = pcmStream();
+  // Claim a source-replacement token, so a concurrent file open supersedes this render.
+  const token = nextSourceToken();
 
   try {
     const summary = await invoke<StreamSummary>("render_synth", {
       spec,
       seconds,
       sampleRate: 48_000,
+      requestId: token,
       onChunk: stream.channel,
     });
     await stream.done;
+    if (token !== currentSourceToken()) return;
 
     finalizeSource({
       name: "Synth",
