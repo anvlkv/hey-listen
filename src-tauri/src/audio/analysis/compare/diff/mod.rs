@@ -129,7 +129,9 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, b_offset: f64, common: Option<Span>) -> 
                 common,
             ))
         }
-        (AnalysisResult::Sharpness(a_r), AnalysisResult::Sharpness(b_r)) => {
+        (AnalysisResult::Sharpness(a_r), AnalysisResult::Sharpness(b_r))
+        | (AnalysisResult::Roughness(a_r), AnalysisResult::Roughness(b_r))
+        | (AnalysisResult::FluctuationStrength(a_r), AnalysisResult::FluctuationStrength(b_r)) => {
             let times_a = relative(&a_r.times, origin_a, 0.0);
             let times_b = relative(&b_r.times, origin_b, b_offset);
             ComparisonDiff::Series(series_delta(
@@ -173,7 +175,9 @@ pub fn result_origin(result: &AnalysisResult) -> f64 {
         | AnalysisResult::PitchAutocorr(r) => r.window_start,
         AnalysisResult::NoteMetrics(r) => r.window_start,
         AnalysisResult::Modulation(r) => r.window_start,
-        AnalysisResult::Sharpness(r) => r.window_start,
+        AnalysisResult::Sharpness(r)
+        | AnalysisResult::Roughness(r)
+        | AnalysisResult::FluctuationStrength(r) => r.window_start,
         AnalysisResult::Tempo(r) | AnalysisResult::Onsets(r) | AnalysisResult::Downbeats(r) => {
             r.window_start
         }
@@ -255,7 +259,9 @@ pub fn hop_secs(result: &AnalysisResult, rate: u32) -> f32 {
         AnalysisResult::Tempo(r) | AnalysisResult::Onsets(r) | AnalysisResult::Downbeats(r) => {
             Some(r.hop_size)
         }
-        AnalysisResult::Sharpness(r) => Some(r.hop_size),
+        AnalysisResult::Sharpness(r)
+        | AnalysisResult::Roughness(r)
+        | AnalysisResult::FluctuationStrength(r) => Some(r.hop_size),
         other => other.series().map(|r| r.hop_size),
     };
     hop.map(|hop| hop as f32 / rate.max(1) as f32)

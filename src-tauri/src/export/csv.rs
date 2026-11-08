@@ -32,7 +32,9 @@ pub fn csv(result: &AnalysisResult) -> String {
         | AnalysisResult::HarmonicRatio(value)
         | AnalysisResult::ZeroCrossingRate(value)
         | AnalysisResult::LoudnessMomentary(value) => series(&mut out, value),
-        AnalysisResult::Sharpness(value) => calibrated_series(&mut out, value),
+        AnalysisResult::Sharpness(value)
+        | AnalysisResult::Roughness(value)
+        | AnalysisResult::FluctuationStrength(value) => calibrated_series(&mut out, value),
         AnalysisResult::PitchPyin(value)
         | AnalysisResult::PitchYin(value)
         | AnalysisResult::PitchAutocorr(value) => pitch(&mut out, value),

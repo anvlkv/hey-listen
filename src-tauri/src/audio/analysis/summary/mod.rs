@@ -6,6 +6,7 @@
 //! and full output modes, and the GUI, the headless MCP server, and the CLI all speak
 //! it. See `docs/mcp-cli-ergonomics.md`.
 
+mod calibrated_series;
 mod families;
 mod format;
 mod keys;

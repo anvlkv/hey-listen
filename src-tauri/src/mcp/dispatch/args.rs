@@ -175,6 +175,8 @@ fn apply_options(
             "detrend" => entry.detrend = Some(number.max(0.0) as usize),
             "minVoicedSecs" => entry.min_voiced_secs = Some(number as f32),
             "topPeaks" => entry.top_peaks = Some(number.max(0.0) as usize),
+            "scale" => entry.scale = Some(number.max(0.0) as usize),
+            "calibrationDbSpl" => entry.calibration_db_spl = Some(number as f32),
             other => return Err(format!("unknown option for {tool}: {other}")),
         }
     }

@@ -45,6 +45,9 @@ const MAX_SPEC_BINS: usize = 512;
 /// Cap on the STFT's transient memory: frames × bins complex cells. A longer
 /// window widens the hop so the engine never allocates unboundedly.
 const MAX_STFT_CELLS: usize = 8_000_000;
+/// Cap on the M29 modulation envelope (samples at its ~1 kHz rate). A longer window
+/// widens the envelope decimation so roughness / fluctuation stay bounded.
+const MAX_MODULATION_ENVELOPE: usize = 240_000;
 
 // Per-tool option defaults (see `docs/analysis-tools.md`).
 const DEFAULT_N_MELS: usize = 64;

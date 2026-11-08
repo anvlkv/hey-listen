@@ -240,7 +240,11 @@ sharpness used to compare a dull thud with a piercing metallic sound.
 **Tests.** A high-frequency-heavy sound scores higher than a low-frequency-heavy one at
 equal loudness; a reference 1 kHz tone at 60 dB SPL yields ~1 acum.
 
-## M29 — Roughness + fluctuation strength (planned)
+## M29 — Roughness + fluctuation strength
+
+**Delivered.** Two separate series tabs — `roughness` (asper) and
+`fluctuationStrength` (vacil) — each rendering the shared `CalibratedSeriesResult` with
+its own unit. They are not a combined two-line view. See [`roadmap.md`](roadmap.md) → M29.
 
 **Problem.** There is no model for the harsh, buzzy sensation of rapid beating
 (roughness) or the slow pulsing/wobble of AM (fluctuation strength). A single AM rate is
@@ -263,10 +267,9 @@ weighted roughness/vacil.
 - Option: `calibrationDbSpl` (shared). The rate bands are fixed by the model; no
   user-facing rate override in this milestone.
 
-**Result sketch.** Two `SeriesResult`s (`roughness_asper`, `fluctuation_vacil`) over
-time, each with the calibration fields. The **Perception** view draws both lines on one
-time axis with readouts (like `modulation` draws AM + FM), so the rough vs pulsing
-character is directly comparable.
+**Result.** One `CalibratedSeriesResult` per tool (`roughness` in asper,
+`fluctuationStrength` in vacil) over time, each with the calibration fields, rendered by
+the existing series view as its own tab.
 
 **Tests.** Rendered from synth graphs (sine carrier × LFO): 70 Hz AM reads ~1 asper at
 the reference calibration, 4 Hz AM reads ~1 vacil; roughness drops at slow rates where

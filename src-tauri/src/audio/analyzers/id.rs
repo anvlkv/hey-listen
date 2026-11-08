@@ -120,6 +120,8 @@ workbench_ids! {
     Loudness,
     SpecificLoudness,
     Sharpness,
+    Roughness,
+    FluctuationStrength,
 }
 
 wire_id!(AnalyzerId, "analyzer");

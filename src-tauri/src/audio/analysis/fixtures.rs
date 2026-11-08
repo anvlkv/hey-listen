@@ -264,5 +264,7 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::Loudness(loudness()),
         AnalysisResult::SpecificLoudness(matrix),
         AnalysisResult::Sharpness(calibrated_series()),
+        AnalysisResult::Roughness(calibrated_series()),
+        AnalysisResult::FluctuationStrength(calibrated_series()),
     ]
 }

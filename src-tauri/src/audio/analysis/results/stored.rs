@@ -218,6 +218,8 @@ pub enum StoredAnalysisResult {
     Loudness(LoudnessResult),
     SpecificLoudness(MatrixResult),
     Sharpness(CalibratedSeriesResult),
+    Roughness(CalibratedSeriesResult),
+    FluctuationStrength(CalibratedSeriesResult),
 }
 
 impl From<&AnalysisResult> for StoredAnalysisResult {
@@ -256,6 +258,8 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::Loudness(value) => Self::Loudness(value.clone()),
             AnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value.clone()),
             AnalysisResult::Sharpness(value) => Self::Sharpness(value.clone()),
+            AnalysisResult::Roughness(value) => Self::Roughness(value.clone()),
+            AnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value.clone()),
         }
     }
 }
@@ -296,6 +300,8 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::Loudness(value) => Self::Loudness(value),
             StoredAnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value),
             StoredAnalysisResult::Sharpness(value) => Self::Sharpness(value),
+            StoredAnalysisResult::Roughness(value) => Self::Roughness(value),
+            StoredAnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value),
         }
     }
 }

@@ -53,7 +53,9 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         | AnalysisResult::ZeroCrossingRate(_)
         | AnalysisResult::FrameRms(_)
         | AnalysisResult::LoudnessMomentary(_)
-        | AnalysisResult::Sharpness(_) => aligned(object, max, &["times", "values"]),
+        | AnalysisResult::Sharpness(_)
+        | AnalysisResult::Roughness(_)
+        | AnalysisResult::FluctuationStrength(_) => aligned(object, max, &["times", "values"]),
         // Loudness carries two gapped tracks over one time axis.
         AnalysisResult::Loudness(_) => {
             aligned(object, max, &["times", "loudnessSone", "loudnessPhon"])

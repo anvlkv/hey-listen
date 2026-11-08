@@ -173,6 +173,24 @@ fn set_tool_options_accepts_aliases_and_rejects_unknown_keys() {
 }
 
 #[test]
+fn every_catalog_option_is_settable() {
+    // `get_analyzer` / `list_analyzers` document each tool's option keys, so every one
+    // of them must be accepted by `set_tool_options` — otherwise a documented knob is
+    // unreachable from MCP and the CLI.
+    let mut session = HeadlessSession::default();
+    for entry in crate::audio::analyzers::list() {
+        let id = entry["id"].as_str().expect("a catalog id");
+        let options = entry["options"].as_object().cloned().unwrap_or_default();
+        session
+            .dispatch(
+                "set_tool_options",
+                json!({ "tool": id, "options": options }),
+            )
+            .unwrap_or_else(|error| panic!("{id}: {error}"));
+    }
+}
+
+#[test]
 fn run_analysis_without_a_source_fails() {
     let mut session = HeadlessSession::default();
     let err = session

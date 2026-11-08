@@ -2138,7 +2138,23 @@ Perceptual high-frequency emphasis from the specific-loudness distribution.
 
 > See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M28.
 
-## M29 — Roughness + fluctuation strength (planned)
+## M29 — Roughness + fluctuation strength ✅
+
+> **Delivered.** `psychoacoustics/modulation.rs` holds one band-envelope →
+> modulation-filter pipeline and `analysis/tools/roughness.rs` / `fluctuation.rs` run it
+> with the 70 Hz and 4 Hz rate weightings, so **`roughness`** (asper) and
+> **`fluctuationStrength`** (vacil) are two separate series tabs under **Perception**, not
+> a combined two-line view — each returns the shared `CalibratedSeriesResult` and the
+> existing series chart renders it unchanged. Per band: a Bark-band filterbank, a
+> rectified/smoothed envelope, a two-section modulation band-pass at the tool's rate, and
+> a depth normalized by the band's mean; bands combine by band energy, the `g(z)`
+> frequency taper (1 up to 15 Bark, 0.5 at 23.5 Bark) and an adjacent-band coherence
+> term (a suppression for roughness, a weight for fluctuation). The constants anchor the
+> reference tones (1 kHz / 60 dB SPL / 100 % AM at 70 Hz ≈ 1 asper, at 4 Hz ≈ 1 vacil);
+> `calibrationDbSpl` additionally weights the result by level, halving every 6 dB below
+> the reference. Tests pin both anchors, the 70 Hz ↔ 4 Hz separation, a steady carrier
+> near zero, and the uncalibrated label. This is a documented model approximation, not a
+> conformance implementation of any standard.
 
 Model-based harshness (asper) and slow pulsing (vacil), sharing one modulation pipeline.
 
