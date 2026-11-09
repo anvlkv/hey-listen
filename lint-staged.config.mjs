@@ -15,7 +15,13 @@ export default {
   "*.{ts,tsx,js,mjs,cjs,jsx,css,html,json,yml,yaml}": "prettier --write",
 
   // Lint the TS/TSX we are committing (autofix first, then fail on the rest).
-  "*.{ts,tsx}": "eslint --fix",
+  //
+  // `--config` pins the repo config: ESLint 10 resolves the *nearest* config for a
+  // path, so a staged file under `video/` would otherwise be linted by that
+  // subproject's own `eslint.config.mjs`. `--no-warn-ignored` then keeps the
+  // repo-wide ignore list quiet (the `video/` project is out of scope — see
+  // docs/code-hygiene.md).
+  "*.{ts,tsx}": "eslint --fix --no-warn-ignored --config eslint.config.js",
 
   // The Rust core is formatted as a whole crate — rustfmt needs no file list, and
   // checking the crate keeps one file from being formatted differently from the rest.
