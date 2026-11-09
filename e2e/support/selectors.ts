@@ -111,8 +111,8 @@ export const SEL = {
 /** A Sidebar tool entry (`filter`, `synth`, or an analyzer id). */
 export const sidebarTool = (id: string) => `[data-testid="sidebar.tool.${id}"]`;
 
-/** An activity-bar entry (an analyzer section, or `filter` / `synth`). */
-export const activity = (id: string) => `[data-testid="activity.${id}"]`;
+/** An activity-bar tab (an analyzer section, or `graph`). */
+export const activityTab = (id: string) => `[data-testid="activity.tab.${id}"]`;
 
 /** A graph node of a given kind (each node carries `data-kind`). */
 export const graphNode = (kind: string) => `[data-testid="graph.node"][data-kind="${kind}"]`;

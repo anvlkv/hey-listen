@@ -17,6 +17,7 @@ import {
   waitForApp,
   waitForShell,
   openTool,
+  activateToolSection,
   openFixture,
   mockReturn,
   closeAllTabs,
@@ -127,6 +128,7 @@ describe("H. Project file & multi-window", () => {
     // following specs start from a single window.)
     await browser.tauri.switchWindow("main");
     const before = await openTabTitles();
+    await activateToolSection("spectrum");
     const entry = await $(sidebarTool("spectrum"));
     await entry.waitForExist();
     await entry.click();
