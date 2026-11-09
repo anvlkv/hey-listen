@@ -199,5 +199,6 @@ fn matrix_4x2() -> MatrixResult {
         values: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         min_value: 1.0,
         max_value: 8.0,
+        ..Default::default()
     }
 }

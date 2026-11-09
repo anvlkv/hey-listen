@@ -259,6 +259,7 @@ pub(super) fn build_matrix(frames: Vec<Vec<f32>>, hop: usize, sample_rate: u32) 
         values,
         min_value: if min.is_finite() { min } else { 0.0 },
         max_value: if max.is_finite() { max } else { 0.0 },
+        ..Default::default()
     }
 }
 

@@ -21,6 +21,7 @@ mod scalars;
 mod series;
 mod spatial;
 mod stored;
+mod stored_matrix;
 
 pub use calibrated_series::*;
 pub use loudness::*;
@@ -31,6 +32,7 @@ pub use scalars::*;
 pub use series::*;
 pub use spatial::*;
 pub use stored::*;
+pub use stored_matrix::StoredMatrix;
 
 /// Shift every entry of a result's time axis by `shift` (source seconds).
 fn shift_times(times: &mut [f32], shift: f32) {
@@ -150,8 +152,17 @@ pub struct PitchResult {
     pub f0_reliable: bool,
 }
 
-/// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast).
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+/// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast,
+/// critical bands, specific loudness).
+///
+/// The band axis is `bands` (an index or Hz); the trailing fields carry the exact
+/// integration geometry, the value unit and the calibration state so a standalone
+/// result and its summary can recover them (X3):
+/// - `band_edges` — the exact band edges (Hz or Cam) when `bands` are centres of a
+///   measurement axis; `None` for an index-based matrix (mel/mfcc/chroma/contrast).
+/// - `unit` — the values' unit (`"dB"`, `"dBFS"`, `"sone/Cam"`, …).
+/// - `calibrated` / `calibration_db_spl` — whether a dB SPL offset was applied.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct MatrixResult {
@@ -170,6 +181,20 @@ pub struct MatrixResult {
     pub values: Vec<f32>,
     pub min_value: f32,
     pub max_value: f32,
+    /// Exact band edges (Hz or Cam) for the retained bands; `None` when `bands` are
+    /// indices rather than a measurement axis.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub band_edges: Option<Vec<f32>>,
+    /// The values' unit (e.g. `"dB"`, `"dBFS"`, `"sone/Cam"`); `None` for a unitless
+    /// coefficient matrix.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+    /// Whether a `calibrationDbSpl` offset was applied to the values.
+    #[serde(default)]
+    pub calibrated: bool,
+    /// The dB SPL offset of a full-scale sine (`0` = uncalibrated).
+    #[serde(default)]
+    pub calibration_db_spl: f32,
 }
 
 /// Tempo / onset / downbeat analysis over one window: the onset-strength envelope

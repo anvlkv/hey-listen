@@ -121,5 +121,10 @@ pub(super) fn specific_loudness(
                 .collect()
         })
         .collect();
-    Ok(build_band_matrix(&grid, centres, hop, sample_rate))
+    let mut result = build_band_matrix(&grid, centres, hop, sample_rate);
+    result.unit = Some("sone/Cam".to_string());
+    result.band_edges = Some(edges);
+    result.calibrated = calibration > 0.0;
+    result.calibration_db_spl = calibration;
+    Ok(result)
 }

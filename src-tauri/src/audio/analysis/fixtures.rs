@@ -64,6 +64,7 @@ pub(crate) fn matrix() -> MatrixResult {
         values: vec![1.0, 2.0, 3.0, 4.0],
         min_value: 1.0,
         max_value: 4.0,
+        ..Default::default()
     }
 }
 

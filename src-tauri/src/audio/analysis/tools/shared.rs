@@ -146,5 +146,6 @@ pub(super) fn build_band_matrix(
         min_value: values.iter().copied().reduce(f32::min).unwrap_or(0.0),
         max_value: values.iter().copied().reduce(f32::max).unwrap_or(0.0),
         values,
+        ..Default::default()
     }
 }

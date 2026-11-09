@@ -75,6 +75,21 @@ export default function MatrixView(props: {
     return config().formatBand(position);
   };
 
+  /** The exact band range (lo–hi) for a row when the result carries band edges. */
+  const bandRange = (band: number): string | null => {
+    const value = result();
+    const edges = value?.bandEdges;
+    if (!value || !edges || edges.length < value.bins + 1) return null;
+    return `${config().formatBand(edges[band])}–${config().formatBand(edges[band + 1])}`;
+  };
+
+  /** The calibration readout for a matrix tool that carries one (specific loudness). */
+  const calibrationLabel = (): string => {
+    const r = result();
+    if (!r) return "—";
+    return r.calibrated ? `${r.calibrationDbSpl.toFixed(1)} dB SPL` : "uncalibrated";
+  };
+
   const chart = createChartInteraction<View, Hover, MatrixResult>({
     // A tab's id is fixed for its lifetime, so the interaction is built once (untracked).
     id: untrack(() => props.id),
@@ -210,7 +225,9 @@ export default function MatrixView(props: {
         <Readout label="Time" value={chart.hover() ? `${chart.hover()!.time.toFixed(3)} s` : "—"} />
         <Readout
           label={config().yLabel}
-          value={chart.hover() ? bandLabel(chart.hover()!.band) : "—"}
+          value={
+            chart.hover() ? (bandRange(chart.hover()!.band) ?? bandLabel(chart.hover()!.band)) : "—"
+          }
         />
         <Readout
           label="Value"
@@ -226,6 +243,13 @@ export default function MatrixView(props: {
           }
         />
         <Readout label="Rate" value={result() ? formatHz(result()!.sampleRate) : "—"} />
+        <Show when={props.id === "specificLoudness"}>
+          <Readout
+            label="Calibration"
+            value={calibrationLabel()}
+            title="dB SPL of a full-scale sine; 0 = uncalibrated (relative sone/Cam)"
+          />
+        </Show>
       </div>
       <div class="spectrogram-canvas" ref={chart.attachWrap}>
         <canvas

@@ -219,7 +219,17 @@ fn pitch(out: &mut String, value: &PitchResult) {
 
 fn matrix(out: &mut String, value: &MatrixResult) {
     let mut header = vec!["time_s".to_string()];
-    if value.bands.len() == value.bins {
+    // The exact band edges (X3), when present, label each column with its full
+    // integration interval; otherwise fall back to the band centre / row index.
+    let edges = value
+        .band_edges
+        .as_deref()
+        .filter(|edges| edges.len() == value.bins + 1);
+    if let Some(edges) = edges {
+        header.extend(
+            (0..value.bins).map(|bin| format!("{}–{}", number(edges[bin]), number(edges[bin + 1]))),
+        );
+    } else if value.bands.len() == value.bins {
         header.extend(value.bands.iter().map(|band| number(*band)));
     } else {
         header.extend((0..value.bins).map(|bin| bin.to_string()));

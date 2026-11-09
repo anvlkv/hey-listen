@@ -214,6 +214,7 @@ fn matrix(times: Vec<f32>, values: Vec<f32>) -> MatrixResult {
         values,
         min_value: 0.0,
         max_value: 0.0,
+        ..Default::default()
     }
 }
 

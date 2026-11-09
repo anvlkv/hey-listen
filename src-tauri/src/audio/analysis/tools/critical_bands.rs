@@ -33,5 +33,8 @@ pub(super) fn critical_bands(
         .collect();
 
     let energies = band_energies(&magnitudes, &freqs, &edges);
-    Ok(build_band_matrix(&energies, centres, hop, sample_rate))
+    let mut result = build_band_matrix(&energies, centres, hop, sample_rate);
+    result.unit = Some("dBFS".to_string());
+    result.band_edges = Some(edges);
+    Ok(result)
 }

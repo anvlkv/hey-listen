@@ -110,16 +110,32 @@ fn matrix(b: &mut SummaryBuilder, tool: AnalyzerId, r: &MatrixResult) {
     if let Some((frame, band, value)) = matrix_peak(r) {
         b.count("peakFrame", "peak frame", frame);
         b.count("peakBand", "peak band", band);
-        let unit = match tool {
+        // The unit lives on the result (X3); the fallback covers the coefficient
+        // matrices that carry no unit label.
+        let unit = r.unit.as_deref().or_else(|| match tool {
             AnalyzerId::MelSpectrogram | AnalyzerId::SpectralContrast => Some("dB"),
-            AnalyzerId::CriticalBands => Some("dBFS"),
-            AnalyzerId::SpecificLoudness => Some("sone/Cam"),
             _ => None,
-        };
+        });
         b.push("peakValue", "peak value", f64::from(value), unit);
         if let Some(time) = r.times.get(frame) {
             b.push("peakTime", "peak at", f64::from(*time), Some("s"));
         }
+    }
+    // The specific-loudness matrix carries a calibration state the generic matrix
+    // summary must recover (X3); a matrix without calibration omits it.
+    if tool == AnalyzerId::SpecificLoudness {
+        b.push(
+            "calibrated",
+            "calibrated",
+            if r.calibrated { 1.0 } else { 0.0 },
+            None,
+        );
+        b.push(
+            "calibrationDbSpl",
+            "calibration",
+            f64::from(r.calibration_db_spl),
+            Some("dB SPL"),
+        );
     }
 }
 
