@@ -2052,7 +2052,7 @@ regression gate before release (it restarts the app, so it runs when no session 
 **Non-goals:** no second live window headless (one session = one project), no automatic
 rebinding of a saved reference, no comparison across 3+ projects.
 
-## M26–M31 — Psychoacoustic analysis (planned)
+## M26–M31 — Psychoacoustic analysis ✅
 
 A perceptual layer on top of the existing signal features: model-based descriptors that
 answer “how loud / bright / rough / tonal / spacious does this seem”, distinct from the
