@@ -18,7 +18,7 @@ Below is a chart proposal for every analysis type we discussed, including some m
 
 These are the foundation. Every perceptual analysis should be navigable back to the actual signal.
 
-[Ocenaudio audio editor review | TechRadar](https://images.openai.com/static-rsc-4/OPciRWOS0_Ee31TwsMHAsN2x5xDvwgTUurrug0mnE49soKiBiJCgZ8nEsj9f_VRIOPYFInwTVSVWRFoQdb-5ps5y31EiW0ad7fktSEeH1UNZcuQl3RAxJEMJzmuYKonZFS7oV59bapbWiXCIm7tOF09iFxMypHVnecl7YnyuTu4?purpose=inline)
+![Ocenaudio audio editor review | TechRadar](https://images.openai.com/static-rsc-4/OPciRWOS0_Ee31TwsMHAsN2x5xDvwgTUurrug0mnE49soKiBiJCgZ8nEsj9f_VRIOPYFInwTVSVWRFoQdb-5ps5y31EiW0ad7fktSEeH1UNZcuQl3RAxJEMJzmuYKonZFS7oV59bapbWiXCIm7tOF09iFxMypHVnecl7YnyuTu4?purpose=inline)
 
 Waveform / amplitude envelope
 
@@ -28,7 +28,7 @@ Why: reveals transients, silence, clipping, dynamics, and the timing of events.
 
 Add: RMS and peak envelopes as optional overlays; selection and playback cursor should be shared with every other chart.
 
-[Spectrum Analyzer – MiRA](https://images.openai.com/static-rsc-4/sYa-M7xcaU_-vNNswydUUx8ygsGhjYEwIKjBTKZHXPY3LPVR_z5eLNNgruu5DNc6Huf1X2gxpz-H7nAYFvinVCI9uG6yxYPJKnDFeHzX5_FUsIh33gambodOZTiL9-Edk2Wtdcfh_JJzqpyEdMbGfadidQPJmYGbFHaU81NrStk?purpose=inline)
+![Spectrum Analyzer – MiRA](https://images.openai.com/static-rsc-4/sYa-M7xcaU_-vNNswydUUx8ygsGhjYEwIKjBTKZHXPY3LPVR_z5eLNNgruu5DNc6Huf1X2gxpz-H7nAYFvinVCI9uG6yxYPJKnDFeHzX5_FUsIh33gambodOZTiL9-Edk2Wtdcfh_JJzqpyEdMbGfadidQPJmYGbFHaU81NrStk?purpose=inline)
 
 Frequency spectrum
 
@@ -38,7 +38,7 @@ Why: reveals tonal peaks, harmonics, resonances, broadband noise, and spectral b
 
 Add: peak labels, fundamental/harmonic markers, and optional octave, Bark, or ERB band boundaries.
 
-[Using display.specshow — librosa 0.11.0 documentation](https://images.openai.com/static-rsc-4/_RgAsbSa2y4NXUOqiVrRPJHrXRUsZs7pxbz0j4lW6bJQW2rURLJGUUf-x3eOsdFsikChA3Egp4OJQJeDXIaL1hJYmkXAcmXbEartY94FWel7VD8vVKxRBl67i-hLu4kCrJhlKVwxAYC5y12p9rMSm5YoMwjNxPMpqC6XGTh-F-0?purpose=inline)
+![Using display.specshow — librosa 0.11.0 documentation](https://images.openai.com/static-rsc-4/_RgAsbSa2y4NXUOqiVrRPJHrXRUsZs7pxbz0j4lW6bJQW2rURLJGUUf-x3eOsdFsikChA3Egp4OJQJeDXIaL1hJYmkXAcmXbEartY94FWel7VD8vVKxRBl67i-hLu4kCrJhlKVwxAYC5y12p9rMSm5YoMwjNxPMpqC6XGTh-F-0?purpose=inline)
 
 Spectrogram
 
@@ -56,7 +56,7 @@ These analyses are less about displaying the sound itself and more about display
 
 Bark / ERB / Mel frequency scales
 
-[声学感知刻度(mel scale、Bark scale、ERB)与声学特征提取(MFCC、BFCC、GFCC)\_hz2erb-CSDN博客](https://images.openai.com/static-rsc-4/vl0LvIv-xoH4ba1TgrlXgDnKTP37d2OcYCjMgQBl4kP9iYP4bJihC9-MPpmKW0m70er4FA9eCUXZufdM1KBRXVcoRHm3jFe9c1472s2ElJIRoiuUaaMNLcarTPI48fAL27P6733zBAtOgubbatU-tHx61t72mlrKVPLlG6Z4Yfw?purpose=inline)
+![声学感知刻度(mel scale、Bark scale、ERB)与声学特征提取(MFCC、BFCC、GFCC)\_hz2erb-CSDN博客](https://images.openai.com/static-rsc-4/vl0LvIv-xoH4ba1TgrlXgDnKTP37d2OcYCjMgQBl4kP9iYP4bJihC9-MPpmKW0m70er4FA9eCUXZufdM1KBRXVcoRHm3jFe9c1472s2ElJIRoiuUaaMNLcarTPI48fAL27P6733zBAtOgubbatU-tHx61t72mlrKVPLlG6Z4Yfw?purpose=inline)
 
 [blog.csdn.net](https://blog.csdn.net/qq_34218078/article/details/125145458?utm_source=chatgpt.com)
 
@@ -68,7 +68,7 @@ Best interaction: a scale selector on the spectrum and spectrogram rather than a
 
 Absolute threshold of hearing (ATH)
 
-[Can We Measure Our Age in dB? … You Must Be Kidding? | Canadian Audiologist](https://images.openai.com/static-rsc-4/HQ6J4H1JT8Onx1XlBpqSHKksrw6MQ_xulnuuViHIOhbmSPMKanU0BsnjOFgJLik7Q2PSviQrnjoL1Kmc03DP-AFkVNQJgunyTgOuhmdLpy-x2KuOPalLIJ3xVUNH8YaiqC7LRvOx6D-JJXFmNvn5pVgT5k_7rPdQaHAOdMZgkhs?purpose=inline)
+![Can We Measure Our Age in dB? … You Must Be Kidding? | Canadian Audiologist](https://images.openai.com/static-rsc-4/HQ6J4H1JT8Onx1XlBpqSHKksrw6MQ_xulnuuViHIOhbmSPMKanU0BsnjOFgJLik7Q2PSviQrnjoL1Kmc03DP-AFkVNQJgunyTgOuhmdLpy-x2KuOPalLIJ3xVUNH8YaiqC7LRvOx6D-JJXFmNvn5pVgT5k_7rPdQaHAOdMZgkhs?purpose=inline)
 
 [canadianaudiologist.ca](https://canadianaudiologist.ca/can-we-measure-our-age-in-db-feature/?utm_source=chatgpt.com)
 
@@ -80,7 +80,7 @@ Add: shaded regions below the threshold and a vertical distance between the sign
 
 Equal-loudness contours
 
-[Equal loudness contours (ISO 226-2003) - Lawrence Yule](https://images.openai.com/static-rsc-4/OY6a9NyIeLMb05dMRGggc8609dSaeusQAIKntpFsBiwGYZpbqfy5fxGrdrKag21ieSf4q0dzFatl0_qPeuUD0zomoEASZYC652XVHNu9i9fmDbC2DnarEq9W_SzLgKxFqmmk02-8K-5HZxH6sgbQywJuWbcU6VqZv9D4-p8Yehw?purpose=inline)
+![Equal loudness contours (ISO 226-2003) - Lawrence Yule](https://images.openai.com/static-rsc-4/OY6a9NyIeLMb05dMRGggc8609dSaeusQAIKntpFsBiwGYZpbqfy5fxGrdrKag21ieSf4q0dzFatl0_qPeuUD0zomoEASZYC652XVHNu9i9fmDbC2DnarEq9W_SzLgKxFqmmk02-8K-5HZxH6sgbQywJuWbcU6VqZv9D4-p8Yehw?purpose=inline)
 
 [lawrenceyule.com](https://lawrenceyule.com/2024/06/07/equal-loudness-contours-iso-226-2003/?utm_source=chatgpt.com)
 
@@ -98,7 +98,7 @@ These are among the most informative perceptual views. I would give them a promi
 
 Loudness over time
 
-[acousticLoudness - Perceived loudness of acoustic signal - MATLAB](https://images.openai.com/static-rsc-4/5ypkdDDT2W7E4bl-JGgsAS8ms2KNxkGXXs_DBnesk2PYfsHquaPHrYiFcF0SImZ_CFgtsfYpVAcnnig09LLQICQDJQ8wiGQ1hps8yAtfWz8bgpdKg4Uv6rr6DHSEi3QvkY4bG7yv6UXh5vTJCnS53yq-JP6x4uRA1-gvT5UAJQs?purpose=inline)
+![acousticLoudness - Perceived loudness of acoustic signal - MATLAB](https://images.openai.com/static-rsc-4/5ypkdDDT2W7E4bl-JGgsAS8ms2KNxkGXXs_DBnesk2PYfsHquaPHrYiFcF0SImZ_CFgtsfYpVAcnnig09LLQICQDJQ8wiGQ1hps8yAtfWz8bgpdKg4Uv6rr6DHSEi3QvkY4bG7yv6UXh5vTJCnS53yq-JP6x4uRA1-gvT5UAJQs?purpose=inline)
 
 [fr.mathworks.com](https://fr.mathworks.com/help/audio/ref/acousticloudness.html?utm_source=chatgpt.com)
 
@@ -110,7 +110,7 @@ Add: overall loudness, maximum, percentiles (e.g. N5, N50, N95), and an optional
 
 Specific loudness
 
-[acousticLoudness - Perceived loudness of acoustic signal - MATLAB](https://images.openai.com/static-rsc-4/43LJ_y7jm6L5R5NgKg1cyBOLn8I8qYnQCROpPx68y51kBWeU7ge3anlNdX5XMBKWANOtIz3RjEVonqYQDCC-GbOWR5D9ZFUZ2_cRVWm9dc1VyaheONb8j-3kqE6otq4SJRqUyf3wMnYnvv5J1sEiA-qyFoYl1XK21pz7Ssvj4OA?purpose=inline)
+![acousticLoudness - Perceived loudness of acoustic signal - MATLAB](https://images.openai.com/static-rsc-4/43LJ_y7jm6L5R5NgKg1cyBOLn8I8qYnQCROpPx68y51kBWeU7ge3anlNdX5XMBKWANOtIz3RjEVonqYQDCC-GbOWR5D9ZFUZ2_cRVWm9dc1VyaheONb8j-3kqE6otq4SJRqUyf3wMnYnvv5J1sEiA-qyFoYl1XK21pz7Ssvj4OA?purpose=inline)
 
 [la.mathworks.com](https://la.mathworks.com/help/audio/ref/acousticloudness.html?utm_source=chatgpt.com)
 
@@ -122,7 +122,7 @@ Creative extension — loudness landscape: show specific loudness over both time
 
 Masking threshold
 
-[Lossy audio compression: principles, methods, misconceptions](https://images.openai.com/static-rsc-4/b6nUojt3fJOY94crlBQbvdP24HwAUqPsnAdLz3PTOC2aK1fJzjUjEIfwhgnu3plKQUlNdGyo_PZFhAKUwCf9eSrFDLWuhvEF6PvDHFqJI5D2IqY9wAknYha0m7YVKT6-I_6G166ow25kwv6-fKsU-BC9843QH9VbuJ9yODFQ5wc?purpose=inline)
+![Lossy audio compression: principles, methods, misconceptions](https://images.openai.com/static-rsc-4/b6nUojt3fJOY94crlBQbvdP24HwAUqPsnAdLz3PTOC2aK1fJzjUjEIfwhgnu3plKQUlNdGyo_PZFhAKUwCf9eSrFDLWuhvEF6PvDHFqJI5D2IqY9wAknYha0m7YVKT6-I_6G166ow25kwv6-fKsU-BC9843QH9VbuJ9yODFQ5wc?purpose=inline)
 
 [tonestack.net](https://www.tonestack.net/articles/digital-audio-compression/lossy-audio-compression-primer.html?utm_source=chatgpt.com)
 
@@ -141,7 +141,7 @@ Temporal masking: a separate time × level view showing masker events and estima
 
 A useful reference for these displays is the traditional loudness-spectrum representation: Bark on one axis, sones on another, and time as a third dimension. It makes the relationship between frequency, loudness, and temporal change tangible.&#x20;
 
-[image](https://www.google.com/s2/favicons?domain=https://www.cieri.net\&sz=32)
+![image](https://www.google.com/s2/favicons?domain=https://www.cieri.net\&sz=32)
 
 cieri.net+1
 
@@ -153,7 +153,7 @@ This is where Hey Listen could become more distinctive than a conventional spect
 
 Sharpness
 
-[Sharpness and booming | Acoustics | University of Salford](https://images.openai.com/static-rsc-4/Rijnr3awADcDlUr5fGkSkaQMXaSF9u-kOd4-TvBKaeLZIEMJ67F_ztcrffbMp9X2FY3EhXcrjW4duLXR6baTLMbGszzJQw2erAw6sN80bhkEUEBGMjdDlNSBCwIm2b7gmuFIBj5t6vN79hcrFGDjnPNmankqs1KKyJmxECw47PU?purpose=inline)
+![Sharpness and booming | Acoustics | University of Salford](https://images.openai.com/static-rsc-4/Rijnr3awADcDlUr5fGkSkaQMXaSF9u-kOd4-TvBKaeLZIEMJ67F_ztcrffbMp9X2FY3EhXcrjW4duLXR6baTLMbGszzJQw2erAw6sN80bhkEUEBGMjdDlNSBCwIm2b7gmuFIBj5t6vN79hcrFGDjnPNmankqs1KKyJmxECw47PU?purpose=inline)
 
 [acoustics.salford.ac.uk](https://acoustics.salford.ac.uk/psychoacoustics/sound-quality-making-products-sound-better/an-introduction-to-sound-quality-testing/sharpness-and-booming/?utm_source=chatgpt.com)
 
@@ -167,7 +167,7 @@ Add: a shaded high-frequency contribution, so users can see how much of the resu
 
 Roughness
 
-[The use of sampling for imaging continuous signals by Adam Weisser](https://images.openai.com/static-rsc-4/BobTDRK6RUvWc7rEHDVhoplTZCKGZbZGXY0CS5aWuF3m3R62R1qK3QuIpwqhRsueOlGCE0glvCnkmcOQfR00PWYpRXJ1B6CCHoDWqWDVsQ5Djd9BENIROOJeI475SzvI3DJnatRP4FgDx8xGwxDyqwIvELQ90kixRmdRj_iTjuQ?purpose=inline)
+![The use of sampling for imaging continuous signals by Adam Weisser](https://images.openai.com/static-rsc-4/BobTDRK6RUvWc7rEHDVhoplTZCKGZbZGXY0CS5aWuF3m3R62R1qK3QuIpwqhRsueOlGCE0glvCnkmcOQfR00PWYpRXJ1B6CCHoDWqWDVsQ5Djd9BENIROOJeI475SzvI3DJnatRP4FgDx8xGwxDyqwIvELQ90kixRmdRj_iTjuQ?purpose=inline)
 
 [hearingtheory.org](https://hearingtheory.org/Chapter14.html?utm_source=chatgpt.com)
 
@@ -181,7 +181,7 @@ Why: a single asper value hides whether roughness comes from one frequency regio
 
 Fluctuation strength
 
-[Amplitude-modulated signal. (A) 6 Hz (modulation frequency, f m ) sine... | Download Scientific Diagram](https://images.openai.com/static-rsc-4/fZ_nGQIWYFEuBxVVqfRa-_7fF4gT6HQS6Uri9BBFHrsN0j_-VClPa1EgbZYy8QeoRh3W3XQHCWERBwF1a9a2WWKNxpc0QPgdQAG8rfR6wFcsRj2QC99ua1hX-bAJGdyYYyWVPoX510vOYAcemcgx-YzEG8siq6LgRQekjWbeHZg?purpose=inline)
+![Amplitude-modulated signal. (A) 6 Hz (modulation frequency, f m ) sine... | Download Scientific Diagram](https://images.openai.com/static-rsc-4/fZ_nGQIWYFEuBxVVqfRa-_7fF4gT6HQS6Uri9BBFHrsN0j_-VClPa1EgbZYy8QeoRh3W3XQHCWERBwF1a9a2WWKNxpc0QPgdQAG8rfR6wFcsRj2QC99ua1hX-bAJGdyYYyWVPoX510vOYAcemcgx-YzEG8siq6LgRQekjWbeHZg?purpose=inline)
 
 [researchgate.net](https://www.researchgate.net/figure/Amplitude-modulated-signal-A-6-Hz-modulation-frequency-f-m-sine-wave-with-an_fig5_224947161?utm_source=chatgpt.com)
 
@@ -195,7 +195,7 @@ Add: annotate the strongest modulation frequencies. A peak around 4 Hz is especi
 
 Tonality
 
-[Siemens Digital Industries Software Community](https://images.openai.com/static-rsc-4/SmPUj5vpfUCp8PUsXsnznoLIeO2bz8aYrAU6H0el1qs2w1HmypnWJheaC8AXGV9mpvaI7M6Wfg6xxguRuNVY9GqvEx8TPN1oKSryWpTPlm_fr7kCAHLRe072IoRWcTprQ_roNQo1uTBV0Zoulvq66ApLmwNio0_hoZ3ovRsuiAc?purpose=inline)
+![Siemens Digital Industries Software Community](https://images.openai.com/static-rsc-4/SmPUj5vpfUCp8PUsXsnznoLIeO2bz8aYrAU6H0el1qs2w1HmypnWJheaC8AXGV9mpvaI7M6Wfg6xxguRuNVY9GqvEx8TPN1oKSryWpTPlm_fr7kCAHLRe072IoRWcTprQ_roNQo1uTBV0Zoulvq66ApLmwNio0_hoZ3ovRsuiAc?purpose=inline)
 
 [community.sw.siemens.com](https://community.sw.siemens.com/s/question/0D54O000061xkxBSAQ/have-you-seen-this-before-prominence-ratio-pr-inconsistency?utm_source=chatgpt.com)
 
@@ -209,7 +209,7 @@ Add: draw detected tonal peaks on the spectrum, with each peak's prominence and 
 
 The specific-loudness curve is especially important for sharpness, while modulation-sensitive representations help explain roughness and fluctuation strength. These are not interchangeable metrics: their models and reference calibrations differ.&#x20;
 
-[image](https://www.google.com/s2/favicons?domain=https://docs.jmrp.io\&sz=32)
+![image](https://www.google.com/s2/favicons?domain=https://docs.jmrp.io\&sz=32)
 
 phonometry+2
 
@@ -219,7 +219,7 @@ phonometry+2
 
 Pitch salience
 
-[Harmonic spectrum — librosa 0.10.2 documentation](https://images.openai.com/static-rsc-4/uxyeSQGAa37N0LoYtNa734h08hgpTXorHIOrEc0s6hD_pwxN9xnBi3SdIpl90m2Cym5-ty_WwtwLS9rrV76LPFNHuNmdnc-y2VvGyeQg2MR3ZvZwsocfJMPxgc2UFappkXQS05gHeJKoySESN8uL2TvaEcaRKjhX8x2W3waw3VI?purpose=inline)
+![Harmonic spectrum — librosa 0.10.2 documentation](https://images.openai.com/static-rsc-4/uxyeSQGAa37N0LoYtNa734h08hgpTXorHIOrEc0s6hD_pwxN9xnBi3SdIpl90m2Cym5-ty_WwtwLS9rrV76LPFNHuNmdnc-y2VvGyeQg2MR3ZvZwsocfJMPxgc2UFappkXQS05gHeJKoySESN8uL2TvaEcaRKjhX8x2W3waw3VI?purpose=inline)
 
 [librosa.org](https://librosa.org/doc/0.10.2/auto_examples/plot_spectral_harmonics.html?utm_source=chatgpt.com)
 
@@ -236,7 +236,7 @@ Why: makes pitch estimation inspectable instead of presenting an F0 number as un
 
 Stereo image and spatial cues
 
-[Metering Stereo Width - Gearspace](https://images.openai.com/static-rsc-4/72hktGF4lPM3ibspSVzpJChKrZBBt0K3MnLiR3EjObGZ7ipVJTu9aepPjDcevNjtOGqhg-Vz0LCV4Ph66y9VftzgT2To3g1AQhiXMbVN1qBqadPINKzYslSuqmuXuv6uMbGJooryWRW1U1pkaAu0yymxqEZ-zlk5WSM-upEbG44?purpose=inline)
+![Metering Stereo Width - Gearspace](https://images.openai.com/static-rsc-4/72hktGF4lPM3ibspSVzpJChKrZBBt0K3MnLiR3EjObGZ7ipVJTu9aepPjDcevNjtOGqhg-Vz0LCV4Ph66y9VftzgT2To3g1AQhiXMbVN1qBqadPINKzYslSuqmuXuv6uMbGJooryWRW1U1pkaAu0yymxqEZ-zlk5WSM-upEbG44?purpose=inline)
 
 [gearspace.com](https://gearspace.com/board/music-computers/1448451-metering-stereo-width.html?utm_source=chatgpt.com)
 
@@ -265,7 +265,7 @@ Use a conversion display or paired axis next to sones, rather than a separate la
 
 Psychoacoustic annoyance
 
-[File:SOUND QUALITY 19.png - OROS Wiki](https://images.openai.com/static-rsc-4/jTy25tU3xxBGDywW7ZgOh46OsDC2BzV2q3kVAG40wLI-GZyvUeh1kOvQOsuc8Xjm1Q292epOMsJ3h1lSRJEwPnBfCtGmXgR4WQoB35JB9qM-7ce8MaZ7kdNYTgXCPXJVqt-IQ8NYRyIgwobH3gSxGjn6AzfukvaqEwEZmuamOJI?purpose=inline)
+![File:SOUND QUALITY 19.png - OROS Wiki](https://images.openai.com/static-rsc-4/jTy25tU3xxBGDywW7ZgOh46OsDC2BzV2q3kVAG40wLI-GZyvUeh1kOvQOsuc8Xjm1Q292epOMsJ3h1lSRJEwPnBfCtGmXgR4WQoB35JB9qM-7ce8MaZ7kdNYTgXCPXJVqt-IQ8NYRyIgwobH3gSxGjn6AzfukvaqEwEZmuamOJI?purpose=inline)
 
 [wiki.oros.com](https://wiki.oros.com/index.php?title=File:SOUND_QUALITY_19.png\&utm_source=chatgpt.com)
 
@@ -275,7 +275,7 @@ Why: provides a compact sound-quality fingerprint. It can be useful for comparin
 
 However, I would not use a radar chart as the primary analysis: it hides the time and frequency dimensions. Also, a combined annoyance score is model-dependent; it should be labelled with the formula/model and never presented as an objective universal measure of how annoying a sound is.&#x20;
 
-[image](https://www.google.com/s2/favicons?domain=https://docs.jmrp.io\&sz=32)
+![image](https://www.google.com/s2/favicons?domain=https://docs.jmrp.io\&sz=32)
 
 phonometry+1
 
@@ -283,7 +283,7 @@ phonometry+1
 
 A/B comparison
 
-[ADPTR AUDIO Metric AB – Plugin Alliance](https://images.openai.com/static-rsc-4/VyJnzqHtKRL8lRrPiH0nvU9UfoCKaTCg4YWA9zy4AuEr_6ZWlV6ZACNte75Qme2eWuBab0ffvWriLrrgDB1FKQM0fPdIbq1zBomoSJ-ib1LgUw6p04WTrUdW57bSfRKjwE_xI4u75uP0I9-dm4cIlM6YXHZFmOUQDmaJ0PTSjTg?purpose=inline)
+![ADPTR AUDIO Metric AB – Plugin Alliance](https://images.openai.com/static-rsc-4/VyJnzqHtKRL8lRrPiH0nvU9UfoCKaTCg4YWA9zy4AuEr_6ZWlV6ZACNte75Qme2eWuBab0ffvWriLrrgDB1FKQM0fPdIbq1zBomoSJ-ib1LgUw6p04WTrUdW57bSfRKjwE_xI4u75uP0I9-dm4cIlM6YXHZFmOUQDmaJ0PTSjTg?purpose=inline)
 
 [plugin-alliance.com](https://www.plugin-alliance.com/products/metric-ab?utm_source=chatgpt.com)
 
@@ -313,7 +313,7 @@ These are not all psychoacoustic metrics, but they're valuable supporting analys
 
 I'd keep these in a supporting Signal Features section, not mix them into the psychoacoustic metrics. Spectral centroid, for example, is often used as a brightness proxy, but it is not equivalent to perceived sharpness.&#x20;
 
-[image](https://www.google.com/s2/favicons?domain=https://www.mdw.ac.at\&sz=32)
+![image](https://www.google.com/s2/favicons?domain=https://www.mdw.ac.at\&sz=32)
 
 Centre for Music Physiology+1
 
@@ -393,7 +393,7 @@ Conceptual layout only. Values and plots are illustrative, not calculated from a
 
 For a reference implementation of several time-resolved psychoacoustic metrics and their plots, PyAnsys Sound is worth examining. Its examples include loudness, sharpness, roughness and fluctuation strength over time.&#x20;
 
-[image](https://www.google.com/s2/favicons?domain=https://sound.docs.pyansys.com\&sz=32)
+![image](https://www.google.com/s2/favicons?domain=https://sound.docs.pyansys.com\&sz=32)
 
 PyAnsys Sound+1
 
@@ -437,7 +437,7 @@ Essential
 
 1\. F0 contour over spectrogram
 
-[librosa.pyin — librosa 0.11.0 documentation](https://images.openai.com/static-rsc-4/PVcL411Y3n14K46d86bh3GpPZiFJ5qQ-KqE3KRPCz-r5KSvo34Tv4tbNp0xG9z2vIjDQ2RYG8QWlOQglJm0vcBwCsGjx2-EQbm-ipipwy8FbeTgtRdh_55cO06bB2JnNJ_v_iNfRG8RN7F-igw8reybE4CJQKCNiHhJnXOL-fnE?purpose=inline)
+![librosa.pyin — librosa 0.11.0 documentation](https://images.openai.com/static-rsc-4/PVcL411Y3n14K46d86bh3GpPZiFJ5qQ-KqE3KRPCz-r5KSvo34Tv4tbNp0xG9z2vIjDQ2RYG8QWlOQglJm0vcBwCsGjx2-EQbm-ipipwy8FbeTgtRdh_55cO06bB2JnNJ_v_iNfRG8RN7F-igw8reybE4CJQKCNiHhJnXOL-fnE?purpose=inline)
 
 [librosa.org](https://librosa.org/doc/0.11.0/generated/librosa.pyin.html?utm_source=chatgpt.com)
 
@@ -452,7 +452,7 @@ Essential
 
 2\. Voicing probability / confidence
 
-[LibROSA ver. 0.8.0 で基本周波数推定（YIN, pYIN） - Wizard Notes](https://images.openai.com/static-rsc-4/16AB6J7jskGlQ80sKNhea7779C6HrYpyR4tLqy9o6ZjINda8to9K6M87W8Km_kFuMp18qLDvWNJwNpmZn_KLFke9k3u8vUZakibyeXgsqgW0s4SczL9191a2ncLtWn71URvYOgHWXz8lK0unPxHjOYTMhnu4_CNTMU09khHvCJc?purpose=inline)
+![LibROSA ver. 0.8.0 で基本周波数推定（YIN, pYIN） - Wizard Notes](https://images.openai.com/static-rsc-4/16AB6J7jskGlQ80sKNhea7779C6HrYpyR4tLqy9o6ZjINda8to9K6M87W8Km_kFuMp18qLDvWNJwNpmZn_KLFke9k3u8vUZakibyeXgsqgW0s4SczL9191a2ncLtWn71URvYOgHWXz8lK0unPxHjOYTMhnu4_CNTMU09khHvCJc?purpose=inline)
 
 [wizard-notes.com](https://www.wizard-notes.com/entry/python/librosa-yin-pyin-sample-code?utm_source=chatgpt.com)
 
@@ -464,7 +464,7 @@ Shows where the pitch estimate is reliable and where pYIN is uncertain. Importan
 
 3\. Pitch in musical units
 
-[Digital Performer: Using ARA & Audio-To-MIDI Options](https://images.openai.com/static-rsc-4/NLyITCMBT2_dO-e3Ytr18mKTHbOr_6nqw6Fdc6ldGpzjudhoh5aSXj7Mm38sQKteYLdSnAc5u-8sFKjYRSZpHKzq0dOOSo1ZZipzDvhHW7pGSgXXeF_mDjHM67fOW5Z7NzwlVQBXwW_ReZp0-NcpSUkZc1PVUYvlOJvY1q47MPA?purpose=inline)
+![Digital Performer: Using ARA & Audio-To-MIDI Options](https://images.openai.com/static-rsc-4/NLyITCMBT2_dO-e3Ytr18mKTHbOr_6nqw6Fdc6ldGpzjudhoh5aSXj7Mm38sQKteYLdSnAc5u-8sFKjYRSZpHKzq0dOOSo1ZZipzDvhHW7pGSgXXeF_mDjHM67fOW5Z7NzwlVQBXwW_ReZp0-NcpSUkZc1PVUYvlOJvY1q47MPA?purpose=inline)
 
 [soundonsound.com](https://www.soundonsound.com/techniques/digital-performer-using-ara-audio-midi-options?utm_source=chatgpt.com)
 
@@ -476,7 +476,7 @@ Useful for music, melody, tuning, and performance analysis. Add semitone grid li
 
 4\. Pitch distribution
 
-[Pythonで音声のピッチ（F0）を求める ― librosaで基本周波数を推定する](https://images.openai.com/static-rsc-4/PxZkcdZKelSLrbiYboFv-wMBjMmf_1-_QwHKJi4gOYI6EioXyceTablilECfFoK_yVlV2uk64eeqV2_BEWj-DhN1BYdDxi8zWbzFgNamtdkpbQY6EIbAX_V7ZXeaQ6S4LrT7ECSUmyocJ83JrVPWmYD8Tsmt-9HZjn0_t685LFg?purpose=inline)
+![Pythonで音声のピッチ（F0）を求める ― librosaで基本周波数を推定する](https://images.openai.com/static-rsc-4/PxZkcdZKelSLrbiYboFv-wMBjMmf_1-_QwHKJi4gOYI6EioXyceTablilECfFoK_yVlV2uk64eeqV2_BEWj-DhN1BYdDxi8zWbzFgNamtdkpbQY6EIbAX_V7ZXeaQ6S4LrT7ECSUmyocJ83JrVPWmYD8Tsmt-9HZjn0_t685LFg?purpose=inline)
 
 [zenn.dev](https://zenn.dev/kta805/articles/bd5a3811a761fa?utm_source=chatgpt.com)
 
@@ -490,7 +490,7 @@ I would offer both a continuous pitch histogram and a 12-bin pitch-class histogr
 
 5\. Pitch stability / vibrato
 
-[Vocal Pitch Monitor for Singers & Vocal Coaches | Fiume](https://images.openai.com/static-rsc-4/kN8bclT3CdGM-t9V9K8anxUJzJgtDz3qyr6SOc73p8OBqVUzinJ12o1WniSVwEgTWmabZRQ_4Or--sA0yk9C1SjJu5yqhuikSorj9UEGQPw-OlJz8INOrgTgyHMLHvg94G0uAqU9iLtxLU8_qliP0Hgy74q7zXpNxQbDkke_ipg?purpose=inline)
+![Vocal Pitch Monitor for Singers & Vocal Coaches | Fiume](https://images.openai.com/static-rsc-4/kN8bclT3CdGM-t9V9K8anxUJzJgtDz3qyr6SOc73p8OBqVUzinJ12o1WniSVwEgTWmabZRQ_4Or--sA0yk9C1SjJu5yqhuikSorj9UEGQPw-OlJz8INOrgTgyHMLHvg94G0uAqU9iLtxLU8_qliP0Hgy74q7zXpNxQbDkke_ipg?purpose=inline)
 
 [fiume.app](https://fiume.app/vocal-pitch-monitor?utm_source=chatgpt.com)
 
@@ -508,7 +508,7 @@ If you expose the internal candidate information, a particularly interesting cha
 
 Time × candidate pitch, with colour representing candidate probability.
 
-[Available processors — The Two!Ears Auditory Model \<unknown> documentation](https://images.openai.com/static-rsc-4/rZlzpbZS_Vs1HEofdTlQoQEr5UO9jAY0qFUFpNaeXEDmMCo8PaVnJ1pL3r0kLE1EGTVHtkPnz4DLivo0l566yRBT4etWk7YBT50OFBF2pEHe7o_lLthCTF9xglWK_6me4kOcZDhbIWkrzEvEHhQTxm6Lsu6w854EIwF2R6VjXDY?purpose=inline)
+![Available processors — The Two!Ears Auditory Model \<unknown> documentation](https://images.openai.com/static-rsc-4/rZlzpbZS_Vs1HEofdTlQoQEr5UO9jAY0qFUFpNaeXEDmMCo8PaVnJ1pL3r0kLE1EGTVHtkPnz4DLivo0l566yRBT4etWk7YBT50OFBF2pEHe7o_lLthCTF9xglWK_6me4kOcZDhbIWkrzEvEHhQTxm6Lsu6w854EIwF2R6VjXDY?purpose=inline)
 
 [docs.twoears.eu](https://docs.twoears.eu/en/1.3/afe/processors/?utm_source=chatgpt.com)
 
