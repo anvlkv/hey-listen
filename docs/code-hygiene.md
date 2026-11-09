@@ -30,6 +30,15 @@ npm run maid:fix    # autofix what can be autofixed
 
 Every check is **blocking**. There is no advisory mode.
 
+### The `video/` subproject is out of scope
+
+`video/` is a self-contained Remotion project with its own `package.json` and its own
+prettier/ESLint config, so the repo gates do not own it. It is skipped by prettier
+(`.prettierignore`), ESLint (`eslint.config.js`), duplication (`.jscpd.json`) and the
+length budget (`scripts/checkFileSize.mjs`), and `lint-staged` pins the root ESLint
+config so a staged file under `video/` is not linted by the pre-commit hook. Run
+`npm run lint` inside `video/` to check that project.
+
 ## When it runs
 
 | Trigger | What runs | Why that scope |

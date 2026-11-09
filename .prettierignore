@@ -5,6 +5,10 @@ site
 .npm-cache
 logs
 
+# The Remotion `video/` subproject is a separate npm project with its own prettier
+# config. It is out of scope for the repo-wide maid (see docs/code-hygiene.md).
+/video
+
 # Rust
 src-tauri/target
 src-tauri/gen

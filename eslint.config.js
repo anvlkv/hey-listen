@@ -36,6 +36,10 @@ export default tseslint.config(
       // and binary assets. Without this, `eslint .` walks it and fails to parse
       // the binaries under `src-tauri/target/**/out/`.
       "src-tauri/target/**",
+      // The Remotion `video/` subproject is a separate npm project with its own
+      // ESLint config; it is out of scope for the repo-wide maid (see
+      // docs/code-hygiene.md).
+      "video/**",
     ],
   },
 

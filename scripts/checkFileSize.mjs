@@ -44,6 +44,9 @@ const SKIP_DIRS = new Set([
   "public",
   ".lighthouse",
   "reports",
+  // The Remotion `video/` subproject is a separate npm project (its own
+  // package.json, prettier and eslint config), out of scope for this budget.
+  "video",
 ]);
 
 /** Pruned by path: ts-rs writes these from the Rust types (`cargo test`). */
