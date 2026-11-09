@@ -15,7 +15,7 @@
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SEL, activity, tab } from "../support/selectors.ts";
+import { SEL, tab } from "../support/selectors.ts";
 import {
   click,
   closeAllTabs,
@@ -25,6 +25,7 @@ import {
   mockReturn,
   newEmptyProject,
   openFixture,
+  openTool,
   restoreMocks,
   startInvokeCounts,
   takeInvokeCounts,
@@ -57,7 +58,7 @@ describe("S. Project UX fixes", () => {
 
     // Opening a tab only changes the layout; with no source and pristine graphs the
     // project is still empty, so replacing it must not raise the discard dialog.
-    await click(activity("filter"));
+    await openTool("filter");
     await waitFor(async () => (await count(tab("filter"))) > 0, "the filter tab did not open");
 
     await startInvokeCounts();

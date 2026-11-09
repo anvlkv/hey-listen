@@ -1,20 +1,17 @@
 import { For } from "solid-js";
 import Icon from "./Icon";
 import Tooltip from "./Tooltip";
-import { GRAPH_ICONS, SECTION_ICONS } from "../lib/icons";
+import { SECTION_ICONS } from "../lib/icons";
 import { ANALYZER_SECTIONS } from "../state/analyzer";
-import { activeSection, setActiveSection } from "../state/activityBar";
-import { openTool } from "../state/workbench";
+import { activeTab, setActiveTab, type ActivityTab } from "../state/activityBar";
 
 /**
- * Activity bar (fixed region, VSCode-style, on the far left): one icon per analyzer
- * category, plus the two graph editors as their own entries. Clicking a category
- * filters the Sidebar to that section (clicking it again returns to "everything");
- * clicking a graph entry opens its Workbench tab directly. See `docs/ui-layout.md`.
+ * Activity bar (fixed region, VSCode-style, on the far left): one tab per analyzer
+ * section plus a final **Graphs** tab. Selecting a tab makes the Sidebar show that
+ * tab's cards. See `docs/ui-layout.md`.
  */
 export default function ActivityBar() {
-  const toggleSection = (id: (typeof ANALYZER_SECTIONS)[number]["id"]) =>
-    setActiveSection(activeSection() === id ? null : id);
+  const select = (tab: ActivityTab) => setActiveTab(tab);
 
   return (
     <nav class="app-activitybar" data-testid="region.activitybar" aria-label="Tool categories">
@@ -25,40 +22,29 @@ export default function ActivityBar() {
               <button
                 type="button"
                 class="activitybar-item"
-                data-testid={`activity.section.${section.id}`}
-                classList={{ "activitybar-item-active": activeSection() === section.id }}
+                data-testid={`activity.tab.${section.id}`}
+                classList={{ "activitybar-item-active": activeTab() === section.id }}
                 aria-label={section.title}
-                aria-pressed={activeSection() === section.id}
-                onClick={() => toggleSection(section.id)}
+                aria-pressed={activeTab() === section.id}
+                onClick={() => select(section.id)}
               >
                 <Icon name={SECTION_ICONS[section.id]} />
               </button>
             </Tooltip>
           )}
         </For>
-      </div>
 
-      <div class="activitybar-group activitybar-group-bottom">
-        <Tooltip label="Filter graph" placement="right">
+        <Tooltip label="Graphs" placement="right">
           <button
             type="button"
             class="activitybar-item"
-            data-testid="activity.filter"
-            aria-label="Filter graph"
-            onClick={() => openTool("filter")}
+            data-testid="activity.tab.graph"
+            classList={{ "activitybar-item-active": activeTab() === "graph" }}
+            aria-label="Graphs"
+            aria-pressed={activeTab() === "graph"}
+            onClick={() => select("graph")}
           >
-            <Icon name={GRAPH_ICONS.filter} />
-          </button>
-        </Tooltip>
-        <Tooltip label="Synth graph" placement="right">
-          <button
-            type="button"
-            class="activitybar-item"
-            data-testid="activity.synth"
-            aria-label="Synth graph"
-            onClick={() => openTool("synth")}
-          >
-            <Icon name={GRAPH_ICONS.synth} />
+            <Icon name="diagram-project" />
           </button>
         </Tooltip>
       </div>

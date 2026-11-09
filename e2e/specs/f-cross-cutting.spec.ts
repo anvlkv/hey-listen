@@ -7,7 +7,7 @@
 
 import {
   SEL,
-  activity,
+  activityTab,
   tab,
   analyzerPanel,
   analyzerAbout,
@@ -57,15 +57,14 @@ describe("F. Cross-cutting analyzer behavior", () => {
 
     const search = await $(SEL.sidebarSearch);
     await search.waitForExist();
-    await search.setValue("pitch");
+    await search.setValue("waveform");
 
     await browser.waitUntil(async () => (await $$(SIDEBAR_TOOL).length) < total, {
       timeoutMsg: "the analyzer list did not filter on the search query",
     });
 
-    // The activity bar is not filtered, so both graph editors stay reachable.
-    expect(await $(activity("filter")).isDisplayed()).toBe(true);
-    expect(await $(activity("synth")).isDisplayed()).toBe(true);
+    // The activity bar is not filtered: the Graphs tab stays reachable.
+    expect(await $(activityTab("graph")).isDisplayed()).toBe(true);
 
     await search.setValue("");
   });

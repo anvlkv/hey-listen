@@ -15,7 +15,7 @@
  * live in `e2e/support/graph.ts`; C5–C8 stay in this file — and in order — because
  * they share the one app window's graph state.
  */
-import { SEL, activity, tab } from "../support/selectors.ts";
+import { SEL, sidebarTool, tab } from "../support/selectors.ts";
 import {
   waitForApp,
   waitFor,
@@ -63,7 +63,7 @@ describe("C. Graph editors", () => {
 
     await openTool("filter");
     expect(await count(tab("filter"))).toBe(1);
-    expect(await count(activity("filter"))).toBe(1);
+    expect(await count(sidebarTool("filter"))).toBe(1);
 
     // The container the `solid-flow` graph is rendered in.
     await waitFor(

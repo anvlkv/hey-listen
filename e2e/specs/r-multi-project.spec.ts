@@ -27,6 +27,7 @@ import { SEL, analyzerPanel, sidebarTool, tab } from "../support/selectors.ts";
 import { canvasSignature } from "../support/analyzers.ts";
 import {
   canvasHasInk,
+  activateToolSection,
   closeAllTabs,
   count,
   dismissPopovers,
@@ -234,6 +235,7 @@ describe("R. Two projects at once", () => {
     // raw click: `openTool` *requires* a tab to appear, which is exactly what must not
     // happen here (H2 does the same for the same reason).
     const before = await openTabTitles();
+    await activateToolSection("spectrum");
     const entry = await $(sidebarTool("spectrum"));
     await entry.waitForExist();
     await entry.click();

@@ -31,6 +31,7 @@ export { dragTimelineHandle, dragTimelineWindow } from "./timeline.ts";
 // --- Workbench tabs --------------------------------------------------------
 export {
   openTool,
+  activateToolSection,
   activateTab,
   closeTool,
   closeAllTabs,

@@ -4,15 +4,30 @@
  * The Workbench is the only tabbed region (managed by `dockview`); these helpers
  * open/focus/close a tool's tab and read the tab strip.
  */
-import { activity, sidebarTool, tab } from "./selectors.ts";
+import { activityTab, sidebarTool, tab } from "./selectors.ts";
 import { click, count, waitForSelector } from "./dom.ts";
+import { ANALYZER_TOOLS } from "./tools.ts";
 
-/** Open a tool from the Sidebar or activity bar (or focus it if already open). */
+/** The activity-bar tab a tool lives under: its section, or `graph` for the editors. */
+function tabFor(id: string): string {
+  if (id === "filter" || id === "synth") return "graph";
+  const tool = ANALYZER_TOOLS.find((item) => item.id === id);
+  if (!tool) throw new Error(`unknown tool: ${id}`);
+  return tool.section;
+}
+
+/** Switch the activity bar to a tool's tab (its section, or `graph`). */
+export async function activateToolSection(id: string): Promise<void> {
+  const tabId = tabFor(id);
+  await waitForSelector(activityTab(tabId), `the activity-bar tab "${tabId}" is missing`);
+  await click(activityTab(tabId));
+}
+
+/** Open a tool from the Sidebar (switch to its tab, then click its card). */
 export async function openTool(id: string): Promise<void> {
-  // The graph editors are activity-bar entries, not Sidebar rows.
-  const entry = id === "filter" || id === "synth" ? activity(id) : sidebarTool(id);
-  const label = id === "filter" || id === "synth" ? "activity bar" : "sidebar";
-  await waitForSelector(entry, `the ${label} entry for "${id}" is missing`);
+  await activateToolSection(id);
+  const entry = sidebarTool(id);
+  await waitForSelector(entry, `the sidebar entry for "${id}" is missing`);
   const target = await $(entry);
   await target.click();
   try {
