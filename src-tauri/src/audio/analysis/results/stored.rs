@@ -220,6 +220,8 @@ pub enum StoredAnalysisResult {
     Sharpness(CalibratedSeriesResult),
     Roughness(CalibratedSeriesResult),
     FluctuationStrength(CalibratedSeriesResult),
+    Masking(MaskingResult),
+    Tonality(CalibratedSeriesResult),
 }
 
 impl From<&AnalysisResult> for StoredAnalysisResult {
@@ -260,6 +262,8 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::Sharpness(value) => Self::Sharpness(value.clone()),
             AnalysisResult::Roughness(value) => Self::Roughness(value.clone()),
             AnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value.clone()),
+            AnalysisResult::Masking(value) => Self::Masking(value.clone()),
+            AnalysisResult::Tonality(value) => Self::Tonality(value.clone()),
         }
     }
 }
@@ -302,6 +306,8 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::Sharpness(value) => Self::Sharpness(value),
             StoredAnalysisResult::Roughness(value) => Self::Roughness(value),
             StoredAnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value),
+            StoredAnalysisResult::Masking(value) => Self::Masking(value),
+            StoredAnalysisResult::Tonality(value) => Self::Tonality(value),
         }
     }
 }

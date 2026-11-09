@@ -23,6 +23,7 @@ import type { LoudnessResult as LoudnessPayload } from "../../bindings/LoudnessR
 import type { CalibratedSeriesResult as CalibratedSeriesPayload } from "../../bindings/CalibratedSeriesResult";
 import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
 import type { ModulationResult as ModulationPayload } from "../../bindings/ModulationResult";
+import type { MaskingResult as MaskingPayload } from "../../bindings/MaskingResult";
 
 import type { AnalyzerId as GeneratedAnalyzerId } from "../../bindings/AnalyzerId";
 
@@ -104,6 +105,11 @@ export interface LoudnessView {
   kind: "loudness";
 }
 
+/** Spectrum with its threshold in quiet / masking threshold overlays (M30). */
+export interface MaskingView {
+  kind: "masking";
+}
+
 export type AnalyzerView =
   | SeriesView
   | MatrixView
@@ -114,7 +120,8 @@ export type AnalyzerView =
   | RhythmView
   | NoteMetricsView
   | ModulationView
-  | LoudnessView;
+  | LoudnessView
+  | MaskingView;
 
 /** A per-tool param rendered in the params popover (below the shared params). */
 export interface ToolParamField {
@@ -216,6 +223,11 @@ export interface LoudnessResult extends LoudnessPayload {
   tool: "loudness";
 }
 
+/** Spectrum with its masking curves (M30). */
+export interface MaskingResult extends MaskingPayload {
+  tool: "masking";
+}
+
 /** Perceived sharpness (acum) per frame, under a calibration (M28). */
 export interface CalibratedSeriesResult extends CalibratedSeriesPayload {
   tool: AnalyzerId;
@@ -236,4 +248,5 @@ export type AnyAnalysisResult =
   | LufsResult
   | LraResult
   | LoudnessResult
+  | MaskingResult
   | CalibratedSeriesResult;

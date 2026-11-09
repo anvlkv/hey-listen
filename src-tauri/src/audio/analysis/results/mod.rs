@@ -13,6 +13,7 @@ use crate::audio::analyzers::AnalyzerId;
 
 mod calibrated_series;
 mod loudness;
+mod masking;
 mod modulation;
 mod notes;
 mod rebase;
@@ -22,6 +23,7 @@ mod stored;
 
 pub use calibrated_series::*;
 pub use loudness::*;
+pub use masking::*;
 pub use modulation::*;
 pub use notes::*;
 pub use scalars::*;
@@ -232,6 +234,8 @@ pub enum AnalysisResult {
     Sharpness(CalibratedSeriesResult),
     Roughness(CalibratedSeriesResult),
     FluctuationStrength(CalibratedSeriesResult),
+    Masking(MaskingResult),
+    Tonality(CalibratedSeriesResult),
 }
 
 impl AnalysisResult {
@@ -274,6 +278,8 @@ impl AnalysisResult {
             AnalysisResult::Sharpness(_) => AnalyzerId::Sharpness,
             AnalysisResult::Roughness(_) => AnalyzerId::Roughness,
             AnalysisResult::FluctuationStrength(_) => AnalyzerId::FluctuationStrength,
+            AnalysisResult::Masking(_) => AnalyzerId::Masking,
+            AnalysisResult::Tonality(_) => AnalyzerId::Tonality,
         }
     }
 
@@ -302,7 +308,8 @@ impl AnalysisResult {
         match self {
             AnalysisResult::Sharpness(r)
             | AnalysisResult::Roughness(r)
-            | AnalysisResult::FluctuationStrength(r) => Some(r),
+            | AnalysisResult::FluctuationStrength(r)
+            | AnalysisResult::Tonality(r) => Some(r),
             _ => None,
         }
     }

@@ -107,6 +107,17 @@ const CALIBRATED_SERIES: &[&str] = &[
     "calibrationDbSpl",
 ];
 
+/// The spectrum plus its masking threshold (M30): the grid, the SMR extents, and the
+/// calibration state.
+const MASKING: &[&str] = &[
+    "fftSize",
+    "frames",
+    "minSmrDb",
+    "maxSmrDb",
+    "calibrated",
+    "calibrationDbSpl",
+];
+
 /// The summary item keys `tool` produces. Analyzers that are not listed fall back to
 /// the generic series shape (every scalar-per-frame tool).
 pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
@@ -124,6 +135,8 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
         AnalyzerId::Sharpness | AnalyzerId::Roughness | AnalyzerId::FluctuationStrength => {
             CALIBRATED_SERIES
         }
+        AnalyzerId::Tonality => CALIBRATED_SERIES,
+        AnalyzerId::Masking => MASKING,
         AnalyzerId::FrameRms => FRAME_RMS,
         AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
         AnalyzerId::NoteMetrics => NOTES,

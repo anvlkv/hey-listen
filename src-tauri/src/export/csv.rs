@@ -8,8 +8,8 @@
 
 use crate::audio::analysis::{
     AnalysisResult, CalibratedSeriesResult, LevelsResult, LoudnessResult, LraResult, LufsResult,
-    MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult,
-    SpectrogramResult, SpectrumResult, WaveformResult,
+    MaskingResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
+    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 /// Render a result as CSV. Every result kind has a shape; none falls through to an
@@ -19,6 +19,7 @@ pub fn csv(result: &AnalysisResult) -> String {
     match result {
         AnalysisResult::Waveform(value) => waveform(&mut out, value),
         AnalysisResult::Spectrum(value) => spectrum(&mut out, value),
+        AnalysisResult::Masking(value) => masking(&mut out, value),
         AnalysisResult::Spectrogram(value) => spectrogram(&mut out, value),
         AnalysisResult::Levels(value) => levels(&mut out, value),
         AnalysisResult::FrameRms(value)
@@ -34,7 +35,8 @@ pub fn csv(result: &AnalysisResult) -> String {
         | AnalysisResult::LoudnessMomentary(value) => series(&mut out, value),
         AnalysisResult::Sharpness(value)
         | AnalysisResult::Roughness(value)
-        | AnalysisResult::FluctuationStrength(value) => calibrated_series(&mut out, value),
+        | AnalysisResult::FluctuationStrength(value)
+        | AnalysisResult::Tonality(value) => calibrated_series(&mut out, value),
         AnalysisResult::PitchPyin(value)
         | AnalysisResult::PitchYin(value)
         | AnalysisResult::PitchAutocorr(value) => pitch(&mut out, value),
@@ -128,6 +130,39 @@ fn spectrum(out: &mut String, value: &SpectrumResult) {
                 number(value.mag_db[bin]),
                 number(value.min_db[bin]),
                 number(value.max_db[bin]),
+            ],
+        );
+    }
+}
+
+/// The spectrum with its masking curves, one row per bin.
+fn masking(out: &mut String, value: &MaskingResult) {
+    row(
+        out,
+        &[
+            "freq_hz".into(),
+            "spectrum_db".into(),
+            "threshold_quiet_db".into(),
+            "global_mask_db".into(),
+            "smr_db".into(),
+        ],
+    );
+    let bins = value
+        .freqs
+        .len()
+        .min(value.spectrum_db.len())
+        .min(value.threshold_quiet_db.len())
+        .min(value.global_mask_db.len())
+        .min(value.smr_db.len());
+    for bin in 0..bins {
+        row(
+            out,
+            &[
+                number(value.freqs[bin]),
+                number(value.spectrum_db[bin]),
+                number(value.threshold_quiet_db[bin]),
+                number(value.global_mask_db[bin]),
+                number(value.smr_db[bin]),
             ],
         );
     }

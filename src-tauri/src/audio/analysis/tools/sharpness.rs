@@ -22,6 +22,7 @@ use super::super::support::frame_times;
 use super::super::{AnalysisError, CalibratedSeriesResult, SharedParams, ToolOptions};
 
 use super::loudness::specific_loudness;
+use super::shared::series_extents;
 
 /// The reference constant: a 1 kHz tone reads about 1 acum.
 const K_ACUM: f64 = 0.11;
@@ -87,12 +88,7 @@ pub(super) fn sharpness(
             .collect()
     };
 
-    let mut min = f32::INFINITY;
-    let mut max = f32::NEG_INFINITY;
-    for value in values.iter().flatten() {
-        min = min.min(*value);
-        max = max.max(*value);
-    }
+    let (min_value, max_value) = series_extents(&values);
     Ok(CalibratedSeriesResult {
         sample_rate,
         hop_size: matrix.hop_size,
@@ -100,8 +96,8 @@ pub(super) fn sharpness(
         window_start: 0.0,
         times: frame_times(values.len(), matrix.hop_size, sample_rate),
         values,
-        min_value: if min.is_finite() { min } else { 0.0 },
-        max_value: if max.is_finite() { max } else { 0.0 },
+        min_value,
+        max_value,
         calibrated: calibration > 0.0,
         calibration_db_spl: calibration,
     })

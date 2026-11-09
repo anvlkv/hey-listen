@@ -5,8 +5,8 @@
 //! delta".
 
 use crate::audio::analysis::{
-    AnalysisResult, LevelsResult, LraResult, LufsResult, MatrixResult, SpectrogramResult,
-    SpectrumResult, WaveformResult,
+    AnalysisResult, LevelsResult, LraResult, LufsResult, MaskingResult, MatrixResult,
+    SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 use super::super::align::Span;
@@ -84,6 +84,27 @@ pub(super) fn spectrum_delta(a: &SpectrumResult, b: &SpectrumResult) -> Spectrum
     let values: Vec<f32> = pairs.iter().map(|(a, b)| b - a).collect();
     let stats = DeltaStats::of(&pairs);
     let summary = format!("{} · {bins} bins", stats.describe());
+    SpectrumDelta {
+        header: DeltaHeader::new(summary, &stats),
+        stats,
+        freqs: a.freqs[..bins].to_vec(),
+        values,
+    }
+}
+
+/// The masking comparison reuses the spectrum delta shape over the **signal-to-mask
+/// ratio**, the tool's headline curve.
+pub(super) fn masking_delta(a: &MaskingResult, b: &MaskingResult) -> SpectrumDelta {
+    let bins = a
+        .freqs
+        .len()
+        .min(a.smr_db.len())
+        .min(b.freqs.len())
+        .min(b.smr_db.len());
+    let pairs: Vec<(f32, f32)> = (0..bins).map(|i| (a.smr_db[i], b.smr_db[i])).collect();
+    let values: Vec<f32> = pairs.iter().map(|(a, b)| b - a).collect();
+    let stats = DeltaStats::of(&pairs);
+    let summary = format!("{} · {bins} bins · SMR", stats.describe());
     SpectrumDelta {
         header: DeltaHeader::new(summary, &stats),
         stats,

@@ -103,6 +103,8 @@ export const VIEW_ICONS: Record<AnalyzerView["kind"], IconName> = {
   modulation: "chart-line",
   /** A filled sone curve over time (M27). */
   loudness: "chart-area",
+  /** A spectrum with threshold overlays (M30). */
+  masking: "chart-line",
 };
 
 /** The icon for the two graph editors (a Sidebar row). */

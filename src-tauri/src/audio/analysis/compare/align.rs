@@ -252,6 +252,7 @@ pub fn window_fn_name(params: &SharedParams) -> &'static str {
 pub fn bin_count(result: &AnalysisResult) -> Option<usize> {
     match result {
         AnalysisResult::Spectrum(r) => Some(r.freqs.len()),
+        AnalysisResult::Masking(r) => Some(r.freqs.len()),
         AnalysisResult::Spectrogram(r) => Some(r.bins),
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)
@@ -282,6 +283,7 @@ fn uses_band(tool: AnalyzerId) -> bool {
     matches!(
         tool,
         AnalyzerId::Spectrum
+            | AnalyzerId::Masking
             | AnalyzerId::Spectrogram
             | AnalyzerId::MelSpectrogram
             | AnalyzerId::SpectralCentroid
@@ -291,6 +293,7 @@ fn uses_band(tool: AnalyzerId) -> bool {
             | AnalyzerId::SpectralBandwidth
             | AnalyzerId::SpectralEntropy
             | AnalyzerId::SpectralCrest
+            | AnalyzerId::Tonality
     )
 }
 

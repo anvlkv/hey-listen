@@ -5,8 +5,9 @@
 
 use super::{
     AnalysisResult, CalibratedSeriesResult, GapMetric, LevelsResult, LoudnessResult, LraResult,
-    LufsResult, MatrixResult, ModulationPeak, ModulationResult, NoteMetric, NoteMetricsResult,
-    PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
+    LufsResult, MaskingResult, MatrixResult, ModulationPeak, ModulationResult, NoteMetric,
+    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult,
+    WaveformResult,
 };
 
 pub(crate) fn series() -> SeriesResult {
@@ -91,6 +92,23 @@ pub(crate) fn calibrated_series() -> CalibratedSeriesResult {
         values: series.values,
         min_value: series.min_value,
         max_value: series.max_value,
+        calibrated: true,
+        calibration_db_spl: 94.0,
+    }
+}
+
+/// A representative masked spectrum (M30): three bins with their threshold curves.
+pub(crate) fn masking() -> MaskingResult {
+    MaskingResult {
+        sample_rate: 48_000,
+        fft_size: 2_048,
+        frames: 10,
+        window_start: 0.0,
+        freqs: vec![100.0, 200.0, 300.0],
+        spectrum_db: vec![-30.0, -6.0, -20.0],
+        threshold_quiet_db: vec![40.0, 20.0, 10.0],
+        global_mask_db: vec![45.0, 30.0, 15.0],
+        smr_db: vec![-75.0, -36.0, -35.0],
         calibrated: true,
         calibration_db_spl: 94.0,
     }
@@ -266,5 +284,7 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::Sharpness(calibrated_series()),
         AnalysisResult::Roughness(calibrated_series()),
         AnalysisResult::FluctuationStrength(calibrated_series()),
+        AnalysisResult::Masking(masking()),
+        AnalysisResult::Tonality(calibrated_series()),
     ]
 }

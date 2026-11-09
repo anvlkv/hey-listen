@@ -28,6 +28,18 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         AnalysisResult::Waveform(_) => aligned(object, max, &["min", "max"]),
         // Spectrum bins: all four arrays share one frequency axis.
         AnalysisResult::Spectrum(_) => aligned(object, max, &["freqs", "magDb", "minDb", "maxDb"]),
+        // Masking curves share the frequency axis.
+        AnalysisResult::Masking(_) => aligned(
+            object,
+            max,
+            &[
+                "freqs",
+                "spectrumDb",
+                "thresholdQuietDb",
+                "globalMaskDb",
+                "smrDb",
+            ],
+        ),
         // Spectrogram: flat `frames * bins`, no `times` array; scale the hop instead.
         AnalysisResult::Spectrogram(r) => {
             thin_frames(object, max, r.frames, r.bins, "magDb", true);
@@ -55,7 +67,8 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         | AnalysisResult::LoudnessMomentary(_)
         | AnalysisResult::Sharpness(_)
         | AnalysisResult::Roughness(_)
-        | AnalysisResult::FluctuationStrength(_) => aligned(object, max, &["times", "values"]),
+        | AnalysisResult::FluctuationStrength(_)
+        | AnalysisResult::Tonality(_) => aligned(object, max, &["times", "values"]),
         // Loudness carries two gapped tracks over one time axis.
         AnalysisResult::Loudness(_) => {
             aligned(object, max, &["times", "loudnessSone", "loudnessPhon"])

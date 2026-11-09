@@ -12,8 +12,10 @@ use super::critical_bands::critical_bands;
 use super::fluctuation::fluctuation_strength;
 use super::gate::apply_gate;
 use super::loudness::{loudness, specific_loudness};
+use super::masking::masking;
 use super::roughness::roughness;
 use super::sharpness::sharpness;
+use super::tonality::tonality;
 use super::{
     chromagram, frame_rms_envelope, levels, mel_spectrogram, mfcc, modulation, note_metrics,
     spectral_contrast, spectrogram, spectrum, waveform,
@@ -154,6 +156,18 @@ pub fn run(
         AnalyzerId::FluctuationStrength => Ok(AnalysisResult::FluctuationStrength(
             fluctuation_strength(mono, sample_rate, params, options)?,
         )),
+        AnalyzerId::Masking => Ok(AnalysisResult::Masking(masking(
+            mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
+        AnalyzerId::Tonality => Ok(AnalysisResult::Tonality(tonality(
+            mono,
+            sample_rate,
+            params,
+            options,
+        )?)),
         AnalyzerId::SpectralCentroid => Ok(AnalysisResult::SpectralCentroid(gated_series(
             oxiaudio::dsp::spectral::spectral_centroid(&lib_buf(), fft, hop),
             hop,

@@ -5,6 +5,7 @@ use super::super::{
     AnalysisError, SharedParams, SpectrogramResult, SpectrumResult, DB_FLOOR, MAX_SPEC_BINS,
     MAX_SPEC_FRAMES,
 };
+use super::shared::band_stft;
 
 /// Averaged magnitude spectrum (Welch-style): the mean magnitude per bin.
 pub fn spectrum(
@@ -12,45 +13,36 @@ pub fn spectrum(
     sample_rate: u32,
     params: &SharedParams,
 ) -> Result<SpectrumResult, AnalysisError> {
-    let params = effective_params(params, sample_rate);
-    let fft = params.fft_size();
-    let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
-    let (mags, frames) = stft_magnitudes(mono, sample_rate, fft, hop, &params)?;
-    let bins = fft / 2 + 1;
-    let (min_hz, max_hz) = params.band(sample_rate);
-
-    let mut freqs = Vec::new();
+    let band = band_stft(mono, sample_rate, params)?;
+    let mut freqs = Vec::with_capacity(band.bins.len());
     let mut mag_db = Vec::new();
     let mut min_db = Vec::new();
     let mut max_db = Vec::new();
     let mut peak_hz = 0.0f32;
     let mut peak_db = DB_FLOOR;
-    for k in 0..bins {
-        let freq = k as f64 * f64::from(sample_rate) / fft as f64;
-        if freq < min_hz || freq > max_hz {
-            continue;
-        }
+    for (index, &k) in band.bins.iter().enumerate() {
         // Mean / min / max of the linear magnitude across the window's frames.
-        let (mean, min, max) = if frames > 0 {
+        let (mean, min, max) = if band.frames > 0 {
             let mut sum = 0.0f32;
             let mut min = f32::INFINITY;
             let mut max = f32::NEG_INFINITY;
-            for frame in &mags {
+            for frame in &band.magnitudes {
                 let value = frame[k];
                 sum += value;
                 min = min.min(value);
                 max = max.max(value);
             }
-            (sum / frames as f32, min, max)
+            (sum / band.frames as f32, min, max)
         } else {
             (0.0, 0.0, 0.0)
         };
+        let freq = band.freqs[index];
         let db = db_or_floor(20.0 * mean.max(1e-10).log10());
         if db > peak_db {
             peak_db = db;
-            peak_hz = freq as f32;
+            peak_hz = freq;
         }
-        freqs.push(freq as f32);
+        freqs.push(freq);
         mag_db.push(db);
         min_db.push(db_or_floor(20.0 * min.max(1e-10).log10()));
         max_db.push(db_or_floor(20.0 * max.max(1e-10).log10()));
@@ -58,9 +50,9 @@ pub fn spectrum(
 
     Ok(SpectrumResult {
         sample_rate,
-        fft_size: fft,
-        hop_size: hop,
-        frames,
+        fft_size: band.fft,
+        hop_size: band.hop,
+        frames: band.frames,
         freqs,
         mag_db,
         min_db,

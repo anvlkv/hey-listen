@@ -16,6 +16,8 @@ pub(super) fn calibrated_series(
         AnalyzerId::Sharpness => "acum",
         AnalyzerId::Roughness => "asper",
         AnalyzerId::FluctuationStrength => "vacil",
+        // `tonality` is a dimensionless 0…1 ratio proxy.
+        AnalyzerId::Tonality => "",
         _ => "",
     };
     let unit = (!unit.is_empty()).then_some(unit);

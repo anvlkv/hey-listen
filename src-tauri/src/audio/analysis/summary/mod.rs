@@ -11,6 +11,7 @@ mod families;
 mod format;
 mod keys;
 mod loudness;
+mod masking;
 #[cfg(test)]
 mod tests;
 

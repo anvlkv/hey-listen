@@ -248,4 +248,77 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       },
     ],
   },
+  {
+    id: "masking",
+    title: "Masking",
+    description: "Masking threshold + signal-to-mask ratio over the spectrum",
+    about:
+      "**What it shows.** The averaged spectrum of the window with its **threshold " +
+      "in quiet** `Tq(f)` and the **global masking threshold** `Tg(i)` overlaid. `Tg` " +
+      "combines `Tq` with the contribution of every tonal and non-tonal masker, spread " +
+      "over the Bark distance. The **signal-to-mask ratio** `SMR(i) = L(i) − Tg(i)` " +
+      "says how far each line sits above or below the estimated threshold; masked bins " +
+      "(`SMR < 0`) are drawn as bands between the spectrum and `Tg`.\n\n" +
+      "**Why use it.** It answers which components are likely inaudible under their " +
+      "neighbours — a quiet partial next to a loud one, or energy below the threshold " +
+      "in quiet.\n\n" +
+      "**Model and calibration.** This is the MPEG-style codec masking model, not a " +
+      "universal predictor of human detection. `Tq` is always dB SPL: with " +
+      "*Calibration* at 0 the spectrum is **uncalibrated** (dBFS) and the two scales " +
+      "are mixed by construction, so set it to the dB SPL of a full-scale sine for an " +
+      "absolute reading.",
+    keywords: ["masking", "audibility", "smr", "threshold", "perception", "quiet"],
+    section: "perception",
+    view: { kind: "masking" },
+    params: [
+      {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 140,
+        step: 1,
+        suffix: "dB SPL",
+        title: "dB SPL of a full-scale sine; 0 = uncalibrated.",
+      },
+    ],
+  },
+  {
+    id: "tonality",
+    title: "Tonality",
+    description: "Tonal-energy ratio proxy over time",
+    about:
+      "**What it shows.** Per analysis frame, the share of the spectrum's power that " +
+      "sits in **tonal** bins: `H = E_tonal / E_total` (0–1). Tonal bins are the local " +
+      "maxima the *Masking* tool also treats as maskers, so the two share one detection " +
+      "rule. A pure tone reads near 1; broadband noise reads near 0.\n\n" +
+      '**A documented proxy, not a standard.** There is no single universal "tonality" ' +
+      "number: the value depends entirely on how a tonal line is detected. This is a " +
+      "simple, repeatable band-energy ratio, not a standardized perceptual metric and " +
+      "not numerically interchangeable with one. Use it to compare a window against " +
+      "another with the same settings.\n\n" +
+      "**Calibration** only shifts every level by the same amount, so it does not change " +
+      "the ratio; an uncalibrated run is still labelled as such for consistency with the " +
+      "other perception tools.",
+    keywords: ["tonality", "tonal", "ratio", "proxy", "perception", "noise"],
+    section: "perception",
+    view: series("tonality", (value) => (value * 100).toFixed(0) + "%", {
+      style: "area",
+      yRange: [0, 1],
+    }),
+    params: [
+      {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 140,
+        step: 1,
+        suffix: "dB SPL",
+        title: "dB SPL of a full-scale sine; 0 = uncalibrated.",
+      },
+    ],
+  },
 ];
