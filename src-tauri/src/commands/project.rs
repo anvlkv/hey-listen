@@ -28,9 +28,11 @@ pub mod open_paths;
 pub mod results;
 pub mod siblings;
 
-pub use open_paths::{
-    handle_open_paths, opened_paths_from_args, opened_paths_from_urls, OpenedFiles, OPEN_EVENT,
-};
+/// macOS/iOS/Android deliver opens as URLs (`RunEvent::Opened`); Windows/Linux use
+/// argv ([`opened_paths_from_args`]), so this helper is gated with its only caller.
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+pub use open_paths::opened_paths_from_urls;
+pub use open_paths::{handle_open_paths, opened_paths_from_args, OpenedFiles, OPEN_EVENT};
 use results::{to_cached, to_stored};
 
 /// The project's file extension (magic `HEYL`, and `bundle.fileAssociations` in
