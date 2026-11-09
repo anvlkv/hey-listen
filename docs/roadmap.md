@@ -2410,3 +2410,17 @@ workflow — open a source, filter, analyze, annotate, compare — end to end.
 - **TBD** — the video: script / storyboard, captured footage vs. recreated UI, length,
   theme(s), and where it embeds.
 - **TBD** — keeping the site's screenshots and roadmap page in sync with the app.
+
+## M36 — Informative, telling charts (drafted — proposal)
+
+Make every analyzer chart truthful, inspectable, and legible — the visual layer as part of
+the analysis, per `docs/improved-charts-ideation.md`. Scope and phases are proposed in
+[`chart-review/milestone-proposal.md`](chart-review/milestone-proposal.md); the visual
+evaluation is [`chart-review/chart-review.md`](chart-review/chart-review.md) and the
+code-level plan is [`chart-review/chart-recommendations.md`](chart-review/chart-recommendations.md).
+
+- Four phases: linked waveform+spectrogram + shared coordinates; perceptual truthfulness
+  (`specificLoudness`, `masking`, pYIN, loudness); psychoacoustic contribution drill-downs;
+  and legibility/encodings across heatmaps, rhythm, modulation, `noteMetrics`, and themes.
+- No new analyzers; reuse the existing sync/overlay/colour-map plumbing. Confirm current
+  status and start only when asked.
