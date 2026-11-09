@@ -1,28 +1,13 @@
 # Hey Listen — Planning Docs
 
 Index of the design/planning documentation. These docs are the source of truth for
-design; [`roadmap.md`](roadmap.md) tracks what is implemented (M0–M12, M14–M21, and the
-post-M6 backlog are done). M13 (templates) is **planned** — see
-[`templates.md`](templates.md); [`annotations.md`](annotations.md)
-(M14), **M15** (code hygiene — the format/lint/dead-code gate) and **M15.B** (typed
-identifiers + the clone/vocabulary follow-up) are delivered.
-**M16–M20** (pitch range, the frame-RMS envelope, note segmentation, the per-note
-voice-quality proxies, and AM/FM modulation spectra) are delivered — see
-[`analysis-metrics.md`](analysis-metrics.md). **M21** (MCP/CLI ergonomics: per-result
-summaries, compact results, catalog annotations, discovery) is delivered — see
-[`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md). **M25** (cross-project comparison),
-**M25.A** (its remaining chart views — every family now has one), **M25.B** (relative
-alignment + fine-tune offset), **M25.C** (saved comparison snapshots) and **M25.D**
-(project navigation + headless comparisons) are **delivered** — see
-[`roadmap.md`](roadmap.md) and [`comparison.md`](comparison.md). **M22** (synth live
-workflow), **M23** (timeline ergonomics), **M24** (keyboard control) and **M26–M31**
-(the psychoacoustic analyzers: critical bands, loudness / sharpness, roughness /
-fluctuation, masking / tonality, equal-loudness + spatial cues) are **planned** — see
-[`roadmap.md`](roadmap.md), [`hotkeys.md`](hotkeys.md) and
-[`analysis-psychoacoustics.md`](analysis-psychoacoustics.md).
+design. See [`roadmap.md`](roadmap.md) for current milestone status and
+[`FEATURES.md`](FEATURES.md) for the user-facing feature and workflow map.
 
 | Doc | What it covers |
 | --- | --- |
+| [FEATURES.md](FEATURES.md) | Available and future user-facing features and workflows |
+| [TONE_OF_VOICE.md](TONE_OF_VOICE.md) | Proposed voice directions and sample product copy |
 | [architecture.md](architecture.md) | System architecture, IPC boundary, Rust/TS module layout, data flow, threading |
 | [ui-layout.md](ui-layout.md) | The fixed-region + workbench-tabs layout rule and tab behaviors |
 | [graph-editor.md](graph-editor.md) | The fundsp graph editor: Net model, node palette, rules, planned coverage |
@@ -33,7 +18,7 @@ fluctuation, masking / tonality, equal-loudness + spatial cues) are **planned** 
 | [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
 | [comparison.md](comparison.md) | Cross-project diffs: the A/B model, relative alignment + fine-tune offset, comparability, the compare view (+ popout), saved snapshots, headless comparisons, MCP/CLI surfaces (M25 / M25.A / M25.B / M25.C / M25.D) |
 | [analysis-metrics.md](analysis-metrics.md) | Analysis depth: pitch range, frame RMS, note segmentation (M16–M18), per-note voice-quality proxies (M19), and AM/FM modulation spectra (M20) — all delivered |
-| [analysis-psychoacoustics.md](analysis-psychoacoustics.md) | Psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation, masking / tonality, equal-loudness + spatial cues (M26–M31) — planned |
+| [analysis-psychoacoustics.md](analysis-psychoacoustics.md) | Psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation, masking / tonality, equal-loudness + spatial cues (M26–M31) — see the roadmap for status |
 | [psychoacoustics-references.md](psychoacoustics-references.md) | Psychoacoustics reference: the libraries, equations, and model recommendations behind M26–M31 |
 | [mcp-cli-ergonomics.md](mcp-cli-ergonomics.md) | MCP/CLI ergonomics: result summaries, compact previews, MCP tool annotations (`readOnlyHint` …), analyzer discovery (M21) |
 | [theming.md](theming.md) | Exchangeable theme files: the `ThemeFile` model, built-ins + slots, the apply pipeline |
