@@ -2195,7 +2195,22 @@ A masking threshold, a signal-to-mask ratio, and a defined tonal-energy ratio.
 
 > See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M30.
 
-## M31 — Equal-loudness contour overlay + spatial (stereo) cues (planned)
+## M31 — Equal-loudness contour overlay + spatial (stereo) cues ✅
+
+> **Delivered.** The **`spatial`** analyzer (Perception) reads the interleaved left/right
+> pair before the shared channel selector, applies the filter to each channel, and
+> returns the normalized inter-channel correlation over time plus window-level
+> mid/side RMS in dBFS. It rejects a mono source; the about copy and summary call these
+> **stereo acoustic cues**, not a perceived-width model. The equal-loudness contour is a
+> **reference overlay** on the **Spectrum** view (`src/lib/equalLoudness.ts`, generated
+> from the ISO 226:2023 Formula (1) and Table 1 at the 29 preferred third-octave
+> frequencies, interpolated in log-frequency): a selectable phon level draws a dashed
+> curve on its **own right-hand dB SPL axis**, because the spectrum itself is dBFS, and
+> a readout reports the contour's level at the cursor's frequency. The Spectrogram offers
+> the same phon selector with a cursor readout. The overlay is labelled
+> "equal-loudness contour" / "phon reference" and makes no conformance claim. Tests pin
+> the mid/side and correlation behaviour of a hard-panned and an identical pair, the mono
+> rejection, and the contour table's tabulated points.
 
 An ISO 226 reference over the spectrum, and mid/side + inter-channel correlation.
 

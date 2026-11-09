@@ -12,6 +12,7 @@ mod format;
 mod keys;
 mod loudness;
 mod masking;
+mod spatial;
 #[cfg(test)]
 mod tests;
 

@@ -24,6 +24,7 @@ import type { CalibratedSeriesResult as CalibratedSeriesPayload } from "../../bi
 import type { NoteMetricsResult as NoteMetricsPayload } from "../../bindings/NoteMetricsResult";
 import type { ModulationResult as ModulationPayload } from "../../bindings/ModulationResult";
 import type { MaskingResult as MaskingPayload } from "../../bindings/MaskingResult";
+import type { SpatialResult as SpatialPayload } from "../../bindings/SpatialResult";
 
 import type { AnalyzerId as GeneratedAnalyzerId } from "../../bindings/AnalyzerId";
 
@@ -233,6 +234,11 @@ export interface CalibratedSeriesResult extends CalibratedSeriesPayload {
   tool: AnalyzerId;
 }
 
+/** Mid/side levels and inter-channel correlation (M31). */
+export interface SpatialResult extends SpatialPayload {
+  tool: "spatial";
+}
+
 /** Any analyzer result returned over IPC. */
 export type AnyAnalysisResult =
   | WaveformResult
@@ -249,4 +255,5 @@ export type AnyAnalysisResult =
   | LraResult
   | LoudnessResult
   | MaskingResult
-  | CalibratedSeriesResult;
+  | CalibratedSeriesResult
+  | SpatialResult;

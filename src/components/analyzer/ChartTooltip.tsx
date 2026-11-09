@@ -26,7 +26,7 @@ export default function ChartTooltip(
       <div class="chart-tooltip-x">
         {props.xLabel} {props.formatX(props.cursor.xValue)}
       </div>
-      <For each={props.seriesData}>
+      <For each={props.seriesData.filter((series) => series.scale !== "y2")}>
         {(series) => (
           <div class="chart-tooltip-row">
             <span class="chart-tooltip-label">{series.label}</span>

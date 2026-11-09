@@ -19,6 +19,7 @@ mod notes;
 mod rebase;
 mod scalars;
 mod series;
+mod spatial;
 mod stored;
 
 pub use calibrated_series::*;
@@ -28,6 +29,7 @@ pub use modulation::*;
 pub use notes::*;
 pub use scalars::*;
 pub use series::*;
+pub use spatial::*;
 pub use stored::*;
 
 /// Shift every entry of a result's time axis by `shift` (source seconds).
@@ -236,6 +238,7 @@ pub enum AnalysisResult {
     FluctuationStrength(CalibratedSeriesResult),
     Masking(MaskingResult),
     Tonality(CalibratedSeriesResult),
+    Spatial(SpatialResult),
 }
 
 impl AnalysisResult {
@@ -280,6 +283,7 @@ impl AnalysisResult {
             AnalysisResult::FluctuationStrength(_) => AnalyzerId::FluctuationStrength,
             AnalysisResult::Masking(_) => AnalyzerId::Masking,
             AnalysisResult::Tonality(_) => AnalyzerId::Tonality,
+            AnalysisResult::Spatial(_) => AnalyzerId::Spatial,
         }
     }
 

@@ -9,7 +9,7 @@
 use crate::audio::analysis::{
     AnalysisResult, CalibratedSeriesResult, LevelsResult, LoudnessResult, LraResult, LufsResult,
     MaskingResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
-    SeriesResult, SpectrogramResult, SpectrumResult, WaveformResult,
+    SeriesResult, SpatialResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 /// Render a result as CSV. Every result kind has a shape; none falls through to an
@@ -20,6 +20,7 @@ pub fn csv(result: &AnalysisResult) -> String {
         AnalysisResult::Waveform(value) => waveform(&mut out, value),
         AnalysisResult::Spectrum(value) => spectrum(&mut out, value),
         AnalysisResult::Masking(value) => masking(&mut out, value),
+        AnalysisResult::Spatial(value) => spatial(&mut out, value),
         AnalysisResult::Spectrogram(value) => spectrogram(&mut out, value),
         AnalysisResult::Levels(value) => levels(&mut out, value),
         AnalysisResult::FrameRms(value)
@@ -192,6 +193,12 @@ fn spectrogram(out: &mut String, value: &SpectrogramResult) {
 
 fn series(out: &mut String, value: &SeriesResult) {
     time_value_rows(out, "value", &value.times, &value.values);
+}
+
+/// The stereo cues: the inter-channel correlation track (the mid/side levels are
+/// window-level readouts, not a time series).
+fn spatial(out: &mut String, value: &SpatialResult) {
+    time_value_rows(out, "correlation", &value.times, &value.values);
 }
 
 fn calibrated_series(out: &mut String, value: &CalibratedSeriesResult) {

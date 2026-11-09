@@ -86,4 +86,18 @@ pub(super) const PERCEPTION: &[AnalyzerInfo] = &[
         section: Section::Perception,
         keywords: &["tonality", "tonal", "ratio", "proxy", "perception"],
     },
+    AnalyzerInfo {
+        id: AnalyzerId::Spatial,
+        title: "Spatial",
+        description: "Mid/side levels and inter-channel correlation over time",
+        section: Section::Perception,
+        keywords: &[
+            "spatial",
+            "mid",
+            "side",
+            "correlation",
+            "stereo",
+            "perception",
+        ],
+    },
 ];

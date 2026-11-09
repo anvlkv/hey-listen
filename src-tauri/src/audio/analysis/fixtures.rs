@@ -6,8 +6,8 @@
 use super::{
     AnalysisResult, CalibratedSeriesResult, GapMetric, LevelsResult, LoudnessResult, LraResult,
     LufsResult, MaskingResult, MatrixResult, ModulationPeak, ModulationResult, NoteMetric,
-    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult,
-    WaveformResult,
+    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpatialResult, SpectrogramResult,
+    SpectrumResult, WaveformResult,
 };
 
 pub(crate) fn series() -> SeriesResult {
@@ -109,6 +109,24 @@ pub(crate) fn masking() -> MaskingResult {
         threshold_quiet_db: vec![40.0, 20.0, 10.0],
         global_mask_db: vec![45.0, 30.0, 15.0],
         smr_db: vec![-75.0, -36.0, -35.0],
+        calibrated: true,
+        calibration_db_spl: 94.0,
+    }
+}
+
+/// A representative stereo-cue track (M31): correlation over four frames plus the
+/// window-level mid/side levels.
+pub(crate) fn spatial() -> SpatialResult {
+    SpatialResult {
+        sample_rate: 48_000,
+        hop_size: 480,
+        window_start: 0.0,
+        times: vec![0.0, 0.01, 0.02, 0.03],
+        values: vec![Some(0.9), None, Some(0.2), Some(1.0)],
+        min_value: 0.2,
+        max_value: 1.0,
+        mid_db: -9.0,
+        side_db: -24.0,
         calibrated: true,
         calibration_db_spl: 94.0,
     }
@@ -286,5 +304,6 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::FluctuationStrength(calibrated_series()),
         AnalysisResult::Masking(masking()),
         AnalysisResult::Tonality(calibrated_series()),
+        AnalysisResult::Spatial(spatial()),
     ]
 }

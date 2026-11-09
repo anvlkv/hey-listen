@@ -370,4 +370,5 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
     (AnalyzerId::FluctuationStrength, CALIBRATION_OPTIONS),
     (AnalyzerId::Masking, CALIBRATION_OPTIONS),
     (AnalyzerId::Tonality, CALIBRATION_OPTIONS),
+    (AnalyzerId::Spatial, CALIBRATION_OPTIONS),
 ];

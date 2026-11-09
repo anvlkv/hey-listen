@@ -321,4 +321,42 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       },
     ],
   },
+  {
+    id: "spatial",
+    title: "Spatial",
+    description: "Mid/side levels and inter-channel correlation over time",
+    about:
+      "**What it shows.** The **normalized inter-channel correlation** `ρ_LR` per " +
+      "analysis frame, plus the window's **mid** `(L + R) / 2` and **side** " +
+      "`(L − R) / 2` RMS in dBFS. Correlation near 1 means the channels carry the " +
+      "same signal (a centred, mono-like image); near 0 means they are unrelated " +
+      "(wide, decorrelated stereo); negative values mean they move in opposition.\n\n" +
+      "**Stereo only.** This tool reads the **left and right channels before** the " +
+      "shared channel selector, so the *Channel* param does not apply and a mono " +
+      "source returns no result. The filter still runs on each channel " +
+      "independently.\n\n" +
+      "**Acoustic cues, not a width model.** Mid/side energy and inter-channel " +
+      "correlation describe stereo structure. Perceived width also depends on the " +
+      "playback configuration and the listening room, so do not read ρ as a width " +
+      "score.",
+    keywords: ["spatial", "mid", "side", "correlation", "stereo", "width", "perception"],
+    section: "perception",
+    view: series("correlation", (value) => value.toFixed(2), {
+      style: "area",
+      yRange: [-1, 1],
+    }),
+    params: [
+      {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        kind: "number",
+        value: 0,
+        min: 0,
+        max: 140,
+        step: 1,
+        suffix: "dB SPL",
+        title: "dB SPL of a full-scale sine; 0 = uncalibrated.",
+      },
+    ],
+  },
 ];

@@ -52,6 +52,10 @@ impl AnalysisResult {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }
+            AnalysisResult::Spatial(result) => {
+                result.window_start = start;
+                shift_times(&mut result.times, shift);
+            }
             AnalysisResult::PitchPyin(result)
             | AnalysisResult::PitchYin(result)
             | AnalysisResult::PitchAutocorr(result) => {

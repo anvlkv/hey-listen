@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
@@ -7,6 +7,7 @@ import { createUplotZoom } from "./uplotZoom";
 import { NoAudioState } from "./chartCommon";
 import { chartTheme } from "../../state/themes";
 import { useUplotImage } from "./chartImage";
+import { contourAt } from "../../lib/equalLoudness";
 import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
 
 /** Per-tool switch (a 0/1 `select`) that shows one magnitude layer. */
@@ -48,6 +49,32 @@ export default function SpectrumTab() {
 
   /** Log-frequency x-axis (per-tool toggle; default on). */
   const logFreq = () => (toolOptions.spectrum?.logFreq ?? 1) !== 0;
+
+  /** Selected equal-loudness contour phon level (`0` = off). */
+  const phonLevel = () => toolOptions.spectrum?.phonLevel ?? 0;
+
+  /** The frequency under the cursor, for the contour readout. */
+  const [cursorFreq, setCursorFreq] = createSignal<number | null>(null);
+
+  /** The selected contour as a dB SPL reference curve, one value per frequency bin. */
+  const reference = () => {
+    const result = analysis.result();
+    const phon = phonLevel();
+    if (!result || phon <= 0) return undefined;
+    return {
+      values: result.freqs.map((freq) => contourAt(phon, freq)),
+      label: `${phon} phon contour`,
+      stroke: chartTheme().reference,
+      dash: [6, 4],
+    };
+  };
+
+  /** The contour's level at the cursor frequency, in dB SPL. */
+  const referenceAtCursor = () => {
+    const freq = cursorFreq();
+    const phon = phonLevel();
+    return phon > 0 && freq != null ? contourAt(phon, freq) : null;
+  };
 
   /** A layer is plottable when it is switched on and carries one value per bin. */
   const layerReady = (layer: Layer, result: SpectrumResult) =>
@@ -94,6 +121,20 @@ export default function SpectrumTab() {
               <Readout label="FFT" value={`${result().fftSize} · hop ${result().hopSize}`} />
               <Readout label="Frames" value={`${result().frames}`} />
               <Readout label="Rate" value={`${result().sampleRate} Hz`} />
+              <Show when={phonLevel() > 0}>
+                <Readout
+                  label="Contour"
+                  value={`${phonLevel()} phon`}
+                  title="Equal-loudness reference curve, in dB SPL."
+                />
+                <Readout
+                  label="Ref @ cursor"
+                  value={
+                    referenceAtCursor() == null ? "—" : `${referenceAtCursor()!.toFixed(1)} dB SPL`
+                  }
+                  title="The contour's level at the cursor frequency. The spectrum is dBFS; the two scales align only when it is calibrated."
+                />
+              </Show>
             </div>
             <div class="analyzer-plot" onWheel={zoom.wheel}>
               <Show
@@ -118,7 +159,9 @@ export default function SpectrumTab() {
                   }))}
                   yWindow={90}
                   logFreq={logFreq()}
-                  remountKey={logFreq() ? "log" : "lin"}
+                  remountKey={`${logFreq() ? "log" : "lin"}|${phonLevel()}`}
+                  reference={reference()}
+                  onCursorMove={setCursorFreq}
                 />
               </Show>
             </div>

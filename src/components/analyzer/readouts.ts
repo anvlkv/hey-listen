@@ -39,7 +39,9 @@ export function readoutsFor(result: ReadoutResult): ReadoutSpec[] {
 /** Readouts for a plain `SeriesResult` (many scalar-over-time spectral tools). */
 export function seriesReadouts(
   result: {
-    frames: number;
+    /** Frame count; derived from `values` when a result (such as `spatial`) omits it. */
+    frames?: number;
+    values?: (number | null)[];
     hopSize: number;
     sampleRate: number;
     minValue: number;
@@ -49,15 +51,16 @@ export function seriesReadouts(
   },
   formatY: (value: number) => string,
 ): ReadoutSpec[] {
+  const frames = result.frames ?? result.values?.length ?? 0;
   const specs: ReadoutSpec[] = [
-    { label: "Frames", value: `${result.frames}` },
+    { label: "Frames", value: `${frames}` },
     { label: "Hop", value: `${result.hopSize}` },
     { label: "Rate", value: formatHz(result.sampleRate) },
   ];
   if (result.frameSize != null) {
     specs.push({ label: "Frame", value: `${result.frameSize}` });
   }
-  if (result.frames > 0) {
+  if (frames > 0) {
     specs.push({ label: "Min", value: formatY(result.minValue) });
     specs.push({ label: "Max", value: formatY(result.maxValue) });
   }
