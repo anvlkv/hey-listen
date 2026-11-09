@@ -92,26 +92,54 @@ fn harmonic_ratio_defaults_reach_three_khz() {
     assert!(mean > 0.8, "mean harmonic ratio = {mean}");
 }
 
-#[test]
-fn pyin_reports_its_effective_range() {
-    let mono = sine(440.0, 0.5);
-    let result = match run(
+/// Run pYIN over a `hz` sine with an explicit `(min, max)` range.
+fn pyin(hz: f32, range: (f32, f32)) -> PitchResult {
+    pyin_on(2048, hz, range)
+}
+
+/// Run pYIN over a `hz` sine on `fft`-sized frames, with an explicit `(min, max)` range.
+fn pyin_on(fft: usize, hz: f32, (min_f0_hz, max_f0_hz): (f32, f32)) -> PitchResult {
+    let mono = sine(hz, 0.5);
+    match run(
         AnalyzerId::PitchPyin,
         &mono,
         RATE,
-        &params(2048),
-        &ToolOptions::default(),
+        &params(fft),
+        &pitch_options(min_f0_hz, max_f0_hz),
     )
     .expect("pitch")
     {
-        AnalysisResult::PitchPyin(r) => r,
+        AnalysisResult::PitchPyin(result) => result,
         other => panic!("unexpected result: {other:?}"),
-    };
-    // The default range, reported back like the other pitch trackers.
-    assert_eq!(result.effective_min_f0_hz, 50.0);
-    assert_eq!(result.effective_max_f0_hz, 2_000.0);
+    }
+}
+
+/// Every voiced f0 must lie inside the domain the result reports.
+fn assert_inside_reported_domain(result: &PitchResult) {
+    for f0 in result.values.iter().flatten() {
+        assert!(
+            *f0 >= result.effective_min_f0_hz && *f0 <= result.effective_max_f0_hz,
+            "{f0} Hz is outside the reported {}–{} Hz domain",
+            result.effective_min_f0_hz,
+            result.effective_max_f0_hz
+        );
+    }
+}
+
+#[test]
+fn pyin_reports_its_effective_range() {
+    let result = pyin(440.0, (50.0, 2_000.0));
+    // The reported domain is the *realized* one — semitone bin centres inside the
+    // request — so the ceiling is not the requested 2000 Hz (it falls between bins).
+    assert!(result.effective_min_f0_hz >= 50.0);
+    assert!(result.effective_max_f0_hz <= 2_000.0);
+    assert!(
+        result.effective_max_f0_hz < 2_000.0,
+        "an echoed request is not an effective bound"
+    );
     let mean = mean_f0(&result);
     assert!((mean - 440.0).abs() < 20.0, "mean f0 = {mean}");
+    assert_inside_reported_domain(&result);
 }
 
 /// The report's finding: pYIN hardcoded 50–2000 Hz, so a high fundamental was
@@ -119,47 +147,85 @@ fn pyin_reports_its_effective_range() {
 /// (hey-listen-report §2.2/§6.2).
 #[test]
 fn pyin_finds_a_three_khz_f0_with_an_explicit_range() {
-    let mono = sine(3_000.0, 0.5);
-    let result = match run(
-        AnalyzerId::PitchPyin,
-        &mono,
-        RATE,
-        &params(2048),
-        &pitch_options(50.0, 4_000.0),
-    )
-    .expect("pitch")
-    {
-        AnalysisResult::PitchPyin(r) => r,
-        other => panic!("unexpected result: {other:?}"),
-    };
-    assert_eq!(result.effective_max_f0_hz, 4_000.0);
+    let result = pyin(3_000.0, (50.0, 4_000.0));
+    assert!(result.effective_max_f0_hz <= 4_000.0);
     let mean = mean_f0(&result);
     // The detector reports semitone bin centres, so allow ~a semitone.
     assert!((mean - 3_000.0).abs() < 120.0, "mean f0 = {mean}");
+    assert_inside_reported_domain(&result);
 }
 
-/// With the default 2 kHz ceiling the same tone is out of range: it must not be
-/// reported as its 1.5 kHz subharmonic.
+/// The documented limitation: a tone above the range is not recovered. The periodicity
+/// search only sees lags inside the range, so a 3 kHz tone under the default 2 kHz
+/// ceiling is reported as its ~1.48 kHz subharmonic. This is a limitation of the
+/// constrained search, not something a stronger assertion on the old test could fix.
 #[test]
-fn pyin_does_not_invent_a_subharmonic_when_the_range_excludes_the_tone() {
-    let mono = sine(3_000.0, 0.5);
-    let result = match run(
-        AnalyzerId::PitchPyin,
-        &mono,
-        RATE,
-        &params(2048),
-        &ToolOptions::default(),
-    )
-    .expect("pitch")
-    {
-        AnalysisResult::PitchPyin(r) => r,
-        other => panic!("unexpected result: {other:?}"),
-    };
-    let voiced: Vec<f32> = result.values.iter().flatten().copied().collect();
-    assert!(
-        voiced.iter().all(|f0| *f0 < 2_100.0),
-        "a 3 kHz tone was reported inside a 2 kHz range: {voiced:?}"
+fn a_tone_above_the_range_is_reported_as_a_subharmonic() {
+    let result = pyin(3_000.0, (50.0, 2_000.0));
+    let mean = mean_f0(&result);
+    assert!((mean - 1_480.0).abs() < 30.0, "mean f0 = {mean}");
+    assert_inside_reported_domain(&result);
+}
+
+/// A range thinner than the semitone grid has no reportable bin centre: the result says
+/// so (empty domain, no voiced frames) instead of returning 466.16 Hz for a 450–460 Hz
+/// request — the audit's executed probe.
+#[test]
+fn a_tight_range_without_a_bin_reports_nothing_outside_it() {
+    let result = pyin(455.0, (450.0, 460.0));
+    assert_eq!(result.voiced_frames, 0);
+    assert_eq!(
+        (result.effective_min_f0_hz, result.effective_max_f0_hz),
+        (0.0, 0.0)
     );
+}
+
+/// A range wide enough for one semitone bin reports that centre, inside the range.
+#[test]
+fn a_tight_range_reports_its_bin_centre_inside_the_range() {
+    let result = pyin(440.0, (430.0, 450.0));
+    let voiced: Vec<f32> = result.values.iter().flatten().copied().collect();
+    assert!(!voiced.is_empty(), "440 Hz is the one bin in 430–450 Hz");
+    assert!(
+        voiced.iter().all(|f0| (430.0..=450.0).contains(f0)),
+        "{voiced:?}"
+    );
+    assert!(result.effective_min_f0_hz >= 430.0 && result.effective_max_f0_hz <= 450.0);
+    let mean = mean_f0(&result);
+    assert!((mean - 440.0).abs() < 1.0, "mean f0 = {mean}");
+}
+
+/// A tone near the top edge is never rounded up past the requested ceiling: under
+/// 440–460 Hz only the 440 Hz bin is representable, and 466.16 Hz is not reported.
+#[test]
+fn a_tone_near_the_top_edge_is_never_reported_above_it() {
+    let result = pyin(455.0, (440.0, 460.0));
+    assert!(result.effective_max_f0_hz <= 460.0);
+    assert!(
+        result
+            .values
+            .iter()
+            .flatten()
+            .all(|f0| (440.0..=460.0).contains(f0)),
+        "{:?}",
+        result.values
+    );
+    assert_inside_reported_domain(&result);
+}
+
+/// A short frame cannot search the lowest requested lags: the reported domain is narrowed
+/// to what the frame's half-length allows instead of echoing `minF0Hz`.
+#[test]
+fn pyin_reports_the_domain_the_frame_can_realize() {
+    let result = pyin_on(256, 1_000.0, (50.0, 5_000.0));
+    // 48 kHz / (256 frame / 2) = 375 Hz is the lowest lag a 256-sample frame allows.
+    assert!(
+        result.effective_min_f0_hz >= 375.0,
+        "effective min = {}",
+        result.effective_min_f0_hz
+    );
+    assert!(result.effective_min_f0_hz > 50.0);
+    assert_inside_reported_domain(&result);
 }
 
 #[test]

@@ -3,7 +3,9 @@
 //!
 //! Every array shares the `freqs` axis. `spectrum_db` is the line level `L(i)` — dB SPL
 //! when the run was calibrated, dBFS otherwise — while `threshold_quiet_db` is always
-//! dB SPL.
+//! dB SPL. `global_mask_db` and `smr_db` follow the spectrum's unit: a calibrated run
+//! folds in `Tq`, an uncalibrated run sums the maskers alone, so without `calibrated`
+//! the SMR is a relative margin, not an audibility verdict.
 
 use serde::{Deserialize, Serialize};
 
@@ -24,9 +26,11 @@ pub struct MaskingResult {
     pub spectrum_db: Vec<f32>,
     /// `Tq(i)` — the threshold in quiet (dB SPL).
     pub threshold_quiet_db: Vec<f32>,
-    /// `Tg(i)` — the global masking threshold, in `spectrum_db`'s unit.
+    /// `Tg(i)` — the global masking threshold, in `spectrum_db`'s unit. It includes the
+    /// dB SPL threshold in quiet only when `calibrated`; otherwise it is relative.
     pub global_mask_db: Vec<f32>,
-    /// `SMR(i) = L(i) − Tg(i)` (positive = above the estimated threshold).
+    /// `SMR(i) = L(i) − Tg(i)` (positive = above the estimated threshold). Only a
+    /// calibrated result supports an audibility reading.
     pub smr_db: Vec<f32>,
     /// Whether a positive calibration was supplied, so `spectrum_db` is dB SPL.
     pub calibrated: bool,

@@ -58,18 +58,49 @@ fn components_outside_the_audible_range_are_ignored() {
 }
 
 #[test]
+fn a_partial_cell_integrates_the_linear_ramp() {
+    // Samples 1 and 0 at the first two grid points (1.8 and 1.9 Cam); averaged over
+    // [1.8, 1.85] the linear ramp's mean is (1 + 0.5) / 2.
+    let grid = grid();
+    let mut pattern = vec![0.0f32; grid.cam.len()];
+    pattern[0] = 1.0;
+    let mean = band_mean(&pattern, 1.8, 1.85);
+    assert!(
+        (mean - 0.75).abs() < 1e-5,
+        "ramp mean over a partial cell is {mean}, expected 0.75"
+    );
+}
+
+#[test]
+fn the_total_is_the_trapezoid_integral_of_the_specific_loudness() {
+    let frame = tone(1_000.0, 60.0);
+    let values: Vec<f64> = frame
+        .specific
+        .iter()
+        .map(|&value| f64::from(value))
+        .collect();
+    let trapezoid = grid_integral(&values, I_STEP);
+    let expected = f64::from(frame.sone);
+    assert!(
+        (trapezoid - expected).abs() <= expected.max(0.1) * 1e-4,
+        "trapezoid {trapezoid} does not reproduce N = {expected}"
+    );
+}
+
+#[test]
 fn integrating_the_specific_loudness_reproduces_the_total() {
     let frame = tone(1_000.0, 40.0);
     let edges = critical_band_edges(Scale::Erb, 0.0, 24_000.0);
     let mut total = 0.0f64;
     for pair in edges.windows(2) {
+        // The density is sone per **Cam**, so the span is measured on the ERB axis.
         let (lo, hi) = (cam(pair[0]), cam(pair[1]));
         total += f64::from(band_mean(&frame.specific, lo, hi)) * f64::from(hi - lo);
     }
     let tolerance = f64::from(frame.sone.max(0.1)) * 0.05;
     assert!(
         (total - f64::from(frame.sone)).abs() <= tolerance,
-        "band sum {total} does not reproduce N = {}",
+        "Cam band sum {total} does not reproduce N = {} sone",
         frame.sone
     );
 }

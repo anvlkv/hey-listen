@@ -157,8 +157,9 @@ pub fn effective_options(id: AnalyzerId, overrides: Option<&ToolOptions>) -> Map
     options
 }
 
-/// One analyzer's full detail, the shape `get_analyzer` returns. The `about` copy is
-/// the short description here — the GUI overlays the frontend registry's longer copy.
+/// One analyzer's full detail, the shape `get_analyzer` returns. `about` carries the
+/// tool's scientific caveats (falling back to the one-line description when there are
+/// none), so a headless/CLI caller sees the same qualifications as the GUI.
 pub fn detail(id: AnalyzerId) -> Option<Value> {
     let analyzer = ANALYZERS.iter().find(|analyzer| analyzer.id == id)?;
     let options: Vec<Value> = options::options_for(id)
@@ -294,7 +295,9 @@ mod tests {
             .expect("modulation is in the catalog");
         assert_eq!(modulation["section"], "spectral");
         assert_eq!(modulation["options"]["frameMs"], 10.0);
-        assert_eq!(modulation["options"]["hopMs"], 2.5);
+        // The engine resolves an unset hop to 5 ms (`DEFAULT_HOP_MS`); the catalog
+        // must report the same value, not 2.5 ms.
+        assert_eq!(modulation["options"]["hopMs"], 5.0);
         assert_eq!(modulation["options"]["modMinHz"], 0.5);
         assert_eq!(modulation["options"]["modMaxHz"], 100.0);
         assert_eq!(modulation["options"]["detrend"], 1.0);
@@ -302,6 +305,24 @@ mod tests {
         assert_eq!(modulation["options"]["topPeaks"], 3.0);
         assert_eq!(modulation["options"]["minF0Hz"], 50.0);
         assert_eq!(modulation["options"]["maxF0Hz"], 2000.0);
+    }
+
+    #[test]
+    fn perception_calibration_names_its_unit_and_output() {
+        let unit = super::options::option_unit("calibrationDbSpl");
+        assert_eq!(unit, Some("dB SPL"));
+        let roughness = detail(AnalyzerId::Roughness).expect("roughness detail");
+        let calibration = roughness["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|option| option["key"] == "calibrationDbSpl")
+            .expect("calibration option");
+        assert_eq!(calibration["unit"], "dB SPL");
+        assert!(
+            calibration["help"].as_str().unwrap().contains("asper"),
+            "roughness calibration must name its own unit: {calibration}"
+        );
     }
 
     #[test]

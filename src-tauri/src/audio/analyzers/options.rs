@@ -39,6 +39,59 @@ pub(super) fn options_for(id: AnalyzerId) -> &'static [OptionInfo] {
         .unwrap_or(&[])
 }
 
+/// The shared loudness-calibration option (M27), built with tool-specific help. `0`
+/// means **uncalibrated**, so the values are relative to that tool's own unit; naming
+/// the unit here stops an asper, vacil, masking level or dimensionless cue from being
+/// described as "relative sones". The model caveats live in the per-tool `about` copy.
+const fn calibration(help: &'static str) -> OptionInfo {
+    OptionInfo {
+        key: "calibrationDbSpl",
+        label: "Calibration",
+        default: 0.0,
+        min: 0.0,
+        max: 140.0,
+        help,
+    }
+}
+
+/// `loudness`: sones, relative when uncalibrated.
+const CALIBRATION_SONE: OptionInfo =
+    calibration("dB SPL of a full-scale sine; 0 = uncalibrated (relative sones).");
+/// `specificLoudness`: a sone/Cam density on the ERB-rate axis.
+const CALIBRATION_SONE_CAM: OptionInfo = calibration(
+    "dB SPL of a full-scale sine; 0 = uncalibrated (relative sone/Cam on the ERB axis).",
+);
+/// `sharpness`: acum.
+const CALIBRATION_ACUM: OptionInfo =
+    calibration("dB SPL of a full-scale sine; 0 = uncalibrated (relative acum).");
+/// `roughness`: asper.
+const CALIBRATION_ASPER: OptionInfo =
+    calibration("dB SPL of a full-scale sine; 0 = uncalibrated (relative asper).");
+/// `fluctuationStrength`: vacil.
+const CALIBRATION_VACIL: OptionInfo =
+    calibration("dB SPL of a full-scale sine; 0 = uncalibrated (relative vacil).");
+/// `masking`: the threshold is dB SPL while an uncalibrated spectrum is dBFS.
+const CALIBRATION_MASKING: OptionInfo = calibration(
+    "dB SPL of a full-scale sine; 0 = uncalibrated, so the dBFS spectrum is compared with a dB SPL threshold.",
+);
+/// `tonality`: a common level shift cancels from the dimensionless ratio.
+const CALIBRATION_RATIO: OptionInfo = calibration(
+    "dB SPL of a full-scale sine; a common shift cancels from this dimensionless ratio, so 0 = uncalibrated only labels the run.",
+);
+/// `spatial`: correlation is dimensionless and mid/side stay dBFS.
+const CALIBRATION_CUE: OptionInfo = calibration(
+    "dB SPL of a full-scale sine; correlation is dimensionless and mid/side stay dBFS, so calibration does not make them SPL.",
+);
+
+pub(super) const CALIBRATION_SONE_OPTIONS: &[OptionInfo] = &[CALIBRATION_SONE];
+pub(super) const CALIBRATION_SONE_CAM_OPTIONS: &[OptionInfo] = &[CALIBRATION_SONE_CAM];
+pub(super) const CALIBRATION_ACUM_OPTIONS: &[OptionInfo] = &[CALIBRATION_ACUM];
+pub(super) const CALIBRATION_ASPER_OPTIONS: &[OptionInfo] = &[CALIBRATION_ASPER];
+pub(super) const CALIBRATION_VACIL_OPTIONS: &[OptionInfo] = &[CALIBRATION_VACIL];
+pub(super) const CALIBRATION_MASKING_OPTIONS: &[OptionInfo] = &[CALIBRATION_MASKING];
+pub(super) const CALIBRATION_RATIO_OPTIONS: &[OptionInfo] = &[CALIBRATION_RATIO];
+pub(super) const CALIBRATION_CUE_OPTIONS: &[OptionInfo] = &[CALIBRATION_CUE];
+
 /// The unit an option is measured in, derived from its canonical key (`frameMs` →
 /// `ms`, `maxF0Hz` → `Hz`, `gateDb` → `dB`). Fractions and counts have no unit.
 pub(super) fn option_unit(key: &str) -> Option<&'static str> {
@@ -48,6 +101,8 @@ pub(super) fn option_unit(key: &str) -> Option<&'static str> {
         Some("Hz")
     } else if key.ends_with("Db") {
         Some("dB")
+    } else if key == "calibrationDbSpl" {
+        Some("dB SPL")
     } else if key == "minVoicedSecs" {
         Some("s")
     } else {

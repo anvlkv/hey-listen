@@ -10,7 +10,8 @@ pub enum Scale {
     /// The Zwicker / MPEG-style critical-band rate (the default).
     #[default]
     Bark,
-    /// The Moore–Glasberg ERB-rate (Cam) axis.
+    /// The Moore–Glasberg ERB-rate (Cam) axis. A loudness **density** on this axis
+    /// is sone per Cam (sone/Cam), not sone per Bark.
     Erb,
 }
 

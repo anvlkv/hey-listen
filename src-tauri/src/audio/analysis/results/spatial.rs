@@ -5,6 +5,10 @@
 //! `SeriesView` renders the correlation track unchanged; `mid_db` / `side_db` are the
 //! window-level mid/side RMS readouts. These are **acoustic cues**, not a perceived
 //! width model.
+//!
+//! `calibrated` / `calibration_db_spl` are recorded for provenance and consistency with
+//! the other perception results. They do **not** convert the levels to dB SPL: the
+//! correlation is unitless and mid/side stay dBFS.
 
 use serde::{Deserialize, Serialize};
 
@@ -27,8 +31,12 @@ pub struct SpatialResult {
     pub mid_db: f32,
     /// Side `(L − R) / 2` RMS over the window, in dBFS.
     pub side_db: f32,
-    /// Whether a positive calibration was supplied.
+    /// Whether a positive calibration was supplied. Recorded for provenance: it does
+    /// not scale `mid_db` / `side_db`, which stay dBFS (a stereo cue is an
+    /// inter-channel ratio, not an absolute level).
     pub calibrated: bool,
-    /// The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated).
+    /// The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated). Kept for
+    /// consistency with the other perception results; it does **not** convert the
+    /// mid/side levels to dB SPL.
     pub calibration_db_spl: f32,
 }

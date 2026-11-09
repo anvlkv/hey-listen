@@ -73,7 +73,11 @@ fn project_save_writes_a_reference_project() {
     assert!(loaded.pcm.is_none());
     let source = loaded.source.expect("a source descriptor");
     assert_eq!(source.kind, crate::project::SourceKind::File);
-    assert_eq!(source.path.as_deref(), Some(wav.to_string_lossy().as_ref()));
+    // `open_audio_file` canonicalizes the path so a reference project can decode the
+    // source again from any working directory; on macOS that resolves the `/var`
+    // symlink to `/private/var`, so compare against the canonicalized path.
+    let expected = std::fs::canonicalize(&wav).expect("canonicalize the wav");
+    assert_eq!(source.path.as_deref(), expected.to_str());
 
     let _ = std::fs::remove_file(&out);
     let _ = std::fs::remove_file(&wav);

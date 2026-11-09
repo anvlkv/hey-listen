@@ -107,7 +107,7 @@ check("note voice-quality options accept snake_case aliases", () => {
 check("modulation options are engine options with defaults", () => {
   assertDeepEqual(optionDefaults("modulation"), {
     frameMs: 10,
-    hopMs: 2.5,
+    hopMs: 5,
     modMinHz: 0.5,
     modMaxHz: 100,
     detrend: 1,

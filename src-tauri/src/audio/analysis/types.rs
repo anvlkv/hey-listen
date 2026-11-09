@@ -230,6 +230,8 @@ impl ToolOptions {
     }
 
     /// The envelope hop in ms (M17). May exceed the frame, leaving uncovered gaps.
+    /// [`DEFAULT_HOP_MS`] is the unset fallback; the catalog's `hopMs` mirrors it so a
+    /// no-option run reports what it computes.
     pub(super) fn hop_ms(&self) -> f32 {
         self.hop_ms
             .filter(|value| value.is_finite() && *value > 0.0)
@@ -385,7 +387,7 @@ impl ToolOptions {
     }
 
     /// The loudness calibration (M27): the dB SPL of a full-scale sine. `0` (or any
-    /// non-finite value) is uncalibrated, so the result carries relative sones.
+    /// non-finite value) is uncalibrated, so values are relative to the tool's own unit.
     pub(super) fn calibration_db_spl(&self) -> f32 {
         self.calibration_db_spl
             .filter(|value| value.is_finite())

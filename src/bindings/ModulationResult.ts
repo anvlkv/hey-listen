@@ -13,7 +13,8 @@ export type ModulationResult = {
  */
 windowStart: number, 
 /**
- * The modulation-rate range actually analysed, after the anti-alias clamp.
+ * The modulation-rate range actually analysed: the envelope grid's anti-alias band
+ * and the FM run's grid clamp the request, and the envelope is band-limited to it.
  */
 effectiveModMinHz: number, effectiveModMaxHz: number, 
 /**
@@ -22,7 +23,8 @@ effectiveModMinHz: number, effectiveModMaxHz: number,
 modFreqs: Array<number>, 
 /**
  * Amplitude-modulation spectrum, relative dB (0 = strongest bin). Empty when the
- * envelope is effectively steady (under 2% depth), so a flat spectrum is not drawn.
+ * band-limited envelope is effectively steady (under 2% depth), so a flat spectrum
+ * is not drawn.
  */
 amDb: Array<number>, 
 /**
@@ -35,7 +37,9 @@ fmDb: Array<number>,
  */
 amPeaks: Array<ModulationPeak>, fmPeaks: Array<ModulationPeak>, 
 /**
- * `(max − min) / (max + min)` of the linear amplitude envelope (0…1).
+ * `(max − min) / (max + min)` of the raw linear amplitude envelope (0…1); the AM
+ * spectrum is band-limited, this depth readout is not, so it can be non-zero while
+ * `am_db` is empty (the modulation lies above the analysable band).
  */
 amDepth: number | null, 
 /**
@@ -43,7 +47,8 @@ amDepth: number | null,
  */
 amPeakToTroughDb: number | null, 
 /**
- * The analysed FM run's source-second span (absent when none was long enough).
+ * The retained fine pitch support the cents track was transformed over, in source
+ * seconds (absent when no measured run was long enough).
  */
 fmRunStartSecs: number | null, fmRunEndSecs: number | null, 
 /**
@@ -55,9 +60,9 @@ fmRateHz: number | null,
  */
 fmPeakToPeakCents: number | null, fmStdCents: number | null, 
 /**
- * Whether the FM half's voiced run is long enough, and its cents track fine
- * enough, to trust a rate (M21.B). False means the spectrum and peaks are empty:
- * a short or quantized run must not be dressed up as a vibrato.
+ * Whether the FM half's **measured** support is long enough, and its cents track fine
+ * enough, to trust a rate (M21.B). False means the spectrum and peaks are empty: a
+ * short, gapped or quantized run must not be dressed up as a vibrato.
  */
 fmReliable: boolean, 
 /**

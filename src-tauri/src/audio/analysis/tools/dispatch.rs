@@ -6,7 +6,7 @@ use super::super::support::{
 };
 use super::super::{
     AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SeriesResult, SharedParams,
-    SpatialResult, ToolOptions, DB_FLOOR,
+    ToolOptions, DB_FLOOR,
 };
 use super::critical_bands::critical_bands;
 use super::fluctuation::fluctuation_strength;
@@ -168,25 +168,12 @@ pub fn run(
             params,
             options,
         )?)),
-        // The real computation reads the interleaved stereo region in `run_window`;
-        // this arm only keeps the dispatch total (and `every_analyzer_returns_its_own_id`
-        // green) when a caller passes a mono buffer directly.
-        AnalyzerId::Spatial => {
-            let calibration = options.calibration_db_spl();
-            Ok(AnalysisResult::Spatial(SpatialResult {
-                sample_rate,
-                hop_size: (sample_rate as usize / 100).max(1),
-                window_start: 0.0,
-                times: Vec::new(),
-                values: Vec::new(),
-                min_value: 0.0,
-                max_value: 0.0,
-                mid_db: DB_FLOOR,
-                side_db: DB_FLOOR,
-                calibrated: calibration > 0.0,
-                calibration_db_spl: calibration,
-            }))
-        }
+        // `spatial` reads the interleaved left/right pair before the channel mixdown,
+        // which `run_window` does; a mono buffer here cannot supply it. Failing is the
+        // honest result — an empty "success" would only make dispatch look exhaustive.
+        AnalyzerId::Spatial => Err(AnalysisError::Analysis(
+            "spatial needs the interleaved stereo region (run it through `run_window`)".into(),
+        )),
         AnalyzerId::SpectralCentroid => Ok(AnalysisResult::SpectralCentroid(gated_series(
             oxiaudio::dsp::spectral::spectral_centroid(&lib_buf(), fft, hop),
             hop,
@@ -263,11 +250,17 @@ pub fn run(
         ))),
         AnalyzerId::PitchPyin => {
             let (min_f0, max_f0) = options.pyin_range();
+            let frames =
+                super::super::pyin::detect(&lib_buf(), pitch_fft, pitch_hop, min_f0, max_f0);
+            // The realized domain (bin centres inside the request, limited by the lags the
+            // frame allows), not an echo of the requested bounds.
+            let effective =
+                super::super::pyin::effective_range(sample_rate, pitch_fft, min_f0, max_f0);
             Ok(AnalysisResult::PitchPyin(pitch_series(
-                super::super::pyin::detect(&lib_buf(), pitch_fft, pitch_hop, min_f0, max_f0),
+                frames,
                 pitch_hop,
                 sample_rate,
-                (min_f0, max_f0),
+                effective,
             )))
         }
         AnalyzerId::PitchYin => {

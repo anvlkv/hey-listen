@@ -47,6 +47,11 @@ pub fn levels(mono: &[f32], sample_rate: u32) -> LevelsResult {
 /// Independent of loudness measurement — no K-weighting or 400 ms blocks — so it is
 /// usable on short calls. The result echoes the effective frame (samples) and hop so
 /// the chart and an agent can tell what resolution they are looking at.
+///
+/// Times are the centres of the samples each frame actually covers: the final partial
+/// frame is shorter than `frameSize` and its centre sits closer to its predecessor
+/// than `hopSize`, and a cap-widened hop can leave unmeasured samples between frames.
+/// Consumers must therefore place values from `times`, never `i × hop`.
 pub fn frame_rms_envelope(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> SeriesResult {
     let (times, values, frame, hop) =
         frame_rms(mono, sample_rate, options.frame_ms(), options.hop_ms());

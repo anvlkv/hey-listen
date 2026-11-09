@@ -4,7 +4,9 @@
 use super::SummaryBuilder;
 use crate::audio::analysis::MaskingResult;
 
-/// The grid, the signal-to-mask ratio extents, and the calibration state.
+/// The grid, the signal-to-mask ratio extents, and the calibration state. The extents
+/// are labelled **relative** when the result is uncalibrated: they then describe the
+/// spectrum's own dB scale, not a dB SPL audibility threshold.
 pub(super) fn masking(b: &mut SummaryBuilder, r: &MaskingResult) {
     b.count("fftSize", "FFT size", r.fft_size);
     b.count("frames", "frames", r.frames);
@@ -12,8 +14,13 @@ pub(super) fn masking(b: &mut SummaryBuilder, r: &MaskingResult) {
     // whether the window happened to be empty.
     let min = r.smr_db.iter().copied().reduce(f32::min).unwrap_or(0.0);
     let max = r.smr_db.iter().copied().reduce(f32::max).unwrap_or(0.0);
-    b.push("minSmrDb", "min SMR", f64::from(min), Some("dB"));
-    b.push("maxSmrDb", "max SMR", f64::from(max), Some("dB"));
+    let (min_label, max_label) = if r.calibrated {
+        ("min SMR", "max SMR")
+    } else {
+        ("min relative SMR", "max relative SMR")
+    };
+    b.push("minSmrDb", min_label, f64::from(min), Some("dB"));
+    b.push("maxSmrDb", max_label, f64::from(max), Some("dB"));
     b.push(
         "calibrated",
         "calibrated",

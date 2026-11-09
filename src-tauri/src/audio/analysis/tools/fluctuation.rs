@@ -9,7 +9,10 @@
 //!
 //! A steady carrier reads about 0. This is the same model approximation as
 //! `roughness`, with the slow-rate weighting — not a conformance implementation of any
-//! standard (see the pipeline's module note).
+//! standard (see the pipeline's module note). The band gate and the one-sided level
+//! weighting described there apply here too: out-of-range carriers are gated below the
+//! frame's broadband level, and scaling a reference-level signal up does not raise the
+//! vacil count.
 
 use super::super::psychoacoustics::modulation::{fluctuation_weighting, modulate, series};
 use super::super::{AnalysisError, CalibratedSeriesResult, SharedParams, ToolOptions};

@@ -83,8 +83,12 @@ fn spectrum(b: &mut SummaryBuilder, r: &SpectrumResult) {
 }
 
 fn spectrogram(b: &mut SummaryBuilder, r: &SpectrogramResult) {
-    b.count("frames", "frames", r.frames);
-    b.count("bins", "bins", r.bins);
+    // `frames` / `bins` / `hopSize` describe the **display** grid: rows and columns are
+    // max-pooled groups, and `hopSize` is the pooled hop (see `tools/spectrum.rs`).
+    b.count("frames", "display frames", r.frames);
+    b.count("bins", "display bins", r.bins);
+    b.count("hopSize", "display hop", r.hop_size);
+    // The analysed window's actual length (not a frame-grid span).
     b.push("duration", "duration", r.duration, Some("s"));
     if let Some((_, bin, time, level)) = spectrogram_peak(r) {
         b.push("peakTime", "peak at", time, Some("s"));
@@ -98,14 +102,18 @@ fn spectrogram(b: &mut SummaryBuilder, r: &SpectrogramResult) {
 fn matrix(b: &mut SummaryBuilder, tool: AnalyzerId, r: &MatrixResult) {
     b.count("frames", "frames", r.frames);
     b.count("bands", "bands", r.bins);
-    b.push("duration", "duration", f64::from(r.duration), Some("s"));
+    // `duration` is the span implied by the frame grid (`frames × hopSize`), not the
+    // source window and not the analysed frame support (which also covers the last
+    // FFT window). Label it as a display span so it is not read as source duration.
+    b.push("duration", "display span", f64::from(r.duration), Some("s"));
+    b.count("hopSize", "hop", r.hop_size);
     if let Some((frame, band, value)) = matrix_peak(r) {
         b.count("peakFrame", "peak frame", frame);
         b.count("peakBand", "peak band", band);
         let unit = match tool {
             AnalyzerId::MelSpectrogram | AnalyzerId::SpectralContrast => Some("dB"),
             AnalyzerId::CriticalBands => Some("dBFS"),
-            AnalyzerId::SpecificLoudness => Some("sone/Bark"),
+            AnalyzerId::SpecificLoudness => Some("sone/Cam"),
             _ => None,
         };
         b.push("peakValue", "peak value", f64::from(value), unit);

@@ -25,8 +25,9 @@ function logXRange(_u: unknown, min: number, max: number): [number, number] {
 
 /**
  * A reference curve drawn on its own right-hand axis. The equal-loudness contour is
- * in dB SPL while the spectrum is dBFS, so the two scales stay separate instead of
- * being plotted against one axis.
+ * in dB SPL while the spectrum is dBFS, so the two scales are auto-ranged
+ * **independently**: a crossing of the curves is a drawing coincidence, not evidence
+ * that a component is audible or at the phon contour's threshold.
  */
 export interface FrequencyReference {
   /** One level per x value (the same length as the chart's x axis). */

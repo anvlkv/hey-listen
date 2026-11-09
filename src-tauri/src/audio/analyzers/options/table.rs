@@ -4,18 +4,9 @@
 use super::OptionInfo;
 use crate::audio::analyzers::AnalyzerId;
 
-/// The loudness calibration option, shared by `loudness` and `specificLoudness` (M27).
-const CALIBRATION: OptionInfo = OptionInfo {
-    key: "calibrationDbSpl",
-    label: "Calibration",
-    default: 0.0,
-    min: 0.0,
-    max: 140.0,
-    help: "dB SPL of a full-scale sine; 0 = uncalibrated (relative sones).",
-};
-
-/// The one-option table both loudness tools share.
-const CALIBRATION_OPTIONS: &[OptionInfo] = &[CALIBRATION];
+// The perception tools' calibration option (M27) lives in [`super`] as a per-unit
+// builder: the shared "relative sones" help was wrong for asper, vacil, masking
+// levels and dimensionless cues. Each tool below selects its own help text.
 
 /// Per-analyzer engine-option metadata, keyed by analyzer id. Analyzers without
 /// their own options are absent (the `list_analyzers` option map is then empty).
@@ -180,7 +171,9 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
             OptionInfo {
                 key: "hopMs",
                 label: "Hop",
-                default: 2.5,
+                // Must match the engine's `DEFAULT_HOP_MS` fallback (5 ms, shared with
+                // `frameRms` / `noteMetrics`); the catalog is the reported provenance.
+                default: 5.0,
                 min: 0.05,
                 max: 1_000.0,
                 help: "Step between envelope frames; also sets the highest usable modulation rate.",
@@ -363,12 +356,12 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
             help: "Critical-band scale: 0 = Bark, 1 = ERB.",
         }],
     ),
-    (AnalyzerId::Loudness, CALIBRATION_OPTIONS),
-    (AnalyzerId::SpecificLoudness, CALIBRATION_OPTIONS),
-    (AnalyzerId::Sharpness, CALIBRATION_OPTIONS),
-    (AnalyzerId::Roughness, CALIBRATION_OPTIONS),
-    (AnalyzerId::FluctuationStrength, CALIBRATION_OPTIONS),
-    (AnalyzerId::Masking, CALIBRATION_OPTIONS),
-    (AnalyzerId::Tonality, CALIBRATION_OPTIONS),
-    (AnalyzerId::Spatial, CALIBRATION_OPTIONS),
+    (AnalyzerId::Loudness, super::CALIBRATION_SONE_OPTIONS),
+    (AnalyzerId::SpecificLoudness, super::CALIBRATION_SONE_CAM_OPTIONS),
+    (AnalyzerId::Sharpness, super::CALIBRATION_ACUM_OPTIONS),
+    (AnalyzerId::Roughness, super::CALIBRATION_ASPER_OPTIONS),
+    (AnalyzerId::FluctuationStrength, super::CALIBRATION_VACIL_OPTIONS),
+    (AnalyzerId::Masking, super::CALIBRATION_MASKING_OPTIONS),
+    (AnalyzerId::Tonality, super::CALIBRATION_RATIO_OPTIONS),
+    (AnalyzerId::Spatial, super::CALIBRATION_CUE_OPTIONS),
 ];

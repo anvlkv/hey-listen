@@ -3,7 +3,7 @@
 //! overlays use, the band-matrix result builder, and the series extents helper.
 
 use super::super::support::{
-    effective_hop, effective_params, frame_times, seconds, stft_magnitudes,
+    effective_hop, effective_params, frame_times, seconds, stft_magnitudes, stft_power_magnitudes,
 };
 use super::super::{AnalysisError, MatrixResult, SharedParams};
 
@@ -23,7 +23,31 @@ pub(super) struct BandStft {
 }
 
 /// The shared STFT and its bin centre frequencies.
+///
+/// Returns **energy-conserving** magnitudes meant for power/energy consumers
+/// (`criticalBands`, `loudness`): `m[k]` is an RMS-equivalent component, so
+/// `Σ m[k]²` is the frame mean square and a full-scale sine reads −3.01 dBFS RMS
+/// (see `support::stft_power_magnitudes`). The amplitude/spectrum path keeps
+/// `stft_magnitudes` instead.
 pub(super) fn stft_with_freqs(
+    mono: &[f32],
+    sample_rate: u32,
+    params: &SharedParams,
+) -> Result<StftFrames, AnalysisError> {
+    let fft = params.fft_size();
+    let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
+    let (magnitudes, _) = stft_power_magnitudes(mono, sample_rate, fft, hop, params)?;
+    let bins = fft / 2 + 1;
+    let freqs = (0..bins)
+        .map(|bin| bin as f32 * sample_rate as f32 / fft as f32)
+        .collect();
+    Ok((hop, magnitudes, freqs))
+}
+
+/// The shared STFT and its bin centre frequencies, using the **amplitude** path
+/// (coherent-gain normalized), for consumers that read per-bin component levels
+/// (e.g. the loudness model) rather than summing power across bins.
+pub(super) fn stft_with_freqs_amplitude(
     mono: &[f32],
     sample_rate: u32,
     params: &SharedParams,

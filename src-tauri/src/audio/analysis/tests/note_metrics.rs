@@ -190,6 +190,24 @@ fn a_silent_window_has_no_notes() {
 }
 
 #[test]
+fn silence_at_the_minimum_floor() {
+    // The gate floor's lower bound is the −120 dBFS silence sentinel. Digital silence
+    // must not open a note even when the gate sits exactly on it.
+    let options = ToolOptions {
+        gate_floor_db: Some(DB_FLOOR),
+        ..ToolOptions::default()
+    };
+    let result = run_notes(&silence(0.5), &options);
+    assert_eq!(result.note_count, 0, "notes: {:?}", result.notes);
+    assert_eq!(result.threshold_db, DB_FLOOR);
+    assert!(result.notes.is_empty() && result.gaps.is_empty());
+
+    // The same floor still opens a note on real sound.
+    let tone_result = run_notes(&tone(440.0, 0.5, 0.5), &options);
+    assert_eq!(tone_result.note_count, 1, "notes: {:?}", tone_result.notes);
+}
+
+#[test]
 fn syllable_grouping_merges_short_gaps_only() {
     // Three notes: a 20 ms gap (a syllable break) and a 200 ms gap (a real pause).
     let mut mono = tone(440.0, 0.5, 0.15);

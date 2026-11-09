@@ -15,7 +15,8 @@
 //! mapped to `z_i = bark(f_i)` first. `k` is chosen so a 1 kHz reference tone reads
 //! about 1 acum. This is **perceived sharpness** computed from the Moore–Glasberg
 //! specific-loudness distribution with a high-frequency weighting — a documented
-//! approximation, not a conformance claim for any standard.
+//! approximation with its own `k`, **not** the DIN 45692 model or a conformance
+//! claim for any standard.
 
 use super::super::psychoacoustics::scales::bark;
 use super::super::support::frame_times;
@@ -107,6 +108,48 @@ pub(super) fn sharpness(
 mod tests {
     use super::*;
     use crate::audio::analysis::tests::{calibration, median, params, tone, RATE};
+    use crate::audio::analysis::{run, AnalysisResult};
+    use crate::audio::analyzers::AnalyzerId;
+
+    /// Total loudness of `mono` in sones through the dispatcher (median frame).
+    fn total_sone(mono: &[f32]) -> f64 {
+        match run(
+            AnalyzerId::Loudness,
+            mono,
+            RATE,
+            &params(2_048),
+            &calibration(94.0),
+        )
+        .expect("loudness")
+        {
+            AnalysisResult::Loudness(result) => f64::from(median(&result.loudness_sone)),
+            other => panic!("unexpected result: {other:?}"),
+        }
+    }
+
+    /// The peak amplitude at which a `hz` tone reads `target` sones.
+    fn amplitude_for_loudness(hz: f32, target: f64, start: f32) -> f32 {
+        let mut amplitude = start;
+        // Around 60 dB SPL a sone grows roughly as pressure^0.6, so this converges in
+        // a few steps.
+        for _ in 0..8 {
+            let sone = total_sone(&tone(amplitude, hz, 0.5));
+            if !(sone.is_finite() && sone > 0.0) {
+                amplitude *= 2.0;
+                continue;
+            }
+            amplitude = (f64::from(amplitude) * (target / sone).powf(1.0 / 0.6)) as f32;
+        }
+        amplitude
+    }
+
+    fn acum(mono: &[f32]) -> f32 {
+        median(
+            &sharpness(mono, RATE, &params(2_048), &calibration(94.0))
+                .expect("sharpness")
+                .values,
+        )
+    }
 
     #[test]
     fn a_calibrated_one_khz_tone_reads_about_one_acum() {
@@ -144,6 +187,27 @@ mod tests {
             "4 kHz ({} acum) is not sharper than 500 Hz ({} acum)",
             median(&bright.values),
             median(&dull.values)
+        );
+    }
+
+    #[test]
+    fn a_bright_tone_is_sharper_at_equal_loudness() {
+        // 500 Hz and 4 kHz at 60 dB SPL are not equally loud, so lift the bright tone
+        // until the model gives it the dull tone's total loudness. Equal level alone
+        // does not isolate the sharpness weighting from the loudness difference.
+        let dull = tone(10f32.powf(-34.0 / 20.0), 500.0, 0.5);
+        let target = total_sone(&dull);
+        let amplitude = amplitude_for_loudness(4_000.0, target, 10f32.powf(-34.0 / 20.0));
+        let bright = tone(amplitude, 4_000.0, 0.5);
+        let matched = total_sone(&bright);
+        assert!(
+            (matched - target).abs() <= target * 0.05,
+            "4 kHz at amplitude {amplitude} reads {matched} sone, not the dull tone's {target}"
+        );
+        let (dull_acum, bright_acum) = (acum(&dull), acum(&bright));
+        assert!(
+            bright_acum > dull_acum,
+            "4 kHz ({bright_acum} acum) is not sharper than 500 Hz ({dull_acum} acum) at equal loudness"
         );
     }
 

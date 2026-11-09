@@ -1,10 +1,10 @@
 //! Per-note voice-quality **proxies** (M19): jitter, shimmer, and HNR over the M18
 //! note segments.
 //!
-//! They are proxies, not clinical measures: jitter is the spread of a detrended YIN f0
-//! track in cents, shimmer is the spread of the note's frame RMS in dB, and the HNR
-//! proxy is `oxiaudio`'s 0–1 autocorrelation periodicity — not HNR in dB. See
-//! `docs/analysis-metrics.md` → M19.
+//! They are proxies, not clinical measures: jitter is the spread of a YIN f0 track
+//! detrended over its frame times, in cents; shimmer is the spread of the note's frame
+//! RMS in dB; and the HNR proxy is `oxiaudio`'s 0–1 autocorrelation periodicity — not
+//! HNR in dB. See `docs/analysis-metrics.md` → M19.
 
 use oxiaudio::dsp::spectral::harmonic_ratio;
 
@@ -50,14 +50,15 @@ pub(super) fn proxies(
         options.pitch_hop_ms(),
         range,
     );
-    let voiced: Vec<f32> = frames
+    let voiced: Vec<(f64, f32)> = frames
         .iter()
         .filter(|frame| frame.is_voiced && frame.frequency_hz > 0.0)
-        .map(|frame| frame.frequency_hz)
+        .map(|frame| (frame.time_seconds, frame.frequency_hz))
         .collect();
 
     let voiced_fraction = (!frames.is_empty()).then(|| voiced.len() as f32 / frames.len() as f32);
-    let f0_median_hz = (!voiced.is_empty()).then(|| median(&voiced));
+    let f0s: Vec<f32> = voiced.iter().map(|(_, f0)| *f0).collect();
+    let f0_median_hz = (!f0s.is_empty()).then(|| median(&f0s));
     let jitter_proxy_cents = (voiced.len() >= MIN_VOICED_FRAMES).then(|| jitter_cents(&voiced));
 
     let note_levels = levels_within(times, levels, segment);
@@ -94,14 +95,22 @@ fn levels_within(times: &[f32], levels: &[f32], segment: Segment) -> Vec<f32> {
 }
 
 /// Jitter proxy: convert the voiced f0 track to cents around its median, remove the
-/// linear trend, and take the population standard deviation of the residual.
-fn jitter_cents(f0s: &[f32]) -> f32 {
-    let reference = median(f0s);
-    let cents: Vec<f32> = f0s
+/// least-squares trend **over the retained frames' actual times**, and take the
+/// population standard deviation of the residual. Measuring against the compacted frame
+/// index instead would read an irregular voicing pattern (e.g. a gap in the middle) as a
+/// trend in pitch.
+fn jitter_cents(pitches: &[(f64, f32)]) -> f32 {
+    let f0s: Vec<f32> = pitches.iter().map(|(_, f0)| *f0).collect();
+    let reference = median(&f0s);
+    let start = pitches.first().map_or(0.0, |(time, _)| *time);
+    let points: Vec<(f32, f32)> = pitches
         .iter()
-        .map(|&f0| 1_200.0 * (f0 / reference).log2())
+        .map(|(time, f0)| {
+            let cents = 1_200.0 * (f0 / reference).log2();
+            ((time - start) as f32, cents)
+        })
         .collect();
-    detrended_std(&cents)
+    detrended_std(&points)
 }
 
 /// Mean 0–1 autocorrelation periodicity over the note (the HNR proxy).
@@ -141,18 +150,18 @@ fn population_std(values: &[f32]) -> f32 {
 }
 
 /// Population standard deviation of the residuals after removing a least-squares line
-/// fitted against the sample index.
-fn detrended_std(values: &[f32]) -> f32 {
-    let count = values.len();
+/// fitted against each point's own time `x` (seconds).
+fn detrended_std(points: &[(f32, f32)]) -> f32 {
+    let count = points.len();
     if count < 2 {
         return 0.0;
     }
-    let mean_x = (count - 1) as f32 / 2.0;
-    let mean_y = values.iter().sum::<f32>() / count as f32;
+    let mean_x = points.iter().map(|&(x, _)| x).sum::<f32>() / count as f32;
+    let mean_y = points.iter().map(|&(_, y)| y).sum::<f32>() / count as f32;
     let (mut numerator, mut denominator) = (0.0f32, 0.0f32);
-    for (index, &value) in values.iter().enumerate() {
-        let dx = index as f32 - mean_x;
-        numerator += dx * (value - mean_y);
+    for &(x, y) in points {
+        let dx = x - mean_x;
+        numerator += dx * (y - mean_y);
         denominator += dx * dx;
     }
     let slope = if denominator > 0.0 {
@@ -160,10 +169,30 @@ fn detrended_std(values: &[f32]) -> f32 {
     } else {
         0.0
     };
-    let residuals: Vec<f32> = values
+    let residuals: Vec<f32> = points
         .iter()
-        .enumerate()
-        .map(|(index, &value)| value - (mean_y + slope * (index as f32 - mean_x)))
+        .map(|&(x, y)| y - (mean_y + slope * (x - mean_x)))
         .collect();
     population_std(&residuals)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A perfectly linear cents glide whose frames are *unevenly spaced* in time. Fitting
+    /// the trend against the compacted frame index would leave ~16.7 cents of residual;
+    /// fitting it against the real times leaves none.
+    #[test]
+    fn jitter_detrends_against_frame_time_not_the_compacted_index() {
+        let times_ms = [0.0f64, 5.0, 10.0, 50.0, 55.0, 60.0];
+        let cents = [0.0f32, 10.0, 20.0, 100.0, 110.0, 120.0];
+        let pitches: Vec<(f64, f32)> = times_ms
+            .iter()
+            .zip(cents)
+            .map(|(&ms, cents)| (ms / 1_000.0, 440.0 * 2.0_f32.powf(cents / 1_200.0)))
+            .collect();
+        let jitter = jitter_cents(&pitches);
+        assert!(jitter < 1e-2, "jitter = {jitter} cents");
+    }
 }

@@ -2,15 +2,18 @@
 //! STFT magnitude pass, and the series / matrix / envelope builders the tools use
 //! to shape their results.
 
-use oxiaudio::dsp::spectral::stft;
 use oxiaudio::dsp::PitchFrame;
 use oxiaudio::{AudioBuffer, ChannelLayout, SampleFormat};
 
 use super::{
-    AnalysisError, MatrixResult, PitchResult, SeriesResult, SharedParams, WindowKind, DB_FLOOR,
+    AnalysisError, MatrixResult, PitchResult, SeriesResult, SharedParams, DB_FLOOR,
     MAX_FRAME_RMS_FRAMES, MAX_PITCH_FRAMES, MAX_RHYTHM_FRAMES, MAX_STFT_CELLS,
     MIN_RELIABLE_VOICED_FRAMES,
 };
+
+mod stft;
+
+pub(super) use stft::{stft_magnitudes, stft_power_magnitudes};
 
 /// Build a mono `oxiaudio` buffer view over `samples`.
 pub(super) fn mono_buffer(samples: &[f32], sample_rate: u32) -> AudioBuffer<f32> {
@@ -90,12 +93,20 @@ pub(super) fn frame_times(frames: usize, hop: usize, sample_rate: u32) -> Vec<f3
 
 /// Frame-centred RMS envelope: `(times_secs, levels_db, frame_samples, hop_samples)`.
 ///
-/// Frames start at 0 and advance by the hop; each level is the frame's RMS in dBFS
-/// (floored at [`DB_FLOOR`]) and each time is the frame's **centre**, so a value lines
-/// up with the audio it measures. A signal shorter than one frame still yields one
-/// value over the samples present. The hop widens if a long window would exceed
-/// [`MAX_FRAME_RMS_FRAMES`]; the effective frame and hop are returned so the result can
-/// report them rather than the request that was not honoured.
+/// Frames start at 0 and advance by the effective hop; each level is the RMS of the
+/// samples the frame actually covers, in dBFS (floored at [`DB_FLOOR`]), and each time
+/// is that frame's **centre**. A signal shorter than one frame still yields one value
+/// over the samples present.
+///
+/// Two consequences are reported rather than hidden. The final partial frame covers
+/// fewer samples, so its centre sits closer to its predecessor than `hop`: consumers
+/// must use `times`, not infer `i × hop`. And when the hop is widened to stay inside
+/// [`MAX_FRAME_RMS_FRAMES`] (or the requested hop already exceeds the frame), frames
+/// no longer tile the signal — samples between them are simply not measured.
+///
+/// The returned `(frame, hop)` are the **effective** samples-per-frame and
+/// samples-per-hop; `frame` is the configured frame, so the final partial frame can be
+/// shorter than the reported size.
 pub(super) fn frame_rms(
     mono: &[f32],
     sample_rate: u32,
@@ -279,97 +290,11 @@ pub(super) fn effective_hop(fft: usize, len: usize, requested: usize) -> usize {
     requested.max(needed)
 }
 
-/// STFT magnitudes per frame (`frames[t][k]`, `k` in `0..=fft/2`).
-///
-/// When `randomized_overlap` is set, a second STFT is taken half a hop off and the
-/// magnitudes are averaged in, breaking the fixed frame-grid alignment (the
-/// `stft` batch API exposes no jitter option itself).
-pub(super) fn stft_magnitudes(
-    mono: &[f32],
-    sample_rate: u32,
-    fft: usize,
-    hop: usize,
-    params: &SharedParams,
-) -> Result<(Vec<Vec<f32>>, usize), AnalysisError> {
-    let bins = fft / 2 + 1;
-    let window = params.window_fn.to_window_fn();
-    // Scale magnitudes so a full-scale sine peaks near 0 dBFS regardless of the
-    // FFT size / window (`stft` returns unnormalized transform output).
-    let gain = (2.0 / window_gain(params.window_fn, fft)) as f32;
-
-    let frame_mags = |samples: &[f32]| -> Result<Vec<Vec<f32>>, AnalysisError> {
-        let buf = mono_buffer(samples, sample_rate);
-        let out =
-            stft(&buf, fft, hop, window).map_err(|err| AnalysisError::Analysis(err.to_string()))?;
-        Ok(out
-            .frames
-            .iter()
-            .map(|frame| {
-                frame
-                    .iter()
-                    .take(bins)
-                    .map(|c| (c.re * c.re + c.im * c.im).sqrt() * gain)
-                    .collect()
-            })
-            .collect())
-    };
-
-    // Zero-pad a window shorter than the FFT so it still yields one frame.
-    let padded;
-    let signal: &[f32] = if mono.len() < fft {
-        padded = {
-            let mut buffer = vec![0.0f32; fft];
-            buffer[..mono.len()].copy_from_slice(mono);
-            buffer
-        };
-        &padded
-    } else {
-        mono
-    };
-
-    let mut mags = frame_mags(signal)?;
-    if params.randomized_overlap && !mags.is_empty() {
-        let shift = (hop / 2).max(1);
-        // The shifted pass needs a full window of its own to yield frames.
-        if signal.len() > shift + fft {
-            let shifted = frame_mags(&signal[shift..])?;
-            for (frame, other) in mags.iter_mut().zip(shifted.iter()) {
-                for (bin, other_bin) in frame.iter_mut().zip(other.iter()) {
-                    *bin = 0.5 * (*bin + *other_bin);
-                }
-            }
-        }
-    }
-    let frames = mags.len();
-    Ok((mags, frames))
-}
-
-/// Coherent gain (∑ of the window coefficients) for the standard window formulas,
-/// used to normalize STFT magnitudes to an amplitude scale.
-pub(super) fn window_gain(kind: WindowKind, n: usize) -> f64 {
-    if n == 0 {
-        return 1.0;
-    }
-    let n_minus_1 = (n - 1).max(1) as f64;
-    let tau = std::f64::consts::TAU;
-    match kind {
-        WindowKind::Rectangular => n as f64,
-        WindowKind::Hann => (0..n)
-            .map(|i| 0.5 - 0.5 * (tau * i as f64 / n_minus_1).cos())
-            .sum(),
-        WindowKind::Hamming => (0..n)
-            .map(|i| 0.54 - 0.46 * (tau * i as f64 / n_minus_1).cos())
-            .sum(),
-        WindowKind::Blackman => (0..n)
-            .map(|i| {
-                let x = tau * i as f64 / n_minus_1;
-                0.42 - 0.5 * x.cos() + 0.08 * (2.0 * x).cos()
-            })
-            .sum(),
-    }
-}
-
 /// Min/max envelope over `samples`, targeting `buckets` buckets.
+///
+/// The partition is `ceil(len / ceil(len / buckets))` contiguous chunks (the last one
+/// can be shorter). Each bucket reports the extrema of **its own samples**, so
+/// above-full-scale data keeps its real min/max instead of being clamped to ±1.
 pub(super) fn envelope(samples: &[f32], buckets: usize) -> (Vec<f32>, Vec<f32>) {
     if samples.is_empty() {
         return (Vec::new(), Vec::new());
@@ -379,8 +304,10 @@ pub(super) fn envelope(samples: &[f32], buckets: usize) -> (Vec<f32>, Vec<f32>) 
     let mut min = Vec::with_capacity(count);
     let mut max = Vec::with_capacity(count);
     for chunk in samples.chunks(step) {
-        let mut lo = 1.0f32;
-        let mut hi = -1.0f32;
+        let Some(&first) = chunk.first() else {
+            continue;
+        };
+        let (mut lo, mut hi) = (first, first);
         for &value in chunk {
             if value < lo {
                 lo = value;
@@ -389,12 +316,29 @@ pub(super) fn envelope(samples: &[f32], buckets: usize) -> (Vec<f32>, Vec<f32>) 
                 hi = value;
             }
         }
-        if lo > hi {
-            lo = 0.0;
-            hi = 0.0;
-        }
         min.push(lo);
         max.push(hi);
     }
     (min, max)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::envelope;
+
+    #[test]
+    fn envelope_keeps_extrema_above_full_scale() {
+        // A same-sign bucket above full scale must report its own extrema, not a
+        // clamped ±1 pair invented by the seeding.
+        assert_eq!(envelope(&[2.0, 3.0], 1), (vec![2.0], vec![3.0]));
+        assert_eq!(envelope(&[-3.0, -2.0], 1), (vec![-3.0], vec![-2.0]));
+    }
+
+    #[test]
+    fn envelope_extrema_use_only_the_samples_in_each_bucket() {
+        // 4 samples over 2 buckets → `ceil(4 / ceil(4 / 2))` = 2 samples per bucket.
+        let (min, max) = envelope(&[0.5, -0.25, 2.0, 3.0], 2);
+        assert_eq!(min, vec![-0.25, 2.0]);
+        assert_eq!(max, vec![0.5, 3.0]);
+    }
 }

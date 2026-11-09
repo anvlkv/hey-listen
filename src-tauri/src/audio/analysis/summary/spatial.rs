@@ -1,11 +1,14 @@
 //! The stereo-cue summary (M31): the correlation extents plus the window-level
 //! mid/side levels and the calibration state.
+//!
+//! The calibration is reported as a setting, not as an SPL scale: `midDb` / `sideDb`
+//! stay dBFS, because a stereo cue is an inter-channel ratio.
 
 use super::SummaryBuilder;
 use crate::audio::analysis::SpatialResult;
 
 /// A `spatial` result: frame count, mid/side levels in dBFS, the normalized
-/// correlation's min/max (unitless), and the calibration state.
+/// correlation's min/max (unitless), and the calibration state (recorded, not applied).
 pub(super) fn spatial(b: &mut SummaryBuilder, r: &SpatialResult) {
     b.count("frames", "frames", r.values.len());
     b.push("midDb", "mid", f64::from(r.mid_db), Some("dBFS"));
@@ -25,7 +28,7 @@ pub(super) fn spatial(b: &mut SummaryBuilder, r: &SpatialResult) {
     );
     b.push(
         "calibrationDbSpl",
-        "calibration",
+        "calibration (not applied to stereo cues)",
         f64::from(r.calibration_db_spl),
         Some("dB SPL"),
     );

@@ -1,10 +1,7 @@
-//! Shared DSP for the AM/FM modulation tool (M20): envelope conversion, detrending,
-//! a bounded radix-2 FFT, the shared rate grid, ranked peak picking, and the voiced
-//! run the FM half analyses.
-//!
-//! The spectra are reported **relative** to their strongest bin, so no window-gain
-//! normalization is needed and the result is independent of the signal's level. See
-//! `docs/analysis-metrics.md` → M20.
+//! Shared DSP for the AM/FM modulation tool (M20): envelope conversion and band-limiting,
+//! detrending, a bounded radix-2 FFT, the shared rate grid, ranked peak picking, and the
+//! voiced run the FM half analyses. The spectra are relative to their strongest bin, so no
+//! window-gain normalization is needed. See `docs/analysis-metrics.md` → M20.
 
 use oxiaudio::dsp::PitchFrame;
 
@@ -31,6 +28,48 @@ pub(super) fn linear_envelope(levels_db: &[f32]) -> Vec<f32> {
     levels_db
         .iter()
         .map(|&db| 10f32.powf(db.max(DB_FLOOR) / 20.0))
+        .collect()
+}
+
+/// Band-limit a linear envelope sampled at `rate` to `cutoff_hz`, then decimate it by
+/// `stride`: a centred (linear-phase) Blackman-windowed sinc whose taps are normalized,
+/// so content above the reported band is removed instead of folding back into it. Edge
+/// samples repeat the nearest value, so the filter has no zero-pad dip.
+pub(super) fn band_limited_envelope(
+    values: &[f32],
+    rate: f32,
+    cutoff_hz: f32,
+    stride: usize,
+) -> Vec<f32> {
+    if values.len() <= 1 {
+        return values.to_vec();
+    }
+    let fc = cutoff_hz.clamp(1e-4, (rate * 0.49).max(1e-4)) / rate;
+    let half = ((6.0 / fc).ceil() as usize).clamp(2, 256) as isize;
+    let mut taps: Vec<f32> = (-half..=half)
+        .map(|k| {
+            let x = std::f32::consts::TAU * fc * k as f32;
+            let sinc = if x.abs() < 1e-4 { 1.0 } else { x.sin() / x };
+            let t = std::f32::consts::PI * k as f32 / half as f32;
+            sinc * (0.42 + 0.5 * t.cos() + 0.08 * (2.0 * t).cos())
+        })
+        .collect();
+    let total: f32 = taps.iter().sum();
+    if total.abs() > 1e-6 {
+        taps.iter_mut().for_each(|tap| *tap /= total);
+    }
+    let len = values.len() as isize;
+    (0..values.len())
+        .step_by(stride.max(1))
+        .map(|index| {
+            taps.iter()
+                .enumerate()
+                .map(|(offset, &tap)| {
+                    let at = index as isize + offset as isize - half;
+                    tap * values[at.clamp(0, len - 1) as usize]
+                })
+                .sum()
+        })
         .collect()
 }
 
@@ -71,7 +110,7 @@ pub(super) fn rate_grid(min_hz: f32, max_hz: f32, duration_secs: f32) -> Vec<f32
     let spacing = (0.5 / duration_secs.max(1e-3)).max(0.05);
     let count = ((span / spacing).ceil() as usize + 1).clamp(16, MAX_MOD_BINS);
     (0..count)
-        .map(|index| min_hz + span * index as f32 / (count - 1) as f32)
+        .map(|i| min_hz + span * i as f32 / (count - 1) as f32)
         .collect()
 }
 
@@ -83,12 +122,8 @@ pub(super) fn spectrum(values: &[f32], sample_rate: f32, mode: Detrend, freqs: &
     }
     let centred = detrended(values, mode);
     let last = (centred.len() - 1).max(1) as f32;
-    let windowed: Vec<f32> = centred
-        .iter()
-        .enumerate()
-        .map(|(index, &value)| {
-            value * (0.5 - 0.5 * (std::f32::consts::TAU * index as f32 / last).cos())
-        })
+    let windowed: Vec<f32> = (0..centred.len())
+        .map(|i| centred[i] * (0.5 - 0.5 * (std::f32::consts::TAU * i as f32 / last).cos()))
         .collect();
     let (magnitudes, n_fft) = fft_magnitudes(&windowed);
     let bin_hz = sample_rate / n_fft as f32;
@@ -98,8 +133,9 @@ pub(super) fn spectrum(values: &[f32], sample_rate: f32, mode: Detrend, freqs: &
         .collect();
     let max = out.iter().copied().fold(0.0f32, f32::max);
     for value in &mut out {
+        let scaled = (*value / max).max(1e-6);
         *value = if max > 0.0 {
-            (20.0 * (*value / max).max(1e-6).log10()).max(DB_FLOOR)
+            (20.0 * scaled.log10()).max(DB_FLOOR)
         } else {
             DB_FLOOR
         };
@@ -180,6 +216,9 @@ fn interpolate(magnitudes: &[f32], bin_hz: f32, hz: f32) -> f32 {
 }
 
 /// The `top` strongest local maxima that stand above their valley, strongest first.
+/// An end bin has only one flank, so its prominence is one-sided (censored) there: a
+/// boundary maximum is eligible exactly like an interior one, rather than kept as a
+/// candidate and then always failed by a zero two-sided prominence.
 pub(super) fn peaks(freqs: &[f32], db: &[f32], top: usize) -> Vec<super::super::ModulationPeak> {
     if freqs.len() != db.len() || db.is_empty() {
         return Vec::new();
@@ -207,23 +246,32 @@ fn local_max(db: &[f32], index: usize) -> bool {
     left && right
 }
 
-/// Peak minus the higher of its two flanking valley floors.
+/// Peak minus the higher of its flanking valley floors. A missing flank (either end of
+/// the axis, or a higher neighbour that ends the descent) contributes no valley, so a
+/// lone bin has zero prominence and a boundary bin is measured on the side it has.
 fn prominence(db: &[f32], index: usize) -> f32 {
-    let mut left = db[index];
-    for value in db[..index].iter().rev() {
-        if *value > db[index] {
-            break;
+    let mut floor = f32::NEG_INFINITY;
+    if index > 0 {
+        let mut left = db[index];
+        for value in db[..index].iter().rev() {
+            if *value > db[index] {
+                break;
+            }
+            left = left.min(*value);
         }
-        left = left.min(*value);
+        floor = floor.max(left);
     }
-    let mut right = db[index];
-    for value in &db[index + 1..] {
-        if *value > db[index] {
-            break;
+    if index + 1 < db.len() {
+        let mut right = db[index];
+        for value in &db[index + 1..] {
+            if *value > db[index] {
+                break;
+            }
+            right = right.min(*value);
         }
-        right = right.min(*value);
+        floor = floor.max(right);
     }
-    (db[index] - left.max(right)).max(0.0)
+    (db[index] - floor).max(0.0)
 }
 
 /// The longest voiced run (bridging unvoiced gaps up to [`BRIDGE_SECS`]), or `None`
@@ -247,18 +295,24 @@ pub(super) fn longest_voiced_run(
     let span = |a: usize, b: usize| frames[b].time_seconds - frames[a].time_seconds + hop;
 
     let mut best: Option<(usize, usize)> = None;
+    let keep = |best: &mut Option<(usize, usize)>, candidate: (usize, usize)| {
+        let newer = best.is_none_or(|c| span(candidate.0, candidate.1) > span(c.0, c.1));
+        if newer {
+            *best = Some(candidate);
+        }
+    };
     let mut start = first;
     let mut last = first;
     for &index in &voiced[1..] {
         if frames[index].time_seconds - frames[last].time_seconds <= bridge_secs {
             last = index;
         } else {
-            keep_if_longer(&mut best, (start, last), &span);
+            keep(&mut best, (start, last));
             start = index;
             last = index;
         }
     }
-    keep_if_longer(&mut best, (start, last), &span);
+    keep(&mut best, (start, last));
     let (first, last) = best?;
     if span(first, last) < f64::from(min_voiced_secs) {
         return None;
@@ -266,21 +320,18 @@ pub(super) fn longest_voiced_run(
     Some(VoicedRun { first, last })
 }
 
-fn keep_if_longer<F>(best: &mut Option<(usize, usize)>, candidate: (usize, usize), span: &F)
-where
-    F: Fn(usize, usize) -> f64,
-{
-    let longer = best
-        .map(|current| span(candidate.0, candidate.1) > span(current.0, current.1))
-        .unwrap_or(true);
-    if longer {
-        *best = Some(candidate);
-    }
+/// A run's uniformly sampled cents series, plus the subset that was **measured**
+/// (voiced) rather than linearly interpolated across a short, pre-bounded gap.
+pub(super) struct CentsTrack {
+    pub series: Vec<f32>,
+    pub measured: Vec<f32>,
 }
 
 /// The run's f0 track in cents around its median, with short unvoiced gaps linearly
-/// interpolated so the series stays uniformly sampled.
-pub(super) fn cents_track(frames: &[PitchFrame], run: VoicedRun) -> Vec<f32> {
+/// interpolated so the series stays uniformly sampled. Callers must bound the run (see
+/// [`longest_voiced_run`]), so no long dropout is ever interpolated across; the
+/// returned [`CentsTrack::measured`] values are the only pitch evidence.
+pub(super) fn cents_track(frames: &[PitchFrame], run: VoicedRun) -> CentsTrack {
     let slice = &frames[run.first..=run.last];
     let voiced: Vec<f32> = slice
         .iter()
@@ -288,7 +339,10 @@ pub(super) fn cents_track(frames: &[PitchFrame], run: VoicedRun) -> Vec<f32> {
         .map(|frame| frame.frequency_hz)
         .collect();
     if voiced.is_empty() {
-        return Vec::new();
+        return CentsTrack {
+            series: Vec::new(),
+            measured: Vec::new(),
+        };
     }
     let reference = median(&voiced).max(1.0);
     let cents: Vec<Option<f32>> = slice
@@ -299,11 +353,16 @@ pub(super) fn cents_track(frames: &[PitchFrame], run: VoicedRun) -> Vec<f32> {
         })
         .collect();
 
+    // Interpolation reads the value before a gap, and the run must start and end voiced.
+    debug_assert!(cents.first().is_some_and(|v| v.is_some()));
+    debug_assert!(cents.last().is_some_and(|v| v.is_some()));
     let mut out: Vec<f32> = Vec::with_capacity(cents.len());
+    let mut measured: Vec<f32> = Vec::new();
     let mut index = 0;
     while index < cents.len() {
         if let Some(value) = cents[index] {
             out.push(value);
+            measured.push(value);
             index += 1;
             continue;
         }
@@ -321,7 +380,10 @@ pub(super) fn cents_track(frames: &[PitchFrame], run: VoicedRun) -> Vec<f32> {
             out.push(left + (right - left) * t);
         }
     }
-    out
+    CentsTrack {
+        series: out,
+        measured,
+    }
 }
 
 /// Peak-to-peak and population standard deviation of a series.
@@ -329,18 +391,9 @@ pub(super) fn depth(values: &[f32]) -> (f32, f32) {
     if values.is_empty() {
         return (0.0, 0.0);
     }
-    let (mut min, mut max) = (f32::INFINITY, f32::NEG_INFINITY);
-    let mut sum = 0.0f32;
-    for &value in values {
-        min = min.min(value);
-        max = max.max(value);
-        sum += value;
-    }
-    let mean = sum / values.len() as f32;
-    let variance = values
-        .iter()
-        .map(|value| (value - mean).powi(2))
-        .sum::<f32>()
-        / values.len() as f32;
+    let min = values.iter().copied().reduce(f32::min).unwrap_or(0.0);
+    let max = values.iter().copied().reduce(f32::max).unwrap_or(0.0);
+    let mean = values.iter().sum::<f32>() / values.len() as f32;
+    let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / values.len() as f32;
     (max - min, variance.sqrt())
 }

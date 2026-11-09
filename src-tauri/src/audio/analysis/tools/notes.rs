@@ -31,6 +31,9 @@ pub(super) struct Gate {
 /// Segment a frame-level envelope into notes: open above `threshold_db`, close
 /// `hysteresis_db` below it, merge runs separated by less than `min_gap_secs`, then
 /// drop runs shorter than `min_note_secs`.
+///
+/// Every surviving run is returned: the caller applies [`MAX_NOTES`] only to the
+/// records it ships, so counts and gaps can stay honest about omitted activity.
 pub(super) fn segment_notes(
     frame_db: &[f32],
     frame: usize,
@@ -50,8 +53,12 @@ pub(super) fn segment_notes(
     let mut active: Option<(usize, usize)> = None;
     for (index, &db) in frame_db.iter().enumerate() {
         let above = match active {
+            // A frame at the hold level keeps a note open, but only a frame strictly
+            // above the threshold opens one: `gateFloorDb` may equal the −120 dBFS
+            // silence sentinel, where an inclusive test would make digital silence a
+            // note (every frame would open and hold one).
             Some(_) => db >= off_db,
-            None => db >= gate.threshold_db,
+            None => db > gate.threshold_db,
         };
         if above {
             match &mut active {
@@ -92,7 +99,6 @@ pub(super) fn segment_notes(
 
     // Drop notes that are too short to be one.
     merged.retain(|segment| segment.end - segment.start >= gate.min_note_secs);
-    merged.truncate(MAX_NOTES);
     merged
 }
 
@@ -100,6 +106,10 @@ pub(super) fn segment_notes(
 ///
 /// The gate is `max(gateFloorDb, windowPeakDb − gateDb)`; levels, gaps, the relative
 /// levels against the loudest note, and a normalized per-note envelope are returned.
+///
+/// The counts, gap statistics and syllables describe **every** run the segmenter found;
+/// only the returned records are bounded by [`MAX_NOTES`], so `note_count > notes.len()`
+/// means the record list is truncated (never that the omitted activity was silence).
 pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> NoteMetricsResult {
     let (times, levels, frame, hop) =
         frame_rms(mono, sample_rate, options.frame_ms(), options.hop_ms());
@@ -114,23 +124,38 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         min_gap_secs: options.min_gap_ms() / 1_000.0,
     };
     let segments = segment_notes(&levels, frame, hop, rate, duration, &gate);
+    let all_gaps: Vec<GapMetric> = segments
+        .windows(2)
+        .map(|pair| GapMetric {
+            start_secs: pair[0].end,
+            end_secs: pair[1].start,
+            duration_secs: (pair[1].start - pair[0].end).max(0.0),
+        })
+        .collect();
+    let note_durations: Vec<f32> = segments.iter().map(|span| span.end - span.start).collect();
+    let gap_durations: Vec<f32> = all_gaps.iter().map(|gap| gap.duration_secs).collect();
+
     let points = options.envelope_points();
     let envelope_positions: Vec<f32> = (0..points)
         .map(|index| index as f32 / (points - 1) as f32)
         .collect();
 
     // Per-note levels from the raw samples (the frame grid only decides the spans).
-    let mut notes: Vec<NoteMetric> = segments
+    // Only the returned prefix becomes full records; its gaps still point at the next
+    // *detected* note, so a truncated tail is not reported as silence.
+    let shown = segments.len().min(MAX_NOTES);
+    let mut notes: Vec<NoteMetric> = segments[..shown]
         .iter()
-        .map(|segment| {
+        .enumerate()
+        .map(|(index, segment)| {
             let (rms_db, peak_db) = segment_levels(mono, rate, segment.start, segment.end);
             let proxies = note_quality::proxies(mono, rate, *segment, options, &times, &levels);
             NoteMetric {
                 start_secs: segment.start,
                 end_secs: segment.end,
                 duration_secs: segment.end - segment.start,
-                gap_before_secs: 0.0,
-                gap_after_secs: 0.0,
+                gap_before_secs: gap_before(&segments, index),
+                gap_after_secs: gap_after(&segments, index, duration),
                 rms_db,
                 peak_db,
                 rms_db_rel_loudest: 0.0,
@@ -145,30 +170,8 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         })
         .collect();
 
-    // Gaps between notes (leading / trailing silence lives on the edge notes).
-    let gaps: Vec<GapMetric> = notes
-        .windows(2)
-        .map(|pair| GapMetric {
-            start_secs: pair[0].end_secs,
-            end_secs: pair[1].start_secs,
-            duration_secs: (pair[1].start_secs - pair[0].end_secs).max(0.0),
-        })
-        .collect();
-
-    for index in 0..notes.len() {
-        let before = if index == 0 {
-            notes[index].start_secs
-        } else {
-            notes[index].start_secs - notes[index - 1].end_secs
-        };
-        let after = if index + 1 == notes.len() {
-            duration - notes[index].end_secs
-        } else {
-            notes[index + 1].start_secs - notes[index].end_secs
-        };
-        notes[index].gap_before_secs = before.max(0.0);
-        notes[index].gap_after_secs = after.max(0.0);
-    }
+    // The gap records that belong to the returned notes (the summary keeps the full set).
+    let gaps: Vec<GapMetric> = all_gaps[..shown.saturating_sub(1)].to_vec();
 
     // The loudest note is the level reference.
     let reference_note_index = notes
@@ -184,20 +187,21 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         }
     }
 
-    let note_durations: Vec<f32> = notes.iter().map(|note| note.duration_secs).collect();
-    let gap_durations: Vec<f32> = gaps.iter().map(|gap| gap.duration_secs).collect();
     // Syllables are a grouping of the detected notes, never a change to their spans:
     // adjacent notes whose gap is shorter than `syllableGapMs` merge into one syllable
-    // (M21.B). Off by default, so the result shape is unchanged.
-    let syllables = options
-        .syllable_gap_ms()
-        .map(|gap_ms| group_syllables(&notes, gap_ms / 1_000.0, mono, rate));
+    // (M21.B). Off by default, so the result shape is unchanged. Grouping reads the full
+    // run list, so truncating the records cannot split a syllable.
+    let syllables = options.syllable_gap_ms().map(|gap_ms| {
+        let mut syllables = group_syllables(&segments, gap_ms / 1_000.0, mono, rate);
+        syllables.truncate(MAX_NOTES);
+        syllables
+    });
 
     NoteMetricsResult {
         // Filled in by `run_window` — the tool only sees the sliced region.
         window_start: 0.0,
-        note_count: notes.len(),
-        gap_count: gaps.len(),
+        note_count: segments.len(),
+        gap_count: all_gaps.len(),
         total_gap_secs: gap_durations.iter().sum(),
         longest_gap_secs: gap_durations.iter().copied().fold(0.0, f32::max),
         median_note_secs: median(&note_durations),
@@ -215,23 +219,23 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
 /// The notes keep their own spans; only the grouping is new, and each syllable's level
 /// is measured over the merged span (amplitude belongs to the syllable).
 fn group_syllables(
-    notes: &[NoteMetric],
+    spans: &[Segment],
     gap_secs: f32,
     mono: &[f32],
     sample_rate: u32,
 ) -> Vec<SyllableMetric> {
     let mut out: Vec<SyllableMetric> = Vec::new();
-    for note in notes {
+    for span in spans {
         match out.last_mut() {
-            Some(last) if note.start_secs - last.end_secs <= gap_secs => {
-                last.end_secs = note.end_secs;
+            Some(last) if span.start - last.end_secs <= gap_secs => {
+                last.end_secs = span.end;
                 last.duration_secs = last.end_secs - last.start_secs;
                 last.note_count += 1;
             }
             _ => out.push(SyllableMetric {
-                start_secs: note.start_secs,
-                end_secs: note.end_secs,
-                duration_secs: note.duration_secs,
+                start_secs: span.start,
+                end_secs: span.end,
+                duration_secs: span.end - span.start,
                 note_count: 1,
                 rms_db: DB_FLOOR,
                 peak_db: DB_FLOOR,
@@ -245,6 +249,21 @@ fn group_syllables(
         syllable.peak_db = peak_db;
     }
     out
+}
+
+/// Silence between the previous note and `index` (leading silence for the first).
+fn gap_before(spans: &[Segment], index: usize) -> f32 {
+    let previous_end = index
+        .checked_sub(1)
+        .map_or(0.0, |previous| spans[previous].end);
+    (spans[index].start - previous_end).max(0.0)
+}
+
+/// Silence between `index` and the next note: the next detected note's start, or the
+/// window end for the last one.
+fn gap_after(spans: &[Segment], index: usize, duration: f32) -> f32 {
+    let next_start = spans.get(index + 1).map_or(duration, |next| next.start);
+    (next_start - spans[index].end).max(0.0)
 }
 
 /// RMS and peak levels, in dBFS, over `[start, end)` of the raw samples.
@@ -306,5 +325,41 @@ pub(super) fn median(values: &[f32]) -> f32 {
         (sorted[middle - 1] + sorted[middle]) / 2.0
     } else {
         sorted[middle]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A frame-level envelope alternating well above / below a −40 dB gate, so each
+    /// `on` frame is one note — far cheaper than rendering that many notes of audio.
+    fn alternating(notes: usize) -> Vec<f32> {
+        (0..notes * 2)
+            .map(|index| {
+                if index.is_multiple_of(2) {
+                    -20.0
+                } else {
+                    -80.0
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn segmentation_keeps_every_run_for_honest_counts() {
+        let levels = alternating(MAX_NOTES + 2);
+        let duration = levels.len() as f32 / 1_000.0;
+        let gate = Gate {
+            threshold_db: -40.0,
+            hysteresis_db: 0.0,
+            min_note_secs: 0.0,
+            min_gap_secs: 0.0,
+        };
+        let spans = segment_notes(&levels, 1, 1, 1_000, duration, &gate);
+        assert_eq!(spans.len(), MAX_NOTES + 2, "the segmenter keeps every run");
+        // The last *returned* note reports its gap to the next detected note, not the
+        // rest of the window as though the omitted activity were silence.
+        assert!((gap_after(&spans, MAX_NOTES - 1, duration) - 0.001).abs() < 1e-6);
     }
 }

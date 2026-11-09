@@ -25,10 +25,14 @@ midDb: number,
  */
 sideDb: number, 
 /**
- * Whether a positive calibration was supplied.
+ * Whether a positive calibration was supplied. Recorded for provenance: it does
+ * not scale `mid_db` / `side_db`, which stay dBFS (a stereo cue is an
+ * inter-channel ratio, not an absolute level).
  */
 calibrated: boolean, 
 /**
- * The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated).
+ * The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated). Kept for
+ * consistency with the other perception results; it does **not** convert the
+ * mid/side levels to dB SPL.
  */
 calibrationDbSpl: number, };

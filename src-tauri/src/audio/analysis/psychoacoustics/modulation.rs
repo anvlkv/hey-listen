@@ -8,8 +8,14 @@
 //!
 //! 1. A second-order band-pass over the Bark-band edges of the shared frequency range
 //!    turns the signal into a critical-band waveform.
-//! 2. Rectifying and smoothing it (two one-pole low-passes at [`ENVELOPE_LP_HZ`],
-//!    decimated to about [`ENVELOPE_RATE_HZ`]) yields the band envelope `e_b(t)`.
+//! 2. Rectifying and smoothing it (two one-pole low-passes, decimated to about
+//!    [`ENVELOPE_RATE_HZ`]) yields the band envelope `e_b(t)`. The smoother's cutoff is
+//!    never above [`RIPPLE_GUARD`] × the band's own centre, so the **doubled carrier**
+//!    a full-wave rectifier produces (a 35 Hz carrier rectifies to 70 Hz — exactly the
+//!    roughness rate) stays two octaves above it: a steady carrier yields a flat
+//!    envelope instead of spurious roughness. The cutoff is also kept below the
+//!    decimation's anti-alias corner, and a biquad low-pass precedes the decimation, so
+//!    the envelope rate is not aliased.
 //! 3. Two cascaded band-passes at the tool's target rate isolate that rate's
 //!    modulation. The filtered envelope's amplitude over the band's mean envelope is
 //!    the band's fractional modulation depth `m_b`. A filter is used rather than a
@@ -19,7 +25,21 @@
 //! 4. Bands combine as a mean over the frame weighted by each band's energy, by the
 //!    perceived-frequency taper `g(z)` (1 up to 15 Bark, falling to 0.5 at 23.5 Bark)
 //!    and — with the coherence rule each tool picks — by how strongly adjacent bands
-//!    modulate together.
+//!    modulate together. A band whose envelope is more than 40 dB below the frame's
+//!    broadband level (see [`BAND_GATE`]) is dropped, so a carrier **outside** the
+//!    selected range does not reach the modulation filter through the band-pass
+//!    skirts. Spectrally adjacent carriers still overlap a band by design; the gate is
+//!    a level test, not a brick wall.
+//!
+//! The envelope rate depends on the **sample rate alone** — never on the selection's
+//! duration — and the streaming pass below retains only the frame windows, so an
+//! hour-long selection keeps the same modulation bandwidth as a short one instead of
+//! decimating 70 Hz into a slow wobble.
+//!
+//! The level weighting is one-sided: full scale at or above the reference level and
+//! 6 dB down per halving below it, so scaling a reference-level signal *up* does not
+//! raise the reported asper. It is a level gate, not a measured roughness-versus-level
+//! curve.
 //!
 //! Reference conditions: a 1 kHz tone at 60 dB SPL, 100 %-amplitude-modulated at
 //! 70 Hz, reads about 1 asper; the same tone at 4 Hz reads about 1 vacil. Each tool
@@ -33,18 +53,25 @@
 //! trend — not any standard's numeric limits.
 
 mod filters;
+mod stream;
 
-use super::super::support::{effective_hop, frame_times};
-use super::super::{CalibratedSeriesResult, SharedParams};
-use super::bands::critical_band_edges;
-use super::scales::{bark, Scale};
-use filters::{Biquad, OnePole};
+use super::super::support::frame_times;
+use super::super::{CalibratedSeriesResult, SharedParams, MAX_MODULATION_ENVELOPE};
+use filters::Channel;
+use stream::{Frame, Pass};
 
 /// Target envelope sample rate (Hz): ~14 samples per cycle of a 70 Hz modulation.
 const ENVELOPE_RATE_HZ: f64 = 1_000.0;
-/// Envelope smoothing cutoff (Hz), applied as two cascaded one-pole low-passes. Below
-/// the envelope rate's Nyquist and far below the carriers it must not track.
+/// Envelope smoothing cutoff (Hz), applied as two cascaded one-pole low-passes.
 const ENVELOPE_LP_HZ: f64 = 200.0;
+/// The smoother cutoff is capped at this fraction of a band's centre, so the
+/// rectifier's doubled carrier stays well above it (see `filters::envelope_cutoff`).
+const RIPPLE_GUARD: f64 = 0.25;
+/// The envelope's anti-alias low-pass sits at this fraction of the envelope rate:
+/// below its Nyquist and far above the fastest modulation either tool measures.
+const ANTI_ALIAS_FRACTION: f64 = 0.4;
+/// A band more than 40 dB below the frame's broadband level contributes nothing.
+const BAND_GATE: f64 = 0.01;
 /// The Bark-band filterbank's quality factors: a band never gets narrower than its
 /// own Bark width (Q = f₀ / bandwidth) nor sharper than this, so the AM sidebands of
 /// a carrier near the band centre stay inside the band.
@@ -59,7 +86,7 @@ const FLUCTUATION_SCALE: f64 = 1.172;
 /// The level at which the model's level weighting reaches full scale: the loudest
 /// band envelope of a 60 dB SPL (peak) reference tone is about 3 dB below its peak
 /// level, i.e. ≈ 57 dB SPL. Quieter sound is weighted down (6 dB per halving), louder
-/// is not weighted up.
+/// is not weighted up — see [`level_weight`].
 const REFERENCE_LEVEL_DB: f64 = 57.0;
 
 /// How a frame's per-band contributions combine.
@@ -121,47 +148,11 @@ pub(crate) fn fluctuation_weighting() -> Weighting {
     }
 }
 
-/// One critical band: its Bark position and its envelope at the envelope rate.
-struct Band {
-    z: f64,
-    envelope: Vec<f32>,
-}
-
-/// The Bark-band envelope of `mono`, plus the envelope sample rate it runs at.
-fn envelopes(mono: &[f32], sample_rate: u32, min_hz: f32, max_hz: f32) -> (Vec<Band>, f64) {
-    let rate = f64::from(sample_rate.max(1));
-    // A very long window widens the decimation so the envelope stays bounded; the
-    // effective rate is returned so the frame mapping follows it.
-    let decim = ((rate / ENVELOPE_RATE_HZ).round() as usize)
-        .max(1)
-        .max(mono.len().div_ceil(super::super::MAX_MODULATION_ENVELOPE));
-    let envelope_rate = rate / decim as f64;
-
-    let edges = critical_band_edges(Scale::Bark, min_hz, max_hz);
-    let bands = edges
-        .windows(2)
-        .map(|pair| {
-            let centre = (f64::from(pair[0]) * f64::from(pair[1])).sqrt().max(20.0);
-            let width = (f64::from(pair[1]) - f64::from(pair[0])).max(20.0);
-            let q = (centre / width).clamp(BAND_Q_MIN, BAND_Q_MAX);
-            let mut pass = Biquad::band_pass(centre, q, rate);
-            let mut smooth_a = OnePole::low_pass(ENVELOPE_LP_HZ, rate);
-            let mut smooth_b = OnePole::low_pass(ENVELOPE_LP_HZ, rate);
-            let mut envelope = Vec::with_capacity(mono.len() / decim + 1);
-            for (index, &sample) in mono.iter().enumerate() {
-                let band = pass.process(f64::from(sample)).abs();
-                let smoothed = smooth_b.process(smooth_a.process(band));
-                if index % decim == 0 {
-                    envelope.push(smoothed as f32);
-                }
-            }
-            Band {
-                z: f64::from(bark(centre as f32)),
-                envelope,
-            }
-        })
-        .collect();
-    (bands, envelope_rate)
+/// The source-to-envelope decimation: a function of the sample rate alone, so the
+/// envelope rate (and with it the measurable modulation bandwidth) is identical for a
+/// short and an hour-long selection.
+fn decimation(rate: f64) -> usize {
+    ((rate / ENVELOPE_RATE_HZ).round() as usize).max(1)
 }
 
 /// The `g(z)` frequency taper: 1 up to 15 Bark, then a linear fall to 0.5 at 23.5.
@@ -176,6 +167,10 @@ fn frequency_weight(z: f64) -> f64 {
 /// The level weighting: full scale at [`REFERENCE_LEVEL_DB`] and above, halving every
 /// 6 dB below it. Uncalibrated runs (`calibration_db_spl == 0`) are relative, so the
 /// factor is left at 1 rather than inventing an absolute level.
+///
+/// The clamp at 1 is deliberate and one-sided: a signal louder than the reference is
+/// *not* weighted up, so an amplitude sweep cannot be read as a conventional
+/// roughness-versus-level curve (which rises and then saturates or falls).
 fn level_weight(level_db: f64, calibration_db_spl: f32) -> f64 {
     if calibration_db_spl <= 0.0 {
         1.0
@@ -221,85 +216,54 @@ pub(crate) fn modulate(
     weighting: &Weighting,
     calibration_db_spl: f32,
 ) -> (usize, Vec<Option<f32>>) {
-    let (min_hz, max_hz) = params.band(sample_rate);
-    let (bands, envelope_rate) = envelopes(mono, sample_rate, min_hz as f32, max_hz as f32);
-
-    // Filter each band envelope at the target rate, warming the filter on the
-    // envelope's own start rounded to whole modulation periods so the record does not
-    // begin with a step the filter would ring on.
-    let settle = {
-        let period = (envelope_rate / weighting.target_hz).max(1.0);
-        (5.0 * weighting.q / std::f64::consts::PI).ceil() * period
-    };
-    let settle = settle.round() as usize;
-    let modulation: Vec<Vec<f32>> = bands
-        .iter()
-        .map(|band| {
-            let mut first = Biquad::band_pass(weighting.target_hz, weighting.q, envelope_rate);
-            let mut second = Biquad::band_pass(weighting.target_hz, weighting.q, envelope_rate);
-            if !band.envelope.is_empty() {
-                for index in 0..settle {
-                    let sample = f64::from(band.envelope[index % band.envelope.len()]);
-                    second.process(first.process(sample));
-                }
-            }
-            band.envelope
-                .iter()
-                .map(|&sample| second.process(first.process(f64::from(sample))) as f32)
-                .collect()
-        })
-        .collect();
-
-    let fft = params.fft_size();
-    let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
-    let frames = mono.len().div_ceil(hop);
-    let samples = bands.first().map_or(0, |band| band.envelope.len());
-    let window = (weighting.window_secs * envelope_rate).round().max(2.0) as usize;
-
-    let values = (0..frames)
-        .map(|frame| {
-            // A centred window of `window` envelope samples around the frame time.
-            let centre = (frame * hop) as f64 / f64::from(sample_rate.max(1)) * envelope_rate;
-            let centre = centre.round() as isize;
-            let low = (centre - window as isize / 2).max(0) as usize;
-            let high = ((centre + window as isize / 2) as usize).min(samples);
-            if high <= low + 1 {
-                return None;
-            }
-            frame_value(
-                &bands,
-                &modulation,
-                low,
-                high,
-                weighting,
-                calibration_db_spl,
-            )
-        })
-        .collect();
-    (hop, values)
+    let mut pass = Pass::new(mono, sample_rate, params, weighting, calibration_db_spl);
+    // Chronological blocks of at most [`MAX_MODULATION_ENVELOPE`] envelope samples keep
+    // the pass bounded without widening the decimation; the filter state crosses them.
+    let block = MAX_MODULATION_ENVELOPE
+        .saturating_mul(pass.decimation())
+        .max(1);
+    for chunk in mono.chunks(block) {
+        for &sample in chunk {
+            pass.push(f64::from(sample));
+        }
+    }
+    pass.finish()
 }
 
-/// One frame's weighted modulation over the envelope window `[low, high)`.
+/// One frame's weighted modulation over the copied band windows, `[low, high)` in
+/// envelope samples, with `level` the frame's broadband RMS amplitude.
 fn frame_value(
-    bands: &[Band],
-    modulation: &[Vec<f32>],
+    channels: &mut [Channel],
+    frame: &mut Frame,
     low: usize,
     high: usize,
+    level: f64,
     weighting: &Weighting,
     calibration_db_spl: f32,
 ) -> Option<f32> {
-    let count = (high - low) as f64;
-    let mut energies = Vec::with_capacity(bands.len());
-    let mut depths = Vec::with_capacity(bands.len());
+    let count = high.saturating_sub(low);
+    if count < 2 || channels.iter().any(|channel| channel.available() < count) {
+        return None;
+    }
+    frame.fill(channels, count);
+    let count_f = count as f64;
+    let gate = level * BAND_GATE;
+    let mut energies = Vec::with_capacity(channels.len());
+    let mut depths = Vec::with_capacity(channels.len());
     let mut loudest = 0.0f64;
-    for (index, band) in bands.iter().enumerate() {
-        let window = &band.envelope[low..high];
-        let mean = window.iter().map(|&v| f64::from(v)).sum::<f64>() / count;
+    for index in 0..channels.len() {
+        let envelope = frame.envelope(index);
+        let mean = envelope.iter().map(|&v| f64::from(v)).sum::<f64>() / count_f;
         loudest = loudest.max(mean);
-        let energy = mean * mean;
-        energies.push(energy);
-        let filtered = &modulation[index][low..high];
-        let power = filtered.iter().map(|&v| f64::from(v).powi(2)).sum::<f64>() / count;
+        if mean < gate {
+            // Band-pass leakage, not a component the range selection measures.
+            energies.push(0.0);
+            depths.push(0.0);
+            continue;
+        }
+        energies.push(mean * mean);
+        let filtered = frame.modulated(index);
+        let power = filtered.iter().map(|&v| f64::from(v).powi(2)).sum::<f64>() / count_f;
         depths.push(if mean > 1e-9 {
             // A sinusoid of amplitude `a` has RMS `a / √2`.
             (2.0 * power).sqrt() / mean
@@ -314,13 +278,10 @@ fn frame_value(
     let gain = level_weight(20.0 * loudest.max(1e-12).log10(), calibration_db_spl);
     let exponent = weighting.exponent;
     let mut sum = 0.0f64;
-    for (index, band) in bands.iter().enumerate() {
+    for (index, channel) in channels.iter().enumerate() {
         let weight = energies[index] / total_energy;
-        let coherence = if index + 1 < modulation.len() {
-            correlation(
-                &modulation[index][low..high],
-                &modulation[index + 1][low..high],
-            )
+        let coherence = if index + 1 < channels.len() {
+            correlation(frame.modulated(index), frame.modulated(index + 1))
         } else {
             0.0
         };
@@ -330,7 +291,7 @@ fn frame_value(
         };
         sum += weight
             * depths[index].powf(exponent)
-            * frequency_weight(band.z).powf(exponent)
+            * frequency_weight(channel.z).powf(exponent)
             * coherence.powf(exponent);
     }
     let value = weighting.scale * gain * sum;

@@ -8,7 +8,10 @@
 //! the tau bounds, and the bins kept, taken from the tool's `minF0Hz`/`maxF0Hz`.
 //!
 //! The pitch *bins* are the crate's semitone grid (A0 = 27.5 Hz, 108 bins to B8), so a
-//! reported f0 is quantized to a semitone like the crate's own pYIN.
+//! reported f0 is quantized to a semitone like the crate's own pYIN. Only bins whose
+//! **centre** lies inside the requested range are reportable; when a range is thinner than
+//! the grid (or the frame cannot realize it), nothing is reported and
+//! [`effective_range`] says so rather than echoing the request.
 
 use oxiaudio::dsp::PitchFrame;
 use oxiaudio::AudioBuffer;
@@ -46,16 +49,18 @@ pub(super) fn detect(
     if frame_size == 0 || hop_size == 0 || sr <= 0.0 || samples.len() < frame_size {
         return Vec::new();
     }
-    // The search lags the requested range implies. The frame must be long enough for the
-    // lowest f0, and short enough that the highest f0 has at least two samples per period.
-    let tau_min = ((sr / max_f0.max(1.0)).floor() as usize).max(2);
-    let tau_max = ((sr / min_f0.max(1.0)).ceil() as usize).min(frame_size / 2);
-    if tau_max <= tau_min {
+    let Some(domain) = domain(sr, frame_size, min_f0, max_f0) else {
+        return Vec::new();
+    };
+    if domain.range(sr).is_none() {
         return Vec::new();
     }
-    // The bins the requested range covers; a decoded bin outside it is never reported.
-    let bin_min = freq_to_bin(min_f0.max(1.0));
-    let bin_max = freq_to_bin(max_f0.max(min_f0 + 1.0));
+    let Domain {
+        tau_min,
+        tau_max,
+        bin_min,
+        bin_max,
+    } = domain;
 
     let hop = hop_size.max(1);
     let n_frames = (samples.len() - frame_size) / hop + 1;
@@ -199,6 +204,71 @@ pub(super) fn detect(
         .collect()
 }
 
+/// The f0 domain a call can actually realize: the semitone bins whose centre lies
+/// inside the requested range, further limited by the lags the frame and sample rate
+/// allow. `(0.0, 0.0)` means nothing in the request is representable (or realizable),
+/// so no frame is reported voiced.
+pub(super) fn effective_range(
+    sample_rate: u32,
+    frame_size: usize,
+    min_f0: f32,
+    max_f0: f32,
+) -> (f32, f32) {
+    let sr = sample_rate as f32;
+    domain(sr, frame_size, min_f0, max_f0)
+        .and_then(|domain| domain.range(sr))
+        .unwrap_or((0.0, 0.0))
+}
+
+/// The realized search domain: the lags the CMNDF can search and the bins it may report.
+#[derive(Debug, Clone, Copy)]
+struct Domain {
+    tau_min: usize,
+    tau_max: usize,
+    bin_min: usize,
+    bin_max: usize,
+}
+
+impl Domain {
+    /// The frequency interval this domain reports, or `None` when the lag bounds leave
+    /// no room for the bins.
+    fn range(&self, sample_rate: f32) -> Option<(f32, f32)> {
+        let low = bin_to_freq(self.bin_min).max(sample_rate / self.tau_max as f32);
+        let high = bin_to_freq(self.bin_max).min(sample_rate / self.tau_min as f32);
+        (low <= high).then_some((low, high))
+    }
+}
+
+/// Resolve the realized domain, or `None` when the request cannot be realized.
+fn domain(sample_rate: f32, frame_size: usize, min_f0: f32, max_f0: f32) -> Option<Domain> {
+    if frame_size == 0 || sample_rate <= 0.0 {
+        return None;
+    }
+    // The search lags the requested range implies. The frame must be long enough for the
+    // lowest f0, and short enough that the highest f0 has at least two samples per period.
+    let tau_min = ((sample_rate / max_f0.max(1.0)).floor() as usize).max(2);
+    let tau_max = ((sample_rate / min_f0.max(1.0)).ceil() as usize).min(frame_size / 2);
+    if tau_max <= tau_min {
+        return None;
+    }
+    // Rounding a range endpoint to the nearest bin can land its centre outside the
+    // request, so narrow both ends until every reportable centre is inside it.
+    let mut bin_min = freq_to_bin(min_f0.max(1.0));
+    let mut bin_max = freq_to_bin(max_f0.max(min_f0));
+    while bin_min <= bin_max && bin_centre_hz(bin_min) < f64::from(min_f0) {
+        bin_min += 1;
+    }
+    while bin_min <= bin_max && bin_centre_hz(bin_max) > f64::from(max_f0) {
+        bin_max -= 1;
+    }
+    (bin_min <= bin_max).then_some(Domain {
+        tau_min,
+        tau_max,
+        bin_min,
+        bin_max,
+    })
+}
+
 /// Beta(2, 18) weights at the given thresholds, normalized to sum to 1.
 fn beta_weights(thresholds: &[f32]) -> Vec<f32> {
     let weights: Vec<f64> = thresholds
@@ -228,9 +298,14 @@ fn freq_to_bin(frequency: f32) -> usize {
     bin.clamp(0.0, (N_BINS - 1) as f64) as usize
 }
 
+/// A bin's centre frequency, in the grid's own precision.
+fn bin_centre_hz(bin: usize) -> f64 {
+    BIN_BASE_HZ * 2.0_f64.powf(bin as f64 / 12.0)
+}
+
 /// A bin's centre frequency.
 fn bin_to_freq(bin: usize) -> f32 {
-    (BIN_BASE_HZ * 2.0_f64.powf(bin as f64 / 12.0)) as f32
+    bin_centre_hz(bin) as f32
 }
 
 /// The first local minimum of the CMNDF inside `[tau_min, tau_max]` below `threshold`.

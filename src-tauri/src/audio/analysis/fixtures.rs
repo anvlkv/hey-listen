@@ -56,7 +56,8 @@ pub(crate) fn matrix() -> MatrixResult {
         hop_size: 480,
         frames: 2,
         bins: 2,
-        duration: 0.2,
+        // The frame-grid span: `frames × hop / rate`.
+        duration: 0.02,
         times: vec![0.0, 0.1],
         window_start: 0.0,
         bands: vec![0.0, 1.0],
