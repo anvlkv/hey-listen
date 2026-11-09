@@ -12,6 +12,7 @@ import {
   type SpectrogramResult,
 } from "../../state/analyzer";
 import { activeThemeId } from "../../state/themes";
+import { contourAt } from "../../lib/equalLoudness";
 import { useCanvasImage } from "./chartImage";
 import { clamp01 } from "./colormap";
 import { NoAudioState } from "./chartCommon";
@@ -101,6 +102,15 @@ export default function SpectrogramTab() {
   /** Per-tool contour overlays (default on). */
   const showCentroid = () => (toolOptions.spectrogram?.showCentroid ?? 1) !== 0;
   const showRolloff = () => (toolOptions.spectrogram?.showRolloff ?? 1) !== 0;
+  /** Selected equal-loudness contour phon level (`0` = off). */
+  const phonLevel = () => toolOptions.spectrogram?.phonLevel ?? 0;
+
+  /** The equal-loudness contour's reference level at the cursor frequency, in dB SPL. */
+  const referenceAtCursor = () => {
+    const hover = chart.hover();
+    const phon = phonLevel();
+    return hover && phon > 0 ? contourAt(phon, hover.freq) : null;
+  };
 
   const chart = createChartInteraction<View, Hover, SpectrogramResult>({
     id: SPECTROGRAM_ID,
@@ -257,6 +267,20 @@ export default function SpectrogramTab() {
               analysis.result() ? `${analysis.result()!.frames} × ${analysis.result()!.bins}` : "—"
             }
           />
+          <Show when={phonLevel() > 0}>
+            <Readout
+              label="Contour"
+              value={`${phonLevel()} phon`}
+              title="Equal-loudness reference level, in dB SPL."
+            />
+            <Readout
+              label="Ref @ cursor"
+              value={
+                referenceAtCursor() == null ? "—" : `${referenceAtCursor()!.toFixed(1)} dB SPL`
+              }
+              title="The contour's level at the cursor frequency. The heatmap is dBFS; the two scales are separate."
+            />
+          </Show>
         </div>
         <div class="spectrogram-canvas" ref={chart.attachWrap}>
           <canvas

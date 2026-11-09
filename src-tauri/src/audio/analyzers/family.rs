@@ -82,7 +82,8 @@ pub fn family_of(id: AnalyzerId) -> Family {
         | AnalyzerId::Sharpness
         | AnalyzerId::Roughness
         | AnalyzerId::FluctuationStrength
-        | AnalyzerId::Tonality => Family::Series,
+        | AnalyzerId::Tonality
+        | AnalyzerId::Spatial => Family::Series,
     }
 }
 
@@ -140,6 +141,13 @@ pub fn about(id: AnalyzerId) -> Option<&'static str> {
             "EBU R128 momentary loudness over time. The default 400 ms block is useful \
              for programme loudness, not for finding call boundaries; lower `windowMs` \
              or use `frameRms` when short events matter.",
+        ),
+        AnalyzerId::Spatial => Some(
+            "Mid/side levels and the normalized inter-channel correlation of the left/right \
+             pair, read before the shared channel selector, so a stereo source is required \
+             (a mono source returns an error). These are acoustic cues: they describe \
+             stereo structure, not a perceived width, which also depends on playback \
+             configuration and listening conditions.",
         ),
         _ => None,
     }

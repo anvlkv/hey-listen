@@ -10,6 +10,7 @@ use super::super::shape::{flat_peak, matrix_peak, spectrogram_peak};
 use super::calibrated_series::{calibrated_series, push_series_extents};
 use super::loudness::loudness;
 use super::masking::masking;
+use super::spatial::spatial;
 use super::SummaryBuilder;
 use crate::audio::analysis::{
     AnalysisResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
@@ -30,6 +31,7 @@ pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
         }
         AnalysisResult::Spectrum(r) => spectrum(&mut b, r),
         AnalysisResult::Masking(r) => masking(&mut b, r),
+        AnalysisResult::Spatial(r) => spatial(&mut b, r),
         AnalysisResult::Spectrogram(r) => spectrogram(&mut b, r),
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)

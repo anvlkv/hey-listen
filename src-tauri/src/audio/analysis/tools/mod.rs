@@ -16,6 +16,7 @@ mod pitch_track;
 mod roughness;
 mod shared;
 mod sharpness;
+pub(crate) mod spatial;
 mod spectrum;
 mod time;
 mod tonality;

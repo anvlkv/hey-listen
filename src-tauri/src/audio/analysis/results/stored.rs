@@ -222,6 +222,7 @@ pub enum StoredAnalysisResult {
     FluctuationStrength(CalibratedSeriesResult),
     Masking(MaskingResult),
     Tonality(CalibratedSeriesResult),
+    Spatial(SpatialResult),
 }
 
 impl From<&AnalysisResult> for StoredAnalysisResult {
@@ -264,6 +265,7 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value.clone()),
             AnalysisResult::Masking(value) => Self::Masking(value.clone()),
             AnalysisResult::Tonality(value) => Self::Tonality(value.clone()),
+            AnalysisResult::Spatial(value) => Self::Spatial(value.clone()),
         }
     }
 }
@@ -308,6 +310,7 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value),
             StoredAnalysisResult::Masking(value) => Self::Masking(value),
             StoredAnalysisResult::Tonality(value) => Self::Tonality(value),
+            StoredAnalysisResult::Spatial(value) => Self::Spatial(value),
         }
     }
 }

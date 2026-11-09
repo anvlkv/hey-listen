@@ -325,7 +325,14 @@ struct MaskingResult {
 it is masked and positive elsewhere; `Tg` never falls below `Tq`; a pure sine has a high
 `tonality` ratio and white noise a low one; uncalibrated input is labelled.
 
-## M31 — Equal-loudness contour overlay + spatial (stereo) cues (planned)
+## M31 — Equal-loudness contour overlay + spatial (stereo) cues ✅
+
+**Delivered.** See [`roadmap.md`](roadmap.md) → M31. The `spatial` tool returns the
+normalized inter-channel correlation over time plus window-level mid/side RMS in dBFS,
+reading the left/right pair before the channel param (a documented exception) and
+rejecting mono. The equal-loudness contour is a **reference overlay** on the Spectrum
+view, drawn on its own dB SPL axis because the data is dBFS; it makes no standard-name
+claim.
 
 **Problem.** There is no ISO 226 reference to compare a spectrum's audibility against,
 and no stereo-structure readout (mid/side, inter-channel correlation) — the two

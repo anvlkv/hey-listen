@@ -124,6 +124,7 @@ workbench_ids! {
     FluctuationStrength,
     Masking,
     Tonality,
+    Spatial,
 }
 
 wire_id!(AnalyzerId, "analyzer");

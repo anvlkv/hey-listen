@@ -34,6 +34,7 @@ pub use types::*;
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
 use crate::audio::pcm;
+use tools::spatial;
 
 /// Floor used for silence, so dB results are always finite and JSON-safe.
 const DB_FLOOR: f32 = -120.0;
@@ -183,6 +184,22 @@ pub fn run_window(
 
         (region, source.channels.max(1), sample_rate, filter)
     };
+
+    // The `spatial` tool is the documented exception to the channel params: it needs
+    // the interleaved left/right pair **before** the mixdown/filter/resample path, so
+    // it bypasses `condition` and reads stereo directly.
+    if tool == AnalyzerId::Spatial {
+        let mut result = AnalysisResult::Spatial(spatial::spatial(
+            &region,
+            channels,
+            sample_rate,
+            filter.as_ref(),
+            params,
+            options,
+        )?);
+        result.rebase(start);
+        return Ok(result);
+    }
 
     let (mono, rate) = condition(
         &region,

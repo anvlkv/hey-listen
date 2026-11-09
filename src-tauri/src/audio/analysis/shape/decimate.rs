@@ -68,7 +68,8 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         | AnalysisResult::Sharpness(_)
         | AnalysisResult::Roughness(_)
         | AnalysisResult::FluctuationStrength(_)
-        | AnalysisResult::Tonality(_) => aligned(object, max, &["times", "values"]),
+        | AnalysisResult::Tonality(_)
+        | AnalysisResult::Spatial(_) => aligned(object, max, &["times", "values"]),
         // Loudness carries two gapped tracks over one time axis.
         AnalysisResult::Loudness(_) => {
             aligned(object, max, &["times", "loudnessSone", "loudnessPhon"])

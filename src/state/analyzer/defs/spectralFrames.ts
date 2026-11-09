@@ -1,10 +1,16 @@
 import { CHROMA_NOTES } from "../format";
+import { EQ_LOUDNESS_PHONS } from "../../../lib/equalLoudness";
 import type { AnalyzerDef } from "../types";
 
 /** Mel band counts offered by the mel-spectrogram and MFCC tools. */
 const MEL_BANDS = [16, 24, 32, 48, 64, 96, 128].map((value) => ({ value, label: `${value}` }));
 /** Cepstral coefficient counts offered by the MFCC tool. */
 const MFCC_COEFFS = [8, 13, 20, 26].map((value) => ({ value, label: `${value}` }));
+/** Equal-loudness contour levels offered by the spectrum-style views. */
+const PHON_LEVELS = [
+  { value: 0, label: "Off" },
+  ...EQ_LOUDNESS_PHONS.map((value) => ({ value, label: `${value} phon` })),
+];
 
 /**
  * The frame-based `spectral` tools: the heatmaps and the chromagram (the scalar
@@ -23,7 +29,12 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       "under the pointer.\n\n" +
       "**Layers.** *Mean* is the average; *Min* and *Max* show the quietest and " +
       "loudest frame at each frequency. The shared FFT size, hop, window, channel, " +
-      "and frequency range apply.",
+      "and frequency range apply.\n\n" +
+      "**Equal-loudness contour.** Choose a *phon* level to overlay a reference " +
+      "curve of the level a pure tone needs at each frequency to sound equally " +
+      "loud. The curve is in **dB SPL** while the spectrum is **dBFS**, so it is " +
+      "drawn on its own right-hand axis and only lines up when the spectrum is " +
+      "calibrated.",
     keywords: ["spectrum", "fft", "frequency", "magnitude", "welch", "harmonic"],
     section: "spectral",
     view: { kind: "spectrum" },
@@ -39,6 +50,16 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
         target: "view",
         title: "Plot frequency on a logarithmic (octave) axis instead of linear.",
       },
+      {
+        key: "phonLevel",
+        label: "Equal-loudness",
+        kind: "select",
+        value: 0,
+        options: PHON_LEVELS,
+        target: "view",
+        title:
+          "Overlay an equal-loudness contour reference at this phon level, in dB SPL. Off by default; it is only comparable when the spectrum is calibrated.",
+      },
     ],
   },
   {
@@ -52,7 +73,10 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       "and see at a glance whether a sound is steady or changing. The shared FFT " +
       "settings apply; the per-tool control sets the displayed dynamic range.\n\n" +
       "**Contours.** *Centroid* and *Rolloff* can be drawn on top to trace the " +
-      "spectrum's centre of mass and the frequency below which most energy lies.",
+      "spectrum's centre of mass and the frequency below which most energy lies.\n\n" +
+      "**Equal-loudness contour.** Choose a *phon* level to read the reference level " +
+      "a pure tone needs at the cursor's frequency (dB SPL). The heatmap itself is " +
+      "dBFS, so the two scales are shown separately.",
     keywords: ["spectrogram", "stft", "heatmap", "time", "frequency", "waterfall"],
     section: "spectral",
     view: { kind: "spectrogram" },
@@ -74,6 +98,16 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
         target: "view",
         title:
           "Overlay the spectral rolloff frequency (85% of the energy lies below it) as a contour on the heatmap.",
+      },
+      {
+        key: "phonLevel",
+        label: "Equal-loudness",
+        kind: "select",
+        value: 0,
+        options: PHON_LEVELS,
+        target: "view",
+        title:
+          "Read the equal-loudness contour's reference level at the cursor's frequency, in dB SPL. Off by default.",
       },
     ],
   },

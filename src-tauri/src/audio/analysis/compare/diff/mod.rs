@@ -113,6 +113,17 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, b_offset: f64, common: Option<Span>) -> 
         (AnalysisResult::Modulation(a_r), AnalysisResult::Modulation(b_r)) => {
             ComparisonDiff::Modulation(modulation_delta(a_r, b_r))
         }
+        (AnalysisResult::Spatial(a_r), AnalysisResult::Spatial(b_r)) => {
+            let times_a = relative(&a_r.times, origin_a, 0.0);
+            let times_b = relative(&b_r.times, origin_b, b_offset);
+            ComparisonDiff::Series(series_delta(
+                &a_r.values,
+                &times_a,
+                &b_r.values,
+                &times_b,
+                common,
+            ))
+        }
         (AnalysisResult::Waveform(a_r), AnalysisResult::Waveform(b_r)) => {
             let times_a = relative(&waveform_times(a_r), origin_a, 0.0);
             let times_b = relative(&waveform_times(b_r), origin_b, b_offset);
@@ -185,6 +196,7 @@ pub fn result_origin(result: &AnalysisResult) -> f64 {
         | AnalysisResult::FluctuationStrength(r)
         | AnalysisResult::Tonality(r) => r.window_start,
         AnalysisResult::Masking(r) => r.window_start,
+        AnalysisResult::Spatial(r) => r.window_start,
         AnalysisResult::Tempo(r) | AnalysisResult::Onsets(r) | AnalysisResult::Downbeats(r) => {
             r.window_start
         }
@@ -270,6 +282,7 @@ pub fn hop_secs(result: &AnalysisResult, rate: u32) -> f32 {
         | AnalysisResult::Roughness(r)
         | AnalysisResult::FluctuationStrength(r)
         | AnalysisResult::Tonality(r) => Some(r.hop_size),
+        AnalysisResult::Spatial(r) => Some(r.hop_size),
         // A static spectrum has no time axis, so it carries no hop.
         AnalysisResult::Masking(_) => None,
         other => other.series().map(|r| r.hop_size),

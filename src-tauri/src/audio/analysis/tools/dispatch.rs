@@ -6,7 +6,7 @@ use super::super::support::{
 };
 use super::super::{
     AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SeriesResult, SharedParams,
-    ToolOptions, DB_FLOOR,
+    SpatialResult, ToolOptions, DB_FLOOR,
 };
 use super::critical_bands::critical_bands;
 use super::fluctuation::fluctuation_strength;
@@ -168,6 +168,25 @@ pub fn run(
             params,
             options,
         )?)),
+        // The real computation reads the interleaved stereo region in `run_window`;
+        // this arm only keeps the dispatch total (and `every_analyzer_returns_its_own_id`
+        // green) when a caller passes a mono buffer directly.
+        AnalyzerId::Spatial => {
+            let calibration = options.calibration_db_spl();
+            Ok(AnalysisResult::Spatial(SpatialResult {
+                sample_rate,
+                hop_size: (sample_rate as usize / 100).max(1),
+                window_start: 0.0,
+                times: Vec::new(),
+                values: Vec::new(),
+                min_value: 0.0,
+                max_value: 0.0,
+                mid_db: DB_FLOOR,
+                side_db: DB_FLOOR,
+                calibrated: calibration > 0.0,
+                calibration_db_spl: calibration,
+            }))
+        }
         AnalyzerId::SpectralCentroid => Ok(AnalysisResult::SpectralCentroid(gated_series(
             oxiaudio::dsp::spectral::spectral_centroid(&lib_buf(), fft, hop),
             hop,

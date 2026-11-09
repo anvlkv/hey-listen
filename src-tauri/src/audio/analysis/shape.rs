@@ -102,6 +102,10 @@ pub fn compact(result: &AnalysisResult) -> Value {
             compact_rhythm(object, r)
         }
         AnalysisResult::NoteMetrics(r) => compact_notes(object, r),
+        AnalysisResult::Spatial(r) => {
+            insert(object, "times", time_axis(&r.times));
+            insert(object, "values", stats_gaps(&r.values));
+        }
         AnalysisResult::Modulation(r) => {
             insert(object, "modFreqs", stats_f32(&r.mod_freqs));
             insert(object, "amDb", stats_f32(&r.am_db));

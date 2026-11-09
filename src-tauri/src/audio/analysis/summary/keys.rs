@@ -118,6 +118,18 @@ const MASKING: &[&str] = &[
     "calibrationDbSpl",
 ];
 
+/// The stereo cues (M31): the correlation extents plus the window-level mid/side
+/// levels and the calibration state.
+const SPATIAL: &[&str] = &[
+    "frames",
+    "midDb",
+    "sideDb",
+    "min",
+    "max",
+    "calibrated",
+    "calibrationDbSpl",
+];
+
 /// The summary item keys `tool` produces. Analyzers that are not listed fall back to
 /// the generic series shape (every scalar-per-frame tool).
 pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
@@ -136,6 +148,7 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
             CALIBRATED_SERIES
         }
         AnalyzerId::Tonality => CALIBRATED_SERIES,
+        AnalyzerId::Spatial => SPATIAL,
         AnalyzerId::Masking => MASKING,
         AnalyzerId::FrameRms => FRAME_RMS,
         AnalyzerId::PitchPyin | AnalyzerId::PitchYin | AnalyzerId::PitchAutocorr => PITCH,
