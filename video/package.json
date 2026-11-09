@@ -29,8 +29,5 @@
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
-  },
-  "allowScripts": {
-    "esbuild": false
   }
 }

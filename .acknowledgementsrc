@@ -1,2 +1,2 @@
-paths=[".", "src-tauri"]
+paths=[".", "src-tauri", "video"]
 format="name-and-deps"
