@@ -2,7 +2,7 @@
 
 use super::{calibration, median, params, tone, RATE};
 use crate::audio::analysis::psychoacoustics::bands::critical_band_edges;
-use crate::audio::analysis::psychoacoustics::scales::{cam, Scale};
+use crate::audio::analysis::psychoacoustics::scales::{bark, cam, Scale};
 use crate::audio::analysis::{run, AnalysisResult, LoudnessResult, MatrixResult, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
 
@@ -88,6 +88,36 @@ fn silence_reads_zero() {
 }
 
 #[test]
+fn an_input_component_outside_the_band_does_not_excite_retained_bands() {
+    // The shared band limit applies to the model's input, not just to the rendered
+    // ERB bands: a loud 60 Hz tone outside [2, 4] kHz must not read as loudness.
+    let mut p = params(2048);
+    p.freq_min_hz = 2_000.0;
+    p.freq_max_hz = 4_000.0;
+    let mono = tone(0.5, 60.0, 0.5);
+    let result = match run(
+        AnalyzerId::Loudness,
+        &mono,
+        RATE,
+        &p,
+        &ToolOptions::default(),
+    )
+    .expect("loudness")
+    {
+        AnalysisResult::Loudness(result) => result,
+        other => panic!("unexpected result: {other:?}"),
+    };
+    assert!(
+        result
+            .loudness_sone
+            .iter()
+            .flatten()
+            .all(|&value| value < 1e-3),
+        "a 60 Hz component outside the 2–4 kHz band reads as loudness"
+    );
+}
+
+#[test]
 fn the_specific_loudness_bands_integrate_to_the_total() {
     let mono = tone(10f32.powf(-54.0 / 20.0), 1_000.0, 0.5);
     let options = calibration(94.0);
@@ -108,14 +138,21 @@ fn the_specific_loudness_bands_integrate_to_the_total() {
 
     let edges = critical_band_edges(Scale::Erb, 0.0, RATE as f32 / 2.0);
     let mut sum = 0.0f64;
+    let mut bark_sum = 0.0f64;
     for band in 0..matrix.bins {
-        let value = matrix.values[frame * matrix.bins + band];
-        let width = f64::from(cam(edges[band + 1]) - cam(edges[band]));
-        sum += f64::from(value) * width;
+        let value = f64::from(matrix.values[frame * matrix.bins + band]);
+        // The values are sone per **Cam**: only a Cam-width integration reproduces N.
+        sum += value * f64::from(cam(edges[band + 1]) - cam(edges[band]));
+        bark_sum += value * f64::from(bark(edges[band + 1]) - bark(edges[band]));
     }
     let expected = f64::from(total.loudness_sone[frame].unwrap_or(0.0));
     assert!(
         (sum - expected).abs() <= expected.max(0.1) * 0.05,
-        "band sum {sum} does not approximate N = {expected}"
+        "Cam band sum {sum} does not approximate N = {expected}"
+    );
+    // The same values over Bark widths do not: the unit is sone/Cam, not sone/Bark.
+    assert!(
+        (bark_sum - expected).abs() > expected.max(0.1) * 0.05,
+        "Bark band sum {bark_sum} also reproduces N = {expected}, so the Cam widths are not discriminated"
     );
 }

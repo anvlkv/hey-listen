@@ -33,6 +33,10 @@ fn to_hz(scale: Scale, z: f32) -> f32 {
 /// `span` bands; a wide range is coarsened uniformly to stay inside the model's
 /// cap ([`MAX_BARK_BANDS`] / [`MAX_ERB_BANDS`]). A range narrower than one band —
 /// including a zero-width range — still yields a single, clamped band.
+///
+/// The geometry is derived from the **requested** range, so it is not the fixed
+/// standardized Bark/ERB boundary table: narrowing or shifting the range changes
+/// the partition rather than merely hiding rows.
 pub fn critical_band_edges(scale: Scale, min_hz: f32, max_hz: f32) -> Vec<f32> {
     let min_hz = if min_hz.is_finite() {
         min_hz.max(0.0)
@@ -64,11 +68,15 @@ pub fn critical_band_edges(scale: Scale, min_hz: f32, max_hz: f32) -> Vec<f32> {
         .collect()
 }
 
-/// Per-frame band energies in dBFS (`frame × band`).
+/// Per-frame band levels in dBFS (`frame × band`).
 ///
 /// Each band sums the **power** (`magnitude²`) of the bins whose frequency falls
 /// inside it, then converts back with `20 log10(sqrt(sum))`, floored at the
 /// analysis `DB_FLOOR` so silence stays finite and JSON-safe.
+///
+/// Despite the historical "energy" name, a value is the band's summed spectral
+/// power on the digital full-scale reference — not joules, not an energy density,
+/// and not a power spectral density (dB/Hz).
 pub fn band_energies(
     magnitudes_per_frame: &[Vec<f32>],
     freqs: &[f32],

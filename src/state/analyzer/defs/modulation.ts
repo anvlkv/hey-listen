@@ -56,7 +56,7 @@ export const MODULATION_ANALYZERS: AnalyzerDef[] = [
         key: "hopMs",
         label: "Hop",
         kind: "number",
-        value: 2.5,
+        value: 5.0,
         min: 0.5,
         max: 1000,
         step: 0.5,

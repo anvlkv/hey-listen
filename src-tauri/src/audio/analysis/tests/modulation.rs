@@ -1,5 +1,6 @@
-//! Modulation-spectrum tests (M20), driven through the app's **synth graph** facility:
-//! every case renders a `GraphSpec` to PCM with `graph::render_mono`, then analyses it.
+//! Modulation-spectrum tests (M20): most cases render a **synth graph** to PCM with
+//! `graph::render_mono` and analyse it; the analytic-depth and support-bound cases build
+//! their PCM directly, so the expected rate/depth is known exactly.
 //!
 //! The graphs use the same nodes the synth editor exposes:
 //! - **AM** — a `sine` carrier multiplied by one or more `sine_lfo` envelopes.
@@ -114,12 +115,24 @@ fn run_mod(mono: &[f32], options: &ToolOptions) -> ModulationResult {
     }
 }
 
-/// Whether an AM peak sits within `tolerance` Hz of `expected`.
-fn has_am_peak(result: &ModulationResult, expected: f32, tolerance: f32) -> bool {
-    result
-        .am_peaks
+/// Whether `peaks` contains a rate within `tolerance` Hz of `expected`.
+fn has_peak(peaks: &[ModulationPeak], expected: f32, tolerance: f32) -> bool {
+    peaks
         .iter()
         .any(|peak| (peak.rate_hz - expected).abs() <= tolerance)
+}
+
+/// A sine whose instantaneous frequency is `carrier ± deviation` Hz at `rate`, with the
+/// phase integrated analytically so the waveform stays continuous.
+fn fm_sweep(carrier: f32, rate: f32, deviation: f32, seconds: f32) -> Vec<f32> {
+    (0..(seconds * MOD_RATE as f32) as usize)
+        .map(|index| {
+            let t = index as f32 / MOD_RATE as f32;
+            let phase = std::f32::consts::TAU * carrier * t
+                - deviation / rate * (std::f32::consts::TAU * rate * t).cos();
+            0.4 * phase.sin()
+        })
+        .collect()
 }
 
 #[test]
@@ -152,12 +165,12 @@ fn slow_and_fast_am_rates_coexist_in_one_graph() {
 
     assert!(result.am_peaks.len() >= 2, "peaks: {:?}", result.am_peaks);
     assert!(
-        has_am_peak(&result, 3.0, 1.5),
+        has_peak(&result.am_peaks, 3.0, 1.5),
         "no 3 Hz peak in {:?}",
         result.am_peaks
     );
     assert!(
-        has_am_peak(&result, 40.0, 1.5),
+        has_peak(&result.am_peaks, 40.0, 1.5),
         "no 40 Hz peak in {:?}",
         result.am_peaks
     );
@@ -237,6 +250,120 @@ fn the_modulation_range_is_clamped_against_aliasing() {
     );
     let last = result.mod_freqs.last().copied().unwrap_or_default();
     assert!(last <= result.effective_mod_max_hz + 1e-3, "last = {last}");
+}
+
+#[test]
+fn an_above_nyquist_am_contaminant_does_not_fold_inside_the_band() {
+    // 40 Hz AM on a 20 ms envelope hop (50 Hz grid) used to fold to a false 10 Hz line
+    // inside the reported 22.5 Hz ceiling. It must be band-limited away instead.
+    let options = ToolOptions {
+        frame_ms: Some(10.0),
+        hop_ms: Some(20.0),
+        ..mod_options()
+    };
+    let mono = render(&am_tone(1_000.0, &[(40.0, 0.5)]), 1.0);
+    let result = run_mod(&mono, &options);
+
+    assert!(
+        (result.effective_mod_max_hz - 22.5).abs() < 0.5,
+        "effective max = {} Hz",
+        result.effective_mod_max_hz
+    );
+    assert!(
+        !has_peak(&result.am_peaks, 10.0, 1.0),
+        "the folded 10 Hz line survived: {:?}",
+        result.am_peaks
+    );
+    // The physical depth is still reported even though no rate is claimed in the band.
+    assert!(result.am_depth.is_some_and(|depth| depth > 0.2));
+}
+
+#[test]
+fn a_finer_envelope_hop_measures_the_same_rate_without_folding() {
+    // The same 40 Hz AM is real and in band once the envelope grid can represent it.
+    let options = ToolOptions {
+        frame_ms: Some(10.0),
+        hop_ms: Some(2.5),
+        ..mod_options()
+    };
+    let mono = render(&am_tone(1_000.0, &[(40.0, 0.5)]), 1.0);
+    let result = run_mod(&mono, &options);
+    assert!(
+        has_peak(&result.am_peaks, 40.0, 3.0),
+        "peaks: {:?}",
+        result.am_peaks
+    );
+}
+
+#[test]
+fn a_known_fm_deviation_has_the_analytic_peak_to_peak_cents() {
+    let (carrier, rate, deviation) = (440.0f32, 4.0f32, 10.0f32);
+    let mono = fm_sweep(carrier, rate, deviation, 2.0);
+    let result = run_mod(&mono, &mod_options());
+
+    // Instantaneous cents span ±1200·log2((carrier ± deviation) / carrier); the
+    // peak-to-peak is the log ratio of the two extremes.
+    let expected = 1_200.0 * ((carrier + deviation) / (carrier - deviation)).log2();
+    let measured = result.fm_peak_to_peak_cents.expect("an FM depth");
+    assert!(
+        (measured - expected).abs() < 0.25 * expected,
+        "peak-to-peak = {measured} cents, analytic = {expected}"
+    );
+    assert!(result.fm_reliable);
+    assert!(
+        has_peak(&result.fm_peaks, rate, 1.5),
+        "no {rate} Hz FM peak in {:?}",
+        result.fm_peaks
+    );
+}
+
+#[test]
+fn the_fm_run_span_is_bounded_by_the_voiced_support() {
+    // A tone only between 0.4 s and 0.9 s of a 1.2 s window: the reported run span is
+    // the analysed support, not the window or the surrounding silence.
+    let mut mono = vec![0.0f32; (1.2 * MOD_RATE as f32) as usize];
+    let (start, end) = (
+        (0.4 * MOD_RATE as f32) as usize,
+        (0.9 * MOD_RATE as f32) as usize,
+    );
+    for (index, sample) in mono[start..end].iter_mut().enumerate() {
+        *sample = 0.4 * (std::f32::consts::TAU * 440.0 * index as f32 / MOD_RATE as f32).sin();
+    }
+    let result = run_mod(&mono, &mod_options());
+    let from = result.fm_run_start_secs.expect("a run start");
+    let to = result.fm_run_end_secs.expect("a run end");
+    assert!((0.39..0.45).contains(&from), "start = {from}");
+    assert!((0.85..0.92).contains(&to), "end = {to}");
+}
+
+#[test]
+fn a_gapped_run_cannot_vouch_for_its_interpolated_span() {
+    // 55 ms tone bursts with 35 ms gaps: the coarse bridge keeps one run, and the fine
+    // track interpolates every gap, but only ~0.8 s was actually measured. A 1.0 s
+    // `minVoicedSecs` requirement must therefore fail, not pass on the interpolated span.
+    let mut mono = vec![0.0f32; (1.2 * MOD_RATE as f32) as usize];
+    for (index, sample) in mono.iter_mut().enumerate() {
+        let t = index as f32 / MOD_RATE as f32;
+        if t % 0.09 < 0.055 {
+            *sample = 0.4 * (std::f32::consts::TAU * 440.0 * t).sin();
+        }
+    }
+    let options = ToolOptions {
+        min_voiced_secs: Some(1.0),
+        ..mod_options()
+    };
+    let result = run_mod(&mono, &options);
+
+    assert!(
+        result.fm_run_start_secs.is_some(),
+        "the bridged run is long enough"
+    );
+    assert!(result.fm_std_cents.is_some(), "the depth is still reported");
+    assert!(
+        !result.fm_reliable,
+        "interpolated gaps vouched for {result:?}"
+    );
+    assert!(result.fm_db.is_empty() && result.fm_peaks.is_empty());
 }
 
 #[test]

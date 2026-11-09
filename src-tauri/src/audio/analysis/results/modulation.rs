@@ -26,13 +26,15 @@ pub struct ModulationPeak {
 pub struct ModulationResult {
     /// Source seconds where the window starts.
     pub window_start: f64,
-    /// The modulation-rate range actually analysed, after the anti-alias clamp.
+    /// The modulation-rate range actually analysed: the envelope grid's anti-alias band
+    /// and the FM run's grid clamp the request, and the envelope is band-limited to it.
     pub effective_mod_min_hz: f32,
     pub effective_mod_max_hz: f32,
     /// Shared rate axis (Hz), one entry per bin in `am_db` / `fm_db`.
     pub mod_freqs: Vec<f32>,
     /// Amplitude-modulation spectrum, relative dB (0 = strongest bin). Empty when the
-    /// envelope is effectively steady (under 2% depth), so a flat spectrum is not drawn.
+    /// band-limited envelope is effectively steady (under 2% depth), so a flat spectrum
+    /// is not drawn.
     pub am_db: Vec<f32>,
     /// Pitch-modulation (cents) spectrum, relative dB. Empty without a voiced run, or
     /// when that run's pitch is effectively steady (under 2 cents of spread).
@@ -40,11 +42,14 @@ pub struct ModulationResult {
     /// The strongest `topPeaks` rates, strongest first (empty with their spectrum).
     pub am_peaks: Vec<ModulationPeak>,
     pub fm_peaks: Vec<ModulationPeak>,
-    /// `(max − min) / (max + min)` of the linear amplitude envelope (0…1).
+    /// `(max − min) / (max + min)` of the raw linear amplitude envelope (0…1); the AM
+    /// spectrum is band-limited, this depth readout is not, so it can be non-zero while
+    /// `am_db` is empty (the modulation lies above the analysable band).
     pub am_depth: Option<f32>,
     /// Peak-to-trough range of the frame-RMS envelope, in dB.
     pub am_peak_to_trough_db: Option<f32>,
-    /// The analysed FM run's source-second span (absent when none was long enough).
+    /// The retained fine pitch support the cents track was transformed over, in source
+    /// seconds (absent when no measured run was long enough).
     pub fm_run_start_secs: Option<f32>,
     pub fm_run_end_secs: Option<f32>,
     /// The strongest FM rate (the first entry in `fm_peaks`).
@@ -52,9 +57,9 @@ pub struct ModulationResult {
     /// Peak-to-peak and standard-deviation depth of the detrended cents track.
     pub fm_peak_to_peak_cents: Option<f32>,
     pub fm_std_cents: Option<f32>,
-    /// Whether the FM half's voiced run is long enough, and its cents track fine
-    /// enough, to trust a rate (M21.B). False means the spectrum and peaks are empty:
-    /// a short or quantized run must not be dressed up as a vibrato.
+    /// Whether the FM half's **measured** support is long enough, and its cents track fine
+    /// enough, to trust a rate (M21.B). False means the spectrum and peaks are empty: a
+    /// short, gapped or quantized run must not be dressed up as a vibrato.
     pub fm_reliable: bool,
     /// Share of the window's pitch frames the detector found voiced (0…1).
     pub voiced_fraction: f32,

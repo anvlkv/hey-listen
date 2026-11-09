@@ -75,6 +75,69 @@ fn a_steady_carrier_reads_near_zero() {
 }
 
 #[test]
+fn a_steady_low_carrier_does_not_read_as_roughness() {
+    // Full-wave rectification doubles a 35 Hz carrier to 70 Hz — the roughness
+    // filter's own rate. A steady carrier must still read about 0, both in the band
+    // that holds it and over the full range (whose skirts carry only leakage).
+    let signal = tone(0.1, 35.0, 3.0);
+    for ((min_hz, max_hz), tolerance) in [((20.0, 60.0), 0.1), ((0.0, 0.0), 0.15)] {
+        let mut p = params(2_048);
+        p.freq_min_hz = min_hz;
+        p.freq_max_hz = max_hz;
+        let (_, values) = modulate(&signal, RATE, &p, &roughness_weighting(), 0.0);
+        let measured = median(&values);
+        assert!(
+            measured < tolerance,
+            "steady 35 Hz carrier over [{min_hz}, {max_hz}] Hz reads {measured} asper"
+        );
+    }
+}
+
+#[test]
+fn a_carrier_outside_the_selected_range_is_not_modulation() {
+    // A steady carrier far below the selection reaches those bands only through their
+    // finite-rejection skirts. That leakage is gated out rather than normalized by the
+    // band's own mean into apparent roughness.
+    let signal = tone(0.1, 35.0, 3.0);
+    let mut p = params(2_048);
+    p.freq_min_hz = 2_000.0;
+    p.freq_max_hz = 2_100.0;
+    let (_, values) = modulate(&signal, RATE, &p, &roughness_weighting(), 0.0);
+    assert!(
+        values.iter().flatten().all(|&value| value < 0.05),
+        "out-of-band carrier leaks {} asper",
+        median(&values)
+    );
+}
+
+#[test]
+fn the_envelope_rate_does_not_depend_on_the_selection_length() {
+    // Decimation is a function of the sample rate alone: an hour-long selection keeps
+    // the same envelope rate — and so the same measurable modulation bandwidth — as a
+    // short one, instead of being widened until 70 Hz aliases down to a few hertz.
+    for rate in [8_000.0, 44_100.0, 48_000.0, 96_000.0] {
+        let decim = decimation(rate) as f64;
+        let envelope_rate = rate / decim;
+        assert!(
+            (envelope_rate - ENVELOPE_RATE_HZ).abs() <= ENVELOPE_RATE_HZ / 12.0,
+            "{rate} Hz decimates ×{decim} to {envelope_rate} Hz"
+        );
+    }
+}
+
+#[test]
+fn a_long_selection_measures_the_same_modulation() {
+    // The same stimulus over very different durations must give the same rate's worth
+    // of roughness; the frame value may not drift with the selection length.
+    let short = value(&roughness_weighting(), &modulated(70.0, 1.0, 0.5));
+    let long = value(&roughness_weighting(), &modulated(70.0, 1.0, 10.0));
+    assert!(
+        (long - short).abs() <= 0.3 * short.max(1.0),
+        "0.5 s reads {short} asper, 10 s reads {long}"
+    );
+}
+
+#[test]
 fn a_deeper_modulation_reads_higher() {
     let shallow = value(&roughness_weighting(), &modulated(70.0, 0.25, 0.5));
     let deep = value(&roughness_weighting(), &modulated(70.0, 1.0, 0.5));
@@ -88,4 +151,14 @@ fn the_level_weight_follows_the_calibration() {
     let (_, relative) = modulate(&signal, RATE, &params(2_048), &roughness_weighting(), 0.0);
     let (_, weighted) = modulate(&signal, RATE, &params(2_048), &roughness_weighting(), 74.0);
     assert!(median(&relative) > 3.0 * median(&weighted));
+}
+
+#[test]
+fn the_level_weight_only_falls_below_the_reference() {
+    // Documented one-sided behaviour: at or above the reference level the factor is a
+    // flat 1, so an amplitude sweep above it is not a roughness-versus-level curve.
+    assert_eq!(level_weight(0.0, 57.0), 1.0);
+    assert_eq!(level_weight(20.0, 57.0), 1.0);
+    assert_eq!(level_weight(0.0, 0.0), 1.0);
+    assert!((level_weight(-20.0, 57.0) - 0.1).abs() < 1e-9);
 }

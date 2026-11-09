@@ -157,6 +157,51 @@ fn a_gated_series_reports_the_effective_gate() {
 }
 
 #[test]
+fn matrix_and_spectrogram_summaries_describe_the_display_grid() {
+    // A matrix's `duration` is the span implied by the frame grid, not source duration.
+    let summary = summarize(&AnalysisResult::CriticalBands(matrix()));
+    let keys: Vec<&str> = summary.items.iter().map(|item| item.key.as_str()).collect();
+    let expected = summary_keys(crate::audio::analyzers::AnalyzerId::CriticalBands);
+    assert_eq!(keys, expected);
+    let span = summary
+        .items
+        .iter()
+        .find(|item| item.key == "duration")
+        .expect("display span");
+    assert_eq!(span.label, "display span");
+    let hop = summary
+        .items
+        .iter()
+        .find(|item| item.key == "hopSize")
+        .expect("hop");
+    assert_eq!(hop.value, 480.0);
+
+    // Specific loudness is a sone-per-Cam density, not sone/Bark.
+    let specific = summarize(&AnalysisResult::SpecificLoudness(matrix()));
+    let peak = specific
+        .items
+        .iter()
+        .find(|item| item.key == "peakValue")
+        .expect("peak value");
+    assert_eq!(peak.unit.as_deref(), Some("sone/Cam"));
+
+    // The spectrogram's rows are pooled; the summary says so and reports the pooled hop.
+    let spectrogram = summarize(&samples()[4]);
+    let frames = spectrogram
+        .items
+        .iter()
+        .find(|item| item.key == "frames")
+        .expect("display frames");
+    assert_eq!(frames.label, "display frames");
+    let hop = spectrogram
+        .items
+        .iter()
+        .find(|item| item.key == "hopSize")
+        .expect("display hop");
+    assert_eq!(hop.value, 512.0);
+}
+
+#[test]
 fn note_summary_names_the_loudest_note() {
     let summary = summarize(&AnalysisResult::NoteMetrics(notes()));
     let loudest = summary

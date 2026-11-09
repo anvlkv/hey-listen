@@ -149,6 +149,66 @@ pub fn about(id: AnalyzerId) -> Option<&'static str> {
              stereo structure, not a perceived width, which also depends on playback \
              configuration and listening conditions.",
         ),
+        AnalyzerId::CriticalBands => Some(
+            "Rectangular bin-assignment integration of the spectrum into Bark or ERB bands \
+             — not a physiological overlapping auditory-filterbank model. Band boundaries \
+             are regenerated from the requested frequency range and coarsened by a cap, so \
+             changing the range repartitions the bands. Values are summed spectral power \
+             on the digital-level reference (dBFS), not joules or a power spectral density.",
+        ),
+        AnalyzerId::Loudness => Some(
+            "Stationary Moore–Glasberg sone/phon estimate per analysis frame on the \
+             ERB-rate axis — a published approximation, **not** a validated ISO 532-2 \
+             conformance. Per-frame values are not a time-varying loudness model, and the \
+             free-field/diotic assumptions remain for arbitrary recordings. `N5` is an \
+             upper-tail statistic (the level exceeded 5% of the time). With \
+             `calibrationDbSpl` at 0 the sones are relative, not absolute.",
+        ),
+        AnalyzerId::SpecificLoudness => Some(
+            "The `N'(z)` specific-loudness distribution per analysis frame over ERB bands. \
+             The bands divide by Cam widths, so the density is **sone/Cam**, not sone/Bark; \
+             do not relabel it without the Jacobian. It inherits the loudness model's \
+             frequency-range and calibration limits: `calibrationDbSpl` at 0 gives relative \
+             values, and a positive value is not by itself model validation.",
+        ),
+        AnalyzerId::Sharpness => Some(
+            "A loudness-weighted, high-frequency-emphasized statistic in acum, built on the \
+             same specific-loudness distribution. It is a custom Moore–Glasberg/Bark \
+             weighting, **not** a validated DIN 45692 implementation; silence has no \
+             defined sharpness and may return `null`. A positive `calibrationDbSpl` labels \
+             an absolute scale but does not establish DIN accuracy.",
+        ),
+        AnalyzerId::Roughness => Some(
+            "A custom auditory-band envelope model: band envelopes are modulation-filtered \
+             near 70 Hz and combined into asper-labelled relative units. It is fitted to a \
+             reference stimulus and is **not** a validated Daniel–Weber or ECMA-418-2 \
+             implementation; acoustic calibration alone does not validate the values. \
+             Steady low-frequency carriers can leave envelope ripple, and long windows \
+             widen the envelope hop and can alias modulation.",
+        ),
+        AnalyzerId::FluctuationStrength => Some(
+            "The roughness pipeline with a 4 Hz modulation weighting, reported in vacil. \
+             This is a custom band-envelope model, **not** validated \
+             Osses–García–Kohlrausch output; slow-rate accuracy beyond the fitted anchor \
+             is unvalidated. It shares the duration-dependent decimation and out-of-band \
+             leakage of `roughness`, and a 0.5 s integration window spans only two 4 Hz \
+             periods.",
+        ),
+        AnalyzerId::Masking => Some(
+            "A codec-style masking estimate: the window-averaged spectrum's tonal/non-tonal \
+             maskers, spread over Bark distance and combined with the threshold in quiet. \
+             It is **not** a universal model of human detection and does not estimate \
+             instantaneous or temporal masking. `Tq` is always dB SPL; with \
+             `calibrationDbSpl` at 0 the dBFS spectrum and the dB SPL threshold are mixed, \
+             so a negative SMR does not by itself prove inaudibility.",
+        ),
+        AnalyzerId::Tonality => Some(
+            "The share of spectral power in tonal bins, a dimensionless 0–1 custom proxy. \
+             It is **not** standardized perceptual tonality, tone-to-noise ratio or \
+             prominence ratio; the value depends on how a tonal line is detected (the \
+             retained peak bins). A common `calibrationDbSpl` offset cancels from the \
+             ratio, so calibration does not turn it into a perceptual unit.",
+        ),
         _ => None,
     }
 }
@@ -208,5 +268,29 @@ mod tests {
         assert!(modulation.contains("fmReliable"), "{modulation}");
         let notes = about(AnalyzerId::NoteMetrics).expect("note guidance");
         assert!(notes.contains("syllableGapMs"), "{notes}");
+    }
+
+    #[test]
+    fn perception_models_state_their_identity_and_limits() {
+        for id in [
+            AnalyzerId::CriticalBands,
+            AnalyzerId::Loudness,
+            AnalyzerId::SpecificLoudness,
+            AnalyzerId::Sharpness,
+            AnalyzerId::Roughness,
+            AnalyzerId::FluctuationStrength,
+            AnalyzerId::Masking,
+            AnalyzerId::Tonality,
+        ] {
+            let text = about(id).unwrap_or_default();
+            assert!(!text.is_empty(), "{id} has no caveat text");
+        }
+        assert!(about(AnalyzerId::Loudness).unwrap().contains("5%"));
+        assert!(about(AnalyzerId::SpecificLoudness)
+            .unwrap()
+            .contains("sone/Cam"));
+        assert!(about(AnalyzerId::Sharpness).unwrap().contains("DIN 45692"));
+        assert!(about(AnalyzerId::Roughness).unwrap().contains("ECMA-418-2"));
+        assert!(about(AnalyzerId::Masking).unwrap().contains("negative SMR"));
     }
 }

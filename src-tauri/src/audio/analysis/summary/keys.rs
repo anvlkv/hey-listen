@@ -6,11 +6,14 @@ use crate::audio::analyzers::AnalyzerId;
 // Item-key lists, one per family. `summary_keys` maps a tool id onto one of these.
 const WAVEFORM: &[&str] = &["peakDb", "rmsDb", "duration"];
 const SPECTRUM: &[&str] = &["peakHz", "peakDb", "fftSize", "hopSize", "frames"];
-const SPECTROGRAM: &[&str] = &["frames", "bins", "duration", "peakTime", "peakHz", "peakDb"];
+const SPECTROGRAM: &[&str] = &[
+    "frames", "bins", "hopSize", "duration", "peakTime", "peakHz", "peakDb",
+];
 const MATRIX: &[&str] = &[
     "frames",
     "bands",
     "duration",
+    "hopSize",
     "peakFrame",
     "peakBand",
     "peakValue",

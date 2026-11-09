@@ -25,11 +25,13 @@ spectrumDb: Array<number>,
  */
 thresholdQuietDb: Array<number>, 
 /**
- * `Tg(i)` — the global masking threshold, in `spectrum_db`'s unit.
+ * `Tg(i)` — the global masking threshold, in `spectrum_db`'s unit. It includes the
+ * dB SPL threshold in quiet only when `calibrated`; otherwise it is relative.
  */
 globalMaskDb: Array<number>, 
 /**
- * `SMR(i) = L(i) − Tg(i)` (positive = above the estimated threshold).
+ * `SMR(i) = L(i) − Tg(i)` (positive = above the estimated threshold). Only a
+ * calibrated result supports an audibility reading.
  */
 smrDb: Array<number>, 
 /**

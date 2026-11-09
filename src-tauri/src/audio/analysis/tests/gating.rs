@@ -75,6 +75,24 @@ fn the_gate_applies_to_spectral_series() {
 }
 
 #[test]
+fn silence_exactly_at_the_gate_floor_is_kept() {
+    // Silence floors every frame at DB_FLOOR, which is also the default gate floor.
+    // The gate is a strict `<` comparison, so a level equal to the threshold is kept
+    // (the result stays finite rather than becoming all gaps).
+    let mono = vec![0.0f32; RATE as usize / 10];
+    let options = ToolOptions {
+        gate_db: Some(20.0),
+        ..ToolOptions::default()
+    };
+    let gated = run_series(AnalyzerId::FrameRms, &mono, &options);
+    let gate = gated.gate.expect("the effective gate");
+    assert_eq!(gate.gate_floor_db, DB_FLOOR);
+    assert_eq!(gate.threshold_db, DB_FLOOR);
+    assert_eq!(gate.gated_frames, 0);
+    assert!(gated.values.iter().all(Option::is_some));
+}
+
+#[test]
 fn the_gate_floor_is_absolute() {
     // A quiet recording (peak ≈ −56 dBFS): a relative 20 dB gate would leave it alone,
     // but a −30 dBFS floor excludes everything.

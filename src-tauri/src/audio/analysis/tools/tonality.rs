@@ -1,12 +1,14 @@
 //! The `tonality` analyzer (M30): the tonal-energy ratio `H = E_tonal / E_total`.
 //!
 //! Per analysis frame the same tonal/non-tonal masker detection the `masking` tool uses
-//! classifies the spectrum's tonal lines; `H` is the share of the frame's power those
-//! bins carry (0…1). A pure tone is close to 1, broadband noise close to 0.
+//! classifies the spectrum's tonal components; `H` is the share of the frame's power
+//! those components carry (0…1), summed over each peak's **main lobe** (not just its
+//! peak bin), so a bin-centred and a half-bin-centred Hann tone both read close to 1.
+//! Broadband noise is close to 0.
 //!
 //! This is a **documented custom proxy**, not a standardized perceptual tonality
-//! metric: the value depends entirely on how a tonal line is detected, and the fixed
-//! MPEG-style rule is one defensible choice rather than a conformance claim.
+//! metric: the value depends entirely on how a tonal component is detected, and the
+//! fixed MPEG-style rule is one defensible choice rather than a conformance claim.
 
 use super::super::psychoacoustics::masking::tonal_energy_fraction;
 use super::super::support::{
@@ -122,6 +124,30 @@ mod tests {
         assert!(
             noise_ratio < 0.5,
             "white noise reads {noise_ratio:.3} tonality, expected < 0.5"
+        );
+    }
+
+    #[test]
+    fn an_on_bin_and_a_half_bin_tone_read_near_one() {
+        // 48 kHz / 4096 puts bin 85 at 996.09375 Hz; 85.5 is the worst-case scallop.
+        const BIN_HZ: f32 = 48_000.0 / 4_096.0;
+        let ratio = |hz: f32| {
+            let result = tonality(
+                &tone(0.5, hz, 0.5),
+                RATE,
+                &params(4_096),
+                &ToolOptions::default(),
+            )
+            .expect("tonality");
+            median(&result.values)
+        };
+        let on_bin = ratio(85.0 * BIN_HZ);
+        let half_bin = ratio(85.5 * BIN_HZ);
+        assert!(on_bin > 0.9, "on-bin tone reads {on_bin:.3}");
+        assert!(half_bin > 0.9, "half-bin tone reads {half_bin:.3}");
+        assert!(
+            (on_bin - half_bin).abs() < 0.1,
+            "alignment moved the ratio: {on_bin:.3} vs {half_bin:.3}"
         );
     }
 

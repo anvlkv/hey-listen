@@ -7,7 +7,12 @@ use super::super::{
 };
 use super::shared::band_stft;
 
-/// Averaged magnitude spectrum (Welch-style): the mean magnitude per bin.
+/// Averaged magnitude spectrum: the arithmetic mean of the linear one-sided
+/// magnitudes per bin across the window's frames.
+///
+/// This is a magnitude average, **not** a Welch averaged power spectral density:
+/// no power conversion or segment normalization is applied, so the values are not
+/// dB/Hz and should not be compared with a PSD estimate.
 pub fn spectrum(
     mono: &[f32],
     sample_rate: u32,
@@ -62,7 +67,8 @@ pub fn spectrum(
     })
 }
 
-/// STFT magnitude heatmap (frame × frequency), band-limited and size-capped.
+/// STFT magnitude heatmap (frame × frequency), band-limited, size-capped, and
+/// max-pooled for display.
 pub fn spectrogram(
     mono: &[f32],
     sample_rate: u32,
@@ -95,7 +101,9 @@ pub fn spectrogram(
         frames.div_ceil(MAX_SPEC_FRAMES).max(1)
     };
 
-    // Bin centre frequencies for the retained (grouped) bins.
+    // Bin centre frequencies for the retained (grouped) bins. Each returned column is
+    // the maximum over its group, labelled by the group's mean centre frequency; it is
+    // a display maximum, not a component power at that centre.
     let mut freqs = Vec::with_capacity(bins.div_ceil(bin_group));
     for group in kept.chunks(bin_group) {
         let sum: f64 = group
@@ -138,7 +146,11 @@ pub fn spectrogram(
     Ok(SpectrogramResult {
         sample_rate,
         fft_size: fft,
-        hop_size: hop,
+        // The returned grid is a display product: `frames` counts pooled rows, so
+        // `hopSize` is the **pooled** hop (analysis hop × `frameGroup`) and
+        // `frames × hopSize` is the displayed span. `fftSize` still describes the
+        // analysis transform.
+        hop_size: hop.saturating_mul(frame_group),
         // Filled in by `run_window` — the tool only sees the sliced region.
         window_start: 0.0,
         duration: if sample_rate > 0 {

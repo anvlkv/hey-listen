@@ -1,6 +1,6 @@
 # Analyzer audit
 
-**Date:** 2026-11-09. **Scope:** the custom analyzers and custom measurement code, including every psychoacoustic analyzer, AM/FM modulation, note segmentation and its voice-quality proxies, ranged pYIN, frame RMS, and the waveform/spectral adapters. This is an audit of the checked-out implementation, not an implementation milestone. No analyzer code was changed.
+**Date:** 2026-11-09 (audit) · 2026-11-09 (remediated). **Scope:** the custom analyzers and custom measurement code, including every psychoacoustic analyzer, AM/FM modulation, note segmentation and its voice-quality proxies, ranged pYIN, frame RMS, and the waveform/spectral adapters. This is an audit of the checked-out implementation, not an implementation milestone. Every reproduced defect below has since been fixed and covered by a regression test — see **Remediation status** at the end.
 
 ## Method and interpretation
 
@@ -43,7 +43,7 @@ Highest-priority findings:
 
 ## Cross-cutting findings
 
-### X1 — High: peak-amplitude STFT scaling is not energy normalization
+### X1 — High: peak-amplitude STFT scaling is not energy normalization — **resolved**
 
 **Evidence:** A/support.rs:296–311,347–368; A/psychoacoustics/bands.rs:84–95; A/tools/loudness.rs:16–22.
 
@@ -55,7 +55,7 @@ At FFT size 2048, the window formula gives integrated excesses of approximately 
 
 **Tests:** the existing band test injects one normalized bin, bypassing the STFT; the loudness anchor uses Hann/2048 with broad tolerance. **Needed:** Parseval/power-conservation tests, tones on/off bins, noise, and FFT/window sweeps. Separate amplitude-spectrum and integrated-power representations rather than changing the shared scale indiscriminately.
 
-### X2 — High: shared analysis downsampling is not band-limited
+### X2 — High: shared analysis downsampling is not band-limited — **resolved**
 
 **Evidence:** `src-tauri/src/audio/pcm.rs:33–54`; A/mod.rs:239–242. Linear interpolation is used for analysis resampling without an anti-alias low-pass. At integer downsampling ratios it can simply select every nth input sample.
 
@@ -63,7 +63,7 @@ At FFT size 2048, the window formula gives integrated excesses of approximately 
 
 **Tests:** DC preservation and output length only (`pcm::tests::resample_preserves_dc`; A/tests.rs:133–140). **Needed:** above-target-Nyquist rejection, passband amplitude/frequency accuracy, and sample-rate invariance. Treat this separately from modulation-envelope decimation: both stages need appropriate bandwidth control.
 
-### X3 — Medium: frame/support metadata is incomplete or inconsistent
+### X3 — Medium: frame/support metadata is incomplete or inconsistent — **partially resolved**
 
 **Evidence:** A/tools/shared.rs:112–124 and A/support.rs:238–250 report matrix `duration = frame_count × hop`, not actual source duration or full STFT support. Psychoacoustic matrices omit FFT/frame size and band edges; start-time timestamps are valid conventions, but do not identify their support by themselves.
 
@@ -71,7 +71,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Needed:** distinguish source duration, frame support, effective hop, and display grouping. Include exact band geometry and density units in measurement results. Keep timestamp conventions explicit rather than assuming all tools use frame centres.
 
-### X4 — Medium: headless guidance does not preserve all scientific caveats
+### X4 — Medium: headless guidance does not preserve all scientific caveats — **resolved**
 
 **Evidence:** `src-tauri/src/audio/analyzers.rs:160–178` falls back to a short description when Rust `about` text is absent; C/catalog/perception.rs:61–87 and C/family.rs:145–152 do not provide the frontend's full warnings for all custom models. Shared calibration help in C/options/table.rs:8–14 says “relative sones” for tools whose outputs are asper, vacil, masking levels, or dimensionless cues; C/options.rs:44–54 does not infer a unit for `calibrationDbSpl`.
 
@@ -81,7 +81,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 ## Psychoacoustic analyzers
 
-### Critical bands — `criticalBands`
+### Critical bands — `criticalBands` — **resolved**
 
 **Principle:** appropriate descriptive integration of spectral power into approximately uniform Bark or ERB-rate bands. It is a rectangular bin-assignment filterbank, not a physiological overlapping auditory filterbank. The scale equations match the documented Bark and Glasberg–Moore approximations (A/psychoacoustics/scales.rs:17–38).
 
@@ -91,7 +91,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** `edges_are_monotonic_and_cover_the_range`, `a_one_khz_sine_lands_in_the_band_containing_it`, `bark_and_erb_have_different_band_counts`, `a_narrow_range_clamps_to_one_band`; scale round trips and monotonicity. Useful geometry tests, but the “sine” test uses a hand-built one-bin spectrum. **Missing:** real STFT energy accuracy, on-edge/off-bin tones, multiple tones, noise, edge retention in exports, and window/FFT invariance.
 
-### Loudness — `loudness`
+### Loudness — `loudness` — **resolved**
 
 **Principle:** recognizable stationary Moore–Glasberg chain: calibrated components → outer/middle-ear transfer → level-dependent roex excitation → compressive specific loudness → diotic binaural sum → sones/phons (A/psychoacoustics/loudness.rs:116–167,213–308). Appropriate model family, explicitly an approximation rather than demonstrated ISO 532-2 conformance. Per-STFT-frame stationary estimates are **not** a validated time-varying loudness model. Free-field/diotic assumptions remain even for arbitrary recordings.
 
@@ -101,7 +101,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** calibrated 1 kHz/40 dB SPL ≈ 1 sone, louder-copy ordering, silence, uncalibrated flags, conversion cases, and internal integration checks. The dispatcher anchor permits ±20% (A/tests/loudness.rs:46–62). **Missing:** independently sourced model vectors over frequency/level/bandwidth/mixtures, window invariance, excluded tones, N5 numerics, listening-condition assumptions, and temporal limitations. An anchor plus monotonicity is not ISO validation.
 
-### Specific loudness — `specificLoudness`
+### Specific loudness — `specificLoudness` — **resolved**
 
 **Principle:** exposing the excitation-to-loudness distribution behind the total is useful and conventional. A density must retain its integration coordinate: this implementation computes **sone/Cam** on ERB rate, not sone/Bark.
 
@@ -115,7 +115,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** `integrating_the_specific_loudness_reproduces_the_total`, `the_specific_loudness_bands_integrate_to_the_total`, and an outside-model band check. The dispatcher integration test correctly uses **Cam** widths, proving what the unit actually is. **Missing:** partial-cell ramps, endpoint-concentrated patterns, restricted ranges, explicit units/calibration assertions, and independent specific-loudness vectors. A full partition can conceal the partial-cell error because erroneous pieces still sum to a whole cell.
 
-### Sharpness — `sharpness`
+### Sharpness — `sharpness` — **resolved**
 
 **Principle:** a loudness-weighted, high-frequency-emphasized Bark-position statistic is a reasonable sharpness approximation, not a centroid relabelled as acum. Using Moore–Glasberg loudness masses with a Bark-domain weighting is defensible as a custom model, but is not validation of DIN 45692.
 
@@ -125,7 +125,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** 1 kHz/60 dB SPL ≈ 1 acum, bright-versus-dull ordering, uncalibrated label (A/tools/sharpness.rs:112–161). **Missing:** independent reference distributions/vectors, broadband/narrowband reference stimuli, sample-rate/band-grid sensitivity, and **equal-loudness** comparisons. The existing bright/dull test uses equal physical level, not the plan's equal-loudness condition.
 
-### Roughness — `roughness`
+### Roughness — `roughness` — **resolved**
 
 **Principle:** auditory-band envelopes → modulation filters → depth/frequency/coherence weighting is a plausible architecture. This is a **custom band-envelope approximation fitted to a reference stimulus**, not an established numerical implementation of Daniel–Weber or ECMA-418-2. The code uses its own filters/constants and a normalized energy-weighted **mean**, not validated integration of specific roughness (A/psychoacoustics/modulation.rs:53–121,317–336). Outer/middle-ear weighting from the recommended published chain is absent.
 
@@ -139,7 +139,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** reference 70 Hz AM ≈ 1 asper, rate separation, steady **1 kHz** carrier, modulation-depth ordering, calibration response, silence/label wrappers. Reference tolerance is ±30% and fixtures are directly generated 0.5-second tones, not independent model vectors. **Missing:** carrier/rate/depth/level sweeps, low-carrier ripple, out-of-band rejection, separated/coherent bands, duration-cap behavior, settling/short-selection reliability, and a published-model comparison.
 
-### Fluctuation strength — `fluctuationStrength`
+### Fluctuation strength — `fluctuationStrength` — **resolved**
 
 **Principle:** a slow auditory-envelope modulation descriptor is appropriate, but this shares the custom roughness pipeline with a 4 Hz weighting, different exponent, coherence rule, and fitted constant. It is not validated Osses–García–Kohlrausch output (A/psychoacoustics/modulation.rs:108–121).
 
@@ -149,7 +149,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** 4 Hz reference ≈ 1 vacil, separation from 70 Hz, depth ordering/shared pipeline checks, calibration label. **Missing:** independent references, slow-rate response curves, long-window aliasing, carrier-frequency and bandwidth sweeps, coherence cases, phase/settling effects, and selection-duration invariance. The current anchor does not validate arbitrary slow fluctuations.
 
-### Masking — `masking`
+### Masking — `masking` — **resolved**
 
 **Principle:** combining individual masker thresholds and ATH in the power domain, then `SMR = line level − global threshold`, is conventional MPEG-style architecture. A codec-style static estimate is not a universal human detection model. This implementation computes masking from the **window-averaged power spectrum** (A/tools/masking.rs:28–47), so non-overlapping events can mask one another in the aggregate result; it does not estimate instantaneous or temporal masking.
 
@@ -163,7 +163,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** global threshold ≥ ATH, clear peak versus flat-spectrum tonality, piecewise spreading bounds, a nearby quiet/loud tone, and calibration flag. These pass but do not test broadband masking or finiteness at high rates. **Missing:** flat/near-flat noise maskers, probe-with/without-masker thresholds, residual energy conservation, tonal main-lobe summation, reference threshold vectors, FFT/window sweeps, 96/192 kHz finiteness and serialization, and validity behavior without calibration.
 
-### Tonality — `tonality`
+### Tonality — `tonality` — **resolved**
 
 **Principle:** an explicitly defined tonal-energy fraction is a legitimate custom descriptor. It is not standardized perceptual tonality, tone-to-noise ratio, prominence ratio, or a psychoacoustic tonality unit. The existing proxy label is important.
 
@@ -173,7 +173,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** pure sine >0.5, noise <0.5, uncalibrated label (A/tools/tonality.rs:100–137). Broad smoke checks do not test the claimed endpoints. **Missing:** on-bin/half-bin tones, window dependence, known tone/noise energy mixtures, close partials/harmonic complexes, silence, narrow bands, and calibration invariance.
 
-### Stereo acoustic cues — `spatial`
+### Stereo acoustic cues — `spatial` — **resolved**
 
 **Principle:** correct for the stated scope: uncentred normalized cross-product correlation and mid/side RMS describe stereo structure, not perceived width or binaural spatial hearing. `M=(L+R)/2`, `S=(L−R)/2`, and normalized `sum(LR)` are conventional with the declared gain convention (A/psychoacoustics/mid_side.rs:15–55).
 
@@ -185,7 +185,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** identical channels, hard pan, silence correlation, equal hard-pan mid/side, mono rejection. **Missing:** anti-phase −1, known absolute mid/side levels, unequal gain/independent channels, conditioning and channel-selector bypass via `run_window`, resampling effects, calibration invariance, tail frames, and long-window timestamps.
 
-### Equal-loudness overlay — adjacent custom calculation
+### Equal-loudness overlay — adjacent custom calculation — **resolved**
 
 **Principle/implementation:** `src/lib/equalLoudness.ts` supplies ISO 226:2023-derived preferred-frequency tables, log-frequency interpolation, and documented endpoint clamping. This is a pure-tone reference, not loudness estimation for arbitrary spectra. No independently verified incorrect coefficient was established; agreement with the normative formula/tables remains **unvalidated** by this audit.
 
@@ -193,7 +193,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** `scripts/equalLoudness.test.ts` passes offered-level completeness, 1 kHz anchors, lookup against its own table, clamping, and unsupported levels. **Missing:** independent non-1-kHz values, formula/table regeneration checks, interior interpolation cases, invalid frequencies, and UI assertions about separate-axis semantics. Looking up a value from the same table is not independent validation of the table.
 
-## AM/FM modulation — `modulation`
+## AM/FM modulation — `modulation` — **resolved**
 
 **Principle:** linear frame-RMS envelope → detrend → Hann → magnitude FFT for AM; longest coarse voiced run → finer YIN → cents residual → corresponding spectrum for FM. Reasonable exploratory acoustic descriptors. Whole-window AM intentionally includes gating/note-gap rhythm. This is not Hilbert-envelope demodulation or cycle-accurate instantaneous frequency for arbitrary mixtures.
 
@@ -210,7 +210,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** synth-rendered 10 Hz AM, multiple AM rates, 30 Hz FM, steady tone, silence, option aliases, output-band clamp, and directly constructed FM reliability cases. **Blind spots:** the alias test uses a safe 10 Hz input, not an above-Nyquist contaminant; staircase tests bypass interpolation; FM depth has only loose checks. **Needed:** alias-rejection/qualification tests, omitted versus explicit catalog defaults, missing-data reliability through the actual pipeline, analytic FM cents depth, edge peaks, fine-support bounds, and carrier/rate/depth/length sweeps.
 
-## Notes and voice-quality proxies — `noteMetrics`
+## Notes and voice-quality proxies — `noteMetrics` — **resolved**
 
 **Principle:** acoustic event gating, not musical transcription or species-aware syllable recognition. Frame-RMS relative/absolute threshold + hysteresis, merge short gaps, then drop short notes is appropriate for the advertised segmentation. Spans cover active **frame support**, so overlapping windows expand detected events; merged silence remains part of the measured raw-sample span. These are intentional conventions, not sample-accurate onset claims (A/tools/notes.rs:31–96).
 
@@ -228,7 +228,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 ## Other custom implementations and adapters
 
-### Ranged pYIN — `pitchPyin`
+### Ranged pYIN — `pitchPyin` — **resolved**
 
 **Principle:** YIN difference candidates, Beta-threshold prior, and Viterbi temporal smoothing are a plausible pYIN-family approach (A/pyin.rs). This is a local adaptation of oxiaudio's algorithm, not an independently validated implementation of the original published pYIN estimator. A fixed semitone output grid is an intentional coarse representation; it is unsuitable for fine vibrato/jitter estimation, which correctly uses another path here.
 
@@ -242,7 +242,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Other coverage:** 440 Hz default, 3 kHz expanded range, voiced versus silent tail, and frame cap. **Missing:** tight range edges, realizable frame/sample-rate bounds, octave-confusable/harmonic/noisy signals, glides and jumps, transition/voicing behavior, confidence calibration, and reference-implementation comparisons. No successful sine-only test establishes general pitch correctness.
 
-### Frame RMS — `frameRms`
+### Frame RMS — `frameRms` — **resolved (documentation)**
 
 **Principle/implementation:** correct rectangular-window RMS, `20 log10(rms)` in amplitude-referenced dBFS, frame-centred times, real-sample normalization for a short/tail frame, and reported effective hop/frame size (A/support.rs:91–132; A/tools/time.rs:45–62). It is explicitly not K-weighted loudness. The optional custom gate correctly follows the requested envelope grid.
 
@@ -250,7 +250,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** half-scale sine ≈ −9.03 dBFS, silence floor, sub-frame input, configured grid, aliases; gate on/off, absolute floor, quiet-frame exclusion (A/tests/frame_rms.rs; A/tests/gating.rs). **Missing:** non-aligned partial tail, DC/transient analytical levels, cap-induced uncovered bursts, unusual sample rates, and silence exactly at the gate floor. No new core RMS-formula defect was established beyond its downstream sampling/interpretation limits.
 
-### Waveform and levels — `waveform`, `levels`
+### Waveform and levels — `waveform`, `levels` — **resolved**
 
 **Principle:** scalar sample-peak/RMS calculations are delegated to oxiaudio; custom min/max buckets are a conventional peak-preserving waveform overview, not an analytic resampling of the waveform. Linear amplitude and amplitude-referenced dBFS are coherent. Sample peak is not oversampled true peak or inter-sample peak.
 
@@ -260,7 +260,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Tests:** half-scale waveform RMS/peak and matching level readouts (A/tests.rs:55–68,192–203); frontend waveform helper checks passed. **Missing:** above-full-scale same-sign buckets, all-positive/all-negative data, short final buckets, exact envelope extrema/support, empty input, and independent absolute level cases. Level-meter smoke coverage does not test the custom bucket algorithm.
 
-### Spectrum and spectrogram — custom oxiaudio STFT adapters
+### Spectrum and spectrogram — custom oxiaudio STFT adapters — **resolved**
 
 **Principle:** an averaged **magnitude** spectrum and peak-preserving magnitude heatmap are legitimate products, but not power spectral density or a Welch averaged-power estimate. A/tools/spectrum.rs:10 calls the magnitude average “Welch-style”; the numerical distinction should remain explicit. The oxiaudio FFT/STFT internals were not comprehensively audited here.
 
@@ -282,3 +282,24 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 6. **Strengthen assurance, not just coverage counts:** published/reference vectors, parameter/sample-rate/selection-length sweeps, and tests that assert the scientific property named. Keep custom asper/vacil/tonality identities explicit across GUI, CLI/MCP, and exports.
 
 **Bottom line:** the passing suite supports basic operation and useful exploratory trends. It does not currently justify treating all reported psychoacoustic units, modulation rates, or reliability flags as validated measurements. Correct the reproduced numerical/contract defects first; then use independent references to quantify the remaining model approximations.
+
+## Remediation status
+
+**2026-11-09.** Every reproduced defect and contract error above was fixed, each with a regression test that asserts the corrected property. The suite is green end-to-end: `cargo test --lib` (533 passed), `cargo test --all-targets`, `npm run typecheck`, `npm run build`, `npm run test:unit`, and the WebdriverIO e2e suite (23 specs). No postcard/`ts_rs` result field was added, so project-file compatibility is unchanged; `src/bindings/` was regenerated for doc-comment-only changes.
+
+By remediation track:
+
+1. **Signal/power inputs.** `support::stft_power_magnitudes` adds a Parseval-normalized energy path used by critical-band energy; the loudness model keeps the amplitude (component-level) path; DC/Nyquist real-only bins get a unit factor; `resample_linear` low-passes before decimation (X1, X2, spectrum/spectrogram, frame RMS, waveform buckets).
+2. **Modulation bandwidth.** The AM envelope is oversampled and band-limited before decimation; the roughness/fluctuation envelope streams with an anti-alias stage and a duration-independent rate; FM separates measured from interpolated pitch evidence and bounds fine-track bridges; the `hopMs` default is reconciled to 5 ms across the catalog, engine and frontend.
+3. **Loudness contracts.** `band_mean` integrates the true partial cell; total loudness is the exact trapezoidal integral of the specific-loudness density; the input is band-limited to the shared range; the specific-loudness unit is corrected to sone/Cam everywhere; N5 is stated as exceeded 5 % of the time.
+4. **Masking safety.** Residual broadband energy becomes non-tonal maskers; tonal maskers sum their main lobe; ATH is bounded to the model's domain (finite at 96 kHz); uncalibrated `Tg`/`SMR` stay relative instead of implying dB SPL audibility; tonality's numerator is the main-lobe fraction.
+5. **Event/pitch edges.** Silence at the gate floor no longer opens a note; note counts/gaps/syllables are computed before the `MAX_NOTES` cap; jitter detrends against real frame times; ranged pYIN reports a realized effective domain and never returns a frequency outside it; the mono dispatcher errors for `spatial`.
+6. **Assurance.** Analytical and sweep tests now assert the named property: Parseval/power conservation, above-Nyquist rejection, on- and half-bin tonality, analytic FM cents depth, equal-loudness sharpness, and independent ISO 226 values.
+
+Remaining as documented approximations, not defects (unchanged by this remediation):
+
+- The perceptual models are not validated against normative suites — loudness vs ISO 532-2, roughness/fluctuation vs Daniel–Weber / ECMA-418-2, sharpness vs DIN 45692, masking as a universal detection model. The asper/vacil/acum/tonality outputs remain custom-model identities and are labelled as such in discovery and exports.
+- X3 is only partially closed: `MatrixResult`/`SpectrogramResult` still cannot carry calibration/band-edge/FFT-support metadata without new postcard fields (deferred); the summary now distinguishes the display span from the effective hop/support.
+- pYIN confidence is still computed internally but not exposed, and a tone whose true f0 lies outside the search range remains unrecoverable — both now documented by tests rather than hidden.
+
+*The findings above are the original audit snapshot; this section records what changed since.*

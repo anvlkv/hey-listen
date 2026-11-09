@@ -237,17 +237,23 @@ fn preview<T: Serialize>(items: &[T]) -> Value {
 /// The extent of a time axis: `{ length, start, hop, end }`.
 ///
 /// `hop` lets an agent turn the `argmin`/`argmax` index of a compact series into a
-/// time without fetching the full `times` array.
+/// time without fetching the full `times` array. It is only present when the axis is
+/// uniform apart from its edge frames (the shared [`decimate::uniform_axis`] rule):
+/// a frame-centred envelope's final partial frame can make the tail interval shorter
+/// than the hop, and inventing a single hop there would misreport that frame.
 fn time_axis(times: &[f32]) -> Value {
+    let values: Vec<Value> = times
+        .iter()
+        .map(|&time| Value::from(f64::from(time)))
+        .collect();
+    if let Some(axis) = decimate::uniform_axis(&values) {
+        return axis;
+    }
     let mut map = Map::new();
     map.insert("length".to_string(), Value::from(times.len()));
     if let (Some(first), Some(last)) = (times.first(), times.last()) {
         map.insert("start".to_string(), Value::from(f64::from(*first)));
         map.insert("end".to_string(), Value::from(f64::from(*last)));
-        if times.len() > 1 {
-            let hop = (f64::from(*last) - f64::from(*first)) / (times.len() - 1) as f64;
-            map.insert("hop".to_string(), Value::from(hop));
-        }
     }
     Value::Object(map)
 }

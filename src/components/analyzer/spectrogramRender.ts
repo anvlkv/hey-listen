@@ -10,6 +10,13 @@ import type { ChartView, PlotBox } from "./chartGeometry";
  * and the (numeric, side-effect-free) work lives on its own.
  */
 
+/**
+ * The engine's `DB_FLOOR` (`analysis/mod.rs`). dB values are clamped here, so an
+ * all-silent frame still converts to a positive linear power; silence must be judged
+ * against this floor, not against `power > 0`.
+ */
+const SPECTROGRAM_FLOOR_DB = -120;
+
 /** The visible spectrogram window: the shared time range plus the frequency band. */
 export interface SpectrogramWindow extends ChartView {
   f0: number;
@@ -42,12 +49,17 @@ export function spectrogramOverlays(result: SpectrogramResult | null): Spectrogr
   for (let f = 0; f < frames; f++) {
     const base = f * bins;
     let total = 0;
+    let peakDb = -Infinity;
     for (let b = 0; b < bins; b++) {
-      const p = Math.pow(10, magDb[base + b] / 10);
+      const db = magDb[base + b];
+      if (db > peakDb) peakDb = db;
+      const p = Math.pow(10, db / 10);
       power[b] = p;
       total += p;
     }
-    if (!(total > 0)) {
+    // A floor-level frame has positive power (`10^(-120/10)`), so `total > 0` is
+    // always true; the frame is silent when its peak is at or below the sentinel.
+    if (!(peakDb > SPECTROGRAM_FLOOR_DB)) {
       centroid[f] = NaN;
       rolloff[f] = NaN;
       continue;

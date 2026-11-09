@@ -10,6 +10,9 @@
 //! These are **acoustic cues**: mid/side energy and inter-channel correlation
 //! describe stereo structure. They do not by themselves estimate a perceived width,
 //! which also depends on playback configuration and listening conditions.
+//!
+//! The components are amplitude ratios, so mid/side are reported in **dBFS** — not
+//! dB SPL. A calibration offset does not apply to them (and cancels from `ρ_LR`).
 
 /// One sample's mid and side components.
 pub fn mid_side(left: f32, right: f32) -> (f32, f32) {

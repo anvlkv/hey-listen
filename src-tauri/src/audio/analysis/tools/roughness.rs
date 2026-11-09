@@ -8,9 +8,20 @@
 //! adjacent bands that modulate in step, and calibrates the result so a 1 kHz tone at
 //! 60 dB SPL, 100 % amplitude-modulated at 70 Hz reads about **1 asper**.
 //!
-//! A steady carrier reads about 0. This is a model approximation of the published
-//! signal-processing roughness models, not a conformance implementation of any
-//! standard (see the pipeline's module note).
+//! A steady carrier reads about 0. Values are a **model approximation** of the
+//! published signal-processing roughness models, not a conformance implementation of
+//! any standard (see the pipeline's module note).
+//!
+//! Two further limits are worth knowing before reading the number:
+//!
+//! - **Frequency range.** Bands more than 40 dB below the frame's broadband level are
+//!   gated out, so a carrier outside the selected range does not reach the modulation
+//!   filter through the band-pass skirts. Spectrally adjacent carriers still overlap a
+//!   band by design.
+//! - **Level.** The level weighting is one-sided: full scale at the reference level and
+//!   above, 6 dB down per halving below it. Scaling a reference-level signal *up* does
+//!   not raise the asper count, so an amplitude sweep is not a roughness-versus-level
+//!   curve.
 
 use super::super::psychoacoustics::modulation::{modulate, roughness_weighting, series};
 use super::super::{AnalysisError, CalibratedSeriesResult, SharedParams, ToolOptions};

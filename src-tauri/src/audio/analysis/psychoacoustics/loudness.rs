@@ -14,8 +14,9 @@
 //!
 //! The input is a mono, diotic signal, so both ears receive the same excitation.
 //! The reported `N` includes the binaural sum and the model's binaural inhibition,
-//! and [`FrameLoudness::specific`] is scaled the same way, so integrating it over
-//! the ERB axis reproduces `N` exactly.
+//! and [`FrameLoudness::specific`] is scaled the same way. Both are integrated with
+//! the same trapezoidal quadrature on the model's uniform ERB (Cam) grid, so
+//! [`band_mean`] over a partition of that axis reproduces `N` exactly.
 
 use std::sync::LazyLock;
 
@@ -86,6 +87,8 @@ fn grid() -> &'static Grid {
 /// The loudness of one STFT frame.
 pub struct FrameLoudness {
     /// Specific loudness `N'(z)` on the model's 0.1-Cam grid, both ears, sone/Cam.
+    /// Its trapezoidal integral over the grid is [`FrameLoudness::sone`];
+    /// [`band_mean`] over a partition of the axis reproduces it.
     pub specific: Vec<f32>,
     /// Total loudness `N`, in sones.
     pub sone: f32,
@@ -159,7 +162,9 @@ pub fn analyze_frame(freqs: &[f32], levels: &[f32]) -> FrameLoudness {
     let per_ear = per_ear_specific(&excitation, grid);
     let gain = binaural_gain();
     let specific: Vec<f32> = per_ear.iter().map(|&value| (value * gain) as f32).collect();
-    let sone = (per_ear.iter().sum::<f64>() * gain * I_STEP) as f32;
+    // The same trapezoidal integral the rebinning uses: a plain `step × Σ samples`
+    // would differ from it by `step/2 × (first + last)` and break the identity.
+    let sone = (grid_integral(&per_ear, I_STEP) * gain) as f32;
     FrameLoudness {
         specific,
         sone: if sone.is_finite() { sone.max(0.0) } else { 0.0 },
@@ -171,11 +176,12 @@ pub fn analyze_frame(freqs: &[f32], levels: &[f32]) -> FrameLoudness {
 ///
 /// The pattern is linear between the model's 0.1-Cam samples; the integral is
 /// divided by the **full** span, so summing `band_mean * span` over a partition of
-/// the axis reproduces the total loudness. Bands outside the modelled range are 0.
+/// the axis reproduces the total loudness ([`analyze_frame`] uses the same
+/// trapezoidal quadrature). Bands outside the modelled range are 0.
 pub fn band_mean(pattern: &[f32], z_lo: f32, z_hi: f32) -> f32 {
     let (lo, hi) = (f64::from(z_lo.min(z_hi)), f64::from(z_lo.max(z_hi)));
-    let width = hi - lo;
-    if !width.is_finite() || width <= 0.0 {
+    let span = hi - lo;
+    if !span.is_finite() || span <= 0.0 {
         return 0.0;
     }
     let grid = grid();
@@ -190,15 +196,34 @@ pub fn band_mean(pattern: &[f32], z_lo: f32, z_hi: f32) -> f32 {
     let mut area = 0.0;
     for (index, pair) in grid.cam.windows(2).enumerate() {
         let (z0, z1) = (pair[0], pair[1]);
-        let overlap = (z1.min(hi) - z0.max(lo)).max(0.0);
-        if overlap <= 0.0 || z1 <= z0 {
+        let cell = z1 - z0;
+        let (start, end) = (z0.max(lo), z1.min(hi));
+        if cell <= 0.0 || end <= start {
             continue;
         }
-        // The pattern is linear on the cell, so scaling the trapezoid is exact.
-        let cell = 0.5 * (value(index) + value(index + 1)) * (z1 - z0);
-        area += cell * (overlap / (z1 - z0));
+        // `N'(z)` is linear across the cell, so integrate that line over the part of
+        // the cell the band covers. Scaling the whole-cell trapezoid by the overlap
+        // fraction is not the integral of the linear function over a partial cell.
+        let (v0, v1) = (value(index), value(index + 1));
+        let (a, b) = (start - z0, end - z0);
+        area += v0 * (b - a) + (v1 - v0) * (b * b - a * a) / (2.0 * cell);
     }
-    (area / width) as f32
+    (area / span) as f32
+}
+
+/// Trapezoidal integral of values sampled every `step` on a uniform grid.
+fn grid_integral(values: &[f64], step: f64) -> f64 {
+    let Some((&first, rest)) = values.split_first() else {
+        return 0.0;
+    };
+    let Some((&last, middle)) = rest.split_last() else {
+        return 0.0;
+    };
+    let mut sum = 0.5 * (first + last);
+    for &value in middle {
+        sum += value;
+    }
+    sum * step
 }
 
 /// An all-gap (silent) frame.

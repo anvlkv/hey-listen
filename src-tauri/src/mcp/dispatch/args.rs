@@ -231,22 +231,36 @@ pub(super) fn effective_params(
 }
 
 /// The effective per-tool options for a call, under the same persistence rule.
+///
+/// The result is **resolved** against the catalog defaults, so an option the caller
+/// left unset carries the value the engine will actually use (a bare [`ToolOptions`]
+/// would leave every field `None` and let the engine's own fallback decide silently).
 pub(super) fn effective_options(
     stored: &mut HashMap<AnalyzerId, ToolOptions>,
     tool: AnalyzerId,
     args: &Value,
     transient: bool,
 ) -> Result<ToolOptions, String> {
-    let mut options = stored.get(&tool).cloned().unwrap_or_default();
+    let mut options = resolved_options(tool, stored.get(&tool))?;
     if let Some(patch) = args.get("options").and_then(Value::as_object) {
         if transient {
             merge_options(&mut options, tool, patch)?;
         } else {
             let entry = stored.entry(tool).or_default();
             merge_options(entry, tool, patch)?;
-            options = stored.get(&tool).cloned().unwrap_or_default();
+            options = resolved_options(tool, Some(&*entry))?;
         }
     }
+    Ok(options)
+}
+
+/// A tool's catalog defaults as a concrete [`ToolOptions`], with any stored overrides
+/// applied on top. This is the struct the engine reads, so the reported and computed
+/// values cannot drift apart.
+fn resolved_options(tool: AnalyzerId, stored: Option<&ToolOptions>) -> Result<ToolOptions, String> {
+    let defaults = crate::audio::analyzers::effective_options(tool, stored);
+    let mut options = ToolOptions::default();
+    apply_options(&mut options, tool, &defaults, false)?;
     Ok(options)
 }
 

@@ -48,7 +48,8 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       "**What it shows.** The perceived loudness of each analysis frame: `N` in " +
       "sones and `LN` in phons, from the stationary Moore–Glasberg model (the " +
       "ISO 532-2 family) on the ERB-rate axis. The summary reports the N5 (the " +
-      "loudness exceeded 95% of the time), the mean and the maximum.\n\n" +
+      "loudness exceeded 5% of the time — an upper-tail percentile), the mean and " +
+      "the maximum.\n\n" +
       "**Not EBU R128.** The *Integrated LUFS*, *Loudness (momentary)* and " +
       "*Loudness range* tools measure programme level in LUFS/LU. This tool " +
       "estimates how loud the sound *seems*, which is a different model and is " +
@@ -92,7 +93,8 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     about:
       "**What it shows.** A time × ERB-band heatmap of specific loudness `N'(z)`: " +
       "how much loudness each band contributes. The y-axis labels the band-centre " +
-      "frequency in Hz; the intensity is in sone/Bark (linear, not dB).\n\n" +
+      "frequency in Hz; the intensity is a sone/Cam density on the ERB-rate axis " +
+      "(linear, not dB).\n\n" +
       "**Why use it.** It shows *where* in the spectrum the perceived loudness " +
       "comes from — a bright, high-frequency sound has its specific loudness " +
       "pushed up in the upper rows, while a low rumble sits at the bottom. It is " +
@@ -118,7 +120,7 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       kind: "matrix",
       yLabel: "ERB band (Hz)",
       formatBand: formatHz,
-      formatValue: (value) => `${value.toFixed(3)} sone/Bark`,
+      formatValue: (value) => `${value.toFixed(3)} sone/Cam`,
       bandAxisIsValue: true,
     },
     params: [

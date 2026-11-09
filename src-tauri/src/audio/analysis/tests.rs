@@ -36,6 +36,7 @@ mod loudness;
 mod modulation;
 mod note_metrics;
 mod pitch;
+mod spectral_power;
 
 /// The loudness-model tools' options with the given dB SPL calibration.
 pub(crate) fn calibration(db_spl: f32) -> ToolOptions {
@@ -112,6 +113,18 @@ fn spectrum_respects_the_band_limit() {
 }
 
 #[test]
+fn spectrum_reads_a_dc_signal_at_zero_dbfs() {
+    // The DC bin is real-only, so the one-sided factor must be one: a rectangular
+    // window DC of 1 reads 0 dBFS, not the +6.02 dBFS a doubled bin would give.
+    let mono = vec![1.0f32; 4096];
+    let mut p = params(4096);
+    p.window_fn = WindowKind::Rectangular;
+    let result = spectrum(&mono, RATE, &p).expect("spectrum");
+    let dc = result.mag_db.first().copied().unwrap_or_default();
+    assert!((dc - 0.0).abs() < 1e-3, "DC bin = {dc} dBFS");
+}
+
+#[test]
 fn spectrogram_has_matching_dimensions() {
     let mono = sine(1_000.0, 0.5);
     let result = spectrogram(&mono, RATE, &params(1024)).expect("spectrogram");
@@ -175,12 +188,20 @@ fn unknown_tool_id_does_not_parse() {
 #[test]
 fn every_analyzer_returns_its_own_id() {
     // Pins `AnalysisResult::tool_id` to the engine dispatch and the catalog: every
-    // `AnalyzerId` runs, and the result reports the id it was asked for.
+    // `AnalyzerId` runs, and the result reports the id it was asked for. `spatial` is the
+    // exception — it needs the interleaved stereo region that `run_window` reads before the
+    // channel mixdown, so a mono buffer must fail rather than fabricate an empty result.
     use strum::IntoEnumIterator;
     let mono = sine(440.0, 0.5);
     let p = params(2048);
     let options = ToolOptions::default();
     for id in crate::audio::analyzers::AnalyzerId::iter() {
+        if id == AnalyzerId::Spatial {
+            let error =
+                run(id, &mono, RATE, &p, &options).expect_err("spatial needs a stereo region");
+            assert!(error.to_string().contains("stereo"), "{error}");
+            continue;
+        }
         let result =
             run(id, &mono, RATE, &p, &options).unwrap_or_else(|err| panic!("{id} failed: {err}"));
         assert_eq!(result.tool_id(), id, "{id}");
