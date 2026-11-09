@@ -16,12 +16,11 @@ export default {
 
   // Lint the TS/TSX we are committing (autofix first, then fail on the rest).
   //
-  // `--config` pins the repo config: ESLint 10 resolves the *nearest* config for a
-  // path, so a staged file under `video/` would otherwise be linted by that
-  // subproject's own `eslint.config.mjs`. `--no-warn-ignored` then keeps the
-  // repo-wide ignore list quiet (the `video/` project is out of scope — see
-  // docs/code-hygiene.md).
-  "*.{ts,tsx}": "eslint --fix --no-warn-ignored --config eslint.config.js",
+  // No `--config`: ESLint 10 resolves the *nearest* config for each path, so a
+  // staged file under `video/` is checked by `video/eslint.config.mjs` and the rest
+  // by this repo's config. `--no-warn-ignored` keeps files that either config
+  // ignores (e.g. `src/bindings/**`) quiet instead of warning per file.
+  "*.{ts,tsx}": "eslint --fix --no-warn-ignored",
 
   // The Rust core is formatted as a whole crate — rustfmt needs no file list, and
   // checking the crate keeps one file from being formatted differently from the rest.

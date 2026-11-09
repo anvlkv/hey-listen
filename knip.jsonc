@@ -43,6 +43,12 @@
   // deps stay "used" without listing it here.
   "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts", "scripts/**/*.{ts,mjs}", "*.ts"],
 
+  // --- Nested workspaces -----------------------------------------------------
+  // `video/` is a separate npm workspace (the Remotion project) with its own
+  // package.json and tooling. It is out of scope for the repo gates, so keep its
+  // files out of the dead-code report too (see docs/code-hygiene.md).
+  "ignoreWorkspaces": ["video"],
+
   // --- Generated / vendored trees (never dead-code findings) ------------------
   // Only `src/bindings/**` needs listing: it is ts-rs output rewritten by
   // `cargo test`, but it is *committed*, so knip cannot exclude it via .gitignore

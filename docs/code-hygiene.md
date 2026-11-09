@@ -30,14 +30,19 @@ npm run maid:fix    # autofix what can be autofixed
 
 Every check is **blocking**. There is no advisory mode.
 
-### The `video/` subproject is out of scope
+### The `video/` workspace
 
-`video/` is a self-contained Remotion project with its own `package.json` and its own
-prettier/ESLint config, so the repo gates do not own it. It is skipped by prettier
-(`.prettierignore`), ESLint (`eslint.config.js`), duplication (`.jscpd.json`) and the
-length budget (`scripts/checkFileSize.mjs`), and `lint-staged` pins the root ESLint
-config so a staged file under `video/` is not linted by the pre-commit hook. Run
-`npm run lint` inside `video/` to check that project.
+`video/` is a self-contained Remotion project, declared as an npm workspace so a root
+`npm install` covers its dependencies. The gates treat it by concern:
+
+- **ESLint does not ignore it.** ESLint resolves the nearest config per path, so
+  `eslint .` and the pre-commit hook lint `video/` with `video/eslint.config.mjs`
+  instead of this repo's rules. That config in turn ignores the vendored
+  `.agents/skills/**` bundle, which the root `eslint .` would otherwise walk.
+- prettier (`.prettierignore`), duplication (`.jscpd.json`), the length budget
+  (`scripts/checkFileSize.mjs`) and knip (`ignoreWorkspaces` in `knip.jsonc`) skip it.
+
+`npm run lint` inside `video/` still works on its own.
 
 ## When it runs
 

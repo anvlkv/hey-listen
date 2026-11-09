@@ -3,6 +3,9 @@
   "version": "0.6.0",
   "description": "Hey Listen — audio analysis workbench: capture, filter, and analyze audio from files, inputs, and synthesis.",
   "type": "module",
+  "workspaces": [
+    "video"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
