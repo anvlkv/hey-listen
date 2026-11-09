@@ -177,7 +177,10 @@ fn matrix_and_spectrogram_summaries_describe_the_display_grid() {
     assert_eq!(hop.value, 480.0);
 
     // Specific loudness is a sone-per-Cam density, not sone/Bark.
-    let specific = summarize(&AnalysisResult::SpecificLoudness(matrix()));
+    let specific = summarize(&AnalysisResult::SpecificLoudness(MatrixResult {
+        unit: Some("sone/Cam".to_string()),
+        ..matrix()
+    }));
     let peak = specific
         .items
         .iter()

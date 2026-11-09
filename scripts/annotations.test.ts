@@ -152,6 +152,8 @@ check("reads a matrix tool's values line, not a series one", () => {
     values: [1, 2, 3, 4, 5, 1],
     minValue: 1,
     maxValue: 5,
+    calibrated: false,
+    calibrationDbSpl: 0,
   };
   assertEqual(valuesText("melSpectrogram", matrix, 0), "t 0.000 s · mel band mel 3: 3.0");
   assertEqual(valuesText("melSpectrogram", matrix, 1), "t 1.000 s · mel band mel 2: 5.0");

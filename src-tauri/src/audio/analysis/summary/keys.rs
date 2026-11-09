@@ -19,6 +19,20 @@ const MATRIX: &[&str] = &[
     "peakValue",
     "peakTime",
 ];
+/// The specific-loudness matrix summary adds the calibration state to the matrix shape
+/// (X3): its `MatrixResult` carries `calibrated` / `calibrationDbSpl`.
+const SPECIFIC_LOUDNESS: &[&str] = &[
+    "frames",
+    "bands",
+    "duration",
+    "hopSize",
+    "peakFrame",
+    "peakBand",
+    "peakValue",
+    "peakTime",
+    "calibrated",
+    "calibrationDbSpl",
+];
 const SERIES: &[&str] = &[
     "frames",
     "min",
@@ -144,8 +158,8 @@ pub fn summary_keys(tool: AnalyzerId) -> &'static [&'static str] {
         | AnalyzerId::Mfcc
         | AnalyzerId::Chromagram
         | AnalyzerId::SpectralContrast
-        | AnalyzerId::CriticalBands
-        | AnalyzerId::SpecificLoudness => MATRIX,
+        | AnalyzerId::CriticalBands => MATRIX,
+        AnalyzerId::SpecificLoudness => SPECIFIC_LOUDNESS,
         AnalyzerId::Loudness => LOUDNESS,
         AnalyzerId::Sharpness | AnalyzerId::Roughness | AnalyzerId::FluctuationStrength => {
             CALIBRATED_SERIES

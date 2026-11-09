@@ -74,7 +74,7 @@ impl SummaryBuilder {
         key: &'static str,
         label: &'static str,
         value: f64,
-        unit: Option<&'static str>,
+        unit: Option<&str>,
     ) {
         if !value.is_finite() {
             return;

@@ -112,10 +112,33 @@ fn matrix_uses_band_indices_when_the_axis_is_not_hz() {
         values: vec![1.0, 2.0, 3.0, 4.0],
         min_value: 1.0,
         max_value: 4.0,
+        ..Default::default()
     });
     let text = super::csv::csv(&result);
     assert_eq!(text.lines().next(), Some("time_s,0,1"));
     assert!(text.contains("0.1,1,2\n"), "{text}");
+}
+
+#[test]
+fn matrix_uses_band_edges_for_the_header_when_present() {
+    let result = AnalysisResult::CriticalBands(MatrixResult {
+        sample_rate: 48_000,
+        hop_size: 128,
+        frames: 1,
+        bins: 2,
+        duration: 1.0,
+        times: vec![0.5],
+        window_start: 0.0,
+        bands: vec![150.0, 350.0],
+        values: vec![1.0, 2.0],
+        min_value: 1.0,
+        max_value: 2.0,
+        band_edges: Some(vec![100.0, 200.0, 500.0]),
+        ..Default::default()
+    });
+    let text = super::csv::csv(&result);
+    assert_eq!(text.lines().next(), Some("time_s,100–200,200–500"));
+    assert!(text.contains("0.5,1,2\n"), "{text}");
 }
 
 #[test]
