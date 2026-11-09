@@ -22,6 +22,9 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 
+mod stored_matrix;
+pub use stored_matrix::StoredMatrix;
+
 /// The postcard-safe stored fields of a [`SeriesResult`].
 ///
 /// Positional (postcard carries no names) and in **field order**, so a file written
