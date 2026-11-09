@@ -46,6 +46,10 @@ describe("D. Analyzer tools — smoke (every tool)", () => {
 
   for (const tool of ANALYZER_TOOLS) {
     it(`${tool.id} (${tool.view}) opens, renders non-empty, and stays unique`, async () => {
+      // `spatial` reads Left/Right before the channel param, so it needs the stereo
+      // fixture; every other tool mixes the mono `chirpNoise` down. It is the last tool
+      // in the matrix, so this swap affects no later test in this file.
+      if (tool.id === "spatial") await openFixture("stereo");
       await openTool(tool.id);
       const panel = analyzerPanel(tool.id);
       try {
