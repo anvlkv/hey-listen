@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26
 
       # Regenerate the documentation subpages (acknowledgements + roadmap) from the
       # repo's markdown sources, and stamp the release version (from package.json) into
