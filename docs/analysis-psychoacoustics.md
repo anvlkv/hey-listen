@@ -276,7 +276,13 @@ the reference calibration, 4 Hz AM reads ~1 vacil; roughness drops at slow rates
 fluctuation strength rises; a steady carrier reads near zero for both; uncalibrated
 input is labelled.
 
-## M30 — Tonality, masking, and audibility (planned)
+## M30 — Tonality, masking, and audibility
+
+**Delivered.** `threshold.rs` holds `Tq(f)` and `masking.rs` the MPEG-style masker
+spread; the **`masking`** analyzer returns the spectrum with `Tq`/`Tg`/`SMR` as a
+spectrum overlay, and **`tonality`** returns `H = E_tonal / E_total` as a documented
+proxy over time. Both take the shared `calibrationDbSpl`. See
+[`roadmap.md`](roadmap.md) → M30.
 
 **Problem.** Spectral flatness is a noisiness proxy, but there is no masking threshold,
 no signal-to-mask ratio, and no defined tonal-energy ratio — so "which components are
@@ -301,8 +307,11 @@ likely inaudible under their neighbours" cannot be answered.
 
 ```rust
 struct MaskingResult {
+    sample_rate: u32,
+    fft_size: usize,
+    frames: usize,
     window_start: f64,
-    freqs_hz: Vec<f32>,
+    freqs: Vec<f32>,
     spectrum_db: Vec<f32>,
     threshold_quiet_db: Vec<f32>,
     global_mask_db: Vec<f32>,

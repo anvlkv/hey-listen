@@ -72,4 +72,18 @@ pub(super) const PERCEPTION: &[AnalyzerInfo] = &[
         section: Section::Perception,
         keywords: &["fluctuation", "vacil", "pulsing", "am", "perception"],
     },
+    AnalyzerInfo {
+        id: AnalyzerId::Masking,
+        title: "Masking",
+        description: "Masking threshold + signal-to-mask ratio over the spectrum",
+        section: Section::Perception,
+        keywords: &["masking", "audibility", "smr", "threshold", "perception"],
+    },
+    AnalyzerInfo {
+        id: AnalyzerId::Tonality,
+        title: "Tonality",
+        description: "Tonal-energy ratio proxy over time",
+        section: Section::Perception,
+        keywords: &["tonality", "tonal", "ratio", "proxy", "perception"],
+    },
 ];

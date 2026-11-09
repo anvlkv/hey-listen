@@ -47,7 +47,8 @@ impl AnalysisResult {
             }
             AnalysisResult::Sharpness(result)
             | AnalysisResult::Roughness(result)
-            | AnalysisResult::FluctuationStrength(result) => {
+            | AnalysisResult::FluctuationStrength(result)
+            | AnalysisResult::Tonality(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
             }
@@ -94,6 +95,8 @@ impl AnalysisResult {
             | AnalysisResult::Levels(_)
             | AnalysisResult::LoudnessIntegrated(_)
             | AnalysisResult::LoudnessRange(_) => {}
+            // A static frequency-axis result: it has no times to shift.
+            AnalysisResult::Masking(result) => result.window_start = start,
         }
     }
 }

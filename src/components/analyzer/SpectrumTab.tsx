@@ -1,34 +1,13 @@
-import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
-import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
-import ZoomControls from "./ZoomControls";
+import FrequencyChart from "./FrequencyChart";
 import { createUplotZoom } from "./uplotZoom";
-import { mirrorCursor, syncView } from "./syncPlugins";
-import {
-  FREQ_AXIS_SPACE,
-  frequencyAxisValues,
-  X_AXIS_SIZE,
-  Y_AXIS_SIZE,
-  Y_AXIS_SPACE,
-} from "./axisFormat";
-import { chartAxisStyle, frequencyRangeLabel, NoAudioState } from "./chartCommon";
-import { analyzerBus } from "../../state/chartSync";
-import { activeThemeId, chartTheme } from "../../state/themes";
+import { NoAudioState } from "./chartCommon";
+import { chartTheme } from "../../state/themes";
 import { useUplotImage } from "./chartImage";
 import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
-
-const Tooltip = (props: TooltipProps) => (
-  <ChartTooltip
-    {...props}
-    xLabel="f"
-    formatX={(value) => formatHz(value)}
-    formatY={(value) => `${value.toFixed(1)} dB`}
-  />
-);
 
 /** Per-tool switch (a 0/1 `select`) that shows one magnitude layer. */
 type LayerKey = "showMin" | "showMax" | "showMean";
@@ -50,13 +29,6 @@ const LAYERS: [Layer, Layer, Layer] = [
   { key: "showMax", label: "max", stroke: "seriesMax", width: 1, dash: [4, 3], db: (r) => r.maxDb },
   { key: "showMean", label: "mean", stroke: "seriesMean", width: 1.5, db: (r) => r.magDb },
 ];
-
-/** Keep a log x-axis strictly positive (the band-limited data may start at 0 Hz). */
-function logXRange(_u: unknown, min: number, max: number): [number, number] {
-  const lo = min > 0 ? min : 1;
-  const hi = max > lo ? max : lo * 2;
-  return [lo, hi];
-}
 
 /**
  * Spectrum tool: the averaged FFT magnitude of the conditioned signal over the
@@ -103,8 +75,6 @@ export default function SpectrumTab() {
     return !!result && result.freqs.length >= 2 && LAYERS.some((l) => layerReady(l, result));
   };
 
-  const zoomLabel = () => frequencyRangeLabel(zoom.range());
-
   return (
     <AnalyzerTab
       id="spectrum"
@@ -134,60 +104,22 @@ export default function SpectrumTab() {
                   </div>
                 }
               >
-                <ZoomControls
-                  onZoomIn={zoom.zoomIn}
-                  onZoomOut={zoom.zoomOut}
-                  onFit={zoom.fit}
-                  label={zoomLabel()}
-                />
                 {/* Remount when the axis mode or the theme changes: the wrapper fixes
                     `scales` at mount, so a log↔linear switch — and any theme switch,
                     which recolours the series — must rebuild the chart. */}
-                <Show when={`${activeThemeId()}|${logFreq() ? "log" : "lin"}`} keyed>
-                  <SolidUplot
-                    autoResize
-                    pluginBus={analyzerBus}
-                    plugins={[cursor(), tooltip(Tooltip), mirrorCursor("freq"), syncView("freq")]}
-                    onCreate={zoom.onReady}
-                    data={data()}
-                    series={[
-                      {},
-                      ...LAYERS.map((layer) => ({
-                        label: layer.label,
-                        stroke: chartTheme()[layer.stroke],
-                        width: layer.width,
-                        dash: layer.dash,
-                      })),
-                    ]}
-                    scales={{
-                      x: logFreq()
-                        ? { time: false, distr: 3, log: 10, range: logXRange }
-                        : { time: false },
-                      y: {
-                        // Keep roughly a 90 dB window in view, anchored on the peak.
-                        range: (_u, min, max): [number, number] => {
-                          const hi = Math.max(max, min + 6);
-                          return [Math.max(min, hi - 90), hi + 2];
-                        },
-                      },
-                    }}
-                    axes={[
-                      {
-                        ...chartAxisStyle(),
-                        label: "frequency (Hz)",
-                        size: X_AXIS_SIZE,
-                        space: FREQ_AXIS_SPACE,
-                        values: frequencyAxisValues,
-                      },
-                      {
-                        ...chartAxisStyle(),
-                        label: "level (dB)",
-                        size: Y_AXIS_SIZE,
-                        space: Y_AXIS_SPACE,
-                      },
-                    ]}
-                  />
-                </Show>
+                <FrequencyChart
+                  zoom={zoom}
+                  data={data()}
+                  series={LAYERS.map((layer) => ({
+                    label: layer.label,
+                    stroke: chartTheme()[layer.stroke],
+                    width: layer.width,
+                    dash: layer.dash,
+                  }))}
+                  yWindow={90}
+                  logFreq={logFreq()}
+                  remountKey={logFreq() ? "log" : "lin"}
+                />
               </Show>
             </div>
           </div>

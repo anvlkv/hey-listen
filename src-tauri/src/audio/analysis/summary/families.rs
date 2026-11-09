@@ -9,6 +9,7 @@
 use super::super::shape::{flat_peak, matrix_peak, spectrogram_peak};
 use super::calibrated_series::{calibrated_series, push_series_extents};
 use super::loudness::loudness;
+use super::masking::masking;
 use super::SummaryBuilder;
 use crate::audio::analysis::{
     AnalysisResult, MatrixResult, ModulationResult, NoteMetricsResult, PitchResult, RhythmResult,
@@ -28,6 +29,7 @@ pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
             b.push("duration", "duration", r.duration, Some("s"));
         }
         AnalysisResult::Spectrum(r) => spectrum(&mut b, r),
+        AnalysisResult::Masking(r) => masking(&mut b, r),
         AnalysisResult::Spectrogram(r) => spectrogram(&mut b, r),
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)
@@ -38,7 +40,8 @@ pub(super) fn summarize(result: &AnalysisResult) -> super::ResultSummary {
         AnalysisResult::Loudness(r) => loudness(&mut b, r),
         AnalysisResult::Sharpness(r)
         | AnalysisResult::Roughness(r)
-        | AnalysisResult::FluctuationStrength(r) => calibrated_series(&mut b, tool, r),
+        | AnalysisResult::FluctuationStrength(r)
+        | AnalysisResult::Tonality(r) => calibrated_series(&mut b, tool, r),
         AnalysisResult::FrameRms(r) => frame_rms(&mut b, r),
         AnalysisResult::PitchPyin(r)
         | AnalysisResult::PitchYin(r)

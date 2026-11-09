@@ -18,7 +18,8 @@ mod types;
 
 pub use families::series_delta;
 use families::{
-    matrix_delta, modulation_delta, scalar_delta, spectrogram_delta, spectrum_delta, waveform_delta,
+    masking_delta, matrix_delta, modulation_delta, scalar_delta, spectrogram_delta, spectrum_delta,
+    waveform_delta,
 };
 pub use types::{
     FieldDelta, LineDelta, MatrixDelta, ModulationDelta, ScalarDelta, SeriesDelta, SpectrumDelta,
@@ -74,6 +75,9 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, b_offset: f64, common: Option<Span>) -> 
     match (a.result, b.result) {
         (AnalysisResult::Spectrum(a_r), AnalysisResult::Spectrum(b_r)) => {
             ComparisonDiff::Spectrum(spectrum_delta(a_r, b_r))
+        }
+        (AnalysisResult::Masking(a_r), AnalysisResult::Masking(b_r)) => {
+            ComparisonDiff::Spectrum(masking_delta(a_r, b_r))
         }
         (AnalysisResult::Spectrogram(a_r), AnalysisResult::Spectrogram(b_r)) => {
             let times_a = relative(&spectrogram_frames(a_r), origin_a, 0.0);
@@ -131,7 +135,8 @@ pub fn diff(a: &Side<'_>, b: &Side<'_>, b_offset: f64, common: Option<Span>) -> 
         }
         (AnalysisResult::Sharpness(a_r), AnalysisResult::Sharpness(b_r))
         | (AnalysisResult::Roughness(a_r), AnalysisResult::Roughness(b_r))
-        | (AnalysisResult::FluctuationStrength(a_r), AnalysisResult::FluctuationStrength(b_r)) => {
+        | (AnalysisResult::FluctuationStrength(a_r), AnalysisResult::FluctuationStrength(b_r))
+        | (AnalysisResult::Tonality(a_r), AnalysisResult::Tonality(b_r)) => {
             let times_a = relative(&a_r.times, origin_a, 0.0);
             let times_b = relative(&b_r.times, origin_b, b_offset);
             ComparisonDiff::Series(series_delta(
@@ -177,7 +182,9 @@ pub fn result_origin(result: &AnalysisResult) -> f64 {
         AnalysisResult::Modulation(r) => r.window_start,
         AnalysisResult::Sharpness(r)
         | AnalysisResult::Roughness(r)
-        | AnalysisResult::FluctuationStrength(r) => r.window_start,
+        | AnalysisResult::FluctuationStrength(r)
+        | AnalysisResult::Tonality(r) => r.window_start,
+        AnalysisResult::Masking(r) => r.window_start,
         AnalysisResult::Tempo(r) | AnalysisResult::Onsets(r) | AnalysisResult::Downbeats(r) => {
             r.window_start
         }
@@ -261,7 +268,10 @@ pub fn hop_secs(result: &AnalysisResult, rate: u32) -> f32 {
         }
         AnalysisResult::Sharpness(r)
         | AnalysisResult::Roughness(r)
-        | AnalysisResult::FluctuationStrength(r) => Some(r.hop_size),
+        | AnalysisResult::FluctuationStrength(r)
+        | AnalysisResult::Tonality(r) => Some(r.hop_size),
+        // A static spectrum has no time axis, so it carries no hop.
+        AnalysisResult::Masking(_) => None,
         other => other.series().map(|r| r.hop_size),
     };
     hop.map(|hop| hop as f32 / rate.max(1) as f32)

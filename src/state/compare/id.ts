@@ -65,6 +65,8 @@ export function compareViewFamily(tool: AnalyzerId): CompareViewFamily {
       return "modulation";
     case "waveform":
       return "waveform";
+    case "masking":
+      return "spectrum";
     default:
       return "scalar";
   }

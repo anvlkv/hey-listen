@@ -2168,7 +2168,20 @@ Model-based harshness (asper) and slow pulsing (vacil), sharing one modulation p
 
 > See [`analysis-psychoacoustics.md`](analysis-psychoacoustics.md) → M29.
 
-## M30 — Tonality, masking, and audibility (planned)
+## M30 — Tonality, masking, and audibility ✅
+
+> **Delivered.** `analysis/psychoacoustics/threshold.rs` holds the threshold in quiet
+> `Tq(f)` and `masking.rs` detects tonal/non-tonal maskers, spreads them over Bark
+> distance and builds `Tg`/`SMR`. The new **`masking`** analyzer (a **spectrum
+> overlay**) returns the averaged spectrum with `Tq`, `Tg` and `SMR` side by side; the
+> view draws the two thresholds as reference curves and the masked bins as bands. The
+> new **`tonality`** analyzer is a Series tab returning the shared
+> `CalibratedSeriesResult` — `H = E_tonal / E_total` from the same masker detection.
+> It is labelled a **documented custom proxy**, not a standardized perceptual metric.
+> Both take the shared `calibrationDbSpl`; an uncalibrated run says so, because `Tq`
+> is dB SPL while the spectrum is then dBFS. Tests pin a masked quiet tone's negative
+> `SMR`, `Tg ≥ Tq` per bin, a sine's high vs noise's low tonality, and the
+> uncalibrated label.
 
 A masking threshold, a signal-to-mask ratio, and a defined tonal-energy ratio.
 

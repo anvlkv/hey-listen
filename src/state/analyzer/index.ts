@@ -34,6 +34,7 @@ export type {
   LoudnessResult,
   LraResult,
   LufsResult,
+  MaskingResult,
   MatrixResult,
   MatrixView,
   ModulationResult,

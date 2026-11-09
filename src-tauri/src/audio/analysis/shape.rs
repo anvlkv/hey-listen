@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::{
-    AnalysisResult, CalibratedSeriesResult, LoudnessResult, MatrixResult, NoteMetric,
-    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpectrogramResult, SpectrumResult,
-    WaveformResult,
+    AnalysisResult, CalibratedSeriesResult, LoudnessResult, MaskingResult, MatrixResult,
+    NoteMetric, NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpectrogramResult,
+    SpectrumResult, WaveformResult,
 };
 
 mod decimate;
@@ -86,6 +86,7 @@ pub fn compact(result: &AnalysisResult) -> Value {
     match result {
         AnalysisResult::Waveform(r) => compact_waveform(object, r),
         AnalysisResult::Spectrum(r) => compact_spectrum(object, r),
+        AnalysisResult::Masking(r) => compact_masking(object, r),
         AnalysisResult::Spectrogram(r) => compact_spectrogram(object, r),
         AnalysisResult::MelSpectrogram(r)
         | AnalysisResult::Mfcc(r)
@@ -130,6 +131,15 @@ fn compact_spectrum(object: &mut Map<String, Value>, r: &SpectrumResult) {
     insert(object, "magDb", stats_f32(&r.mag_db));
     insert(object, "minDb", stats_f32(&r.min_db));
     insert(object, "maxDb", stats_f32(&r.max_db));
+}
+
+/// The masking curves become stats; `calibrated` / `calibrationDbSpl` stay as-is.
+fn compact_masking(object: &mut Map<String, Value>, r: &MaskingResult) {
+    insert(object, "freqs", stats_f32(&r.freqs));
+    insert(object, "spectrumDb", stats_f32(&r.spectrum_db));
+    insert(object, "thresholdQuietDb", stats_f32(&r.threshold_quiet_db));
+    insert(object, "globalMaskDb", stats_f32(&r.global_mask_db));
+    insert(object, "smrDb", stats_f32(&r.smr_db));
 }
 
 fn compact_spectrogram(object: &mut Map<String, Value>, r: &SpectrogramResult) {

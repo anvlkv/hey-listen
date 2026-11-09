@@ -52,6 +52,7 @@ pub fn family_of(id: AnalyzerId) -> Family {
             Family::Scalar
         }
         AnalyzerId::Spectrum => Family::Spectrum,
+        AnalyzerId::Masking => Family::Spectrum,
         AnalyzerId::Spectrogram => Family::Spectrogram,
         AnalyzerId::MelSpectrogram
         | AnalyzerId::Mfcc
@@ -80,7 +81,8 @@ pub fn family_of(id: AnalyzerId) -> Family {
         | AnalyzerId::Loudness
         | AnalyzerId::Sharpness
         | AnalyzerId::Roughness
-        | AnalyzerId::FluctuationStrength => Family::Series,
+        | AnalyzerId::FluctuationStrength
+        | AnalyzerId::Tonality => Family::Series,
     }
 }
 

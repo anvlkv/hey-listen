@@ -122,6 +122,8 @@ workbench_ids! {
     Sharpness,
     Roughness,
     FluctuationStrength,
+    Masking,
+    Tonality,
 }
 
 wire_id!(AnalyzerId, "analyzer");

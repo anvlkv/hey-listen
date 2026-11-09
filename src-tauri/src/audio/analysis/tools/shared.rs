@@ -1,11 +1,26 @@
 //! Helpers shared by the frame-based matrix tools (`criticalBands`, `loudness`):
-//! the shared STFT with its bin frequencies, and the band-matrix result builder.
+//! the shared STFT with its bin frequencies, the band-limited variant the spectrum
+//! overlays use, the band-matrix result builder, and the series extents helper.
 
-use super::super::support::{effective_hop, frame_times, seconds, stft_magnitudes};
+use super::super::support::{
+    effective_hop, effective_params, frame_times, seconds, stft_magnitudes,
+};
 use super::super::{AnalysisError, MatrixResult, SharedParams};
 
 /// The shared STFT: `(hop samples, per-frame magnitudes, per-bin frequencies)`.
 type StftFrames = (usize, Vec<Vec<f32>>, Vec<f32>);
+
+/// An STFT restricted to the requested frequency band.
+pub(super) struct BandStft {
+    pub fft: usize,
+    pub hop: usize,
+    pub frames: usize,
+    /// The retained bin indices into every frame's magnitude vector.
+    pub bins: Vec<usize>,
+    /// The retained bin centre frequencies (Hz).
+    pub freqs: Vec<f32>,
+    pub magnitudes: Vec<Vec<f32>>,
+}
 
 /// The shared STFT and its bin centre frequencies.
 pub(super) fn stft_with_freqs(
@@ -21,6 +36,52 @@ pub(super) fn stft_with_freqs(
         .map(|bin| bin as f32 * sample_rate as f32 / fft as f32)
         .collect();
     Ok((hop, magnitudes, freqs))
+}
+
+/// The shared STFT limited to the requested band, with the retained bin indices.
+pub(super) fn band_stft(
+    mono: &[f32],
+    sample_rate: u32,
+    params: &SharedParams,
+) -> Result<BandStft, AnalysisError> {
+    let params = effective_params(params, sample_rate);
+    let fft = params.fft_size();
+    let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
+    let (magnitudes, frames) = stft_magnitudes(mono, sample_rate, fft, hop, &params)?;
+    let all_bins = fft / 2 + 1;
+    let (min_hz, max_hz) = params.band(sample_rate);
+    let mut bins = Vec::new();
+    let mut freqs = Vec::new();
+    for k in 0..all_bins {
+        let hz = k as f64 * f64::from(sample_rate) / fft as f64;
+        if hz < min_hz || hz > max_hz {
+            continue;
+        }
+        bins.push(k);
+        freqs.push(hz as f32);
+    }
+    Ok(BandStft {
+        fft,
+        hop,
+        frames,
+        bins,
+        freqs,
+        magnitudes,
+    })
+}
+
+/// The min/max of a gapped series' present values (`0` / `0` when it is empty).
+pub(super) fn series_extents(values: &[Option<f32>]) -> (f32, f32) {
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
+    for value in values.iter().flatten() {
+        min = min.min(*value);
+        max = max.max(*value);
+    }
+    (
+        if min.is_finite() { min } else { 0.0 },
+        if max.is_finite() { max } else { 0.0 },
+    )
 }
 
 /// Flatten a frame × band grid into a [`MatrixResult`], labelling the columns with

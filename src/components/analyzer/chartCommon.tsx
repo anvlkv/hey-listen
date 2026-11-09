@@ -54,6 +54,18 @@ export function timeTooltip(formatY: (value: number) => string) {
   );
 }
 
+/** The frequency-axis tooltip shared by the spectrum-style charts (`f`, dB). */
+export function frequencyDbTooltip(props: TooltipProps) {
+  return (
+    <ChartTooltip
+      {...props}
+      xLabel="f"
+      formatX={(value) => formatHz(value)}
+      formatY={(value) => `${value.toFixed(1)} dB`}
+    />
+  );
+}
+
 /** `"a – b s"` label for a visible time range, or `""` when there is none. */
 export function timeRangeLabel(
   range: [number, number] | { t0: number; t1: number } | null,

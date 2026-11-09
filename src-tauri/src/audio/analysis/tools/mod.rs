@@ -7,6 +7,7 @@ mod features;
 mod fluctuation;
 mod gate;
 mod loudness;
+mod masking;
 mod modulation;
 mod modulation_dsp;
 mod note_quality;
@@ -17,6 +18,7 @@ mod shared;
 mod sharpness;
 mod spectrum;
 mod time;
+mod tonality;
 
 pub use dispatch::run;
 pub use features::{chromagram, mel_spectrogram, mfcc, spectral_contrast};

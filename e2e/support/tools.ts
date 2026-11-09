@@ -57,4 +57,6 @@ export const ANALYZER_TOOLS: AnalyzerTool[] = [
   { id: "sharpness", title: "Sharpness", view: "series" },
   { id: "roughness", title: "Roughness", view: "series" },
   { id: "fluctuationStrength", title: "Fluctuation strength", view: "series" },
+  { id: "masking", title: "Masking", view: "masking" },
+  { id: "tonality", title: "Tonality", view: "series" },
 ];
