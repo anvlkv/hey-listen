@@ -112,7 +112,7 @@ fn matrix(b: &mut SummaryBuilder, tool: AnalyzerId, r: &MatrixResult) {
         b.count("peakBand", "peak band", band);
         // The unit lives on the result (X3); the fallback covers the coefficient
         // matrices that carry no unit label.
-        let unit = r.unit.as_deref().or_else(|| match tool {
+        let unit = r.unit.as_deref().or(match tool {
             AnalyzerId::MelSpectrogram | AnalyzerId::SpectralContrast => Some("dB"),
             _ => None,
         });

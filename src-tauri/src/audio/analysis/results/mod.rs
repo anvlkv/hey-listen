@@ -21,7 +21,6 @@ mod scalars;
 mod series;
 mod spatial;
 mod stored;
-mod stored_matrix;
 
 pub use calibrated_series::*;
 pub use loudness::*;
@@ -32,7 +31,6 @@ pub use scalars::*;
 pub use series::*;
 pub use spatial::*;
 pub use stored::*;
-pub use stored_matrix::StoredMatrix;
 
 /// Shift every entry of a result's time axis by `shift` (source seconds).
 fn shift_times(times: &mut [f32], shift: f32) {
