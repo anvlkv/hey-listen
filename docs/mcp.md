@@ -166,7 +166,7 @@ GUI handler, and the CLI.
 **Option keys (M16).** Per-tool option keys are canonical **camelCase**; the snake_case
 aliases (`min_f0_hz`, `n_mels`, …) are accepted at every boundary. An **unknown key is an
 error**, not a silent no-op, on the GUI MCP path, headless, and the CLI. Chart-display
-toggles (`showMean`, `logFreq`, …) are not engine options and are never sent to the
+toggles (`showMean`, `frequencyScale`, …) are not engine options and are never sent to the
 engine. `list_analyzers` carries each tool's compact option map (keys + defaults).
 
 **`target`.** Every tool accepts an optional `target` (a label from `list_projects`)

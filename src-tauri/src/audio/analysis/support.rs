@@ -200,6 +200,12 @@ pub(super) fn pitch_series(
                 .then_some(frame.frequency_hz)
         })
         .collect();
+    // Parallel to `values`: the confidence of every voiced frame, gap elsewhere.
+    let confidence: Vec<Option<f32>> = values
+        .iter()
+        .zip(&frames)
+        .map(|(value, frame)| value.map(|_| frame.confidence))
+        .collect();
     let mut min = f32::INFINITY;
     let mut max = f32::NEG_INFINITY;
     let mut voiced_frames = 0usize;
@@ -228,6 +234,7 @@ pub(super) fn pitch_series(
             voiced_frames as f32 / frames_count as f32
         },
         f0_reliable: voiced_frames >= MIN_RELIABLE_VOICED_FRAMES,
+        confidence,
     }
 }
 
@@ -291,24 +298,43 @@ pub(super) fn effective_hop(fft: usize, len: usize, requested: usize) -> usize {
     requested.max(needed)
 }
 
-/// Min/max envelope over `samples`, targeting `buckets` buckets.
+/// The min/max envelope of `samples` plus the per-bucket level data the waveform view
+/// uses, all aligned bucket-for-bucket.
 ///
 /// The partition is `ceil(len / ceil(len / buckets))` contiguous chunks (the last one
 /// can be shorter). Each bucket reports the extrema of **its own samples**, so
 /// above-full-scale data keeps its real min/max instead of being clamped to ±1.
-pub(super) fn envelope(samples: &[f32], buckets: usize) -> (Vec<f32>, Vec<f32>) {
+pub(super) struct Envelope {
+    pub min: Vec<f32>,
+    pub max: Vec<f32>,
+    /// RMS of each bucket's own samples.
+    pub rms: Vec<f32>,
+    /// Buckets whose peak reaches full scale (`max >= 1` or `min <= -1`).
+    pub clipped_buckets: usize,
+}
+
+/// Min/max envelope plus per-bucket RMS over `samples`, targeting `buckets` buckets.
+pub(super) fn envelope(samples: &[f32], buckets: usize) -> Envelope {
+    let mut envelope = Envelope {
+        min: Vec::new(),
+        max: Vec::new(),
+        rms: Vec::new(),
+        clipped_buckets: 0,
+    };
     if samples.is_empty() {
-        return (Vec::new(), Vec::new());
+        return envelope;
     }
     let step = samples.len().div_ceil(buckets.max(1)).max(1);
     let count = samples.len().div_ceil(step);
-    let mut min = Vec::with_capacity(count);
-    let mut max = Vec::with_capacity(count);
+    envelope.min.reserve(count);
+    envelope.max.reserve(count);
+    envelope.rms.reserve(count);
     for chunk in samples.chunks(step) {
         let Some(&first) = chunk.first() else {
             continue;
         };
         let (mut lo, mut hi) = (first, first);
+        let mut sum_squares = 0.0f64;
         for &value in chunk {
             if value < lo {
                 lo = value;
@@ -316,11 +342,18 @@ pub(super) fn envelope(samples: &[f32], buckets: usize) -> (Vec<f32>, Vec<f32>) 
             if value > hi {
                 hi = value;
             }
+            sum_squares += f64::from(value).powi(2);
         }
-        min.push(lo);
-        max.push(hi);
+        if hi >= 1.0 || lo <= -1.0 {
+            envelope.clipped_buckets += 1;
+        }
+        envelope.min.push(lo);
+        envelope.max.push(hi);
+        envelope
+            .rms
+            .push((sum_squares / chunk.len() as f64).sqrt() as f32);
     }
-    (min, max)
+    envelope
 }
 
 #[cfg(test)]
@@ -331,15 +364,23 @@ mod tests {
     fn envelope_keeps_extrema_above_full_scale() {
         // A same-sign bucket above full scale must report its own extrema, not a
         // clamped ±1 pair invented by the seeding.
-        assert_eq!(envelope(&[2.0, 3.0], 1), (vec![2.0], vec![3.0]));
-        assert_eq!(envelope(&[-3.0, -2.0], 1), (vec![-3.0], vec![-2.0]));
+        let env = envelope(&[2.0, 3.0], 1);
+        assert_eq!((env.min, env.max), (vec![2.0], vec![3.0]));
+        let env = envelope(&[-3.0, -2.0], 1);
+        assert_eq!((env.min, env.max), (vec![-3.0], vec![-2.0]));
+        assert_eq!(env.clipped_buckets, 1);
     }
 
     #[test]
     fn envelope_extrema_use_only_the_samples_in_each_bucket() {
         // 4 samples over 2 buckets → `ceil(4 / ceil(4 / 2))` = 2 samples per bucket.
-        let (min, max) = envelope(&[0.5, -0.25, 2.0, 3.0], 2);
-        assert_eq!(min, vec![-0.25, 2.0]);
-        assert_eq!(max, vec![0.5, 3.0]);
+        let env = envelope(&[0.5, -0.25, 2.0, 3.0], 2);
+        assert_eq!(env.min, vec![-0.25, 2.0]);
+        assert_eq!(env.max, vec![0.5, 3.0]);
+        // Each bucket's RMS is over its own two samples.
+        assert!((env.rms[0] - (0.3125f32 / 2.0).sqrt()).abs() < 1e-6);
+        assert!((env.rms[1] - (13.0f32 / 2.0).sqrt()).abs() < 1e-6);
+        // Only the second bucket's peak reaches full scale.
+        assert_eq!(env.clipped_buckets, 1);
     }
 }

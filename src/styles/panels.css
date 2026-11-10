@@ -113,17 +113,7 @@
   position: relative;
   flex: 0 0 32%;
   min-height: 92px;
-  padding: 4px 0 0;
-}
-
-.analyzer-tempogram-label {
-  position: absolute;
-  top: 6px;
-  left: 74px;
-  z-index: 1;
-  font-size: 0.625rem;
-  color: var(--fg-faint);
-  pointer-events: none;
+  padding: var(--space-chart-tight) 0 0;
 }
 
 /* --- Event-list analyzer body (onsets / downbeats) ---------------------- */
@@ -219,7 +209,7 @@
 .tabs-menu-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--tab-label-gap);
   flex-shrink: 0;
   white-space: nowrap;
 }

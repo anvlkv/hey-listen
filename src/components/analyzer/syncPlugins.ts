@@ -3,6 +3,7 @@ import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import {
   analyzerBus,
+  chartView,
   IDENTITY_AXIS,
   readBusMessage,
   type AnalyzerBus,
@@ -153,8 +154,10 @@ export const syncView =
 
     /** Apply a shared x-range, clamped to this chart's own data extent. */
     const applyShared = (u: UplotInstance, shared: [number, number]) => {
-      const scale = u.scales.x;
-      if (typeof scale.min !== "number" || typeof scale.max !== "number") return;
+      // A fresh uPlot has `scales.x.min/max === null` until its first auto-range. The
+      // shared range is valid before that auto-range, though, and `setScale()` is the
+      // operation that establishes it. Guard on the actual data axis instead; otherwise
+      // a hidden peer mounts at fit and never consumes the last user-published view.
       const xs = u.data[0];
       if (!xs || xs.length < 2) return;
       const x: [number, number] = [transform.fromBus(shared[0]), transform.fromBus(shared[1])];
@@ -173,9 +176,16 @@ export const syncView =
         ready: (u) => {
           dispose = createRoot((root) => {
             createEffect(() => {
-              const view = readBusMessage(bus.data.view);
+              const view = chartView();
               if (!view || view.group !== group) return;
               applyShared(u, view.x);
+              // On a newly mounted SolidUplot, the wrapper can schedule its first
+              // `setData()` after this ready effect. That auto-fits x and would erase
+              // the shared view before a hidden peer becomes visible; repeat after its
+              // pending microtask just as the `setData` hook below does.
+              queueMicrotask(() => {
+                if (!destroyed) applyShared(u, view.x);
+              });
             });
             return root;
           });
@@ -187,7 +197,7 @@ export const syncView =
         setData: (u) => {
           queueMicrotask(() => {
             if (destroyed) return;
-            const view = readBusMessage(bus.data.view);
+            const view = chartView();
             if (!view || view.group !== group) return;
             applyShared(u, view.x);
           });

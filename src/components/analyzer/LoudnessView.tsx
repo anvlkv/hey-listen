@@ -1,9 +1,12 @@
 import { For, Show } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu from "./ReframeMenu";
-import TimeSeriesChart from "./TimeSeriesChart";
+import TimeSeriesChart, { type SecondaryTrack } from "./TimeSeriesChart";
+import ChartLegend from "./chartLegend";
 import { useTimeChart, timeSeriesData } from "./timeChart";
-import { NoAudioState } from "./chartCommon";
+import { NoAudioState, UplotChartPlot } from "./chartCommon";
+import { mean, percentile, present } from "../../lib/percentiles";
+import { chartTheme } from "../../state/themes";
 import {
   type AnalysisHandle,
   type AnalyzerId,
@@ -11,24 +14,8 @@ import {
   type LoudnessResult,
 } from "../../state/analyzer";
 
-const Y_LABEL = "loudness (sone)";
 const sones = (value: number) => `${value.toFixed(3)} sone`;
-
-/** The finite, non-gap values of a track. */
-function present(values: (number | null)[]): number[] {
-  return values.filter((value): value is number => value != null && Number.isFinite(value));
-}
-
-/** The loudness exceeded 5% of the time (the 95th percentile). */
-function n5(values: (number | null)[]): number {
-  const sorted = present(values).sort((a, b) => b - a);
-  return sorted[Math.floor(0.05 * (sorted.length - 1))] ?? 0;
-}
-
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((total, value) => total + value, 0) / values.length;
-}
+const phons = (value: number) => `${value.toFixed(1)} phon`;
 
 /** The conventional sone → phon curve, mirroring the engine. */
 function soneToPhon(sone: number): number {
@@ -37,9 +24,13 @@ function soneToPhon(sone: number): number {
 }
 
 /**
- * Loudness view (M27): plots the Moore–Glasberg sone curve over time with N5 /
- * mean / max and calibration readouts. Zoom and cursor are synced with the other
- * analyzer tabs on the `"time"` group.
+ * Loudness view (M27, M36): the Moore–Glasberg sone curve with its phon level on a
+ * second, labelled axis, plus N5 / N50 / N95, mean and max readouts and the model /
+ * calibration the payload reports.
+ *
+ * The percentiles are **order statistics of the same sone track**: N5 is the level
+ * exceeded 5% of the time (the 95th percentile), N50 the median, N95 the level
+ * exceeded 95% of the time (the 5th percentile) — see `lib/percentiles.ts`.
  */
 export default function LoudnessView(props: {
   id: AnalyzerId;
@@ -49,6 +40,22 @@ export default function LoudnessView(props: {
   const { zoom, menu, setMenu, openMenu } = useTimeChart(() => props.id);
 
   const data = (): [number[], (number | null)[]] => timeSeriesData(result(), (r) => r.loudnessSone);
+
+  /** The phon track on its own right-hand axis (never stacked onto the sone scale). */
+  const phonTrack = (): SecondaryTrack => {
+    const r = result();
+    const values: (number | null)[] =
+      r && r.loudnessPhon.length === r.loudnessSone.length
+        ? r.loudnessPhon
+        : (r?.loudnessSone ?? []).map(() => null);
+    return {
+      label: "loudness level",
+      values,
+      yLabel: "loudness level (phon)",
+      format: phons,
+      stroke: chartTheme().seriesMax,
+    };
+  };
 
   /** A chart needs at least two frames and some non-gap values. */
   const plottable = () => {
@@ -60,12 +67,22 @@ export default function LoudnessView(props: {
     const r = result();
     if (!r) return [];
     const values = present(r.loudnessSone);
-    const peak = n5(r.loudnessSone);
+    const n5 = percentile(values, 0.95);
     return [
       {
         label: "N5",
-        value: sones(peak),
-        title: "Loudness exceeded 95% of the time",
+        value: sones(n5),
+        title: "Loudness exceeded 5% of the time — the 95th percentile of the track",
+      },
+      {
+        label: "N50",
+        value: sones(percentile(values, 0.5)),
+        title: "Median loudness — the 50th percentile of the track",
+      },
+      {
+        label: "N95",
+        value: sones(percentile(values, 0.05)),
+        title: "Loudness exceeded 95% of the time — the 5th percentile of the track",
       },
       { label: "Mean", value: sones(mean(values)), title: "Mean loudness over the window" },
       {
@@ -75,20 +92,23 @@ export default function LoudnessView(props: {
       },
       {
         label: "N5 level",
-        value: `${soneToPhon(peak).toFixed(1)} phon`,
+        value: `${soneToPhon(n5).toFixed(1)} phon`,
         title: "Loudness level of the N5",
       },
       {
+        label: "Model",
+        value: [r.model, r.standard && `(${r.standard})`].filter(Boolean).join(" ") || "—",
+        title: "The loudness model this run implements, as the result payload reports it",
+      },
+      {
         label: "Calibration",
-        value: r.calibrated ? `${r.calibrationDbSpl.toFixed(1)} dB SPL` : "uncalibrated",
+        value: r.calibrated ? `${r.calibrationDbSpl.toFixed(1)} dB SPL` : "relative / uncalibrated",
         title: r.calibrated
-          ? "dB SPL of a full-scale sine"
-          : "No calibration — the sones are relative",
+          ? "dB SPL of a full-scale sine — the sones and phons are absolute"
+          : "No calibration — the sones and phons are relative",
       },
     ];
   };
-
-  /** Right-click: reframe the timeline window from the time under the pointer. */
 
   return (
     <Show when={result()} fallback={<NoAudioState />}>
@@ -104,7 +124,7 @@ export default function LoudnessView(props: {
               title="Analysed STFT frames in the window"
             />
           </div>
-          <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
+          <UplotChartPlot zoom={zoom} onWheel={zoom.wheel} onContextMenu={openMenu}>
             <Show
               when={plottable()}
               fallback={
@@ -118,12 +138,21 @@ export default function LoudnessView(props: {
                 id={props.id}
                 zoom={zoom}
                 data={data()}
-                yLabel={Y_LABEL}
+                yLabel="loudness (sone)"
                 formatY={sones}
-                seriesStyle="area"
+                sampling="block"
+                fill
+                secondary={phonTrack()}
               />
             </Show>
-          </div>
+          </UplotChartPlot>
+          <ChartLegend
+            entries={[
+              { label: "loudness (sone)", color: chartTheme().series, kind: "fill" },
+              { label: "loudness level (phon)", color: chartTheme().seriesMax },
+            ]}
+            note={r().model ?? undefined}
+          />
           <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
         </div>
       )}

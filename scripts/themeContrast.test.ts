@@ -9,6 +9,7 @@ import {
   BUILTIN_SOLARIZED_LIGHT,
 } from "../src/state/themes/builtinSolarized";
 import { assertEqual, check, report } from "./testHarness";
+import { contrast, parseRgb } from "./contrastColors";
 
 /**
  * Contrast regression test for the secondary text tokens, runnable without a browser:
@@ -42,33 +43,6 @@ const darkVars = blockVars(
 );
 const lightVars = blockVars(BASE_CSS.match(/:root\[data-theme="light"\]\s*\{([^}]*)\}/), "light");
 
-type Rgb = [number, number, number];
-
-/** Parse a `#rgb` / `#rrggbb` token (the palettes only use hex). */
-function parseColor(value: string): Rgb {
-  const hex = value.trim().replace(/^#/, "");
-  if (hex.length === 3) {
-    return [0, 1, 2].map((i) => parseInt(hex[i] + hex[i], 16)) as Rgb;
-  }
-  if (!/^[0-9a-f]{6}$/i.test(hex)) throw new Error(`not a hex colour: ${value}`);
-  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
-}
-
-/** WCAG relative luminance (sRGB channel → linear). */
-function luminance([r, g, b]: Rgb): number {
-  const channel = (value: number) => {
-    const c = value / 255;
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
-/** WCAG contrast ratio between two colours (1–21). */
-function contrast(a: Rgb, b: Rgb): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-}
-
 const OVERLAYS: ThemeFile[] = [
   BUILTIN_NORD,
   BUILTIN_RETROWAVE_NEON,
@@ -96,7 +70,7 @@ for (const palette of PALETTES) {
   for (const fg of FG_TOKENS) {
     for (const surface of SURFACE_TOKENS) {
       check(`${palette.name}: ${fg} on ${surface}`, () => {
-        const ratio = contrast(parseColor(palette.vars[fg]), parseColor(palette.vars[surface]));
+        const ratio = contrast(parseRgb(palette.vars[fg]).rgb, parseRgb(palette.vars[surface]).rgb);
         assertEqual(
           ratio >= MIN_CONTRAST,
           true,

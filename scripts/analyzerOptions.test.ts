@@ -44,7 +44,7 @@ check("a non-numeric option value fails", () => {
 });
 
 check("chart-display toggles never cross IPC", () => {
-  assertDeepEqual(engineOptions("spectrum", { showMean: 1, logFreq: 0 }), {});
+  assertDeepEqual(engineOptions("spectrum", { showMean: 1, frequencyScale: 2, bandGuides: 1 }), {});
   assertDeepEqual(engineOptions("melSpectrogram", { nMels: 64 }), { nMels: 64 });
 });
 

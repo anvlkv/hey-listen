@@ -1,4 +1,13 @@
 :root {
+  /* UI-scale-aware layout density. The font preference deliberately avoids CSS zoom, so
+     fixed-pixel chart gutters/tab chrome need these semantic tokens to grow with it. */
+  --space-chart-tight: calc(3px * var(--ui-scale, 1));
+  --space-chart: calc(6px * var(--ui-scale, 1));
+  --space-chart-wide: calc(10px * var(--ui-scale, 1));
+  --tab-inline-padding: calc(7px * var(--ui-scale, 1));
+  --tab-label-gap: calc(4px * var(--ui-scale, 1));
+  --tab-strip-height: calc(28px * var(--ui-scale, 1));
+
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: calc(16px * var(--ui-scale, 1));
   line-height: 1.4;

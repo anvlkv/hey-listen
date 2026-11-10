@@ -17,82 +17,40 @@
   font-size: 1rem;
 }
 
-/* The segment chart sits between the summary and the table: fixed-ish height, and
-   the table keeps (and scrolls within) the rest. */
+/* The segment chart sits between the summary and the table: two aligned lanes (level
+   and median f0) with enough height for the legend, the axes and the plot (M36, chart
+   review item 10). The table keeps the rest and scrolls within it. */
 .note-segments-chart {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 36%;
-  min-height: 150px;
-  max-height: 280px;
+  flex: 1 1 46%;
+  min-height: 236px;
+  max-height: 440px;
   border-bottom: 1px solid var(--border-soft);
 }
 
-/* What each mark on the chart means (the colors come from the active chart theme). */
-.note-segments-legend {
+/* The lanes: the level plot keeps the larger share, the pitch lane a compact strip. */
+.note-segments-plots {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 12px;
-  flex: none;
-  min-height: 24px;
-  padding: 4px 12px;
-  font-size: 0.625rem;
-  color: var(--fg-faint);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.note-segments-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-}
-
-.note-segments-legend-mark {
-  display: inline-flex;
-  flex: none;
-  width: 14px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--legend-color, var(--fg-faint));
-}
-
-.note-segments-legend-mark.is-dashed {
-  height: 1px;
-  background: repeating-linear-gradient(
-    to right,
-    var(--legend-color, var(--fg-faint)) 0 3px,
-    transparent 3px 6px
-  );
-}
-
-.note-segments-legend-mark.is-fill {
-  height: 8px;
-  opacity: 0.45;
-}
-
-.note-segments-legend-mark.is-split {
-  height: 5px;
-  overflow: hidden;
-}
-
-.note-segments-legend-mark.is-split i {
+  flex-direction: column;
   flex: 1;
-  background: var(--legend-color, var(--fg-faint));
+  min-height: 0;
 }
 
-.note-segments-legend-mark.is-split i:last-child {
-  opacity: 0.28;
+.note-level-plot {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.note-segments-legend-gate {
-  margin-left: auto;
-  color: var(--fg-muted);
-  font-variant-numeric: tabular-nums;
+.note-pitch-lane {
+  position: relative;
+  flex: 0 0 68px;
+  min-height: 52px;
+  border-top: 1px solid var(--border-soft);
 }
+
+/* The chart legend itself lives in `shared.css` (one legend for every chart). */
 
 .note-metrics-scroll {
   flex: 1;

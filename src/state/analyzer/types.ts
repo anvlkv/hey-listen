@@ -36,6 +36,36 @@ export type AnalyzerSection = import("../../bindings/Section").Section;
 
 // --- view descriptors ------------------------------------------------------
 
+/**
+ * How a pitch track is presented (M36), declared per detector in `defs/pitch.ts`.
+ *
+ * Reliability capabilities are **descriptor data**, never inferred from an id prefix:
+ * a `series` view with no `pitchDisplay` is an ordinary scalar track.
+ */
+export interface PitchDisplay {
+  /** The per-frame reliability track `PitchResult.confidence` carries for this detector. */
+  confidence: "voicing" | "periodicity" | "none";
+  /** Label the frequency axis with note names (and Hz) at sufficient zoom. */
+  noteLabels: boolean;
+  /** Whether this detector's track can be composed onto a spectrogram's heatmap. */
+  spectrogramOverlay: boolean;
+  /**
+   * A **display guide** on the confidence scale (a reading aid drawn as a reference
+   * line). The engine does not return a detector decision threshold, so this is never
+   * presented as one.
+   */
+  confidenceThreshold?: number;
+}
+
+/** A readout beside a series chart that names a per-tool option the track depends on. */
+export interface SeriesContext {
+  label: string;
+  /** The per-tool option key, read from the tool store (e.g. `windowMs`). */
+  option: string;
+  format: (value: number) => string;
+  title?: string;
+}
+
 /** A single-series line chart over time (or frequency). */
 export interface SeriesView {
   kind: "series";
@@ -53,15 +83,70 @@ export interface SeriesView {
   reference?: { value: number; label: string };
   /** Draw f0 gridlines at semitone frequencies (pitch tracks). */
   semitoneGrid?: boolean;
+  /** Pitch-specific presentation (a reliability track, note labels, overlay capability). */
+  pitchDisplay?: PitchDisplay;
+  /** A context readout beside the chart (the option a track's meaning depends on). */
+  context?: SeriesContext;
+  /**
+   * How one sample relates to time, so the line is drawn honestly rather than implying
+   * a measurement between samples:
+   * - `frame-centre` — one measurement per frame, at the frame's centre. Drawn linear,
+   *   with visible points when the samples are sparse enough to be distinct.
+   * - `block` — the value summarises a block of time (a window aggregate such as an
+   *   RMS frame or an EBU R128 block), drawn as a step that holds forward from the
+   *   timestamp (`stepped({ align: 1 })`).
+   * - `step` — the value changes **at** its timestamp and holds forward (a count or a
+   *   state), drawn as a forward step.
+   * Absent means unspecified; the chart then falls back to `style`.
+   */
+  sampling?: "frame-centre" | "block" | "step";
+  /**
+   * What a bounded scale physically means (e.g. `flatness 0 = tonal, 1 = noise-like`),
+   * shown beside the chart. A ratio is never presented as generic percent.
+   */
+  boundedMeaning?: string;
+  /** The analyzer that shows the underlying spectrum (centroid/rolloff/flatness/…). */
+  supportingTool?: AnalyzerId;
+  /**
+   * Fill the area under the curve. Reserved for a quantity where accumulation from a
+   * meaningful baseline is intended (a level envelope), never for a non-negative
+   * measure merely because it sits above zero.
+   */
+  fill?: boolean;
+}
+
+/**
+ * How a matrix heatmap maps its values onto the colour ramp (M36). Resolved once by
+ * `components/analyzer/heatmapScale.ts` — the pixels and the colourbar share it.
+ */
+export interface MatrixColorSemantics {
+  /**
+   * The colour domain:
+   * - `result` (default) — the result's own `minValue`/`maxValue`,
+   * - `symmetric` — zero-centred, with a **diverging** ramp (signed coefficients),
+   * - `{ min, max }` — a declared fixed domain.
+   */
+  colorDomain?: "result" | "symmetric" | { min: number; max: number };
+  /** The value transform the ramp applies (default `linear`). */
+  colorTransform?: "linear" | "log1p";
 }
 
 /** A frame × band heatmap. */
-export interface MatrixView {
+export interface MatrixView extends MatrixColorSemantics {
   kind: "matrix";
   yLabel: string;
   /** Label for a band row (bottom-up). */
   formatBand: (band: number) => string;
   formatValue: (value: number) => string;
+  /** The value's name for the colourbar (the result's unit is appended by the scale). */
+  valueLabel: string;
+  /**
+   * The band-axis model, for copy: what the rows *are*. Used when the result's own
+   * `model` field is absent (the payload's value wins).
+   */
+  axisModel?: string;
+  /** Label **every** band row (a chromagram's 12 pitch classes) when height permits. */
+  labelEveryBand?: boolean;
   /** Draw pitch-class row lines (chromagram). */
   noteGrid?: boolean;
   /**
@@ -69,6 +154,12 @@ export interface MatrixView {
    * index — the critical-band matrix labels rows by band centre frequency (M26).
    */
   bandAxisIsValue?: boolean;
+  /**
+   * The band's exact low/high edges (Hz), used when the result carries no
+   * `bandEdges`. Either a fixed list or a builder from the band count —
+   * `spectralContrast` measures octave bands between 0 and 1600 Hz.
+   */
+  bandEdges?: number[] | ((bins: number) => number[]);
 }
 
 export interface WaveformView {

@@ -18,10 +18,25 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "is not limited to 2 kHz (the default 50–2000 Hz is only a starting point).\n\n" +
       "**Reliability.** A median from only a handful of voiced frames is not a pitch: " +
       "below **8 voiced frames** the result's `f0Reliable` is false and the summary " +
-      "omits the median. Read `voicedFrames` / `voicedFraction` before trusting a track.",
+      "omits the median. Read `voicedFrames` / `voicedFraction` before trusting a track.\n\n" +
+      "**Confidence.** The track is drawn with the detector's **per-frame confidence** " +
+      "on a second, fixed 0–1 axis; the dashed 0.5 rule is a reading guide, not the " +
+      "detector's decision threshold. Candidate frequencies and octave-ambiguity flags " +
+      "are not part of the result.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
-    view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
+    view: series("f0 (Hz)", formatHz, {
+      points: true,
+      yScale: "log",
+      semitoneGrid: true,
+      pitchDisplay: {
+        // pYIN's Viterbi state probability, per frame, from `PitchResult.confidence`.
+        confidence: "voicing",
+        noteLabels: true,
+        spectrogramOverlay: true,
+        confidenceThreshold: 0.5,
+      },
+    }),
     params: [
       {
         key: "minF0Hz",
@@ -63,7 +78,18 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "omits the median; check `voicedFrames` / `voicedFraction` first.",
     keywords: ["pitch", "yin", "f0", "fundamental", "melody", "threshold"],
     section: "pitch",
-    view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
+    view: series("f0 (Hz)", formatHz, {
+      points: true,
+      yScale: "log",
+      semitoneGrid: true,
+      pitchDisplay: {
+        // oxiaudio's per-frame periodicity confidence, not the window's YIN threshold.
+        confidence: "periodicity",
+        noteLabels: true,
+        spectrogramOverlay: true,
+        confidenceThreshold: 0.5,
+      },
+    }),
     params: [
       {
         key: "minF0Hz",
@@ -116,7 +142,17 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "omits the median; check `voicedFrames` / `voicedFraction` first.",
     keywords: ["pitch", "autocorrelation", "acf", "f0", "fundamental", "period"],
     section: "pitch",
-    view: series("pitch (Hz)", formatHz, { points: true, yScale: "log", semitoneGrid: true }),
+    view: series("f0 (Hz)", formatHz, {
+      points: true,
+      yScale: "log",
+      semitoneGrid: true,
+      pitchDisplay: {
+        confidence: "periodicity",
+        noteLabels: true,
+        spectrogramOverlay: true,
+        confidenceThreshold: 0.5,
+      },
+    }),
     params: [
       {
         key: "minF0Hz",

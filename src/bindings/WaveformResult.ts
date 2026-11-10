@@ -15,4 +15,12 @@ peak: number, rms: number, peakDb: number, rmsDb: number,
 /**
  * Min/max envelope over the window (equal length, `MAX_ENVELOPE` buckets max).
  */
-min: Array<number>, max: Array<number>, };
+min: Array<number>, max: Array<number>, 
+/**
+ * RMS per envelope bucket, aligned with `min`/`max` (same length).
+ */
+bucketRms: Array<number>, 
+/**
+ * Number of envelope buckets whose peak reaches full scale (`max >= 1` or `min <= -1`).
+ */
+clippedBuckets: number, };

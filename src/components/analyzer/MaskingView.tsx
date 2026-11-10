@@ -2,6 +2,8 @@ import uPlot from "uplot";
 import { For, Show } from "solid-js";
 import Readout from "./Readout";
 import FrequencyChart from "./FrequencyChart";
+import MaskingSmrPanel from "./MaskingSmrPanel";
+import type { ChartLegendEntry } from "./chartLegend";
 import { createUplotZoom } from "./uplotZoom";
 import { NoAudioState } from "./chartCommon";
 import { chartTheme } from "../../state/themes";
@@ -46,19 +48,27 @@ const maskedBands = (
 };
 
 /**
- * Masking view (M30): the averaged spectrum with the threshold in quiet `Tq` and
- * the global masking threshold `Tg` overlaid, and masked bins (negative SMR) drawn
- * as bands between the level and `Tg`. Zoom and cursor are synced with the other
- * frequency charts on the `"freq"` group.
+ * Masking view (M30, M36): the averaged spectrum with the threshold in quiet `Tq`
+ * and the global masking threshold `Tg` on one **level** panel, and the
+ * signal-to-mask ratio on a separate, aligned **SMR** panel (a different quantity
+ * must not share one y-scale). Masked bins (negative SMR) are drawn as bands between
+ * the level and `Tg`.
+ *
+ * The level axis is `level (dB SPL)` only when the run is calibrated; otherwise it is
+ * `relative level (dB)` and the legend says `Tq` is dB SPL — the two are not directly
+ * comparable without calibration. Zoom and cursor are synced with the other frequency
+ * charts on the `"freq"` group, and the two panels share that sync.
  */
 export default function MaskingView(props: {
   id: AnalyzerId;
   analysis: AnalysisHandle<AnyAnalysisResult>;
 }) {
   const result = () => props.analysis.result() as MaskingResult | null;
-  const zoom = createUplotZoom("freq");
+  const levelZoom = createUplotZoom("freq");
+  const smrZoom = createUplotZoom("freq");
 
-  useUplotImage(() => props.id, zoom.instance);
+  // Only the level panel provides the tab's PNG export.
+  useUplotImage(() => props.id, levelZoom.instance);
 
   const masked = (r: MaskingResult) => r.smrDb.map((smr, i) => (smr < 0 ? r.spectrumDb[i] : null));
 
@@ -80,6 +90,24 @@ export default function MaskingView(props: {
     return !!r && r.freqs.length >= 2 && r.spectrumDb.length === r.freqs.length;
   };
 
+  /** A calibrated run measures dB SPL; otherwise the spectrum is relative. */
+  const levelLabel = () => (result()?.calibrated ? "level (dB SPL)" : "relative level (dB)");
+
+  const legend = (): ChartLegendEntry[] => [
+    { label: "spectrum", color: chartTheme().seriesMean },
+    { label: "threshold in quiet (Tq)", color: chartTheme().seriesMin, kind: "dashed" },
+    { label: "masking threshold (Tg)", color: chartTheme().seriesMax, kind: "dashed" },
+    { label: "masked (SMR < 0)", color: chartTheme().markerDownbeat },
+  ];
+
+  const legendNote = () => {
+    const r = result();
+    if (!r) return undefined;
+    return r.calibrated
+      ? `${r.calibrationDbSpl.toFixed(1)} dB SPL calibrated`
+      : "uncalibrated — spectrum dBFS, Tq dB SPL";
+  };
+
   const readouts = () => {
     const r = result();
     if (!r) return [];
@@ -91,7 +119,8 @@ export default function MaskingView(props: {
       {
         label: "SMR",
         value: `${min.toFixed(1)} … ${max.toFixed(1)} dB`,
-        title: "Signal-to-mask ratio range — positive means above the estimated threshold",
+        title:
+          "Signal-to-mask ratio range — positive means above the estimated threshold (its own panel below)",
       },
       {
         label: "Masked",
@@ -119,17 +148,17 @@ export default function MaskingView(props: {
             {(spec) => <Readout label={spec.label} value={spec.value} title={spec.title} />}
           </For>
         </div>
-        <div class="analyzer-plot" onWheel={zoom.wheel}>
-          <Show
-            when={hasData()}
-            fallback={
-              <div class="analyzer-empty">
-                Empty window — widen the analysis window or lower the FFT size.
-              </div>
-            }
-          >
+        <Show
+          when={hasData()}
+          fallback={
+            <div class="analyzer-empty">
+              Empty window — widen the analysis window or lower the FFT size.
+            </div>
+          }
+        >
+          <div class="analyzer-plot masking-level">
             <FrequencyChart
-              zoom={zoom}
+              zoom={levelZoom}
               data={data()}
               series={[
                 {
@@ -157,9 +186,19 @@ export default function MaskingView(props: {
                 },
               ]}
               yWindow={100}
+              yLabel={levelLabel()}
+              legend={legend()}
+              legendNote={legendNote()}
             />
-          </Show>
-        </div>
+          </div>
+          <div class="analyzer-plot masking-smr" onWheel={smrZoom.wheel}>
+            <MaskingSmrPanel
+              zoom={smrZoom}
+              freqs={result()?.freqs ?? []}
+              smrDb={result()?.smrDb ?? []}
+            />
+          </div>
+        </Show>
       </div>
     </Show>
   );

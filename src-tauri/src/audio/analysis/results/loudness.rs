@@ -22,4 +22,12 @@ pub struct LoudnessResult {
     pub calibrated: bool,
     /// The calibration used: the dB SPL of a full-scale sine (`0` = uncalibrated).
     pub calibration_db_spl: f32,
+    /// The loudness model this run implements (e.g. "Moore–Glasberg / ISO 532-2 family approximation").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub model: Option<String>,
+    /// The standard the model approximates (e.g. "ISO 532-2").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub standard: Option<String>,
 }

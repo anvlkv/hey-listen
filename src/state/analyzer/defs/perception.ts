@@ -24,6 +24,8 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       yLabel: "band (Hz)",
       formatBand: formatHz,
       formatValue: fmtDb,
+      valueLabel: "band level",
+      axisModel: "critical bands",
       bandAxisIsValue: true,
     },
     params: [
@@ -92,9 +94,10 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     description: "N'(z) specific-loudness map over ERB bands",
     about:
       "**What it shows.** A time × ERB-band heatmap of specific loudness `N'(z)`: " +
-      "how much loudness each band contributes. The y-axis labels the band-centre " +
-      "frequency in Hz; the intensity is a sone/Cam density on the ERB-rate axis " +
-      "(linear, not dB).\n\n" +
+      "how much loudness each band contributes. The vertical axis is the ERB rate " +
+      "(in Cam); each row is labelled by its band-centre frequency in Hz, and the " +
+      "colourbar reports the intensity in sone/Cam (a linear density, shown on a " +
+      "logarithmic colour scale).\n\n" +
       "**Why use it.** It shows *where* in the spectrum the perceived loudness " +
       "comes from — a bright, high-frequency sound has its specific loudness " +
       "pushed up in the upper rows, while a low rumble sits at the bottom. It is " +
@@ -118,10 +121,15 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     section: "perception",
     view: {
       kind: "matrix",
-      yLabel: "ERB band (Hz)",
+      yLabel: "ERB rate (Cam)",
       formatBand: formatHz,
       formatValue: (value) => `${value.toFixed(3)} sone/Cam`,
+      valueLabel: "specific loudness",
+      axisModel: "ERB rate",
       bandAxisIsValue: true,
+      // Sone/Cam density spans orders of magnitude from zero, so a linear ramp would
+      // leave almost the whole map dark. `log1p` keeps 0 at the bottom of the ramp.
+      colorTransform: "log1p",
     },
     params: [
       {
@@ -159,7 +167,13 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     keywords: ["sharpness", "brightness", "acum", "perception", "high frequency"],
     section: "perception",
     view: series("sharpness (acum)", (value) => value.toFixed(2) + " acum", {
+      // A perceived magnitude measured from a meaningful zero (no sharpness), so the
+      // area from that baseline is the quantity itself.
       style: "area",
+      sampling: "frame-centre",
+      // Sharpness is the high-frequency-weighted integral of specific loudness; link
+      // to that full-window distribution (per-frame contribution needs engine data).
+      supportingTool: "specificLoudness",
     }),
     params: [
       {
@@ -198,6 +212,10 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     section: "perception",
     view: series("roughness (asper)", (value) => value.toFixed(2) + " asper", {
       style: "area",
+      sampling: "frame-centre",
+      // Roughness is the ~70 Hz band-envelope modulation contribution; link to the
+      // AM/FM modulation spectra (per-band/per-rate contribution needs engine data).
+      supportingTool: "modulation",
     }),
     params: [
       {
@@ -235,6 +253,10 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     section: "perception",
     view: series("fluctuation (vacil)", (value) => value.toFixed(2) + " vacil", {
       style: "area",
+      sampling: "frame-centre",
+      // Fluctuation strength is the ~4 Hz band-envelope modulation contribution; link
+      // to the AM/FM modulation spectra (per-band/per-rate contribution needs engine data).
+      supportingTool: "modulation",
     }),
     params: [
       {
@@ -256,11 +278,12 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     description: "Masking threshold + signal-to-mask ratio over the spectrum",
     about:
       "**What it shows.** The averaged spectrum of the window with its **threshold " +
-      "in quiet** `Tq(f)` and the **global masking threshold** `Tg(i)` overlaid. `Tg` " +
-      "combines `Tq` with the contribution of every tonal and non-tonal masker, spread " +
-      "over the Bark distance. The **signal-to-mask ratio** `SMR(i) = L(i) − Tg(i)` " +
-      "says how far each line sits above or below the estimated threshold; masked bins " +
-      "(`SMR < 0`) are drawn as bands between the spectrum and `Tg`.\n\n" +
+      "in quiet** `Tq(f)` and the **global masking threshold** `Tg(i)` overlaid, on a " +
+      "level panel. `Tg` combines `Tq` with the contribution of every tonal and " +
+      "non-tonal masker, spread over the Bark distance. Below it, a separate **SMR** " +
+      "panel plots `SMR(i) = L(i) − Tg(i)` with a `0 dB` threshold rule and its own " +
+      "y-axis; masked bins (`SMR < 0`) are also drawn as bands between the spectrum " +
+      "and `Tg`.\n\n" +
       "**Why use it.** It answers which components are likely inaudible under their " +
       "neighbours — a quiet partial next to a loud one, or energy below the threshold " +
       "in quiet.\n\n" +
@@ -306,8 +329,12 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     keywords: ["tonality", "tonal", "ratio", "proxy", "perception", "noise"],
     section: "perception",
     view: series("tonality", (value) => (value * 100).toFixed(0) + "%", {
-      style: "area",
       yRange: [0, 1],
+      sampling: "frame-centre",
+      boundedMeaning: "share of the spectrum's power in tonal bins (0–1)",
+      // Tonality is a ratio over the window spectrum's tonal bins; link to the
+      // spectrum (a per-bin tonal-prominence spectrum needs engine data).
+      supportingTool: "spectrum",
     }),
     params: [
       {
@@ -344,8 +371,10 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
     keywords: ["spatial", "mid", "side", "correlation", "stereo", "width", "perception"],
     section: "perception",
     view: series("correlation", (value) => value.toFixed(2), {
-      style: "area",
       yRange: [-1, 1],
+      sampling: "frame-centre",
+      boundedMeaning:
+        "normalized inter-channel correlation · −1 anti-phase, 0 unrelated, 1 identical",
     }),
     params: [
       {

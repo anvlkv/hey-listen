@@ -22,8 +22,15 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 
+mod decode;
+mod stored_loudness;
 mod stored_matrix;
+mod stored_pitch;
+mod stored_waveform;
+pub use stored_loudness::StoredLoudness;
 pub use stored_matrix::StoredMatrix;
+pub use stored_pitch::StoredPitch;
+pub use stored_waveform::StoredWaveform;
 
 /// The postcard-safe stored fields of a [`SeriesResult`].
 ///
@@ -188,7 +195,7 @@ impl From<StoredNoteMetrics> for NoteMetricsResult {
 /// inserting one in the middle, so existing project files keep decoding.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StoredAnalysisResult {
-    Waveform(WaveformResult),
+    Waveform(StoredWaveform),
     Spectrum(SpectrumResult),
     Spectrogram(SpectrogramResult),
     Levels(LevelsResult),
@@ -206,9 +213,9 @@ pub enum StoredAnalysisResult {
     SpectralCrest(StoredSeries),
     HarmonicRatio(StoredSeries),
     ZeroCrossingRate(StoredSeries),
-    PitchPyin(PitchResult),
-    PitchYin(PitchResult),
-    PitchAutocorr(PitchResult),
+    PitchPyin(StoredPitch),
+    PitchYin(StoredPitch),
+    PitchAutocorr(StoredPitch),
     NoteMetrics(StoredNoteMetrics),
     Modulation(ModulationResult),
     Tempo(RhythmResult),
@@ -218,7 +225,7 @@ pub enum StoredAnalysisResult {
     LoudnessMomentary(StoredSeries),
     LoudnessRange(LraResult),
     CriticalBands(StoredMatrix),
-    Loudness(LoudnessResult),
+    Loudness(StoredLoudness),
     SpecificLoudness(StoredMatrix),
     Sharpness(CalibratedSeriesResult),
     Roughness(CalibratedSeriesResult),
@@ -231,7 +238,7 @@ pub enum StoredAnalysisResult {
 impl From<&AnalysisResult> for StoredAnalysisResult {
     fn from(result: &AnalysisResult) -> Self {
         match result {
-            AnalysisResult::Waveform(value) => Self::Waveform(value.clone()),
+            AnalysisResult::Waveform(value) => Self::Waveform(value.into()),
             AnalysisResult::Spectrum(value) => Self::Spectrum(value.clone()),
             AnalysisResult::Spectrogram(value) => Self::Spectrogram(value.clone()),
             AnalysisResult::Levels(value) => Self::Levels(value.clone()),
@@ -249,9 +256,9 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::SpectralCrest(value) => Self::SpectralCrest(value.into()),
             AnalysisResult::HarmonicRatio(value) => Self::HarmonicRatio(value.into()),
             AnalysisResult::ZeroCrossingRate(value) => Self::ZeroCrossingRate(value.into()),
-            AnalysisResult::PitchPyin(value) => Self::PitchPyin(value.clone()),
-            AnalysisResult::PitchYin(value) => Self::PitchYin(value.clone()),
-            AnalysisResult::PitchAutocorr(value) => Self::PitchAutocorr(value.clone()),
+            AnalysisResult::PitchPyin(value) => Self::PitchPyin(value.into()),
+            AnalysisResult::PitchYin(value) => Self::PitchYin(value.into()),
+            AnalysisResult::PitchAutocorr(value) => Self::PitchAutocorr(value.into()),
             AnalysisResult::NoteMetrics(value) => Self::NoteMetrics(value.into()),
             AnalysisResult::Modulation(value) => Self::Modulation(value.clone()),
             AnalysisResult::Tempo(value) => Self::Tempo(value.clone()),
@@ -261,7 +268,7 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.into()),
             AnalysisResult::LoudnessRange(value) => Self::LoudnessRange(value.clone()),
             AnalysisResult::CriticalBands(value) => Self::CriticalBands(value.into()),
-            AnalysisResult::Loudness(value) => Self::Loudness(value.clone()),
+            AnalysisResult::Loudness(value) => Self::Loudness(value.into()),
             AnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value.into()),
             AnalysisResult::Sharpness(value) => Self::Sharpness(value.clone()),
             AnalysisResult::Roughness(value) => Self::Roughness(value.clone()),
@@ -276,7 +283,7 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
 impl From<StoredAnalysisResult> for AnalysisResult {
     fn from(stored: StoredAnalysisResult) -> Self {
         match stored {
-            StoredAnalysisResult::Waveform(value) => Self::Waveform(value),
+            StoredAnalysisResult::Waveform(value) => Self::Waveform(value.into()),
             StoredAnalysisResult::Spectrum(value) => Self::Spectrum(value),
             StoredAnalysisResult::Spectrogram(value) => Self::Spectrogram(value),
             StoredAnalysisResult::Levels(value) => Self::Levels(value),
@@ -294,9 +301,9 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::SpectralCrest(value) => Self::SpectralCrest(value.into()),
             StoredAnalysisResult::HarmonicRatio(value) => Self::HarmonicRatio(value.into()),
             StoredAnalysisResult::ZeroCrossingRate(value) => Self::ZeroCrossingRate(value.into()),
-            StoredAnalysisResult::PitchPyin(value) => Self::PitchPyin(value),
-            StoredAnalysisResult::PitchYin(value) => Self::PitchYin(value),
-            StoredAnalysisResult::PitchAutocorr(value) => Self::PitchAutocorr(value),
+            StoredAnalysisResult::PitchPyin(value) => Self::PitchPyin(value.into()),
+            StoredAnalysisResult::PitchYin(value) => Self::PitchYin(value.into()),
+            StoredAnalysisResult::PitchAutocorr(value) => Self::PitchAutocorr(value.into()),
             StoredAnalysisResult::NoteMetrics(value) => Self::NoteMetrics(value.into()),
             StoredAnalysisResult::Modulation(value) => Self::Modulation(value),
             StoredAnalysisResult::Tempo(value) => Self::Tempo(value),
@@ -306,7 +313,7 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::LoudnessMomentary(value) => Self::LoudnessMomentary(value.into()),
             StoredAnalysisResult::LoudnessRange(value) => Self::LoudnessRange(value),
             StoredAnalysisResult::CriticalBands(value) => Self::CriticalBands(value.into()),
-            StoredAnalysisResult::Loudness(value) => Self::Loudness(value),
+            StoredAnalysisResult::Loudness(value) => Self::Loudness(value.into()),
             StoredAnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value.into()),
             StoredAnalysisResult::Sharpness(value) => Self::Sharpness(value),
             StoredAnalysisResult::Roughness(value) => Self::Roughness(value),

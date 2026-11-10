@@ -76,7 +76,7 @@ Covers item **7**.
 
 ### Phase 4 — Legibility and encodings
 
-Covers items **4, 9, 10, 11, 12**.
+Covers items **4, 9, 10, 11, 12, 13, 14**.
 
 - Declare colour scale, value unit and range for every matrix heatmap; label octave bands
   and all pitch classes at usable zoom.
@@ -87,6 +87,8 @@ Covers items **4, 9, 10, 11, 12**.
 - Tune the light-theme heatmap colour map and grid contrast; verify reference-line contrast.
 - Make aggregate feature timelines explicit about sampling (frame samples vs filled
   continuity) and bounded-ratio meaning, and link them to their spectra.
+- Make chart gutters, stacked-panel gaps, and Workbench tab chrome compact at the baseline
+  UI scale, with semantic spacing tokens that grow proportionally at larger UI scales.
 
 ## Validation
 
@@ -106,10 +108,12 @@ Covers items **4, 9, 10, 11, 12**.
   perception analyzers. It has been regenerated to 37 tools (the deterministic 4 s mono
   fixture); `spatial` is stereo-only and correctly excluded. Re-run
   `npm run lighthouse:fixtures` after any engine/result-shape change.
-- `scripts/lighthouse/generate-fixtures.ts` currently **aborts** on the mono fixture: the
-  CLI's `--all` includes stereo-only `spatial`, which exits non-zero. It needs to either
-  exclude `spatial` from the mono pass or render a stereo fixture for it. This is a real
-  bug to fix before the next fixture regeneration.
+- `scripts/lighthouse/generate-fixtures.ts` previously **aborted** on the mono fixture:
+  the CLI's `--all` includes stereo-only `spatial`, which exits non-zero. It now derives the
+  catalog from `hey-listen-cli analyzers --json`, excludes the stereo-only `spatial`, runs
+  `-t` per remaining tool, and asserts every requested tool wrote a result — so a *real*
+  failure still aborts loudly. Re-run `npm run lighthouse:fixtures` after any
+  engine/result-shape change.
 
 ## Dependencies and fit
 

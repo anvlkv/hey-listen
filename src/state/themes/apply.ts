@@ -1,6 +1,6 @@
 import { createSignal, untrack } from "solid-js";
 import type { ChartTheme, ColorStop, ThemeBase, ThemeFile } from "../../lib/themeFile";
-import { BASE_COLORMAP, BASE_FLOW } from "./basePalettes";
+import { BASE_COLORMAP, BASE_COLORMAP_DIVERGING, BASE_FLOW } from "./basePalettes";
 import { BUILTIN_THEMES } from "./builtins";
 import { BASE_CHART } from "./chart";
 import { themeById } from "./registry";
@@ -199,10 +199,18 @@ export function chartTheme(): ChartTheme {
   return { ...BASE_CHART[theme.meta.base], ...theme.chart };
 }
 
-/** The heatmap ramp for the active theme (its `colormap`, else the base ramp). */
-export function activeColormapStops(): ColorStop[] {
+/**
+ * The heatmap ramp for the active theme (its `colormap` overlay, else the base ramp).
+ * `diverging` selects the **signed** ramp whose middle is the domain's zero (MFCC);
+ * every other matrix uses the sequential one.
+ */
+export function activeColormapStops(kind: "sequential" | "diverging" = "sequential"): ColorStop[] {
   const theme = activeTheme();
-  return theme.colormap?.stops ?? BASE_COLORMAP[theme.meta.base];
+  const overlay = theme.colormap;
+  if (kind === "diverging") {
+    return overlay?.diverging ?? BASE_COLORMAP_DIVERGING[theme.meta.base];
+  }
+  return overlay?.stops ?? BASE_COLORMAP[theme.meta.base];
 }
 
 /** The `solid-flow` (`--xy-*`) style for the active theme (base merged with `flow`). */

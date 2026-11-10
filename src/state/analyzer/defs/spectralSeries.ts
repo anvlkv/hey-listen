@@ -6,6 +6,20 @@ import { GATE_PARAMS } from "./gate";
 /** Octave-band counts offered by the spectral-contrast tool. */
 const CONTRAST_BANDS = [4, 5, 6, 7, 8].map((value) => ({ value, label: `${value}` }));
 
+/** The first octave boundary of the contrast tool (oxiaudio starts at 200 Hz). */
+const CONTRAST_START_HZ = 200;
+
+/**
+ * The contrast tool's band edges (Hz), for `bins` bands. The engine partitions the
+ * spectrum into `[0, 200)`, `[200, 400)`, `[400, 800)`, … — one octave per band — so
+ * the chart can label each row's real range instead of `band 1…N`.
+ */
+function contrastBandEdges(bins: number): number[] {
+  const edges = [0];
+  for (let band = 0; band < bins; band++) edges.push(CONTRAST_START_HZ * 2 ** band);
+  return edges;
+}
+
 /** The scalar `spectral` tracks, charted as single series over time. */
 export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
   {
@@ -21,7 +35,13 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "background out of the measurement (0 = off).",
     keywords: ["centroid", "brightness", "timbre", "spectral", "center of mass"],
     section: "spectral",
-    view: series("centroid (Hz)", formatHz, { style: "area", yScale: "log" }),
+    // One measured value per frame, at the frame's centre: a line with sample dots when
+    // they are sparse, never an area (the value is a frequency, not an accumulation).
+    view: series("centroid (Hz)", formatHz, {
+      yScale: "log",
+      sampling: "frame-centre",
+      supportingTool: "spectrum",
+    }),
     params: [...GATE_PARAMS],
   },
   {
@@ -36,6 +56,8 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "than in the beat grid.",
     keywords: ["flux", "onset", "transient", "novelty", "spectral change"],
     section: "spectral",
+    // A per-frame change score: stems, so an isolated attack reads as one event rather
+    // than a line implying a value between frames.
     view: series("flux", fmtPlain, { style: "stems" }),
   },
   {
@@ -50,7 +72,11 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "further into the high-frequency tail.",
     keywords: ["rolloff", "roll-off", "brightness", "energy", "high frequency"],
     section: "spectral",
-    view: series("rolloff (Hz)", formatHz, { style: "area", yScale: "log" }),
+    view: series("rolloff (Hz)", formatHz, {
+      yScale: "log",
+      sampling: "frame-centre",
+      supportingTool: "spectrum",
+    }),
     params: [
       {
         key: "rolloffPercent",
@@ -79,7 +105,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "hiss, breaths, cymbals, and pitched passages.",
     keywords: ["flatness", "wiener", "entropy", "tonal", "noise", "tonality"],
     section: "spectral",
-    view: series("flatness", fmtPlain, { style: "area", yRange: [0, 1] }),
+    view: series("flatness", fmtPlain, {
+      yRange: [0, 1],
+      sampling: "frame-centre",
+      boundedMeaning: "0 = tonal · 1 = noise-like",
+      supportingTool: "spectrum",
+    }),
     params: [...GATE_PARAMS],
   },
   {
@@ -96,8 +127,13 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
     view: {
       kind: "matrix",
       yLabel: "octave band",
-      formatBand: (band) => `band ${band + 1}`,
+      formatBand: formatHz,
       formatValue: fmtDb,
+      valueLabel: "contrast",
+      axisModel: "octave bands",
+      // The payload carries no band edges for contrast, so the descriptor owns the
+      // partition the engine actually measures (0–200 Hz, then one octave per band).
+      bandEdges: contrastBandEdges,
     },
     params: [
       {
@@ -122,7 +158,11 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "simple gauge of how complex or full a sound is.",
     keywords: ["bandwidth", "spread", "variance", "width", "spectral"],
     section: "spectral",
-    view: series("bandwidth (Hz)", formatHz, { style: "area", yScale: "log" }),
+    view: series("bandwidth (Hz)", formatHz, {
+      yScale: "log",
+      sampling: "frame-centre",
+      supportingTool: "spectrum",
+    }),
   },
   {
     id: "spectralEntropy",
@@ -135,7 +175,10 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "material. Read it alongside *flatness*.",
     keywords: ["entropy", "shannon", "disorder", "noise", "spectral"],
     section: "spectral",
-    view: series("entropy (bits)", fmtPlain, { style: "area" }),
+    view: series("entropy (bits)", fmtPlain, {
+      sampling: "frame-centre",
+      supportingTool: "spectrum",
+    }),
   },
   {
     id: "spectralCrest",
@@ -148,7 +191,10 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "good for spotting tonal events inside a noisy bed.",
     keywords: ["crest", "factor", "peak", "average", "tonal", "spectral"],
     section: "spectral",
-    view: series("crest factor", fmtPlain, { style: "stepped" }),
+    view: series("crest factor", fmtPlain, {
+      sampling: "frame-centre",
+      supportingTool: "spectrum",
+    }),
   },
   {
     id: "harmonicRatio",
@@ -167,7 +213,12 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "leave background frames out.",
     keywords: ["harmonic", "ratio", "hnr", "periodicity", "autocorrelation", "noise"],
     section: "spectral",
-    view: series("harmonic ratio", fmtRatio, { style: "area", yRange: [0, 1] }),
+    view: series("harmonic ratio", fmtRatio, {
+      yRange: [0, 1],
+      sampling: "frame-centre",
+      boundedMeaning: "normalized autocorrelation · 0 = aperiodic, 1 = perfectly periodic",
+      supportingTool: "spectrum",
+    }),
     params: [
       {
         key: "minF0Hz",
@@ -206,7 +257,11 @@ export const SPECTRAL_SERIES_ANALYZERS: AnalyzerDef[] = [
       "percussive from tonal material.",
     keywords: ["zero crossing", "zcr", "sign", "voiced", "percussive", "rate"],
     section: "spectral",
-    view: series("zero-crossing rate", fmtRatio, { style: "area", yRange: [0, 1] }),
+    view: series("zero-crossing rate", fmtRatio, {
+      yRange: [0, 1],
+      sampling: "frame-centre",
+      boundedMeaning: "0 = no sign changes · 1 = a sign change every sample",
+    }),
     params: [...GATE_PARAMS],
   },
 ];

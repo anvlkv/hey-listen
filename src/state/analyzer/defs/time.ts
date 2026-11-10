@@ -13,7 +13,11 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
       "the window's peak and RMS levels in dBFS.\n\n" +
       "**Why use it.** Spot clipping, silence, sudden level jumps, and transients at " +
       "a glance. It charts the *conditioned* signal (channel choice, filter, and any " +
-      "resample applied), so it matches what playback and the other tools hear.",
+      "resample applied), so it matches what playback and the other tools hear. " +
+      "Full-scale buckets are marked at the plot edges, and the readout counts them.\n\n" +
+      "**Linked spectrogram.** Turn this on to stack the spectrogram under the waveform: " +
+      "level, transients and spectral content then share one time axis, so a change you " +
+      "see in the envelope can be traced to the band that caused it.",
     keywords: ["waveform", "time", "envelope", "amplitude", "peak", "rms", "oscilloscope"],
     section: "time",
     view: { kind: "waveform" },
@@ -25,6 +29,15 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
         value: 0,
         target: "view",
         title: "Plot the envelope in dBFS (0 dBFS at the top) instead of linear amplitude.",
+      },
+      {
+        key: "linkedPair",
+        label: "Linked spectrogram",
+        kind: "toggle",
+        value: 0,
+        target: "view",
+        title:
+          "Stack the spectrogram under the waveform, sharing one time axis — the linked primary diagnostic.",
       },
     ],
   },
@@ -56,7 +69,12 @@ export const TIME_ANALYZERS: AnalyzerDef[] = [
       "peak into gaps (0 = off).",
     keywords: ["envelope", "amplitude", "rms", "dbfs", "level", "frame", "dynamics"],
     section: "time",
-    view: series("level (dBFS)", (value) => `${value.toFixed(1)} dBFS`, { style: "area" }),
+    view: series("level (dBFS)", (value) => `${value.toFixed(1)} dBFS`, {
+      // An RMS frame covers a block of samples, so it is drawn as a block-width step;
+      // a level envelope is the one place an area fill accumulates from a baseline.
+      sampling: "block",
+      fill: true,
+    }),
     params: [
       {
         key: "frameMs",

@@ -196,6 +196,8 @@ fn waveform(duration: f64, max: Vec<f32>) -> WaveformResult {
         peak_db: 0.0,
         rms_db: 0.0,
         min: vec![0.0; max.len()],
+        bucket_rms: vec![0.0; max.len()],
+        clipped_buckets: 0,
         max,
     }
 }

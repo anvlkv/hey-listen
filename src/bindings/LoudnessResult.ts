@@ -27,4 +27,12 @@ calibrated: boolean,
 /**
  * The calibration used: the dB SPL of a full-scale sine (`0` = uncalibrated).
  */
-calibrationDbSpl: number, };
+calibrationDbSpl: number, 
+/**
+ * The loudness model this run implements (e.g. "Moore–Glasberg / ISO 532-2 family approximation").
+ */
+model?: string, 
+/**
+ * The standard the model approximates (e.g. "ISO 532-2").
+ */
+standard?: string, };

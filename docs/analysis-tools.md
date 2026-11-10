@@ -201,6 +201,15 @@ readout on the chart and named in its empty-state copy, so a request the detecto
 not honour is visible instead of silently truncated. The default is still 50–2000 Hz;
 raise `maxF0Hz` for high calls.
 
+**Pitch confidence (M36).** A pitch track is drawn with its detector's **per-frame
+`confidence`** on a second, fixed 0–1 axis (the pYIN Viterbi state probability, or
+YIN/autocorrelation periodicity) with a dashed 0.5 **display guide** — never the
+detector's own decision threshold, which the result does not carry. Candidate
+frequencies and octave-ambiguity flags are deferred Rust data and are not fabricated.
+The view's `PitchDisplay` descriptor (in `state/analyzer/defs/pitch.ts`) also declares
+note-name axis labels and the spectrogram-overlay capability; the **spectrogram** can
+compose the F0 track (a separate pYIN run of the same window) as an opt-in overlay.
+
 **Amplitude envelope (M17).** `frameRms` returns a plain frame-centred RMS series in
 dBFS (`frameMs` 10 / `hopMs` 5 by default), independent of EBU R128 loudness. Its
 `SeriesResult` carries an optional `frameSize` in samples, so the chart, the readouts
@@ -281,11 +290,17 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
   with semitone gridlines**; bounded ratios fix `0…1`; momentary loudness adds a
   **−14 LUFS reference line**.
 - **waveform** — the min/max envelope; the **dB scale** toggle collapses it to a
-  |peak| curve in dBFS with a 0 dBFS line.
-- **spectrum** — layered magnitudes; the **Log frequency** toggle (default on)
-  switches the axis between linear and octave spacing.
+  |peak| curve in dBFS with a 0 dBFS line. Full-scale buckets are marked at the plot
+  edges and counted in the readouts; the **linked spectrogram** toggle stacks the
+  spectrogram under the envelope on one time axis (`SignalDiagnostic`).
+- **spectrum** — layered magnitudes (min/max shaded as one band, mean drawn last,
+  named in the chart legend); the **Frequency scale** selector (linear / log Hz, Bark,
+  ERB-rate, default log), **Band guides** (octave / Bark / ERB edges) and labelled
+  prominent peaks.
 - **spectrogram** — the magnitude heatmap; the **Centroid** / **Rolloff** toggles
-  (default on) overlay those tracks.
+  (default on) overlay those tracks. The **Frequency scale** selector resamples the
+  FFT rows into the display coordinate, so the labels, picking and zoom agree on
+  Bark / ERB / log axes as on a linear one; the cursor still reports Hz.
 - **matrix** — a frame × band heatmap; the chromagram adds a pitch-class note grid.
 - **rhythm** — the onset-strength envelope with beat / onset / downbeat markers, plus
   a **tempo-salience** panel (the envelope's autocorrelation over BPM) on the tempo

@@ -1,4 +1,4 @@
-import { createEffect, createRoot, on } from "solid-js";
+import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { createPluginBus } from "@dschz/solid-uplot";
 import type {
   CursorPluginMessageBus,
@@ -143,8 +143,21 @@ export type AnalyzerBus = CursorPluginMessageBus &
   PlayheadMessageBus &
   Record<string, unknown>;
 
-/** The one bus shared by every uPlot analyzer tab. */
+/** The one bus shared by every uPlot analyzer chart. */
 export const analyzerBus = createPluginBus<AnalyzerBus>();
+
+/**
+ * A reactive snapshot of the bus's current view message. A chart mounted after a user
+ * zoom needs an already-readable value, not merely a future plugin-bus notification;
+ * this bridge preserves the bus as the cross-window transport while giving new uPlot and
+ * canvas instances one stable reactive source to consume.
+ */
+const [chartView, setChartView] = createSignal<ViewMessage | null>(null);
+export { chartView };
+
+createRoot(() => {
+  createEffect(() => setChartView(readBusMessage(analyzerBus.data.view)));
+});
 
 /**
  * Counts the views published by a **user action** (zoom / pan / fit). Used to let a

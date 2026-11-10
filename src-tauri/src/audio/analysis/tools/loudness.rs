@@ -8,6 +8,11 @@ use super::super::support::frame_times;
 use super::super::{AnalysisError, LoudnessResult, MatrixResult, SharedParams, ToolOptions};
 use super::shared::{build_band_matrix, stft_with_freqs_amplitude};
 
+/// The model this tool implements, named the way the docs and chart copy name it.
+const LOUDNESS_MODEL: &str = "Moore–Glasberg / ISO 532-2 family approximation";
+/// The standard the model approximates.
+const LOUDNESS_STANDARD: &str = "ISO 532-2";
+
 /// dB SPL per bin (component level + calibration).
 ///
 /// The shared STFT's magnitudes are coherent-gain-normalized **component amplitudes**
@@ -86,6 +91,8 @@ pub(super) fn loudness(
         loudness_phon,
         calibrated: calibration > 0.0,
         calibration_db_spl: calibration,
+        model: Some(LOUDNESS_MODEL.to_string()),
+        standard: Some(LOUDNESS_STANDARD.to_string()),
     })
 }
 
@@ -126,5 +133,8 @@ pub(super) fn specific_loudness(
     result.band_edges = Some(edges);
     result.calibrated = calibration > 0.0;
     result.calibration_db_spl = calibration;
+    result.model = Some("specificLoudness".to_string());
+    // A physical loudness density (sone per Cam), not a comparison-only scale.
+    result.normalized = Some(false);
     Ok(result)
 }

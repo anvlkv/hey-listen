@@ -49,11 +49,11 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px 16px;
+  gap: var(--space-chart-tight) calc(var(--space-chart-wide) * 1.4);
   flex: none;
   /* Reserved height: the strip keeps the same height whatever the entries show. */
-  min-height: 1.75rem;
-  padding: 6px 10px;
+  min-height: 1.625rem;
+  padding: var(--space-chart-tight) var(--space-chart-wide);
   font-size: 0.6875rem;
   border-bottom: 1px solid var(--border-soft);
   overflow: hidden;
@@ -82,7 +82,71 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  padding: 4px 0 0;
+  padding: var(--space-chart-tight) 0 0;
+}
+
+/* The masking view stacks two aligned panels on one frequency axis: the level curves
+   keep the larger share, the SMR panel a compact strip beneath them. */
+.masking-level {
+  flex: 2 1 0;
+}
+
+.masking-smr {
+  flex: 1 1 0;
+  min-height: 80px;
+  margin-top: var(--space-chart-tight);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* The shared frequency chart fills its container and keeps the legend on its bottom
+   edge, outside the plot, so it can never cover the data. */
+.frequency-chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.frequency-chart-plot {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* Matrix heatmap colourbar (M36): the ramp, labelled at the domain's ends in the
+   result's own unit. Sized so the bar never squeezes the heatmap. */
+.heatmap-scale {
+  display: flex;
+  align-items: center;
+  gap: var(--space-chart-wide);
+  flex: none;
+  min-height: 20px;
+  padding: 0 var(--space-chart-wide) var(--space-chart-tight);
+  font-size: 0.6875rem;
+  color: var(--fg-faint);
+}
+
+.heatmap-scale-label {
+  flex: none;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.heatmap-scale-ramp {
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+}
+
+.heatmap-scale-ticks {
+  display: inline-flex;
+  gap: 14px;
+  flex: none;
+  color: var(--fg-body);
+  font-variant-numeric: tabular-nums;
 }
 
 .analyzer-empty {
@@ -132,7 +196,7 @@
 /* A one-line note under a chart (e.g. the modulation FM half is absent). */
 .analyzer-hint {
   flex: none;
-  padding: 2px 12px 8px;
+  padding: 0 var(--space-chart-wide) var(--space-chart);
   font-size: 0.6875rem;
   line-height: 1.4;
   color: var(--fg-faint);
@@ -143,7 +207,30 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  padding: 4px 0 0;
+  padding: var(--space-chart-tight) 0 0;
+}
+
+/* The linked waveform-over-spectrogram pair (M36, `SignalDiagnostic`): the waveform keeps
+   a fixed share of the height, so both halves stay readable at any panel size. */
+.signal-diagnostic-pair {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.signal-diagnostic-waveform {
+  position: relative;
+  flex: 0 0 38%;
+  min-height: 88px;
+  padding: var(--space-chart-tight) 0 0;
+}
+
+.signal-diagnostic-spectrogram {
+  flex: 1;
+  min-height: 80px;
+  margin-top: var(--space-chart-tight);
+  border-top: 1px solid var(--border-soft);
 }
 
 .spectrogram-canvas canvas {
@@ -173,7 +260,10 @@
   background: var(--chart-select, rgba(0, 0, 0, 0.07));
 }
 
-/* Zoom controls, overlaid on the top-right of a chart. */
+/* Zoom controls, overlaid on the top-right of a chart. The shared `ChartPlot`
+   wrapper hides them until the chart is in use (M36, chart review item 13): the
+   buttons are only handed to the pointer once it is inside the plot, and a zoomed
+   chart keeps them revealed so the reset is never stranded. */
 .zoom-controls {
   position: absolute;
   top: 8px;
@@ -186,6 +276,46 @@
   background: var(--overlay-92);
   border: 1px solid var(--border);
   border-radius: 5px;
+}
+
+/* The chrome layer: an overlay box so the controls can be positioned against the chart's
+   own container, and faded as one. It never takes pointer events unless revealed. */
+.chart-zoom-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.chart-zoom-chrome.is-idle {
+  opacity: 0;
+}
+
+.chart-zoom-chrome .zoom-controls {
+  pointer-events: auto;
+}
+
+.chart-zoom-chrome.is-idle .zoom-controls {
+  pointer-events: none;
+}
+
+/* The "open the underlying spectrum" action beside a feature track (M36). */
+.chart-tool-link {
+  flex: none;
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 0.6875rem;
+  color: var(--fg-body);
+  background: var(--control);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.chart-tool-link:hover {
+  background: var(--control-hover);
+  color: var(--fg-strong);
 }
 
 .zoom-btn {

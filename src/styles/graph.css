@@ -314,6 +314,27 @@
   display: none;
 }
 
+/* Dockview's default tabs are roomy for document-style labels. Workbench tools are
+   compact instruments, so keep their chrome narrow while letting the existing UI scale
+   enlarge touch targets and spacing together. The app's searchable overflow menu retains
+   full titles; visible tabs ellipsize rather than forcing a second tab-bar layout. */
+.app-workbench {
+  --dv-tabs-and-actions-container-height: var(--tab-strip-height);
+}
+
+.app-workbench .dv-tabs-and-actions-container {
+  min-height: var(--tab-strip-height);
+}
+
+.app-workbench .dv-tab {
+  min-width: calc(64px * var(--ui-scale, 1));
+  padding-inline: var(--tab-inline-padding) !important;
+}
+
+.app-workbench .dv-tab .dv-default-tab-content {
+  gap: var(--tab-label-gap);
+}
+
 /* dockview.css is a separate chunk loaded after this file, so these overrides
    need !important to beat dockview's own scrollbar rules. Tabs still scroll via
    wheel/drag and overflow into the tab menu. */

@@ -2411,7 +2411,7 @@ workflow — open a source, filter, analyze, annotate, compare — end to end.
   theme(s), and where it embeds.
 - **TBD** — keeping the site's screenshots and roadmap page in sync with the app.
 
-## M36 — Informative, telling charts (drafted — proposal)
+## M36 — Informative, telling charts ✅
 
 Make every analyzer chart truthful, inspectable, and legible — the visual layer as part of
 the analysis, per `docs/improved-charts-ideation.md`. Scope and phases are proposed in

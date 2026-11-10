@@ -6,6 +6,7 @@
  * charts stay readable when a tab is narrow: values are kept short (`kHz`/`MHz`,
  * compact times) so tick labels neither clip nor collide.
  */
+import { noteName } from "../../state/analyzer/format";
 
 /** Width (px) reserved for y-axis value labels (wider than uPlot's default 50). */
 export const Y_AXIS_SIZE = 58;
@@ -21,7 +22,11 @@ export const Y_AXIS_SPACE = 34;
 /** The slice of the uPlot instance the axis value formatters read. */
 interface AxisSelf {
   scales: { [key: string]: { min?: number; max?: number } };
+  axes?: { scale?: string }[];
 }
+
+/** How many octaves may be visible before note names are dropped from tick labels. */
+const NOTE_LABEL_OCTAVES = 4;
 
 function pad2(value: number): string {
   return String(Math.floor(value)).padStart(2, "0");
@@ -76,7 +81,30 @@ export function timeAxisValues(self: AxisSelf, ticks: (number | null)[]): string
   return ticks.map((t) => (t == null ? "" : formatTimeTick(t, span)));
 }
 
-/** uPlot `values` formatter: `kHz`/`MHz` labels for a frequency x- or y-axis. */
-export function frequencyAxisValues(_self: AxisSelf, ticks: (number | null)[]): string[] {
-  return ticks.map((t) => (t == null ? "" : formatFrequency(t)));
+/**
+ * uPlot `values` formatter: `kHz`/`MHz` labels for a frequency x- or y-axis, with the
+ * musical note name in front at a zoomed-in range (`A4 440 Hz`). The axis's own scale
+ * is read via `axisIdx`, so a right-hand `f0` axis is judged on its own range.
+ */
+export function frequencyAxisValues(
+  self: AxisSelf,
+  ticks: (number | null)[],
+  axisIdx?: number,
+): string[] {
+  const index = axisIdx ?? 1;
+  // The x-axis is always axis 0; every other axis without an explicit `scale` is on `y`.
+  const key = self.axes?.[index]?.scale ?? (index === 0 ? "x" : "y");
+  const scale = self.scales[key];
+  const min = scale?.min;
+  const max = scale?.max;
+  const zoomed =
+    typeof min === "number" &&
+    typeof max === "number" &&
+    min > 0 &&
+    max > min &&
+    Math.log2(max / min) <= NOTE_LABEL_OCTAVES;
+  return ticks.map((tick) => {
+    if (tick == null) return "";
+    return zoomed ? `${noteName(tick)} ${formatFrequency(tick)}` : formatFrequency(tick);
+  });
 }
