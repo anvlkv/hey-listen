@@ -47,6 +47,7 @@ pub(crate) fn pitch() -> PitchResult {
         voiced_frames: 3,
         voiced_fraction: 0.75,
         f0_reliable: false,
+        confidence: vec![Some(0.9), None, Some(0.8), Some(0.7)],
     }
 }
 
@@ -79,6 +80,8 @@ pub(crate) fn loudness() -> LoudnessResult {
         loudness_phon: vec![Some(40.0), None, Some(55.85), Some(50.0)],
         calibrated: true,
         calibration_db_spl: 94.0,
+        model: Some("Moore–Glasberg / ISO 532-2 family approximation".to_string()),
+        standard: Some("ISO 532-2".to_string()),
     }
 }
 
@@ -241,6 +244,8 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         rms_db: -9.0,
         min: vec![-0.5, -0.4],
         max: vec![0.5, 0.4],
+        bucket_rms: vec![0.35, 0.3],
+        clipped_buckets: 1,
     };
     let levels = LevelsResult {
         sample_rate: 48_000,
@@ -265,6 +270,12 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         max_db: -6.0,
     };
     let matrix = matrix();
+    // One sample carries the band-axis metadata the matrix tools now set.
+    let modelled_matrix = MatrixResult {
+        model: Some("mel".to_string()),
+        normalized: Some(false),
+        ..matrix.clone()
+    };
     let series = series();
     let pitch = pitch();
     let rhythm = rhythm();
@@ -274,7 +285,7 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::FrameRms(frame_rms()),
         AnalysisResult::Spectrum(spectrum()),
         AnalysisResult::Spectrogram(spectrogram),
-        AnalysisResult::MelSpectrogram(matrix.clone()),
+        AnalysisResult::MelSpectrogram(modelled_matrix),
         AnalysisResult::Mfcc(matrix.clone()),
         AnalysisResult::Chromagram(matrix.clone()),
         AnalysisResult::SpectralContrast(matrix.clone()),

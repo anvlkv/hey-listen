@@ -1,13 +1,21 @@
-import { createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
 import FrequencyChart from "./FrequencyChart";
+import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
 import { createUplotZoom } from "./uplotZoom";
 import { NoAudioState } from "./chartCommon";
 import { chartTheme } from "../../state/themes";
 import { useUplotImage } from "./chartImage";
 import { contourAt } from "../../lib/equalLoudness";
+import {
+  bandGuideLines,
+  bandGuideOf,
+  detectSpectralPeaks,
+  spectralPeakLabels,
+} from "./frequencyOverlays";
+import { frequencyAxisTransform, frequencyScaleOf } from "./frequencyScale";
 import { createAnalysis, formatHz, toolOptions, type SpectrumResult } from "../../state/analyzer";
 
 /** Per-tool switch (a 0/1 `select`) that shows one magnitude layer. */
@@ -36,10 +44,17 @@ const LAYERS: [Layer, Layer, Layer] = [
  * window (STFT magnitudes averaged per bin), with optional per-bin min / max
  * layers showing how the magnitude spread across the window's frames. See
  * `docs/analysis-tools.md`.
+ *
+ * The chart is made **explanatory** (M36): the layers are named in a shared legend, the
+ * min/max pair is shaded as one band, prominent peaks are labelled in Hz, and the
+ * frequency axis offers linear / log Hz and the auditory Bark / ERB rates.
  */
 export default function SpectrumTab() {
   const analysis = createAnalysis<SpectrumResult>("spectrum");
-  const zoom = createUplotZoom("freq");
+  /** The per-tool frequency-axis scale (view-only; the engine never sees it). */
+  const frequencyScale = () => frequencyScaleOf(toolOptions.spectrum?.frequencyScale);
+  /** The frequency sync group is in physical Hz, whatever mode this chart draws. */
+  const zoom = createUplotZoom("freq", frequencyAxisTransform(frequencyScale));
 
   // Export the rendered spectrum (M12).
   useUplotImage("spectrum", zoom.instance);
@@ -47,14 +62,20 @@ export default function SpectrumTab() {
   /** A layer switch is a 0/1 select; default on when unset (e.g. an older project). */
   const layerOn = (key: LayerKey) => (toolOptions.spectrum?.[key] ?? 1) !== 0;
 
-  /** Log-frequency x-axis (per-tool toggle; default on). */
-  const logFreq = () => (toolOptions.spectrum?.logFreq ?? 1) !== 0;
+  /** Optional octave / Bark / ERB boundary guides (view-only, off by default). */
+  const bandGuide = () => bandGuideOf(toolOptions.spectrum?.bandGuides);
 
   /** Selected equal-loudness contour phon level (`0` = off). */
   const phonLevel = () => toolOptions.spectrum?.phonLevel ?? 0;
 
-  /** The frequency under the cursor, for the contour readout. */
+  /** The frequency under the cursor (always Hz, whatever the axis mode). */
   const [cursorFreq, setCursorFreq] = createSignal<number | null>(null);
+
+  /** The labelled spectral peaks: prominent local maxima, not every FFT-bin wiggle. */
+  const peaks = createMemo(() => {
+    const result = analysis.result();
+    return result ? detectSpectralPeaks(result.freqs, result.magDb) : [];
+  });
 
   /** The selected contour as a dB SPL reference curve, one value per frequency bin. */
   const reference = () => {
@@ -86,6 +107,7 @@ export default function SpectrumTab() {
 
   // The three series are declared statically (the wrapper fixes `series` at mount),
   // so an inactive layer is carried as an all-null column instead of being removed.
+  // The x column stays physical Hz: `FrequencyChart` applies the axis scale.
   const data = (): [number[], (number | null)[], (number | null)[], (number | null)[]] => {
     const result = analysis.result();
     if (!result || result.freqs.length === 0) return [[], [], [], []];
@@ -101,6 +123,14 @@ export default function SpectrumTab() {
     const result = analysis.result();
     return !!result && result.freqs.length >= 2 && LAYERS.some((l) => layerReady(l, result));
   };
+
+  /** The drawn layers, named in the shared legend (a band stands for min + max together). */
+  const legend = (): ChartLegendEntry[] =>
+    LAYERS.filter((layer) => layerOn(layer.key)).map((layer) => ({
+      label: layer.label,
+      color: chartTheme()[layer.stroke],
+      kind: layer.key === "showMean" ? "line" : "dashed",
+    }));
 
   return (
     <AnalyzerTab
@@ -136,7 +166,7 @@ export default function SpectrumTab() {
                 />
               </Show>
             </div>
-            <div class="analyzer-plot" onWheel={zoom.wheel}>
+            <div class="analyzer-plot">
               <Show
                 when={hasData()}
                 fallback={
@@ -145,9 +175,9 @@ export default function SpectrumTab() {
                   </div>
                 }
               >
-                {/* Remount when the axis mode or the theme changes: the wrapper fixes
-                    `scales` at mount, so a log↔linear switch — and any theme switch,
-                    which recolours the series — must rebuild the chart. */}
+                {/* Remount when the axis mode, an overlay or the theme changes: the
+                    wrapper fixes `scales` and `series` at mount, so a log↔Bark switch —
+                    and any theme switch, which recolours the series — must rebuild. */}
                 <FrequencyChart
                   zoom={zoom}
                   data={data()}
@@ -158,13 +188,26 @@ export default function SpectrumTab() {
                     dash: layer.dash,
                   }))}
                   yWindow={90}
-                  logFreq={logFreq()}
-                  remountKey={`${logFreq() ? "log" : "lin"}|${phonLevel()}`}
+                  frequencyScale={frequencyScale()}
+                  bands={
+                    layerOn("showMin") && layerOn("showMax")
+                      ? [{ series: [1, 2], fill: chartTheme().waveFill }]
+                      : undefined
+                  }
+                  plugins={[
+                    bandGuideLines(bandGuide, frequencyScale),
+                    spectralPeakLabels(peaks, frequencyScale),
+                  ]}
+                  remountKey={`${frequencyScale()}|${bandGuide()}|${phonLevel()}`}
                   reference={reference()}
                   onCursorMove={setCursorFreq}
                 />
               </Show>
             </div>
+            <ChartLegend
+              entries={legend()}
+              note={peaks().length > 0 ? `${peaks().length} peaks` : undefined}
+            />
           </div>
         )}
       </Show>

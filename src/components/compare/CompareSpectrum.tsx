@@ -1,42 +1,36 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
 import { Show } from "solid-js";
 import Readout from "../analyzer/Readout";
-import ChartTooltip from "../analyzer/ChartTooltip";
-import { chartAxisStyle } from "../analyzer/chartCommon";
+import { chartAxisStyle, frequencyDbTooltip } from "../analyzer/chartCommon";
+import { FREQ_AXIS_SPACE, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "../analyzer/axisFormat";
 import {
-  FREQ_AXIS_SPACE,
-  frequencyAxisValues,
-  X_AXIS_SIZE,
-  Y_AXIS_SIZE,
-  Y_AXIS_SPACE,
-} from "../analyzer/axisFormat";
+  frequencyColumn,
+  frequencyScaleAxisValues,
+  frequencyScaleLabel,
+  frequencyScaleOf,
+  frequencyScaleXScale,
+  type FrequencyScale,
+} from "../analyzer/frequencyScale";
 import { compareMarkers } from "./peerPlugins";
 import { compareSides, liveMarkers } from "./sides";
 import type { CompareTime } from "./time";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
-import { toolOptions, formatHz, type AnalyzerId, type SpectrumResult } from "../../state/analyzer";
+import { toolOptions, type AnalyzerId, type SpectrumResult } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, SpectrumDiffDto } from "../../state/compare/types";
-
-/** Keep a log x-axis strictly positive (band-limited data may start at 0 Hz). */
-function logXRange(_u: unknown, min: number, max: number): [number, number] {
-  const lo = min > 0 ? min : 1;
-  const hi = max > lo ? max : lo * 2;
-  return [lo, hi];
-}
 
 const dB = (value: number) => `${value.toFixed(1)} dB`;
 
 /** The shared frequency / level axes (used by the overlay and each side's plot). */
-const freqAxis = () => ({
+const freqAxis = (scale: FrequencyScale) => ({
   ...chartAxisStyle(),
-  label: "frequency (Hz)",
+  label: frequencyScaleLabel(scale),
   size: X_AXIS_SIZE,
   space: FREQ_AXIS_SPACE,
-  values: frequencyAxisValues,
+  values: frequencyScaleAxisValues(scale),
 });
 const levelAxis = () => ({
   ...chartAxisStyle(),
@@ -44,16 +38,6 @@ const levelAxis = () => ({
   size: Y_AXIS_SIZE,
   space: Y_AXIS_SPACE,
 });
-
-/** The compare spectrum's tooltip (frequency × dB), shared by both layouts. */
-const Tip = (props: TooltipProps) => (
-  <ChartTooltip
-    {...props}
-    xLabel="f"
-    formatX={(value) => formatHz(value)}
-    formatY={(value) => `${value.toFixed(1)} dB`}
-  />
-);
 
 /**
  * The **spectrum** compare chart (M25): A and B's averaged magnitudes over one
@@ -78,8 +62,8 @@ export default function CompareSpectrum(props: {
     props.comparison.diff?.kind === "spectrum" ? props.comparison.diff : null;
   const aligned = sides.aligned;
 
-  /** The spectrum's log-frequency toggle is a per-tool display option. */
-  const logFreq = () => (toolOptions.spectrum?.logFreq ?? 1) !== 0;
+  /** The spectrum's frequency scale is a per-tool display option (`spectrum`'s). */
+  const scale = () => frequencyScaleOf(toolOptions.spectrum?.frequencyScale);
 
   const markers = () =>
     compareMarkers(
@@ -91,8 +75,7 @@ export default function CompareSpectrum(props: {
       }),
     );
 
-  const xScale = (): uPlot.Scale =>
-    logFreq() ? { time: false, distr: 3, log: 10, range: logXRange } : { time: false };
+  const xScale = (): uPlot.Scale => frequencyScaleXScale(scale());
 
   const yScale: uPlot.Scale = {
     // Keep roughly a 90 dB window in view, anchored on the peak.
@@ -140,7 +123,7 @@ export default function CompareSpectrum(props: {
   const chartData = (): uPlot.AlignedData => {
     const data = overlay();
     if (!data) return [[], [], []];
-    const columns: uPlot.AlignedData = [data.freqs, data.a, data.b];
+    const columns: uPlot.AlignedData = [frequencyColumn(data.freqs, scale()), data.a, data.b];
     if (data.delta.length > 0) columns.push(data.delta);
     return columns;
   };
@@ -172,6 +155,7 @@ export default function CompareSpectrum(props: {
               label={props.swapped ? "B" : "A"}
               color={chartTheme().compareA}
               spectrum={sides.resultA()}
+              scale={scale()}
               xScale={xScale()}
               yScale={yScale}
               markers={markers}
@@ -180,6 +164,7 @@ export default function CompareSpectrum(props: {
               label={props.swapped ? "A" : "B"}
               color={chartTheme().compareB}
               spectrum={sides.resultB()}
+              scale={scale()}
               xScale={xScale()}
               yScale={yScale}
               markers={markers}
@@ -188,15 +173,15 @@ export default function CompareSpectrum(props: {
         }
       >
         <div class="analyzer-plot">
-          <Show when={`${activeThemeId()}|${logFreq() ? "log" : "lin"}`} keyed>
+          <Show when={`${activeThemeId()}|${scale()}`} keyed>
             <SolidUplot
               autoResize
               pluginBus={analyzerBus}
-              plugins={[cursor(), tooltip(Tip), markers()]}
+              plugins={[cursor(), tooltip(frequencyDbTooltip(scale)), markers()]}
               data={chartData()}
               series={series()}
               scales={{ x: xScale(), y: yScale }}
-              axes={[freqAxis(), levelAxis()]}
+              axes={[freqAxis(scale()), levelAxis()]}
             />
           </Show>
         </div>
@@ -210,6 +195,7 @@ function SideSpectrum(props: {
   label: string;
   color: string;
   spectrum: SpectrumResult | undefined;
+  scale: FrequencyScale;
   xScale: uPlot.Scale;
   yScale: uPlot.Scale;
   markers: () => ReturnType<typeof compareMarkers>;
@@ -229,10 +215,10 @@ function SideSpectrum(props: {
               autoResize
               pluginBus={analyzerBus}
               plugins={[props.markers()]}
-              data={[spectrum().freqs, spectrum().magDb]}
+              data={[frequencyColumn(spectrum().freqs, props.scale), spectrum().magDb]}
               series={[{}, { label: props.label, stroke: props.color, width: 1.2 }]}
               scales={{ x: props.xScale, y: props.yScale }}
-              axes={[freqAxis(), levelAxis()]}
+              axes={[freqAxis(props.scale), levelAxis()]}
             />
           </Show>
         )}

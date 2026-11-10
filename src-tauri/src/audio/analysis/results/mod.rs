@@ -57,6 +57,10 @@ pub struct WaveformResult {
     /// Min/max envelope over the window (equal length, `MAX_ENVELOPE` buckets max).
     pub min: Vec<f32>,
     pub max: Vec<f32>,
+    /// RMS per envelope bucket, aligned with `min`/`max` (same length).
+    pub bucket_rms: Vec<f32>,
+    /// Number of envelope buckets whose peak reaches full scale (`max >= 1` or `min <= -1`).
+    pub clipped_buckets: usize,
 }
 
 /// Averaged magnitude spectrum over the window.
@@ -148,6 +152,11 @@ pub struct PitchResult {
     /// A summary omits `medianF0Hz` / `meanF0Hz` when this is false; the track itself
     /// is still returned so the caller can inspect it.
     pub f0_reliable: bool,
+    /// Per-frame pitch confidence (0…1), parallel to `values`: `Some(confidence)` on a
+    /// voiced frame, `None` where `values` is a gap. Already computed by every pitch
+    /// detector (pYIN's Viterbi state probability in `pyin.rs`; oxiaudio's `PitchFrame`
+    /// `confidence` for YIN/autocorrelation) but currently dropped.
+    pub confidence: Vec<Option<f32>>,
 }
 
 /// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast,
@@ -160,6 +169,8 @@ pub struct PitchResult {
 ///   measurement axis; `None` for an index-based matrix (mel/mfcc/chroma/contrast).
 /// - `unit` — the values' unit (`"dB"`, `"dBFS"`, `"sone/Cam"`, …).
 /// - `calibrated` / `calibration_db_spl` — whether a dB SPL offset was applied.
+/// - `model` / `normalized` — the band-axis model and whether the values are a
+///   normalized/comparison-only scale.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -193,6 +204,17 @@ pub struct MatrixResult {
     /// The dB SPL offset of a full-scale sine (`0` = uncalibrated).
     #[serde(default)]
     pub calibration_db_spl: f32,
+    /// Axis-model identifier (e.g. "mel", "mfcc", "chroma", "criticalBands",
+    /// "specificLoudness", "spectralContrast"). Lets a chart label its band axis without
+    /// inferring it from the tool id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub model: Option<String>,
+    /// Whether the values are normalized/comparison-only (true) rather than a physical or
+    /// calibrated level (false). Absent = unspecified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub normalized: Option<bool>,
 }
 
 /// Tempo / onset / downbeat analysis over one window: the onset-strength envelope

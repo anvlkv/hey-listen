@@ -17,7 +17,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURE_SAMPLE_RATE, FIXTURE_SECONDS, fixturePcm } from "../../src/preview/signal";
@@ -38,6 +38,28 @@ const BIN =
 
 /** Maximum points per displayed axis. The charts are a few hundred px wide. */
 const MAX_POINTS = 240;
+
+/**
+ * Analyzers the mono fixture cannot exercise. `spatial` is stereo-only: the Rust tool
+ * errors when `channels < 2` (see `src-tauri/src/audio/analysis/tools/spatial.rs`), so
+ * an `analyze --all` over the mono WAV reports a failure and makes the CLI exit
+ * non-zero. Running the catalog minus this set keeps the exit code meaningful for
+ * every *real* failure while still rendering `spatial`-less fixtures.
+ */
+const MONO_EXCLUDED = new Set(["spatial"]);
+
+/** The catalog's analyzer ids, from `hey-listen-cli analyzers --json` (the single
+ * source of truth for which analyzers exist). */
+function catalogIds(): string[] {
+  const raw = execFileSync(BIN, ["analyzers", "--json"], {
+    encoding: "utf8",
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  const items = JSON.parse(raw) as Array<{ id?: unknown }>;
+  const ids = items.map((item) => item.id).filter((id): id is string => typeof id === "string");
+  if (ids.length === 0) throw new Error("the CLI returned no analyzer ids");
+  return ids;
+}
 
 /** Write a mono 16-bit PCM WAV. */
 function writeWav(path: string, samples: Float32Array, sampleRate: number) {
@@ -87,7 +109,11 @@ function thinAligned(result: Result, keys: string[], max: number, framesKey?: st
 }
 
 function thinWaveform(result: Result) {
-  thinAligned(result, ["min", "max"], MAX_POINTS);
+  // `bucketRms` is the per-bucket RMS aligned with `min`/`max` (M36) — thin it with them
+  // so the peak band and the RMS overlay stay on the same buckets.
+  const keys = ["min", "max"];
+  if (Array.isArray(result.bucketRms)) keys.push("bucketRms");
+  thinAligned(result, keys, MAX_POINTS);
 }
 
 function thinSpectrum(result: Result) {
@@ -130,7 +156,10 @@ function thinMatrix(result: Result) {
 }
 
 function thinSeries(result: Result) {
-  thinAligned(result, ["times", "values"], MAX_POINTS, "frames");
+  // `confidence` (pitch) is parallel to `values` and must thin with it (M36).
+  const keys = ["times", "values"];
+  if (Array.isArray(result.confidence)) keys.push("confidence");
+  thinAligned(result, keys, MAX_POINTS, "frames");
 }
 
 function thinRhythm(result: Result) {
@@ -172,13 +201,22 @@ function main() {
   const wav = join(WORK, "lighthouse-fixture.wav");
   writeWav(wav, fixturePcm(), FIXTURE_SAMPLE_RATE);
   const outDir = join(WORK, "analysis");
+  // The CLI's `--out` never overwrites an earlier run's file (it suffixes `-2`, `-3`, …),
+  // so a stale `outDir` would otherwise leave last-run files that `readdirSync` picks up —
+  // and their tool keys would shadow this run's fresh results. Clear it first.
+  rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
-  console.log(`generate-fixtures: analysing ${FIXTURE_SECONDS}s @ ${FIXTURE_SAMPLE_RATE} Hz …`);
-  execFileSync(BIN, ["analyze", wav, "--all", "--full", "--out", outDir], {
-    stdio: ["ignore", "inherit", "inherit"],
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  const tools = catalogIds().filter((id) => !MONO_EXCLUDED.has(id));
+  console.log(
+    `generate-fixtures: analysing ${FIXTURE_SECONDS}s @ ${FIXTURE_SAMPLE_RATE} Hz ` +
+      `(${tools.length} tools) …`,
+  );
+  execFileSync(
+    BIN,
+    ["analyze", wav, ...tools.flatMap((id) => ["-t", id]), "--full", "--out", outDir],
+    { stdio: ["ignore", "inherit", "inherit"], maxBuffer: 64 * 1024 * 1024 },
+  );
 
   const files = readdirSync(outDir).filter((name) => name.endsWith(".json"));
   if (files.length === 0) throw new Error(`the CLI wrote no JSON to ${outDir}`);
@@ -191,6 +229,11 @@ function main() {
     if (!tool) throw new Error(`${name}: result has no tool tag`);
     if (result) thinResult(result);
     byTool[tool] = { summary: envelope.summary, result };
+  }
+
+  const missing = tools.filter((id) => !(id in byTool));
+  if (missing.length > 0) {
+    throw new Error(`the CLI wrote no JSON for: ${missing.join(", ")}`);
   }
 
   mkdirSync(dirname(OUT_JSON), { recursive: true });

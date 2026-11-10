@@ -2,13 +2,15 @@
 //!
 //! See [`super::stored`] for the positional-wrapper rationale. The four trailing
 //! fields (`bandEdges`, `unit`, `calibrated`, `calibrationDbSpl`) are the X3 metadata,
-//! appended after the original eleven so a file written before they existed still
-//! decodes: `postcard` is positional, so the reader takes each trailing field as its
-//! default when the buffer ends early (a pre-X3 file, never a corrupt value — the
-//! file's checksum rules that out).
+//! and `model` / `normalized` are the M36 band-axis metadata; they are appended after
+//! the original eleven so a file written before they existed still decodes: `postcard`
+//! is positional, so the reader takes each trailing field as its default when the
+//! buffer ends early (a pre-X3/pre-M36 file, never a corrupt value — the file's
+//! checksum rules that out).
 
 use serde::{Deserialize, Serialize};
 
+use super::decode::Fields;
 use crate::audio::analysis::MatrixResult;
 
 /// The postcard-safe stored fields of a [`MatrixResult`].
@@ -29,6 +31,8 @@ pub struct StoredMatrix {
     pub unit: Option<String>,
     pub calibrated: bool,
     pub calibration_db_spl: f32,
+    pub model: Option<String>,
+    pub normalized: Option<bool>,
 }
 
 impl<'de> Deserialize<'de> for StoredMatrix {
@@ -45,83 +49,31 @@ impl<'de> Deserialize<'de> for StoredMatrix {
                 self,
                 mut seq: A,
             ) -> Result<Self::Value, A::Error> {
-                use serde::de::Error as _;
-                let sample_rate = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(0, &self))?;
-                let hop_size = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(1, &self))?;
-                let frames = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(2, &self))?;
-                let bins = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(3, &self))?;
-                let duration = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(4, &self))?;
-                let times = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(5, &self))?;
-                let window_start = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(6, &self))?;
-                let bands = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(7, &self))?;
-                let values = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(8, &self))?;
-                let min_value = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(9, &self))?;
-                let max_value = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::invalid_length(10, &self))?;
-                // The X3 metadata: default when the buffer ends (a pre-X3 file).
-                let band_edges: Option<Vec<f32>> = trailing_opt(&mut seq);
-                let unit: Option<String> = trailing_opt(&mut seq);
-                let calibrated: bool = trailing_val(&mut seq);
-                let calibration_db_spl: f32 = trailing_val(&mut seq);
+                let mut f: Fields<'_, 'de, A> = Fields::new(&mut seq, "a matrix result");
                 Ok(StoredMatrix {
-                    sample_rate,
-                    hop_size,
-                    frames,
-                    bins,
-                    duration,
-                    times,
-                    window_start,
-                    bands,
-                    values,
-                    min_value,
-                    max_value,
-                    band_edges,
-                    unit,
-                    calibrated,
-                    calibration_db_spl,
+                    sample_rate: f.req()?,
+                    hop_size: f.req()?,
+                    frames: f.req()?,
+                    bins: f.req()?,
+                    duration: f.req()?,
+                    times: f.req()?,
+                    window_start: f.req()?,
+                    bands: f.req()?,
+                    values: f.req()?,
+                    min_value: f.req()?,
+                    max_value: f.req()?,
+                    // The X3 metadata: a pre-X3 file ends before it.
+                    band_edges: f.opt(),
+                    unit: f.opt(),
+                    calibrated: f.defaulted(),
+                    calibration_db_spl: f.defaulted(),
+                    // The M36 band-axis metadata: a pre-M36 file ends before it.
+                    model: f.opt(),
+                    normalized: f.opt(),
                 })
             }
         }
-        deserializer.deserialize_tuple(15, MatrixVisitor)
-    }
-}
-
-/// Read an optional trailing field, defaulting to `None` when the buffer ends early.
-fn trailing_opt<'de, A: serde::de::SeqAccess<'de>, T: Deserialize<'de>>(seq: &mut A) -> Option<T> {
-    match seq.next_element::<Option<T>>() {
-        Ok(Some(value)) => value,
-        _ => None,
-    }
-}
-
-/// Read a trailing field, defaulting to `T::default()` when the buffer ends early.
-fn trailing_val<'de, A: serde::de::SeqAccess<'de>, T: Deserialize<'de> + Default>(
-    seq: &mut A,
-) -> T {
-    match seq.next_element::<T>() {
-        Ok(Some(value)) => value,
-        _ => T::default(),
+        deserializer.deserialize_tuple(17, MatrixVisitor)
     }
 }
 
@@ -149,6 +101,8 @@ impl From<&MatrixResult> for StoredMatrix {
             unit: r.unit.clone(),
             calibrated: r.calibrated,
             calibration_db_spl: r.calibration_db_spl,
+            model: r.model.clone(),
+            normalized: r.normalized,
         }
     }
 }
@@ -171,6 +125,8 @@ impl From<StoredMatrix> for MatrixResult {
             unit: stored.unit,
             calibrated: stored.calibrated,
             calibration_db_spl: stored.calibration_db_spl,
+            model: stored.model,
+            normalized: stored.normalized,
         }
     }
 }
@@ -237,6 +193,54 @@ mod tests {
         assert_eq!(matrix.band_edges, None);
         assert!(!matrix.calibrated);
         assert_eq!(matrix.calibration_db_spl, 0.0);
+        assert_eq!(matrix.values, vec![1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn a_pre_model_matrix_decodes_with_defaults() {
+        // The stored form before M36 was the fifteen X3 fields; `postcard` is
+        // positional, so a plain tuple reproduces those bytes exactly. The reader then
+        // defaults `model` and `normalized` instead of failing the load.
+        type PreModel = (
+            u32,
+            usize,
+            usize,
+            usize,
+            f32,
+            Vec<f32>,
+            f64,
+            Vec<f32>,
+            Vec<f32>,
+            f32,
+            f32,
+            Option<Vec<f32>>,
+            Option<String>,
+            bool,
+            f32,
+        );
+        let old: PreModel = (
+            48_000,
+            480,
+            2,
+            2,
+            0.02,
+            vec![0.0, 0.1],
+            0.0,
+            vec![0.0, 1.0],
+            vec![1.0, 2.0, 3.0, 4.0],
+            1.0,
+            4.0,
+            Some(vec![0.0, 150.0, 500.0]),
+            Some("dB".to_string()),
+            true,
+            94.0,
+        );
+        let bytes = postcard::to_stdvec(&old).expect("encode pre-model");
+        let stored: StoredMatrix = postcard::from_bytes(&bytes).expect("decode pre-model");
+        let matrix = MatrixResult::from(stored);
+        assert_eq!(matrix.model, None);
+        assert_eq!(matrix.normalized, None);
+        assert_eq!(matrix.unit.as_deref(), Some("dB"));
         assert_eq!(matrix.values, vec![1.0, 2.0, 3.0, 4.0]);
     }
 }

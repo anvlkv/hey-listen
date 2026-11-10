@@ -22,6 +22,12 @@ export interface ChartTheme {
   axis: string;
   /** Grid line colour. */
   grid: string;
+  /**
+   * The faint background grid rule. Sits below `grid` in contrast, so the plotted
+   * signal leads and the grid only orients the eye (M36). `grid` stays the stronger
+   * rule the canvas overlays draw (semitone/band rules).
+   */
+  gridFaint: string;
   /** Tick mark colour. */
   ticks: string;
   /** Axis font (unchanged across themes). */
@@ -112,8 +118,12 @@ export interface ThemeFile {
   ui?: Record<string, string>;
   /** Partial `ChartTheme` overlay (uPlot + canvas charts). */
   chart?: Partial<ChartTheme>;
-  /** Optional heatmap ramp replacing the base ramp. */
-  colormap?: { stops: ColorStop[] };
+  /**
+   * Optional heatmap ramps replacing the base ones: `stops` the **sequential** ramp
+   * (unsigned magnitudes) and `diverging` the **signed** ramp (zero at the middle).
+   * Either may be omitted; the base for the theme's `base` supplies the rest.
+   */
+  colormap?: { stops: ColorStop[]; diverging?: ColorStop[] };
   /** Optional `solid-flow` (`--xy-*`) overrides. */
   flow?: Record<string, string>;
 }
@@ -151,13 +161,11 @@ function normaliseVars(raw: unknown): Record<string, string> | undefined {
   return out;
 }
 
-/** Validate a heatmap ramp: ordered `[position, [r,g,b]]` stops. */
-function normaliseColormap(raw: unknown): { stops: ColorStop[] } | undefined {
-  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
-  const stops = (raw as { stops?: unknown }).stops;
-  if (!Array.isArray(stops) || stops.length === 0) return undefined;
+/** Validate one heatmap ramp: ordered `[position, [r,g,b]]` stops, or `undefined`. */
+function normaliseRamp(raw: unknown): ColorStop[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
   const out: ColorStop[] = [];
-  for (const stop of stops) {
+  for (const stop of raw) {
     if (!Array.isArray(stop) || stop.length < 2) continue;
     const [pos, color] = stop as [unknown, unknown];
     const position = typeof pos === "number" && Number.isFinite(pos) ? pos : null;
@@ -171,7 +179,19 @@ function normaliseColormap(raw: unknown): { stops: ColorStop[] } | undefined {
   }
   if (out.length === 0) return undefined;
   out.sort((a, b) => a[0] - b[0]);
-  return { stops: out };
+  return out;
+}
+
+/** Validate a `colormap` overlay: the sequential ramp, plus an optional diverging one. */
+function normaliseColormap(
+  raw: unknown,
+): { stops: ColorStop[]; diverging?: ColorStop[] } | undefined {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const { stops, diverging } = raw as { stops?: unknown; diverging?: unknown };
+  const sequential = normaliseRamp(stops);
+  if (!sequential) return undefined;
+  const signed = normaliseRamp(diverging);
+  return signed ? { stops: sequential, diverging: signed } : { stops: sequential };
 }
 
 /** Fields of a `ThemeFile` that are unknown to this build are preserved verbatim. */

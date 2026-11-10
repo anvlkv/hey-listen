@@ -36,5 +36,8 @@ pub(super) fn critical_bands(
     let mut result = build_band_matrix(&energies, centres, hop, sample_rate);
     result.unit = Some("dBFS".to_string());
     result.band_edges = Some(edges);
+    result.model = Some("criticalBands".to_string());
+    // Band power in dBFS: a level, not a normalized scale.
+    result.normalized = Some(false);
     Ok(result)
 }

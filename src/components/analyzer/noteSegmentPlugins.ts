@@ -14,8 +14,13 @@ import { ANNOTATION_STRIP_H } from "../annotations/strip";
  *
  * - **Blocks** — each note's span filled from the plot floor to its **peak**, with a
  *   stronger fill up to its **RMS**. The cap between the two is the note's crest.
+ * - **Boundaries** — a rule at each segment's start and end, so the extent is explicit
+ *   rather than implied by a fill's edge; skipped when a span is too narrow to
+ *   separate from its neighbour.
  * - **Ruler** — a bar along the top edge, split into the **voiced** share (solid) and
  *   the rest (faint), so voicing reads along the timeline.
+ * - **Durations** — the span's length inside the block when the pixels allow it; the
+ *   tooltip and the table always carry it.
  * - **Gaps** — a faint band and the gap's duration, so silence is measured, not just
  *   absent.
  * - **Gate** — the threshold that produced the segments, drawn when it falls in view.
@@ -43,6 +48,10 @@ const SEGMENT_RULER_H = 5;
 const NOTE_LABEL_MIN_WIDTH = 22;
 /** Clearance between the ruler and the topmost note label baseline, in CSS px. */
 const NOTE_LABEL_TOP_GAP = 16;
+/** A note narrower than this (CSS px) cannot hold its duration. */
+const NOTE_DURATION_MIN_WIDTH = 44;
+/** A segment narrower than this (CSS px) cannot show its start/end rules separately. */
+const SEGMENT_BOUNDARY_MIN_WIDTH = 3;
 /** A gap narrower than this (CSS px) cannot hold a duration label. */
 const GAP_LABEL_MIN_WIDTH = 46;
 /** Ruler alpha for a note whose voicing could not be measured. */
@@ -209,6 +218,31 @@ export const noteSegments =
               ctx.moveTo(x0, rmsY);
               ctx.lineTo(x1, rmsY);
               ctx.stroke();
+            }
+
+            // Segment boundaries: the start and end rules, so a span is explicit.
+            if (width >= SEGMENT_BOUNDARY_MIN_WIDTH * ratio) {
+              ctx.strokeStyle = theme.axis;
+              ctx.globalAlpha = 0.45;
+              ctx.lineWidth = Math.max(1, ratio);
+              ctx.beginPath();
+              for (const edge of [x0, x1]) {
+                const px = Math.round(edge) + 0.5;
+                ctx.moveTo(px, top);
+                ctx.lineTo(px, bottom);
+              }
+              ctx.stroke();
+            }
+
+            // The duration, inside the block when the pixels allow; the tooltip and
+            // the table carry it otherwise.
+            if (width >= NOTE_DURATION_MIN_WIDTH * ratio) {
+              ctx.globalAlpha = 0.85;
+              ctx.fillStyle = theme.axis;
+              ctx.font = theme.font;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "top";
+              ctx.fillText(duration(note.durationSecs), (x0 + x1) / 2, top + rulerH + 3 * ratio);
             }
 
             // The ruler: the note's extent, split by how much of it was voiced.

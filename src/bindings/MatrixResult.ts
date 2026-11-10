@@ -11,6 +11,8 @@
  *   measurement axis; `None` for an index-based matrix (mel/mfcc/chroma/contrast).
  * - `unit` — the values' unit (`"dB"`, `"dBFS"`, `"sone/Cam"`, …).
  * - `calibrated` / `calibration_db_spl` — whether a dB SPL offset was applied.
+ * - `model` / `normalized` — the band-axis model and whether the values are a
+ *   normalized/comparison-only scale.
  */
 export type MatrixResult = { sampleRate: number, hopSize: number, frames: number, bins: number, duration: number, 
 /**
@@ -46,4 +48,15 @@ calibrated: boolean,
 /**
  * The dB SPL offset of a full-scale sine (`0` = uncalibrated).
  */
-calibrationDbSpl: number, };
+calibrationDbSpl: number, 
+/**
+ * Axis-model identifier (e.g. "mel", "mfcc", "chroma", "criticalBands",
+ * "specificLoudness", "spectralContrast"). Lets a chart label its band axis without
+ * inferring it from the tool id.
+ */
+model?: string, 
+/**
+ * Whether the values are normalized/comparison-only (true) rather than a physical or
+ * calibrated level (false). Absent = unspecified.
+ */
+normalized?: boolean, };

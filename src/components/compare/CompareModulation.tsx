@@ -3,7 +3,7 @@ import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
 import { createSignal, For, Show } from "solid-js";
 import Readout from "../analyzer/Readout";
-import ZoomControls from "../analyzer/ZoomControls";
+import { ChartPlot } from "../analyzer/chartCommon";
 import { createUplotZoom } from "../analyzer/uplotZoom";
 import { mirrorCursor, syncView } from "../analyzer/syncPlugins";
 import {
@@ -139,17 +139,18 @@ export default function CompareModulation(props: {
           </Show>
         }
       >
-        <div class="analyzer-plot">
-          <ZoomControls
-            onZoomIn={zoom.zoomIn}
-            onZoomOut={zoom.zoomOut}
-            onFit={zoom.fit}
-            label={
-              zoom.range()
-                ? `${formatRate(zoom.range()![0])} – ${formatRate(zoom.range()![1])}`
-                : ""
-            }
-          />
+        <ChartPlot
+          zoom={{
+            zoomIn: zoom.zoomIn,
+            zoomOut: zoom.zoomOut,
+            fit: zoom.fit,
+            label: zoom.range()
+              ? `${formatRate(zoom.range()![0])} – ${formatRate(zoom.range()![1])}`
+              : "",
+            zoomed: !zoom.fitted(),
+          }}
+          onWheel={zoom.wheel}
+        >
           <Show when={`${activeThemeId()}|${band()}`} keyed>
             <SolidUplot
               autoResize
@@ -172,7 +173,7 @@ export default function CompareModulation(props: {
               axes={[{ ...rateAxis(), values: rateAxisValues }, valueAxis("relative level (dB)")]}
             />
           </Show>
-        </div>
+        </ChartPlot>
       </Show>
 
       <Show when={lineDelta()}>

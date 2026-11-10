@@ -12,3 +12,13 @@ export const fmtRatio = (value: number) => `${(value * 100).toFixed(0)}%`;
 export const fmtPlain = (value: number) => value.toFixed(2);
 /** Pitch-class row labels for the chromagram (C … B). */
 export const CHROMA_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/**
+ * The nearest musical note name for a frequency (A4 = 440 Hz), e.g. `C4` / `F#5`.
+ * Used by the pitch axis and its semitone grid, never for a row index.
+ */
+export function noteName(hz: number): string {
+  const midi = Math.round(69 + 12 * Math.log2(Math.max(hz, 1e-9) / 440));
+  const pitchClass = CHROMA_NOTES[((midi % 12) + 12) % 12];
+  return `${pitchClass}${Math.floor(midi / 12) - 1}`;
+}

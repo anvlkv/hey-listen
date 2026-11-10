@@ -2,13 +2,16 @@ import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import { Show } from "solid-js";
 import Readout from "./Readout";
-import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, syncView } from "./syncPlugins";
 import { FREQ_AXIS_SPACE, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
-import { chartAxisStyle, NoAudioState } from "./chartCommon";
+import { chartAxisStyle, NoAudioState, UplotChartPlot } from "./chartCommon";
+import ChartLegend from "./chartLegend";
+import { verticalMarks, verticalRegions, type VerticalMark } from "./verticalMarkers";
 import {
   formatRate,
+  MOD_LEGEND_NOTE,
+  MOD_REFERENCE_REGIONS,
   MOD_Y_RANGE,
   ModulationTooltip,
   rateAxisValues,
@@ -27,23 +30,22 @@ import type {
 /** The modulation spectra are on their own rate axis, so they sync separately. */
 const MOD_GROUP: SyncGroup = "mod";
 
-/** A legend swatch drawn inline, so the view needs no extra stylesheet rules. */
-const Swatch = (props: { color: string }) => (
-  <span
-    style={{
-      display: "inline-block",
-      width: "12px",
-      height: "2px",
-      margin: "0 6px 0 0",
-      "vertical-align": "middle",
-      background: props.color,
-    }}
-  />
-);
-
 const percent = (value: number | null) => (value == null ? "—" : `${(value * 100).toFixed(0)}%`);
 const readout = (value: number | null, unit: string, decimals = 1) =>
   value == null ? "—" : `${value.toFixed(decimals)} ${unit}`;
+
+/**
+ * One spectrum side's ranked peaks as rules: the strongest is captioned, the rest stay
+ * unlabelled ticks so three peaks a side do not overprint each other.
+ */
+function peakMarksOf(peaks: { rateHz: number }[], color: string, dash: number[]): VerticalMark[] {
+  return peaks.map((peak, index) => ({
+    at: peak.rateHz,
+    label: index === 0 ? formatRate(peak.rateHz) : undefined,
+    color,
+    dash,
+  }));
+}
 
 /**
  * The `modulation` view (M20): the AM and FM spectra on one modulation-rate axis,
@@ -88,6 +90,20 @@ export default function ModulationView(props: {
 
   const topAm = () => result()?.amPeaks[0]?.rateHz;
   const topFm = () => result()?.fmRateHz ?? null;
+
+  /**
+   * The ranked peaks, drawn as labelled rules: the strongest rate on each side is
+   * captioned, the rest are ticks, so a spectrum with three peaks a side stays legible.
+   */
+  const peakMarks = (): VerticalMark[] => {
+    const r = result();
+    if (!r) return [];
+    const theme = chartTheme();
+    return [
+      ...peakMarksOf(r.amPeaks, theme.series, [4, 3]),
+      ...peakMarksOf(r.fmPeaks, theme.seriesMax, [2, 3]),
+    ];
+  };
 
   return (
     <Show when={result()} fallback={<NoAudioState />}>
@@ -147,16 +163,28 @@ export default function ModulationView(props: {
             />
           </div>
 
-          <div class="note-segments-legend">
-            <span class="note-segments-legend-item">
-              <Swatch color={chartTheme().series} /> AM (envelope)
-            </span>
-            <span class="note-segments-legend-item">
-              <Swatch color={chartTheme().seriesMax} /> FM (cents)
-            </span>
-          </div>
+          <ChartLegend
+            entries={[
+              { label: "AM (amplitude modulation)", color: chartTheme().series },
+              { label: "FM (pitch modulation, cents)", color: chartTheme().seriesMax },
+              ...(value().amPeaks.length
+                ? [{ label: "AM peak rate", color: chartTheme().series, kind: "dashed" as const }]
+                : []),
+              ...(value().fmPeaks.length
+                ? [
+                    {
+                      label: "FM peak rate",
+                      color: chartTheme().seriesMax,
+                      kind: "dashed" as const,
+                    },
+                  ]
+                : []),
+              { label: "model-sensitive band", color: chartTheme().grid, kind: "fill" as const },
+            ]}
+            note={MOD_LEGEND_NOTE}
+          />
 
-          <div class="analyzer-plot" onWheel={zoom.wheel}>
+          <UplotChartPlot zoom={zoom} label={rangeLabel()} onWheel={zoom.wheel}>
             <Show
               when={plottable()}
               fallback={
@@ -166,12 +194,6 @@ export default function ModulationView(props: {
                 </div>
               }
             >
-              <ZoomControls
-                onZoomIn={zoom.zoomIn}
-                onZoomOut={zoom.zoomOut}
-                onFit={zoom.fit}
-                label={rangeLabel()}
-              />
               <Show when={activeThemeId()} keyed>
                 <SolidUplot
                   autoResize
@@ -181,21 +203,26 @@ export default function ModulationView(props: {
                     tooltip(ModulationTooltip),
                     mirrorCursor(MOD_GROUP),
                     syncView(MOD_GROUP),
+                    verticalRegions(() => MOD_REFERENCE_REGIONS),
+                    verticalMarks(peakMarks),
                   ]}
                   onCreate={zoom.onReady}
                   data={data()}
                   series={[
                     {},
                     {
+                      // Line only: an area fill would read as accumulated energy, which
+                      // a relative-dB spectrum is not (M36, chart review items 9 and 11).
                       label: "AM",
                       stroke: chartTheme().series,
                       width: 1.5,
-                      fill: chartTheme().waveFill,
+                      spanGaps: false,
                     },
                     {
                       label: "FM",
                       stroke: chartTheme().seriesMax,
                       width: 1.5,
+                      spanGaps: false,
                     },
                   ]}
                   scales={{
@@ -220,7 +247,7 @@ export default function ModulationView(props: {
                 />
               </Show>
             </Show>
-          </div>
+          </UplotChartPlot>
 
           <Show when={value().fmDb.length === 0}>
             <div class="analyzer-hint">

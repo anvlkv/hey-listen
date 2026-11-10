@@ -1,5 +1,8 @@
 import { CHROMA_NOTES } from "../format";
 import { EQ_LOUDNESS_PHONS } from "../../../lib/equalLoudness";
+// One list, one place: the scale / guide vocabularies live with their conversions.
+import { FREQUENCY_SCALE_OPTIONS } from "../../../components/analyzer/frequencyScale";
+import { BAND_GUIDE_OPTIONS } from "../../../components/analyzer/frequencyOverlays";
 import type { AnalyzerDef } from "../types";
 
 /** Mel band counts offered by the mel-spectrogram and MFCC tools. */
@@ -30,6 +33,11 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       "**Layers.** *Mean* is the average; *Min* and *Max* show the quietest and " +
       "loudest frame at each frequency. The shared FFT size, hop, window, channel, " +
       "and frequency range apply.\n\n" +
+      "**Frequency scale.** Choose linear or log Hz, or the auditory **Bark** / " +
+      "**ERB-rate** axis. The ticks then read in that unit, the cursor still reports " +
+      "the physical frequency, and *Band guides* can mark octave or critical bands.\n\n" +
+      "**Peaks.** Prominent local maxima are labelled in Hz (the loudest few only — " +
+      "a label per FFT-bin wiggle would tell you nothing).\n\n" +
       "**Equal-loudness contour.** Choose a *phon* level to overlay a reference " +
       "curve of the level a pure tone needs at each frequency to sound equally " +
       "loud. The curve is in **dB SPL** while the spectrum is **dBFS**, so it is " +
@@ -43,12 +51,23 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       { key: "showMin", label: "Min layer", kind: "toggle", value: 1, target: "view" },
       { key: "showMax", label: "Max layer", kind: "toggle", value: 1, target: "view" },
       {
-        key: "logFreq",
-        label: "Log frequency",
-        kind: "toggle",
+        key: "frequencyScale",
+        label: "Frequency scale",
+        kind: "select",
         value: 1,
+        options: FREQUENCY_SCALE_OPTIONS,
         target: "view",
-        title: "Plot frequency on a logarithmic (octave) axis instead of linear.",
+        title:
+          "Linear or log Hz, or the auditory Bark / ERB-rate axis. Ticks read in the chosen unit; the cursor still reports Hz.",
+      },
+      {
+        key: "bandGuides",
+        label: "Band guides",
+        kind: "select",
+        value: 0,
+        options: BAND_GUIDE_OPTIONS,
+        target: "view",
+        title: "Mark octave-band or auditory critical-band boundaries behind the spectrum.",
       },
       {
         key: "phonLevel",
@@ -73,7 +92,13 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       "and see at a glance whether a sound is steady or changing. The shared FFT " +
       "settings apply; the per-tool control sets the displayed dynamic range.\n\n" +
       "**Contours.** *Centroid* and *Rolloff* can be drawn on top to trace the " +
-      "spectrum's centre of mass and the frequency below which most energy lies.\n\n" +
+      "spectrum's centre of mass and the frequency below which most energy lies. " +
+      "*Pitch* overlays an F0 track from a pYIN analysis of the same window (a " +
+      "separate engine run, not derived from the heatmap), and *Harmonics* adds the " +
+      "multiples of its median F0 as faint rules.\n\n" +
+      "**Frequency scale.** Choose linear or log Hz, or the auditory **Bark** / " +
+      "**ERB-rate** axis; the frequency labels read in that unit while the cursor " +
+      "still reports Hz.\n\n" +
       "**Equal-loudness contour.** Choose a *phon* level to read the reference level " +
       "a pure tone needs at the cursor's frequency (dB SPL). The heatmap itself is " +
       "dBFS, so the two scales are shown separately.",
@@ -81,6 +106,16 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
     section: "spectral",
     view: { kind: "spectrogram" },
     params: [
+      {
+        key: "frequencyScale",
+        label: "Frequency scale",
+        kind: "select",
+        value: 1,
+        options: FREQUENCY_SCALE_OPTIONS,
+        target: "view",
+        title:
+          "Linear or log Hz, or the auditory Bark / ERB-rate axis. The frequency labels read in the chosen unit; the cursor still reports Hz.",
+      },
       {
         key: "showCentroid",
         label: "Centroid",
@@ -98,6 +133,23 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
         target: "view",
         title:
           "Overlay the spectral rolloff frequency (85% of the energy lies below it) as a contour on the heatmap.",
+      },
+      {
+        key: "showPitch",
+        label: "Pitch track",
+        kind: "toggle",
+        value: 0,
+        target: "view",
+        title:
+          "Compose the F0 track from a pYIN analysis of the same window as a dashed contour on the heatmap. Off by default: it runs the pitch detector in addition to the spectrogram.",
+      },
+      {
+        key: "showHarmonics",
+        label: "Harmonics",
+        kind: "toggle",
+        value: 0,
+        target: "view",
+        title: "Mark the multiples of the median F0 as faint horizontal rules.",
       },
       {
         key: "phonLevel",
@@ -128,6 +180,8 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       yLabel: "mel band",
       formatBand: (band) => `mel ${band + 1}`,
       formatValue: (value) => value.toFixed(1),
+      valueLabel: "log-mel energy",
+      axisModel: "mel",
     },
     params: [
       {
@@ -159,6 +213,11 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       yLabel: "coefficient",
       formatBand: (band) => `c${band}`,
       formatValue: (value) => value.toFixed(2),
+      valueLabel: "cepstral coefficient",
+      axisModel: "mfcc",
+      // Coefficients are signed: centre the ramp on zero with the diverging ramp, so a
+      // coefficient's sign is what reads as the colour's direction.
+      colorDomain: "symmetric",
     },
     params: [
       {
@@ -198,6 +257,10 @@ export const SPECTRAL_FRAME_ANALYZERS: AnalyzerDef[] = [
       yLabel: "pitch class",
       formatBand: (band) => CHROMA_NOTES[band] ?? `#${band}`,
       formatValue: (value) => value.toFixed(3),
+      valueLabel: "chroma",
+      axisModel: "chroma",
+      // Twelve rows: name every pitch class when the plot is tall enough.
+      labelEveryBand: true,
       noteGrid: true,
     },
   },

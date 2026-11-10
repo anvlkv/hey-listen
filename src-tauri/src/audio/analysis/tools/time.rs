@@ -5,10 +5,11 @@ use super::super::support::{build_series, db_or_floor, envelope, frame_rms, mono
 use super::super::{LevelsResult, SeriesResult, ToolOptions, WaveformResult, MAX_ENVELOPE};
 use super::gate::apply_gate;
 
-/// Time-domain waveform: peak/RMS levels (via `oxiaudio`) and a min/max envelope.
+/// Time-domain waveform: peak/RMS levels (via `oxiaudio`) and a min/max envelope
+/// with a per-bucket RMS and clipped-bucket count.
 pub fn waveform(mono: &[f32], sample_rate: u32) -> WaveformResult {
     let buf = mono_buffer(mono, sample_rate);
-    let (min, max) = envelope(mono, MAX_ENVELOPE);
+    let envelope = envelope(mono, MAX_ENVELOPE);
     WaveformResult {
         sample_rate,
         frames: mono.len(),
@@ -23,8 +24,10 @@ pub fn waveform(mono: &[f32], sample_rate: u32) -> WaveformResult {
         rms: buf.rms_amplitude(),
         peak_db: db_or_floor(buf.peak_db()),
         rms_db: db_or_floor(buf.rms_db()),
-        min,
-        max,
+        min: envelope.min,
+        max: envelope.max,
+        bucket_rms: envelope.rms,
+        clipped_buckets: envelope.clipped_buckets,
     }
 }
 

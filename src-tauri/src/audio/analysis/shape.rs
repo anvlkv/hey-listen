@@ -128,6 +128,7 @@ pub fn compact(result: &AnalysisResult) -> Value {
 fn compact_waveform(object: &mut Map<String, Value>, r: &WaveformResult) {
     insert(object, "min", stats_f32(&r.min));
     insert(object, "max", stats_f32(&r.max));
+    insert(object, "bucketRms", stats_f32(&r.bucket_rms));
 }
 
 fn compact_spectrum(object: &mut Map<String, Value>, r: &SpectrumResult) {
@@ -192,6 +193,7 @@ fn compact_calibrated_series(object: &mut Map<String, Value>, r: &CalibratedSeri
 fn compact_pitch(object: &mut Map<String, Value>, r: &PitchResult) {
     insert(object, "times", time_axis(&r.times));
     insert(object, "values", stats_gaps(&r.values));
+    insert(object, "confidence", stats_gaps(&r.confidence));
 }
 
 fn compact_rhythm(object: &mut Map<String, Value>, r: &RhythmResult) {

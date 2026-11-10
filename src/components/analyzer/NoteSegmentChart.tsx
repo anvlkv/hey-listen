@@ -2,11 +2,11 @@ import { SolidUplot } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
 import { createMemo, createSignal, Show } from "solid-js";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import ZoomControls from "./ZoomControls";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { annotationMarkers } from "./annotationPlugins";
 import { noteSegments } from "./noteSegmentPlugins";
+import { semitoneGrid } from "./seriesPlugins";
 import {
   cents,
   duration,
@@ -17,38 +17,41 @@ import {
   relative,
   spread,
 } from "./noteMetricsFormat";
-import { paddedYRange } from "./range";
+import { logYRange, paddedYRange } from "./range";
 import {
   frequencyAxisValues,
   TIME_AXIS_SPACE,
   timeAxisValues,
   X_AXIS_SIZE,
-  Y_AXIS_SIZE,
   Y_AXIS_SPACE,
 } from "./axisFormat";
-import { chartAxisStyle, createUplotReframeHandler, timeRangeLabel } from "./chartCommon";
+import { chartAxisStyle, createUplotReframeHandler, UplotChartPlot } from "./chartCommon";
+import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
 import { gapAt, noteAt, segmentEnvelope } from "../../lib/noteSegments";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { useUplotImage } from "./chartImage";
 import type { AnalyzerId, NoteMetricsResult } from "../../state/analyzer";
 
+/** The shared left-margin width, so the level and pitch lanes line up. */
+const NOTE_AXIS_SIZE = 64;
+
 /**
- * The note-segments chart (M18/M19 view): every detected note placed on the source
- * timeline, with the data the table carries encoded on the chart itself.
+ * The note-segments chart (M18/M19 view): every detected musical note placed on the
+ * source timeline.
  *
- * Level is the shared y-axis: each note's envelope is a line, its **peak** and **RMS**
- * are rules (the cap between them is the crest), and its span is a block. The top
- * ruler is the note's extent split by its **voiced** share; gaps are banded and labelled
- * with their duration; the **gate** is drawn when it is in view. The per-note median
- * **f0** gets its own right-hand axis (a flat segment per note — a summary, not a pitch
- * track). Hovering a note outlines it, reports it to the table, and the hover card shows
- * the whole record: span, gaps, RMS/peak, levels relative to the loudest note, voiced,
- * f0, jitter, shimmer, and the HNR proxy.
+ * **Two aligned lanes** (M36, chart review item 10). The main lane carries the level
+ * encoding — each note's envelope line, its **peak** and **RMS** rules (the cap between
+ * them is the crest) and its span as a block — plus segment **boundaries**, the voiced
+ * ruler, gap bands and the gate. The per-note median **f0** moved to its own pitch lane
+ * below, on a log frequency axis with semitone rules: it is a summary, not a pitch
+ * track, and it no longer competes with dBFS on a shared short plot.
  *
- * x is source seconds and joins the `"time"` sync group; the bottom lane still belongs
- * to the project's own annotations (`annotationMarkers`). See `docs/analysis-tools.md` →
- * Chart rendering.
+ * Blocks show their duration inside the span only when the pixels allow it; otherwise
+ * the tooltip and the table carry it. Hovering a note outlines it, reports it to the
+ * table, and the hover card shows the whole record. x is source seconds and joins the
+ * `"time"` sync group; the bottom lane still belongs to the project's own annotations
+ * (`annotationMarkers`). See `docs/analysis-tools.md` → Chart rendering.
  */
 export default function NoteSegmentChart(props: {
   id: AnalyzerId;
@@ -190,127 +193,138 @@ export default function NoteSegmentChart(props: {
     );
   };
 
+  /** The pitch lane's tooltip: the median f0 of the note under the pointer. */
+  const PitchTooltip = (tip: TooltipProps) => {
+    const note = () => noteAt(notes(), tip.cursor.xValue);
+    return (
+      <div class="chart-tooltip note-segment-tooltip">
+        <div class="chart-tooltip-x">t {tip.cursor.xValue.toFixed(3)} s</div>
+        <div class="chart-tooltip-row">
+          <span class="chart-tooltip-label">median f0</span>
+          <span class="chart-tooltip-value">{hz(note()?.note.f0MedianHz ?? null)}</span>
+        </div>
+      </div>
+    );
+  };
+
   const openMenu = createUplotReframeHandler(zoom, setMenu);
-  const legendMark = (color: string, kind: "line" | "dashed" | "fill" | "split") => (
-    <span class={`note-segments-legend-mark is-${kind}`} style={{ "--legend-color": color }}>
-      <Show when={kind === "split"}>
-        <i />
-        <i />
-      </Show>
-    </span>
-  );
+  /** The chart's marks, as the shared legend renders them (the colours are theme roles). */
+  const legend = (): ChartLegendEntry[] => [
+    { label: "envelope", color: chartTheme().series },
+    { label: "RMS", color: chartTheme().axis },
+    { label: "peak", color: chartTheme().seriesMax, kind: "dashed" },
+    { label: "voiced", color: chartTheme().series, kind: "split" },
+    { label: "gap", color: chartTheme().axis, kind: "fill" },
+    ...(hasF0() ? [{ label: "median f0 (pitch lane)", color: chartTheme().markerBeat }] : []),
+  ];
 
   return (
     <div class="note-segments-chart" data-testid="noteMetrics.chart">
-      <div class="note-segments-legend">
-        <span class="note-segments-legend-item">
-          {legendMark(chartTheme().series, "line")} envelope
-        </span>
-        <span class="note-segments-legend-item">{legendMark(chartTheme().axis, "line")} RMS</span>
-        <span class="note-segments-legend-item">
-          {legendMark(chartTheme().seriesMax, "dashed")} peak
-        </span>
+      <ChartLegend
+        entries={legend()}
+        note={`gate ${props.result()?.thresholdDb.toFixed(1)} dBFS`}
+      />
+      <div class="note-segments-plots">
+        <UplotChartPlot
+          class="note-level-plot"
+          zoom={zoom}
+          onWheel={zoom.wheel}
+          onContextMenu={openMenu}
+        >
+          <Show when={chartKey()} keyed>
+            <SolidUplot
+              autoResize
+              pluginBus={analyzerBus}
+              plugins={[
+                cursor(),
+                tooltip(Tooltip),
+                mirrorCursor("time"),
+                syncView("time"),
+                playheadRule(),
+                annotationMarkers(props.id),
+                noteSegments(
+                  () => ({
+                    windowStart: props.result()?.windowStart ?? 0,
+                    notes: notes(),
+                    reference: props.result()?.referenceNoteIndex ?? null,
+                    threshold: props.result()?.thresholdDb ?? 0,
+                  }),
+                  props.onHover,
+                ),
+              ]}
+              onCreate={zoom.onReady}
+              data={[data().xs, data().levels]}
+              series={[
+                {},
+                {
+                  label: "Level",
+                  stroke: chartTheme().series,
+                  width: 1,
+                  spanGaps: false,
+                },
+              ]}
+              scales={{ x: { time: false }, y: { range: levelRange } }}
+              axes={[
+                {
+                  ...chartAxisStyle(),
+                  label: "time (s)",
+                  size: X_AXIS_SIZE,
+                  space: TIME_AXIS_SPACE,
+                  values: timeAxisValues,
+                },
+                {
+                  ...chartAxisStyle(),
+                  label: "level (dBFS)",
+                  // Both lanes keep the same left margin, so their time axes align.
+                  size: NOTE_AXIS_SIZE,
+                  space: Y_AXIS_SPACE,
+                },
+              ]}
+            />
+          </Show>
+        </UplotChartPlot>
+        {/* The median f0 lane: a flat per-note summary on a log pitch axis with
+            semitone rules, aligned to the level plot above (M36, item 10). */}
         <Show when={hasF0()}>
-          <span class="note-segments-legend-item">
-            {legendMark(chartTheme().markerBeat, "dashed")} f0
-          </span>
-        </Show>
-        <span class="note-segments-legend-item">
-          {legendMark(chartTheme().series, "split")} voiced
-        </span>
-        <span class="note-segments-legend-item">{legendMark(chartTheme().axis, "fill")} gap</span>
-        <span class="note-segments-legend-gate">
-          gate {props.result()?.thresholdDb.toFixed(1)} dBFS
-        </span>
-      </div>
-      <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
-        <ZoomControls
-          onZoomIn={zoom.zoomIn}
-          onZoomOut={zoom.zoomOut}
-          onFit={zoom.fit}
-          label={timeRangeLabel(zoom.range())}
-        />
-        <Show when={chartKey()} keyed>
-          <SolidUplot
-            autoResize
-            pluginBus={analyzerBus}
-            plugins={[
-              cursor(),
-              tooltip(Tooltip),
-              mirrorCursor("time"),
-              syncView("time"),
-              playheadRule(),
-              annotationMarkers(props.id),
-              noteSegments(
-                () => ({
-                  windowStart: props.result()?.windowStart ?? 0,
-                  notes: notes(),
-                  reference: props.result()?.referenceNoteIndex ?? null,
-                  threshold: props.result()?.thresholdDb ?? 0,
-                }),
-                props.onHover,
-              ),
-            ]}
-            onCreate={zoom.onReady}
-            data={[data().xs, data().levels, data().f0]}
-            series={[
-              {},
-              {
-                label: "Level",
-                stroke: chartTheme().series,
-                width: 1,
-              },
-              ...(hasF0()
-                ? [
-                    {
-                      label: "f0",
-                      scale: "f0",
-                      stroke: chartTheme().markerBeat,
-                      width: 2,
-                      dash: [6, 4],
-                      spanGaps: false,
-                      // A flat per-note summary: the vertex dots uPlot would add are
-                      // just noise (the values are not per-frame samples).
-                      points: { show: false },
-                    },
-                  ]
-                : []),
-            ]}
-            scales={{
-              x: { time: false },
-              y: { range: levelRange },
-              ...(hasF0() ? { f0: { range: paddedYRange } } : {}),
-            }}
-            axes={[
-              {
-                ...chartAxisStyle(),
-                label: "time (s)",
-                size: X_AXIS_SIZE,
-                space: TIME_AXIS_SPACE,
-                values: timeAxisValues,
-              },
-              {
-                ...chartAxisStyle(),
-                label: "level (dBFS)",
-                size: Y_AXIS_SIZE,
-                space: Y_AXIS_SPACE,
-              },
-              ...(hasF0()
-                ? [
-                    {
-                      ...chartAxisStyle(),
-                      scale: "f0",
-                      side: 1 as const,
-                      label: "f0 (Hz)",
-                      size: Y_AXIS_SIZE,
-                      space: Y_AXIS_SPACE,
-                      values: frequencyAxisValues,
-                      grid: { show: false },
-                    },
-                  ]
-                : []),
-            ]}
-          />
+          <div class="note-pitch-lane">
+            <Show when={chartKey()} keyed>
+              <SolidUplot
+                autoResize
+                pluginBus={analyzerBus}
+                plugins={[
+                  cursor(),
+                  tooltip(PitchTooltip),
+                  mirrorCursor("time"),
+                  syncView("time"),
+                  semitoneGrid(),
+                ]}
+                data={[data().xs, data().f0]}
+                series={[
+                  {},
+                  {
+                    label: "median f0",
+                    scale: "f0",
+                    stroke: chartTheme().markerBeat,
+                    width: 2,
+                    dash: [4, 3],
+                    spanGaps: false,
+                  },
+                ]}
+                scales={{ x: { time: false }, f0: { distr: 3, log: 10, range: logYRange } }}
+                axes={[
+                  { ...chartAxisStyle(), show: false, size: 0 },
+                  {
+                    ...chartAxisStyle(),
+                    scale: "f0",
+                    label: "f0 (Hz)",
+                    size: NOTE_AXIS_SIZE,
+                    space: Y_AXIS_SPACE,
+                    values: frequencyAxisValues,
+                  },
+                ]}
+              />
+            </Show>
+          </div>
         </Show>
       </div>
       <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />

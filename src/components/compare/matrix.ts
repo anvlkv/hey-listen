@@ -2,6 +2,7 @@ import type { MatrixResult, SpectrogramResult } from "../../state/analyzer";
 import { chartTheme } from "../../state/themes";
 import type { MatrixDiffDto, Span } from "../../state/compare/types";
 import { clamp01 } from "../analyzer/colormap";
+import { SPECTROGRAM_DB_RANGE } from "../analyzer/spectrogramView";
 import type { PlotBox } from "../analyzer/chartGeometry";
 import { hopOf } from "./align";
 
@@ -29,9 +30,6 @@ export function gridValue(result: GridResult, frame: number, band: number): numb
   if (isSpectrogramGrid(result)) return result.magDb[index] ?? 0;
   return result.values[index] ?? 0;
 }
-
-/** The spectrogram's display floor, in dB below its peak (`SpectrogramTab`'s range). */
-export const SPECTROGRAM_DB_RANGE = 80;
 
 /** A shared value range for both sides, so switching A/B never rescales the ramp. */
 export function sharedRange(a: GridResult, b: GridResult): { lo: number; hi: number } {

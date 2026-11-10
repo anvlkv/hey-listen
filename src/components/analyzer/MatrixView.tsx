@@ -1,9 +1,11 @@
 import { createEffect, createMemo, Show, untrack } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu from "./ReframeMenu";
-import ZoomControls from "./ZoomControls";
+import HeatmapColorScale from "./HeatmapColorScale";
+import { heatmapScale } from "./heatmapScale";
+import { bandLabelRows, fitText, formatBandRange } from "./heatmapLabels";
 import { clamp01 } from "./colormap";
-import { NoAudioState } from "./chartCommon";
+import { ZoomChrome, createZoomReveal, NoAudioState, type ChartZoom } from "./chartCommon";
 import { createChartInteraction } from "./chartInteraction";
 import {
   beginFrame,
@@ -56,10 +58,19 @@ function clampView(next: View, result: MatrixResult): View {
 
 /**
  * Generic matrix heatmap (M5): a frame × band result (mel spectrogram, MFCC,
- * chromagram, spectral contrast) drawn with time on the horizontal axis and the
- * band (labelled per tool) on the vertical, colour for value. Wheel zooms time,
- * drag pans; the visible time range is synced across analyzer tabs on the
- * `"time"` group. See `docs/analysis-tools.md`.
+ * chromagram, spectral contrast, critical bands, specific loudness) drawn with time on
+ * the horizontal axis and the band (labelled per tool) on the vertical, colour for
+ * value.
+ *
+ * Every matrix declares its colour semantics (M36) — value label, domain, transform,
+ * axis model — and one [`HeatmapScale`](./heatmapScale.ts) is resolved from them, so
+ * the image and its colourbar share the exact domain, transform and ramp. Band rows are
+ * labelled by density (a 12-row chromagram names every pitch class; a 64-band mel names
+ * a stride of them), and a band's readout and label show its real low–high range when
+ * the result — or the descriptor — carries the edges.
+ *
+ * Wheel zooms time, drag pans; the visible time range is synced across analyzer tabs on
+ * the `"time"` group. See `docs/analysis-tools.md`.
  */
 export default function MatrixView(props: {
   id: AnalyzerId;
@@ -68,19 +79,23 @@ export default function MatrixView(props: {
   const config = () => analyzerById(props.id).view as MatrixViewConfig;
   const result = () => props.analysis.result() as MatrixResult | null;
 
-  /** Format a band row: its `bands[i]` value (Hz) when the axis is values, else the row. */
-  const bandLabel = (band: number): string => {
-    const value = result();
-    const position = config().bandAxisIsValue && value ? (value.bands[band] ?? band) : band;
-    return config().formatBand(position);
+  /** The band's exact low/high edges (Hz): the result's own, else the descriptor's. */
+  const bandEdges = (value: MatrixResult): number[] | null => {
+    const raw = value.bandEdges;
+    if (raw && raw.length >= value.bins + 1) return raw;
+    const declared = config().bandEdges;
+    const list = typeof declared === "function" ? declared(value.bins) : declared;
+    return list && list.length >= value.bins + 1 ? list : null;
   };
 
-  /** The exact band range (lo–hi) for a row when the result carries band edges. */
-  const bandRange = (band: number): string | null => {
+  /** A band row's label: its exact range, else the band axis value / row index. */
+  const bandLabel = (band: number): string => {
     const value = result();
-    const edges = value?.bandEdges;
-    if (!value || !edges || edges.length < value.bins + 1) return null;
-    return `${config().formatBand(edges[band])}–${config().formatBand(edges[band + 1])}`;
+    if (!value) return config().formatBand(band);
+    const edges = bandEdges(value);
+    if (edges) return formatBandRange(edges[band], edges[band + 1]);
+    const position = config().bandAxisIsValue ? (value.bands[band] ?? band) : band;
+    return config().formatBand(position);
   };
 
   /** The calibration readout for a matrix tool that carries one (specific loudness). */
@@ -88,6 +103,22 @@ export default function MatrixView(props: {
     const r = result();
     if (!r) return "—";
     return r.calibrated ? `${r.calibrationDbSpl.toFixed(1)} dB SPL` : "uncalibrated";
+  };
+
+  /**
+   * The colour scale both the image and its colourbar use (M36): the result's own
+   * domain / unit, the descriptor's colour semantics, and the theme's ramp.
+   */
+  const heatmap = createMemo(() => {
+    const value = result();
+    return value ? heatmapScale(value, config()) : null;
+  });
+
+  /** The colourbar's caption: what the values are, and whether they are normalized. */
+  const colorLabel = (): string => {
+    const base = config().valueLabel;
+    const r = result();
+    return r?.normalized ? `${base} · normalized` : base;
   };
 
   const chart = createChartInteraction<View, Hover, MatrixResult>({
@@ -129,13 +160,20 @@ export default function MatrixView(props: {
   /** Offscreen frames×bins image (time ×, band ↑), rebuilt on data change. */
   const image = createMemo<HTMLCanvasElement | null>(() => {
     const value = result();
-    if (!value || value.bins === 0 || value.frames === 0) return null;
+    const scale = heatmap();
+    if (!value || !scale || value.bins === 0 || value.frames === 0) return null;
     const { bins, frames } = value;
-    const lo = value.minValue;
-    const hi = Math.max(value.maxValue, lo + 1e-3);
-    const span = hi - lo;
-    // Time runs horizontally, band vertically.
-    return buildHeatmapImage(frames, bins, lo, span, (x, row) => value.values[x * bins + row]);
+    // Time runs horizontally, band vertically. The scale maps the value onto the ramp
+    // (through its declared transform and its own stops), so the bar and the pixels share
+    // one denominator *and* one colour ramp.
+    return buildHeatmapImage(
+      frames,
+      bins,
+      0,
+      1,
+      (x, row) => scale.position(value.values[x * bins + row]),
+      scale.ramp,
+    );
   });
 
   function draw() {
@@ -169,7 +207,9 @@ export default function MatrixView(props: {
   function drawNoteGrid(ctx: CanvasRenderingContext2D, value: MatrixResult, box: PlotBox) {
     if (value.bins < 2) return;
     ctx.save();
-    ctx.strokeStyle = chartTheme().grid;
+    // The pitch-class rules are a grid, so they take the faint role: the colour is the
+    // pitch class, and a full-strength grid would compete with it (M36).
+    ctx.strokeStyle = chartTheme().gridFaint;
     ctx.lineWidth = 1;
     for (let row = 1; row < value.bins; row++) {
       const y = Math.round(box.y + box.height - (row / value.bins) * box.height) + 0.5;
@@ -189,16 +229,22 @@ export default function MatrixView(props: {
     ctx.restore();
   }
 
+  /**
+   * Band labels down the left edge, one per row when they fit and a stride otherwise —
+   * density-aware rather than a fixed five, so a chromagram names all twelve pitch
+   * classes and a 64-band mel stays legible.
+   */
   function drawBands(ctx: CanvasRenderingContext2D, value: MatrixResult, box: PlotBox) {
     if (value.bins === 0) return;
     ctx.font = "10px Inter, sans-serif";
     ctx.fillStyle = chartTheme().axis;
     ctx.textBaseline = "middle";
     ctx.textAlign = "right";
-    for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
-      const band = Math.round(frac * (value.bins - 1));
-      const y = box.y + box.height - frac * box.height;
-      ctx.fillText(bandLabel(band), box.x - 6, y);
+    const maxWidth = box.x - 8;
+    for (const band of bandLabelRows(value.bins, box.height, config().labelEveryBand)) {
+      const y = box.y + box.height - ((band + 0.5) / value.bins) * box.height;
+      const label = fitText(ctx, bandLabel(band), maxWidth);
+      ctx.fillText(label, box.x - 6, y);
     }
     ctx.textAlign = "left";
   }
@@ -216,6 +262,16 @@ export default function MatrixView(props: {
   });
 
   const hasGrid = () => hasFrameData(result());
+  const modelLabel = () => result()?.model ?? config().axisModel;
+
+  /** The zoom chrome only while the chart is in use (M36). */
+  const reveal = createZoomReveal(() => !chart.atFit());
+  const zoomChrome = (): ChartZoom => ({
+    zoomIn: chart.zoomIn,
+    zoomOut: chart.zoomOut,
+    fit: chart.fit,
+    label: chart.zoomLabel(),
+  });
 
   return (
     <div class="analyzer-chart">
@@ -225,33 +281,42 @@ export default function MatrixView(props: {
         <Readout label="Time" value={chart.hover() ? `${chart.hover()!.time.toFixed(3)} s` : "—"} />
         <Readout
           label={config().yLabel}
-          value={
-            chart.hover() ? (bandRange(chart.hover()!.band) ?? bandLabel(chart.hover()!.band)) : "—"
-          }
+          value={chart.hover() ? bandLabel(chart.hover()!.band) : "—"}
         />
         <Readout
           label="Value"
           value={chart.hover() ? config().formatValue(chart.hover()!.value) : "—"}
+          title={config().valueLabel}
         />
         <Readout label="Grid" value={result() ? `${result()!.frames} × ${result()!.bins}` : "—"} />
         <Readout
-          label="Range"
+          label="Scale"
           value={
-            result()
-              ? `${config().formatValue(result()!.minValue)} … ${config().formatValue(result()!.maxValue)}`
+            heatmap()
+              ? `${heatmap()!.formatter(heatmap()!.min)} … ${heatmap()!.formatter(heatmap()!.max)}`
               : "—"
           }
+          title="The colour scale's domain — exactly what the pixels and the colourbar span"
         />
         <Readout label="Rate" value={result() ? formatHz(result()!.sampleRate) : "—"} />
-        <Show when={props.id === "specificLoudness"}>
+        <Show when={modelLabel()}>
+          {(model) => (
+            <Readout
+              label="Model"
+              value={model()}
+              title="The band-axis / value model the result reports"
+            />
+          )}
+        </Show>
+        <Show when={result()?.unit}>
           <Readout
             label="Calibration"
             value={calibrationLabel()}
-            title="dB SPL of a full-scale sine; 0 = uncalibrated (relative sone/Cam)"
+            title="dB SPL of a full-scale sine; 'uncalibrated' leaves the values relative"
           />
         </Show>
       </div>
-      <div class="spectrogram-canvas" ref={chart.attachWrap}>
+      <div class="spectrogram-canvas" ref={chart.attachWrap} {...reveal.attach}>
         <canvas
           ref={chart.attachCanvas}
           onPointerDown={chart.onPointerDown}
@@ -270,15 +335,13 @@ export default function MatrixView(props: {
               </div>
             }
           >
-            <ZoomControls
-              onZoomIn={chart.zoomIn}
-              onZoomOut={chart.zoomOut}
-              onFit={chart.fit}
-              label={chart.zoomLabel()}
-            />
+            <ZoomChrome zoom={zoomChrome()} revealed={reveal.revealed()} />
           </Show>
         </Show>
       </div>
+      <Show when={heatmap()}>
+        {(scale) => <HeatmapColorScale scale={scale()} label={colorLabel()} />}
+      </Show>
       <ReframeMenu target={chart.menu()} onClose={() => chart.setMenu(null)} tool={props.id} />
     </div>
   );

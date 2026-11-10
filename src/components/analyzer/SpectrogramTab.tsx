@@ -1,40 +1,28 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
 import SelectField from "../SelectField";
-import ZoomControls from "./ZoomControls";
 import ReframeMenu from "./ReframeMenu";
+import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
+import HeatmapColorScale from "./HeatmapColorScale";
+import PitchOverlaySource from "./PitchOverlaySource";
 import {
+  analyzerById,
   createAnalysis,
   formatHz,
   toolOptions,
   type SpectrogramResult,
 } from "../../state/analyzer";
-import { activeThemeId } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import { contourAt } from "../../lib/equalLoudness";
 import { useCanvasImage } from "./chartImage";
-import { clamp01 } from "./colormap";
-import { NoAudioState } from "./chartCommon";
-import { createChartInteraction } from "./chartInteraction";
-import {
-  beginFrame,
-  blitHeatmap,
-  drawHoverCross,
-  drawMirrorCursor,
-  drawAnnotationOverlay,
-  drawPlayhead,
-  drawTimeAxis,
-} from "./chartCanvas";
-import {
-  binAt,
-  drawContours,
-  drawFrequencyAxis,
-  spectrogramImage,
-  spectrogramOverlays,
-  type SpectrogramWindow,
-} from "./spectrogramRender";
-import { clampTimeRange, frameIndex, hasFrameData } from "./chartGeometry";
+import { NoAudioState, ZoomChrome, createZoomReveal, type ChartZoom } from "./chartCommon";
+import { createSpectrogramCanvas } from "./spectrogramCanvas";
+import { SPECTROGRAM_DB_RANGE } from "./spectrogramView";
+import type { PitchOverlay } from "./spectrogramRender";
+import { frequencyScaleLabel, frequencyScaleOf } from "./frequencyScale";
+import { hasFrameData } from "./chartGeometry";
 
 /** Stable sync id for this canvas chart (there are no duplicate tabs). */
 const SPECTROGRAM_ID = "spectrogram";
@@ -45,65 +33,76 @@ const DB_RANGES = [40, 60, 80, 100, 120].map((value) => ({
   label: `${value} dB`,
 }));
 
-/** The visible window: time (s) and frequency (Hz) bounds. */
-type View = SpectrogramWindow;
-
-interface Hover {
-  time: number;
-  freq: number;
-  db: number;
-  x: number;
-  y: number;
-}
-
-/** The full view for a result. */
-function fullView(result: SpectrogramResult): View {
-  const f0 = result.freqs[0] ?? 0;
-  const f1 = result.freqs.length ? result.freqs[result.freqs.length - 1] : result.sampleRate / 2;
-  return {
-    t0: result.windowStart,
-    t1: result.windowStart + Math.max(result.duration, 1e-6),
-    f0,
-    f1: Math.max(f1, f0 + 1),
-  };
-}
-
-/** Keep a proposed view inside the data extent and above a minimum span. */
-function clampView(next: View, result: SpectrogramResult): View {
-  const [t0, t1] = clampTimeRange(next.t0, next.t1, result.windowStart, result.duration);
-
-  const fLo = result.freqs[0] ?? 0;
-  const fHiRaw = result.freqs.length
-    ? result.freqs[result.freqs.length - 1]
-    : result.sampleRate / 2;
-  const fHi = Math.max(fHiRaw, fLo + 1);
-  const minF = Math.max((fHi - fLo) * 1e-4, 1e-3);
-  let f0 = Math.max(fLo, Math.min(next.f0, fHi));
-  let f1 = Math.max(fLo, Math.min(next.f1, fHi));
-  if (f1 - f0 < minF) f1 = f0 + minF;
-  if (f1 > fHi) {
-    f1 = fHi;
-    f0 = Math.max(fLo, f1 - minF);
-  }
-  return { t0, t1, f0, f1 };
-}
-
 /**
  * Spectrogram tool: a magnitude heatmap of the conditioned signal — time on the
  * horizontal axis, frequency on the vertical, colour for level (dBFS). Rendered on
  * a plain 2D canvas (the Timeline precedent, ADR-7); wheel zooms (Shift for
  * frequency), drag pans, and the overlay controls zoom/fit. See
  * `docs/analysis-tools.md`.
+ *
+ * The vertical axis follows the tool's **frequency scale** (M36): the FFT rows are
+ * resampled into the display coordinate, and the axis labels, pointer picking and
+ * zoom all use the same mapping, so a Bark / ERB view is truthful rather than a
+ * mislabelled stretch. See `frequencyScale.ts` and `spectrogramView.ts`.
  */
 export default function SpectrogramTab() {
   const analysis = createAnalysis<SpectrogramResult>("spectrogram");
-  const [dbRange, setDbRange] = createSignal(80);
+  const [dbRange, setDbRange] = createSignal(SPECTROGRAM_DB_RANGE);
+
+  /** The vertical frequency scale (view-only; the engine never sees it). */
+  const frequencyScale = () => frequencyScaleOf(toolOptions.spectrogram?.frequencyScale);
 
   /** Per-tool contour overlays (default on). */
-  const showCentroid = () => (toolOptions.spectrogram?.showCentroid ?? 1) !== 0;
-  const showRolloff = () => (toolOptions.spectrogram?.showRolloff ?? 1) !== 0;
+  const toggles = () => ({
+    centroid: (toolOptions.spectrogram?.showCentroid ?? 1) !== 0,
+    rolloff: (toolOptions.spectrogram?.showRolloff ?? 1) !== 0,
+    // The composed pYIN track is opt-in per view option; its analysis only runs while
+    // one of these is on (`PitchOverlaySource` is mounted below).
+    pitch: (toolOptions.spectrogram?.showPitch ?? 0) !== 0,
+    harmonics: (toolOptions.spectrogram?.showHarmonics ?? 0) !== 0,
+  });
   /** Selected equal-loudness contour phon level (`0` = off). */
   const phonLevel = () => toolOptions.spectrogram?.phonLevel ?? 0;
+
+  /** The F0 track composed from a separate `pitchPyin` run of the same window (M36). */
+  const [pitchOverlay, setPitchOverlay] = createSignal<PitchOverlay | null>(null);
+  /**
+   * The detector that composes the overlay declares the capability on its own view
+   * descriptor (`PitchDisplay.spectrogramOverlay`) — never inferred from an id prefix.
+   */
+  const overlayCapable = () => {
+    const view = analyzerById("pitchPyin").view;
+    return view.kind === "series" && (view.pitchDisplay?.spectrogramOverlay ?? false);
+  };
+  const wantsPitch = () => overlayCapable() && (toggles().pitch || toggles().harmonics);
+
+  const canvas = createSpectrogramCanvas({
+    id: SPECTROGRAM_ID,
+    result: () => analysis.result(),
+    dbRange,
+    scale: frequencyScale,
+    toggles,
+    pitch: pitchOverlay,
+  });
+  const chart = canvas.chart;
+
+  // Export the rendered heatmap (M12).
+  useCanvasImage(SPECTROGRAM_ID, chart.canvas);
+
+  createEffect(() => {
+    // Track everything the canvas draws (the active theme, the preview playhead and the
+    // axis mode included, so any theme switch, the transport and a scale change all
+    // repaint). Keyed on the theme **id**, not just its base: two themes on the same
+    // base still recolour the canvas.
+    activeThemeId();
+    canvas.overlays();
+    pitchOverlay();
+    frequencyScale();
+    chart.size();
+    chart.hover();
+    chart.view();
+    canvas.draw();
+  });
 
   /** The equal-loudness contour's reference level at the cursor frequency, in dB SPL. */
   const referenceAtCursor = () => {
@@ -112,108 +111,33 @@ export default function SpectrogramTab() {
     return hover && phon > 0 ? contourAt(phon, hover.freq) : null;
   };
 
-  const chart = createChartInteraction<View, Hover, SpectrogramResult>({
-    id: SPECTROGRAM_ID,
-    result: () => analysis.result(),
-    fullView,
-    clampView,
-    // Preserve the frequency window when another chart zooms the shared time range.
-    applyShared: (current, x, result) =>
-      current ? clampView({ ...current, t0: x[0], t1: x[1] }, result) : null,
-    pan: (v, dxFrac, dyFrac) => {
-      const dt = dxFrac * (v.t1 - v.t0);
-      const df = dyFrac * (v.f1 - v.f0);
-      return { t0: v.t0 - dt, t1: v.t1 - dt, f0: v.f0 + df, f1: v.f1 + df };
-    },
-    wheel: (v, xFrac, yFrac, factor, shift) => {
-      if (shift) {
-        const at = v.f0 + yFrac * (v.f1 - v.f0);
-        return {
-          view: { ...v, f0: at + (v.f0 - at) * factor, f1: at + (v.f1 - at) * factor },
-          publish: false,
-        };
-      }
-      const at = v.t0 + xFrac * (v.t1 - v.t0);
-      return {
-        view: { ...v, t0: at + (v.t0 - at) * factor, t1: at + (v.t1 - at) * factor },
-        publish: true,
-      };
-    },
-    pick: (geo) => {
-      const result = analysis.result();
-      if (!result || result.frames === 0 || result.bins === 0) return null;
-      const frame = frameIndex(geo.time, result.windowStart, result.duration, result.frames);
-      const freq = geo.view.f0 + geo.yFrac * (geo.view.f1 - geo.view.f0);
-      const bin = binAt(result, freq);
-      return {
-        time: geo.time,
-        freq: result.freqs[bin] ?? freq,
-        db: result.magDb[frame * result.bins + bin],
-        x: geo.x,
-        y: geo.y,
-      };
-    },
-  });
-
-  const image = createMemo(() => spectrogramImage(analysis.result(), dbRange()));
-  // Export the rendered heatmap (M12).
-  useCanvasImage(SPECTROGRAM_ID, chart.canvas);
-  const overlays = createMemo(() => spectrogramOverlays(analysis.result()));
-
-  function draw() {
-    const { width, height } = chart.size();
-    const ctx = beginFrame(chart.canvas(), width, height);
-    if (!ctx) return;
-
-    const result = analysis.result();
-    const v = chart.view();
-    const off = image();
-    const box = chart.box();
-    if (!result || !off || !v) return;
-
-    // Draw the visible sub-rectangle of the source image (time ×, freq ↑).
-    const duration = Math.max(result.duration, 1e-9);
-    const sx = clamp01((v.t0 - result.windowStart) / duration) * result.frames;
-    const sw = Math.max(1e-6, (v.t1 - v.t0) / duration) * result.frames;
-    let binLo = 0;
-    let binHi = result.bins - 1;
-    while (binLo < result.bins && (result.freqs[binLo] ?? 0) < v.f0) binLo++;
-    while (binHi > 0 && (result.freqs[binHi] ?? 0) > v.f1) binHi--;
-    binLo = Math.min(binLo, result.bins - 1);
-    binHi = Math.max(binHi, binLo);
-    // Image row 0 = highest bin, so the source y is inverted.
-    const sy = result.bins - 1 - binHi;
-    const sh = binHi - binLo + 1;
-
-    blitHeatmap(ctx, off, sx, sy, sw, sh, box);
-
-    drawContours(ctx, v, box, result.windowStart, result.duration, overlays(), {
-      centroid: showCentroid(),
-      rolloff: showRolloff(),
-    });
-    drawFrequencyAxis(ctx, v, box);
-    drawTimeAxis(ctx, v, box);
-    drawHoverCross(ctx, box, chart.hover());
-    drawMirrorCursor(ctx, v, box, SPECTROGRAM_ID);
-    // Read inside `draw` so the repaint effect below tracks the transport position.
-    drawPlayhead(ctx, v, box);
-    drawAnnotationOverlay(ctx, v, box, SPECTROGRAM_ID, chart.selection());
-  }
-
-  createEffect(() => {
-    // Track everything the canvas draws (the active theme and the preview playhead
-    // included, so any theme switch and the transport both repaint). Keyed on the theme
-    // **id**, not just its base: two themes on the same base still recolour the canvas.
-    activeThemeId();
-    image();
-    overlays();
-    chart.size();
-    chart.hover();
-    chart.view();
-    draw();
-  });
-
   const hasGrid = () => hasFrameData(analysis.result());
+
+  /** The zoom chrome only while the chart is in use (M36). */
+  const reveal = createZoomReveal(() => !chart.atFit());
+  const zoomChrome = (): ChartZoom => ({
+    zoomIn: chart.zoomIn,
+    zoomOut: chart.zoomOut,
+    fit: chart.fit,
+    label: chart.zoomLabel(),
+  });
+
+  /** The drawn marks, named with the shared compact legend (theme roles). */
+  const legend = (): ChartLegendEntry[] => {
+    const theme = chartTheme();
+    const drawn = toggles();
+    const rows: ChartLegendEntry[] = [];
+    if (drawn.centroid) rows.push({ label: "centroid", color: theme.overlayCentroid });
+    if (drawn.rolloff) rows.push({ label: "rolloff", color: theme.overlayRolloff });
+    const overlay = pitchOverlay();
+    if (overlay && drawn.pitch) {
+      rows.push({ label: "f0 (pYIN)", color: theme.markerBeat, kind: "dashed" });
+    }
+    if (overlay?.harmonics?.length && drawn.harmonics) {
+      rows.push({ label: "harmonics (median f0)", color: theme.markerBeat, kind: "dashed" });
+    }
+    return rows;
+  };
 
   return (
     <AnalyzerTab
@@ -237,6 +161,10 @@ export default function SpectrogramTab() {
       }
     >
       <div class="analyzer-chart">
+        {/* Runs the pitch analysis only while the overlay is switched on. */}
+        <Show when={wantsPitch()}>
+          <PitchOverlaySource spectrogram={() => analysis.result()} onOverlay={setPitchOverlay} />
+        </Show>
         <div class="analyzer-readouts">
           {/* Every entry is rendered upfront (with a placeholder) so the bar has a
               stable, reserved height instead of changing as the cursor moves. */}
@@ -282,7 +210,7 @@ export default function SpectrogramTab() {
             />
           </Show>
         </div>
-        <div class="spectrogram-canvas" ref={chart.attachWrap}>
+        <div class="spectrogram-canvas" ref={chart.attachWrap} {...reveal.attach}>
           <canvas
             ref={chart.attachCanvas}
             onPointerDown={chart.onPointerDown}
@@ -301,15 +229,15 @@ export default function SpectrogramTab() {
                 </div>
               }
             >
-              <ZoomControls
-                onZoomIn={chart.zoomIn}
-                onZoomOut={chart.zoomOut}
-                onFit={chart.fit}
-                label={chart.zoomLabel()}
-              />
+              <ZoomChrome zoom={zoomChrome()} revealed={reveal.revealed()} />
             </Show>
           </Show>
         </div>
+        {/* The level colourbar spans exactly the heatmap's domain, `maxDb − range … maxDb`. */}
+        <Show when={canvas.levelScale()}>
+          {(scale) => <HeatmapColorScale scale={scale()} label="level dBFS" />}
+        </Show>
+        <ChartLegend entries={legend()} note={frequencyScaleLabel(frequencyScale())} />
         <ReframeMenu
           target={chart.menu()}
           onClose={() => chart.setMenu(null)}

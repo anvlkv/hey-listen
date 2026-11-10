@@ -295,6 +295,16 @@ fn f0_reliability_needs_enough_voiced_frames() {
             super::super::support::pitch_series(track(voiced, 24), 480, RATE, (50.0, 2_000.0));
         assert_eq!(result.voiced_frames, voiced);
         assert_eq!(result.f0_reliable, reliable, "voiced frames = {voiced}");
+        // The confidence track is parallel to `values`: present on voiced frames only.
+        assert_eq!(result.confidence.len(), result.values.len());
+        assert_eq!(
+            result
+                .confidence
+                .iter()
+                .filter(|value| value.is_some())
+                .count(),
+            voiced
+        );
     }
 }
 

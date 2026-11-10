@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, type Accessor } from "solid-js";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import {
   IDENTITY_AXIS,
@@ -34,6 +34,11 @@ export interface UplotZoom {
   fit: () => void;
   /** The visible x-range, kept in sync with every scale change. */
   range: () => [number, number] | null;
+  /**
+   * True while the visible range still matches the data's full extent — the shared
+   * chart wrapper uses it to keep the zoom controls revealed only while they are needed.
+   */
+  fitted: Accessor<boolean>;
   /** The live uPlot instance, or `null` before `onReady` — e.g. for `posToVal`. */
   instance: () => UplotInstance | null;
 }
@@ -92,6 +97,18 @@ export function createUplotZoom(
     return null;
   };
 
+  /** Whether the visible x-range is still the data's full extent (a small epsilon). */
+  const fitted = (): boolean => {
+    const current = range();
+    const extent = dataExtent();
+    if (!current || !extent) return true;
+    const span = Math.max(extent[1] - extent[0], 1e-9);
+    return (
+      Math.abs(current[0] - extent[0]) / span < 2e-3 &&
+      Math.abs(current[1] - extent[1]) / span < 2e-3
+    );
+  };
+
   const factor = (f: number) => {
     const current = scaleX();
     if (!current) return;
@@ -130,6 +147,7 @@ export function createUplotZoom(
       apply(xs[0], xs[xs.length - 1]);
     },
     range,
+    fitted,
     instance,
   };
 }

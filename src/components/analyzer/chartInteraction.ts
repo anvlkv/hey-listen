@@ -8,7 +8,7 @@ import {
   untrack,
   type Accessor,
 } from "solid-js";
-import { analyzerBus, readBusMessage, publishChartView } from "../../state/chartSync";
+import { analyzerBus, chartView, publishChartView } from "../../state/chartSync";
 import { onDevicePixelRatioChange } from "../../lib/devicePixelRatio";
 import { ANNOTATION_STRIP_H } from "../annotations/strip";
 import { createLaneDrag, type LaneSelection } from "../annotations/lane";
@@ -44,6 +44,8 @@ export interface ChartInteraction<V extends ChartView, H> {
   zoomOut: () => void;
   fit: () => void;
   zoomLabel: Accessor<string>;
+  /** True while the view is still the full (unzoomed) extent, for the shared zoom chrome. */
+  atFit: Accessor<boolean>;
   onPointerDown: (event: PointerEvent) => void;
   onPointerMove: (event: PointerEvent) => void;
   onPointerUp: (event: PointerEvent) => void;
@@ -124,6 +126,18 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
 
   const box = createMemo(() => plotBox(size()));
 
+  /** Whether the current view still covers the result's full extent. */
+  const atFit = (): boolean => {
+    const current = view();
+    const result = options.result();
+    if (!current || !result) return true;
+    const full = options.fullView(result);
+    const span = Math.max(full.t1 - full.t0, 1e-9);
+    return (
+      Math.abs(current.t0 - full.t0) / span < 2e-3 && Math.abs(current.t1 - full.t1) / span < 2e-3
+    );
+  };
+
   // Keep the current zoom across a *data* refresh (an FFT / option change must not reset
   // it), but re-fit when the **analysis window** moved: the data then covers a different
   // span, and clamping the previous range into the new extent left the chart showing a
@@ -148,9 +162,9 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
   // window when the shared view is cleared (the source changed). `view` is read
   // untracked so writing it here cannot re-trigger this effect.
   createEffect(() => {
-    // `readBusMessage` reads every field in every run, so this effect keeps firing as a
-    // chart is re-zoomed (see `state/chartSync.ts`).
-    const shared = readBusMessage(analyzerBus.data.view);
+    // `chartView` is the reactive snapshot of the shared bus message, so a canvas
+    // mounted after a user zoom consumes the stored range immediately.
+    const shared = chartView();
     const result = options.result();
     if (!result) return;
     if (shared == null) {
@@ -346,6 +360,7 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     zoomOut: () => zoomTime(2),
     fit,
     zoomLabel: () => timeRangeLabel(view()),
+    atFit,
     onPointerDown,
     onPointerMove,
     onPointerUp,

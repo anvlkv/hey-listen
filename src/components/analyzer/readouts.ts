@@ -52,13 +52,22 @@ export function seriesReadouts(
   formatY: (value: number) => string,
 ): ReadoutSpec[] {
   const frames = result.frames ?? result.values?.length ?? 0;
+  const rate = result.sampleRate;
+  /** A sample count as its real time in the source, so the frame grid is legible. */
+  const asMs = (samples: number) =>
+    rate > 0 ? `${((samples / rate) * 1000).toFixed(1)} ms` : `${samples} samples`;
+  const samplesTitle = (samples: number) => `${samples} samples at ${formatHz(rate)}`;
   const specs: ReadoutSpec[] = [
     { label: "Frames", value: `${frames}` },
-    { label: "Hop", value: `${result.hopSize}` },
-    { label: "Rate", value: formatHz(result.sampleRate) },
+    { label: "Hop", value: asMs(result.hopSize), title: samplesTitle(result.hopSize) },
+    { label: "Rate", value: formatHz(rate) },
   ];
   if (result.frameSize != null) {
-    specs.push({ label: "Frame", value: `${result.frameSize}` });
+    specs.push({
+      label: "Frame",
+      value: asMs(result.frameSize),
+      title: `${samplesTitle(result.frameSize)} — the measurement window a frame value summarises`,
+    });
   }
   if (frames > 0) {
     specs.push({ label: "Min", value: formatY(result.minValue) });

@@ -73,6 +73,8 @@ mod tests {
             loudness_phon: sones.to_vec(),
             calibrated: true,
             calibration_db_spl: 94.0,
+            model: None,
+            standard: None,
         }
     }
 

@@ -13,3 +13,13 @@ export function paddedYRange(_u: unknown, min: number, max: number): [number, nu
   const pad = (max - min) * 0.05;
   return [min - pad, max + pad];
 }
+
+/**
+ * A log-scale y-range with a little headroom, clamped so it never reaches 0 (a
+ * frequency track on a log axis). Shared by the pitch and note-pitch lanes.
+ */
+export function logYRange(_u: unknown, min: number, max: number): [number, number] {
+  const lo = min > 0 ? min : 0.1;
+  const hi = max > lo ? max : lo * 10;
+  return [lo / 1.15, hi * 1.15];
+}

@@ -1,20 +1,21 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
-import { createEffect, createMemo, createRoot, createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import ChartTooltip from "./ChartTooltip";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import ZoomControls from "./ZoomControls";
+import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
+import { UplotChartPlot } from "./chartCommon";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { annotationMarkers } from "./annotationPlugins";
+import { reactiveData, verticalMarks } from "./verticalMarkers";
 import { paddedYRange } from "./range";
 import { X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import {
   chartAxisStyle,
   createUplotReframeHandler,
   NoAudioState,
-  timeRangeLabel,
   timeTooltip,
 } from "./chartCommon";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
@@ -31,7 +32,16 @@ import {
 
 type MarkerKind = "beats" | "onsets" | "downbeats";
 
+/** The event kinds a rhythm view can draw, with the copy the legend names them by. */
+const MARKER_LABEL: Record<MarkerKind, string> = {
+  onsets: "onset",
+  beats: "beat",
+  downbeats: "downbeat",
+};
+
 interface MarkerSet {
+  kind: MarkerKind;
+  label: string;
   times: number[];
   color: string;
   width: number;
@@ -55,23 +65,14 @@ const MARKER_FIELD: Record<MarkerKind, "markerOnset" | "markerBeat" | "markerDow
 const rhythmMarkers =
   (getMarkers: () => MarkerSet[]): UplotPluginFactory<AnalyzerBus> =>
   () => {
-    let current: MarkerSet[] = [];
-    let dispose: (() => void) | undefined;
+    const markers = reactiveData(getMarkers, [] as MarkerSet[]);
     return {
       hooks: {
-        ready: (u) => {
-          dispose = createRoot((root) => {
-            createEffect(() => {
-              current = getMarkers();
-              u.redraw();
-            });
-            return root;
-          });
-        },
+        ready: markers.ready,
         draw: (u) => {
           if (!u.ctx) return;
           const { ctx, bbox } = u;
-          for (const marker of current) {
+          for (const marker of markers.current()) {
             ctx.save();
             ctx.strokeStyle = marker.color;
             ctx.lineWidth = marker.width;
@@ -87,7 +88,7 @@ const rhythmMarkers =
             ctx.restore();
           }
         },
-        destroy: () => dispose?.(),
+        destroy: markers.destroy,
       },
     };
   };
@@ -133,43 +134,6 @@ function tempoSalience(
   return { bpm, salience };
 }
 
-/** Mark the chosen tempo on the tempogram with a vertical line. */
-const tempoMarker =
-  (getBpm: () => number): UplotPluginFactory<AnalyzerBus> =>
-  () => {
-    let bpm = 0;
-    let dispose: (() => void) | undefined;
-    return {
-      hooks: {
-        ready: (u) => {
-          dispose = createRoot((root) => {
-            createEffect(() => {
-              bpm = getBpm();
-              u.redraw();
-            });
-            return root;
-          });
-        },
-        draw: (u) => {
-          if (!(bpm > 0) || !u.ctx) return;
-          const x = u.valToPos(bpm, "x", true);
-          const { ctx, bbox } = u;
-          if (!Number.isFinite(x) || x < bbox.left || x > bbox.left + bbox.width) return;
-          ctx.save();
-          ctx.strokeStyle = chartTheme().reference;
-          ctx.lineWidth = 1.5;
-          const px = Math.round(x) + 0.5;
-          ctx.beginPath();
-          ctx.moveTo(px, bbox.top);
-          ctx.lineTo(px, bbox.top + bbox.height);
-          ctx.stroke();
-          ctx.restore();
-        },
-        destroy: () => dispose?.(),
-      },
-    };
-  };
-
 /** Tooltip for the tempogram panel (BPM × salience). */
 const TempoTooltip = (props: TooltipProps) => (
   <ChartTooltip
@@ -183,8 +147,9 @@ const TempoTooltip = (props: TooltipProps) => (
 /**
  * Rhythm view (M5): the onset-strength envelope of the window, with the detected
  * beats / onsets / downbeats drawn as markers on top (which sets depends on the
- * tool). Cursor and time-zoom sync with the other analyzer tabs. See
- * `docs/analysis-tools.md`.
+ * tool). One shared legend maps every mark to its theme colour, and the tempogram
+ * panel names the chosen tempo beside its autocorrelation curve. Cursor and time-zoom
+ * sync with the other analyzer tabs. See `docs/analysis-tools.md`.
  */
 export default function RhythmView(props: {
   id: AnalyzerId;
@@ -212,14 +177,24 @@ export default function RhythmView(props: {
     const r = result();
     if (!r) return [];
     const theme = chartTheme();
-    const sets: MarkerSet[] = [];
-    for (const kind of config().markers) {
-      const times =
-        kind === "onsets" ? r.onsetTimes : kind === "beats" ? r.beatTimes : r.downbeatTimes;
-      sets.push({ times, color: theme[MARKER_FIELD[kind]], width: MARKER_WIDTH[kind] });
-    }
-    return sets;
+    return config().markers.map((kind) => ({
+      kind,
+      label: MARKER_LABEL[kind],
+      times: kind === "onsets" ? r.onsetTimes : kind === "beats" ? r.beatTimes : r.downbeatTimes,
+      color: theme[MARKER_FIELD[kind]],
+      width: MARKER_WIDTH[kind],
+    }));
   };
+
+  /** The envelope and every marker set, each mapped to its theme colour. */
+  const legend = (): ChartLegendEntry[] => [
+    { label: "onset strength", color: chartTheme().series },
+    ...markers().map((marker) => ({
+      label: marker.label,
+      color: marker.color,
+      value: `${marker.times.length}`,
+    })),
+  ];
 
   const data = (): [number[], number[]] => {
     const r = result();
@@ -228,6 +203,10 @@ export default function RhythmView(props: {
   };
 
   const Tooltip = timeTooltip((value) => value.toFixed(4));
+
+  /** The legend's trailing fact: which marks are drawn, and that downbeats are heavier. */
+  const markerNote = () =>
+    config().markers.includes("downbeats") ? "downbeats drawn heavier" : undefined;
 
   return (
     <div class="analyzer-chart">
@@ -252,7 +231,7 @@ export default function RhythmView(props: {
           )}
         </Show>
       </div>
-      <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
+      <UplotChartPlot zoom={zoom} onWheel={zoom.wheel} onContextMenu={openMenu}>
         <Show when={result()} fallback={<NoAudioState />}>
           <Show
             when={data()[0].length >= 2}
@@ -262,12 +241,6 @@ export default function RhythmView(props: {
               </div>
             }
           >
-            <ZoomControls
-              onZoomIn={zoom.zoomIn}
-              onZoomOut={zoom.zoomOut}
-              onFit={zoom.fit}
-              label={timeRangeLabel(zoom.range())}
-            />
             <Show when={activeThemeId()} keyed>
               <SolidUplot
                 autoResize
@@ -290,6 +263,7 @@ export default function RhythmView(props: {
                     stroke: chartTheme().series,
                     width: 1,
                     fill: chartTheme().waveFill,
+                    spanGaps: false,
                   },
                 ]}
                 scales={{ x: { time: false }, y: { range: paddedYRange } }}
@@ -301,42 +275,72 @@ export default function RhythmView(props: {
             </Show>
           </Show>
         </Show>
-      </div>
+      </UplotChartPlot>
+      <ChartLegend entries={legend()} note={markerNote()} />
       <Show when={tempogram()}>
         {(t) => (
-          <div class="analyzer-tempogram">
-            <div class="analyzer-tempogram-label">Tempo salience</div>
-            <Show when={activeThemeId()} keyed>
-              <SolidUplot
-                autoResize
-                pluginBus={analyzerBus}
-                data={[t().bpm, t().salience]}
-                series={[
-                  {},
-                  {
-                    label: "Salience",
-                    stroke: chartTheme().series,
-                    width: 1,
-                    fill: chartTheme().waveFill,
-                  },
-                ]}
-                scales={{
-                  x: { time: false, range: [TEMPO_MIN_BPM, TEMPO_MAX_BPM] },
-                  y: { range: paddedYRange },
-                }}
-                axes={[
-                  { ...chartAxisStyle(), label: "BPM", size: X_AXIS_SIZE },
-                  {
-                    ...chartAxisStyle(),
-                    label: "salience",
-                    size: Y_AXIS_SIZE,
-                    space: Y_AXIS_SPACE,
-                  },
-                ]}
-                plugins={[cursor(), tooltip(TempoTooltip), tempoMarker(() => result()?.bpm ?? 0)]}
-              />
-            </Show>
-          </div>
+          <>
+            {/* The tempogram's own legend names the curve and the chosen rate (M36). */}
+            <ChartLegend
+              entries={[
+                { label: "tempo salience (autocorrelation)", color: chartTheme().series },
+                {
+                  label: "chosen tempo",
+                  color: chartTheme().reference,
+                  kind: "dashed",
+                  value: result()?.bpm ? `${result()!.bpm.toFixed(1)} BPM` : null,
+                },
+              ]}
+            />
+            <div class="analyzer-tempogram">
+              <Show when={activeThemeId()} keyed>
+                <SolidUplot
+                  autoResize
+                  pluginBus={analyzerBus}
+                  data={[t().bpm, t().salience]}
+                  series={[
+                    {},
+                    {
+                      label: "Salience",
+                      stroke: chartTheme().series,
+                      width: 1,
+                      fill: chartTheme().waveFill,
+                    },
+                  ]}
+                  scales={{
+                    x: { time: false, range: [TEMPO_MIN_BPM, TEMPO_MAX_BPM] },
+                    y: { range: paddedYRange },
+                  }}
+                  axes={[
+                    { ...chartAxisStyle(), label: "BPM", size: X_AXIS_SIZE },
+                    {
+                      ...chartAxisStyle(),
+                      label: "salience",
+                      size: Y_AXIS_SIZE,
+                      space: Y_AXIS_SPACE,
+                    },
+                  ]}
+                  plugins={[
+                    cursor(),
+                    tooltip(TempoTooltip),
+                    verticalMarks(() => {
+                      const bpm = result()?.bpm ?? 0;
+                      return bpm > 0
+                        ? [
+                            {
+                              at: bpm,
+                              label: `${bpm.toFixed(1)} BPM`,
+                              color: chartTheme().reference,
+                              dash: [4, 3],
+                            },
+                          ]
+                        : [];
+                    }),
+                  ]}
+                />
+              </Show>
+            </div>
+          </>
         )}
       </Show>
       <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />

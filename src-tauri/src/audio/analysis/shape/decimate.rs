@@ -24,8 +24,8 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         return value;
     };
     match result {
-        // The waveform envelope is a pair of equal-length arrays (min/max).
-        AnalysisResult::Waveform(_) => aligned(object, max, &["min", "max"]),
+        // The waveform envelope is a set of equal-length arrays (min/max/bucketRms).
+        AnalysisResult::Waveform(_) => aligned(object, max, &["min", "max", "bucketRms"]),
         // Spectrum bins: all four arrays share one frequency axis.
         AnalysisResult::Spectrum(_) => aligned(object, max, &["freqs", "magDb", "minDb", "maxDb"]),
         // Masking curves share the frequency axis.
@@ -74,10 +74,12 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         AnalysisResult::Loudness(_) => {
             aligned(object, max, &["times", "loudnessSone", "loudnessPhon"])
         }
-        // Pitch tracks are series with gapped values.
+        // Pitch tracks are series with gapped values; `confidence` is parallel to them.
         AnalysisResult::PitchPyin(_)
         | AnalysisResult::PitchYin(_)
-        | AnalysisResult::PitchAutocorr(_) => aligned(object, max, &["times", "values"]),
+        | AnalysisResult::PitchAutocorr(_) => {
+            aligned(object, max, &["times", "values", "confidence"])
+        }
         // Rhythm: thin the envelope, but keep the detected event lists whole.
         AnalysisResult::Tempo(_) | AnalysisResult::Onsets(_) | AnalysisResult::Downbeats(_) => {
             aligned(object, max, &["times", "onsetStrength"]);

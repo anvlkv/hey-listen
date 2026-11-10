@@ -19,6 +19,22 @@ export function formatRate(hz: number): string {
   return `${hz.toFixed(Math.abs(hz) < 10 ? 1 : 0)} Hz`;
 }
 
+/**
+ * The modulation-rate bands the perception model is most sensitive to (M36). These are
+ * **reference regions**, not decision boundaries: the roughness and fluctuation filters
+ * are tuned near 70 Hz and 4 Hz respectively, so a peak inside one is what those models
+ * would respond to. `docs/analysis-tools.md` (roughness / fluctuation strength) owns the
+ * model description.
+ */
+export const MOD_REFERENCE_REGIONS: { from: number; to: number; label: string }[] = [
+  { from: 2, to: 8, label: "fluctuation (~4 Hz)" },
+  { from: 40, to: 100, label: "roughness (~70 Hz)" },
+];
+
+/** What the AM and FM halves are, for the chart's legend caption. */
+export const MOD_LEGEND_NOTE =
+  "AM = frame-RMS envelope · FM = pitch residual (cents) · relative dB";
+
 /** Axis tick labels from uPlot's numeric splits (it may pass null minor splits). */
 export function rateAxisValues(_self: unknown, ticks: (number | null)[]): string[] {
   return ticks.map((tick) => (tick == null ? "" : formatRate(tick)));

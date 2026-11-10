@@ -119,6 +119,9 @@ describe("F. Cross-cutting analyzer behavior", () => {
     // the zoom controller mirrors through the shared chart bus.
     const readout = zoomReadout("waveform");
     const before = await textOf(readout);
+    // The zoom chrome is revealed only while the chart is in use (M36), so enter the
+    // panel first — exactly what a user does before reaching for the control.
+    await (await $(analyzerPanel("waveform"))).moveTo();
     const zoomIn = await $(`${analyzerPanel("waveform")} .zoom-btn[aria-label="Zoom in"]`);
     await zoomIn.waitForExist();
     await zoomIn.click();
@@ -146,6 +149,7 @@ describe("F. Cross-cutting analyzer behavior", () => {
     // The hop is derived from the FFT size, so a changed hop proves the re-run landed.
     const hopBefore = await readoutValue("spectralCentroid", "Hop");
     expect(hopBefore).toBeTruthy();
+    await (await $(analyzerPanel("spectralCentroid"))).moveTo();
     await (await $(`${analyzerPanel("spectralCentroid")} .zoom-btn[aria-label="Zoom in"]`)).click();
     await browser.waitUntil(
       async () => rangeWidth(await textOf(readout)) < rangeWidth(full) * 0.9,

@@ -72,6 +72,78 @@
   border-color: var(--border-accent);
 }
 
+/* The compact single-row chart legend (M36): one shared mark vocabulary for every
+   analyzer chart, drawn along the bottom edge of the plot. `--legend-color` carries the
+   mark's chart-theme role. See `components/analyzer/chartLegend.tsx`. */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-chart-tight) var(--space-chart-wide);
+  flex: none;
+  min-height: 20px;
+  padding: var(--space-chart-tight) var(--space-chart-wide);
+  font-size: 0.625rem;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tab-label-gap);
+  flex: none;
+}
+
+.chart-legend-mark {
+  display: inline-flex;
+  flex: none;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--legend-color, var(--fg-faint));
+}
+
+.chart-legend-mark.is-dashed {
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--legend-color, var(--fg-faint)) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.chart-legend-mark.is-fill {
+  height: 8px;
+  opacity: 0.45;
+}
+
+.chart-legend-mark.is-split {
+  height: 5px;
+  overflow: hidden;
+}
+
+.chart-legend-mark.is-split i {
+  flex: 1;
+  background: var(--legend-color, var(--fg-faint));
+}
+
+.chart-legend-mark.is-split i:last-child {
+  opacity: 0.28;
+}
+
+.chart-legend-value {
+  color: var(--fg-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A trailing fact about the whole chart: pushed to the far end of the row. */
+.chart-legend-note {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .params-switch[data-checked] .params-switch-thumb,
 .params-switch-control[data-checked] .params-switch-thumb,
 .toolbar-switch[data-checked] .toolbar-switch-thumb,

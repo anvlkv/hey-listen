@@ -1,7 +1,7 @@
 import type { ColorStop, ThemeBase } from "../../lib/themeFile";
 
 /**
- * The non-chart base palettes — the heatmap ramp and the `solid-flow` (`--xy-*`)
+ * The non-chart base palettes — the heatmap ramps and the `solid-flow` (`--xy-*`)
  * styles a theme overlays, keyed by base.
  */
 
@@ -10,8 +10,13 @@ import type { ColorStop, ThemeBase } from "../../lib/themeFile";
  * the **active** theme's ramp with these as the fallback).
  *
  * - **dark** — dark → blue → teal → gold → white (low → high).
- * - **light** — white → pale blue → blue → deep navy (low → high), an
- *   inverted-lightness ramp so low values melt into the light background.
+ * - **light** — pale slate → blue → deep navy (low → high). The lowest stop is
+ *   deliberately **not** the plot background: a low-energy band has to read as data,
+ *   not as empty canvas (M36).
+ *
+ * `BASE_COLORMAP_DIVERGING` is the **signed** pair: a diverging ramp whose middle is
+ * the domain's zero (MFCC coefficients), with the midpoint a neutral tone that is
+ * still distinct from the plot background.
  */
 export const BASE_COLORMAP: Record<ThemeBase, ColorStop[]> = {
   dark: [
@@ -22,11 +27,25 @@ export const BASE_COLORMAP: Record<ThemeBase, ColorStop[]> = {
     [1.0, [255, 255, 235]],
   ],
   light: [
-    [0.0, [255, 255, 255]],
-    [0.25, [207, 226, 250]],
-    [0.5, [110, 168, 230]],
-    [0.75, [40, 90, 170]],
-    [1.0, [12, 26, 66]],
+    [0.0, [198, 213, 234]],
+    [0.25, [140, 178, 220]],
+    [0.5, [74, 130, 197]],
+    [0.75, [30, 78, 154]],
+    [1.0, [11, 26, 66]],
+  ],
+};
+
+/** The base **diverging** heatmap ramps (negative → zero → positive), keyed by base. */
+export const BASE_COLORMAP_DIVERGING: Record<ThemeBase, ColorStop[]> = {
+  dark: [
+    [0.0, [96, 156, 235]],
+    [0.5, [52, 52, 58]],
+    [1.0, [240, 166, 72]],
+  ],
+  light: [
+    [0.0, [32, 84, 158]],
+    [0.5, [222, 222, 218]],
+    [1.0, [184, 66, 30]],
   ],
 };
 

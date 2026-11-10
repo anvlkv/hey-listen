@@ -514,3 +514,84 @@ A `supportingTool` action can open/focus `spectrum` or `spectrogram` and preserv
 ### Risk / effort
 
 Small for descriptor fields, path/fill corrections, sampling labels, and supporting-tool links; large for exact hovered-frame spectra. Keep generic chart behavior descriptor-driven and avoid per-analyzer conditionals in `TimeSeriesChart.tsx`.
+
+## 13. Shared interaction and legend conventions
+
+### Goal
+
+Reduce per-chart chrome so the plotted signal, not the controls, is what the eye lands on, and make every series identity recoverable without a separate manual swatch. Two small, cross-cutting conventions cover this: hide zoom controls until the user is actually interacting with the chart, and render one compact legend along the bottom edge rather than a floating block.
+
+### Where
+
+- `src/components/analyzer/ZoomControls.tsx` and `uplotZoom.ts`: the existing zoom affordance and its state.
+- `src/components/analyzer/chartCommon.tsx`: the shared chart wrapper that mounts controls/legend for `SeriesView`, `FrequencyChart`, `TimeSeriesChart`, and the canvas-based tabs.
+- The solid-uplot `legend()` plugin (already used by `ModulationView` / `MaskingView`) or a shared DOM legend below the chart.
+
+### How (concrete)
+
+**Zoom controls only while focused.** Gate the zoom control's visibility on the chart's focus/cursor state instead of always rendering it. Track `pointerenter`/`pointerleave` (or `focus`/`blur`) on the chart container, and render `ZoomControls` only while the pointer is inside the tab and the chart has not been scrolled/zoomed away from the default. Keep the state in the shared wrapper so every tab inherits it once, not per chart:
+
+```tsx
+const [interacting, setInteracting] = createSignal(false);
+// onPointerEnter / onPointerLeave on the chart container toggle `interacting`.
+<Show when={interacting()}>
+  <ZoomControls /* … */ />
+</Show>
+```
+
+Do not remove keyboard/pinch zoom — only the on-screen chrome. The control can also fade in on first zoom so a user who zooms with a wheel is not stranded without a reset.
+
+**Compact bottom legend.** Prefer a single-row legend along the bottom edge over a floating `top-right` block, because it scales to many series and cannot cover the data. The wrapper disables uPlot's native legend and `legend()` is overlaid on `u.over` with only `top-left`/`top-right` placement, so use a lightweight DOM legend below the plot (the wrapper already renders `children` under the chart when `childrenPlacement="bottom"`), or a custom legend component positioned by the shared wrapper. Keep it `pointer-events: none`, wrap to a second line rather than clipping, and show live values via the existing `cursor` bus:
+
+```tsx
+<SolidUplot
+  childrenPlacement="bottom"
+  pluginBus={analyzerBus}
+  plugins={[cursor(), /* tooltip/legend as needed */]}
+>
+  <CompactLegend bus={analyzerBus} />
+</SolidUplot>
+```
+
+The legend is a single shared component (see gap 9's `ChartSeriesLegend`); every chart type reuses it so a series colour always maps to the same labelled swatch. Reserve per-chart icons/badges for the self-describing model/calibration copy the other gaps add.
+
+### Data required
+
+None. This is interaction and layout chrome; it consumes the existing `analyzerBus`/`cursor` bus and the series metadata already available from `getSeriesData`.
+
+### Risk / effort
+
+Small. The risk is making zoom controls hard to discover — fade them on focus/zoom rather than only on hover, and verify the focused tab's keyboard path still works. The bottom legend must not reduce the plot's minimum height (see gap 10's `noteMetrics` sizing).
+
+## 14. Make chart and tab density scale-aware
+
+### Goal
+
+Let the analyzer workbench prioritize visual evidence over chrome: reduce excess whitespace around and between charts, make Workbench tabs compact, and grow spacing proportionally only when the user selects a larger UI scale.
+
+### Where
+
+- The app-wide UI-scale source and CSS custom properties (find the existing scale preference rather than adding a second setting).
+- `src/styles/analyzer.css`, `src/styles/panels.css`, and `src/styles/shared.css`: chart wrappers, stacked diagnostic lanes, readout/legend margins, and Workbench panel padding.
+- The Dockview tab renderer / tab-chrome CSS: tab padding, icon/label gaps, close affordance, and minimum tab width. Keep graph-editor and analyzer tab chrome on their existing shared path rather than styling analyzer tabs independently.
+
+### How (concrete)
+
+Define a small semantic spacing ladder derived from the current UI scale — for example `--space-chart`, `--space-chart-tight`, and `--tab-inline-padding` — rather than spreading fixed pixel values through chart components. At the baseline scale, remove decorative outer gaps and keep stacked charts separated only enough to distinguish axes/legends. At a larger UI scale, those same tokens increase so pointer targets, labels, and visual grouping remain comfortable.
+
+Use those tokens for:
+
+- margins between a chart title/readout strip, the plot, and the compact bottom legend;
+- gaps between waveform and spectrogram lanes, masking's level/SMR panels, and note-metrics lanes;
+- analyzer-panel padding around the plot region; and
+- compact tab-bar inline padding and tab-label/icon gaps.
+
+Tabs should remain readable and keyboard-accessible: do not reduce font size below the app scale, hide the active-state indicator, or make the close control inaccessible. Prefer narrower horizontal padding and a sensible label ellipsis/minimum width over clipping text or creating a second tab-bar variant. Apply the tokens to both dark and light themes; whitespace density is a layout property, not a theme-specific colour change.
+
+### Data required
+
+None. This is shared layout styling driven by the existing UI-scale preference.
+
+### Risk / effort
+
+Small-to-medium. Density changes touch every Workbench tab, so validate narrow panels, long localized analyzer names, graph-editor tabs, and the largest UI scale. Do not change Dockview layout persistence or fixed-region sizing while tuning chart interiors.

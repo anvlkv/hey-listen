@@ -22,15 +22,28 @@ export const LOUDNESS_ANALYZERS: AnalyzerDef[] = [
     description: "Loudness over time",
     about:
       "**What it shows.** Loudness as it changes through the window, with −14 LUFS " +
-      "marked as a reference.\n\n" +
+      "marked as a **streaming reference** (not a universal target). The active " +
+      "analysis block length is named beside the chart.\n\n" +
       "**Why use it.** Spot level changes, drops, and dynamics. By default it uses " +
       "short 400 ms blocks (EBU R128); choose a custom window for fixed, " +
       "non-overlapping blocks.",
     keywords: ["loudness", "momentary", "short term", "lufs", "dynamics", "level"],
     section: "loudness",
     view: series("loudness (LUFS)", (value) => `${value.toFixed(1)} LUFS`, {
-      style: "area",
-      reference: { value: -14, label: "-14 LUFS" },
+      // EBU R128 measures the level of a 400 ms block: draw the block, not a sample.
+      sampling: "block",
+      fill: true,
+      // A streaming reference, not a universal target: the platform may normalise to
+      // a different level.
+      reference: { value: -14, label: "-14 LUFS (streaming reference)" },
+      // The block length changes what the curve means, so name the active one.
+      context: {
+        label: "Window",
+        option: "windowMs",
+        format: (value) => (value === 0 ? "EBU R128 400 ms" : `${value} ms`),
+        title:
+          "The loudness block length this track was measured with (0 = EBU R128's 400 ms blocks).",
+      },
     }),
     params: [
       {

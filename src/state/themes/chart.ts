@@ -33,6 +33,7 @@ export type { ChartTheme };
 export const DARK_CHART: ChartTheme = {
   axis: "#8a8a8a",
   grid: "#2b2b2b",
+  gridFaint: "#262626",
   ticks: "#2b2b2b",
   font: "11px Inter, sans-serif",
   series: "#6ea8ff",
@@ -68,6 +69,7 @@ export const DARK_CHART: ChartTheme = {
 export const LIGHT_CHART: ChartTheme = {
   axis: "#6b7280",
   grid: "#e0e4e9",
+  gridFaint: "#eceff3",
   ticks: "#cbd0d7",
   font: "11px Inter, sans-serif",
   series: "#2f6fd0",

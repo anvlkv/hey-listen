@@ -36,4 +36,11 @@ voicedFraction: number,
  * A summary omits `medianF0Hz` / `meanF0Hz` when this is false; the track itself
  * is still returned so the caller can inspect it.
  */
-f0Reliable: boolean, };
+f0Reliable: boolean, 
+/**
+ * Per-frame pitch confidence (0…1), parallel to `values`: `Some(confidence)` on a
+ * voiced frame, `None` where `values` is a gap. Already computed by every pitch
+ * detector (pYIN's Viterbi state probability in `pyin.rs`; oxiaudio's `PitchFrame`
+ * `confidence` for YIN/autocorrelation) but currently dropped.
+ */
+confidence: Array<number | null>, };

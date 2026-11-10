@@ -5,7 +5,7 @@ import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";
 import Readout from "./Readout";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
-import ZoomControls from "./ZoomControls";
+import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
 import { createUplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { referenceLine } from "./seriesPlugins";
@@ -21,12 +21,13 @@ import {
   chartAxisStyle,
   createUplotReframeHandler,
   NoAudioState,
-  timeRangeLabel,
   timeTooltip,
+  UplotChartPlot,
 } from "./chartCommon";
 import { analyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { useUplotImage } from "./chartImage";
+import SignalDiagnostic from "./SignalDiagnostic";
 import { createAnalysis, toolOptions, type WaveformResult } from "../../state/analyzer";
 
 /** A ~72 dB window anchored on the frame peak, never above 0 dBFS. */
@@ -56,6 +57,12 @@ export default function WaveformTab() {
 
   const dbMode = () => (toolOptions.waveform?.dbScale ?? 0) !== 0;
 
+  /**
+   * The linked primary diagnostic (M36): the waveform stacked over the spectrogram, on
+   * one time axis. Off by default — the plain envelope stays the tab's default chart.
+   */
+  const linkedPair = () => (toolOptions.waveform?.linkedPair ?? 0) !== 0;
+
   const data = (): number[][] => {
     const result = analysis.result();
     if (!result || result.max.length === 0) return [[]];
@@ -82,6 +89,15 @@ export default function WaveformTab() {
   /** Right-click: reframe the timeline window from the time under the pointer. */
   const openMenu = createUplotReframeHandler(zoom, setMenu);
 
+  /** The waveform's marks, named in the shared legend (theme roles, never literals). */
+  const legend = (): ChartLegendEntry[] =>
+    dbMode()
+      ? [
+          { label: "peak (dBFS)", color: chartTheme().series, kind: "fill" },
+          { label: "0 dBFS", color: chartTheme().reference, kind: "dashed" },
+        ]
+      : [{ label: "min–max envelope", color: chartTheme().series, kind: "fill" }];
+
   return (
     <AnalyzerTab
       id="waveform"
@@ -90,92 +106,96 @@ export default function WaveformTab() {
       hasResult={analysis.result() != null}
       params={<ToolParamsForm id="waveform" />}
     >
-      <Show when={analysis.result()} fallback={<NoAudioState />}>
-        {(result) => (
-          <div class="analyzer-chart">
-            <div class="analyzer-readouts">
-              <Readout label="Peak" value={`${result().peakDb.toFixed(1)} dBFS`} />
-              <Readout label="RMS" value={`${result().rmsDb.toFixed(1)} dBFS`} />
-              <Readout label="Duration" value={`${result().duration.toFixed(3)} s`} />
-              <Readout label="Rate" value={`${result().sampleRate} Hz`} />
-            </div>
-            <div class="analyzer-plot" onWheel={zoom.wheel} onContextMenu={openMenu}>
-              <Show
-                when={data()[0].length >= 2}
-                fallback={
-                  <div class="analyzer-empty">Empty window — widen the analysis window.</div>
-                }
-              >
-                <ZoomControls
-                  onZoomIn={zoom.zoomIn}
-                  onZoomOut={zoom.zoomOut}
-                  onFit={zoom.fit}
-                  label={timeRangeLabel(zoom.range())}
-                />
-                {/* Remount on a theme or scale-mode change: the wrapper fixes `series`
+      <Show when={linkedPair()}>
+        <SignalDiagnostic zoom={zoom} />
+      </Show>
+      <Show when={!linkedPair()}>
+        <Show when={analysis.result()} fallback={<NoAudioState />}>
+          {(result) => (
+            <div class="analyzer-chart">
+              <div class="analyzer-readouts">
+                <Readout label="Peak" value={`${result().peakDb.toFixed(1)} dBFS`} />
+                <Readout label="RMS" value={`${result().rmsDb.toFixed(1)} dBFS`} />
+                <Readout label="Duration" value={`${result().duration.toFixed(3)} s`} />
+                <Readout label="Rate" value={`${result().sampleRate} Hz`} />
+              </div>
+              <UplotChartPlot zoom={zoom} onWheel={zoom.wheel} onContextMenu={openMenu}>
+                <Show
+                  when={data()[0].length >= 2}
+                  fallback={
+                    <div class="analyzer-empty">Empty window — widen the analysis window.</div>
+                  }
+                >
+                  {/* Remount on a theme or scale-mode change: the wrapper fixes `series`
                     at mount (so a theme switch must rebuild to recolour), and the two
                     modes declare a different series count. */}
-                <Show when={`${activeThemeId()}|${dbMode() ? "db" : "lin"}`} keyed>
-                  <SolidUplot
-                    autoResize
-                    pluginBus={analyzerBus}
-                    plugins={[
-                      cursor(),
-                      tooltip(Tooltip),
-                      mirrorCursor("time"),
-                      syncView("time"),
-                      playheadRule(),
-                      annotationMarkers("waveform"),
-                      ...(dbMode() ? [referenceLine({ value: 0, label: "0 dBFS" })] : []),
-                    ]}
-                    onCreate={zoom.onReady}
-                    data={data()}
-                    series={
-                      dbMode()
-                        ? [
-                            {},
-                            {
-                              label: "Peak (dBFS)",
-                              stroke: chartTheme().series,
-                              width: 1,
-                              fill: chartTheme().waveFill,
-                            },
-                          ]
-                        : [
-                            {},
-                            { label: "Max", stroke: chartTheme().series, width: 1 },
-                            { label: "Min", stroke: chartTheme().series, width: 1 },
-                          ]
-                    }
-                    bands={dbMode() ? undefined : [{ series: [1, 2], fill: chartTheme().waveFill }]}
-                    scales={
-                      dbMode()
-                        ? { x: { time: false }, y: { range: dbYRange } }
-                        : { x: { time: false } }
-                    }
-                    axes={[
-                      {
-                        ...chartAxisStyle(),
-                        label: "time (s)",
-                        size: X_AXIS_SIZE,
-                        space: TIME_AXIS_SPACE,
-                        values: timeAxisValues,
-                      },
-                      {
-                        ...chartAxisStyle(),
-                        label: dbMode() ? "level (dBFS)" : "amplitude",
-                        size: Y_AXIS_SIZE,
-                        space: Y_AXIS_SPACE,
-                        values: dbMode() ? dbAxisValues : undefined,
-                      },
-                    ]}
-                  />
+                  <Show when={`${activeThemeId()}|${dbMode() ? "db" : "lin"}`} keyed>
+                    <SolidUplot
+                      autoResize
+                      pluginBus={analyzerBus}
+                      plugins={[
+                        cursor(),
+                        tooltip(Tooltip),
+                        mirrorCursor("time"),
+                        syncView("time"),
+                        playheadRule(),
+                        annotationMarkers("waveform"),
+                        ...(dbMode() ? [referenceLine({ value: 0, label: "0 dBFS" })] : []),
+                      ]}
+                      onCreate={zoom.onReady}
+                      data={data()}
+                      series={
+                        dbMode()
+                          ? [
+                              {},
+                              {
+                                label: "Peak (dBFS)",
+                                stroke: chartTheme().series,
+                                width: 1,
+                                fill: chartTheme().waveFill,
+                              },
+                            ]
+                          : [
+                              {},
+                              { label: "Max", stroke: chartTheme().series, width: 1 },
+                              { label: "Min", stroke: chartTheme().series, width: 1 },
+                            ]
+                      }
+                      bands={
+                        dbMode() ? undefined : [{ series: [1, 2], fill: chartTheme().waveFill }]
+                      }
+                      scales={
+                        dbMode()
+                          ? { x: { time: false }, y: { range: dbYRange } }
+                          : { x: { time: false } }
+                      }
+                      axes={[
+                        {
+                          ...chartAxisStyle(),
+                          label: "time (s)",
+                          size: X_AXIS_SIZE,
+                          space: TIME_AXIS_SPACE,
+                          values: timeAxisValues,
+                        },
+                        {
+                          ...chartAxisStyle(),
+                          label: dbMode() ? "level (dBFS)" : "amplitude",
+                          size: Y_AXIS_SIZE,
+                          space: Y_AXIS_SPACE,
+                          values: dbMode() ? dbAxisValues : undefined,
+                        },
+                      ]}
+                    />
+                  </Show>
                 </Show>
+              </UplotChartPlot>
+              <Show when={data()[0].length >= 2}>
+                <ChartLegend entries={legend()} note="conditioned signal" />
               </Show>
+              <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool="waveform" />
             </div>
-            <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool="waveform" />
-          </div>
-        )}
+          )}
+        </Show>
       </Show>
     </AnalyzerTab>
   );
