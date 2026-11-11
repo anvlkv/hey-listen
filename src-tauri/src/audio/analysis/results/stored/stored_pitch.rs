@@ -1,15 +1,15 @@
 //! The postcard-safe stored form of a [`PitchResult`] (M36).
 //!
-//! See [`super::stored`] for the positional-wrapper rationale. The trailing
-//! `confidence` field is appended after the original thirteen, so a file written before
-//! it existed still decodes: `postcard` is positional, so the reader defaults the
-//! trailing field when the buffer ends early (a pre-M36 file, never a corrupt value —
-//! the file's checksum rules that out).
+//! See [`super::stored`] for the positional-wrapper rationale. `confidence`, then the
+//! candidate grid and its per-frame octave-ambiguity flags, are appended after the
+//! original thirteen fields, so a file written before each existed still decodes:
+//! `postcard` is positional, so the reader defaults the trailing fields when the buffer
+//! ends early (a pre-M36 file, never a corrupt value — the file's checksum rules that out).
 
 use serde::{Deserialize, Serialize};
 
 use super::decode::Fields;
-use crate::audio::analysis::PitchResult;
+use crate::audio::analysis::{CandidateGrid, PitchResult};
 
 /// The postcard-safe stored fields of a [`PitchResult`].
 #[derive(Clone, Serialize)]
@@ -28,6 +28,8 @@ pub struct StoredPitch {
     pub voiced_fraction: f32,
     pub f0_reliable: bool,
     pub confidence: Vec<Option<f32>>,
+    pub candidates: Option<CandidateGrid>,
+    pub octave_ambiguous: Vec<bool>,
 }
 
 impl<'de> Deserialize<'de> for StoredPitch {
@@ -61,10 +63,14 @@ impl<'de> Deserialize<'de> for StoredPitch {
                     f0_reliable: f.req()?,
                     // The per-frame confidence: a pre-M36 file ends before it.
                     confidence: f.defaulted(),
+                    // The candidate grid and its octave flags: a pre-candidates file ends
+                    // before them.
+                    candidates: f.opt(),
+                    octave_ambiguous: f.defaulted(),
                 })
             }
         }
-        deserializer.deserialize_tuple(14, PitchVisitor)
+        deserializer.deserialize_tuple(16, PitchVisitor)
     }
 }
 
@@ -91,6 +97,8 @@ impl From<&PitchResult> for StoredPitch {
             voiced_fraction: r.voiced_fraction,
             f0_reliable: r.f0_reliable,
             confidence: r.confidence.clone(),
+            candidates: r.candidates.clone(),
+            octave_ambiguous: r.octave_ambiguous.clone(),
         }
     }
 }
@@ -112,6 +120,8 @@ impl From<StoredPitch> for PitchResult {
             voiced_fraction: stored.voiced_fraction,
             f0_reliable: stored.f0_reliable,
             confidence: stored.confidence,
+            candidates: stored.candidates,
+            octave_ambiguous: stored.octave_ambiguous,
         }
     }
 }
@@ -177,5 +187,50 @@ mod tests {
         assert!(pitch.confidence.is_empty());
         assert_eq!(pitch.values, vec![Some(220.0), None]);
         assert_eq!(pitch.effective_min_f0_hz, 50.0);
+    }
+
+    #[test]
+    fn a_pre_candidates_pitch_decodes_with_defaults() {
+        // The stored form before the candidate grid was the fourteen fields above;
+        // `postcard` is positional, so a plain tuple reproduces those bytes exactly. The
+        // reader then defaults `candidates` and `octaveAmbiguous` instead of failing.
+        type PreCandidates = (
+            u32,
+            usize,
+            usize,
+            Vec<f32>,
+            f64,
+            Vec<Option<f32>>,
+            f32,
+            f32,
+            f32,
+            f32,
+            usize,
+            f32,
+            bool,
+            Vec<Option<f32>>,
+        );
+        let old: PreCandidates = (
+            48_000,
+            480,
+            2,
+            vec![0.0, 0.01],
+            0.0,
+            vec![Some(220.0), None],
+            220.0,
+            220.0,
+            50.0,
+            2_000.0,
+            1,
+            0.5,
+            false,
+            vec![Some(0.9), None],
+        );
+        let bytes = postcard::to_stdvec(&old).expect("encode pre-candidates");
+        let stored: StoredPitch = postcard::from_bytes(&bytes).expect("decode pre-candidates");
+        let pitch = PitchResult::from(stored);
+        assert!(pitch.candidates.is_none());
+        assert!(pitch.octave_ambiguous.is_empty());
+        assert_eq!(pitch.confidence, vec![Some(0.9), None]);
     }
 }

@@ -34,6 +34,8 @@ const SKIP_DIRS = new Set([
   "node_modules",
   ".git",
   ".npm-cache",
+  // Downloaded CI artifacts/logs (gitignored): not source, not part of the budget.
+  ".gh-cache",
   "dist",
   "site",
   "logs",

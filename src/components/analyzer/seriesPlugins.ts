@@ -2,6 +2,7 @@ import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { AnalyzerBus } from "../../state/chartSync";
 import { noteName } from "../../state/analyzer/format";
 import { chartTheme } from "../../state/themes";
+import { reactiveData } from "./verticalMarkers";
 
 /**
  * Plugins for the generic [`SeriesView`](./SeriesView.tsx) (M11.A) and the linked
@@ -109,6 +110,60 @@ export const semitoneGrid = (): UplotPluginFactory<AnalyzerBus> => () => ({
     },
   },
 });
+
+/** The ring radius (px) that marks an octave-ambiguous f0 frame. */
+const AMBIGUOUS_RING_RADIUS = 4;
+
+/**
+ * Ring the primary track's points where the detector flags an **octave-ambiguous**
+ * frame (M36): the f0 estimate has a comparable candidate an octave away, so the line
+ * alone would look more certain than the result is.
+ *
+ * The flags are parallel to the x column and only pYIN reports them, so an absent (or
+ * all-false) list draws nothing and YIN/autocorrelation are unchanged. Positions come
+ * from the chart's own scales, so the rings follow zoom and pan; `reactiveData`
+ * repaints them when a new result arrives without rebuilding the chart.
+ */
+export const octaveAmbiguityMarks =
+  (getFlags: () => boolean[] | null): UplotPluginFactory<AnalyzerBus> =>
+  () => {
+    const flags = reactiveData(getFlags, null as boolean[] | null);
+    return {
+      hooks: {
+        ready: flags.ready,
+        draw: (u) => {
+          const marked = flags.current();
+          const xs = u.data[0];
+          const ys = u.data[1];
+          if (!marked || !xs || !ys || !u.ctx) return;
+          const { ctx, bbox } = u;
+          const right = bbox.left + bbox.width;
+          const bottom = bbox.top + bbox.height;
+          ctx.save();
+          ctx.strokeStyle = chartTheme().markerBeat;
+          ctx.lineWidth = 1.5;
+          let lastX = -Infinity;
+          for (let i = 0; i < marked.length && i < xs.length; i++) {
+            if (!marked[i]) continue;
+            const value = ys[i];
+            if (typeof value !== "number" || !Number.isFinite(value)) continue;
+            const x = u.valToPos(xs[i], "x", true);
+            const y = u.valToPos(value, "y", true);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            if (x < bbox.left || x > right || y < bbox.top || y > bottom) continue;
+            // One ring per few pixels: a dense ambiguous stretch reads as a band, not a blur.
+            if (x - lastX < AMBIGUOUS_RING_RADIUS) continue;
+            lastX = x;
+            ctx.beginPath();
+            ctx.arc(x, y, AMBIGUOUS_RING_RADIUS, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        },
+        destroy: flags.destroy,
+      },
+    };
+  };
 
 /** The waveform columns the clipping plugin reads (source seconds + the envelope). */
 export interface ClippingColumns {

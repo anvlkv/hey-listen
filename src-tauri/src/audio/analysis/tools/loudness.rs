@@ -4,7 +4,7 @@
 use super::super::psychoacoustics::bands::critical_band_edges;
 use super::super::psychoacoustics::loudness::{analyze_frame, band_mean, FrameLoudness};
 use super::super::psychoacoustics::scales::{cam, Scale};
-use super::super::support::frame_times;
+use super::super::support::{db_or_floor, frame_times};
 use super::super::{AnalysisError, LoudnessResult, MatrixResult, SharedParams, ToolOptions};
 use super::shared::{build_band_matrix, stft_with_freqs_amplitude};
 
@@ -64,6 +64,36 @@ fn run_frames(
     Ok((hop, frames))
 }
 
+/// Per-frame RMS level in dBFS on the STFT's `(fft, hop)` grid, one value per frame.
+///
+/// Frame `i` covers `mono[i * hop .. i * hop + fft)`, **zero-padded** at the end of the
+/// signal, so the mean square divides by the full window and a short tail reads its real
+/// (lower) level instead of a louder one over fewer samples. A silent frame is floored by
+/// [`db_or_floor`] rather than `-inf`, so the vector is always JSON-safe and always
+/// carries `frames` entries, parallel to `times`.
+fn frame_rms_db(mono: &[f32], fft: usize, hop: usize, frames: usize) -> Vec<Option<f32>> {
+    let window = fft.max(1);
+    (0..frames)
+        .map(|frame| {
+            let start = frame.saturating_mul(hop);
+            let end = start.saturating_add(window).min(mono.len());
+            let sum_squares: f64 = mono
+                .get(start..end)
+                .unwrap_or_default()
+                .iter()
+                .map(|&sample| f64::from(sample).powi(2))
+                .sum();
+            let mean_square = sum_squares / window as f64;
+            let level = if mean_square > 0.0 {
+                10.0 * mean_square.log10()
+            } else {
+                f64::NEG_INFINITY
+            };
+            Some(db_or_floor(level as f32))
+        })
+        .collect()
+}
+
 /// Loudness `N` (sones) and loudness level `LN` (phons) per STFT frame.
 pub(super) fn loudness(
     mono: &[f32],
@@ -81,6 +111,18 @@ pub(super) fn loudness(
         .iter()
         .map(|frame| frame.phon.is_finite().then_some(frame.phon))
         .collect();
+    // The RMS/SPL comparator sits on the same frame grid as the loudness track. SPL is
+    // only an absolute level when the run is calibrated: without a full-scale reference
+    // the offset would be invented, so the vector stays empty.
+    let frame_rms_db = frame_rms_db(mono, params.fft_size(), hop, frames.len());
+    let frame_spl_db = if calibration > 0.0 {
+        frame_rms_db
+            .iter()
+            .map(|level| level.map(|db| db + calibration))
+            .collect()
+    } else {
+        Vec::new()
+    };
     Ok(LoudnessResult {
         sample_rate,
         hop_size: hop,
@@ -93,6 +135,8 @@ pub(super) fn loudness(
         calibration_db_spl: calibration,
         model: Some(LOUDNESS_MODEL.to_string()),
         standard: Some(LOUDNESS_STANDARD.to_string()),
+        frame_rms_db,
+        frame_spl_db,
     })
 }
 

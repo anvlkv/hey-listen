@@ -75,6 +75,8 @@ mod tests {
             calibration_db_spl: 94.0,
             model: None,
             standard: None,
+            frame_rms_db: Vec::new(),
+            frame_spl_db: Vec::new(),
         }
     }
 

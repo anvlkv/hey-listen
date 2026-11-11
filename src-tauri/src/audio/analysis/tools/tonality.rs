@@ -10,11 +10,13 @@
 //! metric: the value depends entirely on how a tonal component is detected, and the
 //! fixed MPEG-style rule is one defensible choice rather than a conformance claim.
 
-use super::super::psychoacoustics::masking::tonal_energy_fraction;
+use super::super::psychoacoustics::masking::tonality_profile;
 use super::super::support::{
     db_or_floor, effective_hop, effective_params, frame_times, stft_magnitudes,
 };
-use super::super::{AnalysisError, CalibratedSeriesResult, SharedParams, ToolOptions, DB_FLOOR};
+use super::super::{
+    AnalysisError, CalibratedSeriesResult, Contribution, SharedParams, ToolOptions, DB_FLOOR,
+};
 use super::shared::series_extents;
 
 /// Cap on the frames the per-frame detection runs over, so a long window stays
@@ -22,6 +24,14 @@ use super::shared::series_extents;
 const MAX_TONALITY_FRAMES: usize = 1_024;
 
 /// Tonal-energy ratio per STFT frame (0…1).
+///
+/// The attached [`Contribution`] grid decomposes where the frame's tonal energy sits
+/// (M36): a cell is that line's **tonal prominence** — `level − max(level in the 1-Bark
+/// neighbourhood outside the main lobe)` in dB — for a retained peak, and `0` for any
+/// other line. The prominence rule is the one the masker detection applies, so a
+/// non-zero cell means [`tonality_profile`] counted that peak. The grid is a *per-line*
+/// view of the detector, not a decomposition of `H` (which sums whole main lobes into a
+/// power ratio).
 pub(super) fn tonality(
     mono: &[f32],
     sample_rate: u32,
@@ -48,37 +58,50 @@ pub(super) fn tonality(
         .collect();
     let calibration = options.calibration_db_spl();
 
-    let values: Vec<Option<f32>> = mags
-        .iter()
-        .map(|frame| {
-            let levels: Vec<f32> = kept
-                .iter()
-                .map(|&k| {
-                    let magnitude = f64::from(frame[k]);
-                    let db = if magnitude > 0.0 {
-                        db_or_floor((20.0 * magnitude.log10()) as f32)
-                    } else {
-                        DB_FLOOR
-                    };
-                    db + calibration
-                })
-                .collect();
-            Some(tonal_energy_fraction(&freqs, &levels))
-        })
-        .collect();
+    let mut values: Vec<Option<f32>> = Vec::with_capacity(mags.len());
+    let mut contributions: Vec<f32> = Vec::with_capacity(mags.len() * freqs.len());
+    for frame in &mags {
+        // dB per retained bin (dBFS + the calibration offset), floored so silence stays
+        // finite — the same levels the fraction is measured over.
+        let levels: Vec<f32> = kept
+            .iter()
+            .map(|&k| {
+                let magnitude = f64::from(frame[k]);
+                if magnitude > 0.0 {
+                    db_or_floor((20.0 * magnitude.log10()) as f32) + calibration
+                } else {
+                    DB_FLOOR + calibration
+                }
+            })
+            .collect();
+        let (fraction, prominence) = tonality_profile(&freqs, &levels);
+        contributions.extend_from_slice(&prominence);
+        values.push(Some(fraction));
+    }
 
     let (min_value, max_value) = series_extents(&values);
+    let times = frame_times(values.len(), hop, sample_rate);
     Ok(CalibratedSeriesResult {
         sample_rate,
         hop_size: hop,
         // Filled in by `run_window` — the tool only sees the sliced region.
         window_start: 0.0,
-        times: frame_times(values.len(), hop, sample_rate),
+        times: times.clone(),
         values,
         min_value,
         max_value,
         calibrated: calibration > 0.0,
         calibration_db_spl: calibration,
+        contribution: Some(Contribution {
+            frames: times.len(),
+            bins: freqs.len(),
+            times,
+            bands: freqs,
+            values: contributions,
+            label: "tonal prominence".to_string(),
+            unit: Some("dB".to_string()),
+        }),
+        rate_contribution: None,
     })
 }
 
@@ -163,5 +186,43 @@ mod tests {
         assert!(!result.calibrated);
         assert_eq!(result.calibration_db_spl, 0.0);
         assert_eq!(result.values.len(), result.times.len());
+    }
+
+    #[test]
+    fn the_contribution_grid_marks_the_tone_lines() {
+        let result = tonality(
+            &tone(0.5, 1_000.0, 0.5),
+            RATE,
+            &params(4_096),
+            &ToolOptions::default(),
+        )
+        .expect("tonality");
+        let contribution = result.contribution.as_ref().expect("a contribution grid");
+        contribution.assert_consistent();
+        assert_eq!(contribution.frames, result.values.len());
+        assert_eq!(contribution.label, "tonal prominence");
+        assert_eq!(contribution.unit.as_deref(), Some("dB"));
+        // One 1 kHz tone: exactly the bins around it carry a prominence, and the peak
+        // bin sits near 1 kHz with a positive margin.
+        let (index, &prominence) = contribution
+            .values
+            .chunks_exact(contribution.bins)
+            .map(|row| {
+                row.iter()
+                    .enumerate()
+                    .max_by(|a, b| a.1.total_cmp(b.1))
+                    .expect("a bin")
+            })
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .expect("a peak bin");
+        assert!(
+            prominence > 7.0,
+            "the tone's prominence is {prominence} dB, expected ≥ 7"
+        );
+        let hz = contribution.bands[index];
+        assert!(
+            (hz - 1_000.0).abs() < 50.0,
+            "the most prominent bin is {hz} Hz, expected near 1 kHz"
+        );
     }
 }

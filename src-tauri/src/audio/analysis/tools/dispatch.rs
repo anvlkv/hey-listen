@@ -250,18 +250,16 @@ pub fn run(
         ))),
         AnalyzerId::PitchPyin => {
             let (min_f0, max_f0) = options.pyin_range();
-            let frames =
+            let output =
                 super::super::pyin::detect(&lib_buf(), pitch_fft, pitch_hop, min_f0, max_f0);
             // The realized domain (bin centres inside the request, limited by the lags the
             // frame allows), not an echo of the requested bounds.
             let effective =
                 super::super::pyin::effective_range(sample_rate, pitch_fft, min_f0, max_f0);
-            Ok(AnalysisResult::PitchPyin(pitch_series(
-                frames,
-                pitch_hop,
-                sample_rate,
-                effective,
-            )))
+            let mut result = pitch_series(output.frames, pitch_hop, sample_rate, effective);
+            result.candidates = Some(output.candidates);
+            result.octave_ambiguous = output.octave_ambiguous;
+            Ok(AnalysisResult::PitchPyin(result))
         }
         AnalyzerId::PitchYin => {
             let (min_f0, max_f0) = options.yin_range();

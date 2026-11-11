@@ -87,6 +87,18 @@ export function hasFrameData(result: { frames: number; bins: number } | null): b
   return !!result && result.frames > 0 && result.bins > 0;
 }
 
+/**
+ * The `[first, last]` time extent of a frame grid whose centres sit at `times`, with a
+ * hairline span for a one-frame grid (an axis cannot span `[t, t]`). Shared by the
+ * companion heatmap panels so each does not re-derive where its frames end.
+ */
+export function frameTimeExtent(times: readonly number[], frames: number): [number, number] | null {
+  if (frames <= 0 || times.length < frames) return null;
+  const start = times[0];
+  const end = times[frames - 1];
+  return end > start ? [start, end] : [start, start + 1e-3];
+}
+
 /** The pointer's plot-relative geometry, for mapping a hit to a time / band. */
 export interface PlotGeo<V extends ChartView> {
   view: V;

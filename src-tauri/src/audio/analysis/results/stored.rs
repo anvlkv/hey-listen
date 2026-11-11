@@ -23,11 +23,15 @@ use serde::{Deserialize, Serialize};
 use super::*;
 
 mod decode;
+mod stored_calibrated_series;
 mod stored_loudness;
+mod stored_masking;
 mod stored_matrix;
 mod stored_pitch;
 mod stored_waveform;
+pub use stored_calibrated_series::StoredCalibratedSeries;
 pub use stored_loudness::StoredLoudness;
+pub use stored_masking::StoredMasking;
 pub use stored_matrix::StoredMatrix;
 pub use stored_pitch::StoredPitch;
 pub use stored_waveform::StoredWaveform;
@@ -227,11 +231,11 @@ pub enum StoredAnalysisResult {
     CriticalBands(StoredMatrix),
     Loudness(StoredLoudness),
     SpecificLoudness(StoredMatrix),
-    Sharpness(CalibratedSeriesResult),
-    Roughness(CalibratedSeriesResult),
-    FluctuationStrength(CalibratedSeriesResult),
-    Masking(MaskingResult),
-    Tonality(CalibratedSeriesResult),
+    Sharpness(StoredCalibratedSeries),
+    Roughness(StoredCalibratedSeries),
+    FluctuationStrength(StoredCalibratedSeries),
+    Masking(StoredMasking),
+    Tonality(StoredCalibratedSeries),
     Spatial(SpatialResult),
 }
 
@@ -270,11 +274,11 @@ impl From<&AnalysisResult> for StoredAnalysisResult {
             AnalysisResult::CriticalBands(value) => Self::CriticalBands(value.into()),
             AnalysisResult::Loudness(value) => Self::Loudness(value.into()),
             AnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value.into()),
-            AnalysisResult::Sharpness(value) => Self::Sharpness(value.clone()),
-            AnalysisResult::Roughness(value) => Self::Roughness(value.clone()),
-            AnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value.clone()),
-            AnalysisResult::Masking(value) => Self::Masking(value.clone()),
-            AnalysisResult::Tonality(value) => Self::Tonality(value.clone()),
+            AnalysisResult::Sharpness(value) => Self::Sharpness(value.into()),
+            AnalysisResult::Roughness(value) => Self::Roughness(value.into()),
+            AnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value.into()),
+            AnalysisResult::Masking(value) => Self::Masking(value.into()),
+            AnalysisResult::Tonality(value) => Self::Tonality(value.into()),
             AnalysisResult::Spatial(value) => Self::Spatial(value.clone()),
         }
     }
@@ -315,11 +319,13 @@ impl From<StoredAnalysisResult> for AnalysisResult {
             StoredAnalysisResult::CriticalBands(value) => Self::CriticalBands(value.into()),
             StoredAnalysisResult::Loudness(value) => Self::Loudness(value.into()),
             StoredAnalysisResult::SpecificLoudness(value) => Self::SpecificLoudness(value.into()),
-            StoredAnalysisResult::Sharpness(value) => Self::Sharpness(value),
-            StoredAnalysisResult::Roughness(value) => Self::Roughness(value),
-            StoredAnalysisResult::FluctuationStrength(value) => Self::FluctuationStrength(value),
-            StoredAnalysisResult::Masking(value) => Self::Masking(value),
-            StoredAnalysisResult::Tonality(value) => Self::Tonality(value),
+            StoredAnalysisResult::Sharpness(value) => Self::Sharpness(value.into()),
+            StoredAnalysisResult::Roughness(value) => Self::Roughness(value.into()),
+            StoredAnalysisResult::FluctuationStrength(value) => {
+                Self::FluctuationStrength(value.into())
+            }
+            StoredAnalysisResult::Masking(value) => Self::Masking(value.into()),
+            StoredAnalysisResult::Tonality(value) => Self::Tonality(value.into()),
             StoredAnalysisResult::Spatial(value) => Self::Spatial(value),
         }
     }

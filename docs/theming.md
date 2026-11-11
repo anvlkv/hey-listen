@@ -162,7 +162,11 @@ Every chart **keyed** on the theme re-renders: the uPlot views remount on
 heatmaps repaint on the same signal — the **id**, not just the base, so switching
 between two themes on the same base still recolours them.
 
-Font scale (`--ui-scale`) is unaffected — it is independent of the palette.
+Font scale (`--ui-scale`) is unaffected — it is independent of the palette. **Layout
+density derives from the same scale:** analyzer chart gutters, legend spacing, and the
+Workbench tab strip all grow with it, so a larger interface gets more whitespace without
+a separate density setting. The spacing tokens live in
+[`ui-layout.md`](ui-layout.md) → Workbench tabs.
 
 > **One source of truth.** The full set of `--*` variables lives in `src/styles/`; a theme
 > file carries only what it changes. This keeps existing themes valid when new variables

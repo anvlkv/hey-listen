@@ -194,6 +194,14 @@ None of these are closable, draggable, or tabbed.
 
 ## Workbench tabs
 
+- **Compact, scale-aware chrome.** The tab strip is deliberately shorter than
+  dockview's 35 px default — 26 px at the baseline UI scale — with tighter inline
+  padding and label gaps. Its height and spacing derive from the app's existing UI-scale
+  preference (`--tab-strip-height`, `--tab-inline-padding`, `--tab-label-gap`), so raising
+  the UI scale grows the strip and its hit targets along with the rest of the shell.
+  Analyzer chart gutters use the same ladder (`--space-chart-tight` / `--space-chart` /
+  `--space-chart-wide`), keeping plots dense at 100% and comfortable at larger scales.
+  The **Tabs (N)** menu below still shows each tab's full title.
 - Managed by `dockview` (mounted **only** in the Workbench region).
 - Two kinds: the **graph editors** (`filter`, `synth` — see ADR-10) and the
   **analyzer tabs** (M4+).

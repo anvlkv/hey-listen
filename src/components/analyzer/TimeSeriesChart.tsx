@@ -1,4 +1,5 @@
 import { SolidUplot } from "@dschz/solid-uplot";
+import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
 import { Show, untrack } from "solid-js";
@@ -16,7 +17,7 @@ import {
   Y_AXIS_SPACE,
 } from "./axisFormat";
 import { chartAxisStyle, timeTooltip } from "./chartCommon";
-import { analyzerBus } from "../../state/chartSync";
+import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import type { AnalyzerId, SeriesView } from "../../state/analyzer";
 
@@ -107,6 +108,8 @@ export interface TimeSeriesChartProps {
   yAxisSize?: number;
   /** The second track on a right-hand scale (a phon or confidence axis). */
   secondary?: SecondaryTrack;
+  /** Extra `draw` plugins appended to the synced stack (the octave-ambiguity rings). */
+  plugins?: UplotPluginFactory<AnalyzerBus>[];
 }
 
 /**
@@ -167,6 +170,7 @@ export default function TimeSeriesChart(props: TimeSeriesChartProps) {
           annotationMarkers(props.id),
           ...referencePlugins(),
           ...(props.semitoneGrid ? [semitoneGrid()] : []),
+          ...(props.plugins ?? []),
         ]}
         onCreate={props.zoom.onReady}
         data={data()}

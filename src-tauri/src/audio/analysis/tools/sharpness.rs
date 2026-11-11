@@ -20,7 +20,9 @@
 
 use super::super::psychoacoustics::scales::bark;
 use super::super::support::frame_times;
-use super::super::{AnalysisError, CalibratedSeriesResult, SharedParams, ToolOptions};
+use super::super::{
+    AnalysisError, CalibratedSeriesResult, Contribution, SharedParams, ToolOptions,
+};
 
 use super::loudness::specific_loudness;
 use super::shared::series_extents;
@@ -40,16 +42,22 @@ fn weight(z: f64) -> f64 {
 }
 
 /// Sharpness (acum) of one frame's `N'(z)` row, or `None` when it carries no loudness.
-fn frame_sharpness(row: &[f32], positions: &[(f64, f64)]) -> Option<f32> {
+///
+/// `out` receives each ERB band's `N'(z_b) · g(z_b) · z_b`, so a frame's cells sum to
+/// the numerator of `K_ACUM · Σ / Σ` (see [`sharpness`]).
+fn frame_sharpness(row: &[f32], positions: &[(f64, f64)], out: &mut [f32]) -> Option<f32> {
     let mut numerator = 0.0f64;
     let mut denominator = 0.0f64;
-    for (&loudness, &(z, g)) in row.iter().zip(positions) {
+    for ((&loudness, &(z, g)), cell) in row.iter().zip(positions).zip(out.iter_mut()) {
         let loudness = f64::from(loudness);
-        if !loudness.is_finite() || loudness <= 0.0 {
-            continue;
-        }
-        numerator += loudness * g * z;
-        denominator += loudness;
+        let term = if !loudness.is_finite() || loudness <= 0.0 {
+            0.0
+        } else {
+            numerator += loudness * g * z;
+            denominator += loudness;
+            loudness * g * z
+        };
+        *cell = term as f32;
     }
     (denominator > 0.0).then(|| (K_ACUM * numerator / denominator) as f32)
 }
@@ -59,6 +67,14 @@ fn frame_sharpness(row: &[f32], positions: &[(f64, f64)]) -> Option<f32> {
 /// Reuses the `specificLoudness` computation (its ERB band cap keeps the result
 /// bounded), so the values share its model and calibration: `calibrationDbSpl` at `0`
 /// is uncalibrated, while a positive value is the dB SPL of a full-scale sine.
+///
+/// The attached [`Contribution`] grid decomposes the scalar per ERB band (M36): a cell
+/// is `N'(z_b) · g(z_b) · z_b` — specific loudness × high-frequency weight × Bark
+/// position — in `sone/Cam` terms (`z_b = bark(bands[b])`). One frame's cells therefore
+/// **sum to the numerator**: `S = K_ACUM · Σ_b cell_b / Σ_b N'_b`, where the denominator
+/// is that frame's total specific loudness (the same frame's row sum in
+/// `specificLoudness`). The grid is the numerator decomposition, not a standalone
+/// reconstruction of `S`.
 pub(super) fn sharpness(
     mono: &[f32],
     sample_rate: u32,
@@ -69,38 +85,51 @@ pub(super) fn sharpness(
     let matrix = specific_loudness(mono, sample_rate, params, options)?;
 
     // Each ERB band centre on the Bark axis, with its high-frequency weight.
-    let positions: Vec<(f64, f64)> = matrix
-        .bands
+    let bins = matrix.bins.min(matrix.bands.len());
+    let bands: Vec<f32> = matrix.bands[..bins].to_vec();
+    let positions: Vec<(f64, f64)> = bands
         .iter()
         .map(|&hz| {
             let z = f64::from(bark(hz));
             (z, weight(z))
         })
         .collect();
-    let bins = matrix.bins;
-    let values: Vec<Option<f32>> = if bins == 0 {
+    let mut contributions: Vec<f32> = Vec::with_capacity(matrix.frames * bins);
+    let values: Vec<Option<f32>> = if bins == 0 || matrix.bins == 0 {
         vec![None; matrix.frames]
     } else {
-        matrix
-            .values
-            .chunks_exact(bins)
-            .take(matrix.frames)
-            .map(|row| frame_sharpness(row, &positions))
-            .collect()
+        let mut cells = vec![0.0f32; bins];
+        let mut values = Vec::with_capacity(matrix.frames);
+        for row in matrix.values.chunks_exact(matrix.bins).take(matrix.frames) {
+            values.push(frame_sharpness(&row[..bins], &positions, &mut cells));
+            contributions.extend_from_slice(&cells);
+        }
+        values
     };
 
     let (min_value, max_value) = series_extents(&values);
+    let times = frame_times(values.len(), matrix.hop_size, sample_rate);
     Ok(CalibratedSeriesResult {
         sample_rate,
         hop_size: matrix.hop_size,
         // Filled in by `run_window` — the tool only sees the sliced region.
         window_start: 0.0,
-        times: frame_times(values.len(), matrix.hop_size, sample_rate),
+        times: times.clone(),
         values,
         min_value,
         max_value,
         calibrated: calibration > 0.0,
         calibration_db_spl: calibration,
+        contribution: Some(Contribution {
+            frames: times.len(),
+            bins,
+            times,
+            bands,
+            values: contributions,
+            label: "sharpness weight".to_string(),
+            unit: Some("sone/Cam".to_string()),
+        }),
+        rate_contribution: None,
     })
 }
 
@@ -158,6 +187,8 @@ mod tests {
         let result = sharpness(&mono, RATE, &params(2_048), &calibration(94.0)).expect("sharpness");
         assert!(result.calibrated);
         assert_eq!(result.calibration_db_spl, 94.0);
+        // Only the modulation tools collect a band × rate matrix (M36).
+        assert!(result.rate_contribution.is_none());
         let acum = median(&result.values);
         assert!(
             (acum - 1.0).abs() <= 0.15,
@@ -223,5 +254,53 @@ mod tests {
         assert!(!result.calibrated);
         assert_eq!(result.calibration_db_spl, 0.0);
         assert_eq!(result.values.len(), result.times.len());
+    }
+
+    #[test]
+    fn the_contribution_grid_decomposes_the_numerator() {
+        let mono = tone(10f32.powf(-34.0 / 20.0), 4_000.0, 0.5);
+        let result = sharpness(&mono, RATE, &params(2_048), &calibration(94.0)).expect("sharpness");
+        let contribution = result.contribution.as_ref().expect("a contribution grid");
+        contribution.assert_consistent();
+        assert_eq!(contribution.frames, result.values.len());
+        assert_eq!(
+            contribution.times, result.times,
+            "grid times drift from the track"
+        );
+        assert_eq!(contribution.label, "sharpness weight");
+        assert_eq!(contribution.unit.as_deref(), Some("sone/Cam"));
+        assert!(
+            contribution.values.iter().any(|&value| value > 0.0),
+            "every band contributed nothing"
+        );
+
+        // The cells must be the numerator, not merely well-shaped: for every measured
+        // frame, Σ cells = S · Σ N' / K_ACUM, using the same specific-loudness row the
+        // tool integrated. Dropping the `g` or `z` weight would fail this.
+        let matrix = specific_loudness(&mono, RATE, &params(2_048), &calibration(94.0))
+            .expect("specific loudness");
+        assert_eq!(matrix.frames, contribution.frames);
+        assert_eq!(matrix.bins, contribution.bins);
+        let mut measured = 0;
+        for (frame, value) in result.values.iter().enumerate() {
+            let Some(sharpness) = value else { continue };
+            let row = &matrix.values[frame * matrix.bins..(frame + 1) * matrix.bins];
+            let total_np: f64 = row.iter().map(|&loudness| f64::from(loudness)).sum();
+            if total_np <= 0.0 {
+                continue;
+            }
+            let cells: f64 = contribution.values
+                [frame * contribution.bins..(frame + 1) * contribution.bins]
+                .iter()
+                .map(|&cell| f64::from(cell))
+                .sum();
+            let expected = f64::from(*sharpness) * total_np / K_ACUM;
+            assert!(
+                (cells - expected).abs() <= 1e-3 * expected.max(1.0),
+                "frame {frame}: cells sum to {cells}, expected S·ΣN'/K = {expected}"
+            );
+            measured += 1;
+        }
+        assert!(measured > 0, "no frame was measured");
     }
 }

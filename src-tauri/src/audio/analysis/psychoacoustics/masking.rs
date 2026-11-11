@@ -27,9 +27,9 @@
 //! a log-sum-exp, so `Tg`/`SMR` stay finite even where `Tq` is very large (the
 //! high-frequency end of a wide-band spectrum).
 
-use super::scales::bark;
+use super::scales::{bark, bark_to_hz};
 use super::threshold::threshold_quiet_db;
-use crate::audio::analysis::DB_FLOOR;
+use crate::audio::analysis::{MaskerInfo, DB_FLOOR};
 
 /// A tonal line must stand this far above every line in its Bark neighbourhood.
 const TONAL_PROMINENCE_DB: f32 = 7.0;
@@ -57,6 +57,9 @@ pub struct MaskingThresholds {
     pub global_mask_db: Vec<f32>,
     /// `SMR(i) = L(i) − Tg(i)` (positive = above the estimated threshold).
     pub smr_db: Vec<f32>,
+    /// The maskers `global_mask_db` sums over (M36 drill-down), tonal first and then the
+    /// residual bands, each named by its centre frequency in Hz.
+    pub maskers: Vec<MaskerInfo>,
 }
 
 /// One masker's contribution spread from its Bark position.
@@ -64,6 +67,7 @@ struct Masker {
     z: f32,
     av: f32,
     level: f32,
+    tonal: bool,
 }
 
 /// Build every line's `Tq`, `Tg` and `SMR` from one spectrum.
@@ -88,9 +92,18 @@ pub fn masking_thresholds(freqs: &[f32], levels_db: &[f32], calibrated: bool) ->
             } else {
                 levels[index]
             },
+            tonal: true,
         })
         .collect();
     maskers.extend(residual_maskers(&positions, levels, &claimed));
+    let masker_info: Vec<MaskerInfo> = maskers
+        .iter()
+        .map(|masker| MaskerInfo {
+            hz: bark_to_hz(masker.z),
+            level_db: masker.level,
+            tonal: masker.tonal,
+        })
+        .collect();
 
     // A coarse grid can leave a line outside every masker's spread: with no ATH to
     // fall back on, use the spectrum's own floor so the threshold stays finite.
@@ -129,28 +142,8 @@ pub fn masking_thresholds(freqs: &[f32], levels_db: &[f32], calibrated: bool) ->
         threshold_quiet_db: quiet_threshold,
         global_mask_db,
         smr_db,
+        maskers: masker_info,
     }
-}
-
-/// The share of a spectrum's power carried by its tonal components (0…1), from the
-/// same detection [`masking_thresholds`] uses — the `tonality` tool's per-frame value.
-///
-/// The numerator is each retained peak's **main lobe** ([`MAIN_LOBE_BINS`] either
-/// side), not just the peak bin, so a bin-centred and a half-bin-centred Hann tone
-/// both read close to 1 instead of ~2/3 and ~1/2. One peak per 0.5 Bark is retained,
-/// so close partials share a component. It is still a peak-picking proxy: a broad
-/// spectral bump or a dense harmonic complex is not "tonal" in any perceptual sense.
-pub fn tonal_energy_fraction(freqs: &[f32], levels_db: &[f32]) -> f32 {
-    let bins = freqs.len().min(levels_db.len());
-    let levels = &levels_db[..bins];
-    let positions: Vec<f32> = freqs[..bins].iter().map(|&hz| bark(hz)).collect();
-    let (tonal, _) = detect_tonal(&positions, levels);
-    let total: f64 = levels.iter().map(|&level| power(level)).sum();
-    if total <= 0.0 {
-        return 0.0;
-    }
-    let tonal_power: f64 = tonal.iter().map(|&(_, power)| power).sum();
-    (tonal_power / total).min(1.0) as f32
 }
 
 /// Linear power of a dB level.
@@ -193,22 +186,68 @@ fn is_local_max(levels: &[f32], index: usize) -> bool {
     level > previous && level >= next
 }
 
-/// Whether `index` stands [`TONAL_PROMINENCE_DB`] above every line in its Bark
-/// neighbourhood (outside the window's own main lobe).
-fn stands_above_neighbours(positions: &[f32], levels: &[f32], index: usize) -> bool {
-    let z = positions[index];
+/// How far `index` stands [`TONAL_PROMINENCE_DB`] above every line in its Bark
+/// neighbourhood — i.e. the level minus the loudest line outside the window's own main
+/// lobe (`+∞` when the neighbourhood holds no other line).
+fn prominence(positions: &[f32], levels: &[f32], index: usize) -> f32 {
+    let mut highest = f32::NEG_INFINITY;
     for (other, &other_z) in positions.iter().enumerate() {
         if other == index || other.abs_diff(index) < MAIN_LOBE_BINS {
             continue;
         }
-        if (other_z - z).abs() > TONAL_NEIGHBOURHOOD_BARK {
+        if (other_z - positions[index]).abs() > TONAL_NEIGHBOURHOOD_BARK {
             continue;
         }
-        if levels[index] - levels[other] < TONAL_PROMINENCE_DB {
-            return false;
-        }
+        highest = highest.max(levels[other]);
     }
-    true
+    levels[index] - highest
+}
+
+/// Whether `index` clears the tonal prominence rule (see [`prominence`]).
+fn stands_above_neighbours(positions: &[f32], levels: &[f32], index: usize) -> bool {
+    prominence(positions, levels, index) >= TONAL_PROMINENCE_DB
+}
+
+/// The `tonality` tool's per-frame view: the tonal-energy ratio `H` and the per-line
+/// tonal prominence, from **one** Bark mapping and one peak detection.
+///
+/// `H` is the share of the spectrum's power carried by its tonal components (0…1),
+/// summed over each peak's **main lobe** ([`MAIN_LOBE_BINS`] either side) so a bin-centred
+/// and a half-bin-centred Hann tone both read close to 1; one peak per [`MASKER_MERGE_BARK`]
+/// is retained, so close partials share a component. It is still a peak-picking proxy: a
+/// broad spectral bump or a dense harmonic complex is not "tonal" in any perceptual
+/// sense.
+///
+/// The prominence grid is the M36 drill-down: a retained peak carries `level − max(level
+/// in its 1-Bark neighbourhood outside the main lobe)`, which is at least
+/// [`TONAL_PROMINENCE_DB`] by construction, and every other line is `0` — so a non-zero
+/// cell unambiguously marks a detected tonal component and its margin over its
+/// neighbours. The rule is the one [`detect_tonal`] applies, not a second copy of it.
+pub fn tonality_profile(freqs: &[f32], levels_db: &[f32]) -> (f32, Vec<f32>) {
+    let bins = freqs.len().min(levels_db.len());
+    let levels = &levels_db[..bins];
+    let positions: Vec<f32> = freqs[..bins].iter().map(|&hz| bark(hz)).collect();
+    let (tonal, _) = detect_tonal(&positions, levels);
+    let total: f64 = levels.iter().map(|&level| power(level)).sum();
+    let fraction = if total <= 0.0 {
+        0.0
+    } else {
+        (tonal.iter().map(|&(_, power)| power).sum::<f64>() / total).min(1.0) as f32
+    };
+    let mut prominence_db = vec![0.0f32; bins];
+    for (index, _) in tonal {
+        let margin = prominence(&positions, levels, index);
+        // A spectrum only a few lines wide can leave a peak with nothing in its
+        // neighbourhood but its own main lobe. It still qualifies as tonal, but the grid
+        // reports a finite margin (the line's height above the analysis floor) rather
+        // than `+∞`, which JSON cannot carry.
+        prominence_db[index] = if margin.is_finite() {
+            margin
+        } else {
+            levels[index] - DB_FLOOR
+        };
+    }
+    (fraction, prominence_db)
 }
 
 /// The tonal candidates: interior local maxima with the required prominence. The
@@ -294,6 +333,7 @@ fn residual_maskers(positions: &[f32], levels: &[f32], claimed: &[bool]) -> Vec<
                 z,
                 av: masking_index(z, false),
                 level: (10.0 * power.log10()) as f32,
+                tonal: false,
             }
         })
         .collect()
@@ -324,67 +364,4 @@ fn masking_function(dz: f32, level: f32) -> f32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// 100 Hz-spaced bins from 100 Hz to 5 kHz.
-    fn freqs() -> Vec<f32> {
-        (1..=50).map(|bin| bin as f32 * 100.0).collect()
-    }
-
-    #[test]
-    fn the_global_threshold_never_falls_below_the_threshold_in_quiet() {
-        let freqs = freqs();
-        let levels = vec![-20.0f32; freqs.len()];
-        let model = masking_thresholds(&freqs, &levels, true);
-        for (index, (&tq, &tg)) in model
-            .threshold_quiet_db
-            .iter()
-            .zip(&model.global_mask_db)
-            .enumerate()
-        {
-            assert!(tg >= tq, "bin {index}: Tg {tg} < Tq {tq}");
-        }
-    }
-
-    #[test]
-    fn a_clear_peak_is_tonal_and_a_flat_spectrum_is_not() {
-        let freqs = freqs();
-        let flat = vec![-60.0f32; freqs.len()];
-        assert_eq!(tonal_energy_fraction(&freqs, &flat), 0.0);
-
-        let mut peaked = flat;
-        let index = freqs.iter().position(|&hz| hz == 1_000.0).expect("1 kHz");
-        peaked[index] = -10.0;
-        let fraction = tonal_energy_fraction(&freqs, &peaked);
-        assert!(
-            fraction > 0.9,
-            "a single dominant line is {fraction:.3} tonal, expected > 0.9"
-        );
-    }
-
-    #[test]
-    fn a_tonal_masker_sums_its_main_lobe() {
-        // Peak at -10 dB with half-amplitude neighbours: 1 + 0.25 + 0.25 power,
-        // ≈ +1.76 dB, so the component outranks its own peak bin.
-        let mut levels = vec![-120.0f32; 9];
-        levels[4] = -10.0;
-        levels[3] = -16.0206;
-        levels[5] = -16.0206;
-        let (components, claimed) = detect_tonal(&[0.0; 9], &levels);
-        assert_eq!(components.len(), 1);
-        assert_eq!(components[0].0, 4);
-        assert!(claimed[3] && claimed[5], "main lobe not claimed");
-        let level = 10.0 * components[0].1.log10();
-        let expected = -10.0 + 10.0 * 1.5f64.log10();
-        assert!((level - expected).abs() < 0.05, "{level} vs {expected}");
-    }
-
-    #[test]
-    fn the_masking_function_is_bounded_to_its_piecewise_range() {
-        assert!(masking_function(-3.5, 60.0).is_infinite());
-        assert!(masking_function(8.0, 60.0).is_infinite());
-        assert!(masking_function(0.0, 60.0).is_finite());
-        assert!(masking_function(2.0, 60.0) < masking_function(0.5, 60.0));
-    }
-}
+mod tests;

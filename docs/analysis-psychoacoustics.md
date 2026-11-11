@@ -269,7 +269,9 @@ weighted roughness/vacil.
 
 **Result.** One `CalibratedSeriesResult` per tool (`roughness` in asper,
 `fluctuationStrength` in vacil) over time, each with the calibration fields, rendered by
-the existing series view as its own tab.
+the existing series view as its own tab. Both also carry the shared `Contribution`
+per-band grid and a `RateContribution` **band × modulation-rate** matrix (each band's
+fractional depth on a geometric 1–100 Hz axis; M36 follow-up).
 
 **Tests.** Rendered from synth graphs (sine carrier × LFO): 70 Hz AM reads ~1 asper at
 the reference calibration, 4 Hz AM reads ~1 vacil; roughness drops at slow rates where

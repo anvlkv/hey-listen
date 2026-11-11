@@ -1,7 +1,7 @@
 import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
-import type { AnalyzerBus } from "../../state/chartSync";
+import { analyzerBus, readBusMessage, type AnalyzerBus } from "../../state/chartSync";
 import { chartTheme } from "../../state/themes";
 
 /** The uPlot instance type, taken from the wrapper's plugin props. */
@@ -27,6 +27,17 @@ export interface VerticalRegion {
   from: number;
   to: number;
   label: string;
+}
+
+/**
+ * The shared `"time"` cursor as a dashed vertical mark, for a **read-only** companion
+ * panel that follows the charts (M36). The bus is read, never written, so a panel
+ * showing a fixed picture can mirror the cursor without becoming a sync source.
+ */
+export function cursorTimeMarks(): VerticalMark[] {
+  const message = readBusMessage(analyzerBus.data.cursorSync);
+  if (!message || message.group !== "time" || message.x == null) return [];
+  return [{ at: message.x, color: chartTheme().mirror, dash: [4, 4] }];
 }
 
 /**

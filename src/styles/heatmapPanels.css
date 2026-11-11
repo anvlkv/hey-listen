@@ -1,0 +1,33 @@
+/* The perception drill-down companions under a series chart (M36): the per-band
+   contribution heatmap, the pYIN candidate grid, and, for the rate-spectrum tools,
+   the band × rate grid at the shared cursor's frame. Read-only, so each takes a
+   compact fixed picture height and lets the timeline chart above keep the remaining
+   space. */
+.contribution-panel,
+.pitch-candidates,
+.rate-matrix {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+}
+
+.heatmap-panel {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  padding-top: var(--space-chart-tight);
+  border-top: 1px solid var(--border-soft);
+}
+
+.heatmap-panel-title {
+  padding: 0 var(--space-chart-wide);
+  font-size: 0.6875rem;
+  color: var(--fg-faint);
+}
+
+.heatmap-panel-plot {
+  position: relative;
+  height: 112px;
+}

@@ -12,10 +12,13 @@ use serde::{Deserialize, Serialize};
 use crate::audio::analyzers::AnalyzerId;
 
 mod calibrated_series;
+mod candidates;
+mod contribution;
 mod loudness;
 mod masking;
 mod modulation;
 mod notes;
+mod rate_contribution;
 mod rebase;
 mod scalars;
 mod series;
@@ -23,10 +26,13 @@ mod spatial;
 mod stored;
 
 pub use calibrated_series::*;
+pub use candidates::*;
+pub use contribution::*;
 pub use loudness::*;
 pub use masking::*;
 pub use modulation::*;
 pub use notes::*;
+pub use rate_contribution::*;
 pub use scalars::*;
 pub use series::*;
 pub use spatial::*;
@@ -155,8 +161,19 @@ pub struct PitchResult {
     /// Per-frame pitch confidence (0…1), parallel to `values`: `Some(confidence)` on a
     /// voiced frame, `None` where `values` is a gap. Already computed by every pitch
     /// detector (pYIN's Viterbi state probability in `pyin.rs`; oxiaudio's `PitchFrame`
-    /// `confidence` for YIN/autocorrelation) but currently dropped.
+    /// `confidence` for YIN/autocorrelation) but previously dropped.
     pub confidence: Vec<Option<f32>>,
+    /// The detector's per-frame candidate distributions, from which `values` was chosen.
+    /// Only pYIN reports them; YIN and autocorrelation leave this absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub candidates: Option<CandidateGrid>,
+    /// Parallel to `values`: true when a comparable candidate an octave away makes the
+    /// voiced estimate ambiguous. Empty when the detector does not report candidates.
+    /// (Optional on the TS wire: `serde`'s `default` + `skip_serializing_if` makes
+    /// `ts-rs` emit the field as optional; it rejects bare `#[ts(optional)]` on a `Vec`.)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub octave_ambiguous: Vec<bool>,
 }
 
 /// A frame × band matrix (mel spectrogram, MFCC, chromagram, spectral contrast,

@@ -34,14 +34,14 @@ pub(super) fn roughness(
     options: &ToolOptions,
 ) -> Result<CalibratedSeriesResult, AnalysisError> {
     let calibration = options.calibration_db_spl();
-    let (hop, values) = modulate(
+    let modulation = modulate(
         mono,
         sample_rate,
         params,
         &roughness_weighting(),
         calibration,
     );
-    Ok(series(values, hop, sample_rate, calibration))
+    Ok(series(modulation, sample_rate, calibration, "asper"))
 }
 
 #[cfg(test)]
@@ -67,5 +67,35 @@ mod tests {
         assert!(result.values.iter().all(Option::is_none));
         assert_eq!(result.min_value, 0.0);
         assert_eq!(result.max_value, 0.0);
+    }
+
+    #[test]
+    fn a_run_carries_the_contribution_grids() {
+        // A 70 Hz-modulated 1 kHz carrier: the contribution grid's columns are the Bark
+        // bands, in the tool's own unit, and its rows line up with the scalar track. The
+        // band × rate matrix rides the same frames (M36).
+        let rate = RATE as f32;
+        let mono: Vec<f32> = (0..4_800)
+            .map(|index| {
+                let time = index as f32 / rate;
+                let envelope = 1.0 + (std::f32::consts::TAU * 70.0 * time).cos();
+                0.1 * envelope * (std::f32::consts::TAU * 1_000.0 * time).cos()
+            })
+            .collect();
+        let result =
+            roughness(&mono, RATE, &params(2_048), &ToolOptions::default()).expect("roughness");
+        let contribution = result.contribution.as_ref().expect("a contribution grid");
+        contribution.assert_consistent();
+        assert_eq!(contribution.frames, result.values.len());
+        assert_eq!(contribution.label, "band modulation");
+        assert_eq!(contribution.unit.as_deref(), Some("asper"));
+        let rates = result
+            .rate_contribution
+            .as_ref()
+            .expect("a band × rate matrix");
+        rates.assert_consistent();
+        assert_eq!(rates.frames, result.values.len());
+        assert_eq!(rates.bands, contribution.bins);
+        assert!(rates.rates > 1, "the rate axis has one column");
     }
 }

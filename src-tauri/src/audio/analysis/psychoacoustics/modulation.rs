@@ -36,6 +36,12 @@
 //! hour-long selection keeps the same modulation bandwidth as a short one instead of
 //! decimating 70 Hz into a slow wobble.
 //!
+//! The **band × rate matrix** (M36) is measured separately from the same retained
+//! envelope windows: a single-bin DFT at each rate of a bounded 1–100 Hz grid (see
+//! [`rates`]) gives each band's fractional modulation depth per rate for a drill-down.
+//! It describes the raw envelope and is not part of the scalar above, which still comes
+//! from the modulation filter.
+//!
 //! The level weighting is one-sided: full scale at or above the reference level and
 //! 6 dB down per halving below it, so scaling a reference-level signal *up* does not
 //! raise the reported asper. It is a level gate, not a measured roughness-versus-level
@@ -53,11 +59,15 @@
 //! trend — not any standard's numeric limits.
 
 mod filters;
+mod rates;
+mod series;
 mod stream;
 
-use super::super::support::frame_times;
-use super::super::{CalibratedSeriesResult, SharedParams, MAX_MODULATION_ENVELOPE};
+pub(crate) use series::series;
+
+use super::super::{SharedParams, MAX_MODULATION_ENVELOPE};
 use filters::Channel;
+use rates::RateCells;
 use stream::{Frame, Pass};
 
 /// Target envelope sample rate (Hz): ~14 samples per cycle of a 70 Hz modulation.
@@ -115,6 +125,9 @@ pub(crate) struct Weighting {
     pub coherence: Coherence,
     /// The calibration from the raw weighted depth to 1 asper / 1 vacil.
     pub scale: f64,
+    /// Whether to collect the per-frame band × modulation-rate matrix (M36). Both
+    /// tools want it; the flag keeps the per-band scalar path usable without it.
+    pub collect_rates: bool,
 }
 
 /// The roughness weighting: a 70 Hz modulation filter, a 100 ms integration window,
@@ -129,6 +142,7 @@ pub(crate) fn roughness_weighting() -> Weighting {
         exponent: 1.0,
         coherence: Coherence::Suppress,
         scale: ROUGHNESS_SCALE,
+        collect_rates: true,
     }
 }
 
@@ -145,6 +159,7 @@ pub(crate) fn fluctuation_weighting() -> Weighting {
         exponent: 1.7,
         coherence: Coherence::Weight,
         scale: FLUCTUATION_SCALE,
+        collect_rates: true,
     }
 }
 
@@ -205,17 +220,35 @@ fn correlation(a: &[f32], b: &[f32]) -> f64 {
     }
 }
 
-/// The weighted modulation of `mono` per analysis frame, in the tool's unit before
-/// the calibration constant — `None` for a frame with nothing to measure.
-///
-/// Also returns the effective hop (samples) the frames sit on.
+/// One window's modulation measurement: the effective hop, the scalar value per frame,
+/// and the per-band grid the values decompose into (M36).
+pub(crate) struct Modulation {
+    /// The effective hop (samples) the frames sit on.
+    pub hop: usize,
+    /// The tool's value per frame, in its unit; `None` for a frame with nothing to
+    /// measure.
+    pub values: Vec<Option<f32>>,
+    /// The critical bands' centre frequencies (Hz), the contribution grid's columns.
+    pub bands: Vec<f32>,
+    /// Frame-major `frames × bands` contributions, in the tool's unit — see [`series`].
+    pub contributions: Vec<f32>,
+    /// The modulation rates (Hz) of the band × rate matrix; empty when the weighting
+    /// does not collect one.
+    pub rates: Vec<f32>,
+    /// Frame-major, then band-major, then rate `frames × bands × rates` fractional
+    /// modulation depths — see [`series`]. Empty when `rates` is.
+    pub rate_values: Vec<f32>,
+}
+
+/// The weighted modulation of `mono` per analysis frame, in the tool's unit, with the
+/// per-band contributions that produced each value.
 pub(crate) fn modulate(
     mono: &[f32],
     sample_rate: u32,
     params: &SharedParams,
     weighting: &Weighting,
     calibration_db_spl: f32,
-) -> (usize, Vec<Option<f32>>) {
+) -> Modulation {
     let mut pass = Pass::new(mono, sample_rate, params, weighting, calibration_db_spl);
     // Chronological blocks of at most [`MAX_MODULATION_ENVELOPE`] envelope samples keep
     // the pass bounded without widening the decimation; the filter state crosses them.
@@ -230,18 +263,29 @@ pub(crate) fn modulate(
     pass.finish()
 }
 
-/// One frame's weighted modulation over the copied band windows, `[low, high)` in
-/// envelope samples, with `level` the frame's broadband RMS amplitude.
+/// The per-frame outputs [`frame_value`] fills: the per-band contribution columns and,
+/// when the tool collects one, the band × rate cells.
+struct FrameCells<'a> {
+    contributions: &'a mut [f32],
+    rates: RateCells<'a>,
+}
+
+/// One frame's weighted modulation over the copied band windows of `count` envelope
+/// samples, with `level` the frame's broadband RMS amplitude.
+///
+/// `cells` receives each band's share of the frame's value — `scale · gain ·
+/// weight · depth^e · g^e · coherence^e` — so its columns sum to the returned scalar,
+/// plus the band's rate spectrum (M36). The rate half is a no-op when the tool does not
+/// collect one.
 fn frame_value(
     channels: &mut [Channel],
     frame: &mut Frame,
-    low: usize,
-    high: usize,
+    count: usize,
     level: f64,
     weighting: &Weighting,
     calibration_db_spl: f32,
+    cells: &mut FrameCells<'_>,
 ) -> Option<f32> {
-    let count = high.saturating_sub(low);
     if count < 2 || channels.iter().any(|channel| channel.available() < count) {
         return None;
     }
@@ -262,6 +306,7 @@ fn frame_value(
             continue;
         }
         energies.push(mean * mean);
+        cells.rates.collect(index, envelope, mean);
         let filtered = frame.modulated(index);
         let power = filtered.iter().map(|&v| f64::from(v).powi(2)).sum::<f64>() / count_f;
         depths.push(if mean > 1e-9 {
@@ -277,6 +322,7 @@ fn frame_value(
     }
     let gain = level_weight(20.0 * loudest.max(1e-12).log10(), calibration_db_spl);
     let exponent = weighting.exponent;
+    let scale = weighting.scale * gain;
     let mut sum = 0.0f64;
     for (index, channel) in channels.iter().enumerate() {
         let weight = energies[index] / total_energy;
@@ -289,41 +335,17 @@ fn frame_value(
             Coherence::Suppress => 1.0 / (1.0 + coherence.max(0.0)),
             Coherence::Weight => 0.5 + 0.5 * coherence.abs(),
         };
-        sum += weight
+        let term = weight
             * depths[index].powf(exponent)
             * frequency_weight(channel.z).powf(exponent)
             * coherence.powf(exponent);
+        sum += term;
+        if let Some(cell) = cells.contributions.get_mut(index) {
+            *cell = (scale * term) as f32;
+        }
     }
     let value = weighting.scale * gain * sum;
     value.is_finite().then_some(value as f32)
-}
-
-/// A `CalibratedSeriesResult` over the frames of `values`, recording the calibration
-/// the run was asked for.
-pub(crate) fn series(
-    values: Vec<Option<f32>>,
-    hop: usize,
-    sample_rate: u32,
-    calibration_db_spl: f32,
-) -> CalibratedSeriesResult {
-    let mut min = f32::INFINITY;
-    let mut max = f32::NEG_INFINITY;
-    for value in values.iter().flatten() {
-        min = min.min(*value);
-        max = max.max(*value);
-    }
-    CalibratedSeriesResult {
-        sample_rate,
-        hop_size: hop,
-        // Filled in by `run_window` — the tool only sees the sliced region.
-        window_start: 0.0,
-        times: frame_times(values.len(), hop, sample_rate),
-        values,
-        min_value: if min.is_finite() { min } else { 0.0 },
-        max_value: if max.is_finite() { max } else { 0.0 },
-        calibrated: calibration_db_spl > 0.0,
-        calibration_db_spl,
-    }
 }
 
 #[cfg(test)]

@@ -7,6 +7,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::{Contribution, RateContribution};
+
 /// One calibrated value per analysis frame, plotted against time. A frame with no
 /// measurable value is a gap (`None`).
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -27,4 +29,15 @@ pub struct CalibratedSeriesResult {
     pub calibrated: bool,
     /// The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated).
     pub calibration_db_spl: f32,
+    /// The per-band decomposition behind `values` (M36 drill-down), when the tool has
+    /// one. Absent for a stored result written before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub contribution: Option<Contribution>,
+    /// The per-frame band × modulation-rate matrix (M36), when the tool measures a rate
+    /// spectrum — currently `roughness` and `fluctuationStrength`. Absent for a stored
+    /// result written before the field existed, and for every other tool.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rate_contribution: Option<RateContribution>,
 }

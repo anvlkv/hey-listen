@@ -204,11 +204,13 @@ raise `maxF0Hz` for high calls.
 **Pitch confidence (M36).** A pitch track is drawn with its detector's **per-frame
 `confidence`** on a second, fixed 0–1 axis (the pYIN Viterbi state probability, or
 YIN/autocorrelation periodicity) with a dashed 0.5 **display guide** — never the
-detector's own decision threshold, which the result does not carry. Candidate
-frequencies and octave-ambiguity flags are deferred Rust data and are not fabricated.
-The view's `PitchDisplay` descriptor (in `state/analyzer/defs/pitch.ts`) also declares
-note-name axis labels and the spectrogram-overlay capability; the **spectrogram** can
-compose the F0 track (a separate pYIN run of the same window) as an opt-in overlay.
+detector's own decision threshold, which the result does not carry. pYIN also reports
+its **candidate grid** (`CandidateGrid`, normalized per frame) and **octave-ambiguity
+flags**; the view renders the candidates as a time × semitone-bin heatmap and rings the
+flagged voiced points, while YIN/autocorrelation leave both absent. The view's
+`PitchDisplay` descriptor (in `state/analyzer/defs/pitch.ts`) also declares note-name
+axis labels and the spectrogram-overlay capability; the **spectrogram** can compose the
+F0 track (a separate pYIN run of the same window) as an opt-in overlay.
 
 **Amplitude envelope (M17).** `frameRms` returns a plain frame-centred RMS series in
 dBFS (`frameMs` 10 / `hopMs` 5 by default), independent of EBU R128 loudness. Its

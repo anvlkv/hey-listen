@@ -19,7 +19,9 @@ use super::{
     SpectrumResult, WaveformResult,
 };
 
+mod candidates;
 mod decimate;
+mod grid;
 
 pub(crate) use decimate::{compact_time_axes, indices};
 
@@ -138,13 +140,15 @@ fn compact_spectrum(object: &mut Map<String, Value>, r: &SpectrumResult) {
     insert(object, "maxDb", stats_f32(&r.max_db));
 }
 
-/// The masking curves become stats; `calibrated` / `calibrationDbSpl` stay as-is.
+/// The masking curves become stats; `calibrated` / `calibrationDbSpl` stay as-is, and
+/// the masker list is previewed like any other object list (M36).
 fn compact_masking(object: &mut Map<String, Value>, r: &MaskingResult) {
     insert(object, "freqs", stats_f32(&r.freqs));
     insert(object, "spectrumDb", stats_f32(&r.spectrum_db));
     insert(object, "thresholdQuietDb", stats_f32(&r.threshold_quiet_db));
     insert(object, "globalMaskDb", stats_f32(&r.global_mask_db));
     insert(object, "smrDb", stats_f32(&r.smr_db));
+    insert(object, "maskers", preview(&r.maskers));
 }
 
 fn compact_spectrogram(object: &mut Map<String, Value>, r: &SpectrogramResult) {
@@ -178,22 +182,58 @@ fn compact_gapped_series(object: &mut Map<String, Value>, r: &SeriesResult) {
 }
 
 /// The sone and phon tracks become stats; `calibrated` / `calibrationDbSpl` stay as-is.
+/// The RMS/SPL comparator is parallel to `times`, and an absent vector (an uncalibrated
+/// run has no SPL) must stay absent instead of becoming an empty stats object.
 fn compact_loudness(object: &mut Map<String, Value>, r: &LoudnessResult) {
     insert(object, "times", time_axis(&r.times));
     insert(object, "loudnessSone", stats_gaps(&r.loudness_sone));
     insert(object, "loudnessPhon", stats_gaps(&r.loudness_phon));
+    for (key, levels) in [
+        ("frameRmsDb", &r.frame_rms_db),
+        ("frameSplDb", &r.frame_spl_db),
+    ] {
+        if !levels.is_empty() {
+            insert(object, key, stats_gaps(levels));
+        }
+    }
 }
 
-/// The sharpness track becomes stats; `calibrated` / `calibrationDbSpl` stay as-is.
+/// The sharpness track becomes stats; `calibrated` / `calibrationDbSpl` stay as-is. The
+/// drill-down grids are compacted with it, so a compact result never carries a full
+/// `frames × bins` or `frames × bands × rates` array (M36).
 fn compact_calibrated_series(object: &mut Map<String, Value>, r: &CalibratedSeriesResult) {
     insert(object, "times", time_axis(&r.times));
     insert(object, "values", stats_gaps(&r.values));
+    if let Some(contribution) = &r.contribution {
+        insert(
+            object,
+            "contribution",
+            grid::compact_contribution(contribution),
+        );
+    }
+    if let Some(rates) = &r.rate_contribution {
+        insert(
+            object,
+            "rateContribution",
+            grid::compact_rate_contribution(rates),
+        );
+    }
 }
 
 fn compact_pitch(object: &mut Map<String, Value>, r: &PitchResult) {
     insert(object, "times", time_axis(&r.times));
     insert(object, "values", stats_gaps(&r.values));
     insert(object, "confidence", stats_gaps(&r.confidence));
+    if let Some(grid) = &r.candidates {
+        insert(object, "candidates", candidates::compact(grid));
+    }
+    if !r.octave_ambiguous.is_empty() {
+        insert(
+            object,
+            "octaveAmbiguous",
+            candidates::compact_flags(&r.octave_ambiguous),
+        );
+    }
 }
 
 fn compact_rhythm(object: &mut Map<String, Value>, r: &RhythmResult) {

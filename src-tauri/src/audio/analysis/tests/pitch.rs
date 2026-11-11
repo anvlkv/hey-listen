@@ -308,6 +308,49 @@ fn f0_reliability_needs_enough_voiced_frames() {
     }
 }
 
+/// The pYIN payload: the candidate grid is `frames × bins`, every probability is in
+/// `[0, 1]`, and there is one row per returned frame — the evidence the f0 track was
+/// chosen from.
+#[test]
+fn pyin_reports_a_candidate_grid_aligned_with_its_frames() {
+    let result = pyin(440.0, (50.0, 2_000.0));
+    let grid = result.candidates.as_ref().expect("pYIN reports candidates");
+    assert_eq!(grid.freqs.len(), grid.bins);
+    assert_eq!(grid.values.len(), result.frames * grid.bins);
+    assert_eq!(grid.values.len() / grid.bins, result.times.len());
+    assert!(grid
+        .values
+        .iter()
+        .all(|probability| (0.0..=1.0).contains(probability)));
+    // A voiced frame picked a bin that carries candidate mass; the rows stay aligned.
+    for (frame, value) in result.values.iter().enumerate() {
+        let row = &grid.values[frame * grid.bins..(frame + 1) * grid.bins];
+        if value.is_some() {
+            assert!(
+                row.iter().any(|&probability| probability > 0.0),
+                "voiced frame {frame} has no candidate"
+            );
+        }
+    }
+    // The octave flags are parallel to `values`, one per frame.
+    assert_eq!(result.octave_ambiguous.len(), result.values.len());
+}
+
+/// Only pYIN reports candidates; the other trackers leave the payload absent.
+#[test]
+fn non_pyin_detectors_report_no_candidates() {
+    let mono = sine(440.0, 0.5);
+    for tool in [AnalyzerId::PitchYin, AnalyzerId::PitchAutocorr] {
+        let result =
+            match run(tool, &mono, RATE, &params(2048), &ToolOptions::default()).expect("pitch") {
+                AnalysisResult::PitchYin(r) | AnalysisResult::PitchAutocorr(r) => r,
+                other => panic!("unexpected result: {other:?}"),
+            };
+        assert!(result.candidates.is_none());
+        assert!(result.octave_ambiguous.is_empty());
+    }
+}
+
 /// Harmonic ratio takes the same explicit range: a 3 kHz tone inside a 2–4 kHz band
 /// scores high, so the tool is not silently capped at 2 kHz (hey-listen-report §6.2).
 #[test]

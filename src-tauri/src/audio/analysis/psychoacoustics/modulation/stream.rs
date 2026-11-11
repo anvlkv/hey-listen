@@ -11,7 +11,8 @@ use super::super::super::SharedParams;
 use super::super::bands::critical_band_edges;
 use super::super::scales::Scale;
 use super::filters::{Channel, Config, Level};
-use super::{decimation, frame_value, Weighting};
+use super::rates::{self, RateCells};
+use super::{decimation, frame_value, FrameCells, Modulation, Weighting};
 
 /// The frame grid and window geometry of one pass.
 struct Grid {
@@ -70,6 +71,10 @@ impl Frame {
 /// frame buffer, emitting a frame's value as soon as its window is complete.
 pub(super) struct Pass<'a> {
     channels: Vec<Channel>,
+    /// The channels' centre frequencies (Hz), the contribution grid's columns.
+    bands: Vec<f32>,
+    /// The modulation-rate axis (Hz); empty when the tool collects no rate matrix.
+    rates: Vec<f32>,
     level: Level,
     frame: Frame,
     grid: Grid,
@@ -80,6 +85,10 @@ pub(super) struct Pass<'a> {
     /// The next frame to emit.
     next: usize,
     values: Vec<Option<f32>>,
+    /// Frame-major `frames × bands` per-band contributions (M36).
+    contributions: Vec<f32>,
+    /// Frame-major, then band-major, then rate `frames × bands × rates` depths (M36).
+    rate_values: Vec<f32>,
 }
 
 impl<'a> Pass<'a> {
@@ -110,7 +119,7 @@ impl<'a> Pass<'a> {
             settle,
             modulation: (weighting.target_hz, weighting.q),
         };
-        let channels = critical_band_edges(Scale::Bark, min_hz as f32, max_hz as f32)
+        let channels: Vec<Channel> = critical_band_edges(Scale::Bark, min_hz as f32, max_hz as f32)
             .windows(2)
             .map(|pair| {
                 let centre = (f64::from(pair[0]) * f64::from(pair[1])).sqrt().max(20.0);
@@ -128,10 +137,18 @@ impl<'a> Pass<'a> {
             frames: mono.len().div_ceil(hop),
         };
         Self {
+            bands: channels.iter().map(|channel| channel.hz as f32).collect(),
+            rates: if weighting.collect_rates {
+                rates::grid()
+            } else {
+                Vec::new()
+            },
             channels,
             level: Level::new(window, decim),
             frame: Frame::default(),
             values: Vec::with_capacity(grid.frames),
+            contributions: Vec::new(),
+            rate_values: Vec::new(),
             grid,
             weighting,
             calibration_db_spl,
@@ -160,13 +177,21 @@ impl<'a> Pass<'a> {
     }
 
     /// Emit the tail (a selection shorter than the modulation filter's warm-up) and
-    /// hand back the effective hop with the per-frame values.
-    pub(super) fn finish(mut self) -> (usize, Vec<Option<f32>>) {
+    /// hand back the effective hop with the per-frame values and their per-band
+    /// contributions.
+    pub(super) fn finish(mut self) -> Modulation {
         for channel in &mut self.channels {
             channel.prime();
         }
         self.emit();
-        (self.grid.hop, self.values)
+        Modulation {
+            hop: self.grid.hop,
+            values: self.values,
+            bands: self.bands,
+            contributions: self.contributions,
+            rates: self.rates,
+            rate_values: self.rate_values,
+        }
     }
 
     fn emit(&mut self) {
@@ -179,16 +204,30 @@ impl<'a> Pass<'a> {
                 break;
             }
             let level = self.level.rms(high.saturating_sub(low));
+            let mut contributions = vec![0.0f32; self.bands.len()];
+            let mut rate_cells = vec![0.0f32; self.bands.len() * self.rates.len()];
+            let mut cells = FrameCells {
+                contributions: &mut contributions,
+                rates: RateCells::new(&self.rates, self.grid.envelope_rate, &mut rate_cells),
+            };
             let value = frame_value(
                 &mut self.channels,
                 &mut self.frame,
-                low,
-                high,
+                high.saturating_sub(low),
                 level,
                 self.weighting,
                 self.calibration_db_spl,
+                &mut cells,
             );
+            if value.is_none() {
+                // A frame with nothing to measure is a gap: a zero row keeps the grid
+                // rectangular and aligned with `values`.
+                contributions.fill(0.0);
+                rate_cells.fill(0.0);
+            }
             self.values.push(value);
+            self.contributions.extend_from_slice(&contributions);
+            self.rate_values.extend_from_slice(&rate_cells);
             self.next += 1;
         }
     }

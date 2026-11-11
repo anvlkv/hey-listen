@@ -73,6 +73,47 @@ fn a_louder_copy_raises_the_sone_series() {
 }
 
 #[test]
+fn the_rms_comparator_is_parallel_to_times_and_spl_needs_a_calibration() {
+    let mono = tone(0.5, 1_000.0, 0.5);
+    // An uncalibrated run has no absolute reference, so it reports no SPL at all.
+    let relative = loudness_result(&mono, &ToolOptions::default());
+    assert_eq!(relative.frame_rms_db.len(), relative.times.len());
+    assert!(relative.frame_spl_db.is_empty());
+    assert!(relative
+        .frame_rms_db
+        .iter()
+        .flatten()
+        .all(|level| level.is_finite()));
+    // A half-scale sine's RMS is 0.5/√2 → −9.03 dBFS. A generic `<= 0` bound would
+    // accept a peak reading or a wrong window; pin the actual level.
+    let median_rms = median(&relative.frame_rms_db);
+    assert!(
+        (median_rms - (-9.0309)).abs() < 0.2,
+        "a half-scale sine's RMS reads {median_rms} dBFS, expected ≈ −9.03"
+    );
+    // Silence is floored at the analysis floor, never −∞.
+    let silent = loudness_result(&vec![0.0; RATE as usize / 2], &ToolOptions::default());
+    assert!(
+        silent
+            .frame_rms_db
+            .iter()
+            .all(|level| *level == Some(-120.0)),
+        "a silent comparator frame is not floored at −120 dBFS"
+    );
+
+    // A calibrated run reports SPL as the same RMS level plus the calibration offset.
+    let absolute = loudness_result(&mono, &calibration(94.0));
+    assert_eq!(absolute.frame_rms_db.len(), absolute.times.len());
+    assert_eq!(absolute.frame_spl_db.len(), absolute.times.len());
+    for (rms, spl) in absolute.frame_rms_db.iter().zip(&absolute.frame_spl_db) {
+        let (Some(rms), Some(spl)) = (rms, spl) else {
+            panic!("a frame carries a level on one axis only");
+        };
+        assert!((spl - (rms + 94.0)).abs() < 1e-4, "{spl} ≠ {rms} + 94");
+    }
+}
+
+#[test]
 fn silence_reads_zero() {
     for options in [ToolOptions::default(), calibration(94.0)] {
         let result = loudness_result(&vec![0.0; RATE as usize / 2], &options);
