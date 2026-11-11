@@ -1011,3 +1011,45 @@ Cost: a small install/version-tracking surface and a menu item. See
 `MenuAction::InstallCliTool` (`src-tauri/src/menu.rs` → *Help → Install Command Line
 Tool…*) and `src/components/CliToolDialog.tsx`; they read and drive the M33.C commands in
 `src-tauri/src/commands/cli_install.rs`. See [`updater.md`](updater.md).
+
+## ADR-32 — Project file migrations are explicit, incremental, and scriptable
+
+**Context:** the container's `version` field is currently a single `u32` that the reader
+rejects unless it equals `VERSION`; a future incompatible change (a `postcard` payload
+shape change, a field's meaning change, a `DATA` sub-layout change) would either strand old
+files or require ad-hoc, one-off decode fallbacks like `compare_from_bytes`. `postcard` is
+not self-describing — no field names, no skipping — so "old file, new struct" fails to
+decode, and "new file, old struct" can silently misread trailing fields. Analysis results
+are a recomputable cache, so they need not be migrated.
+
+**Decision:** bump `VERSION` only on an incompatible change, record each bump in a single
+history, and migrate **incrementally** with an explicit script — never silently.
+
+- **Version history.** `project-file-format.md` owns the authoritative `Format version
+  history` table; the reader's supported range and step table are derived from it. Additive
+  sections, `LAYOUT` JSON keys, and `tool_options` map keys never bump.
+- **Incremental chain.** `project/migrate/` holds one `from_vN_to_vNp1` per bump, each a
+  frozen `vN` snapshot of only the payload types that changed plus a `From` conversion.
+  Steps compose version-to-version; a step never rewrites `DATA`. The step table is one
+  constant, asserted by a test to cover `MIN_READ_VERSION..VERSION`.
+- **Load-time migration.** `read_project` accepts `MIN_READ_VERSION..=VERSION`, migrates in
+  memory, and reports the source version (`upgradedFrom`); the app marks the project dirty
+  so the next save writes the current version. Newer versions are still refused — never a
+  best-effort read.
+- **Explicit script.** `hey-listen-cli migrate` runs the same chain and writes atomically
+  via `write_project_atomic` (with a `.bak` by default), reusing `read_project` so there is
+  one code path. It is the bulk/headless upgrade path.
+- **Drop results, keep the work.** `RESULTS` is dropped for pre-`VERSION` files and
+  undecodable `COMPARE` entries are dropped per entry; `SOURCE`, `DATA`, `SETUP`, `LAYOUT`
+  (graphs + `filterSpec`), `META`, and `ANNOTATIONS` must survive, and a hop that cannot
+  produce one fails the load rather than silently emptying it.
+- **Reference projects.** The loader reports `embedded` (whether `DATA` was present); the
+  save and `migrate` paths preserve `embedSource: false` so a reference project does not
+  silently grow into a full copy.
+
+**Consequence:** old projects open transparently and upgrade on save; batch upgrades are
+one command; and a future format change is a small, testable, version-keyed step instead of
+an open-ended decode gamble. Costs: a frozen `vN` snapshot module per bump (which must never
+be edited — pinned by a byte test) and a second CLI surface (`migrate`) to keep in step
+with the engine. See [`project-file-format.md`](project-file-format.md) → Format version
+history + Migrations, and M37 in [`roadmap.md`](roadmap.md).
