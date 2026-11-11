@@ -7,6 +7,11 @@ and every core workflow actually work and stay usable?** They are *not* a
 unit-test replacement — the Rust engines (`audio/*`) and the frontend state
 modules keep their own cheap, focused tests.
 
+The frontend's **unit suites** are separate: they live in [`src/tests/`](../src/tests/)
+and run under vitest in the `node` environment — pure helpers only, no WebView.
+`npm run test:unit` runs them once and `npm run test:unit:watch` watches; CI runs them
+in the frontend job.
+
 ## Stack
 
 | Choice | Value | Why |
@@ -51,7 +56,9 @@ sets its own. A real dialog must never appear; if one does, a helper mock is mis
 
 **Artifacts.** `outputDir` is `e2e/artifacts` (gitignored): the service writes its
 log there, WDIO writes one JSON per spec, and `onComplete` merges them into
-`wdio-report.json`. CI uploads the directory as the `e2e-report-<os>` artifact.
+`wdio-report.json`. A failing test also saves a screenshot of the window it left
+behind (`wdio.conf.ts` → `afterTest`), because a stalled popout and a missing element
+look identical in a log. CI uploads the directory as the `e2e-report-<os>` artifact.
 
 **One app instance per run.** WebdriverIO launches the app once, so spec files share
 it and carry state. Helpers account for that: `openFixture` is duration-aware (it
@@ -338,7 +345,7 @@ the resulting server state.
 | L4 | Busy port | A port held by the test process falls back to a free one with an inline note | Scenario |
 | L5 | Copy | The Copy button confirms (best-effort on headless CI) and the panel survives | Smoke |
 
-> **Headless CLI (Rust):** `src-tauri/tests/headless_mcp.rs` spawns the real
+> **Headless CLI (Rust):** `src-tauri/mcp/tests/headless_mcp.rs` spawns the real
 > `heylisten-mcp --headless` binary and drives `initialize → tools/list →
 > open_audio_file → run_analysis → open_tool` over its stdio (run by `cargo test`).
 > It is not part of the wdio suite (no webview).
@@ -348,7 +355,7 @@ the resulting server state.
 > display — the `spectrum` peak over a generated WAV, the JSONL line count for a
 > two-file batch, and the exit code for an unknown tool; the mapping is unit-tested both
 > through the real `clap` parser and against synthetic `Matches`, and the two are asserted
-> to agree (`cli/batch/tests/console.rs`). `hey-listen-cli analyze …` is a console program,
+> to agree (`cli/src/batch/tests/console.rs`). `hey-listen-cli analyze …` is a console program,
 > so it can be run by hand with no display; it is not in the wdio suite, which drives the
 > GUI. **M21.A:** stdout is JSONL-only (there is no log plugin in the console binary), which
 > the batch unit tests cannot see because they inject `out` — check it by hand with
@@ -368,7 +375,7 @@ launches, so the spec resets to a known state first and restores the defaults af
 | M4 | Persistence | Switching the mode writes `hey-listen:theme` in `localStorage`; the dark slot persists | Scenario |
 
 > **Unit + store coverage (not wdio):** the `ThemeFile` parse/validate/normalise
-> contract is checked by `npm run test:unit` (`scripts/themeFile.test.ts`), and the
+> contract is checked by `npm run test:unit` (`src/tests/themeFile.test.ts`), and the
 > Rust store (`themes.rs`) is unit-tested by `cargo test` (id validation, bundled-id
 > uniqueness). Import/export use native dialogs (mocked in the suite), so the file
 > round-trip is exercised by hand rather than in the wdio suite.
@@ -411,7 +418,7 @@ covered.
 
 > **Also covered:** the tool-param **switch** interaction (a click on Kobalte's control
 > toggles exactly once and repaints the chart) is an extra case in `d-analyzers.spec.ts`,
-> and `scripts/previewSpeed.test.ts` unit-checks the varispeed slider's log scale.
+> and `src/tests/previewSpeed.test.ts` unit-checks the varispeed slider's log scale.
 
 ### P. Annotations — the interaction model (M14 follow-up)
 
@@ -450,13 +457,13 @@ and the annotation time are all frontend-side.
 
 > **Unit + store coverage (not wdio):** the pure annotation helpers (clamping, labels,
 > excerpts, the window-frame lookup `annotationFrameAt`, and the snapshot comparison) are
-> checked by `npm run test:unit` (`scripts/annotations.test.ts`), and the `ANNOTATIONS` section is
+> checked by `npm run test:unit` (`src/tests/annotations.test.ts`), and the `ANNOTATIONS` section is
 > round-trip tested by `cargo test` (the `project` module — a point annotation with values
-> and a range annotation) and the batch CLI's `annotations` subcommand (`cli::batch`). The engine's
+> and a range annotation) and the batch CLI's `annotations` subcommand (`batch`). The engine's
 > source-second re-basing is asserted by `cargo test`
 > (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`), and the
 > Timeline scrollbar's clamping / thumb geometry by
-> `scripts/timelineScroll.test.ts` (`npm run test:unit`).
+> `src/tests/timelineScroll.test.ts` (`npm run test:unit`).
 
 ### R. Two projects at once (M7 multi-window)
 
@@ -598,18 +605,43 @@ stay the last suite file (closing `main` cannot be undone).
 ## Running
 
 ```sh
-npm run test:unit             # pure-helper unit checks (analyzer options, themes, annotations, comparison ids/layout; no app needed)
+npm run test:unit             # browser-free unit suites in src/tests/ (vitest, no app needed)
+npm run test:unit:watch       # the same suites, watching for edits
 npm run tauri build          # release binary
 npm run test:e2e             # run wdio against the binary
 npm run typecheck:e2e        # type-check the suite (no app needed)
 npm run lighthouse           # M32 surface × theme × viewport audit (see below)
 ```
 
-Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON and the
-service log).
+Each run writes `e2e/artifacts/wdio-report.json` (plus per-spec JSON, the service log,
+and one screenshot per failing test).
+
+**Known service warning.** A worker may log `before() failed at stage="addTauriApi:single" …
+Cannot read properties of undefined (reading 'bind')`. It comes from `@wdio/tauri-service`'s
+`patchBrowserExecute` calling `browser.executeAsync.bind` before that command exists, and it
+costs console forwarding only — the specs run. Nothing in `wdio.conf.ts` can pre-seed the
+command (the service patches in its own `before`, after ours). Ignore it unless
+`browser.tauri` stops working, and then look for a newer service release.
 
 ### Waiting rules (learned from CI flakes)
 
+- **Editing then closing a window is two IPC round trips.** A window that owns an edit
+  in shared state (the annotation window's **Done**) must get the edit into the core
+  *before* it destroys itself — `close_window` tears the webview down and cancels
+  whatever is still in flight, so the rail kept the old body (N3 flaked in CI).
+  `AnnotationWindow.commit` therefore awaits `flushUiState("annotations")`
+  (`src/state/uiSync.ts`) before closing. Any future "save and close" view must do the
+  same.
+
+- **An in-page read on a just-created window can stall.** On macOS the first
+  `execute/sync` addressed to a freshly created window (a popout, an annotation window,
+  a comparison popout) occasionally hangs until WebDriver's script timeout fires, while
+  the window has in fact rendered — the next attempt answers in milliseconds. `count`,
+  `countWithin` and `textOf` in `support/dom.ts` go through `withRetry`, which retries a
+  *script timeout* (never a page error) and logs a `[e2e] an in-page script timed out`
+  warning. Gestures (`click`, `wheelOver`, `pointerDrag`) stay single-shot: a stalled
+  gesture may already have run before its reply was lost. The warning means the stall
+  happened; a spec that still fails on one means a genuine hang.
 - **A menu action is an event, not a call.** `emit` returns before the frontend has
   handled it. Wait for the observable result — `newEmptyProject()` (`support/app.ts`)
   waits until the Timeline is gone — instead of assuming the reset landed. Q6 used to
@@ -794,7 +826,7 @@ is a manual smoke against a signed bundle, not part of CI.
   value assertions; everything else is "renders + no error".
 - **The batch CLI is not in the wdio suite.** It is a console binary
   (`hey-listen-cli`), so its engine work is covered by the crate's own unit tests
-  (`cli::batch` — see [`cli.md`](cli.md) → Testing); invoking it end to end is a manual
+  (`batch` — see [`cli.md`](cli.md) → Testing); invoking it end to end is a manual
   smoke, not a wdio spec (the wdio suite drives the GUI).
 - No IPC mocks for every command — `browser.tauri.execute()` is used only where a
   UI path can't be driven (the native file dialog, synth fixture setup) or to force

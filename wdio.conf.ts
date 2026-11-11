@@ -71,6 +71,16 @@ async function resetStaleApps(): Promise<void> {
 /** All run artifacts (JSON report + service logs) land here (gitignored). */
 const ARTIFACTS_DIR = "./e2e/artifacts";
 
+/** A failing test's screenshot name: suite + title, filesystem-safe and short. */
+function screenshotName(suite: string, title: string): string {
+  const slug = (text: string) =>
+    text
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+  return `${slug(suite)}.${slug(title)}.png`;
+}
+
 /** The release binary the suite drives. Override with `HEYLISTEN_BINARY`. */
 const appBinaryPath =
   process.env.HEYLISTEN_BINARY ??
@@ -139,6 +149,20 @@ export const config: Options.Testrunner & {
   /** Restore the window geometry the session may have resized (see `support/app.ts`). */
   async afterSession() {
     await restoreWindowSize().catch(() => {});
+  },
+
+  /**
+   * Capture the window a failing test left behind.
+   *
+   * A failure without a picture is a diagnosis by guesswork: a stalled popout and a missing
+   * element look identical in the logs. Best-effort — a wedged window must not turn the
+   * artifact step into a failure of its own.
+   */
+  async afterTest(test, _context, result) {
+    if (!result.error) return;
+    await browser
+      .saveScreenshot(path.join(ARTIFACTS_DIR, screenshotName(test.parent, test.title)))
+      .catch(() => {});
   },
 
   /** Generate the deterministic fixtures before the app launches. */

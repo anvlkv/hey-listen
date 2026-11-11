@@ -264,7 +264,7 @@ interface Envelope {
 function main() {
   if (!existsSync(BIN)) {
     console.error(
-      `generate-fixtures: no console binary at ${BIN}\nBuild one (cargo build --release --bin hey-listen-cli) or set HEY_LISTEN_CLI.`,
+      `generate-fixtures: no console binary at ${BIN}\nBuild one (cargo build --release -p hey-listen-cli from src-tauri/) or set HEY_LISTEN_CLI.`,
     );
     process.exitCode = 1;
     return;

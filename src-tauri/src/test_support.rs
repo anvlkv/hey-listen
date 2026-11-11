@@ -6,7 +6,7 @@
 use std::io::{self, Write};
 
 /// A writer that refuses every byte, like a full disk or a closed pipe.
-pub(crate) struct FailingWriter;
+pub struct FailingWriter;
 
 impl Write for FailingWriter {
     fn write(&mut self, _buffer: &[u8]) -> io::Result<usize> {

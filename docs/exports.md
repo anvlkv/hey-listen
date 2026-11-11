@@ -165,7 +165,7 @@ The **data** exports are pure compute over a result, so headless covers them ful
 | `src/components/analyzer/{SpectrumTab,WaveformTab,SeriesView,RhythmView,MatrixView,SpectrogramTab,ModulationView,NoteSegmentChart}.tsx` | Register their chart/image provider. |
 | `src-tauri/src/commands/export.rs` | `export_analysis` / `export_all`, `pick_save_path` / `pick_directory`, `write_text` / `write_bytes`. |
 | `src-tauri/src/export/` | The envelope + wide-matrix CSV renderer shared with the CLI and MCP. |
-| `src-tauri/src/cli/batch/` | `--format` / `--out`. |
+| `src-tauri/cli/src/batch/` | `--format` / `--out`. |
 | `src-tauri/src/mcp/tools/`, `src/state/mcp/` | The `export_*` tools. |
 
 ## Testing

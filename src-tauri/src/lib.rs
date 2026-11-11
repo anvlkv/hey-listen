@@ -19,18 +19,24 @@ macro_rules! serialize_error_as_string {
 }
 
 mod app_activity;
-mod audio;
 mod cli;
 mod commands;
-mod export;
-mod mcp;
 mod menu;
-mod project;
-mod recent;
-mod state;
-#[cfg(test)]
-mod test_support;
 mod themes;
+// The engine surface (`audio` … `state`) is public so the console crates
+// (`hey-listen-cli`, `heylisten-mcp`) can link it: they call the same decode, analysis,
+// project store and headless session the app commands do (ADR-29). App-only modules
+// (`cli`, `commands`, `menu`, `app_activity`, `themes`) stay private.
+pub mod audio;
+pub mod export;
+pub mod mcp;
+pub mod project;
+pub mod recent;
+pub mod state;
+// The batch CLI's tests (`hey-listen-cli`) reuse `FailingWriter`, so the fixture is also
+// compiled on request; the app's own tests still see it under `cfg(test)`.
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support;
 
 use tauri::{Manager, WebviewWindowBuilder};
 use tauri_plugin_prevent_default::Flags;
@@ -44,25 +50,6 @@ use tauri_plugin_prevent_default::Flags;
 /// See [`mcp::run`].
 pub fn run_mcp(headless: bool) -> std::io::Result<()> {
     mcp::run(headless)
-}
-
-/// The `hey-listen-cli` console entry: parse `argv` with `clap`, run the batch command,
-/// and write JSONL to `out`.
-///
-/// A plain console program — no Tauri app, no window, no log plugin (ADR-29) — so it
-/// boots a bare host, writes stdout on Windows, and never aborts over a log path.
-/// `src/bin/hey-listen-cli.rs` drives it.
-pub fn run_batch_cli<I, T>(argv: I, out: &mut impl std::io::Write) -> i32
-where
-    I: IntoIterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone,
-{
-    cli::console(argv, out)
-}
-
-/// Fold the batch CLI's final stdout flush into its exit code.
-pub fn finish_batch_cli(code: i32, flushed: std::io::Result<()>) -> i32 {
-    cli::finish(code, flushed)
 }
 
 /// The log plugin's targets for this entry.

@@ -405,7 +405,7 @@ snake_case aliases, validated like every other tool (M16).
 
 - Rust unit tests beside each tool module (so `tests.rs` stays under the budget),
   including synth-graph-rendered references for roughness / fluctuation strength.
-- `scripts/annotations.test.ts` cases for the new values-line formatters.
+- `src/tests/annotations.test.ts` cases for the new values-line formatters.
 - `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `npm run maid`.
 - Regenerate `src/bindings/**` with `cargo test`; never hand-edit it.
 - Optional e2e: render a synthetic AM tone, run `loudness` / `sharpness` /

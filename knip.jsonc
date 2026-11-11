@@ -17,11 +17,12 @@
   // --- Entry points ----------------------------------------------------------
   // Knip resolves the app through `index.html` → `src/index.tsx` (its Vite plugin
   // reads the script tag) and auto-detects the root configs (`vite.config.ts`,
-  // `wdio.conf.ts`) and the files package.json / CI run (`scripts/*.mjs`,
-  // `scripts/*.test.ts`). What it could not infer is the E2E suite — `wdio` drives
-  // `e2e/**` and imports nothing from the app — so every spec, every `e2e/support`
-  // module and the screenshots config were reported as *unused files*. These are
-  // the real roots for that suite; the app and scripts need no listing.
+  // `vitest.config.ts`, `wdio.conf.ts`), the files package.json / CI run
+  // (`scripts/*.mjs`), and — through its vitest plugin — every `src/tests/**/*.test.ts`
+  // suite. What it could not infer is the E2E suite — `wdio` drives `e2e/**` and
+  // imports nothing from the app — so every spec, every `e2e/support` module and the
+  // screenshots config were reported as *unused files*. These are the real roots for
+  // that suite; the app, scripts and unit suites need no listing.
   "entry": [
     // Vite entries: the app (`index.html` → `src/index.tsx`) and the preview shell
     // (`preview.html` → `src/preview/fixtures.ts`) the Lighthouse harness builds.
@@ -38,7 +39,8 @@
   ],
 
   // The files knip may analyse: the app, the suite, the repo scripts and the root
-  // configs (`*.ts` covers `vite.config.ts` + the two `*.wdio.conf.ts`).
+  // configs (`*.ts` covers `vite.config.ts`, `vitest.config.ts` + the two
+  // `*.wdio.conf.ts`).
   // `eslint.config.js` is picked up by knip's own ESLint-plugin detection, so its
   // deps stay "used" without listing it here.
   "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts", "scripts/**/*.{ts,mjs}", "*.ts"],

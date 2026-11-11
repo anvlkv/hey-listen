@@ -93,15 +93,19 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli`
   the Tauri event/command surface. The follow-up adds `tauri-plugin-cli` (the app
   binary's `--mcp` / `--headless` flags), `tauri-plugin-store` (the persisted MCP
   settings) and `tauri-plugin-clipboard-manager` (the popover's Copy). The
-  `heylisten-mcp` binary is a second binary in the same crate — a plain console
-  program (no GUI), so it can run headless. On macOS the follow-up also depends on
+  `heylisten-mcp` binary is its own crate (`src-tauri/mcp/`, package `heylisten-mcp`) that
+  links the app crate — a plain console program (no GUI), so it can run headless, and not
+  a bin target of the app, so the installers do not ship it. On macOS the follow-up also depends on
   `objc2` / `objc2-foundation` (already in the tree via Tauri) for the App Nap
   opt-out, both in the bundle's `Info.plist` and at runtime. See [`mcp.md`](mcp.md).
-- **Batch CLI (M10, console binary since M33.B):** `hey-listen-cli` is a third binary
-  in the same crate (`src/bin/hey-listen-cli.rs`) — a plain console program that links
-  the lib but never starts Tauri. Its interface is `clap` 4 with the `derive` feature
-  (one new dependency, MIT / Apache-2.0; `clap` was already in the tree via
-  `tauri-plugin-cli` but without `derive`). It reuses the headless session
-  (`mcp/dispatch/`) and the same engine functions, so it adds no DSP or store
-  dependencies. The app binary keeps `tauri-plugin-cli` for its two flags. See
-  [`cli.md`](cli.md) and ADR-29.
+- **Batch CLI (M10, console binary since M33.B):** `hey-listen-cli` is its own crate
+  (`src-tauri/cli/`, package `hey-listen-cli`) that depends on the app crate as a
+  library and owns the implementation (`src/batch/`) — a plain console program that
+  links the lib but never starts Tauri. Its own dependencies are `clap` 4 with the
+  `derive` feature (MIT / Apache-2.0; already in the tree via `tauri-plugin-cli` but
+  without `derive`) and `serde_json` (the JSONL output and the graph/annotation
+  readers). `tauri-plugin-cli` is a **dev**-dependency only: the tests keep the retired
+  `plugins.cli` matches as the reference the `clap` mapping is pinned to. It reuses the
+  headless session (`mcp/dispatch/`) and the same engine functions, so it adds no DSP or
+  store dependencies. The app binary keeps `tauri-plugin-cli` for its two flags; `clap`
+  is no longer a dependency of the app crate. See [`cli.md`](cli.md) and ADR-29.

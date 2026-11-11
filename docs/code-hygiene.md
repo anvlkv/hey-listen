@@ -107,7 +107,7 @@ The clone pairs M15 removed:
 | --- | --- |
 | ~250 lines, 17 clone pairs | `components/analyzer/MatrixView.tsx` ↔ `SpectrogramTab.tsx` — the pan / zoom / annotation-drag / reframe interaction, written twice → one `chartInteraction.ts` |
 | ~60 lines | `ChannelSelect.tsx` ↔ `SelectField.tsx` ↔ `SourcePanel.tsx` — the same select trigger markup three times → one `SelectTrigger.tsx` |
-| 40 lines | `scripts/annotations.test.ts` ↔ `scripts/themeFile.test.ts` — each test file defined its own `check` / `assertEqual` harness → `scripts/testHarness.ts` |
+| 40 lines | unit suites — each test file defined its own `check` / `assertEqual` harness → one shared harness (since retired in favour of vitest's `it` / `expect`) |
 | ~40 lines | `App.tsx` — the splitter down/move/up handlers, written three times → `lib/splitter.ts` + `components/Splitter.tsx` |
 
 The M15.B follow-up removed the pairs that remained: one WAV fixture

@@ -111,7 +111,7 @@ Fix direction: raise the secondary/tertiary ramp in `src/styles/base.css` (lines
 `builtinSolarized.ts`), checking the values against **both** `--panel-2` and
 `--panel-3`. Target 4.5:1 for normal text (3:1 only for ≥18.66 px bold / ≥24 px).
 Because the worst offenders are semantic-token misuse, prefer fixing the consumers
-first, then the palette. Consider a unit check in `scripts/themeFile.test.ts` that
+first, then the palette. Consider a unit check in `src/tests/themeFile.test.ts` that
 computes the ratio for the token pairs the styles use.
 
 ### A2 — The output-gain slider has no accessible name

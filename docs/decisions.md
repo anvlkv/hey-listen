@@ -357,7 +357,7 @@ subcommands left the app binary for the `hey-listen-cli` console binary, and
 Everything above still describes the *engine* contract ADR-29 preserves: the one shared
 headless session, the JSONL envelope, the `-p` / `-o` vocabulary and the `0`/`1`/`2`
 exit codes. See [`cli.md`](cli.md); the batch logic stays in
-`src-tauri/src/cli/batch/`.
+`src-tauri/cli/src/batch/`.
 
 ## ADR-15 — Themes are data: a `ThemeFile` over a built-in base, resolved by slots
 
@@ -908,37 +908,50 @@ not engine gaps.
 
 **Decision:** the batch subcommands move to a **plain console binary, `hey-listen-cli`**,
 built next to the app like `heylisten-mcp`. It runs `analyzers` / `analyze` / `compare` /
-`project` / `annotations` / `synth` over the same `cli::batch::run` and the shared headless
+`project` / `annotations` / `synth` over the same `batch::run` and the shared headless
 session, with no Tauri app, no window, and no log plugin — so it boots a bare host, never
 aborts over a log path, and writes stdout on Windows. The app binary keeps `--mcp` /
 `--headless` (and the `.heyl` open path) via `tauri-plugin-cli`; its batch subcommands are
 retired.
 
+- **One implementation, one vocabulary.** The command logic moves out of the app lib into
+  the crate (`src-tauri/cli/src/batch/`), so the app binary does not compile code only the
+  console binary uses. The application crate still owns what both need at the boundary:
+  the engine modules (`audio`, `export`, `mcp`, `project`, `recent`, `state`) are public as
+  the console crates' link surface. Every batch-owned type — `BatchCommand` included —
+  lives in the console crate; the app keeps no copy and no migration fallback.
+  The moved tests use the app's `test_support::FailingWriter` through a `test-support`
+  feature rather than a second fixture.
 - **One interface, no hand-rolled drift.** The console binary parses with `clap` derive.
   The interface is specified once in that definition; the JSONL **envelope** is the pinned
   contract (a test asserts the two entry points produce the same shapes), rather than a
   second JSON schema that can silently disagree. ADR-14's "no hand-rolled parser" is
   superseded for the batch CLI specifically; `tauri-plugin-cli` remains for the app
   binary's two flags.
-- **Discovery & migration.** `hey-listen-cli` is the documented binary; the
+- **Discovery.** `hey-listen-cli` is the documented binary; the
   `HEY_LISTEN_CLI`/`HEY_LISTEN_BIN` → `PATH` → app-bundle resolution order in the consumer
-  scripts now prefers it. The app-binary spelling (`hey-listen-cli analyze`) is removed and
-  documented as a migration.
+  scripts prefers it. The app binary no longer accepts the batch subcommands at all.
 - **Bundling.** The console binary ships beside the app (`externalBin` sidecar — correct
-  now, because the menu in ADR-31 *spawns* it to install it). `heylisten-mcp` stays a
-  separate, unbundled MCP client binary.
+  now, because the menu in ADR-31 *spawns* it to install it). It lives in its own crate
+  (`src-tauri/cli/`), so the app package has no `hey-listen-cli` bin target for the
+  bundler to install a second time. `heylisten-mcp` stays a separate, unbundled MCP client
+  binary.
 
 **Consequence:** scripts stop paying app-boot per command; the batch CLI gains a Windows
 stdout and a headless host. The cost is a second argument parser to keep in step with the
-engine — mitigated by sharing `cli::batch::run` + the headless session and by the
+engine — mitigated by sharing `batch::run` + the headless session and by the
 envelope-consistency test — and a one-time consumer migration off the app-binary spelling.
 See [`cli.md`](cli.md) and ADR-14 (revised).
 
-**Status: delivered (M33.B).** The console binary is `src-tauri/src/bin/hey-listen-cli.rs`
-(interface in `cli/batch/clap_args.rs`, staged as a `bundle.externalBin` sidecar by
-`scripts/prepareSidecar.mjs`); the app binary keeps only `--mcp` / `--headless` and the
-`.heyl` open path. `cli/batch/tests/console.rs` pins the mapping against the retired
-`plugins.cli` one. See [`cli.md`](cli.md) and [`packaging.md`](packaging.md).
+**Status: delivered (M33.B).** The console binary is its own crate — `src-tauri/cli/`
+(package `hey-listen-cli`, entry `src/main.rs`), which links the app lib — so the app
+package has no `hey-listen-cli` bin target; that is what lets it ship purely as the
+`bundle.externalBin` sidecar staged by `scripts/prepareSidecar.mjs`, instead of being
+bundled twice ([`packaging.md`](packaging.md)). The crate owns the implementation
+(`src/batch/`, moved out of the app lib) and its tests; its interface is
+`src/batch/clap_args.rs`; the app binary keeps only `--mcp` / `--headless` and the `.heyl`
+open path. `src/batch/tests/console.rs`
+pins the mapping against the retired `plugins.cli` one. See [`cli.md`](cli.md).
 
 ## ADR-30 — Self-update via the Tauri updater over a GitHub Releases static feed
 

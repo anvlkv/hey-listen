@@ -4,7 +4,7 @@
  * `components/timeline/ScrollBar.tsx`).
  *
  * Pure, so the parts that are easy to get subtly wrong — clamping a pan to the source,
- * and placing the thumb — are unit-tested in `scripts/timelineScroll.test.ts`.
+ * and placing the thumb — are unit-tested in `src/tests/timelineScroll.test.ts`.
  */
 
 /** Clamp a view start so the whole visible span stays inside the source. */

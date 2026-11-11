@@ -1,8 +1,9 @@
 // Shared test fixture: a minimal 16-bit PCM WAV holding a half-scale 440 Hz sine.
 //
-// The unit tests (`audio::decode`, `cli::batch`) and the headless integration test
-// all need the same file, so they `include!` this one source instead of each carrying
-// a copy (see `docs/code-hygiene.md` → "No new duplication").
+// The app-crate unit tests (`audio::decode`), the `hey-listen-cli` batch tests
+// (`src-tauri/cli/src/batch/tests/`) and the `heylisten-mcp` integration test
+// (`src-tauri/mcp/tests/`) all need the same file, so they `include!` this one source
+// instead of each carrying a copy (see `docs/code-hygiene.md` → "No new duplication").
 
 use std::path::Path;
 

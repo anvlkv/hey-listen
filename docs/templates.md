@@ -189,7 +189,7 @@ part is GUI-only.
 | `src-tauri/src/project/sections.rs` | `AnalysisSetup` / `GraphSpec` reused as the payload (no new schema). |
 | `src/state/project/` | `currentSetup` / `currentLayout` (assemble), `applyProject` pieces (apply). |
 | `src/components/Toolbar.tsx`, `src-tauri/src/menu.rs` | The Templates popover + File ▸ Templates. |
-| `src-tauri/src/cli/batch/` | `--template`. |
+| `src-tauri/cli/src/batch/` | `--template`. |
 | `src/state/mcp/`, `src-tauri/src/mcp/tools/` | The `*_template` tools. |
 
 ## Testing

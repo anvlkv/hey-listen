@@ -5,7 +5,7 @@ import type { AnnotationValues } from "../bindings/AnnotationValues";
 /**
  * Pure helpers for the annotation model (M14): clamping, labels, excerpts, and the
  * "is the frozen snapshot stale" comparison. Kept free of stores/Tauri so they can
- * be unit-tested with `npm run test:unit` (see `scripts/annotations.test.ts`); the store
+ * be unit-tested with `npm run test:unit` (see `src/tests/annotations.test.ts`); the store
  * itself lives in `state/annotations/`. See `docs/annotations.md`.
  */
 

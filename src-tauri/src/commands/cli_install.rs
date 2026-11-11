@@ -20,7 +20,8 @@ use tauri::{AppHandle, Manager, Runtime};
 /// The bundled console binary's name, as `bundle.externalBin` spells it.
 pub const BINARY_NAME: &str = "hey-listen-cli";
 
-/// The app version an installed CLI is pinned to — the crate and the app share one.
+/// The app version an installed CLI is pinned to — the `hey-listen-cli` crate's version
+/// tracks it, since there is one release channel (ADR-30).
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, thiserror::Error)]

@@ -279,7 +279,7 @@ pub fn source_shape(state: &WindowState) -> Result<SourceShape, AnalysisError> {
 
 /// A comparable fingerprint of the active filter (`None` = unfiltered), as canonical
 /// JSON so a live side and a saved snapshot compare with `==` (M25.C).
-pub(crate) fn filter_fingerprint(state: &WindowState) -> Option<String> {
+pub fn filter_fingerprint(state: &WindowState) -> Option<String> {
     let guard = state
         .audio
         .filter

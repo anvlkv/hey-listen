@@ -7,7 +7,7 @@
  * rather than a sub-span of it. A project without annotations keeps whatever window the
  * user has (see `docs/annotations.md` → Surfacing; hey-listen-report §6.6).
  *
- * Pure, so the decision is unit-tested in `scripts/saveWindow.test.ts`.
+ * Pure, so the decision is unit-tested in `src/tests/saveWindow.test.ts`.
  */
 
 /** Tolerance for "already the whole source" (seconds). */
