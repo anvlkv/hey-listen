@@ -21,12 +21,14 @@
 
 pub mod annotations;
 mod error;
+mod migrate;
 mod read;
 pub(crate) mod sections;
 pub mod side;
 mod write;
 
 pub use error::ProjectError;
+pub use migrate::DroppedSection;
 pub use read::{read_project, LoadedProject};
 pub use sections::{
     AnalysisSetup, AnalysisWindow, Annotation, AnnotationValues, Meta, SourceDescriptor,
@@ -39,6 +41,10 @@ pub use write::{write_project, write_project_atomic, SaveProject};
 pub const MAGIC: [u8; 4] = *b"HEYL";
 /// Container version (`docs/project-file-format.md`).
 pub const VERSION: u32 = 1;
+/// The oldest container version this build reads. Older files are migrated forward through
+/// the step chain in [`migrate`] (ADR-32); anything outside `MIN_READ_VERSION..=VERSION`
+/// is an `UnsupportedVersion` error.
+pub const MIN_READ_VERSION: u32 = 1;
 /// Feature flags; unused today (bit 0 is reserved for a future endianness/compression
 /// flag), so writers emit 0 and readers ignore it.
 pub const FLAGS: u32 = 0;

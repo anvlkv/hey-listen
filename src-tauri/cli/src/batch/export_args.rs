@@ -62,6 +62,7 @@ pub(super) fn validate(request: &Request) -> Result<(), String> {
         Command::Analyzers { .. }
         | Command::Annotations { .. }
         | Command::Compare { .. }
+        | Command::Migrate { .. }
         | Command::ProjectSave { .. } => {
             return Err("--out is only for `analyze` and `synth`".into());
         }

@@ -15,6 +15,7 @@ use hey_listen_lib::audio::graph::{GraphEdge, GraphNode, GraphSpec};
 mod annotations;
 mod compare;
 mod console;
+mod migrate;
 mod options;
 mod output;
 mod parse;

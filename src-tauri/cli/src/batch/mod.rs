@@ -1,4 +1,5 @@
-//! Batch CLI logic: `analyzers` / `analyze` / `synth` / `annotations` / `compare` / `project`.
+//! Batch CLI logic: `analyzers` / `analyze` / `synth` / `annotations` / `compare` / `project` /
+//! `migrate`.
 //!
 //! A **windowless front end over the shared headless session** ([`HeadlessSession`],
 //! the same engine facade `heylisten-mcp --headless` drives). It maps the parsed
@@ -16,8 +17,8 @@
 //! `audio::graph` functions the GUI commands do.
 //!
 //! The implementation is split by subcommand: [`args`] maps the arguments onto a
-//! [`Request`], [`analyze`] / [`analyzers`] / [`annotations`] / [`synth`] run each
-//! subcommand, and [`output`] writes the JSONL.
+//! [`Request`], [`analyze`] / [`analyzers`] / [`annotations`] / [`synth`] / [`migrate`] run
+//! each subcommand, and [`output`] writes the JSONL.
 
 mod analyze;
 mod analyzers;
@@ -29,6 +30,7 @@ mod compare_save;
 mod export;
 mod export_args;
 mod inputs;
+mod migrate;
 mod output;
 mod project;
 mod synth;
@@ -51,6 +53,7 @@ use analyze::run_analyze;
 use analyzers::run_analyzers;
 use annotations::run_annotations;
 use compare::run_compare;
+use migrate::run_migrate;
 use output::Output;
 use project::run_project_save;
 use synth::run_synth;
@@ -70,10 +73,12 @@ pub fn run(request: &Request, out: &mut impl Write) -> i32 {
 }
 
 fn run_request(request: &Request, out: &mut impl Write) -> i32 {
-    // A comparison loads two project files itself (each side's setup + filter); it does
-    // not use the headless session the other subcommands share.
-    if matches!(request.command, Command::Compare { .. }) {
-        return run_compare(request, out);
+    // A comparison loads two project files itself (each side's setup + filter); `migrate`
+    // reads and rewrites files. Neither uses the headless session the others share.
+    match request.command {
+        Command::Compare { .. } => return run_compare(request, out),
+        Command::Migrate { .. } => return run_migrate(request, out),
+        _ => {}
     }
     let mut session = HeadlessSession::default();
 
@@ -128,6 +133,7 @@ fn run_request(request: &Request, out: &mut impl Write) -> i32 {
             to,
         } => run_annotations(path, *json, *full, op, to.as_deref(), out),
         Command::Compare { .. } => run_compare(request, out),
+        Command::Migrate { .. } => run_migrate(request, out),
         Command::ProjectSave { .. } => run_project_save(&mut session, request, out),
         Command::Synth {
             graph,

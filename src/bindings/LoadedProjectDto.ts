@@ -18,10 +18,20 @@ export type LoadedProjectDto = { meta: Meta, source: SourceDescriptor | null, se
  */
 results: Array<CachedResultOutput>, 
 /**
- * The project's annotations (empty when the file has no `NOTES` section).
+ * The project's annotations (empty when the file has no `ANNOTATIONS` section).
  */
 annotations: Array<Annotation>, 
 /**
  * Saved comparisons (empty when the file has no `COMPARE` section).
  */
-compare: Array<SavedComparisonInfo>, sampleRate: number, channels: number, frames: number, };
+compare: Array<SavedComparisonInfo>, 
+/**
+ * Whether the file embedded its audio (`DATA`); `false` is a **reference** project,
+ * which a re-save keeps a reference instead of silently growing into a full copy.
+ */
+embedded: boolean, 
+/**
+ * The format version the file was written with, when this build migrated it forward.
+ * The app marks the project dirty so the next save writes the current version.
+ */
+upgradedFrom: number | null, sampleRate: number, channels: number, frames: number, };

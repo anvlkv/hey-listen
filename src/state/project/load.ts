@@ -41,6 +41,8 @@ import {
   setProjectPath,
   setProjectStatus,
   setProjectTitle,
+  setReferenceProject,
+  setUpgradedFrom,
 } from "./signals";
 import type { AnalysisWindowDto, LoadedProjectDto, SourceDescriptorDto } from "./types";
 
@@ -241,6 +243,11 @@ export async function loadProject(path: string): Promise<boolean> {
     setProjectPath(path);
     setProjectTitle(projectLabel(path));
     setCreatedMs(loaded.meta.createdMs || null);
+    // A reference project (no `DATA`) re-saves as a reference, not as a full copy.
+    setReferenceProject(!loaded.embedded);
+    // A file from an older format version is migrated in memory by the core; a save makes
+    // the upgrade durable (see `dirty.ts`). See `docs/project-file-format.md` → Migrations.
+    setUpgradedFrom(loaded.upgradedFrom ?? null);
     void setWindowTitle(basename(path));
     rememberRecent(path);
     endBaseline();

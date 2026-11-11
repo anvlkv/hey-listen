@@ -8,6 +8,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use super::error::ProjectError;
+use super::read::LoadedProject;
 use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
 use super::{
     Crc32, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, FLAGS,
@@ -34,6 +35,25 @@ pub struct SaveProject<'a> {
     /// Saved comparison snapshots, one per comparison open at save time (M25.C).
     pub compare: Vec<SavedComparison>,
     pub pcm: Option<&'a SourceData>,
+}
+
+impl<'a> SaveProject<'a> {
+    /// Write a **loaded** project back unchanged: the GUI's save, the CLI's in-place
+    /// editors and `migrate` all reuse it, so there is one description of what a project
+    /// file carries (ADR-32). The source version's payloads are already migrated in memory.
+    pub fn from_loaded(loaded: &'a LoadedProject) -> Self {
+        Self {
+            name: loaded.meta.name.clone(),
+            created_ms: Some(loaded.meta.created_ms),
+            source: loaded.source.clone(),
+            setup: loaded.setup.clone(),
+            layout: loaded.layout.clone(),
+            results: loaded.results.clone(),
+            annotations: loaded.annotations.clone(),
+            compare: loaded.compare.clone(),
+            pcm: loaded.pcm.as_ref(),
+        }
+    }
 }
 
 /// Write a complete project file to `writer`. `now_ms` is the modification time

@@ -27,6 +27,7 @@ import {
   projectPath,
   projectStatus,
   refreshAdjacentProjects,
+  upgradedFrom,
 } from "../state/project";
 import { annotations } from "../state/annotations";
 import { annotationsPanelOpen, toggleAnnotationsPanel } from "../state/settings";
@@ -107,6 +108,15 @@ export default function Toolbar() {
 
       <Show when={PROJECT_LABEL[projectStatus()]}>
         <span class="app-status">{PROJECT_LABEL[projectStatus()]}</span>
+      </Show>
+      <Show when={upgradedFrom() !== null}>
+        <span
+          class="app-status"
+          data-testid="toolbar.project.upgraded"
+          title="Opened from an older project format; saving writes the current version"
+        >
+          upgraded from v{upgradedFrom()}
+        </span>
       </Show>
       <Show when={STATUS_LABEL[status()]}>
         <span class="app-status">{STATUS_LABEL[status()]}</span>

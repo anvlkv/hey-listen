@@ -45,6 +45,8 @@ enum Batch {
     Compare(CompareArgs),
     /// Build a .heyl project from a source + setup + tabs, without opening a window
     Project(ProjectArgs),
+    /// Upgrade project files to the current format version (incremental, atomic)
+    Migrate(MigrateArgs),
 }
 
 #[derive(Args)]
@@ -284,6 +286,19 @@ struct ProjectArgs {
     /// Pretty-print the saved-project record
     #[arg(long)]
     pretty: bool,
+}
+
+#[derive(Args)]
+struct MigrateArgs {
+    /// Project file(s) to upgrade in place
+    #[arg(value_name = "FILE.heyl")]
+    file: Vec<String>,
+    /// Embed a reference project's audio instead of keeping it a reference
+    #[arg(long)]
+    embed: bool,
+    /// Do not keep a `.bak` copy beside each rewritten file
+    #[arg(long)]
+    no_backup: bool,
 }
 
 /// clap's argument id is the derive field name, i.e. the `plugins.cli` name with

@@ -282,18 +282,7 @@ fn load(path: &str) -> Result<LoadedProject, String> {
 /// Write `loaded` to `target` through the shared atomic helper, so a failure cannot
 /// truncate the original project.
 fn write_atomic(loaded: &LoadedProject, target: &str, now: u64) -> Result<(), String> {
-    let save = SaveProject {
-        name: loaded.meta.name.clone(),
-        created_ms: Some(loaded.meta.created_ms),
-        source: loaded.source.clone(),
-        setup: loaded.setup.clone(),
-        layout: loaded.layout.clone(),
-        results: loaded.results.clone(),
-        annotations: loaded.annotations.clone(),
-        compare: loaded.compare.clone(),
-        pcm: loaded.pcm.as_ref(),
-    };
-    write_project_atomic(Path::new(target), &save, now)
+    write_project_atomic(Path::new(target), &SaveProject::from_loaded(loaded), now)
         .map_err(|err| format!("could not replace {target}: {err}"))
 }
 

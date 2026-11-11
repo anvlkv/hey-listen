@@ -111,6 +111,13 @@ pub fn build_request(name: &str, matches: &dyn ArgSource) -> Result<Request, Str
                 reference: flag(matches, "reference"),
             };
         }
+        BatchCommand::Migrate => {
+            request.command = Command::Migrate {
+                paths: strings(matches, "file"),
+                embed: flag(matches, "embed"),
+                backup: !flag(matches, "no-backup"),
+            };
+        }
     }
     validate(&request)?;
     Ok(request)
@@ -248,6 +255,14 @@ fn validate(request: &Request) -> Result<(), String> {
             }
             (Some(_), None) => {}
         },
+        Command::Migrate { paths, .. } => {
+            if paths.is_empty() {
+                return Err(
+                    "migrate needs at least one project file: `hey-listen-cli migrate <FILE.heyl>...`"
+                        .into(),
+                );
+            }
+        }
     }
     if request.pretty && result_count(request) != 1 {
         return Err("--pretty prints a single result; give exactly one file and one tool".into());
@@ -269,6 +284,7 @@ pub(super) fn result_count(request: &Request) -> usize {
         Command::Annotations { .. } => 0,
         Command::Compare { .. } => tool_count(request) + unknown,
         Command::ProjectSave { .. } => 1,
+        Command::Migrate { paths, .. } => paths.len(),
     }
 }
 
