@@ -17,6 +17,13 @@ import {
 const sones = (value: number) => `${value.toFixed(3)} sone`;
 const phons = (value: number) => `${value.toFixed(1)} phon`;
 
+/** A track's median level, or `null` when the payload is absent or off the frame grid. */
+function trackMedian(values: (number | null)[] | undefined, frames: number): number | null {
+  if (!values || values.length !== frames) return null;
+  const finite = present(values);
+  return finite.length === 0 ? null : percentile(finite, 0.5);
+}
+
 /** The conventional sone → phon curve, mirroring the engine. */
 function soneToPhon(sone: number): number {
   if (!Number.isFinite(sone) || sone <= 0) return 0;
@@ -31,6 +38,11 @@ function soneToPhon(sone: number): number {
  * The percentiles are **order statistics of the same sone track**: N5 is the level
  * exceeded 5% of the time (the 95th percentile), N50 the median, N95 the level
  * exceeded 95% of the time (the 5th percentile) — see `lib/percentiles.ts`.
+ *
+ * The payload's broadband **RMS** (and, when calibrated, absolute **SPL**) levels are
+ * reported as median readouts and in the legend note rather than drawn on the
+ * sone/phon chart: a third y-scale would make two unrelated quantities look
+ * comparable. Their per-frame tracks stay in the payload for the timeline/export.
  */
 export default function LoudnessView(props: {
   id: AnalyzerId;
@@ -63,11 +75,40 @@ export default function LoudnessView(props: {
     return !!r && r.times.length >= 2 && r.loudnessSone.some((value) => value != null);
   };
 
+  /** The median broadband RMS level (dBFS), when the payload carries the track. */
+  const rmsMedian = (): number | null => {
+    const r = result();
+    return r ? trackMedian(r.frameRmsDb, r.times.length) : null;
+  };
+
+  /** The median absolute level (dB SPL) — present only for a calibrated run. */
+  const splMedian = (): number | null => {
+    const r = result();
+    return r ? trackMedian(r.frameSplDb, r.times.length) : null;
+  };
+
+  /** The legend's trailing fact: the model, plus the broadband level the payload reports. */
+  const legendNote = (): string | undefined => {
+    const r = result();
+    if (!r) return undefined;
+    const rms = rmsMedian();
+    const spl = splMedian();
+    const level =
+      rms == null
+        ? undefined
+        : spl == null
+          ? `RMS ${rms.toFixed(1)} dBFS (median)`
+          : `RMS ${rms.toFixed(1)} dBFS · SPL ${spl.toFixed(1)} dB SPL (median)`;
+    return [r.model, level].filter(Boolean).join(" · ") || undefined;
+  };
+
   const readouts = () => {
     const r = result();
     if (!r) return [];
     const values = present(r.loudnessSone);
     const n5 = percentile(values, 0.95);
+    const rms = rmsMedian();
+    const spl = splMedian();
     return [
       {
         label: "N5",
@@ -95,6 +136,26 @@ export default function LoudnessView(props: {
         value: `${soneToPhon(n5).toFixed(1)} phon`,
         title: "Loudness level of the N5",
       },
+      ...(rms != null
+        ? [
+            {
+              label: "RMS",
+              value: `${rms.toFixed(1)} dBFS`,
+              title:
+                "Median per-frame RMS level over the window — a broadband level for comparison, not a perceptual scale",
+            },
+          ]
+        : []),
+      ...(spl != null
+        ? [
+            {
+              label: "SPL",
+              value: `${spl.toFixed(1)} dB SPL`,
+              title:
+                "Median per-frame absolute RMS level — present only when the run is calibrated",
+            },
+          ]
+        : []),
       {
         label: "Model",
         value: [r.model, r.standard && `(${r.standard})`].filter(Boolean).join(" ") || "—",
@@ -151,7 +212,7 @@ export default function LoudnessView(props: {
               { label: "loudness (sone)", color: chartTheme().series, kind: "fill" },
               { label: "loudness level (phon)", color: chartTheme().seriesMax },
             ]}
-            note={r().model ?? undefined}
+            note={legendNote()}
           />
           <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
         </div>

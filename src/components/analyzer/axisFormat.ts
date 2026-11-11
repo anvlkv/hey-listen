@@ -20,7 +20,7 @@ export const FREQ_AXIS_SPACE = 68;
 export const Y_AXIS_SPACE = 34;
 
 /** The slice of the uPlot instance the axis value formatters read. */
-interface AxisSelf {
+export interface AxisSelf {
   scales: { [key: string]: { min?: number; max?: number } };
   axes?: { scale?: string }[];
 }
@@ -107,4 +107,24 @@ export function frequencyAxisValues(
     if (tick == null) return "";
     return zoomed ? `${noteName(tick)} ${formatFrequency(tick)}` : formatFrequency(tick);
   });
+}
+
+/**
+ * A tick formatter for an **index** axis whose rows are band centres (a matrix whose
+ * vertical axis is an ordinal band, not a frequency scale): the tick is a row index,
+ * labelled with that row's physical value in Hz. Ticks outside the grid stay blank.
+ */
+export function bandIndexValues(
+  bands: () => number[],
+  count: () => number,
+): (self: unknown, ticks: (number | null)[]) => string[] {
+  return (_self, ticks) => {
+    const values = bands();
+    const bins = count();
+    return ticks.map((tick) => {
+      if (tick == null) return "";
+      const band = Math.round(tick);
+      return band >= 0 && band < bins ? formatFrequency(values[band]) : "";
+    });
+  };
 }

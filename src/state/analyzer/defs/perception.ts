@@ -155,7 +155,8 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       "from the specific-loudness distribution: the distribution is weighted toward " +
       "its high-frequency part, so a brighter sound scores higher than a dull, " +
       "low-frequency one at the same loudness. A 1 kHz reference tone reads about " +
-      "1 acum.\n\n" +
+      "1 acum. The panel under the chart decomposes each frame into per-band " +
+      "contributions.\n\n" +
       "**Why use it.** Sharpness separates a dull thud from a piercing, metallic or " +
       "hissy sound, which a physical brightness measure such as the spectral centroid " +
       "only approximates.\n\n" +
@@ -172,7 +173,7 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       style: "area",
       sampling: "frame-centre",
       // Sharpness is the high-frequency-weighted integral of specific loudness; link
-      // to that full-window distribution (per-frame contribution needs engine data).
+      // to that full-window distribution (the drill-down panel shows the per-band parts).
       supportingTool: "specificLoudness",
     }),
     params: [
@@ -199,7 +200,8 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       "critical bands, each band's envelope is filtered near **70 Hz**, and the " +
       "result is weighted across bands and across frequency. A 1 kHz tone at " +
       "60 dB SPL, 100 % amplitude-modulated at 70 Hz, reads about 1 asper; a steady " +
-      "carrier reads about 0.\n\n" +
+      "carrier reads about 0. The panels under the chart show the per-band " +
+      "contribution and, for the cursor's frame, the band × rate grid.\n\n" +
       '**Why use it.** It separates a harsh, buzzy or rough sound — a rolled "r", ' +
       "distortion, a growl — from a smooth one with the same spectrum. Slow pulsing " +
       "belongs to *Fluctuation strength*, not here.\n\n" +
@@ -214,8 +216,9 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       style: "area",
       sampling: "frame-centre",
       // Roughness is the ~70 Hz band-envelope modulation contribution; link to the
-      // AM/FM modulation spectra (per-band/per-rate contribution needs engine data).
+      // AM/FM modulation spectra (the drill-down panel marks the weighted rate).
       supportingTool: "modulation",
+      rateTarget: 70,
     }),
     params: [
       {
@@ -240,7 +243,8 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       "vacil: the slow pulsing or wobble of a sound. It is the same band-envelope " +
       "model as *Roughness* with the modulation filter moved down to **4 Hz**. A " +
       "1 kHz tone at 60 dB SPL, 100 % amplitude-modulated at 4 Hz, reads about " +
-      "1 vacil; a steady carrier reads about 0.\n\n" +
+      "1 vacil; a steady carrier reads about 0. The panels under the chart show the " +
+      "per-band contribution and, for the cursor's frame, the band × rate grid.\n\n" +
       "**Why use it.** It rates tremolo, rumbling machinery and distant " +
       "helicopters — fluctuations too slow to sound rough but fast enough to pulse. " +
       "Rapid beating belongs to *Roughness*.\n\n" +
@@ -255,8 +259,9 @@ export const PERCEPTION_ANALYZERS: AnalyzerDef[] = [
       style: "area",
       sampling: "frame-centre",
       // Fluctuation strength is the ~4 Hz band-envelope modulation contribution; link
-      // to the AM/FM modulation spectra (per-band/per-rate contribution needs engine data).
+      // to the AM/FM modulation spectra (the drill-down panel marks the weighted rate).
       supportingTool: "modulation",
+      rateTarget: 4,
     }),
     params: [
       {

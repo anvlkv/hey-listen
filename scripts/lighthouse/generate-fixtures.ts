@@ -155,11 +155,83 @@ function thinMatrix(result: Result) {
   if (Array.isArray(result.bands)) result.bands = pick(result.bands, binIndices);
 }
 
+/** Round a display value so the committed JSON stays compact. */
+function round(value: number): number {
+  return Math.round(value * 1e4) / 1e4;
+}
+
+/**
+ * Thin one frame-major frame×column grid to `frames` (row subset) and at most `max`
+ * columns, keeping the column axis and the `bins`/`bands` count in step.
+ */
+function thinGrid(grid: unknown, frames: number[], countKey: string, axisKey: string, max: number) {
+  if (!grid || typeof grid !== "object") return;
+  const g = grid as Result;
+  const cols = Number(g[countKey]);
+  if (!Number.isFinite(cols) || cols <= 0 || !Array.isArray(g.values)) return;
+  const columnIndices = keepIndices(cols, Math.min(cols, max));
+  const values: number[] = [];
+  for (const frame of frames) {
+    for (const column of columnIndices) {
+      values.push(round((g.values as number[])[frame * cols + column]));
+    }
+  }
+  g.values = values;
+  g[countKey] = columnIndices.length;
+  if (Array.isArray(g[axisKey])) g[axisKey] = pick(g[axisKey], columnIndices);
+  if (Array.isArray(g.times)) g.times = pick(g.times, frames);
+  if (Number.isFinite(Number(g.frames))) g.frames = frames.length;
+}
+
+/** Thin the band × rate grid to `frames` and at most 8 bands × 8 rates. */
+function thinRateGrid(grid: unknown, frames: number[]) {
+  if (!grid || typeof grid !== "object") return;
+  const g = grid as Result;
+  const bands = Number(g.bands);
+  const rates = Number(g.rates);
+  if (!(bands > 0 && rates > 0) || !Array.isArray(g.values)) return;
+  const bandIndices = keepIndices(bands, Math.min(bands, 8));
+  const rateIndices = keepIndices(rates, Math.min(rates, 8));
+  const values: number[] = [];
+  for (const frame of frames) {
+    for (const band of bandIndices) {
+      for (const rate of rateIndices) {
+        values.push(round((g.values as number[])[frame * bands * rates + band * rates + rate]));
+      }
+    }
+  }
+  g.values = values;
+  if (Array.isArray(g.bandHz)) g.bandHz = pick(g.bandHz, bandIndices);
+  if (Array.isArray(g.rateHz)) g.rateHz = pick(g.rateHz, rateIndices);
+  g.bands = bandIndices.length;
+  g.rates = rateIndices.length;
+  g.frames = frames.length;
+}
+
 function thinSeries(result: Result) {
-  // `confidence` (pitch) is parallel to `values` and must thin with it (M36).
-  const keys = ["times", "values"];
-  if (Array.isArray(result.confidence)) keys.push("confidence");
-  thinAligned(result, keys, MAX_POINTS, "frames");
+  // Every frame-parallel column must thin on the same indices as `times`: pitch
+  // confidence/octave flags, the loudness RMS/SPL comparator, and the sone/phon tracks.
+  const times = result.times;
+  if (!Array.isArray(times)) return;
+  const indices = keepIndices(times.length, MAX_POINTS);
+  for (const key of [
+    "times",
+    "values",
+    "confidence",
+    "octaveAmbiguous",
+    "frameRmsDb",
+    "frameSplDb",
+    "loudnessSone",
+    "loudnessPhon",
+  ]) {
+    if (Array.isArray(result[key])) result[key] = pick(result[key], indices);
+  }
+  if (Number.isFinite(Number(result.frames))) result.frames = indices.length;
+  // The M36 drill-down grids stay frame-aligned with `times`; cap their column axes so
+  // the committed display fixture does not balloon.
+  thinGrid(result.contribution, indices, "bins", "bands", 32);
+  thinGrid(result.candidates, indices, "bins", "freqs", 36);
+  thinRateGrid(result.rateContribution, indices);
 }
 
 function thinRhythm(result: Result) {
@@ -180,6 +252,7 @@ function thinResult(result: Result) {
     thinMatrix(result);
   else if (Array.isArray(result.onsetStrength)) thinRhythm(result);
   else if (Array.isArray(result.amDb)) thinModulation(result);
+  else if (Array.isArray(result.loudnessSone)) thinSeries(result);
   else if (Array.isArray(result.values)) thinSeries(result);
 }
 

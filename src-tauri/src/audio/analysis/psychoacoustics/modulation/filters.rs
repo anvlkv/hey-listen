@@ -130,6 +130,8 @@ fn tick(phase: &mut usize, decim: usize) -> bool {
 pub(super) struct Channel {
     /// The band's Bark position.
     pub(super) z: f64,
+    /// The band's centre frequency (Hz), kept so a result can label its columns.
+    pub(super) hz: f64,
     pass: Biquad,
     smooth_a: OnePole,
     smooth_b: OnePole,
@@ -154,6 +156,7 @@ impl Channel {
         let (target_hz, modulation_q) = config.modulation;
         Self {
             z: f64::from(bark(centre as f32)),
+            hz: centre,
             pass: Biquad::band_pass(centre, q, config.rate),
             smooth_a: OnePole::low_pass(cutoff, config.rate),
             smooth_b: OnePole::low_pass(cutoff, config.rate),

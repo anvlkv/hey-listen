@@ -4,6 +4,8 @@
 use super::*;
 use crate::audio::analysis::tests::{calibration, median, params, tone, RATE};
 
+mod rates;
+
 /// A 1 kHz tone modulated at `rate` Hz with `depth` (1 = 100 %), at −34 dBFS peak
 /// so a 94 dB SPL calibration puts the carrier at 60 dB SPL.
 fn modulated(rate: f32, depth: f32, seconds: f32) -> Vec<f32> {
@@ -19,14 +21,14 @@ fn modulated(rate: f32, depth: f32, seconds: f32) -> Vec<f32> {
 }
 
 fn value(weighting: &Weighting, signal: &[f32]) -> f32 {
-    let (_, values) = modulate(
+    let modulation = modulate(
         signal,
         RATE,
         &params(2_048),
         weighting,
         calibration(94.0).calibration_db_spl(),
     );
-    median(&values)
+    median(&modulation.values)
 }
 
 #[test]
@@ -84,8 +86,8 @@ fn a_steady_low_carrier_does_not_read_as_roughness() {
         let mut p = params(2_048);
         p.freq_min_hz = min_hz;
         p.freq_max_hz = max_hz;
-        let (_, values) = modulate(&signal, RATE, &p, &roughness_weighting(), 0.0);
-        let measured = median(&values);
+        let modulation = modulate(&signal, RATE, &p, &roughness_weighting(), 0.0);
+        let measured = median(&modulation.values);
         assert!(
             measured < tolerance,
             "steady 35 Hz carrier over [{min_hz}, {max_hz}] Hz reads {measured} asper"
@@ -102,11 +104,15 @@ fn a_carrier_outside_the_selected_range_is_not_modulation() {
     let mut p = params(2_048);
     p.freq_min_hz = 2_000.0;
     p.freq_max_hz = 2_100.0;
-    let (_, values) = modulate(&signal, RATE, &p, &roughness_weighting(), 0.0);
+    let modulation = modulate(&signal, RATE, &p, &roughness_weighting(), 0.0);
     assert!(
-        values.iter().flatten().all(|&value| value < 0.05),
+        modulation
+            .values
+            .iter()
+            .flatten()
+            .all(|&value| value < 0.05),
         "out-of-band carrier leaks {} asper",
-        median(&values)
+        median(&modulation.values)
     );
 }
 
@@ -148,9 +154,68 @@ fn a_deeper_modulation_reads_higher() {
 fn the_level_weight_follows_the_calibration() {
     // Uncalibrated runs are relative; a calibrated run 20 dB down is quieter.
     let signal = modulated(70.0, 1.0, 0.5);
-    let (_, relative) = modulate(&signal, RATE, &params(2_048), &roughness_weighting(), 0.0);
-    let (_, weighted) = modulate(&signal, RATE, &params(2_048), &roughness_weighting(), 74.0);
-    assert!(median(&relative) > 3.0 * median(&weighted));
+    let relative = modulate(&signal, RATE, &params(2_048), &roughness_weighting(), 0.0);
+    let weighted = modulate(&signal, RATE, &params(2_048), &roughness_weighting(), 74.0);
+    assert!(median(&relative.values) > 3.0 * median(&weighted.values));
+}
+
+#[test]
+fn the_band_columns_sum_to_the_frame_value() {
+    // The contribution grid is post-`scale`/`gain`, so a frame's columns reproduce the
+    // scalar exactly; that also pins the scalar's arithmetic.
+    let modulation = modulate(
+        &modulated(70.0, 1.0, 0.5),
+        RATE,
+        &params(2_048),
+        &roughness_weighting(),
+        calibration(94.0).calibration_db_spl(),
+    );
+    let bins = modulation.bands.len();
+    assert!(bins > 0, "no critical bands");
+    assert_eq!(
+        modulation.contributions.len(),
+        modulation.values.len() * bins
+    );
+    let mut measured = 0;
+    for (frame, value) in modulation.values.iter().enumerate() {
+        let Some(value) = value else { continue };
+        let sum: f32 = modulation.contributions[frame * bins..(frame + 1) * bins]
+            .iter()
+            .sum();
+        assert!(
+            (sum - value).abs() <= 1e-3 * value.abs().max(1.0),
+            "frame {frame}: columns sum to {sum}, scalar is {value}"
+        );
+        measured += 1;
+    }
+    assert!(measured > 0, "no frame was measured");
+    assert!(
+        modulation.bands.iter().all(|band| band.is_finite()),
+        "a band centre is not finite"
+    );
+
+    // A gap frame is an all-zero row, not a missing one: silence must not invent
+    // contribution anywhere.
+    let silent = modulate(
+        &vec![0.0; RATE as usize / 2],
+        RATE,
+        &params(2_048),
+        &roughness_weighting(),
+        calibration(94.0).calibration_db_spl(),
+    );
+    assert!(
+        silent.values.iter().all(Option::is_none),
+        "silence measured a frame"
+    );
+    assert_eq!(
+        silent.contributions.len(),
+        silent.values.len() * silent.bands.len(),
+        "a gap row is missing from the grid"
+    );
+    assert!(
+        silent.contributions.iter().all(|&value| value == 0.0),
+        "a gap frame carries a contribution"
+    );
 }
 
 #[test]

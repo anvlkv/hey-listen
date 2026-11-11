@@ -4,10 +4,10 @@
 //! headless tests all use the same sample payloads instead of repeating them.
 
 use super::{
-    AnalysisResult, CalibratedSeriesResult, GapMetric, LevelsResult, LoudnessResult, LraResult,
-    LufsResult, MaskingResult, MatrixResult, ModulationPeak, ModulationResult, NoteMetric,
-    NoteMetricsResult, PitchResult, RhythmResult, SeriesResult, SpatialResult, SpectrogramResult,
-    SpectrumResult, WaveformResult,
+    AnalysisResult, CalibratedSeriesResult, CandidateGrid, Contribution, GapMetric, LevelsResult,
+    LoudnessResult, LraResult, LufsResult, MaskerInfo, MaskingResult, MatrixResult, ModulationPeak,
+    ModulationResult, NoteMetric, NoteMetricsResult, PitchResult, RateContribution, RhythmResult,
+    SeriesResult, SpatialResult, SpectrogramResult, SpectrumResult, WaveformResult,
 };
 
 pub(crate) fn series() -> SeriesResult {
@@ -48,6 +48,19 @@ pub(crate) fn pitch() -> PitchResult {
         voiced_fraction: 0.75,
         f0_reliable: false,
         confidence: vec![Some(0.9), None, Some(0.8), Some(0.7)],
+        // A small four-column candidate grid (one octave per column) so the optional pYIN
+        // payload is exercised; the rows are illustrative, not detector output.
+        candidates: Some(CandidateGrid {
+            bins: 4,
+            freqs: vec![110.0, 220.0, 440.0, 880.0],
+            values: vec![
+                0.1, 0.45, 0.4, 0.05, // frame 0
+                0.0, 0.0, 0.0, 0.0, // frame 1 (unvoiced)
+                0.05, 0.15, 0.7, 0.1, // frame 2
+                0.05, 0.75, 0.15, 0.05, // frame 3
+            ],
+        }),
+        octave_ambiguous: vec![true, false, false, false],
     }
 }
 
@@ -82,27 +95,75 @@ pub(crate) fn loudness() -> LoudnessResult {
         calibration_db_spl: 94.0,
         model: Some("Moore–Glasberg / ISO 532-2 family approximation".to_string()),
         standard: Some("ISO 532-2".to_string()),
+        frame_rms_db: vec![Some(-30.0), Some(-28.0), Some(-24.0), Some(-26.0)],
+        frame_spl_db: vec![Some(64.0), Some(66.0), Some(70.0), Some(68.0)],
     }
 }
 
 /// A representative calibrated scalar series (M28): the series fixture's track, in
-/// acum, under a 94 dB SPL calibration.
+/// acum, under a 94 dB SPL calibration, with a two-band contribution grid (M36).
+///
+/// The grid's `label` / `unit` are the fixture's own: each tool sets its own, and
+/// copying one tool's copy here would be a second place to keep in step.
 pub(crate) fn calibrated_series() -> CalibratedSeriesResult {
     let series = series();
     CalibratedSeriesResult {
         sample_rate: series.sample_rate,
         hop_size: series.hop_size,
         window_start: series.window_start,
-        times: series.times,
+        times: series.times.clone(),
         values: series.values,
         min_value: series.min_value,
         max_value: series.max_value,
         calibrated: true,
         calibration_db_spl: 94.0,
+        contribution: Some(Contribution {
+            frames: 4,
+            bins: 2,
+            times: series.times,
+            bands: vec![250.0, 1_000.0],
+            values: vec![0.5, 1.5, 0.0, 0.0, 0.25, 0.75, 0.1, 0.9],
+            label: "band contribution".to_string(),
+            unit: Some("dB".to_string()),
+        }),
+        rate_contribution: None,
     }
 }
 
-/// A representative masked spectrum (M30): three bins with their threshold curves.
+/// A representative band × modulation-rate matrix (M36): roughness / fluctuation
+/// strength's third axis, two bands × three rates over the series fixture's four frames
+/// (frame 1 is the fixture's gap, so it is a zero row).
+pub(crate) fn rate_contribution() -> RateContribution {
+    RateContribution {
+        frames: 4,
+        bands: 2,
+        rates: 3,
+        band_hz: vec![250.0, 1_000.0],
+        rate_hz: vec![4.0, 16.0, 70.0],
+        values: vec![
+            0.9, 0.1, 0.0, // frame 0: 250 Hz
+            0.1, 0.2, 0.8, // frame 0: 1 kHz
+            0.0, 0.0, 0.0, // frame 1: gap, 250 Hz
+            0.0, 0.0, 0.0, // frame 1: gap, 1 kHz
+            0.2, 0.6, 0.1, // frame 2: 250 Hz
+            0.3, 0.4, 0.5, // frame 2: 1 kHz
+            0.1, 0.2, 0.3, // frame 3: 250 Hz
+            0.2, 0.3, 0.4, // frame 3: 1 kHz
+        ],
+    }
+}
+
+/// The calibrated series fixture with the rate matrix only `roughness` and
+/// `fluctuationStrength` attach (M36).
+pub(crate) fn series_with_rates() -> CalibratedSeriesResult {
+    CalibratedSeriesResult {
+        rate_contribution: Some(rate_contribution()),
+        ..calibrated_series()
+    }
+}
+
+/// A representative masked spectrum (M30): three bins with their threshold curves and
+/// both masker kinds (M36).
 pub(crate) fn masking() -> MaskingResult {
     MaskingResult {
         sample_rate: 48_000,
@@ -116,6 +177,18 @@ pub(crate) fn masking() -> MaskingResult {
         smr_db: vec![-75.0, -36.0, -35.0],
         calibrated: true,
         calibration_db_spl: 94.0,
+        maskers: vec![
+            MaskerInfo {
+                hz: 200.0,
+                level_db: -6.0,
+                tonal: true,
+            },
+            MaskerInfo {
+                hz: 150.0,
+                level_db: -24.0,
+                tonal: false,
+            },
+        ],
     }
 }
 
@@ -313,8 +386,8 @@ pub(crate) fn samples() -> Vec<AnalysisResult> {
         AnalysisResult::Loudness(loudness()),
         AnalysisResult::SpecificLoudness(matrix),
         AnalysisResult::Sharpness(calibrated_series()),
-        AnalysisResult::Roughness(calibrated_series()),
-        AnalysisResult::FluctuationStrength(calibrated_series()),
+        AnalysisResult::Roughness(series_with_rates()),
+        AnalysisResult::FluctuationStrength(series_with_rates()),
         AnalysisResult::Masking(masking()),
         AnalysisResult::Tonality(calibrated_series()),
         AnalysisResult::Spatial(spatial()),

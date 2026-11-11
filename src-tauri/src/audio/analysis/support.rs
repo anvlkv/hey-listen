@@ -235,6 +235,9 @@ pub(super) fn pitch_series(
         },
         f0_reliable: voiced_frames >= MIN_RELIABLE_VOICED_FRAMES,
         confidence,
+        // Only pYIN reports candidates; its dispatcher fills these in.
+        candidates: None,
+        octave_ambiguous: Vec::new(),
     }
 }
 

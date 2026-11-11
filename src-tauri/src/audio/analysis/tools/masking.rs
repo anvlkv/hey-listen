@@ -61,6 +61,7 @@ pub(super) fn masking(
         smr_db: model.smr_db,
         calibrated,
         calibration_db_spl: calibration,
+        maskers: model.maskers,
     })
 }
 
@@ -167,6 +168,31 @@ mod tests {
         assert!(result.global_mask_db.iter().all(|value| value.is_finite()));
         let peak = peak_near(&result, 1_000.0, 50.0);
         assert!(result.global_mask_db[peak] < 0.0);
+    }
+
+    #[test]
+    fn the_result_names_the_maskers_behind_the_threshold() {
+        // Two tones: one clears the prominence rule in its own neighbourhood and one is
+        // followed by broadband leakage, so the masker list mixes both kinds.
+        let mono = two_tone(1_000.0, 1_200.0);
+        let result = masking(&mono, RATE, &params(4_096), &calibration(94.0)).expect("masking");
+        assert!(!result.maskers.is_empty(), "no maskers were reported");
+        assert!(
+            result.maskers.iter().any(|masker| masker.tonal),
+            "no tonal masker"
+        );
+        assert!(
+            result.maskers.iter().any(|masker| !masker.tonal),
+            "no residual masker"
+        );
+        assert!(
+            result
+                .maskers
+                .iter()
+                .any(|masker| (masker.hz - 1_000.0).abs() < 100.0 && masker.tonal),
+            "the 1 kHz tone is not named: {:?}",
+            result.maskers
+        );
     }
 
     #[test]

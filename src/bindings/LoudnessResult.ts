@@ -35,4 +35,16 @@ model?: string,
 /**
  * The standard the model approximates (e.g. "ISO 532-2").
  */
-standard?: string, };
+standard?: string, 
+/**
+ * Per-frame RMS level in **dBFS**, parallel to `times` (same hop and frame grid).
+ * A silent frame is floored, never `-inf`.
+ * (Optional on the TS wire: `serde`'s `default` + `skip_serializing_if` makes
+ * `ts-rs` emit the field as optional; it rejects bare `#[ts(optional)]` on a `Vec`.)
+ */
+frameRmsDb?: Array<number | null>, 
+/**
+ * The same frames as absolute dB SPL (`frame_rms_db + calibration_db_spl`) when the
+ * run is calibrated; empty when it is not, so no absolute level is invented.
+ */
+frameSplDb?: Array<number | null>, };

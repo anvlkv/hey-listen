@@ -1,10 +1,10 @@
 //! The postcard-safe stored form of a [`LoudnessResult`] (M36).
 //!
-//! See [`super::stored`] for the positional-wrapper rationale. The trailing `model` /
-//! `standard` fields are appended after the original eight, so a file written before
-//! they existed still decodes: `postcard` is positional, so the reader defaults the
-//! trailing fields when the buffer ends early (a pre-M36 file, never a corrupt value —
-//! the file's checksum rules that out).
+//! See [`super::stored`] for the positional-wrapper rationale. The `model` / `standard`
+//! fields and the per-frame RMS/SPL comparator are appended after the original eight, so a
+//! file written before they existed still decodes: `postcard` is positional, so the reader
+//! defaults the trailing fields when the buffer ends early (a pre-M36 file, never a corrupt
+//! value — the file's checksum rules that out).
 
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +24,8 @@ pub struct StoredLoudness {
     pub calibration_db_spl: f32,
     pub model: Option<String>,
     pub standard: Option<String>,
+    pub frame_rms_db: Vec<Option<f32>>,
+    pub frame_spl_db: Vec<Option<f32>>,
 }
 
 impl<'de> Deserialize<'de> for StoredLoudness {
@@ -53,10 +55,13 @@ impl<'de> Deserialize<'de> for StoredLoudness {
                     // The model / standard metadata: a pre-M36 file ends before them.
                     model: f.opt(),
                     standard: f.opt(),
+                    // The RMS/SPL comparator: a pre-comparator file ends before it.
+                    frame_rms_db: f.defaulted(),
+                    frame_spl_db: f.defaulted(),
                 })
             }
         }
-        deserializer.deserialize_tuple(10, LoudnessVisitor)
+        deserializer.deserialize_tuple(12, LoudnessVisitor)
     }
 }
 
@@ -79,6 +84,8 @@ impl From<&LoudnessResult> for StoredLoudness {
             calibration_db_spl: r.calibration_db_spl,
             model: r.model.clone(),
             standard: r.standard.clone(),
+            frame_rms_db: r.frame_rms_db.clone(),
+            frame_spl_db: r.frame_spl_db.clone(),
         }
     }
 }
@@ -96,6 +103,8 @@ impl From<StoredLoudness> for LoudnessResult {
             calibration_db_spl: stored.calibration_db_spl,
             model: stored.model,
             standard: stored.standard,
+            frame_rms_db: stored.frame_rms_db,
+            frame_spl_db: stored.frame_spl_db,
         }
     }
 }
@@ -149,5 +158,43 @@ mod tests {
         assert_eq!(loudness.standard, None);
         assert_eq!(loudness.loudness_sone, vec![Some(1.0), None]);
         assert!(loudness.calibrated);
+    }
+
+    #[test]
+    fn a_pre_comparator_loudness_decodes_with_defaults() {
+        // The stored form before the RMS/SPL comparator was ten fields (the original
+        // eight plus `model` / `standard`); appending the two vectors must keep an older
+        // file loadable.
+        type PreComparator = (
+            u32,
+            usize,
+            f64,
+            Vec<f32>,
+            Vec<Option<f32>>,
+            Vec<Option<f32>>,
+            bool,
+            f32,
+            Option<String>,
+            Option<String>,
+        );
+        let old: PreComparator = (
+            48_000,
+            480,
+            0.0,
+            vec![0.0, 0.01],
+            vec![Some(1.0), None],
+            vec![Some(40.0), None],
+            true,
+            94.0,
+            Some("Moore–Glasberg".to_string()),
+            None,
+        );
+        let bytes = postcard::to_stdvec(&old).expect("encode pre-comparator");
+        let stored: StoredLoudness = postcard::from_bytes(&bytes).expect("decode pre-comparator");
+        let loudness = LoudnessResult::from(stored);
+        assert!(loudness.frame_rms_db.is_empty());
+        assert!(loudness.frame_spl_db.is_empty());
+        assert_eq!(loudness.model.as_deref(), Some("Moore–Glasberg"));
+        assert_eq!(loudness.loudness_phon, vec![Some(40.0), None]);
     }
 }

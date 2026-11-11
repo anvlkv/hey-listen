@@ -51,6 +51,10 @@ impl AnalysisResult {
             | AnalysisResult::Tonality(result) => {
                 result.window_start = start;
                 shift_times(&mut result.times, shift);
+                // The drill-down grid shares the scalar series' frame axis.
+                if let Some(contribution) = &mut result.contribution {
+                    shift_times(&mut contribution.times, shift);
+                }
             }
             AnalysisResult::Spatial(result) => {
                 result.window_start = start;

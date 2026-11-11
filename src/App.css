@@ -17,6 +17,7 @@
 @import "./styles/sidebar.css";
 @import "./styles/graph.css";
 @import "./styles/analyzer.css";
+@import "./styles/heatmapPanels.css";
 @import "./styles/compare.css";
 @import "./styles/compareViews.css";
 @import "./styles/noteMetrics.css";

@@ -6,7 +6,7 @@
   --space-chart-wide: calc(10px * var(--ui-scale, 1));
   --tab-inline-padding: calc(7px * var(--ui-scale, 1));
   --tab-label-gap: calc(4px * var(--ui-scale, 1));
-  --tab-strip-height: calc(28px * var(--ui-scale, 1));
+  --tab-strip-height: calc(26px * var(--ui-scale, 1));
 
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: calc(16px * var(--ui-scale, 1));

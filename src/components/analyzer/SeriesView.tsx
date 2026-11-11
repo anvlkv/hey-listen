@@ -2,9 +2,13 @@ import { For, Show } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu from "./ReframeMenu";
 import TimeSeriesChart, { type SecondaryTrack } from "./TimeSeriesChart";
+import ContributionPanel from "./ContributionPanel";
+import PitchCandidatesPanel from "./PitchCandidatesPanel";
+import RateMatrix from "./RateMatrix";
 import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
 import ToolLink from "./ToolLink";
 import { useTimeChart, timeSeriesData } from "./timeChart";
+import { octaveAmbiguityMarks } from "./seriesPlugins";
 import { NoAudioState, UplotChartPlot } from "./chartCommon";
 import { coverage, seriesReadouts } from "./readouts";
 import { percentile, present } from "../../lib/percentiles";
@@ -67,7 +71,9 @@ const SAMPLING_NOTE: Record<NonNullable<SeriesViewConfig["sampling"]>, string> =
  * A **pitch** track is auditable (M36): its registry entry declares
  * `view.pitchDisplay`, so the per-frame confidence is drawn on its own right-hand
  * scale with a guide rule, the frequency axis names notes, and the legend says what
- * each mark is. The branch is descriptor data — never an id prefix.
+ * each mark is. A result that carries pYIN candidate distributions gets the
+ * candidate-probability heatmap below the chart, and frames flagged octave-ambiguous
+ * are ringed on the f0 track. The branch is descriptor data — never an id prefix.
  */
 export default function SeriesView(props: {
   id: AnalyzerId;
@@ -132,7 +138,23 @@ export default function SeriesView(props: {
     return voiced.length === 0 ? null : percentile(voiced, 0.5);
   };
 
-  /** A pitch chart's marks: f0, the reliability track, and its display guide. */
+  /**
+   * The detector's octave-ambiguity flags, parallel to the f0 track. Only pYIN carries
+   * them; `null` means the payload is absent (or does not line up with the track).
+   */
+  const ambiguousFlags = (): boolean[] | null => {
+    const r = result() as Partial<PitchResult> | null;
+    const flags = r?.octaveAmbiguous;
+    return flags && r?.values && flags.length === r.values.length ? flags : null;
+  };
+
+  /** Frames whose f0 has a comparable candidate an octave away. */
+  const ambiguousCount = (): number => ambiguousFlags()?.filter(Boolean).length ?? 0;
+
+  /** A pitch chart's extra draw plugins: the rings on octave-ambiguous frames. */
+  const pitchPlugins = () => (pitch() ? [octaveAmbiguityMarks(ambiguousFlags)] : []);
+
+  /** A pitch chart's marks: f0, the reliability track, its display guide and the rings. */
   const pitchLegend = (): ChartLegendEntry[] => {
     const display = pitch();
     if (!display) return [];
@@ -146,6 +168,9 @@ export default function SeriesView(props: {
         color: chartTheme().reference,
         kind: "dashed",
       });
+    }
+    if (ambiguousCount() > 0) {
+      rows.push({ label: "octave-ambiguous frame", color: chartTheme().markerBeat });
     }
     return rows;
   };
@@ -188,7 +213,14 @@ export default function SeriesView(props: {
                 <Readout
                   label="Confidence"
                   value={`${confidenceMedian()!.toFixed(2)} median`}
-                  title="Median per-frame confidence over voiced frames. Per-frame only — candidate frequencies and octave-ambiguity flags are not provided by the engine."
+                  title="Median per-frame confidence over voiced frames. Per-frame only — candidate probabilities are the drill-down heatmap below."
+                />
+              </Show>
+              <Show when={ambiguousFlags()}>
+                <Readout
+                  label="Ambiguous"
+                  value={`${ambiguousCount()} frames`}
+                  title="Voiced frames whose f0 has a comparable pitch candidate an octave away — drawn as rings on the track"
                 />
               </Show>
             </Show>
@@ -239,15 +271,27 @@ export default function SeriesView(props: {
                 frequencyY={pitch()?.noteLabels ?? false}
                 yAxisSize={pitch() ? 64 : undefined}
                 secondary={confidenceTrack()}
+                plugins={pitchPlugins()}
               />
             </Show>
           </UplotChartPlot>
           <Show when={plottable()}>
             <ChartLegend
               entries={pitch() ? pitchLegend() : featureLegend()}
-              note={pitch() ? "per-frame confidence" : legendNote()}
+              note={
+                pitch()
+                  ? ambiguousCount() > 0
+                    ? "per-frame confidence · rings mark octave-ambiguous frames"
+                    : "per-frame confidence"
+                  : legendNote()
+              }
             />
           </Show>
+          {/* Result drill-downs (M36): the optional grids a tool carries. Each renders
+              nothing when its payload is absent (YIN/autocorrelation, older results). */}
+          <PitchCandidatesPanel result={result} zoom={zoom} />
+          <ContributionPanel result={result} zoom={zoom} />
+          <RateMatrix id={props.id} result={result} />
           <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
         </div>
       )}

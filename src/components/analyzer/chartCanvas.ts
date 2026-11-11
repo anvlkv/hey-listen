@@ -116,6 +116,40 @@ export function blitHeatmap(
   ctx.imageSmoothingEnabled = true;
 }
 
+/** The slice of a uPlot instance [`paintFrameGrid`] reads: its current x-scale. */
+interface XScaleReader {
+  scales: { [key: string]: { min?: number | null; max?: number | null } | undefined };
+}
+
+/**
+ * Blit the visible slice of a `frames × bins` heatmap whose frame centres sit at
+ * `times` (ascending), as the companion panels' current x-scale sees it.
+ *
+ * A range outside the grid clips to the background instead of stretching the edge
+ * frame, so the panel can follow a shared zoom without re-deriving where its own
+ * frames begin and end.
+ */
+export function paintFrameGrid(
+  ctx: CanvasRenderingContext2D,
+  source: HTMLCanvasElement,
+  box: PlotBox,
+  u: XScaleReader,
+  times: readonly number[],
+  frames: number,
+  bins: number,
+): void {
+  if (frames <= 0 || bins <= 0 || times.length < frames) return;
+  const start = times[0];
+  const end = times[frames - 1];
+  const span = Math.max(end - start, 1e-9);
+  const xScale = u.scales.x;
+  const from = xScale?.min ?? start;
+  const to = xScale?.max ?? end;
+  const sx = ((from - start) / span) * frames;
+  const sw = ((to - from) / span) * frames;
+  if (sw > 0) blitHeatmap(ctx, source, sx, 0, sw, bins, box);
+}
+
 /** Time-axis labels across the plot bottom, aligned so the end stops stay inside. */
 export function drawTimeAxis(ctx: CanvasRenderingContext2D, view: ChartView, box: PlotBox): void {
   const span = view.t1 - view.t0;

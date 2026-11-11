@@ -85,6 +85,11 @@ export interface SeriesView {
   semitoneGrid?: boolean;
   /** Pitch-specific presentation (a reliability track, note labels, overlay capability). */
   pitchDisplay?: PitchDisplay;
+  /**
+   * The modulation rate (Hz) the model weights (M36). Declared as descriptor data —
+   * never inferred from an id — so the band × rate drill-down can mark it.
+   */
+  rateTarget?: number;
   /** A context readout beside the chart (the option a track's meaning depends on). */
   context?: SeriesContext;
   /**

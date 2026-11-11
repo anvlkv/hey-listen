@@ -5,6 +5,7 @@ import FrequencyChart from "./FrequencyChart";
 import MaskingSmrPanel from "./MaskingSmrPanel";
 import type { ChartLegendEntry } from "./chartLegend";
 import { createUplotZoom } from "./uplotZoom";
+import { verticalMarks, type VerticalMark } from "./verticalMarkers";
 import { NoAudioState } from "./chartCommon";
 import { chartTheme } from "../../state/themes";
 import { useUplotImage } from "./chartImage";
@@ -58,6 +59,10 @@ const maskedBands = (
  * `relative level (dB)` and the legend says `Tq` is dB SPL — the two are not directly
  * comparable without calibration. Zoom and cursor are synced with the other frequency
  * charts on the `"freq"` group, and the two panels share that sync.
+ *
+ * The model's individual maskers are drawn on the level panel as vertical rules, tonal
+ * and residual in distinct colours (their own legend entries), so a threshold can be
+ * read against what actually produced it rather than only the resulting curve.
  */
 export default function MaskingView(props: {
   id: AnalyzerId;
@@ -71,6 +76,21 @@ export default function MaskingView(props: {
   useUplotImage(() => props.id, levelZoom.instance);
 
   const masked = (r: MaskingResult) => r.smrDb.map((smr, i) => (smr < 0 ? r.spectrumDb[i] : null));
+
+  /** The maskers the model summed into `Tg` (empty for a result stored before M36). */
+  const maskers = () => result()?.maskers ?? [];
+
+  /** One vertical rule per masker, tonal and residual in their own colour/dash. */
+  const maskerMarks = (): VerticalMark[] =>
+    maskers()
+      .filter((masker) => Number.isFinite(masker.hz))
+      .map((masker) => ({
+        at: masker.hz,
+        color: masker.tonal ? chartTheme().markerBeat : chartTheme().filtered,
+        dash: masker.tonal ? undefined : [2, 3],
+      }));
+
+  const maskerPlugins = () => [verticalMarks(maskerMarks)];
 
   // The series are declared statically (the wrapper fixes `series` at mount).
   const data = (): [
@@ -93,19 +113,30 @@ export default function MaskingView(props: {
   /** A calibrated run measures dB SPL; otherwise the spectrum is relative. */
   const levelLabel = () => (result()?.calibrated ? "level (dB SPL)" : "relative level (dB)");
 
-  const legend = (): ChartLegendEntry[] => [
-    { label: "spectrum", color: chartTheme().seriesMean },
-    { label: "threshold in quiet (Tq)", color: chartTheme().seriesMin, kind: "dashed" },
-    { label: "masking threshold (Tg)", color: chartTheme().seriesMax, kind: "dashed" },
-    { label: "masked (SMR < 0)", color: chartTheme().markerDownbeat },
-  ];
+  const legend = (): ChartLegendEntry[] => {
+    const rows: ChartLegendEntry[] = [
+      { label: "spectrum", color: chartTheme().seriesMean },
+      { label: "threshold in quiet (Tq)", color: chartTheme().seriesMin, kind: "dashed" },
+      { label: "masking threshold (Tg)", color: chartTheme().seriesMax, kind: "dashed" },
+      { label: "masked (SMR < 0)", color: chartTheme().markerDownbeat },
+    ];
+    if (maskers().length > 0) {
+      rows.push(
+        { label: "tonal masker", color: chartTheme().markerBeat },
+        { label: "residual masker", color: chartTheme().filtered, kind: "dashed" },
+      );
+    }
+    return rows;
+  };
 
   const legendNote = () => {
     const r = result();
     if (!r) return undefined;
-    return r.calibrated
+    const calibration = r.calibrated
       ? `${r.calibrationDbSpl.toFixed(1)} dB SPL calibrated`
       : "uncalibrated — spectrum dBFS, Tq dB SPL";
+    const count = maskers().length;
+    return count > 0 ? `${calibration} · ${count} maskers` : calibration;
   };
 
   const readouts = () => {
@@ -115,6 +146,8 @@ export default function MaskingView(props: {
     const min = smr.length ? Math.min(...smr) : 0;
     const max = smr.length ? Math.max(...smr) : 0;
     const maskedBins = smr.filter((value) => value < 0).length;
+    const maskerCount = maskers().length;
+    const tonalCount = maskers().filter((masker) => masker.tonal).length;
     return [
       {
         label: "SMR",
@@ -127,6 +160,16 @@ export default function MaskingView(props: {
         value: `${maskedBins} / ${smr.length} bins`,
         title: "Bins whose level sits under the global masking threshold",
       },
+      ...(maskerCount > 0
+        ? [
+            {
+              label: "Maskers",
+              value: `${maskerCount} (${tonalCount} tonal)`,
+              title:
+                "Tonal and residual maskers the model spread over the Bark axis — the vertical rules on the level panel",
+            },
+          ]
+        : []),
       {
         label: "Calibration",
         value: r.calibrated ? `${r.calibrationDbSpl.toFixed(1)} dB SPL` : "uncalibrated",
@@ -189,6 +232,7 @@ export default function MaskingView(props: {
               yLabel={levelLabel()}
               legend={legend()}
               legendNote={legendNote()}
+              plugins={maskerPlugins()}
             />
           </div>
           <div class="analyzer-plot masking-smr" onWheel={smrZoom.wheel}>

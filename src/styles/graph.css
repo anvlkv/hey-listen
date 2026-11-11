@@ -314,16 +314,21 @@
   display: none;
 }
 
-/* Dockview's default tabs are roomy for document-style labels. Workbench tools are
-   compact instruments, so keep their chrome narrow while letting the existing UI scale
-   enlarge touch targets and spacing together. The app's searchable overflow menu retains
-   full titles; visible tabs ellipsize rather than forcing a second tab-bar layout. */
-.app-workbench {
+/* Dockview's default tabs are roomy for document-style labels (its theme root sets a
+   fixed 35px strip). Workbench tools are compact instruments, so keep their chrome
+   narrow while letting the existing UI scale enlarge spacing and targets together.
+
+   The height variable is defined on the dockview **theme root** — a descendant of
+   `.app-workbench` — so an inherited `.app-workbench` value loses to it. Override the
+   variable where it is defined, and set the strip height directly as a second guard
+   (0,2,0 beats dockview's 0,1,0 rule even though its chunk loads later). */
+.app-workbench .dockview-theme-dark,
+.app-workbench .dockview-theme-light {
   --dv-tabs-and-actions-container-height: var(--tab-strip-height);
 }
 
 .app-workbench .dv-tabs-and-actions-container {
-  min-height: var(--tab-strip-height);
+  height: var(--tab-strip-height);
 }
 
 .app-workbench .dv-tab {

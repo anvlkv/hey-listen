@@ -16,6 +16,10 @@
 use oxiaudio::dsp::PitchFrame;
 use oxiaudio::AudioBuffer;
 
+use crate::audio::analysis::CandidateGrid;
+
+mod candidates;
+
 /// Semitone bins spanning A0–B8 (MIDI-like), as in the reference implementation.
 const N_BINS: usize = 108;
 /// The lowest bin's centre frequency (A0).
@@ -33,27 +37,39 @@ const UNVOICED_UNVOICED: f64 = 0.99;
 /// Probability floor before taking the log (avoids `log(0)`).
 const LOG_FLOOR: f64 = 1e-30;
 
+/// The detector's output: one frame per hop, plus the candidate evidence behind each
+/// frame's choice.
+#[derive(Default)]
+pub(super) struct PyinOutput {
+    pub frames: Vec<PitchFrame>,
+    /// Frame-major `frames × N_BINS` candidate probabilities, aligned with `frames`.
+    pub candidates: CandidateGrid,
+    /// Parallel to `frames`: a comparable octave-away candidate competes with the choice.
+    pub octave_ambiguous: Vec<bool>,
+}
+
 /// Detect f0 with pYIN over `min_f0..max_f0` Hz.
 ///
 /// `buf` must already be the mono signal the engine analyses. Returns one frame per hop,
-/// with unvoiced frames having `frequency_hz == 0.0`.
+/// with unvoiced frames having `frequency_hz == 0.0`, and the per-frame candidate grid
+/// those frames were chosen from (see the `candidates` module).
 pub(super) fn detect(
     buf: &AudioBuffer<f32>,
     frame_size: usize,
     hop_size: usize,
     min_f0: f32,
     max_f0: f32,
-) -> Vec<PitchFrame> {
+) -> PyinOutput {
     let samples = &buf.samples;
     let sr = buf.sample_rate as f32;
     if frame_size == 0 || hop_size == 0 || sr <= 0.0 || samples.len() < frame_size {
-        return Vec::new();
+        return PyinOutput::default();
     }
     let Some(domain) = domain(sr, frame_size, min_f0, max_f0) else {
-        return Vec::new();
+        return PyinOutput::default();
     };
     if domain.range(sr).is_none() {
-        return Vec::new();
+        return PyinOutput::default();
     }
     let Domain {
         tau_min,
@@ -179,7 +195,7 @@ pub(super) fn detect(
         path[frame_index - 1] = back_pointers[frame_index * n_states + path[frame_index]] as usize;
     }
 
-    (0..n_frames)
+    let frames = (0..n_frames)
         .map(|frame_index| {
             let time_seconds =
                 ((frame_index * hop) as f64 + frame_size as f64 / 2.0) / f64::from(buf.sample_rate);
@@ -201,7 +217,16 @@ pub(super) fn detect(
                 is_voiced: true,
             }
         })
-        .collect()
+        .collect();
+    // The evidence behind the path, normalized per frame; the rows are frame-major, so
+    // they stay aligned with the returned frames.
+    let candidates = candidates::grid(&obs_voiced, &voiced_prob);
+    let octave_ambiguous = candidates::octave_ambiguous(&candidates, &path);
+    PyinOutput {
+        frames,
+        candidates,
+        octave_ambiguous,
+    }
 }
 
 /// The f0 domain a call can actually realize: the semitone bins whose centre lies

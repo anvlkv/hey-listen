@@ -14,6 +14,7 @@
 
 use serde_json::{json, Map, Value};
 
+use super::candidates;
 use crate::audio::analysis::AnalysisResult;
 
 /// Decimate a full result to at most `max_points`, respecting the result family.
@@ -65,20 +66,61 @@ pub(super) fn decimate_result(result: &AnalysisResult, max_points: usize) -> Val
         | AnalysisResult::ZeroCrossingRate(_)
         | AnalysisResult::FrameRms(_)
         | AnalysisResult::LoudnessMomentary(_)
-        | AnalysisResult::Sharpness(_)
-        | AnalysisResult::Roughness(_)
-        | AnalysisResult::FluctuationStrength(_)
-        | AnalysisResult::Tonality(_)
         | AnalysisResult::Spatial(_) => aligned(object, max, &["times", "values"]),
-        // Loudness carries two gapped tracks over one time axis.
-        AnalysisResult::Loudness(_) => {
-            aligned(object, max, &["times", "loudnessSone", "loudnessPhon"])
+        // The calibrated perceptual tracks also carry a `frames × bands` contribution
+        // grid and, for roughness / fluctuation, a `frames × bands × rates` rate matrix.
+        // Both are thinned with them so a compact result keeps every cell aligned, with
+        // the band × rate stride preserved.
+        AnalysisResult::Sharpness(r)
+        | AnalysisResult::Roughness(r)
+        | AnalysisResult::FluctuationStrength(r)
+        | AnalysisResult::Tonality(r) => {
+            aligned(object, max, &["times", "values"]);
+            if let Some(contribution) = &r.contribution {
+                thin_grid(
+                    object,
+                    max,
+                    "contribution",
+                    contribution.frames,
+                    contribution.bins,
+                );
+            }
+            if let Some(rates) = &r.rate_contribution {
+                thin_grid(
+                    object,
+                    max,
+                    "rateContribution",
+                    rates.frames,
+                    rates.bands * rates.rates,
+                );
+            }
         }
-        // Pitch tracks are series with gapped values; `confidence` is parallel to them.
-        AnalysisResult::PitchPyin(_)
-        | AnalysisResult::PitchYin(_)
-        | AnalysisResult::PitchAutocorr(_) => {
-            aligned(object, max, &["times", "values", "confidence"])
+        // Loudness carries two gapped tracks over one time axis, plus the RMS/SPL
+        // comparator on the same frame grid.
+        AnalysisResult::Loudness(_) => aligned(
+            object,
+            max,
+            &[
+                "times",
+                "loudnessSone",
+                "loudnessPhon",
+                "frameRmsDb",
+                "frameSplDb",
+            ],
+        ),
+        // Pitch tracks are series with gapped values; `confidence` and the octave flags
+        // are parallel to them, and the candidate grid thins by whole frames.
+        AnalysisResult::PitchPyin(r)
+        | AnalysisResult::PitchYin(r)
+        | AnalysisResult::PitchAutocorr(r) => {
+            aligned(
+                object,
+                max,
+                &["times", "values", "confidence", "octaveAmbiguous"],
+            );
+            if let Some(grid) = &r.candidates {
+                candidates::thin(object, r.times.len(), max, grid);
+            }
         }
         // Rhythm: thin the envelope, but keep the detected event lists whole.
         AnalysisResult::Tempo(_) | AnalysisResult::Onsets(_) | AnalysisResult::Downbeats(_) => {
@@ -190,6 +232,38 @@ fn thin_frames(
             object.insert("sourceHopSize".to_string(), json!(hop));
         }
     }
+}
+
+/// Thin a nested frame × cell grid (a contribution grid or the band × rate matrix) to
+/// the same evenly spaced frame indices as its parent track, so its `times`, axes and
+/// `values` stay a valid grid. `stride` is the cells per frame (`bins`, or
+/// `bands * rates`), which is preserved.
+fn thin_grid(object: &mut Map<String, Value>, max: usize, key: &str, frames: usize, stride: usize) {
+    let Some(Value::Object(grid)) = object.get_mut(key) else {
+        return;
+    };
+    if stride == 0 || frames <= max {
+        return;
+    }
+    let keep = indices(frames, max);
+    if let Some(Value::Array(times)) = grid.get("times") {
+        if times.len() == frames {
+            let out: Vec<Value> = keep.iter().map(|&frame| times[frame].clone()).collect();
+            grid.insert("times".to_string(), Value::Array(out));
+        }
+    }
+    if let Some(Value::Array(values)) = grid.get("values") {
+        if values.len() == frames * stride {
+            let mut out = Vec::with_capacity(keep.len() * stride);
+            for &frame in &keep {
+                let start = frame * stride;
+                out.extend_from_slice(&values[start..start + stride]);
+            }
+            grid.insert("values".to_string(), Value::Array(out));
+        }
+    }
+    grid.insert("frames".to_string(), json!(keep.len()));
+    grid.insert("sourceFrames".to_string(), json!(frames));
 }
 
 /// `max` evenly spaced indices over `length`, keeping the first and last.

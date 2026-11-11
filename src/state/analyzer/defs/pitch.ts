@@ -21,8 +21,10 @@ export const PITCH_ANALYZERS: AnalyzerDef[] = [
       "omits the median. Read `voicedFrames` / `voicedFraction` before trusting a track.\n\n" +
       "**Confidence.** The track is drawn with the detector's **per-frame confidence** " +
       "on a second, fixed 0–1 axis; the dashed 0.5 rule is a reading guide, not the " +
-      "detector's decision threshold. Candidate frequencies and octave-ambiguity flags " +
-      "are not part of the result.",
+      "detector's decision threshold. pYIN also reports its **candidate distributions**: " +
+      "the heatmap under the chart shows the probability of each semitone-bin candidate " +
+      "per frame, and frames with a comparable candidate an octave away are ringed on " +
+      "the f0 track.",
     keywords: ["pitch", "pyin", "f0", "fundamental", "melody", "viterbi"],
     section: "pitch",
     view: series("f0 (Hz)", formatHz, {

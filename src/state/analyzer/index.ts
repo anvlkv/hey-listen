@@ -30,6 +30,7 @@ export type {
   AnalyzerId,
   AnalyzerView,
   AnyAnalysisResult,
+  CalibratedSeriesResult,
   LevelsResult,
   LoudnessResult,
   LraResult,

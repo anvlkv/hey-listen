@@ -25,14 +25,14 @@ pub(super) fn fluctuation_strength(
     options: &ToolOptions,
 ) -> Result<CalibratedSeriesResult, AnalysisError> {
     let calibration = options.calibration_db_spl();
-    let (hop, values) = modulate(
+    let modulation = modulate(
         mono,
         sample_rate,
         params,
         &fluctuation_weighting(),
         calibration,
     );
-    Ok(series(values, hop, sample_rate, calibration))
+    Ok(series(modulation, sample_rate, calibration, "vacil"))
 }
 
 #[cfg(test)]
@@ -57,5 +57,16 @@ mod tests {
         assert_eq!(result.calibration_db_spl, 0.0);
         assert_eq!(result.values.len(), result.times.len());
         assert!(result.values.iter().flatten().any(|&value| value > 0.1));
+        let contribution = result.contribution.as_ref().expect("a contribution grid");
+        contribution.assert_consistent();
+        assert_eq!(contribution.label, "band modulation");
+        assert_eq!(contribution.unit.as_deref(), Some("vacil"));
+        let rates = result
+            .rate_contribution
+            .as_ref()
+            .expect("a band × rate matrix");
+        rates.assert_consistent();
+        assert_eq!(rates.frames, result.values.len());
+        assert_eq!(rates.bands, contribution.bins);
     }
 }

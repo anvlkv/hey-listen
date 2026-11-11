@@ -9,6 +9,24 @@
 
 use serde::{Deserialize, Serialize};
 
+/// One masker the model spread over the Bark axis (M36 drill-down).
+///
+/// The model sums these into `global_mask_db`; naming them lets a reader see *what*
+/// masks a line instead of only the resulting threshold. The kind is a `bool` because
+/// there are exactly two: a tonal component or the residual (non-tonal) energy.
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MaskerInfo {
+    /// The masker's centre frequency (Hz), converted back from its Bark position.
+    pub hz: f32,
+    /// The masker's level in `spectrum_db`'s unit — a tonal masker's summed main lobe,
+    /// or a residual band's summed power.
+    pub level_db: f32,
+    /// Tonal (true) or residual/non-tonal (false).
+    pub tonal: bool,
+}
+
 /// One averaged spectrum with its masking model.
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
@@ -36,4 +54,8 @@ pub struct MaskingResult {
     pub calibrated: bool,
     /// The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated).
     pub calibration_db_spl: f32,
+    /// The maskers behind `global_mask_db`, tonal ones first, then the residual bands
+    /// (M36 drill-down). Empty for a stored result written before the field existed.
+    #[serde(default)]
+    pub maskers: Vec<MaskerInfo>,
 }

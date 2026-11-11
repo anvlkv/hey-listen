@@ -2422,5 +2422,47 @@ code-level plan is [`chart-review/chart-recommendations.md`](chart-review/chart-
 - Four phases: linked waveform+spectrogram + shared coordinates; perceptual truthfulness
   (`specificLoudness`, `masking`, pYIN, loudness); psychoacoustic contribution drill-downs;
   and legibility/encodings across heatmaps, rhythm, modulation, `noteMetrics`, and themes.
-- No new analyzers; reuse the existing sync/overlay/colour-map plumbing. Confirm current
-  status and start only when asked.
+- No new analyzers; reuse the existing sync/overlay/colour-map plumbing.
+- Plus the cross-cutting review conventions: zoom controls revealed only while a chart is
+  in use, one compact bottom legend, and scale-aware whitespace (compact chart gutters and
+  Workbench tabs that grow with the UI scale).
+
+> **Implemented (M36):** result data now carries what the charts needed to stop guessing —
+> `PitchResult.confidence`, `WaveformResult.bucketRms`/`clippedBuckets`,
+> `LoudnessResult.model`/`standard`, and `MatrixResult.model`/`normalized`, each with a
+> postcard-safe stored form and a pre-field decode test. The charts add a linked
+> waveform+spectrogram pair, log-Hz/Bark/ERB frequency scales, explanatory spectrum
+> peaks/bands/legend, a shared `HeatmapScale` + colourbar (repairing `specificLoudness` and
+> adding masking's aligned SMR panel), pitch confidence/F0 overlays, self-describing
+> loudness (sone+phon, N5/N50/N95, model/calibration), matrix/rhythm/modulation encodings
+> and legends, the reworked `noteMetrics` lanes, light-theme ramp/grid contrast, and
+> sampling/bounded-scale metadata with supporting-tool links. Feature tracks with no engine
+> contribution payload link to their full-window context (`specificLoudness`,
+> `modulation`, `spectrum`) rather than inventing a per-frame drill-down. See
+> [`chart-review/milestone-proposal.md`](chart-review/milestone-proposal.md) and
+> [`chart-review/chart-recommendations.md`](chart-review/chart-recommendations.md) (items 13
+> and 14 cover the interaction/density conventions).
+>
+> **Drill-down payloads (follow-up):** the deferred data now exists. `Contribution` on the
+> calibrated-series results carries sharpness's `N'·g·z` weighting, roughness/fluctuation's
+> per-band modulation (columns sum to the scalar), and tonality's per-bin prominence;
+> `RateContribution` adds roughness/fluctuation's **band × modulation-rate** matrix (a
+> geometric 1–100 Hz axis, single-bin DFT per rate, absent from every other tool);
+> `MaskerInfo` on masking lists tonal/residual maskers; `PitchResult.candidates` +
+> `octaveAmbiguous` expose the pYIN candidate grid (size-capped); and `LoudnessResult`
+> carries `frameRmsDb`/`frameSplDb`. Each new field has the positional `Stored*` wrapper
+> and a pre-field decode test; `cargo test` is at **581 passing**.
+>
+> **Drill-down views:** the charts now consume them — `ContributionPanel` (frames × bands),
+> `RateMatrix` (band × rate at the cursor frame), masking's per-masker rules, the pYIN
+> candidate heatmap + octave-ambiguity rings, and the loudness RMS/SPL readouts — all on
+> the shared `"time"`/`"freq"` cursor, with one `HeatmapScale` shared by pixels and
+> colourbar.
+>
+> `src/preview/fixtures/` was regenerated (37 mono tools, new fields);
+> `scripts/lighthouse/generate-fixtures.ts` now skips the stereo-only `spatial`, clears
+> stale output, thins the new arrays with their siblings, and caps the drill-down grids
+> (240 frames, ≤32 contribution bands, ≤8×8 band × rate, ≤36 candidate bins).
+>
+> **Validation:** `npm run typecheck`, `npm run build`, `npm run maid`, `cargo test` (543
+> passing), and the focused native E2E `f-cross-cutting.spec.ts` (F1–F6).

@@ -30,4 +30,14 @@ pub struct LoudnessResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub standard: Option<String>,
+    /// Per-frame RMS level in **dBFS**, parallel to `times` (same hop and frame grid).
+    /// A silent frame is floored, never `-inf`.
+    /// (Optional on the TS wire: `serde`'s `default` + `skip_serializing_if` makes
+    /// `ts-rs` emit the field as optional; it rejects bare `#[ts(optional)]` on a `Vec`.)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub frame_rms_db: Vec<Option<f32>>,
+    /// The same frames as absolute dB SPL (`frame_rms_db + calibration_db_spl`) when the
+    /// run is calibrated; empty when it is not, so no absolute level is invented.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub frame_spl_db: Vec<Option<f32>>,
 }
