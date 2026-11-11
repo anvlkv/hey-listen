@@ -1,8 +1,9 @@
 /**
- * F. Cross-cutting analyzer behavior (F1–F5).
+ * F. Cross-cutting analyzer behavior (F1–F7).
  *
- * Search, no-duplicate tabs, shared-params re-run, cross-tab zoom sync, and the
- * per-tool popovers. See `docs/testing.md` → "F. Cross-cutting analyzer behavior".
+ * Search, no-duplicate tabs, shared-params re-run, cross-tab zoom sync, the
+ * per-tool popovers, and the activity bar's rail toggle. See `docs/testing.md` →
+ * "F. Cross-cutting analyzer behavior".
  */
 
 import {
@@ -28,6 +29,9 @@ import {
   dismissPopovers,
   closeAllTabs,
   activateTab,
+  click,
+  count,
+  waitFor,
 } from "../support/helpers.ts";
 
 /** Kobalte portals every popover panel with this class. */
@@ -66,7 +70,19 @@ describe("F. Cross-cutting analyzer behavior", () => {
     // The activity bar is not filtered: the Graphs tab stays reachable.
     expect(await $(activityTab("graph")).isDisplayed()).toBe(true);
 
+    // A section holding matches marks its tab with a corner dot while another section
+    // shows its cards; clearing the search clears the dot (it never becomes a filter).
+    // Count with `$$` — a removed node can still answer `isExisting()` from the driver's
+    // element cache.
+    const rhythmMatch = '[data-testid="activity.matches.rhythm"]';
+    await search.setValue("tempo");
+    await browser.waitUntil(async () => (await $$(rhythmMatch)).length > 0, {
+      timeoutMsg: "no match dot appeared on the rhythm tab",
+    });
     await search.setValue("");
+    await browser.waitUntil(async () => (await $$(rhythmMatch)).length === 0, {
+      timeoutMsg: "the match dot outlived the cleared search",
+    });
   });
 
   it("F2 opening a tool twice keeps a single tab", async () => {
@@ -196,5 +212,25 @@ describe("F. Cross-cutting analyzer behavior", () => {
       await openThenClosePopover(analyzerParams("spectrum"));
     }
     await closeTool("spectrum");
+  });
+
+  it("F7 re-selecting the active activity tab collapses the sidebar", async () => {
+    // Select the time section, whatever the previous tests left active.
+    await click(activityTab("time"));
+    await waitFor(async () => (await count(SEL.sidebar)) > 0, "the sidebar did not open");
+
+    // The tab is its own toggle: selecting the showing section collapses the rail (and
+    // its splitter), handing the width to the Workbench; another click brings it back.
+    await click(activityTab("time"));
+    await waitFor(
+      async () => (await count(SEL.sidebar)) === 0,
+      "re-selecting the active tab did not collapse the sidebar",
+    );
+    await waitFor(
+      async () => (await count(SEL.splitterSidebar)) === 0,
+      "the sidebar splitter outlived the collapse",
+    );
+    await click(activityTab("time"));
+    await waitFor(async () => (await count(SEL.sidebar)) > 0, "the sidebar did not come back");
   });
 });

@@ -57,3 +57,17 @@
   width: 2px;
   background: var(--accent);
 }
+
+/* A section holds hits for the Sidebar's current search while its cards are not
+   showing (another tab is selected, or the rail is collapsed): a corner dot, small
+   enough not to compete with the section icon. */
+.activitybar-match {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+}

@@ -263,12 +263,13 @@ The remaining tools are trusted through the parametrized smoke test.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
-| F1 | Search | Type in the Sidebar search box; list filters by title/keywords; graph editors stay visible | Scenario |
+| F1 | Search | Type in the Sidebar search box; list filters by title/keywords; graph editors stay visible; an inactive section holding matches shows the activity bar's match dot, which clears with the query | Scenario |
 | F2 | No duplicates | Open a tool twice; one tab, existing tab focused | Scenario |
 | F3 | Shared params | Change FFT size / channel / freq range; `run_analysis` re-fires, all open tools agree | Scenario |
 | F4 | Zoom/cursor sync | Zoom one time chart (the visible range actually narrows); x-zoom mirrors across the time-group tabs | Scenario |
 | F5 | Popovers | Params + about popovers render per-tool config/copy | Smoke |
 | F6 | Zoom persistence | Zoom a chart, then change the shared FFT size (an analysis re-run; the test waits for the new hop before asserting); the zoom survives (used to snap back to the full window) | Scenario |
+| F7 | Sidebar collapse | Re-selecting the activity tab that is already showing its cards collapses the Sidebar and its splitter; a further click restores it | Scenario |
 
 ### G. Timeline
 

@@ -184,8 +184,8 @@ popover. See [`theming.md`](theming.md).
 | Region | Role | Annotations |
 | --- | --- | --- |
 | **Timeline** (bottom-right) | waveform + analysis-window range slider + the annotation lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; pick a channel or downmix to mono for multichannel sources; carries the **Filter switch** (the on/bypassed indicator and bypass control in one — it reads **off** while the filter graph is still the identity seed); **overlays the filtered signal** when a filter is active; carries the **annotation anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor |
-| **Activity bar** (far left) | category switcher (VSCode-style) | one icon per analyzer section plus the two graph editors; selecting a section filters the Sidebar to it (selecting again shows all); the graph entries open their tabs directly; not a tab, not resizable |
-| **Sidebar** (top-left) | tool picker (analyzers only) | lists the analyzer tools, grouped by domain (or one section when the Activity bar narrows it); a search box filters the analyzer list; opens Workbench tabs |
+| **Activity bar** (far left) | category switcher (VSCode-style) | one icon per analyzer section plus the two graph editors; selecting a tab gives the Sidebar that tab's cards, selecting the showing tab again collapses the rail (a dot marks a section holding search matches); the graph entries open their tabs directly; not a tab, not resizable |
+| **Sidebar** (top-left) | tool picker (analyzers only) | shows the selected tab's analyzer cards (or the two editors on the Graphs tab); a sticky search box filters them; collapses to give the Workbench its width; opens Workbench tabs |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
 | **Source** (bottom-left) | audio source picker (file / mic / system / process / mix / synth) | changing the source replaces the whole timeline |
 | **Annotations** (right rail; code/test ids say `annotations`) | the project's annotations — a list of markdown annotations anchored to a time + chart | collapsible, hidden by default; a fixed region, **not** a tab (M14) |
@@ -295,20 +295,25 @@ None of these are closable, draggable, or tabbed.
 
 ## Activity bar + Sidebar
 
-The vertical **Activity bar** (far left, fixed 44 px width) is a VSCode-style category
-switcher: one icon per analyzer section — time / spectral / pitch / rhythm / loudness
-(`src/state/analyzer/defs.ts` → `ANALYZER_SECTIONS`) — plus the two graph editors
-(`filter`, `synth`) pinned at the bottom. Selecting a section filters the **Sidebar**
-to that section's analyzers (selecting it again returns to "everything", the default);
-the graph entries open their Workbench tab directly. The Activity bar is a fixed region
-— not a tab, and not resizable.
+The vertical **Activity bar** (far left, fixed 44 px width) is a VSCode-style tab
+switcher: one icon per analyzer section (`ANALYZER_SECTIONS` in
+`src/state/analyzer/defs.ts`) plus a **Graphs** tab for the two graph editors (`filter`,
+`synth`). Selecting a tab gives the **Sidebar** that tab's cards; selecting the tab whose
+cards are already showing **collapses** the rail and its splitter, handing the width to the
+Workbench (any click on the bar brings it back — the rail is never unreachable). The graph
+entries open their Workbench tabs directly. The Activity bar is a fixed region — not a
+tab, and not resizable. Because the search box lives in the rail, a section that holds
+**matches** for the current query keeps a small dot next to its icon while another
+section is showing (`src/state/sidebarSearch.ts`).
 
 The Sidebar's **width is draggable** (a splitter between it and the Workbench,
-clamped to 160–520 px). It lists every available analyzer tool (see
-[`analysis-tools.md`](analysis-tools.md)), grouped by domain unless the Activity bar has
-narrowed it to one section. A **sticky search box** at the top filters the analyzer list
-by title, description, and keywords (within the visible section). Clicking an entry
-opens its tab in the Workbench (no-op if already open; selects the existing tab).
+clamped to 160–520 px) and a collapse/reopen restores the same width. It shows the
+Activity bar's section: that section's analyzers (see
+[`analysis-tools.md`](analysis-tools.md)), or the two editors on the Graphs tab. A
+**sticky search box** at the top filters the visible cards by title, description, and
+keywords; the query survives a tab switch and a collapse (it is shared state, not
+component state, so the match dots stay truthful while the rail is hidden). Clicking a
+card opens its Workbench tab (no-op if already open; selects the existing tab).
 
 ## Annotations panel
 

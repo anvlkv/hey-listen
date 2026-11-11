@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show, type JSX } from "solid-js";
+import { createMemo, For, Show, type JSX } from "solid-js";
 import Icon from "./Icon";
 import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
@@ -12,12 +12,15 @@ import {
   type AnalyzerDef,
 } from "../state/analyzer";
 import { activeTab } from "../state/activityBar";
+import { analyzerQuery, setAnalyzerQuery } from "../state/sidebarSearch";
 
 /**
  * Sidebar (fixed region): the tool picker. It shows the cards of the activity bar's
  * **active tab** — one analyzer section, or the two graph editors. A **search box**
  * (hidden on the Graphs tab) filters the active section's analyzers by title,
- * description, and keywords. Clicking an entry opens (or focuses) its Workbench tab.
+ * description, and keywords; the query lives in [`sidebarSearch`](../state/sidebarSearch.ts)
+ * so the Activity bar can mark the sections it matches while another one is showing.
+ * Clicking an entry opens (or focuses) its Workbench tab.
  * See `docs/ui-layout.md` and `docs/analysis-tools.md`.
  *
  * Each analyzer row carries the tool's **chart-type** icon in its bottom-right corner
@@ -46,9 +49,7 @@ const graphTools = (): SidebarTool[] =>
   });
 
 export default function Sidebar(props: { style?: JSX.CSSProperties }) {
-  const [query, setQuery] = createSignal("");
-
-  const matches = (def: AnalyzerDef) => matchesQuery(def, query());
+  const matches = (def: AnalyzerDef) => matchesQuery(def, analyzerQuery());
 
   const isGraph = () => activeTab() === "graph";
   const section = () => ANALYZER_SECTIONS.find((item) => item.id === activeTab());
@@ -94,8 +95,8 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
             type="search"
             placeholder="Search analyzers…"
             aria-label="Search analyzers"
-            value={query()}
-            onInput={(event) => setQuery(event.currentTarget.value)}
+            value={analyzerQuery()}
+            onInput={(event) => setAnalyzerQuery(event.currentTarget.value)}
           />
         </div>
       </Show>
@@ -109,7 +110,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
               when={sectionTools().length > 0}
               fallback={
                 <div class="sidebar-empty" data-testid="sidebar.empty">
-                  No analyzers match “{query()}”.
+                  No analyzers match “{analyzerQuery()}”.
                 </div>
               }
             >
