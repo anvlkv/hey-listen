@@ -10,10 +10,13 @@ function gradient(stops: HeatmapScale["stops"]): string {
 /**
  * The colourbar for a matrix heatmap (M36).
  *
- * A compact strip along the chart's bottom edge: the active theme's ramp, labelled at
- * the domain's ends and its midpoint in the result's own unit. It renders the
- * [`HeatmapScale`](./heatmapScale.ts) the heatmap image was built from, so the bar and
- * the pixels use one mapping — the denominator cannot silently disagree with the image.
+ * A compact strip along the chart's bottom edge: the active theme's ramp, labelled **on**
+ * the stripe at the domain's ends and its midpoint in the result's own unit. The labels
+ * are bold with a dark halo rather than a scrim, so they stay legible over every stop of
+ * either ramp (pale slate … deep navy in light, near-black … white in dark) without
+ * covering the colour each one names. It renders the [`HeatmapScale`](./heatmapScale.ts)
+ * the heatmap image was built from, so the bar and the pixels use one mapping — the
+ * denominator cannot silently disagree with the image.
  */
 export default function HeatmapColorScale(props: { scale: HeatmapScale; label?: string }) {
   return (
@@ -21,11 +24,15 @@ export default function HeatmapColorScale(props: { scale: HeatmapScale; label?: 
       <Show when={props.label}>
         <span class="heatmap-scale-label">{props.label}</span>
       </Show>
-      <span class="heatmap-scale-ramp" style={{ background: gradient(props.scale.stops) }} />
-      <span class="heatmap-scale-ticks">
-        <span>{props.scale.formatter(props.scale.min)}</span>
-        <span>{props.scale.formatter(props.scale.at(0.5))}</span>
-        <span>{props.scale.formatter(props.scale.max)}</span>
+      <span class="heatmap-scale-bar">
+        <span class="heatmap-scale-ramp" style={{ background: gradient(props.scale.stops) }} />
+        <span class="heatmap-scale-ticks">
+          <span class="heatmap-scale-tick is-min">{props.scale.formatter(props.scale.min)}</span>
+          <span class="heatmap-scale-tick is-mid">
+            {props.scale.formatter(props.scale.at(0.5))}
+          </span>
+          <span class="heatmap-scale-tick is-max">{props.scale.formatter(props.scale.max)}</span>
+        </span>
       </span>
     </div>
   );
