@@ -6,8 +6,10 @@ the `.heyl` project file association is registered by the bundle.
 
 ## Release process
 
-1. Bump `version` in all three of `src-tauri/tauri.conf.json`,
-   `src-tauri/Cargo.toml`, and `package.json` — keep them equal. That is everything:
+1. Bump `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`,
+   `src-tauri/cli/Cargo.toml`, `src-tauri/mcp/Cargo.toml` and `package.json` — keep them
+   equal (the console binaries follow the app version they were built from, ADR-30). That
+   is everything:
    the marketing page's download button takes its version from `package.json`,
    stamped into `site/` by `scripts/buildSite.mjs` when Pages deploys.
 2. Commit, then tag: `git tag vX.Y.Z`.
@@ -67,24 +69,31 @@ installed.
 > built next to the app (`target/{debug,release}/`) — is **not** shipped inside the
 > `.app` / installer. It is a *client* tool (an MCP client spawns it), not part of the
 > app, so bundling it as a sidecar (`externalBin`, which is meant to be *spawned by the
-> app*) would be the wrong tool. See [`mcp.md`](mcp.md).
+> app*) would be the wrong tool. It is its own crate (`src-tauri/mcp/`, package
+> `heylisten-mcp`) for the same reason the batch CLI is: a non-main bin target of the app
+> package is installed by the rpm/msi/deb bundles. See [`mcp.md`](mcp.md).
 
 > **The batch CLI *is* bundled (M33.B).** `bundle.externalBin` names
 > `binaries/hey-listen-cli`, so the `hey-listen-cli` console binary ships beside the app —
-> the app spawns it to install it (M33.D, ADR-31). Tauri appends the target triple to the
-> file name, so `src-tauri/binaries/hey-listen-cli-<triple>` must exist **before any
-> `cargo` command** (Tauri's build script resolves it, not just the bundler). No binary is
-> committed:
+> the app spawns it to install it (M33.D, ADR-31). The console binary is **its own crate**
+> (`src-tauri/cli/`, package `hey-listen-cli`, member of the `src-tauri/` workspace) that
+> links the app crate as a library. That is what keeps it out of the app package's bin
+> targets: as an auto-detected bin of the app it was bundled twice — the cargo binary *and*
+> the `externalBin` sidecar — which fails the rpm build (`invalid destination path
+> /usr/bin/hey-listen-cli - duplicate file entry`) and the WiX MSI (`ICE30`). All three
+> crates are one workspace, so they share one `Cargo.lock` and one `target/`.
+>
+> Tauri appends the target triple to the sidecar file name, so
+> `src-tauri/binaries/hey-listen-cli-<triple>` must exist **before any `cargo` command**
+> (Tauri's build script resolves it, not just the bundler). No binary is committed:
 >
 > ```bash
-> npm run sidecar   # cargo build --bin hey-listen-cli + copy to src-tauri/binaries/
+> npm run sidecar   # cargo build -p hey-listen-cli + copy to src-tauri/binaries/
 > ```
 >
 > `tauri build` runs the same script through `beforeBuildCommand`, so releases (and
 > `tauri-action`) need no extra step; the CI `rust` job runs it once before
 > clippy/tests. `tauri dev` and a bare `cargo test` on a fresh checkout do need the
-> one-time `npm run sidecar`. The binary embeds the app's Tauri context, so the staging
-> build masks `externalBin` to break the chicken-and-egg (the file must exist to build
-> it) — a `cargo` build of the app crate is therefore paid twice during a release; a
-> follow-up could split the CLI into its own crate if that ever matters. See
+> one-time `npm run sidecar`. The binary links the app's Tauri lib, so the staging build
+> masks `externalBin` to break the chicken-and-egg (the file must exist to build it). See
 > [`cli.md`](cli.md).

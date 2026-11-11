@@ -236,7 +236,7 @@ over the same registry (see [`mcp.md`](mcp.md)):
 | Path | Role |
 | --- | --- |
 | `src/lib/themeFile.ts` | The `ThemeFile` type + parse/validate/normalise. |
-| `scripts/themeFile.test.ts` | Unit checks for the model (`npm run test:unit`). |
+| `src/tests/themeFile.test.ts` | Unit checks for the model (`npm run test:unit`). |
 | `src/state/themes/` | The registry (built-ins + installed), apply pipeline, slot resolution, and the base palettes. |
 | `src/state/settings.ts` | Keeps `--ui-scale`; the theme signals live in `themes/`. |
 | `src/styles/` | The baseline palette (unchanged; becomes the fallback a theme overlays). |
@@ -249,7 +249,7 @@ over the same registry (see [`mcp.md`](mcp.md)):
 
 - **`themeFile.ts` unit checks** — parse/validate (bad kind/version/base, unknown keys
   kept, overlay normalisation `--` prefix): `npm run test:unit`
-  (`scripts/themeFile.test.ts`).
+  (`src/tests/themeFile.test.ts`).
 - **`themes.rs` unit tests** — id validation (no path traversal) and bundled-id
   uniqueness: `cargo test` in `src-tauri/`.
 - **E2E (wdio)** — `e2e/specs/m-themes.spec.ts`: reset to the default, assert the

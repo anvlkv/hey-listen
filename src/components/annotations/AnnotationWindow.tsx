@@ -5,6 +5,7 @@ import type { Annotation } from "../../bindings/Annotation";
 import { invoke } from "../../lib/ipc";
 import { analyzerById, isAnalyzerId } from "../../state/analyzer";
 import { annotationById, updateAnnotation } from "../../state/annotations";
+import { flushUiState } from "../../state/uiSync";
 import { annotationTimeText } from "../../lib/annotation";
 
 /**
@@ -35,7 +36,14 @@ export default function AnnotationWindow(props: { annotationId: string }): JSX.E
   /** Save the draft (and re-snapshot the chart values at the annotation's time), then close. */
   const commit = () => {
     updateAnnotation(props.annotationId, { title: null, body: draft(), recomputeValues: true });
-    close();
+    void (async () => {
+      // The rail is another window: it sees this edit only through the `annotations` UI-state
+      // push, and `close_window` destroys this webview — an edit still in flight would be dropped
+      // (N3 flaked in CI). Let the store's effect queue its push first, then wait for the core.
+      await Promise.resolve();
+      await flushUiState("annotations");
+      close();
+    })();
   };
 
   return (

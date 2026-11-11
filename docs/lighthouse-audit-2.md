@@ -47,7 +47,7 @@ The secondary text ramp was raised so `--fg-muted`, `--fg-dim` and `--fg-faint` 
 (`src/styles/params.css`), and `--fg-disabled` is reserved for disabled controls.
 The About dialog no longer uses the faint ramp at all.
 
-A new unit check, `scripts/themeContrast.test.ts`, merges each built-in overlay over
+A new unit check, `src/tests/themeContrast.test.ts`, merges each built-in overlay over
 its base and asserts the three tokens on both panels; it runs in `npm run test:unit`.
 
 ### A2 — Slider accessible names

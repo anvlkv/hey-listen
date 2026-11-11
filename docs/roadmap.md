@@ -324,7 +324,7 @@ control surface and the pieces that make the agent genuinely standalone:
 > `set_mcp_config` commands, and `list_projects` + `target` routing in
 > `mcp/server.rs`. `mcp.json` now lives in the app **data** dir (next to the
 > `mcp-settings.json` store file). Tests: `e2e/specs/l-mcp-ui.spec.ts` and the
-> `src-tauri/tests/headless_mcp.rs` CLI integration test. On macOS the app opts out
+> `src-tauri/mcp/tests/headless_mcp.rs` CLI integration test. On macOS the app opts out
 > of **App Nap** — the bundle sets `NSAppSleepDisabled` (`src-tauri/Info.plist`) and
 > the process asserts a user-initiated activity at startup (`src-tauri/src/app_activity.rs`),
 > because a background app has its timers throttled and can be suspended, and an agent
@@ -439,7 +439,7 @@ calling convention).
 > — `--mcp` → MCP, a subcommand → batch, else GUI; `batch.rs`: `Matches` → a plain
 > `Request` → the headless session, JSONL output, unit tests). The three subcommands
 > are declared in `tauri.conf.json` → `plugins.cli` (`analyzers` / `analyze` / `synth`)
-> and parsed by `tauri-plugin-cli`; `cli::batch::run` writes JSONL to a `Write` (so
+> and parsed by `tauri-plugin-cli`; `batch::run` writes JSONL to a `Write` (so
 > `cargo test` covers it with no app and no display) and the app exits with `0`/`1`,
 > while a batch usage error prints and exits `2` instead of opening the GUI. The shared
 > session's `set_filter_graph` tool (now also exposed headless, so the MCP server and the
@@ -476,7 +476,7 @@ forward-compatible), and its base drives dockview / `solid-flow`. See
 [`theming.md`](theming.md) (ADR-15).
 
 > **Delivered:** `src/lib/themeFile.ts` (the `ThemeFile` model + parse/validate/
-> normalise, with unit checks in `scripts/themeFile.test.ts` → `npm run test:unit`);
+> normalise, with unit checks in `src/tests/themeFile.test.ts` → `npm run test:unit`);
 > `src/state/themes/` (the registry, slots, apply pipeline, and the four base
 > palettes); `src-tauri/src/themes.rs` + `commands/themes.rs` (the byte store +
 > list/write/delete/import/export/reveal commands); the Toolbar **Appearance**
@@ -794,8 +794,8 @@ re-emitted by `cargo test` because an intra-doc link now points at the moved hel
   `chartCanvas`);
 - the three-way select trigger (`ChannelSelect` / `SelectField` / `SourcePanel`) →
   one `components/SelectTrigger.tsx`;
-- the unit-test harness (`annotations.test.ts` ↔ `themeFile.test.ts`) →
-  `scripts/testHarness.ts`;
+- the unit-test harness (`annotations.test.ts` ↔ `themeFile.test.ts`) → one shared
+  harness (since retired in favour of vitest's `it` / `expect`);
 - the triplicated splitter handlers in `App.tsx` → `lib/splitter.ts` +
   `components/Splitter.tsx`.
 
@@ -855,7 +855,7 @@ original strings by tests, so the project-file format did not change.
 
 **Files:** `src-tauri/src/audio/{analyzers,analysis/{results,types},compare}/`,
 `src-tauri/src/project/sections.rs`, `src-tauri/src/{menu,themes}.rs`,
-`src-tauri/src/cli/batch/`, `src-tauri/src/mcp/`, `src-tauri/Cargo.toml`,
+`src-tauri/cli/src/batch/`, `src-tauri/src/mcp/`, `src-tauri/Cargo.toml`,
 `src/bindings/**` (regenerated), and the frontend imports that consume them.
 
 **Tests.** Rust: the `AnalyzerId` ↔ `AnalysisResult` ↔ catalog pin test, `FromStr`
@@ -1648,7 +1648,7 @@ transient **compare view** overlays the two results. See [`comparison.md`](compa
 
 **Files:** `src-tauri/src/audio/analysis/compare/`,
 `src-tauri/src/commands/{compare,window}.rs`, `src-tauri/src/state/{mod.rs,window/mod.rs}`,
-`src-tauri/src/menu.rs`, `src-tauri/src/mcp/`, `src-tauri/src/cli/batch/`,
+`src-tauri/src/menu.rs`, `src-tauri/src/mcp/`, `src-tauri/cli/src/batch/`,
 `src/state/compare/`, `src/components/compare/`, `src/lib/dockviewLayout.ts`,
 `src/state/{workbench,uiState,menu,history,snapshot}.ts`,
 `src/state/project/{snapshot,types}.ts` (`filterSpec`), `src/index.tsx`,
@@ -1702,8 +1702,8 @@ alignment + the fine-tune offset followed in **M25.B**, and saved comparisons in
 > processed, as specified.
 
 > **Tests:** `compare/tests.rs` (grid signature, per-family delta, event pairing,
-> overlap/no-overlap, shaping), `cli/batch/tests/{compare,parse}.rs`, the unit script
-> `scripts/compare.test.ts` (panel ids, layout sanitiser, poll gate, overlay alignment),
+> overlap/no-overlap, shaping), `cli/src/batch/tests/{compare,parse}.rs`, the unit script
+> `src/tests/compare.test.ts` (panel ids, layout sanitiser, poll gate, overlay alignment),
 > and E2E `e2e/specs/r2-compare.spec.ts` (overlay + badge + mismatch, peer-close banner,
 > save/reopen with no compare tab, retarget reuse, popout lifecycle).
 
@@ -1764,7 +1764,7 @@ M25.A (saved comparisons followed in M25.C).
 > way. The rhythm and note views draw the *core's* pairings (tolerance
 > `max(20 ms, 2 hops)`; 50 ms for notes), so the chart and MCP/CLI always agree.
 
-> **Tests:** `scripts/compare.test.ts` (Δ limit/span, identical windows, bucket times,
+> **Tests:** `src/tests/compare.test.ts` (Δ limit/span, identical windows, bucket times,
 > event-pairing summary, note-table rows) and E2E `r2-compare` R2.7–R2.10 (matrix A/B/Δ
 > and no interpolation, rhythm pairing, `noteMetrics` table, modulation AM/FM), with the
 > waveform clipping rule in `r2b-compare-relative` R2.11.
@@ -1821,7 +1821,7 @@ Supersedes the absolute-time overlap rule of M25; see ADR-26.
   (or a dedicated open-compare signal) instead.
 
 **Files:** `src-tauri/src/audio/analysis/compare/{align,diff,diff/families,events}.rs`,
-`src-tauri/src/commands/compare/`, `src-tauri/src/cli/batch/{compare,args,types}.rs`,
+`src-tauri/src/commands/compare/`, `src-tauri/cli/src/batch/{compare,args,types}.rs`,
 `src-tauri/src/mcp/tools/compare.rs`, `src/state/compare/{run,views}.ts`,
 `src/state/workbench.ts`, `src/components/compare/*` (including `time`, `peerPlugins` and
 `canvasOverlays`), `src/components/analyzer/{syncPlugins,uplotZoom}.ts`,
@@ -1874,7 +1874,7 @@ persistence yet (M25.C).
 
 > **Tests:** Rust `compare/tests/relative.rs` (relative windows, δ and the common span,
 > clipping, matrix null columns, waveform bucket sampling) plus the CLI relative/offset
-> test and the follow-up `maxPoints`/pitch/axis tests; `scripts/compare.test.ts` (display
+> test and the follow-up `maxPoints`/pitch/axis tests; `src/tests/compare.test.ts` (display
 > transform, swap, clipping, reference retention); E2E `r2b-compare-relative` R2.11–R2.12
 > (waveform clipping, adjacent windows, the slider, Swap, reference survives another tab).
 
@@ -1973,7 +1973,7 @@ between sibling projects and to reach the other side of a comparison. Supersedes
   headless session. `with` is the reference **project file** (`.heyl`): A is the session,
   B runs with that file's saved window/params/options and `LAYOUT.filterSpec`, through the
   **same loader** the CLI `compare` uses (`project/side.rs`, extracted from
-  `cli/batch/compare.rs`). `saved: true` reuses the session's stored snapshot. `params` /
+  `cli/src/batch/compare.rs`). `saved: true` reuses the session's stored snapshot. `params` /
   `options` / `start` / `end` / `transient` patch A exactly as `run_analysis` does
   (`summaryOnly` / `includeData` / `maxPoints` / `axis` shape the result). The last
   successful comparison is kept in the session's window state — the same per-tool store
@@ -2030,7 +2030,7 @@ between sibling projects and to reach the other side of a comparison. Supersedes
 `src-tauri/src/commands/project/siblings.rs`,
 `src-tauri/src/commands/window/project.rs` (a project window at a file),
 `src-tauri/src/commands/compare/reference.rs`,
-`src-tauri/src/cli/batch/{project,compare,compare_save,args,types,inputs}.rs`,
+`src-tauri/cli/src/batch/{project,compare,compare_save,args,types,inputs}.rs`,
 `src-tauri/tauri.conf.json` (`plugins.cli`),
 `src-tauri/src/{lib,menu}.rs`, `src/state/project/{load,siblings,index}.ts`,
 `src/state/{menu,compare/views,mcp/dispatch}.ts`,
@@ -2260,7 +2260,7 @@ by [`lighthouse-audit-1.md`](lighthouse-audit-1.md); the before/after is
 [`lighthouse-audit-2.md`](lighthouse-audit-2.md).
 
 - **Findings fixed.** Contrast tokens in every built-in theme (with a
-  `scripts/themeContrast.test.ts` guard), the three unnamed sliders, the main landmark,
+  `src/tests/themeContrast.test.ts` guard), the three unnamed sliders, the main landmark,
   the annotation/About target sizes, the palette's accessible name, the startup popout
   race, the favicon 404 and the missing meta description. Every full run now scores
   **100** accessibility / best-practices / SEO and **≥ 97** performance; all theme
@@ -2340,7 +2340,7 @@ which keeps only `--mcp`/`--headless` + the `.heyl` open path via `tauri-plugin-
 
 - **The binary.** `hey-listen-cli` — a plain console binary (like `heylisten-mcp`) that
   runs `analyzers` / `analyze` / `compare` / `project` / `annotations` / `synth` over the
-  same `cli::batch::run` and headless session; no Tauri app, no window, no log plugin. The
+  same `batch::run` and headless session; no Tauri app, no window, no log plugin. The
   JSONL envelope is byte-identical to today's.
 - **One interface, no hand-rolled drift.** The interface stays specified once; the console
   binary parses it with `clap` derive, and a consistency test pins the envelope contract

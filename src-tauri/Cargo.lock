@@ -2179,7 +2179,6 @@ name = "hey-listen"
 version = "0.6.1"
 dependencies = [
  "base64 0.22.1",
- "clap",
  "cpal",
  "flexaudio",
  "fundsp",
@@ -2207,6 +2206,25 @@ dependencies = [
  "tauri-plugin-window-state",
  "thiserror 2.0.21",
  "ts-rs",
+]
+
+[[package]]
+name = "hey-listen-cli"
+version = "0.6.1"
+dependencies = [
+ "clap",
+ "hey-listen",
+ "serde_json",
+ "strum",
+ "tauri-plugin-cli",
+]
+
+[[package]]
+name = "heylisten-mcp"
+version = "0.6.1"
+dependencies = [
+ "hey-listen",
+ "serde_json",
 ]
 
 [[package]]

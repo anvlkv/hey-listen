@@ -86,8 +86,8 @@ Caps: bound the number of frames (existing `MAX_*` style), the number of notes
 > canonical camelCase with snake_case aliases, unknown keys are rejected in the GUI MCP
 > path, headless, and the CLI, and `list_analyzers` carries compact keys/defaults. The
 > tests below all pass (`audio::analysis::tests::pitch`, `mcp::dispatch::tests`,
-> `cli::batch::tests`, and the frontend option checks in
-> `scripts/analyzerOptions.test.ts`). The design notes that follow are kept for context.
+> `batch::tests`, and the frontend option checks in
+> `src/tests/analyzerOptions.test.ts`). The design notes that follow are kept for context.
 
 **Problem.** `pitchYin` and `pitchPyin` call the oxiaudio detectors without an f0
 range (`tools/dispatch.rs`), while `pitchAutocorr` and `harmonicRatio` accept
@@ -464,7 +464,7 @@ contract:
 
 - Rust unit tests for every behavior above, placed beside the tool modules so
   `tests.rs` stays under the line budget.
-- `scripts/annotations.test.ts` cases for the new values-line formatters.
+- `src/tests/annotations.test.ts` cases for the new values-line formatters.
 - `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `npm run maid`.
 - Regenerate `src/bindings/**` with `cargo test`; never hand-edit it.
 - Optional e2e: render a synthetic AM/FM source with the synth graph, run the three

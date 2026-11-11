@@ -1,0 +1,21 @@
+[package]
+name = "heylisten-mcp"
+# Tracks the app crate's version: the binary is built from the same release tree and serves
+# the same engine, so there is one release channel, not two (ADR-30). Bump both together
+# (see `docs/packaging.md` → Release process).
+version = "0.6.1"
+description = "Hey Listen MCP stdio entry — serve the analysis engine to an MCP client."
+edition = "2021"
+license = "Unlicense"
+# Every tool it serves lives in the app crate's lib; this package is only the console
+# entry, kept out of the app package's bin targets so the installers do not ship a client
+# binary the GUI never spawns (`docs/packaging.md`).
+publish = false
+
+[dependencies]
+hey-listen = { path = ".." }
+
+[dev-dependencies]
+# The stdio integration test (`tests/headless_mcp.rs`) speaks JSON-RPC over the binary's
+# stdin/stdout; the shared WAV fixture is `include!`d from the app crate's `tests/support/`.
+serde_json = "1"

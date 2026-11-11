@@ -40,6 +40,7 @@ save source + setup + results to a binary project file.
      duplication, dead code, Rust fmt + clippy). The git hooks run it for you: fast
      checks on commit, the whole gate on push. See `docs/code-hygiene.md`.
    - State exactly what you ran and saw.
+   - Avoid excessive and unnecessary reruns of the validation steps.
 
 6. **npm cache note:** `~/.npm` on this machine may contain root-owned files and
    throw `EPERM`. Work around with a project-local cache:
@@ -235,7 +236,5 @@ docs/         Planning docs (source of truth for design)
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress (M11, M12, M14–M21, M21.A, M21.B, M25 and its A/B/C/D
-follow-ups are done; **M22 live synth, M23 timeline ergonomics and M24 keyboard are
-planned**, as are M13 templates and M26–M31 psychoacoustics). Deliver strictly one
+`docs/roadmap.md` tracks progress. Deliver strictly one
 milestone at a time; confirm current status from that file before starting.

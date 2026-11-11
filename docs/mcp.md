@@ -429,8 +429,8 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src-tauri/src/mcp/bridge.rs` | the stdio ⇄ socket bridge + the advertisement probe. |
 | `src-tauri/src/mcp/dispatch/` | the headless session: the engine subset (no window); the shared `set_filter_graph`. |
 | `src-tauri/src/mcp/headless.rs` | the headless stdio loop. |
-| `src-tauri/src/cli/mod.rs` | the app binary's `tauri-plugin-cli` flags (`--mcp` / `--headless`) + the retired-subcommand hint. |
-| `src-tauri/src/cli/batch/` | the batch CLI logic (`analyzers` / `analyze` / `synth` / …) over the headless session; its interface is `clap_args.rs`, its binary `src/bin/hey-listen-cli.rs`. |
+| `src-tauri/src/cli/mod.rs` | the app binary's `tauri-plugin-cli` flags (`--mcp` / `--headless`). |
+| `src-tauri/cli/src/batch/` | the batch CLI logic (`analyzers` / `analyze` / `synth` / …) over the headless session; its interface is `clap_args.rs`, its binary is the `src-tauri/cli/` crate. |
 | `src-tauri/src/app_activity.rs` | the macOS user-initiated activity (opts out of App Nap). |
 | `src-tauri/Info.plist` | macOS bundle additions — `NSAppSleepDisabled` (opts out of App Nap). |
 | `src-tauri/src/audio/analyzers.rs` | the Rust analyzer catalog for headless `list_analyzers`. |
@@ -444,4 +444,4 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src/components/McpPopover.tsx` | the Toolbar MCP popover. |
 | `e2e/specs/k-mcp.spec.ts` | end-to-end coverage over the real endpoint. |
 | `e2e/specs/l-mcp-ui.spec.ts` | the popover: toggle, status, port, busy-port annotation, copy. |
-| `src-tauri/tests/headless_mcp.rs` | the headless CLI integration test (spawns the binary). |
+| `src-tauri/mcp/tests/headless_mcp.rs` | the headless CLI integration test (spawns the binary). |

@@ -354,7 +354,7 @@ flags — they run against files, not projects, so there is nowhere to store an 
 | `src/state/uiState.ts`, `uiSync.ts`, `settings.ts` | Broadcast annotations + selection across a project's windows; the rail's view settings (open + width), persisted app-level. |
 | `src-tauri/src/commands/window.rs` | `open_annotation_window` / `popout_annotation` — the annotation window. |
 | `src-tauri/src/state/window/mod.rs` | The window registry (popout aliases, tool and annotation). |
-| `src-tauri/src/cli/batch/` | The `annotations` subcommand (list / get / add / update / delete over a `.heyl`, M25.D). |
+| `src-tauri/cli/src/batch/` | The `annotations` subcommand (list / get / add / update / delete over a `.heyl`, M25.D). |
 | `src/state/mcp/`, `src-tauri/src/mcp/tools/` | The `*_annotation` tools. |
 
 ## Testing

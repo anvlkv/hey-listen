@@ -35,8 +35,6 @@ Existing modules are marked ✅; the rest are the target structure.
 ```
 src-tauri/src/
 ├── main.rs          # desktop entry (calls lib::run)            ✅
-├── bin/
-│   └── heylisten-mcp.rs  # stdio MCP entry (plain console)         ✅ (M9)
 ├── lib.rs           # Builder setup, state, handler registration ✅
 ├── commands/        # #[tauri::command] surface, grouped by domain
 │   ├── mod.rs       # ✅
@@ -62,9 +60,8 @@ src-tauri/src/
 │   ├── playback/    # cpal output stream + ring buffer          ✅
 │   └── analysis/    # oxiaudio wrappers                         ✅
 ├── app_activity.rs  # keep the process out of macOS App Nap        ✅ (M9 follow-up)
-├── cli/             # command-line interfaces (tauri-plugin-cli)
-│   ├── mod.rs       # the plugin flags + the `setup` entry         ✅ (M9: --mcp / --headless; M10: subcommand routing)
-│   └── batch/       # the `analyze` / `analyzers` / `synth` logic  ✅ (M10)
+├── cli/             # the app binary's flags (tauri-plugin-cli)
+│   └── mod.rs       # the plugin flags + the `setup` entry         ✅ (M9: --mcp / --headless)
 ├── menu.rs          # native menu (File/Edit/View/Window/Help) ✅ (M6: File → frontend; Edit → undo/redo; M7: New Window)
 ├── recent.rs        # recent project files (app config dir)    ✅ (M6: backs Open Recent)
 ├── themes.rs        # installed theme files (app config dir)    ✅ (M11: byte store + bundled-theme metadata for headless)
@@ -74,17 +71,35 @@ src-tauri/src/
 └── mcp/             # MCP server (agent access + UI following)     ✅ (M9: mod/protocol/tools/server/bridge/settings/dispatch/headless; `dispatch` is the headless session the batch CLI reuses, M10)
 ```
 
+And the batch CLI's own crate, whose `batch/` module is the implementation the app
+binary no longer carries (`src-tauri/cli/src/batch/mod.rs` → `tests/`):
+
+```
+src-tauri/cli/src/
+├── main.rs          # console entry: parse, run, flush, exit          ✅ (M33.B)
+├── exit.rs          # fold the final stdout flush into the exit code ✅ (M33.B)
+└── batch/           # the `analyze` / `analyzers` / `synth` logic     ✅ (M10, moved in M33.B)
+    ├── mod.rs       # Request -> headless session, JSONL output
+    ├── clap_args.rs # the `clap` derive interface
+    ├── args/        # matches -> Request mapping
+    └── tests/       # unit tests + the console/plugin consistency suite
+```
+
 Commands are registered once in `generate_handler![...]`; shared state is
 managed via `app.manage(...)`.
 
-**Binaries.** Three: `hey-listen` (the GUI, the bundle's `default-run`),
-`heylisten-mcp` — an MCP stdio server — and `hey-listen-cli` — the **batch CLI**
-(M10, rehosted in M33.B). Both console binaries are plain programs that link the lib
-but never start Tauri, so they boot a bare host and write stdout on Windows. The batch
-CLI parses with `clap` derive (`cli/batch/clap_args.rs`) and maps onto the same
-`cli::batch::Request`; the app binary keeps only `--mcp` / `--headless` (via
-`tauri-plugin-cli`) plus the `.heyl` open path. `hey-listen-cli` ships as a
-`bundle.externalBin` sidecar. See [`cli.md`](cli.md) and ADR-29.
+**Binaries.** The app package builds `hey-listen` (the GUI, the bundle's `default-run`)
+and `heylisten-mcp` (an MCP stdio server); the **batch CLI** `hey-listen-cli` (M10,
+rehosted in M33.B) is the `src-tauri/cli/` crate (package `hey-listen-cli`), which links
+the app lib. Both console binaries are plain programs that link the lib but never start
+Tauri, so they boot a bare host and write stdout on Windows. The batch CLI owns its
+implementation in `src-tauri/cli/src/batch/`; it parses with `clap` derive
+(`batch/clap_args.rs`) and maps onto the same `batch::Request`; the app binary keeps only
+`--mcp` / `--headless` (via `tauri-plugin-cli`) plus the `.heyl` open path; it declares
+none of the batch subcommands. `hey-listen-cli` is deliberately *not* a bin target of the
+app package, which
+lets it ship as a `bundle.externalBin` sidecar without the rpm/msi bundles installing it
+twice ([`packaging.md`](packaging.md)). See [`cli.md`](cli.md) and ADR-29.
 
 **Per-window state (M7).** With N project windows (ADR-3), the core's project state
 — the source PCM, filter graph, preview player, capture session, and the project's

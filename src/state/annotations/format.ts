@@ -1,7 +1,7 @@
 // Direct sibling imports rather than the `../analyzer` barrel: this module is a pure
 // result → text mapper, and the barrel re-exports the debounced runner (which pulls in
 // `@dschz/solid-uplot` and its CSS), so the barrel would keep it out of the browser-free
-// `scripts/*.test.ts` unit suite. See `scripts/annotations.test.ts`.
+// `src/tests/*.test.ts` unit suite. See `src/tests/annotations.test.ts`.
 import { formatHz } from "../analyzer/format";
 import { analyzerById } from "../analyzer/lookup";
 import type {

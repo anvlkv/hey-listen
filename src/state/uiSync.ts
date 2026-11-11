@@ -80,6 +80,9 @@ export function pushUiState(key: string, value: unknown) {
   }
 }
 
+/** The in-flight `set_ui_state` call per key, so a closing window can wait for its last edit. */
+const inFlight = new Map<string, Promise<void>>();
+
 /** Send `key`'s latest queued value now. */
 function flush(key: string) {
   const timer = timers.get(key);
@@ -91,7 +94,27 @@ function flush(key: string) {
   const value = queued.get(key);
   queued.delete(key);
   lastPushed.set(key, performance.now());
-  void invoke("set_ui_state", { key, value });
+  const call = invoke("set_ui_state", { key, value }).then(
+    () => undefined,
+    (err) => console.error(`ui-state push failed for "${key}"`, err),
+  );
+  inFlight.set(key, call);
+  void call.then(() => {
+    if (inFlight.get(key) === call) inFlight.delete(key);
+  });
+}
+
+/**
+ * Send `key`'s queued edit now and resolve once the core has it.
+ *
+ * A window that edits shared state and then **destroys itself** must await this first: the push
+ * is an IPC round trip, and tearing the webview down cancels whatever is still in flight, so the
+ * project's other windows never see the edit. The annotation window's Done button is exactly
+ * that case — the rail kept the old body (N3 flaked in CI).
+ */
+export async function flushUiState(key: string): Promise<void> {
+  flush(key);
+  await inFlight.get(key);
 }
 
 /**

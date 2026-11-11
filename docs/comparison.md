@@ -445,7 +445,7 @@ groups, re-point `activeGroup` / `activeView` if they were one),
 `src/lib/themeFile.ts`, `src/state/themes/chart.ts`, `src/styles/{compare,compareViews}.css`.
 
 **Surfaces** — `src-tauri/src/mcp/tools/` (`mod` + `compare`, `get_state` / `list_projects`),
-`src/state/mcp/` (`dispatch`, `analyze`), `src-tauri/src/cli/batch/` (`compare`, `args`,
+`src/state/mcp/` (`dispatch`, `analyze`), `src-tauri/cli/src/batch/` (`compare`, `args`,
 `types`, `clap_args` — the `compare` subcommand), `src-tauri/tauri.conf.json` (the app
 binary's flags only).
 

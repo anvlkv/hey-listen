@@ -61,15 +61,18 @@ export default tseslint.config(
     },
   },
 
-  // Node-side sources: the Vite config, the E2E driver config, the repo scripts.
+  // Node-side sources: the Vite config, the E2E driver config, the repo scripts, and
+  // the browser-free unit suites in `src/tests/` (run by vitest in the `node` env).
   {
     files: [
       "*.ts",
       "vite.config.ts",
+      "vitest.config.ts",
       "wdio.conf.ts",
       "screenshots.wdio.conf.ts",
       "e2e/**/*.ts",
       "scripts/**/*.{ts,mjs,js}",
+      "src/tests/**/*.ts",
     ],
     languageOptions: { globals: { ...globals.node } },
   },

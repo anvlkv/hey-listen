@@ -29,7 +29,8 @@ mod write;
 pub use error::ProjectError;
 pub use read::{read_project, LoadedProject};
 pub use sections::{
-    AnalysisSetup, AnalysisWindow, Annotation, Meta, SourceDescriptor, SourceKind, StoredResult,
+    AnalysisSetup, AnalysisWindow, Annotation, AnnotationValues, Meta, SourceDescriptor,
+    SourceKind, StoredResult,
 };
 #[allow(unused_imports)] // `write_project` is the in-memory writer the tests use
 pub use write::{write_project, write_project_atomic, SaveProject};

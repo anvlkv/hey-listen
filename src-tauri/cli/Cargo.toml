@@ -1,0 +1,29 @@
+[package]
+name = "hey-listen-cli"
+# Tracks the app crate's version: the installed CLI follows the app it was staged from
+# (ADR-30), so there is one release channel, not two. Bump both together (see
+# `docs/packaging.md` → Release process).
+version = "0.6.1"
+description = "Hey Listen batch CLI — run the analysis engine over files with no window."
+edition = "2021"
+license = "Unlicense"
+# An internal artifact, never published: it is staged as the app's
+# `bundle.externalBin` sidecar (`docs/packaging.md`).
+publish = false
+
+[dependencies]
+# The analysis engine and the headless session: this crate owns the batch CLI's
+# implementation (`src/batch/`) and only links the app lib for the engine itself.
+hey-listen = { path = ".." }
+# The console interface (`src/batch/clap_args.rs`).
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+# The subcommand name ↔ `BatchCommand` parsing (`src/batch/types.rs`).
+strum = { version = "0.28", features = ["derive"] }
+
+[dev-dependencies]
+# `src/batch/args/source.rs` implements `ArgSource` for the `plugins.cli` matches the
+# tests feed in, so the mapping stays pinned to the interface it replaced (ADR-29).
+tauri-plugin-cli = "2"
+# The tests use the app crate's `test_support::FailingWriter`.
+hey-listen = { path = "..", features = ["test-support"] }

@@ -8,9 +8,11 @@ convention.
 
 Delivered in **M10** as a subcommand of the app binary; rehosted as the console binary
 in **M33.B** ([`roadmap.md`](roadmap.md) → M33.B, [`decisions.md`](decisions.md) →
-**ADR-29**). The batch logic lives in `src-tauri/src/cli/batch/`; the interface is
-parsed by `clap` derive in `src-tauri/src/cli/batch/clap_args.rs`, and the binary is
-`src-tauri/src/bin/hey-listen-cli.rs`.
+**ADR-29**). The batch logic lives in `src-tauri/cli/src/batch/`; the interface is
+parsed by `clap` derive in `src-tauri/cli/src/batch/clap_args.rs`, and the binary is its
+own crate — `src-tauri/cli/` (package `hey-listen-cli`), which links the app crate as a
+library (so it is not a bin target of the app package; see
+[`packaging.md`](packaging.md)).
 
 ## Why a console binary
 
@@ -24,12 +26,12 @@ binary has no console so stdout was lost.
   parser with `clap` derive, maps the matches onto the same batch `Request`, and runs
   the same headless session — **no Tauri app, no window, no log plugin**.
 - The JSONL envelope and the exit codes are **unchanged**: the console binary is a
-  rehost, not a behaviour change. `cli/batch/tests/console.rs` resolves a representative
+  rehost, not a behaviour change. `cli/src/batch/tests/console.rs` resolves a representative
   command set through both parsers and asserts the same `Request` and the same JSONL
   bytes.
 - The app binary keeps only `--mcp` / `--headless` (and the `.heyl` open path) via
-  `tauri-plugin-cli`. It also recognises a **retired** batch subcommand
-  (`hey-listen analyze …`) and points at `hey-listen-cli` instead of launching the GUI.
+  `tauri-plugin-cli`; the batch subcommands are not declared there, so
+  `hey-listen analyze …` is just an argument it rejects.
 - `heylisten-mcp` stays a **separate plain console binary**: it is an MCP stdio server,
   not the batch CLI (see its module docs).
 
@@ -45,14 +47,14 @@ binary has no console so stdout was lost.
   shell / CI                       hey-listen-cli (console binary)   engine session
   ┌──────────┐  argv + files   ┌───────────────────────────┐  same calls ┌──────────────┐
   │  bash    │ ──────────────► │ clap derive → Request      │ ──────────► │  headless    │
-  │  jq      │ ◄────────────── │  cli::batch::run           │ ◄────────── │  session     │
+  │  jq      │ ◄────────────── │  batch::run                │ ◄────────── │  session     │
   └──────────┘   JSONL stdout  └───────────────────────────┘             └──────┬───────┘
                                    (no Tauri app, no window)                   │
                                                       audio::decode / analysis::run_window
                                                       audio::graph / audio::analyzers
 ```
 
-The binary is thin: it parses, maps, runs, flushes, and exits (`cli::finish`). The app
+The binary is thin: it parses, maps, runs, flushes, and exits (`exit::finish`). The app
 binary's `setup` resolves only `--mcp` vs the GUI; the batch subcommands are not
 declared there any more.
 
@@ -195,11 +197,11 @@ With `--save`, the owner's setup stores the diff's **effective** settings (the
 reproduces the comparison instead of a silently different one. stdout stays pure
 JSONL; the saved path is reported on stderr.
 
-> **Delivered (M25).** `cli/batch/compare.rs` loads both project files itself (each side
+> **Delivered (M25).** `cli/src/batch/compare.rs` loads both project files itself (each side
 > gets its own `WindowState` with the saved PCM — or the referenced file — and
 > `LAYOUT.filterSpec`), then runs `analysis::compare::compare` per tool. `--windows` is
 > rejected (a comparison has one window per side), `--out`/CSV are not offered, and the
-> two positionals are declared in `cli/batch/clap_args.rs`. See [`roadmap.md`](roadmap.md) → M25.
+> two positionals are declared in `cli/src/batch/clap_args.rs`. See [`roadmap.md`](roadmap.md) → M25.
 
 ### `analyzers [ID]`
 
@@ -486,10 +488,10 @@ Deliberately out of scope:
 
 | Path | Role |
 | --- | --- |
-| `src-tauri/src/bin/hey-listen-cli.rs` | the console binary: parse, run, flush, exit (`cli::finish`). |
-| `src-tauri/src/cli/batch/clap_args.rs` | the `clap` derive interface and its `ArgMatches` → `Request` mapping. |
-| `src-tauri/src/cli/batch/` | the batch logic: `Request` (from either parser) → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `annotations` / `console`). |
-| `src-tauri/src/cli/mod.rs` | the app binary's two flags + the `setup` entry (`--mcp` → MCP, else GUI) and the retired-subcommand hint. |
+| `src-tauri/cli/src/main.rs` | the console binary (the `hey-listen-cli` crate): parse, run, flush, exit (`exit::finish`). |
+| `src-tauri/cli/src/batch/clap_args.rs` | the `clap` derive interface and its `ArgMatches` → `Request` mapping. |
+| `src-tauri/cli/src/batch/` | the batch logic: `Request` (from either parser) → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `annotations` / `console`). |
+| `src-tauri/src/cli/mod.rs` | the app binary's two flags + the `setup` entry (`--mcp` → MCP, else GUI). |
 | `src-tauri/src/mcp/dispatch/` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
 | `src-tauri/src/audio/{decode,analyzers}.rs`, `src-tauri/src/audio/{analysis,graph}/` | the engine functions the batch command calls. |
 | `scripts/prepareSidecar.mjs` | stages `src-tauri/binaries/hey-listen-cli-<triple>` for `bundle.externalBin` (`npm run sidecar`). |
@@ -497,18 +499,18 @@ Deliberately out of scope:
 ## Testing
 
 - **Batch logic (display-free).** The command's work is a plain function
-  (`cli::batch::run`) over a crate-local `Request` (command, files, tools, params,
+  (`batch::run`) over a crate-local `Request` (command, files, tools, params,
   options, window, `--full`/`--pretty`/`--fail-fast`), so `cargo test` exercises it with
   no Tauri app and no display: it runs over a generated sine WAV and asserts `spectrum`'s
   peak is near 440 Hz, two files print two lines, an unknown tool yields an `error` line
   + exit `1`, a missing file fails without a `tool`, `synth` renders and reports a
   summary, and `analyzers` prints the catalog as JSON or a table.
-- **Arg mapping.** The one mapping (`cli::batch::build_request`) is asserted two ways:
-  through the **real parser** (`clap_args::request`, in `cli/batch/tests/console.rs`) and
+- **Arg mapping.** The one mapping (`batch::build_request`) is asserted two ways:
+  through the **real parser** (`clap_args::request`, in `cli/src/batch/tests/console.rs`) and
   through synthetic `tauri-plugin-cli` matches (the retired `plugins.cli` surface, kept
   as the reference). The consistency tests resolve a representative command set through
   both and assert the same `Request` and the same JSONL bytes, so the two cannot drift.
 - **Binary invocation (manual / smoke).** `hey-listen-cli analyze …` is a plain console
-  program: build it (`cargo build --bin hey-listen-cli`) and run it — it needs no
-  display. It is not part of the wdio suite, which drives the GUI. See
+  program: build it (`cargo build -p hey-listen-cli` from `src-tauri/`) and run it — it
+  needs no display. It is not part of the wdio suite, which drives the GUI. See
   [`testing.md`](testing.md).

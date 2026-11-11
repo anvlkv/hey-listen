@@ -69,6 +69,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Unit tests (vitest)
+        run: npm run test:unit
+
       - name: Build
         run: npm run build
 
@@ -244,3 +247,10 @@ jobs:
           name: e2e-report-${{ matrix.os }}
           path: e2e/artifacts
           if-no-files-found: ignore
+          retention-days: 7
+        # Diagnostic only. When the artifact service answers with an HTML error page,
+        # `upload-artifact` retries and the job never finishes — the run then stays
+        # `in_progress` even after a cancel. Bound the retries and never let the upload
+        # fail the job: a green run's report is not worth a hung workflow.
+        timeout-minutes: 5
+        continue-on-error: true

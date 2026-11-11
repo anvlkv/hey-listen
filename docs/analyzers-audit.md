@@ -191,7 +191,7 @@ A 2048-sample signal at 48 kHz with a 512-sample hop has one ordinary STFT frame
 
 **Shape/units:** frequency in Hz, selected phon level, contour in dB SPL is appropriate. The spectrum remains dBFS on a separately auto-ranged axis (`src/components/analyzer/FrequencyChart.tsx:85–100`); intersections of these independently scaled curves have **no audibility meaning**. Clamping beyond 20–12,500 Hz extends the reference graph, not validated equal-loudness predictions.
 
-**Tests:** `scripts/equalLoudness.test.ts` passes offered-level completeness, 1 kHz anchors, lookup against its own table, clamping, and unsupported levels. **Missing:** independent non-1-kHz values, formula/table regeneration checks, interior interpolation cases, invalid frequencies, and UI assertions about separate-axis semantics. Looking up a value from the same table is not independent validation of the table.
+**Tests:** `src/tests/equalLoudness.test.ts` passes offered-level completeness, 1 kHz anchors, lookup against its own table, clamping, and unsupported levels. **Missing:** independent non-1-kHz values, formula/table regeneration checks, interior interpolation cases, invalid frequencies, and UI assertions about separate-axis semantics. Looking up a value from the same table is not independent validation of the table.
 
 ## AM/FM modulation — `modulation` — **resolved**
 

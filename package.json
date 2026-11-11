@@ -14,7 +14,8 @@
     "build:site": "node scripts/buildSite.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p e2e/tsconfig.json",
-    "test:unit": "tsx scripts/analyzerOptions.test.ts && tsx scripts/themeFile.test.ts && tsx scripts/themeContrast.test.ts && tsx scripts/chartContrast.test.ts && tsx scripts/annotations.test.ts && tsx scripts/noteSegments.test.ts && tsx scripts/timelineScroll.test.ts && tsx scripts/previewSpeed.test.ts && tsx scripts/format.test.ts && tsx scripts/waveform.test.ts && tsx scripts/compare.test.ts && tsx scripts/saveWindow.test.ts && tsx scripts/equalLoudness.test.ts && tsx scripts/percentiles.test.ts",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "tauri": "tauri",
     "sidecar": "node scripts/prepareSidecar.mjs",
     "setup:updater": "node scripts/setup-updater.mjs",
@@ -83,7 +84,8 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.2",
     "vite": "^8.3.4",
-    "vite-plugin-solid": "^2.11.14"
+    "vite-plugin-solid": "^2.11.14",
+    "vitest": "^5.1.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
