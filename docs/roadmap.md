@@ -2468,3 +2468,81 @@ code-level plan is [`chart-review/chart-recommendations.md`](chart-review/chart-
 >
 > **Validation:** `npm run typecheck`, `npm run build`, `npm run maid`, `cargo test` (543
 > passing), and the focused native E2E `f-cross-cutting.spec.ts` (F1–F6).
+
+## M37 — Project file migrations (planned)
+
+Give the binary project format a real, **non-silent** upgrade path: a recorded version
+history, an incremental version-to-version migration chain, and an explicit
+`hey-listen-cli migrate` script for bulk upgrades. Analysis results are disposable;
+everything the user made must survive.
+
+See [`project-file-format.md`](project-file-format.md) → Format version history +
+Migrations for the file contract, and ADR-32 for the design rationale.
+
+### Version history + incremental chain
+
+- **One version history.** `project-file-format.md` owns a `Format version history` table
+  (version → change → milestone). `VERSION` is bumped only for an incompatible change;
+  additive sections / `LAYOUT` JSON keys / `tool_options` map keys never bump (already the
+  case today).
+- **Incremental steps.** `project/migrate/` holds one `from_vN_to_vNp1` step per bump,
+  plus a **frozen** `vN.rs` snapshot of any payload type that changed at that hop and a
+  `From` conversion to the next version's type. A step touches only the payload types it
+  changed; `DATA` is never copied to migrate. Steps are applied in order by `read_project`
+  from the file's version to `VERSION`.
+- **Exhaustive dispatch.** The step table is a single code constant; a test asserts it
+  covers exactly `MIN_READ_VERSION..VERSION`, so a bump cannot forget a hop. The frozen
+  `vN` payloads are pinned by exact bytes in a test, so an edit to a snapshot cannot
+  silently change what old files mean.
+- **Newer versions are refused** (`UnsupportedVersion`), never a best-effort read —
+  postcard has no field names, so a newer file read by an older build would silently
+  misread trailing fields.
+
+### What survives vs. is dropped
+
+- **Survives every hop:** `SOURCE`, `DATA`, `SETUP` (open tools, shared params, tool
+  options, window/view), `LAYOUT` (both graph editors, `filterSpec`, popouts), `META`,
+  and `ANNOTATIONS`. A hop that cannot produce one of these fails the load, it does not
+  silently empty it.
+- **Dropped:** `RESULTS` for any pre-`VERSION` file (it is a cache, recomputed on demand),
+  and `COMPARE` entries whose stored result cannot decode (logged per entry). A retired
+  analyzer id in `SETUP.openTools` / `LAYOUT.dockview` is filtered, not a load failure.
+
+### Surfaces (both visible)
+
+- **On load (app, MCP `open_project`, CLI `annotations` / `compare` side).**
+  `read_project` accepts `MIN_READ_VERSION..=VERSION`, migrates in memory, and reports the
+  source version; the app shows *“Upgraded from vN”* and marks the project dirty so the
+  next save writes the current version. No file is rewritten at open.
+- **`hey-listen-cli migrate`.** A new `migrate` subcommand runs the same chain and writes
+  the current version **atomically** via `write_project_atomic`, with a `.bak` sibling by
+  default (opt-out), for bulk/headless upgrades of a directory of `.heyl` files. It reports
+  per file the source version and what was dropped. It reuses `read_project` +
+  `write_project_atomic`, so there is one code path, not a second writer.
+
+### Reference-project fix + plumbing
+
+- **Expose the reference state.** `LoadedProjectDto` (and the core `LoadedProject`) gains
+  `embedded: bool` (whether `DATA` was present) and `formatVersion` / `upgradedFrom`,
+  mirroring `project/side.rs`'s existing `Side.embedded` (rename the two so they agree).
+  Regenerate `src/bindings` with `cargo test`.
+- **Preserve `embedSource` on re-save.** The frontend tracks the loaded project's
+  `embedded` state (a `reference` signal in `src/state/project/`); `save.ts` re-uses it for
+  `embedSource` when re-saving, so a reference project stays a reference instead of
+  silently embedding hundreds of MB. `saveProjectAs` / `saveProjectTo` can still override.
+- **`migrate` honors it.** The CLI keeps `embedSource: false` for a reference project
+  unless `--embed` is passed, so a bulk migration of reference projects does not grow them
+  into full copies.
+
+### Tests & docs
+
+- A vN fixture (a test-only writer that emits an old header + payloads) loads with the
+  important data intact and `RESULTS` empty; a post-migration round-trip writes `VERSION`;
+  a newer version is rejected; the step table is asserted complete; each frozen `vN` payload
+  is byte-pinned; and `migrate` preserves `embedded` and writes atomically with a backup.
+- Update `project-file-format.md` (history + migrations) and `cli.md` (the new
+  `migrate` subcommand) in the same change; add ADR-32.
+
+> Depends on the existing `read_project` / `write_project_atomic` (M6) and the console
+> binary (`hey-listen-cli`, M33.B) for the script surface. The reference-project plumbing
+> depends on `LoadedProjectDto` (M6) and `state/project/save.ts` (M6/M14).

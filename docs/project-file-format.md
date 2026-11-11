@@ -165,6 +165,61 @@ recording would otherwise duplicate every recording's raw `f32` (4.4 MB for 25 s
   saved comparisons and simply ignore them.
 - `checksum` validates the whole file on load.
 
+### Format version history
+
+`VERSION` (in `project/mod.rs` and the header) is the **single** container version this
+build writes. It is bumped only by an **incompatible** change, and every bump is recorded
+here — this table is the authoritative history; the reader's supported range and migration
+steps are derived from it (see [Migrations](#migrations)).
+
+| Version | Change | Introduced in |
+| --- | --- | --- |
+| 1 | Initial container (M6). Sections grew **additively** without a bump: `ANNOTATIONS` (M14), `COMPARE` (M25.C), the `RESULTS` payload, `LAYOUT.filterSpec` (M25.D), and the `COMPARE` `referencePath` field. | M6 |
+
+**Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
+`SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
+does not bump. Only a change to a `postcard` payload shape, a field's *meaning*, or the
+`DATA` sub-layout is incompatible.
+
+## Migrations
+
+Incremental, **version-to-version**, and never silent. See the milestone in
+[`roadmap.md`](roadmap.md) and ADR-32 for the full design; this section records the file
+contract.
+
+- **Chain, not a rewrite.** A bump adds one migration step `from_vN_to_vNp1` that knows
+  only the two adjacent versions; `read_project` applies every step from the file's
+  version up to `VERSION`. Each step is a small conversion over the **payload types that
+  changed at that hop** (a frozen `vN` snapshot of a struct + a `From` conversion), not a
+  whole-file transform — `DATA` is never copied just to migrate. The frozen `vN` types are
+  release snapshots and are never edited after the fact.
+- **What survives.** `SOURCE`, `DATA`, `SETUP` (open tools, shared params, tool options,
+  window/view), `LAYOUT` (both graph editors, `filterSpec`, popouts), `META`, and
+  `ANNOTATIONS` must survive every hop. A step that cannot produce one of these fails the
+  load with a clear error rather than silently emptying it.
+- **What may be dropped.** `RESULTS` is dropped for any pre-`VERSION` file (it is a cache,
+  recomputed on demand); `COMPARE` snapshots whose stored result cannot be decoded are
+  dropped per entry and logged (they are analysis results too). Neither is an error.
+- **Two surfaces, both visible.** (1) **On load** — `read_project` accepts
+  `MIN_READ_VERSION..=VERSION`, migrates in memory, and reports the source version; the
+  app surfaces *"Upgraded from vN"* and marks the project dirty so a save writes the
+  current version. Nothing is rewritten at open. (2) **The migration script** —
+  `hey-listen-cli migrate` runs the same chain and writes the current version atomically,
+  with a backup by default, for bulk/headless upgrades.
+- **Newer versions are refused.** A file with `version > VERSION` is still
+  `UnsupportedVersion`, never a best-effort read: `postcard` is not self-describing, so a
+  newer file read by an older build would silently misread trailing fields. The header is
+  the contract.
+- **Reference projects.** A migration re-save preserves `embedSource: false` (no `DATA`,
+  `SOURCE` keeps the path); the loader reports whether the file was a reference so the
+  save/`migrate` path can re-embed or re-link it correctly instead of silently growing it
+  to a full copy.
+- **Tests.** A vN fixture (built by a test-only writer that emits an old header + payloads)
+  loads with the important data intact and `RESULTS` empty; a round-trip after migration
+  writes `VERSION`; a newer version is rejected; the step table is asserted to cover every
+  version in `MIN_READ_VERSION..VERSION`; and each frozen `vN` payload is pinned by its
+  exact bytes so an edit to a snapshot cannot silently change what old files mean.
+
 ## Writing is atomic
 
 Every save (GUI, headless MCP `save_project`, CLI `project` / `annotations` / `compare
