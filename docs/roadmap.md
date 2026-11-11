@@ -2457,7 +2457,9 @@ code-level plan is [`chart-review/chart-recommendations.md`](chart-review/chart-
 > `RateMatrix` (band × rate at the cursor frame), masking's per-masker rules, the pYIN
 > candidate heatmap + octave-ambiguity rings, and the loudness RMS/SPL readouts — all on
 > the shared `"time"`/`"freq"` cursor, with one `HeatmapScale` shared by pixels and
-> colourbar.
+> colourbar. The bar labels its **own stripe** (min / mid / max on the ramp, bold with a
+> dark halo, scaled by `--ui-scale`) instead of spending width beside it, so the ramp keeps
+> the panel's full width; below 260 px the mid label drops rather than colliding.
 >
 > `src/preview/fixtures/` was regenerated (37 mono tools, new fields);
 > `scripts/lighthouse/generate-fixtures.ts` now skips the stereo-only `spatial`, clears

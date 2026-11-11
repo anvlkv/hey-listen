@@ -114,41 +114,6 @@
   min-height: 0;
 }
 
-/* Matrix heatmap colourbar (M36): the ramp, labelled at the domain's ends in the
-   result's own unit. Sized so the bar never squeezes the heatmap. */
-.heatmap-scale {
-  display: flex;
-  align-items: center;
-  gap: var(--space-chart-wide);
-  flex: none;
-  min-height: 20px;
-  padding: 0 var(--space-chart-wide) var(--space-chart-tight);
-  font-size: 0.6875rem;
-  color: var(--fg-faint);
-}
-
-.heatmap-scale-label {
-  flex: none;
-  color: var(--fg-muted);
-  white-space: nowrap;
-}
-
-.heatmap-scale-ramp {
-  flex: 1 1 auto;
-  min-width: 60px;
-  height: 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: 3px;
-}
-
-.heatmap-scale-ticks {
-  display: inline-flex;
-  gap: 14px;
-  flex: none;
-  color: var(--fg-body);
-  font-variant-numeric: tabular-nums;
-}
-
 .analyzer-empty {
   display: flex;
   flex-direction: column;
