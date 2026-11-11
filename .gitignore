@@ -25,3 +25,4 @@ logs/
 # (.husky/pre-commit, .husky/pre-push) are tracked.
 .husky/_/
 .gh-cache/
+*.tmp
