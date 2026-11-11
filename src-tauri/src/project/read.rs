@@ -15,7 +15,7 @@ use super::{
     SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP,
     SECTION_SOURCE, VERSION,
 };
-use crate::audio::analysis::compare::{SavedComparison, SavedComparisonV1};
+use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourceData;
 
 /// The parsed contents of a project file.
@@ -150,19 +150,6 @@ fn verify_checksum<R: Read + Seek>(reader: &mut R, len: u64) -> Result<(), Proje
         return Err(ProjectError::Corrupt("checksum mismatch".to_string()));
     }
     Ok(())
-}
-
-/// The `COMPARE` section, tolerating a file written before `referencePath` existed.
-///
-/// This is **in-version** tolerance (both payloads are version 1), not a migration: an old
-/// build omitted a trailing field, so the reader retries with the shorter snapshot type.
-pub(crate) fn compare_from_bytes(bytes: &[u8]) -> Result<Vec<SavedComparison>, ProjectError> {
-    if let Ok(current) = postcard::from_bytes::<Vec<SavedComparison>>(bytes) {
-        return Ok(current);
-    }
-    postcard::from_bytes::<Vec<SavedComparisonV1>>(bytes)
-        .map(|old| old.into_iter().map(SavedComparison::from).collect())
-        .map_err(|err| ProjectError::Corrupt(format!("postcard: {err}")))
 }
 
 /// Read one section's payload bytes into memory.

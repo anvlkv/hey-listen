@@ -234,9 +234,10 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   **Open reference** and opens the reference **file recorded with the snapshot** (raising
   a window that already shows it). Nothing is resolved by name — two projects can share a
   display name, and an origin project's title can share a prefix with the owner's file.
-  A snapshot without a recorded path (a comparison made against an unsaved project, or a
-  file saved by an older build) and a reference file that has since been deleted both
-  report a transient notice. It never rebinds the comparison.
+  A snapshot without a recorded path (a comparison made against an unsaved project) and a
+  reference file that has since been deleted both report a transient notice. It never
+  rebinds the comparison. (A project file written before the field existed is upgraded by
+  the `v1 → v2` migration, so opening it does not lose the path it does have.)
 - Empty / error states: peer closed (live), peer has no source, grids differ; a saved
   reference never reports "no overlap" — its common span is computed from the snapshot.
 - **A cramped panel scrolls.** The header (whose tools row wraps), readouts and banners keep

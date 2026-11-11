@@ -3,72 +3,20 @@
 //! A result payload that skips an absent optional key on the JSON wire cannot be read
 //! back from `postcard` (which is not self-describing), so a saved comparison is written
 //! through the stored mirror and must decode with the optional keys both absent and
-//! present. See `results::stored`.
+//! present. See `results::stored`. The version-1 payload layout is `migrate/v1.rs`'s
+//! concern (see `migrate/tests.rs`).
 
 use std::io::Cursor;
 
+use super::test_support::snapshot;
 use super::*;
-use crate::audio::analysis::compare::{SavedComparison, SavedComparisonV1, SourceShape, Span};
-use crate::audio::analysis::{AnalysisResult, SharedParams, StoredAnalysisResult, ToolOptions};
+use crate::audio::analysis::AnalysisResult;
 use crate::audio::analyzers::AnalyzerId;
 
 fn write(save: &SaveProject, now_ms: u64) -> Cursor<Vec<u8>> {
     let mut cursor = Cursor::new(Vec::new());
     write_project(&mut cursor, save, now_ms).expect("write");
     cursor
-}
-
-fn snapshot(tool: AnalyzerId, result: AnalysisResult) -> SavedComparison {
-    SavedComparison {
-        tool,
-        reference_name: "Reference project".to_string(),
-        source: SourceShape {
-            sample_rate: 48_000,
-            channels: 1,
-            duration: 1.0,
-        },
-        window: Span {
-            start: 0.0,
-            end: 1.0,
-        },
-        params: SharedParams::default(),
-        options: ToolOptions::default(),
-        filter_fingerprint: None,
-        b_offset: 0.0,
-        saved_ms: 7,
-        result: StoredAnalysisResult::from(&result),
-        reference_path: None,
-    }
-}
-
-#[test]
-fn an_older_compare_payload_loads_without_a_reference_path() {
-    // A 0.5.1 file stores snapshots without `referencePath`; the reader must still load
-    // them (the view then reports that the reference file is unknown).
-    let snapshot = snapshot(
-        AnalyzerId::Spectrum,
-        AnalysisResult::Spectrum(crate::audio::analysis::fixtures::spectrum()),
-    );
-    let old: Vec<SavedComparisonV1> = vec![(
-        snapshot.tool,
-        snapshot.reference_name.clone(),
-        snapshot.source,
-        snapshot.window,
-        snapshot.params.clone(),
-        snapshot.options.clone(),
-        snapshot.filter_fingerprint.clone(),
-        snapshot.b_offset,
-        snapshot.saved_ms,
-        snapshot.result.clone(),
-    )];
-    let bytes = postcard::to_stdvec(&old).expect("encode");
-
-    let loaded = super::read::compare_from_bytes(&bytes).expect("decode");
-    assert_eq!(loaded.len(), 1);
-    assert_eq!(loaded[0].tool, AnalyzerId::Spectrum);
-    assert_eq!(loaded[0].reference_name, snapshot.reference_name);
-    assert_eq!(loaded[0].b_offset, snapshot.b_offset);
-    assert!(loaded[0].reference_path.is_none());
 }
 
 #[test]

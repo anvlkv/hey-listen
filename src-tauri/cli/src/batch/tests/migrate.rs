@@ -7,8 +7,11 @@ use std::path::Path;
 
 use super::*;
 use hey_listen_lib::project::{
-    read_project, write_project_atomic, SaveProject, SourceDescriptor, SourceKind,
+    read_project, write_project_atomic, SaveProject, SourceDescriptor, SourceKind, VERSION,
 };
+
+/// The committed **version-1** project (`e2e/fixtures/v1.heyl`), written by a 0.5.x build.
+const LEGACY_V1: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../e2e/fixtures/v1.heyl");
 
 fn temp(name: &str) -> String {
     std::env::temp_dir()
@@ -95,8 +98,8 @@ fn a_current_project_is_left_untouched() {
     let before = bytes(&path);
 
     let value = run_single(&migrate_request(vec![path.clone()], false, true));
-    assert_eq!(value["fromVersion"], 1);
-    assert_eq!(value["toVersion"], 1);
+    assert_eq!(value["fromVersion"], json!(VERSION));
+    assert_eq!(value["toVersion"], json!(VERSION));
     assert_eq!(value["migrated"], false);
     assert_eq!(value["embedded"], false);
     assert_eq!(value["backup"], json!(null));
@@ -131,6 +134,35 @@ fn embed_grows_a_reference_project_and_keeps_a_backup() {
         let _ = std::fs::remove_file(format!("{path}.bak"));
         let _ = std::fs::remove_file(path);
     }
+}
+
+#[test]
+fn a_v1_project_upgrades_in_place_with_a_backup() {
+    let dir = std::env::temp_dir().join(format!("hey_cli_migrate_v1_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("legacy.heyl");
+    std::fs::copy(LEGACY_V1, &file).unwrap();
+    let path = file.to_string_lossy().into_owned();
+
+    let value = run_single(&migrate_request(vec![path.clone()], false, true));
+    assert_eq!(value["fromVersion"], 1);
+    assert_eq!(value["toVersion"], json!(VERSION));
+    assert_eq!(value["migrated"], true);
+    assert_eq!(value["embedded"], true);
+    assert_eq!(value["backup"], json!(format!("{path}.bak")));
+
+    // The rewritten file is the current version, keeps its audio, and is no longer an
+    // upgrade — while the backup still reads as version 1.
+    let mut rewritten = std::fs::File::open(&path).unwrap();
+    let loaded = read_project(&mut rewritten).unwrap();
+    assert_eq!(loaded.format_version, VERSION);
+    assert_eq!(loaded.upgraded_from, None);
+    assert!(loaded.pcm.is_some());
+    let mut backup = std::fs::File::open(format!("{path}.bak")).unwrap();
+    assert_eq!(read_project(&mut backup).unwrap().format_version, 1);
+
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

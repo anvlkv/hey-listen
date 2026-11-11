@@ -2500,6 +2500,29 @@ ADR-32 for the design rationale.
   postcard has no field names, so a newer file read by an older build would silently
   misread trailing fields. `MIN_READ_VERSION` sits beside `VERSION` in `project/mod.rs`.
 
+### The first step: v1 → v2
+
+The `referencePath` field landed *inside* container version 1, so version 1 shipped two
+`COMPARE` payload layouts and the reader retried the older one on every load
+(`compare_from_bytes`). That fallback is gone: `VERSION` is **2**, `MIN_READ_VERSION` stays
+1, and `project/migrate/v1.rs` holds the frozen early layout (`SavedComparisonV1` + its
+`From`) and rewrites a version-1 `COMPARE` payload into the one version 2 writes. The
+reader and the `COMPARE` decoder are strict again.
+
+The stored-result **trailing-field** tolerance (`results/stored/decode.rs`, the X3 and M36
+matrix metadata) stays, because it is how the `v1` step reads a pre-X3 snapshot and
+freezing the whole result mirror to remove it is not worth the cost; version 2 writers
+always emit every field, so no file this build writes relies on it.
+
+### The real fixture
+
+`e2e/fixtures/v1.heyl` is a real 0.5.x project (header version 1, embedded 4.32 s stereo
+capture, saved setup/layout, empty `RESULTS`). It is committed, and
+`src-tauri/tests/project_migration.rs` loads it, asserts the source, setup, layout and
+audio survive and `RESULTS` are dropped, and re-saves it as version 2. The e2e spec
+(`j-project` → H4) opens a copy, checks the *“upgraded from v1”* notice and the dirty
+marker, saves, and asserts the header is version 2.
+
 ### What survives vs. is dropped
 
 - **Survives every hop:** `SOURCE`, `DATA`, `SETUP` (open tools, shared params, tool
@@ -2541,17 +2564,24 @@ ADR-32 for the design rationale.
 
 ### Tests & docs
 
-- `project/migrate/tests.rs`: the step table covers `MIN_READ_VERSION..VERSION`; a
-  synthetic step pins ordering, the version guard, and the `RESULTS` drop; a missing step
-  and a step that does not advance are errors; a newer version is rejected.
-- `cli/src/batch/tests/migrate.rs`: a current file is left byte-identical, `--embed` grows
-  a reference project and writes a `.bak`, `--no-backup` does not, and a missing file is an
-  `error` record with exit `1`.
-- `project-file-format.md` (history + migrations) and `cli.md` (the `migrate` subcommand)
-  were updated in the same change; ADR-32 records the decision.
+- `project/migrate/tests.rs`: the step table covers `MIN_READ_VERSION..VERSION`; the real
+  `v1 → v2` step rewrites an early-version-1 snapshot (no path), keeps a late-version-1
+  path, drops an unreadable section, and drops `RESULTS`; a missing step, a step that does
+  not advance, and a newer version are errors.
+- `src-tauri/tests/project_migration.rs`: the committed `e2e/fixtures/v1.heyl` loads with
+  its work intact and re-saves as `VERSION`.
+- `cli/src/batch/tests/migrate.rs`: a current file is left byte-identical; a version-1 file
+  upgrades in place with a `.bak` whose backup still reads as version 1; `--embed` grows a
+  reference project; a missing file is an `error` record with exit `1`.
+- e2e `j-project` H4: opening the version-1 fixture shows *“upgraded from v1”* and keeps
+  the project dirty; saving writes version 2 and clears the notice.
+- `project-file-format.md` (history + migrations), `cli.md` (the `migrate` subcommand) and
+  `testing.md` (the H4 row) were updated in the same change; ADR-32 and ADR-27's amendment
+  record the decision.
 
-> **Validation:** `cargo test` (509 lib + 81 CLI), `npm run typecheck`, `npm run build`,
-> `npm run maid`.
+> **Validation:** `cargo test` (510 lib + 82 CLI + 2 migration), `npm run typecheck`,
+> `npm run typecheck:e2e`, `npm run build`, `npm run maid`. The e2e spec itself needs a
+> Tauri build and is not run by `cargo test`.
 >
 > Depends on `read_project` / `write_project_atomic` (M6) and the console binary
 > (`hey-listen-cli`, M33.B) for the script surface.

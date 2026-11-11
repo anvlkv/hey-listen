@@ -29,6 +29,8 @@ export const SEL = {
   // Toolbar.
   projectName: '[data-testid="toolbar.project.name"]',
   projectError: '[data-testid="toolbar.project.error"]',
+  // The "upgraded from vN" notice a migrated project shows until it is saved (M37).
+  projectUpgraded: '[data-testid="toolbar.project.upgraded"]',
   toolbarError: '[data-testid="toolbar.error"]',
   // The toolbar's preview/output error (no output device, device busy, …).
   toolbarPreviewError: '[data-testid="toolbar.preview.error"]',

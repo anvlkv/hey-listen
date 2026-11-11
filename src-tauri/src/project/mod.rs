@@ -40,7 +40,7 @@ pub use write::{write_project, write_project_atomic, SaveProject};
 /// File magic at offset 0 (`"HEYL"`).
 pub const MAGIC: [u8; 4] = *b"HEYL";
 /// Container version (`docs/project-file-format.md`).
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 /// The oldest container version this build reads. Older files are migrated forward through
 /// the step chain in [`migrate`] (ADR-32); anything outside `MIN_READ_VERSION..=VERSION`
 /// is an `UnsupportedVersion` error.

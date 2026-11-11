@@ -805,10 +805,12 @@ available later. Keeping the reference project open just to see the diff is frag
 > **file path** (`referencePath`, appended last), and the compare view's **Open
 > reference** opens exactly that file. Resolving the other project by display name was
 > wrong: two projects can share one, and an origin project's title can share a prefix
-> with the owner's file — the button opened the owner instead of the reference. A file
-> saved by an older build (no path) and a deleted reference file both report a notice.
-> An older payload is a strict prefix of the new one, so the reader decodes it as the
-> previous layout and stores no path.
+> with the owner's file — the button opened the owner instead of the reference. A
+> snapshot without a path (a comparison against an unsaved project) and a deleted
+> reference file both report a notice. The field landed inside container version 1, so
+> version 1 shipped two payload layouts; M37 bumped `VERSION` to 2 and the `v1 → v2` step
+> reads the older layout and stores no path, instead of the reader retrying at every load.
+> See [`project-file-format.md`](project-file-format.md) → Migrations.
 - A comparison may bind to a **live** project or to its **saved snapshot**. Live wins; a
   saved binding shows the stored B band, hides B's live markers, marks the badge **saved
   reference**, and runs only A when the view re-computes.
