@@ -20,6 +20,14 @@ function tabFor(id: string): string {
 export async function activateToolSection(id: string): Promise<void> {
   const tabId = tabFor(id);
   await waitForSelector(activityTab(tabId), `the activity-bar tab "${tabId}" is missing`);
+  // Selecting the tab whose cards are already showing **collapses** the rail (the tab is
+  // its own toggle), so click only when this section's cards are not showing — the
+  // button's `aria-pressed` means "this section is showing".
+  const showing = await browser.execute(
+    (sel: string) => document.querySelector(sel)?.getAttribute("aria-pressed") === "true",
+    activityTab(tabId),
+  );
+  if (showing === true) return;
   await click(activityTab(tabId));
 }
 

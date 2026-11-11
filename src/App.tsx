@@ -12,6 +12,7 @@ import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
 import Workbench from "./components/Workbench";
 import { disposeCapture, initCapture, recording } from "./state/capture";
+import { sidebarOpen } from "./state/activityBar";
 import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu, aboutOpen, cliToolOpen, setAboutOpen, setCliToolOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
@@ -118,19 +119,21 @@ export default function App() {
       <main class="app-main" ref={(node) => (main = node)}>
         <div class="app-top">
           <ActivityBar />
-          <Sidebar
-            style={{
-              flex: `0 0 ${sidebarWidth()}px`,
-              width: `${sidebarWidth()}px`,
-            }}
-          />
-          <Splitter
-            orientation="vertical"
-            testId="splitter.sidebar"
-            label="Drag to resize the sidebar"
-            ariaLabel="Resize the sidebar"
-            handlers={sidebarSplitter}
-          />
+          <Show when={sidebarOpen()}>
+            <Sidebar
+              style={{
+                flex: `0 0 ${sidebarWidth()}px`,
+                width: `${sidebarWidth()}px`,
+              }}
+            />
+            <Splitter
+              orientation="vertical"
+              testId="splitter.sidebar"
+              label="Drag to resize the sidebar"
+              ariaLabel="Resize the sidebar"
+              handlers={sidebarSplitter}
+            />
+          </Show>
           <Workbench />
           <Show when={annotationsPanelOpen()}>
             <Splitter
