@@ -115,11 +115,12 @@ would make the reader run off the end of the buffer; `StoredSeries` and
 itself is additive: an older build opens a project that has one and ignores it, and a
 file without one loads with no saved comparisons.
 
-`referencePath` was appended after the first released snapshot layout, so a file from
-an older build decodes as that layout (the reader tries the current payload, then the
-older one) and simply has no recorded path. The reverse does not hold: a build that
-predates `referencePath` cannot read a newer `COMPARE` payload — postcard carries no
-field names to skip.
+`referencePath` was appended after the first released snapshot layout. Version 1 shipped
+**both** layouts, so a version-1 file is upgraded by the `v1 → v2` migration step
+(`project/migrate/v1.rs`), which reads the early layout too and stores no path for it; the
+current reader is then strict. The reverse still does not hold: a build that predates
+`referencePath` cannot read a newer `COMPARE` payload — postcard carries no field names to
+skip.
 
 The panel itself is still not in `LAYOUT` (compare panels are sanitised out); restoring a
 saved comparison re-creates its Workbench **tab** after the project state is ready.
@@ -174,13 +175,14 @@ steps are derived from it (see [Migrations](#migrations)).
 
 | Version | Change | Introduced in |
 | --- | --- | --- |
-| 1 | Initial container (M6). Sections grew **additively** without a bump: `ANNOTATIONS` (M14), `COMPARE` (M25.C), the `RESULTS` payload, `LAYOUT.filterSpec` (M25.D), and the `COMPARE` `referencePath` field. | M6 |
+| 1 | Initial container (M6). Sections grew **additively** within it: `ANNOTATIONS` (M14), `COMPARE` (M25.C), the `RESULTS` payload, `LAYOUT.filterSpec` (M25.D), and the `COMPARE` `referencePath` field (early v1 has the shorthand snapshot layout, late v1 the full one). | M6 |
+| 2 | `COMPARE` snapshots always carry `referencePath` (the layout version 1 shipped in two shapes). The `v1 → v2` step in `project/migrate/v1.rs` rewrites the early layout; every other section is byte-identical. | M37 |
 
 **Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
 `SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
 does not bump. Only a change to a `postcard` payload shape, a field's *meaning*, or the
-`DATA` sub-layout is incompatible. M37 added the migration mechanism itself, which reads
-and writes version 1 unchanged, so the table still has one row.
+`DATA` sub-layout is incompatible. The `referencePath` addition reached users inside
+version 1, so M37 bumped to 2 and made it a step rather than a load-time fallback.
 
 `MIN_READ_VERSION` (in `project/mod.rs`, next to `VERSION`) is the oldest version this
 build reads; it moves only when a step can no longer read its input. The reader accepts
@@ -200,6 +202,15 @@ contract.
   every payload only after the chain reaches `VERSION`, so each step knows exactly two
   adjacent versions. `DATA` is never copied or rewritten to migrate. The frozen `vN` types
   are release snapshots and are never edited after the fact.
+  The chain today has one step, `v1 → v2` (`project/migrate/v1.rs`): it rewrites the saved
+  comparisons from version 1's two snapshot layouts into the one version 2 writes.
+- **Stored results keep a codec-level tolerance.** The `postcard` mirror of an analysis
+  result reads a missing **trailing** optional field as its default
+  (`results/stored/decode.rs`), which is how a version-1 comparison snapshot written before
+  the X3 / M36 matrix metadata is decoded by the `v1` step. It is not a container-version
+  rule: version 2 writers always emit every field, so no file this build writes depends on
+  it, and it is deliberately *not* modelled as another step (that would mean freezing the
+  whole result mirror).
 - **What survives.** `SOURCE`, `DATA`, `SETUP` (open tools, shared params, tool options,
   window/view), `LAYOUT` (both graph editors, `filterSpec`, popouts), `META`, and
   `ANNOTATIONS` must survive every hop. A step that cannot produce one of these fails the

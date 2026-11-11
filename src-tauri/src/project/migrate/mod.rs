@@ -22,14 +22,18 @@
 //! 3. Add a test that a fixture written in version `N` loads with everything but `RESULTS`
 //!    intact (see [`tests`]).
 //!
-//! A step must never drop or empty `SOURCE`, `DATA`, `SETUP`, `LAYOUT`, `META` or
-//! `ANNOTATIONS`: those are the user's work. Only `RESULTS` (a cache) may be dropped.
+//! A step must never drop or empty `SOURCE`, `DATA`, `SETUP`, `LAYOUT` or `ANNOTATIONS`:
+//! those are the user's work. `RESULTS` is a cache and a `COMPARE` section is analysis
+//! output, so either may be dropped (reported through [`DroppedSection`]).
 
 use serde::de::DeserializeOwned;
 
 use super::sections::{AnalysisSetup, Annotation, SourceDescriptor, StoredResult};
-use super::{read::compare_from_bytes, LoadedProject, ProjectError, VERSION};
+use super::{LoadedProject, ProjectError, VERSION};
+use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourceData;
+
+mod v1;
 
 #[cfg(test)]
 mod tests;
@@ -74,6 +78,11 @@ impl Sections {
     pub(super) fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, ProjectError> {
         postcard::from_bytes(bytes).map_err(|err| ProjectError::Corrupt(format!("postcard: {err}")))
     }
+
+    /// Encode a payload in the next version's layout.
+    pub(super) fn encode<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, ProjectError> {
+        postcard::to_stdvec(value).map_err(|err| ProjectError::Encode(err.to_string()))
+    }
 }
 
 /// One version-to-version migration step (ADR-32).
@@ -86,9 +95,12 @@ pub(crate) struct Step {
 
 /// The migration chain, one step per bump in `MIN_READ_VERSION..VERSION` (ADR-32).
 ///
-/// Empty while no released version is older than [`VERSION`]. A bump adds its step here;
-/// `tests::the_step_table_covers_every_hop` fails until it does.
-const STEPS: &[Step] = &[];
+/// `tests::the_step_table_covers_every_hop` fails whenever a bump is not followed by its
+/// step here. `v1` is the `COMPARE` snapshot layout change (`referencePath`).
+const STEPS: &[Step] = &[Step {
+    from: 1,
+    apply: v1::from_v1_to_v2,
+}];
 
 /// Migrate and decode a read project file.
 pub(crate) fn run(sections: Sections) -> Result<LoadedProject, ProjectError> {
@@ -143,20 +155,6 @@ fn decode(sections: Sections) -> Result<LoadedProject, ProjectError> {
         .as_deref()
         .ok_or_else(|| ProjectError::Corrupt("missing META section".to_string()))?;
     let embedded = sections.pcm.is_some();
-    let mut dropped = sections.dropped;
-    let (compare, compare_dropped) = match sections.compare.as_deref() {
-        Some(bytes) => match compare_from_bytes(bytes) {
-            Ok(compare) => (compare, false),
-            Err(err) => {
-                eprintln!("hey-listen: dropping the saved comparisons: {err}");
-                (Vec::new(), true)
-            }
-        },
-        None => (Vec::new(), false),
-    };
-    if compare_dropped {
-        dropped.push(DroppedSection::SavedComparisons);
-    }
     Ok(LoadedProject {
         meta: Sections::decode(meta)?,
         source: match sections.source.as_deref() {
@@ -167,12 +165,12 @@ fn decode(sections: Sections) -> Result<LoadedProject, ProjectError> {
         layout: sections.layout,
         results: optional::<Vec<StoredResult>>(sections.results)?.unwrap_or_default(),
         annotations: optional::<Vec<Annotation>>(sections.annotations)?.unwrap_or_default(),
-        compare,
+        compare: optional::<Vec<SavedComparison>>(sections.compare)?.unwrap_or_default(),
         pcm: sections.pcm,
         embedded,
         format_version: sections.version,
         upgraded_from: None,
-        dropped,
+        dropped: sections.dropped,
     })
 }
 

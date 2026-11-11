@@ -165,54 +165,6 @@ impl SavedComparison {
     }
 }
 
-/// The `COMPARE` payload written before `referencePath` existed (0.5.1 files).
-///
-/// `postcard` is positional, so the old struct decodes as a tuple in field order; the
-/// conversion stores `None` for the path, so an existing project still loads (the view
-/// then reports that the reference file is unknown instead of guessing one).
-pub(crate) type SavedComparisonV1 = (
-    AnalyzerId,
-    String,
-    SourceShape,
-    Span,
-    SharedParams,
-    ToolOptions,
-    Option<String>,
-    f64,
-    u64,
-    StoredAnalysisResult,
-);
-
-impl From<SavedComparisonV1> for SavedComparison {
-    fn from(old: SavedComparisonV1) -> Self {
-        let (
-            tool,
-            reference_name,
-            source,
-            window,
-            params,
-            options,
-            filter_fingerprint,
-            b_offset,
-            saved_ms,
-            result,
-        ) = old;
-        Self {
-            tool,
-            reference_name,
-            source,
-            window,
-            params,
-            options,
-            filter_fingerprint,
-            b_offset,
-            saved_ms,
-            result,
-            reference_path: None,
-        }
-    }
-}
-
 /// FNV-1a (64-bit) over the bytes, for a cheap, stable content fingerprint.
 fn fnv1a(bytes: &[u8]) -> u64 {
     let mut hash = 0xcbf2_9ce4_8422_2325u64;

@@ -1,15 +1,17 @@
-//! The migration chain's mechanics (M37).
+//! The migration chain (M37): the v1 → v2 step, plus the machinery around it.
 //!
-//! No released version is older than [`VERSION`] yet, so [`STEPS`] is empty and there is
-//! no `vN` fixture to load. These tests drive [`run_with`] with a synthetic step to pin
-//! the machinery — ordering, the version guard, the `RESULTS` drop, and the decode that
-//! follows — plus the real table's coverage, which a bump cannot forget.
+//! The step is the real one (`v1::from_v1_to_v2`, registered in `STEPS`); the guards
+//! (coverage, ordering, a missing/late step, a newer file) are exercised with the same
+//! `apply` / `run_with` the reader uses.
 
 use std::collections::BTreeMap;
 
+use super::v1::SavedComparisonV1;
 use super::*;
-use crate::audio::analysis::SharedParams;
+use crate::audio::analysis::fixtures;
+use crate::audio::analysis::{AnalysisResult, SharedParams};
 use crate::audio::analyzers::AnalyzerId;
+use crate::project::test_support::snapshot;
 use crate::project::{Meta, ProjectError, MIN_READ_VERSION, VERSION};
 
 /// A project as the reader would hand it over: `META` plus one cached result.
@@ -31,23 +33,30 @@ fn sections_at(version: u32) -> Sections {
     };
     Sections {
         version,
-        meta: Some(encode(&meta)),
-        results: Some(encode(&vec![result])),
+        meta: Some(Sections::encode(&meta).expect("meta")),
+        results: Some(Sections::encode(&vec![result]).expect("results")),
         ..Sections::default()
     }
 }
 
-fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
-    postcard::to_stdvec(value).expect("encode a test payload")
-}
-
-/// A stand-in for a real `from_vN_to_vNp1`: rewrites `META`, then bumps the version.
-fn rename(sections: &mut Sections) -> Result<(), ProjectError> {
-    let mut meta: Meta = Sections::decode(sections.meta.as_deref().expect("meta"))?;
-    meta.name.push_str(" (v2)");
-    sections.meta = Some(encode(&meta));
-    sections.version += 1;
-    Ok(())
+/// The early-version-1 snapshot layout: the same fields, without `referencePath`.
+fn early_v1_snapshot() -> SavedComparisonV1 {
+    let saved = snapshot(
+        AnalyzerId::Spectrum,
+        AnalysisResult::Spectrum(fixtures::spectrum()),
+    );
+    (
+        saved.tool,
+        saved.reference_name,
+        saved.source,
+        saved.window,
+        saved.params,
+        saved.options,
+        saved.filter_fingerprint,
+        saved.b_offset,
+        saved.saved_ms,
+        saved.result,
+    )
 }
 
 /// A broken step that forgets to advance the version.
@@ -79,23 +88,54 @@ fn the_step_table_covers_every_hop() {
 }
 
 #[test]
-fn a_step_rewrites_its_payload_and_advances_the_version() {
-    let step = Step {
-        from: 1,
-        apply: rename,
-    };
-    let loaded = run_with(&[step], 2, sections_at(1)).expect("migrate");
+fn an_early_v1_compare_snapshot_gains_a_reference_path() {
+    let mut sections = sections_at(1);
+    sections.compare = Some(Sections::encode(&vec![early_v1_snapshot()]).expect("compare"));
 
-    assert_eq!(loaded.meta.name, "Song (v2)");
-    assert_eq!(loaded.format_version, 1, "the file's version is reported");
+    let loaded = run_with(STEPS, VERSION, sections).expect("migrate");
+
     assert_eq!(loaded.upgraded_from, Some(1));
+    assert_eq!(loaded.compare.len(), 1);
+    assert_eq!(loaded.compare[0].tool, AnalyzerId::Spectrum);
+    assert_eq!(loaded.compare[0].reference_path, None);
     assert_eq!(loaded.dropped, vec![DroppedSection::Results]);
-    assert!(loaded.results.is_empty(), "results are not migrated");
+}
+
+#[test]
+fn a_late_v1_compare_snapshot_keeps_its_reference_path() {
+    // Version 1 shipped both layouts: a build after `referencePath` landed wrote the
+    // current tuple under the same version.
+    let mut saved = snapshot(
+        AnalyzerId::Spectrum,
+        AnalysisResult::Spectrum(fixtures::spectrum()),
+    );
+    saved.reference_path = Some("/tmp/reference.heyl".to_string());
+    let mut sections = sections_at(1);
+    sections.compare = Some(Sections::encode(&vec![saved]).expect("compare"));
+
+    let loaded = run_with(STEPS, VERSION, sections).expect("migrate");
+
+    assert_eq!(loaded.compare.len(), 1);
+    assert_eq!(
+        loaded.compare[0].reference_path.as_deref(),
+        Some("/tmp/reference.heyl")
+    );
+}
+
+#[test]
+fn an_unreadable_compare_section_is_dropped() {
+    let mut sections = sections_at(1);
+    sections.compare = Some(vec![0xff; 8]);
+
+    let loaded = run_with(STEPS, VERSION, sections).expect("the upgrade still succeeds");
+
+    assert!(loaded.compare.is_empty());
+    assert!(loaded.dropped.contains(&DroppedSection::SavedComparisons));
 }
 
 #[test]
 fn a_current_file_keeps_its_results_and_is_not_an_upgrade() {
-    let loaded = run_with(&[], VERSION, sections_at(VERSION)).expect("read");
+    let loaded = run_with(STEPS, VERSION, sections_at(VERSION)).expect("read");
 
     assert_eq!(loaded.meta.name, "Song");
     assert_eq!(loaded.format_version, VERSION);

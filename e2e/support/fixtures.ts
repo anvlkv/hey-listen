@@ -25,6 +25,13 @@ export const FIXTURES = {
   synthGraph: path.join(FIXTURE_DIR, "synth-graph.json"),
 } as const;
 
+/**
+ * A **committed** project file (`e2e/fixtures/v1.heyl`), unlike the generated fixtures
+ * above: a real 0.5.x save at container version 1 with embedded audio. The migration spec
+ * (H4) opens a copy of it, because saving the migrated project rewrites the file.
+ */
+export const LEGACY_PROJECT = path.resolve(HERE, "..", "fixtures", "v1.heyl");
+
 const SAMPLE_RATE = 48_000;
 /** −12 dBFS as a linear amplitude. */
 const AMPLITUDE = 10 ** (-12 / 20);

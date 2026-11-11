@@ -309,16 +309,16 @@ which migrates older payloads step by step in memory, and writes back through
 One JSON line per file:
 
 ```json
-{"file":"song.heyl","fromVersion":1,"toVersion":1,"migrated":false,
- "embedded":true,"backup":null,"dropped":[]}
+{"file":"song.heyl","fromVersion":1,"toVersion":2,"migrated":true,
+ "embedded":true,"backup":"song.heyl.bak","dropped":["results"]}
 ```
 
-A file already at the current version is left **untouched** — no rewrite, no backup —
-unless `--embed` grows it. Analysis results are dropped by the upgrade (they are a cache,
-recomputed on demand) and reported in `dropped`; source, audio, setup, graphs, annotations
-and saved comparisons survive. A `.bak` is only written for a file that is rewritten.
-Exit `0` when every file upgraded, `1` when any failed (one `error` record per failure),
-`2` on a bad flag.
+A file already at the current version (`VERSION`) is left **untouched** — no rewrite, no
+backup — unless `--embed` grows it. A **version 1** file (any 0.5.x save) is upgraded to
+version 2: the chain rewrites its saved comparisons and drops the cached `RESULTS`, which
+`dropped` reports; source, audio, setup, graphs, annotations and the comparisons themselves
+survive. A `.bak` is only written for a file that is rewritten. Exit `0` when every file
+upgraded, `1` when any failed (one `error` record per failure), `2` on a bad flag.
 
 ```bash
 # Upgrade everything in a folder, keeping a .bak beside each rewritten file:

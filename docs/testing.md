@@ -115,6 +115,12 @@ reproducible. `wdio.conf.ts`'s `onPrepare` writes them to the gitignored
 `sine440` gives the correctness spot-checks a known, assertable value; `chirp_noise`
 gives every spectral/rhythm tool a real, non-flat signal.
 
+One fixture is **committed** rather than generated, because it is a historical artifact:
+`e2e/fixtures/v1.heyl`, a real 0.5.x project at container version 1 (embedded 4.32 s
+stereo capture, saved setup and layout, empty `RESULTS`). H4 opens a **copy** of it, since
+saving the migrated project rewrites the file; `src-tauri/tests/project_migration.rs`
+loads the same bytes in Rust.
+
 ## Selectors
 
 Tests select by stable `data-testid` plus the existing ARIA labels (the search box
@@ -296,6 +302,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | H1 | Save/load | `save_project` → `load_project`; source + setup + results round-trip | Scenario |
 | H2 | Popout | Right-click a tab → **Pop out to window**; a native window shows just that tool, titled `<tool> — <project>`; selecting it in the Sidebar raises the popout (no duplicate tab); timeline/params/zoom sync; it closes with its parent and reopens on project load | Scenario |
 | H3 | Closed popout returns a tab | Closing the popout window forgets the tool in the core (`popout_tools`); selecting it in the Sidebar then opens a **tab**, not a dead window | Scenario |
+| H4 | A version 1 project upgrades | Open `e2e/fixtures/v1.heyl` (a copy): its audio and setup load, the Toolbar shows **upgraded from v1** and the project stays dirty; **Save** writes header version 2 and clears the notice (M37) | Scenario |
 
 > **H2 leaves one window behind.** One app instance is reused across spec files, so a
 > `popout-*` window that survives makes the *next* spec's `execute/sync` calls time out
