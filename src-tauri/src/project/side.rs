@@ -59,7 +59,7 @@ impl Side {
 pub fn load_side(path: &str, filter_override: Option<&GraphSpec>) -> Result<Side, String> {
     let mut file = std::fs::File::open(path).map_err(|err| format!("cannot open {path}: {err}"))?;
     let loaded = read_project(&mut file).map_err(|err| format!("{path}: {err}"))?;
-    let embedded = loaded.pcm.is_some();
+    let embedded = loaded.embedded;
     let pcm = loaded
         .pcm
         .or_else(|| crate::project::decode_reference(loaded.source.as_ref()));

@@ -28,3 +28,15 @@ export const [projectStatus, setProjectStatus] = createSignal<"idle" | "saving" 
 export const [projectError, setProjectError] = createSignal<string | null>(null);
 /** Creation time of the loaded project, preserved across re-saves. */
 export const [createdMs, setCreatedMs] = createSignal<number | null>(null);
+/**
+ * The format version a loaded project was migrated from, or `null` when the file was
+ * current (`docs/project-file-format.md` → Migrations). An upgraded project stays dirty
+ * until a save writes the current version, so the notice and the dirty marker agree.
+ */
+export const [upgradedFrom, setUpgradedFrom] = createSignal<number | null>(null);
+/**
+ * Whether the project is a **reference** project: it references its source file instead of
+ * embedding the audio (`docs/project-file-format.md` → Reference projects). A re-save
+ * keeps it that way, so a small project does not silently grow into a full copy.
+ */
+export const [referenceProject, setReferenceProject] = createSignal(false);

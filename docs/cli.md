@@ -2,7 +2,8 @@
 
 A **plain console binary** that runs the analysis engine over files without opening or
 driving a window — so a shell script or CI job can do bulk analysis, build project
-files (source + setup + tabs, and a saved comparison), and read the results as JSON. It
+files (source + setup + tabs, and a saved comparison), upgrade project files in place,
+and read the results as JSON. It
 is the non-MCP sibling of the headless MCP server: the same engine, a friendlier calling
 convention.
 
@@ -99,6 +100,7 @@ Commands:
   project  <OUT.heyl>       Build a .heyl project (source + setup + tabs), no window
   synth    <GRAPH.json>     Render a synth graph and (optionally) analyze the result
   annotations <FILE.heyl>   List or edit the annotations in a project file
+  migrate  <FILE.heyl>...   Upgrade project files to the current format version
 
 Options:
   -h, --help
@@ -290,6 +292,42 @@ hey-listen-cli compare a.heyl b.heyl -t spectrum --save a-with-comparison.heyl \
   --open-tool spectrum
 ```
 
+### `migrate <FILE.heyl>...` (M37)
+
+Upgrade project files to the **current format version**, in place. This is the script
+surface of the loader's migration chain (see [`project-file-format.md`](project-file-format.md)
+→ Migrations and ADR-32): it reads each file with the same `read_project` the app uses,
+which migrates older payloads step by step in memory, and writes back through
+`write_project_atomic`, so a bulk upgrade and an app save cannot diverge.
+
+| Option | Meaning |
+| --- | --- |
+| `FILE.heyl` | One or more project files to upgrade. |
+| `--embed` | Embed a **reference** project's audio (decode `SOURCE.path` into `DATA`). Without it a reference project stays a reference. |
+| `--no-backup` | Do not keep the `<project>.heyl.bak` copy that a rewrite writes by default. |
+
+One JSON line per file:
+
+```json
+{"file":"song.heyl","fromVersion":1,"toVersion":1,"migrated":false,
+ "embedded":true,"backup":null,"dropped":[]}
+```
+
+A file already at the current version is left **untouched** — no rewrite, no backup —
+unless `--embed` grows it. Analysis results are dropped by the upgrade (they are a cache,
+recomputed on demand) and reported in `dropped`; source, audio, setup, graphs, annotations
+and saved comparisons survive. A `.bak` is only written for a file that is rewritten.
+Exit `0` when every file upgraded, `1` when any failed (one `error` record per failure),
+`2` on a bad flag.
+
+```bash
+# Upgrade everything in a folder, keeping a .bak beside each rewritten file:
+hey-listen-cli migrate projects/*.heyl
+
+# Embed the referenced recordings too (larger files, no external dependency):
+hey-listen-cli migrate projects/*.heyl --embed --no-backup
+```
+
 ### `synth <GRAPH.json>`
 
 Render a synth graph to PCM (mono, `48 kHz`, `--seconds` default `5`), then behave
@@ -442,6 +480,8 @@ In scope (the **engine-backed compute subset**, matching headless MCP):
   into the owner (`--save`, M25.D).
 - `project` — build a `.heyl` from a file or synth source with the analysis setup,
   filter, annotations and Workbench tabs to restore (M25.D). Nothing needs a window.
+- `migrate` — upgrade `.heyl` files to the current format version, atomically and with a
+  `.bak` (M37).
 
 Planned in the compute subset (M13):
 
@@ -490,7 +530,7 @@ Deliberately out of scope:
 | --- | --- |
 | `src-tauri/cli/src/main.rs` | the console binary (the `hey-listen-cli` crate): parse, run, flush, exit (`exit::finish`). |
 | `src-tauri/cli/src/batch/clap_args.rs` | the `clap` derive interface and its `ArgMatches` → `Request` mapping. |
-| `src-tauri/cli/src/batch/` | the batch logic: `Request` (from either parser) → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `annotations` / `console`). |
+| `src-tauri/cli/src/batch/` | the batch logic: `Request` (from either parser) → the headless session; JSONL output; unit tests (`analyze` / `synth` / `analyzers` / `annotations` / `migrate` / `console`). |
 | `src-tauri/src/cli/mod.rs` | the app binary's two flags + the `setup` entry (`--mcp` → MCP, else GUI). |
 | `src-tauri/src/mcp/dispatch/` | the headless session, reused (the shared engine facade; `set_filter_graph` lives here). |
 | `src-tauri/src/audio/{decode,analyzers}.rs`, `src-tauri/src/audio/{analysis,graph}/` | the engine functions the batch command calls. |
@@ -504,7 +544,9 @@ Deliberately out of scope:
   no Tauri app and no display: it runs over a generated sine WAV and asserts `spectrum`'s
   peak is near 440 Hz, two files print two lines, an unknown tool yields an `error` line
   + exit `1`, a missing file fails without a `tool`, `synth` renders and reports a
-  summary, and `analyzers` prints the catalog as JSON or a table.
+  summary, and `analyzers` prints the catalog as JSON or a table. `migrate` is covered
+  too: a current file is not rewritten byte-for-byte, `--embed` grows a reference project
+  and keeps a `.bak`, and a missing file is an `error` record.
 - **Arg mapping.** The one mapping (`batch::build_request`) is asserted two ways:
   through the **real parser** (`clap_args::request`, in `cli/src/batch/tests/console.rs`) and
   through synthetic `tauri-plugin-cli` matches (the retired `plugins.cli` surface, kept

@@ -9,6 +9,8 @@ pub enum ProjectError {
     BadMagic,
     #[error("unsupported project file version {0}")]
     UnsupportedVersion(u32),
+    #[error("no migration step from project format version {0} to the next")]
+    MissingMigrationStep(u32),
     #[error("the project file is corrupt: {0}")]
     Corrupt(String),
     #[error("could not encode the project data: {0}")]

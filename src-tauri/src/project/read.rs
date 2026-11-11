@@ -6,14 +6,14 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
-use serde::de::DeserializeOwned;
-
 use super::error::ProjectError;
+use super::migrate::{self, Sections};
 use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
 use super::{
-    Crc32, CHECKSUM_LEN, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, HEADER_LEN,
-    INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_ANNOTATIONS, SECTION_COMPARE, SECTION_DATA,
-    SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
+    Crc32, DroppedSection, CHECKSUM_LEN, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN,
+    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, MIN_READ_VERSION, PCM_FORMAT_F32, SECTION_ANNOTATIONS,
+    SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP,
+    SECTION_SOURCE, VERSION,
 };
 use crate::audio::analysis::compare::{SavedComparison, SavedComparisonV1};
 use crate::state::SourceData;
@@ -32,6 +32,15 @@ pub struct LoadedProject {
     pub compare: Vec<SavedComparison>,
     /// The embedded audio, if the file had a `DATA` section with samples.
     pub pcm: Option<SourceData>,
+    /// Whether the file carried its audio (`DATA`) rather than referencing the source —
+    /// `false` is a **reference** project (see `docs/project-file-format.md`).
+    pub embedded: bool,
+    /// The container version the file was written with (see [`VERSION`]).
+    pub format_version: u32,
+    /// `Some(version)` when the file was migrated forward to [`VERSION`] (ADR-32).
+    pub upgraded_from: Option<u32>,
+    /// Analysis output this load dropped; never user data (see [`DroppedSection`]).
+    pub dropped: Vec<DroppedSection>,
 }
 
 /// One entry from the section index.
@@ -55,7 +64,7 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
         return Err(ProjectError::BadMagic);
     }
     let version = u32::from_le_bytes(header[4..8].try_into().unwrap());
-    if version != VERSION {
+    if !(MIN_READ_VERSION..=VERSION).contains(&version) {
         return Err(ProjectError::UnsupportedVersion(version));
     }
     // header[8..12] is `flags`; unknown flags are ignored today.
@@ -88,49 +97,36 @@ pub fn read_project<R: Read + Seek>(reader: &mut R) -> Result<LoadedProject, Pro
 
     verify_checksum(reader, len)?;
 
-    let mut meta: Option<Meta> = None;
-    let mut source: Option<SourceDescriptor> = None;
-    let mut setup: Option<AnalysisSetup> = None;
-    let mut layout = serde_json::Value::Null;
-    let mut results: Vec<StoredResult> = Vec::new();
-    let mut annotations: Vec<Annotation> = Vec::new();
-    let mut compare: Vec<SavedComparison> = Vec::new();
-    let mut pcm: Option<SourceData> = None;
+    let mut sections = Sections {
+        version,
+        ..Sections::default()
+    };
 
     for entry in &entries {
         match entry.id {
-            SECTION_META => meta = Some(from_postcard(reader, entry)?),
-            SECTION_SOURCE => source = from_postcard::<Option<SourceDescriptor>, _>(reader, entry)?,
+            SECTION_META => sections.meta = Some(read_section(reader, entry)?),
+            SECTION_SOURCE => sections.source = Some(read_section(reader, entry)?),
             SECTION_DATA => {
                 let data = read_data(reader, entry)?;
-                pcm = if data.samples.is_empty() {
+                sections.pcm = if data.samples.is_empty() {
                     None
                 } else {
                     Some(data)
                 };
             }
-            SECTION_SETUP => setup = Some(from_postcard(reader, entry)?),
-            SECTION_LAYOUT => layout = from_json(reader, entry)?,
-            SECTION_RESULTS => results = from_postcard(reader, entry)?,
-            SECTION_ANNOTATIONS => annotations = from_postcard(reader, entry)?,
-            SECTION_COMPARE => compare = compare_section(reader, entry)?,
+            SECTION_SETUP => sections.setup = Some(read_section(reader, entry)?),
+            SECTION_LAYOUT => sections.layout = from_json(reader, entry)?,
+            SECTION_RESULTS => sections.results = Some(read_section(reader, entry)?),
+            SECTION_ANNOTATIONS => sections.annotations = Some(read_section(reader, entry)?),
+            SECTION_COMPARE => sections.compare = Some(read_section(reader, entry)?),
             // Forward compatibility: unknown sections are skipped.
             _ => {}
         }
     }
 
-    let meta = meta.ok_or_else(|| ProjectError::Corrupt("missing META section".to_string()))?;
-
-    Ok(LoadedProject {
-        meta,
-        source,
-        setup: setup.unwrap_or_default(),
-        layout,
-        results,
-        annotations,
-        compare,
-        pcm,
-    })
+    // The payloads are decoded only after the migration chain has brought them up to
+    // `VERSION` — an old file's struct shape is not today's (ADR-32).
+    migrate::run(sections)
 }
 
 /// CRC-32 over everything before the trailing 8-byte checksum.
@@ -157,16 +153,9 @@ fn verify_checksum<R: Read + Seek>(reader: &mut R, len: u64) -> Result<(), Proje
 }
 
 /// The `COMPARE` section, tolerating a file written before `referencePath` existed.
-fn compare_section<R: Read + Seek>(
-    reader: &mut R,
-    entry: &SectionEntry,
-) -> Result<Vec<SavedComparison>, ProjectError> {
-    compare_from_bytes(&read_section(reader, entry)?)
-}
-
-/// Decode a `COMPARE` payload: the current snapshots first, then a file from an older
-/// build (whose snapshots are a strict prefix of the current ones), which stores no
-/// reference path.
+///
+/// This is **in-version** tolerance (both payloads are version 1), not a migration: an old
+/// build omitted a trailing field, so the reader retries with the shorter snapshot type.
 pub(crate) fn compare_from_bytes(bytes: &[u8]) -> Result<Vec<SavedComparison>, ProjectError> {
     if let Ok(current) = postcard::from_bytes::<Vec<SavedComparison>>(bytes) {
         return Ok(current);
@@ -187,14 +176,6 @@ fn read_section<R: Read + Seek>(
     reader.seek(SeekFrom::Start(entry.offset))?;
     reader.read_exact(&mut bytes)?;
     Ok(bytes)
-}
-
-fn from_postcard<T: DeserializeOwned, R: Read + Seek>(
-    reader: &mut R,
-    entry: &SectionEntry,
-) -> Result<T, ProjectError> {
-    let bytes = read_section(reader, entry)?;
-    postcard::from_bytes(&bytes).map_err(|err| ProjectError::Corrupt(format!("postcard: {err}")))
 }
 
 fn from_json<R: Read + Seek>(

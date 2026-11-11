@@ -9,7 +9,7 @@ import { annotations } from "../annotations";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { layoutJson, openTools } from "../workbench";
-import { setDirty } from "./signals";
+import { setDirty, upgradedFrom } from "./signals";
 
 /**
  * Unsaved-work tracking: a signature of every piece of state the project file
@@ -127,7 +127,7 @@ let settle: number | undefined;
 /** Take the current state as the clean baseline and clear the unsaved marker. */
 export function markClean() {
   baseline = projectSignature();
-  setDirty(false);
+  setDirty(upgradedFrom() !== null);
 }
 
 /** Suppress the dirty effect while a load/new restores state. */
@@ -158,12 +158,14 @@ function armSettle() {
 createRoot(() => {
   createEffect(() => {
     const signature = projectSignature();
+    // An upgraded project stays dirty until a save writes the current format version.
+    const upgraded = upgradedFrom() !== null;
     if (baselining) {
       baseline = signature; // the restored state becomes the clean baseline
       armSettle(); // …and a later settling change extends the quiet period
       return;
     }
-    setDirty(signature !== baseline);
+    setDirty(signature !== baseline || upgraded);
   });
 });
 

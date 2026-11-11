@@ -29,6 +29,7 @@ pub enum BatchCommand {
     Annotations,
     Compare,
     Project,
+    Migrate,
 }
 
 /// Where `--out` writes: one explicit file (a single result) or a directory (one file
@@ -87,6 +88,14 @@ pub enum Command {
         annotations: Vec<Value>,
         /// Write a reference project (no embedded audio) for a file source.
         reference: bool,
+    },
+    /// `migrate <FILE.heyl>...` — upgrade project files to the current format version.
+    Migrate {
+        paths: Vec<String>,
+        /// Embed a reference project's audio instead of keeping it a reference.
+        embed: bool,
+        /// Keep a `.bak` copy beside each rewritten file (opt out with `--no-backup`).
+        backup: bool,
     },
 }
 

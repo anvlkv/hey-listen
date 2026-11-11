@@ -10,10 +10,13 @@ import { rememberRecent } from "./recents";
 import {
   createdMs,
   projectPath,
+  referenceProject,
   setProjectError,
   setProjectPath,
   setProjectStatus,
   setProjectTitle,
+  setReferenceProject,
+  setUpgradedFrom,
 } from "./signals";
 import {
   currentDescriptor,
@@ -28,9 +31,12 @@ import type { SaveProjectArgs } from "./types";
 /**
  * Save the project file (see [`project-file-format.md`](../../../docs/project-file-format.md)):
  * the frontend supplies `SOURCE`/`SETUP`/`LAYOUT` and the core fills in `META` + `DATA`.
+ *
+ * `embedSource` defaults to the project's own state: a project loaded as a **reference**
+ * stays one, so re-saving it does not silently embed the whole recording.
  */
 
-async function write(path: string, embedSource = true): Promise<boolean> {
+async function write(path: string, embedSource = !referenceProject()): Promise<boolean> {
   setProjectStatus("saving");
   setProjectError(null);
   // A save that carries annotations stores the whole source, not the fragment the user
@@ -65,6 +71,9 @@ async function write(path: string, embedSource = true): Promise<boolean> {
     setProjectTitle(projectLabel(path));
     void setWindowTitle(basename(path));
     rememberRecent(path);
+    // The file now holds the current format version and the audio the save was asked for.
+    setUpgradedFrom(null);
+    setReferenceProject(!embedSource && currentDescriptor()?.kind === "file");
     markClean();
     return true;
   } catch (err) {

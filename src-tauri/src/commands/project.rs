@@ -86,10 +86,16 @@ pub struct LoadedProjectDto {
     pub layout: serde_json::Value,
     /// The cached analyzer results, restored into the frontend's result cache.
     pub results: Vec<results::CachedResultOutput>,
-    /// The project's annotations (empty when the file has no `NOTES` section).
+    /// The project's annotations (empty when the file has no `ANNOTATIONS` section).
     pub annotations: Vec<Annotation>,
     /// Saved comparisons (empty when the file has no `COMPARE` section).
     pub compare: Vec<SavedComparisonInfo>,
+    /// Whether the file embedded its audio (`DATA`); `false` is a **reference** project,
+    /// which a re-save keeps a reference instead of silently growing into a full copy.
+    pub embedded: bool,
+    /// The format version the file was written with, when this build migrated it forward.
+    /// The app marks the project dirty so the next save writes the current version.
+    pub upgraded_from: Option<u32>,
     pub sample_rate: u32,
     pub channels: u16,
     pub frames: u64,
@@ -186,6 +192,8 @@ pub async fn load_project(
         annotations,
         compare,
         pcm,
+        embedded,
+        upgraded_from,
         ..
     } = loaded;
 
@@ -229,6 +237,8 @@ pub async fn load_project(
         results: to_cached(stored_results),
         annotations,
         compare: compare_infos,
+        embedded,
+        upgraded_from,
         sample_rate,
         channels,
         frames,

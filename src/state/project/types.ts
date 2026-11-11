@@ -69,6 +69,16 @@ export interface LoadedProjectDto {
   annotations: Annotation[];
   /** Saved comparisons (empty when the file has no `COMPARE` section, M25.C). */
   compare: SavedComparisonInfo[];
+  /**
+   * Whether the file embedded its audio (`DATA`). `false` = a reference project, which a
+   * re-save keeps a reference instead of silently growing into a full copy (M37).
+   */
+  embedded: boolean;
+  /**
+   * The format version the file was written with, when this build migrated it forward (M37).
+   * The project then stays dirty until a save writes the current version.
+   */
+  upgradedFrom: number | null;
   sampleRate: number;
   channels: number;
   frames: number;

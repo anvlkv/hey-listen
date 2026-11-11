@@ -38,6 +38,7 @@ export {
   projectName,
   projectPath,
   projectStatus,
+  upgradedFrom,
 } from "./signals";
 export { saveProject, saveProjectAs, saveProjectTo } from "./save";
 export { loadProject, openProject } from "./load";

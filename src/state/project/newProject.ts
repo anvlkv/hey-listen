@@ -15,7 +15,14 @@ import { resetAnnotations } from "../annotations";
 import { closeSource } from "../source";
 import { closeAllTools } from "../workbench";
 import { beginBaseline, endBaseline } from "./dirty";
-import { setCreatedMs, setProjectError, setProjectPath, setProjectTitle } from "./signals";
+import {
+  setCreatedMs,
+  setProjectError,
+  setProjectPath,
+  setProjectTitle,
+  setReferenceProject,
+  setUpgradedFrom,
+} from "./signals";
 
 /** Start a fresh project: drop the source, graphs, setup, and Workbench tabs. */
 export async function newProject(): Promise<void> {
@@ -46,6 +53,8 @@ export async function newProject(): Promise<void> {
   setProjectPath(null);
   setProjectTitle(null);
   setCreatedMs(null);
+  setReferenceProject(false);
+  setUpgradedFrom(null);
   resetAnnotations();
   resetHistory();
   // Re-arm the dirty baseline once the resets have settled, so the fresh project is
