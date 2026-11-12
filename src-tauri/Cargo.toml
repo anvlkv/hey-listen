@@ -1,8 +1,43 @@
+# One workspace, one `Cargo.lock` and one `target/` for the app and both console binaries.
+# The app stays the root package (its `tauri.conf.json` sits beside this manifest); `cli/`
+# is the batch console binary and `mcp/` the stdio MCP entry — separate packages so that
+# neither is an auto-detected bin target of the app (`docs/packaging.md`).
+[workspace]
+members = ["cli", "mcp"]
+# `cargo clippy` / `cargo test` in CI run without `--workspace`: without this the console
+# binaries would never be linted or compiled by those gates.
+default-members = [".", "cli", "mcp"]
+resolver = "2"
+
+# What the three crates must agree on, stated once. The app and both console binaries share
+# one release version (ADR-30) — the console binaries follow the app they were staged from —
+# so a bump is one edit here. `src-tauri/tauri.conf.json` deliberately sets no `version`:
+# the bundle then takes this crate's `CARGO_PKG_VERSION` (`docs/packaging.md` → Release
+# process).
+[workspace.package]
+version = "0.6.2"
+edition = "2021"
+license = "Unlicense"
+
+# Dependency versions shared by more than one crate, so a bump cannot drift between them.
+[workspace.dependencies]
+# The analysis engine and the headless session the console binaries link.
+hey-listen = { path = "." }
+serde_json = "1"
+# String-safe ids: `strum` derives the `FromStr` / `Display` / variant-name plumbing for
+# the id enums that `serde` + `ts-rs` carry across the boundary (`docs/decisions.md` →
+# ADR-28, `docs/roadmap.md` → M15.B).
+strum = { version = "0.28", features = ["derive"] }
+tauri-plugin-cli = "2"
+# `platform-windows` is turned on by the windows target table below.
+tauri-plugin-prevent-default = "6"
+
 [package]
 name = "hey-listen"
-version = "0.6.1"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Hey Listen — audio analysis workbench: capture, filter, and analyze audio."
-edition = "2021"
 # The app package builds one binary (`hey-listen`, the GUI). The stdio MCP entry
 # (`heylisten-mcp`) and the batch console binary (`hey-listen-cli`) are their own crates in
 # this workspace: keeping them out of this package's bin targets is what stops the
@@ -19,8 +54,10 @@ default-run = "hey-listen"
 name = "hey_listen_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[build-dependencies]
-tauri-build = { version = "2", features = [] }
+# The batch CLI's tests (`src-tauri/cli/src/batch/tests/`) use the writer that refuses
+# every byte, so `test_support` is compiled on request as well as under `cfg(test)`.
+[features]
+test-support = []
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -28,9 +65,9 @@ tauri-plugin-dialog = "2"     # native open/save dialogs (file source)
 tauri-plugin-window-state = "2" # remember window size/position across launches
 tauri-plugin-log = "2"         # file logging (rotated per session / size)
 tauri-plugin-store = "2"        # persistent key-value store (MCP settings)
-tauri-plugin-cli = "2"          # CLI flag definitions + parsing (--mcp / --headless)
+tauri-plugin-cli.workspace = true  # CLI flag definitions + parsing (--mcp / --headless)
 tauri-plugin-clipboard-manager = "2" # write the copyable MCP config to the clipboard
-tauri-plugin-prevent-default = "6"
+tauri-plugin-prevent-default.workspace = true
 # E2E testing (M8). `tauri-plugin-wdio-webdriver` embeds the W3C WebDriver server
 # (the `embedded` provider); `tauri-plugin-wdio` supplies `browser.tauri.execute()`
 # and IPC mocking. They are registered only when the E2E service launches the app
@@ -41,16 +78,13 @@ tauri-plugin-wdio-webdriver = "1"
 base64 = "0.22"          # chart PNG bytes cross IPC base64-encoded (exports, M12)
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json.workspace = true
 thiserror = "2"
 postcard = { version = "1", features = ["use-std"] }
 # Generate the TypeScript bindings for the IPC boundary types from the Rust
 # definitions (`docs/architecture.md`), so the two sides share one source of truth.
 ts-rs = { version = "12", features = ["serde-json-impl"] }
-# String-safe ids: `strum` derives the `FromStr` / `Display` / variant-name
-# plumbing for the id enums that `serde` + `ts-rs` carry across the boundary
-# (`docs/decisions.md` → ADR-28, `docs/roadmap.md` → M15.B).
-strum = { version = "0.28", features = ["derive"] }
+strum.workspace = true
 # Audio I/O and processing
 flexaudio = "0.8"                                    # capture: mic / system / process / mix
 symphonia = { version = "0.6", features = ["all"] }  # decode audio files (demux + decode)
@@ -59,6 +93,9 @@ oxiaudio = { version = "0.2", features = ["serde"] } # analysis
 cpal = "0.16"                                        # preview playback (Output; must match flexaudio's cpal 0.16 to avoid a duplicate `alsa-sys` links conflict)
 tauri-plugin-process = "2.4.0"
 
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
 # macOS: declare the process user-initiated so App Nap cannot throttle it while the MCP
 # server or live capture runs in the background (see `src/app_activity.rs`). Both crates
 # are already in the tree via Tauri; this only turns on the `NSProcessInfo` API.
@@ -66,14 +103,9 @@ tauri-plugin-process = "2.4.0"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSProcessInfo", "NSString"] }
 
-# The batch CLI's tests (`src-tauri/cli/src/batch/tests/`) use the writer that refuses
-# every byte, so `test_support` is compiled on request as well as under `cfg(test)`.
-[features]
-test-support = []
-
 # windows: The platform-windows feature must be enabled for `tauri-plugin-prevent-default`
 [target.'cfg(target_os = "windows")'.dependencies]
-tauri-plugin-prevent-default = { version = "6", features = ["platform-windows"] }
+tauri-plugin-prevent-default = { workspace = true, features = ["platform-windows"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-updater = "2.14.1"
@@ -97,14 +129,3 @@ opt-level = 3
 
 [profile.dev.package.oxifft]
 opt-level = 3
-
-# One workspace, one `Cargo.lock` and one `target/` for the app and both console binaries.
-# The app stays the root package (its `tauri.conf.json` sits beside this manifest); `cli/`
-# is the batch console binary and `mcp/` the stdio MCP entry — separate packages so that
-# neither is an auto-detected bin target of the app (`docs/packaging.md`).
-[workspace]
-members = ["cli", "mcp"]
-# `cargo clippy` / `cargo test` in CI run without `--workspace`: without this the console
-# binaries would never be linted or compiled by those gates.
-default-members = [".", "cli", "mcp"]
-resolver = "2"

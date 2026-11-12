@@ -6,9 +6,14 @@ the `.heyl` project file association is registered by the bundle.
 
 ## Release process
 
-1. Bump `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`,
-   `src-tauri/cli/Cargo.toml`, `src-tauri/mcp/Cargo.toml` and `package.json` — keep them
-   equal (the console binaries follow the app version they were built from, ADR-30). That
+1. Bump the version in `src-tauri/Cargo.toml` → `[workspace.package]` and in
+   `package.json` — keep them equal. The app crate and both console binaries (`cli/`,
+   `mcp/`) take the workspace version with `version.workspace = true`, so their manifests
+   need no edit (the console binaries follow the app version they were built from,
+   ADR-30). `src-tauri/tauri.conf.json` sets no `version` on purpose: tauri-codegen then
+   takes the app version from `env!("CARGO_PKG_VERSION")`, so the bundle, the
+   `app.getVersion()` the updater compares, and the `CARGO_PKG_VERSION` the core logs and
+   stamps into project files are one value. That
    is everything:
    the marketing page's download button takes its version from `package.json`,
    stamped into `site/` by `scripts/buildSite.mjs` when Pages deploys.
