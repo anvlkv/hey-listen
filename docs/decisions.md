@@ -977,8 +977,12 @@ Releases, and sign with a Tauri key pair.
 - **Delivery.** The release workflow sets `createUpdaterArtifacts` so each platform emits
   its updater bundle + `.sig`, uploads them, and publishes a `latest.json` per
   `OS-ARCH` via tauri-action, so `check()` validates the whole feed before comparing
-  versions. Version bumps stay in the three pinned places (`tauri.conf.json`, `Cargo.toml`,
-  `package.json`).
+  versions. The version has one owner, `src-tauri/Cargo.toml` → `[workspace.package]`:
+  the app and both console crates inherit it (`version.workspace = true`), and
+  `tauri.conf.json` deliberately omits `version` so tauri-codegen falls back to the crate's
+  `CARGO_PKG_VERSION` — the bundle, updater and core then agree by construction. Only
+  `package.json` (the site's download button) is bumped alongside
+  (`docs/packaging.md` → Release process).
 - **CLI follows the app.** The installed `hey-listen-cli` records the app version it was
   installed from; the updater (or app launch) refreshes an out-of-date installed CLI from
   the updated bundle. The app version is the single source of truth for what the CLI
