@@ -177,6 +177,7 @@ steps are derived from it (see [Migrations](#migrations)).
 | --- | --- | --- |
 | 1 | Initial container (M6). Sections grew **additively** within it: `ANNOTATIONS` (M14), `COMPARE` (M25.C), the `RESULTS` payload, `LAYOUT.filterSpec` (M25.D), and the `COMPARE` `referencePath` field (early v1 has the shorthand snapshot layout, late v1 the full one). | M6 |
 | 2 | `COMPARE` snapshots always carry `referencePath` (the layout version 1 shipped in two shapes). The `v1 → v2` step in `project/migrate/v1.rs` rewrites the early layout; every other section is byte-identical. | M37 |
+| 3 | `COMPARE` becomes `Vec<SavedComparison>` with **one entry per pair** (several per tool): `{ tool, owner, reference, bOffset, savedMs }`, where each side carries its `window` + `channel` and the reference side carries `projectName` / `projectPath`, `source`, `filterFingerprint` and the **fragment audio** (windowed, channel-selected PCM). The `v2 → v3` step in `project/migrate/v2.rs` **converts** each old snapshot into a pair (result-only where no fragment audio exists); nothing is dropped. *(planned — M23, Phase 3)* | M23 |
 
 **Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
 `SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
@@ -204,6 +205,9 @@ contract.
   are release snapshots and are never edited after the fact.
   The chain today has one step, `v1 → v2` (`project/migrate/v1.rs`): it rewrites the saved
   comparisons from version 1's two snapshot layouts into the one version 2 writes.
+  M23 (Phase 3) plans the next step, `v2 → v3`: it **converts** each old single-snapshot
+  `COMPARE` entry into one pair (result-only where there is no fragment audio) and passes
+  every other section through — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
 - **Stored results keep a codec-level tolerance.** The `postcard` mirror of an analysis
   result reads a missing **trailing** optional field as its default
   (`results/stored/decode.rs`), which is how a version-1 comparison snapshot written before
