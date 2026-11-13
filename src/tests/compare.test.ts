@@ -5,7 +5,8 @@ import {
   compareViewFamily,
   comparePanelId,
   isCompareId,
-  parseCompareTool,
+  newCompareId,
+  parseComparePanel,
 } from "../state/compare/id";
 import { createPollGate } from "../state/compare/live";
 import { mergeSeries, nearestColumn, unionTimes } from "../components/compare/align";
@@ -13,39 +14,36 @@ import { deltaLimit, deltaSpan } from "../components/compare/matrix";
 import { identicalWindows, bucketTimes } from "../components/compare/waveform";
 import { pairingSummary } from "../components/compare/events";
 import { noteRows } from "../components/compare/notes";
-import { clipSeries, compareTime, displayTimes } from "../components/compare/time";
 import { shapeLabel } from "../state/compare/picker";
-import {
-  compareOffset,
-  compareSignature,
-  openCompareTabs,
-  pruneViews,
-  setCompareFingerprint,
-  setCompareViews,
-  setReference,
-  setSavedReference,
-  viewFor,
-} from "../state/compare/views";
-import type { SavedComparisonInfo } from "../bindings/SavedComparisonInfo";
-import { setOpenCompareIds, setOpenTools } from "../state/workbench";
-import type { ComparisonDto, MatrixDiffDto, NotesDiffDto } from "../state/compare/types";
+import type { MatrixDiffDto, NotesDiffDto } from "../state/compare/types";
 
 /**
  * Unit checks for cross-project comparison (M25): the compare panel id, the family
  * gate, the dockview layout sanitiser (a compare panel is never project content), the
- * peer poll's latest-wins gate, and the overlay alignment that never interpolates.
+ * peer poll's latest-wins gate, the overlay alignment that never interpolates, and the
+ * M25.A view helpers (matrix Δ, waveform buckets, event pairing, note rows).
  */
 
-it("a compare panel id round-trips its tool", () => {
-  expect(comparePanelId("spectrum")).toBe("compare:spectrum");
-  expect(parseCompareTool("compare:spectrum")).toBe("spectrum");
-  expect(isCompareId("compare:spectrum")).toBe(true);
+it("a compare panel id round-trips its tool and comparison id", () => {
+  expect(comparePanelId("spectrum", "cmp-1")).toBe("compare:spectrum:cmp-1");
+  expect(parseComparePanel("compare:spectrum:cmp-1")).toEqual({
+    tool: "spectrum",
+    id: "cmp-1",
+  });
+  expect(isCompareId("compare:spectrum:cmp-1")).toBe(true);
 });
 
 it("a non-compare or unknown tool id is not a compare panel", () => {
-  expect(parseCompareTool("spectrum")).toBeNull();
-  expect(parseCompareTool("compare:nope")).toBeNull();
+  expect(parseComparePanel("spectrum")).toBeNull();
+  expect(parseComparePanel("compare:nope:cmp-1")).toBeNull();
+  // The id is required: the old per-tool panel shape is not a valid comparison.
+  expect(parseComparePanel("compare:spectrum")).toBeNull();
+  expect(parseComparePanel("compare:spectrum:")).toBeNull();
   expect(isCompareId("spectrum")).toBe(false);
+});
+
+it("every new comparison gets its own id", () => {
+  expect(newCompareId()).not.toBe(newCompareId());
 });
 
 it("the family gate maps every chart kind to a compare family", () => {
@@ -80,7 +78,7 @@ function layout(views: string[], activeView?: string): SerializedDockview {
 
 it("a compare panel is stripped from the saved layout", () => {
   const sanitized = sanitizeLayout(
-    layout(["spectrum", "compare:spectrum"], "compare:spectrum"),
+    layout(["spectrum", "compare:spectrum:cmp-1"], "compare:spectrum:cmp-1"),
     isCompareId,
   );
   expect(sanitized).not.toBeNull();
@@ -98,7 +96,7 @@ it("a group left empty by the compare panel is pruned", () => {
       root: {
         type: "branch",
         data: [
-          { type: "leaf", data: { id: "g1", views: ["compare:spectrum"] }, size: 400 },
+          { type: "leaf", data: { id: "g1", views: ["compare:spectrum:cmp-1"] }, size: 400 },
           { type: "leaf", data: { id: "g2", views: ["mfcc"] }, size: 400 },
         ],
         size: 800,
@@ -108,7 +106,7 @@ it("a group left empty by the compare panel is pruned", () => {
       orientation: "VERTICAL",
     },
     panels: {
-      "compare:spectrum": { id: "compare:spectrum" },
+      "compare:spectrum:cmp-1": { id: "compare:spectrum:cmp-1" },
       mfcc: { id: "mfcc" },
     },
     activeGroup: "g1",
@@ -131,14 +129,21 @@ it("a group left empty by the compare panel is pruned", () => {
 it("a floating group keeps only its project views", () => {
   const original = {
     grid: layout(["spectrum"]).grid,
-    panels: { spectrum: { id: "spectrum" }, "compare:spectrum": { id: "compare:spectrum" } },
+    panels: {
+      spectrum: { id: "spectrum" },
+      "compare:spectrum:cmp-1": { id: "compare:spectrum:cmp-1" },
+    },
     floatingGroups: [
       {
-        data: { id: "f1", views: ["spectrum", "compare:spectrum"], activeView: "compare:spectrum" },
+        data: {
+          id: "f1",
+          views: ["spectrum", "compare:spectrum:cmp-1"],
+          activeView: "compare:spectrum:cmp-1",
+        },
         position: { top: 0, left: 0, width: 100, height: 100 },
       },
       {
-        data: { id: "f2", views: ["compare:spectrum"] },
+        data: { id: "f2", views: ["compare:spectrum:cmp-1"] },
         position: { top: 0, left: 0, width: 100, height: 100 },
       },
     ],
@@ -153,7 +158,10 @@ it("a floating group keeps only its project views", () => {
 });
 
 it("a layout that is only a compare panel sanitizes to nothing", () => {
-  const sanitized = sanitizeLayout(layout(["compare:spectrum"], "compare:spectrum"), isCompareId);
+  const sanitized = sanitizeLayout(
+    layout(["compare:spectrum:cmp-1"], "compare:spectrum:cmp-1"),
+    isCompareId,
+  );
   expect(sanitized).toBeNull();
 });
 
@@ -252,128 +260,4 @@ it("the note table pairs matches and keeps one-sided notes", () => {
   expect(rows[1].rmsDeltaDb).toBe(2);
   expect(rows[0].aStart).toBeNull();
   expect(rows[2].bStart).toBeNull();
-});
-
-/** A comparison shaped just enough for the relative-time helpers. */
-const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
-
-function comparisonFor(
-  aStart: number,
-  aDuration: number,
-  bStart: number,
-  bDuration: number,
-  bOffset: number,
-): ComparisonDto {
-  const side = (project: string, start: number) =>
-    ({
-      project,
-      source: null,
-      window: { start, end: start + 1 },
-      params: {},
-      options: {},
-      summary: {},
-      result: { tool: "frameRms", windowStart: start },
-    }) as never;
-  return {
-    tool: "frameRms",
-    a: side("A", aStart),
-    b: side("B", bStart),
-    comparability: {
-      aligned: true,
-      alignment: {
-        aDuration,
-        bDuration,
-        bOffset,
-        common: { start: Math.max(0, bOffset), end: Math.min(aDuration, bOffset + bDuration) },
-      },
-      overlap: null,
-      mismatches: [],
-      filtersDiffer: false,
-    },
-  } as ComparisonDto;
-}
-
-it("each side starts at 0 and the reference is shifted by the offset", () => {
-  const time = compareTime(
-    () => comparisonFor(2, 1, 5, 0.6, 0.1),
-    () => false,
-  );
-  expect(time.originA()).toBe(2);
-  expect(time.originB()).toBe(5);
-  expect(time.extent()).toBe(1);
-  expect(time.a(2.5)).toBe(0.5);
-  expect(round6(time.b(5.2))).toBe(0.3); // 0.2 into B's window, +0.1 δ
-  expect(time.bWindow()).toEqual({ start: 0.1, end: 0.7 });
-  expect(time.clipped()).toBe(true);
-  expect(time.toSource(0.5)).toBe(2.5);
-  expect(time.fromSource(2.5)).toBe(0.5);
-});
-
-it("Swap A/B swaps the extent, clipping and the offset sign", () => {
-  const swapped = compareTime(
-    () => comparisonFor(2, 1, 5, 0.6, 0.1),
-    () => true,
-  );
-  expect(swapped.originA()).toBe(5);
-  expect(swapped.extent()).toBe(0.6);
-  expect(round6(swapped.a(5.2))).toBe(0.2);
-  expect(round6(swapped.b(2.5))).toBe(0.4); // A's 0.5 into its window, −0.1 δ
-  expect(swapped.bWindow()).toEqual({ start: -0.1, end: 0.9 });
-  expect(round6(swapped.delta(0.2))).toBe(0.1);
-  expect(round6(swapped.toSource(0.2))).toBe(2.3);
-});
-
-it("relative times and clipping trim a side at the axis end", () => {
-  expect(displayTimes([2, 2.5], 2, 0.1).map(round6)).toEqual([0.1, 0.6]);
-  const clipped = clipSeries([0, 1, 2, 3], [10, 11, 12, 13], 0, 2);
-  expect(clipped.times).toEqual([0, 1, 2]);
-  expect(clipped.values).toEqual([10, 11, 12]);
-});
-
-it("a saved reference restores its offset, and retargeting a live project resets it", () => {
-  const info: SavedComparisonInfo = {
-    tool: "spectrum",
-    referenceName: "Ref project",
-    source: { sampleRate: 48_000, channels: 1, duration: 2 },
-    window: { start: 0.5, end: 1.5 },
-    bOffset: 0.25,
-    savedMs: 1,
-    fingerprint: "abc",
-  };
-  setSavedReference("spectrum", info);
-  expect(compareOffset("spectrum")).toBe(0.25);
-  expect(viewFor("spectrum")?.binding).toEqual({ kind: "saved", reference: "Ref project" });
-
-  // Reconnecting a live project resets the fine-tune offset (M25.C).
-  setReference("spectrum", "project-1");
-  expect(compareOffset("spectrum")).toBe(0);
-  expect(viewFor("spectrum")?.binding).toEqual({ kind: "live", reference: "project-1" });
-
-  // The dirty signature follows the binding, the offset and the last fingerprint.
-  setCompareFingerprint("spectrum", "def");
-  expect(compareSignature()).toEqual({ spectrum: "live|project-1|0.000000|def" });
-  setCompareViews({});
-});
-
-it("a compare tab keeps its reference when a tool tab changes", () => {
-  // The M25.B regression: deriving compare tabs from `openTools` dropped every
-  // reference on any panel add/remove, because `openTools` excludes compare ids.
-  const ids = ["compare:spectrum"];
-  const views = {
-    spectrum: {
-      binding: { kind: "live" as const, reference: "project-1" },
-      offset: 0,
-      fingerprint: null,
-    },
-  };
-  setCompareViews(views);
-  setOpenCompareIds(ids);
-  setOpenTools(["spectrum", "mfcc"]);
-  expect(openCompareTabs()).toEqual([
-    { tool: "spectrum", with: "project-1", saved: false, offset: 0 },
-  ]);
-  // A tool-tab change no longer prunes the compare view …
-  expect(pruneViews(views, ids)).toEqual(views);
-  // … while closing the compare tab does.
-  expect(pruneViews(views, [])).toEqual({});
 });

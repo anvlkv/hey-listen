@@ -2,6 +2,7 @@ import { createSignal, type Accessor } from "solid-js";
 import type { Annotation } from "../../bindings/Annotation";
 import { analyzerById, isAnalyzerId, type AnalyzerId } from "../../state/analyzer";
 import {
+  annotationById,
   createAnnotation,
   dragAnnotationEndTo,
   dragAnnotationTo,
@@ -11,6 +12,7 @@ import {
 } from "../../state/annotations";
 import { annotationLabel, annotationSpan, annotationTimeText } from "../../lib/annotation";
 import { source } from "../../state/source";
+import type { AnnotationEdge, RuleSpan } from "./rules";
 
 /**
  * The **annotation lane** (M14): the thin strip along the bottom of the Timeline and of every
@@ -32,11 +34,22 @@ import { source } from "../../state/source";
  * `state/annotations/select.ts`). See `docs/annotations.md`.
  */
 
-/** Which edge of an annotation's span a lane handle moves. */
-export type AnnotationEdge = "start" | "end";
+/** Which edge of an annotation's span a lane handle moves (see `./rules.ts`). */
+export type { AnnotationEdge } from "./rules";
 
 /** A span being dragged out in the lane (source seconds), or `null`. */
 export type LaneSelection = { start: number; end: number } | null;
+
+/**
+ * A handle drag in progress: the edge being moved, the span the drag began from (the
+ * **ghost** edge) and the live span (the **moving** edge), all in source seconds.
+ */
+export interface LaneHandleDrag {
+  id: string;
+  edge: AnnotationEdge;
+  from: RuleSpan;
+  to: RuleSpan;
+}
 
 /** Canvas geometry for the lane: its bounds inside the drawing surface, plus a mapper. */
 export interface LaneGeom {
@@ -118,11 +131,14 @@ export interface LaneController {
   up: () => void;
   /** The span being dragged out, for the host to draw (`null` when there is none). */
   selection: Accessor<LaneSelection>;
+  /** The handle being dragged, with its original span, for the host to draw the ghost. */
+  drag: Accessor<LaneHandleDrag | null>;
 }
 
 /** Create the lane's drag state for one host. */
 export function createLaneDrag(host: () => LaneHost): LaneController {
   const [selection, setSelection] = createSignal<LaneSelection>(null);
+  const [handleDrag, setHandleDrag] = createSignal<LaneHandleDrag | null>(null);
   let drag:
     | { kind: "handle"; id: string; edge: AnnotationEdge }
     | { kind: "select"; anchor: number }
@@ -135,6 +151,8 @@ export function createLaneDrag(host: () => LaneHost): LaneController {
     const hit = annotationHandleAt(annotations(), timeAt, x);
     if (hit) {
       drag = { kind: "handle", id: hit.annotation.id, edge: hit.edge };
+      const span = annotationSpan(hit.annotation);
+      setHandleDrag({ id: hit.annotation.id, edge: hit.edge, from: span, to: span });
       return true;
     }
     const anchor = timeFromX(x);
@@ -151,6 +169,9 @@ export function createLaneDrag(host: () => LaneHost): LaneController {
       // edge resizes it.
       if (drag.edge === "end") dragAnnotationEndTo(drag.id, timeSecs);
       else dragAnnotationTo(drag.id, timeSecs);
+      // Read the clamped span back, so the drawn moving edge is exactly the stored one.
+      const live = annotationById(drag.id);
+      if (live) setHandleDrag((prev) => (prev ? { ...prev, to: annotationSpan(live) } : prev));
       return;
     }
     setSelection(laneSelection(drag.anchor, timeSecs, source()?.duration ?? 0));
@@ -161,6 +182,7 @@ export function createLaneDrag(host: () => LaneHost): LaneController {
     const sel = selection();
     drag = null;
     setSelection(null);
+    setHandleDrag(null);
     if (!active) return;
     if (active.kind === "handle") {
       if (moved) {
@@ -181,7 +203,7 @@ export function createLaneDrag(host: () => LaneHost): LaneController {
     });
   };
 
-  return { down, move, up, selection };
+  return { down, move, up, selection, drag: handleDrag };
 }
 
 /**

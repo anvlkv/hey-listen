@@ -1,7 +1,8 @@
 import { Slider } from "@kobalte/core/slider";
 import { Switch } from "@kobalte/core/switch";
 import { Show } from "solid-js";
-import { previewSpeed, setPreviewSpeed } from "../../audio/preview";
+import { previewSpeed, setPreviewSpeed } from "../../audio/transportSpeed";
+import type { TransportStatus } from "../../audio/transport";
 import { positionToSpeed, speedToPosition } from "../../lib/previewSpeed";
 import { filterActive, filterComposed, setFilterEnabled } from "../../state/graph";
 import { setSourcePanelPinned, sourcePanelPinned } from "../../state/settings";
@@ -9,7 +10,6 @@ import { source, status } from "../../state/source";
 import { windowEnd, windowStart } from "../../state/timeline";
 import { openTool } from "../../state/workbench";
 import Button from "../Button";
-import ChannelSelect from "../ChannelSelect";
 import Icon from "../Icon";
 import Tooltip from "../Tooltip";
 import { formatTime } from "./format";
@@ -18,17 +18,23 @@ import { formatTime } from "./format";
 const speedLabel = (speed: number) => `${Number(speed.toFixed(2))}×`;
 
 /**
- * The Timeline toolbar (readout, filter indicator, channel picker and the
- * replace / preview / speed / annotation / zoom actions). Presentational: `previewing`,
- * `active`, `canAnnotateAtCursor` and the callbacks come from `Timeline.tsx`; the remaining
- * state is read from the stores directly.
+ * The Timeline toolbar (window readout, transport, filter indicator and the replace /
+ * speed / annotation / zoom actions). Presentational: `status`, `position`, `loop`,
+ * `active`, `canAnnotateAtCursor` and the callbacks come from `Timeline.tsx`; the
+ * remaining state is read from the stores directly. The analysis channel lives on the
+ * Timeline's channel rail, not here. See `docs/roadmap.md` → M23 → "Transport".
  */
 export default function TimelineToolbar(props: {
-  previewing: boolean;
+  status: TransportStatus;
+  /** The playhead in source seconds, or `null` without a source. */
+  position: number | null;
+  loop: boolean;
   active: boolean;
-  /** Whether a preview is playing, so an annotation can be dropped at the playhead. */
+  /** Whether the playhead exists, so an annotation can be dropped at it. */
   canAnnotateAtCursor: boolean;
-  onTogglePreview: () => void;
+  onToggle: () => void;
+  onStop: () => void;
+  onToggleLoop: () => void;
   onAnnotateAtCursor: () => void;
   onZoomWindow: () => void;
   onZoomOut: () => void;
@@ -36,6 +42,8 @@ export default function TimelineToolbar(props: {
   onFit: () => void;
 }) {
   const windowDuration = () => windowEnd() - windowStart();
+  const duration = () => source()?.duration ?? Number.NaN;
+  const transportLabel = () => (props.status === "playing" ? "Pause" : "Play");
 
   function onFilterChange(enabled: boolean) {
     setFilterEnabled(enabled);
@@ -51,6 +59,10 @@ export default function TimelineToolbar(props: {
           <strong>{formatTime(windowStart())}</strong> – <strong>{formatTime(windowEnd())}</strong>
         </span>
         <span class="timeline-dim">Δ {formatTime(windowDuration())}</span>
+        <span class="timeline-position" data-testid="timeline.position">
+          <strong>{formatTime(props.position ?? Number.NaN)}</strong>
+          <span class="timeline-dim"> / {formatTime(duration())}</span>
+        </span>
       </div>
       <Tooltip
         label={
@@ -79,9 +91,6 @@ export default function TimelineToolbar(props: {
           </Switch.Control>
         </Switch>
       </Tooltip>
-      <Show when={(source()?.channels ?? 1) > 1}>
-        <ChannelSelect />
-      </Show>
       <div class="timeline-actions">
         <Show when={source()}>
           <Tooltip label="Show the source controls to replace the source">
@@ -96,15 +105,39 @@ export default function TimelineToolbar(props: {
             </Button>
           </Tooltip>
         </Show>
-        <Tooltip label="Preview the analysis window">
+        <Tooltip label={transportLabel()}>
           <Button
             class="timeline-btn icon-label"
             data-testid="timeline.preview"
             disabled={status() !== "ready"}
-            onClick={() => props.onTogglePreview()}
+            aria-label={transportLabel()}
+            onClick={() => props.onToggle()}
           >
-            <Icon name={props.previewing ? "stop" : "play"} />
-            {props.previewing ? "Stop" : "Preview"}
+            <Icon name={props.status === "playing" ? "pause" : "play"} />
+            {transportLabel()}
+          </Button>
+        </Tooltip>
+        <Tooltip label="Stop (keeps the playhead where it is)">
+          <Button
+            class="timeline-btn icon-btn"
+            data-testid="timeline.stop"
+            disabled={props.status === "idle"}
+            aria-label="Stop (keeps the playhead)"
+            onClick={() => props.onStop()}
+          >
+            <Icon name="stop" />
+          </Button>
+        </Tooltip>
+        <Tooltip label={props.loop ? "Looping the window" : "Play once to the window end"}>
+          <Button
+            class="timeline-btn icon-btn"
+            data-testid="timeline.loop"
+            aria-pressed={props.loop}
+            disabled={status() !== "ready"}
+            aria-label="Loop the window"
+            onClick={() => props.onToggleLoop()}
+          >
+            <Icon name="loop" />
           </Button>
         </Tooltip>
         <div class="timeline-speed" title="Preview speed (varispeed — shifts pitch)">

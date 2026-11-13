@@ -14,25 +14,35 @@ import { windowLabels } from "./windows.ts";
 const POPOUT_ITEM = "Pop out to window";
 
 /** Right-click an element (the WebView won't synthesise `contextmenu` from a click). */
-export async function rightClick(selector: string): Promise<void> {
-  const el = await $(selector);
+export async function rightClick(selector: string, last = false): Promise<void> {
+  // `strict: false` so a compare-tab prefix (which can match several tabs of one tool)
+  // right-clicks one instead of throwing (M23 Phase 3: several tabs per tool). A caller
+  // acting on a freshly opened comparison passes `last` to address the newest tab rather
+  // than the oldest (which may still be bound to a now-closed reference project).
+  const el = await $(selector, { strict: false });
   await el.waitForExist();
-  await browser.execute((sel: string) => {
-    const target = document.querySelector(sel) as HTMLElement | null;
-    if (!target) throw new Error(`rightClick: no element for ${sel}`);
-    const rect = target.getBoundingClientRect();
-    target.dispatchEvent(
-      new MouseEvent("contextmenu", {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        button: 2,
-        buttons: 2,
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2,
-      }),
-    );
-  }, selector);
+  await browser.execute(
+    (sel: string, pickLast: boolean) => {
+      const target = (
+        pickLast ? Array.from(document.querySelectorAll(sel)).pop() : document.querySelector(sel)
+      ) as HTMLElement | null;
+      if (!target) throw new Error(`rightClick: no element for ${sel}`);
+      const rect = target.getBoundingClientRect();
+      target.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          button: 2,
+          buttons: 2,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        }),
+      );
+    },
+    selector,
+    last,
+  );
 }
 
 /**

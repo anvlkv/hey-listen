@@ -1,7 +1,6 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { computePeaks, type Peaks } from "../lib/waveform";
 import { onDevicePixelRatioChange } from "../lib/devicePixelRatio";
-import { channelFor } from "../state/analysis";
 import { stopFollowing } from "../state/capture";
 import { filteredSamples } from "../state/filtered";
 import { filterActive } from "../state/graph";
@@ -13,7 +12,8 @@ import {
 } from "../state/annotations";
 import { source, status } from "../state/source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
-import { PLOT_PAD } from "./timeline/constants";
+import { PLOT_PAD, RAIL_W } from "./timeline/constants";
+import ChannelRail from "./timeline/ChannelRail";
 import { drawTimeline, type TimelineDrawDeps } from "./timeline/draw";
 import { createTimelineInteraction } from "./timeline/interaction";
 import { createPreview } from "./timeline/preview";
@@ -24,13 +24,16 @@ import TimelineScrollBar from "./timeline/ScrollBar";
  * Timeline (fixed region): waveform of the whole source plus the draggable
  * analysis window.
  *
- * - Wheel zooms around the cursor, drag on the waveform pans, buttons fit /
+ * - Wheel zooms around the cursor, the middle button pans, buttons fit /
  *   zoom-to-window.
- * - Dragging a `start`/`end` handle previews an excerpt at that edge; short
- *   windows auto-zoom on release (see `docs/source-model.md`).
+ * - A plain left drag in the waveform body **selects** a new window (text-like); the
+ *   middle button pans. Dragging a `start`/`end` handle previews an excerpt at that edge
+ *   and reframes on release (see `docs/source-model.md`).
  * - Dragging the grab bar along the top of the window moves the whole window,
- *   keeping its width (no edge excerpt or auto-zoom; a preview that is playing
+ *   keeping its width (no edge excerpt or reframe; a preview that is playing
  *   reloads onto the new window when the move settles).
+ * - A 2+ channel source shows the **channel rail** on the left, with one waveform lane
+ *   per channel; the rail picks the shared analysis channel.
  *
  * The canvas painting, pointer interaction and toolbar live in sibling modules
  * under `./timeline/`; this component owns the state and composes them.
@@ -49,20 +52,28 @@ export default function Timeline() {
 
   const duration = () => source()?.duration ?? 0;
   const span = () => Math.max(1e-9, viewEnd() - viewStart());
-  const plotW = () => Math.max(1, cssW() - PLOT_PAD * 2);
+  /** Width of the channel rail: only a 2+ channel source has one. */
+  const railW = () => ((source()?.channels ?? 1) > 1 ? RAIL_W : 0);
+  const plotW = () => Math.max(1, cssW() - PLOT_PAD * 2 - railW());
+  /** Left edge of the plotted time axis (right of the rail). */
+  const plotLeft = () => PLOT_PAD + railW();
   /** The timeline is interactive for a settled source or a growing capture. */
   const active = () => status() === "ready" || status() === "capturing";
 
-  /** Analysis/display channel for the current source (see `state/analysis.ts`). */
-  const pick = () => channelFor(source()?.channels ?? 1);
-
-  const peaks = createMemo<Peaks | null>(() => {
+  /** One envelope per source channel, for the parallel channel lanes. */
+  const channelPeaks = createMemo<Peaks[]>(() => {
     const s = source();
-    if (!s) return null;
-    const want = pick();
-    // Live captures maintain their peaks incrementally; files compute them lazily.
-    if (s.peaks && s.peaksChannel === want) return s.peaks;
-    return computePeaks(s.samples, s.frames, s.channels, want);
+    if (!s) return [];
+    const lanes: Peaks[] = [];
+    for (let c = 0; c < s.channels; c++) {
+      // Live captures maintain peaks for one channel incrementally; files compute lazily.
+      lanes.push(
+        s.peaks && s.peaksChannel === c
+          ? s.peaks
+          : computePeaks(s.samples, s.frames, s.channels, c),
+      );
+    }
+    return lanes;
   });
 
   /** Envelope of the filtered mono overlay (source rate; see `state/filtered.ts`). */
@@ -72,8 +83,8 @@ export default function Timeline() {
     return computePeaks(f, f.length, 1, "mix");
   });
 
-  const t2x = (t: number) => PLOT_PAD + ((t - viewStart()) / span()) * plotW();
-  const x2t = (x: number) => viewStart() + ((x - PLOT_PAD) / plotW()) * span();
+  const t2x = (t: number) => plotLeft() + ((t - viewStart()) / span()) * plotW();
+  const x2t = (x: number) => viewStart() + ((x - plotLeft()) / plotW()) * span();
 
   const clampView = (a: number, b: number): [number, number] => {
     const dur = duration();
@@ -137,15 +148,18 @@ export default function Timeline() {
   const drawDeps: TimelineDrawDeps = {
     cssW,
     cssH,
-    peaks,
+    channelPeaks,
     filteredPeaks,
-    pick,
+    railW,
     playSec: preview.playSec,
+    playSecPlaying: () => preview.status() === "playing",
     t2x,
     x2t,
     span,
     plotW,
     laneSelection: interaction.selection,
+    laneDrag: interaction.laneDrag,
+    laneHover: interaction.laneHover,
   };
 
   function draw() {
@@ -193,20 +207,27 @@ export default function Timeline() {
     windowStart();
     windowEnd();
     preview.playSec();
+    preview.status();
     filteredSamples();
     filterActive();
     annotationsSorted();
     selectedAnnotationId();
+    interaction.laneHover();
+    interaction.laneDrag();
     draw();
   });
 
   return (
     <section class="app-timeline" data-testid="region.timeline">
       <TimelineToolbar
-        previewing={preview.previewing()}
+        status={preview.status()}
+        position={preview.playSec()}
+        loop={preview.loop()}
         active={active()}
-        canAnnotateAtCursor={preview.playSec() != null}
-        onTogglePreview={preview.togglePreview}
+        canAnnotateAtCursor={preview.status() === "playing"}
+        onToggle={preview.toggle}
+        onStop={preview.stop}
+        onToggleLoop={preview.toggleLoop}
         onAnnotateAtCursor={annotationAtCursor}
         onZoomWindow={interaction.zoomToWindow}
         onZoomOut={() => interaction.zoomBy(1.5)}
@@ -222,8 +243,11 @@ export default function Timeline() {
           onPointerMove={interaction.onPointerMove}
           onPointerUp={interaction.onPointerUp}
           onPointerCancel={interaction.onPointerUp}
-          onPointerLeave={() => setAnnotationHint(null)}
+          onPointerLeave={interaction.onPointerLeave}
         />
+        <Show when={railW() > 0}>
+          <ChannelRail />
+        </Show>
         <Show when={!active()}>
           <div class="timeline-overlay">
             <Show when={status() === "empty"}>Open a file or record a source to begin</Show>

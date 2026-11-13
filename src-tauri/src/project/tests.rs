@@ -128,6 +128,12 @@ fn saved_comparison() -> SavedComparison {
             max_db: -10.0,
         }),
         reference_path: Some("/tmp/reference.heyl".to_string()),
+        id: "cmp-test".to_string(),
+        owner_window: Span {
+            start: 0.25,
+            end: 1.25,
+        },
+        owner_channel: Some(1),
     }
 }
 
@@ -198,6 +204,10 @@ fn round_trips_every_section() {
     assert_eq!(saved.window.start, 0.5);
     assert_eq!(saved.options.n_mels, Some(64));
     assert_eq!(saved.filter_fingerprint.as_deref(), Some("{\"nodes\":[]}"));
+    assert_eq!(saved.id, "cmp-test");
+    assert_eq!(saved.owner_window.start, 0.25);
+    assert_eq!(saved.owner_window.end, 1.25);
+    assert_eq!(saved.owner_channel, Some(1));
     assert_eq!(saved.reference_path.as_deref(), Some("/tmp/reference.heyl"));
     match saved.analysis_result() {
         crate::audio::analysis::AnalysisResult::Spectrogram(result) => {

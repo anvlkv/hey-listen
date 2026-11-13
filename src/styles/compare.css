@@ -40,24 +40,38 @@
   text-overflow: ellipsis;
 }
 
+/* One compact line per side: colour chip + `project · window · channel` (M23 Phase 3). */
+.compare-side-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.compare-side-chip {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.compare-side-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-side-letter {
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+
 .compare-title-sep {
   color: var(--fg-faint);
   font-weight: 400;
-}
-
-.compare-project.side-a {
-  color: var(--accent-2);
-}
-
-.compare-project.side-b {
-  color: var(--warn);
-}
-
-.compare-title-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 0.6875rem;
-  color: var(--fg-muted);
 }
 
 .compare-tools {
@@ -151,6 +165,56 @@
 
 .compare-offset-reset {
   padding: 1px 7px;
+}
+
+/* --- the analyzer toolbar's Compare menu (M23 Phase 3) --------------------- */
+
+.compare-menu-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+
+.compare-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.compare-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  background: var(--control);
+  color: var(--fg-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.compare-menu-item:hover:not(:disabled) {
+  background: var(--control-hover);
+  color: var(--fg);
+}
+
+.compare-menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.compare-menu-name {
+  font-size: 0.75rem;
+}
+
+.compare-menu-meta {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
 }
 
 /* --- body ------------------------------------------------------------------ */

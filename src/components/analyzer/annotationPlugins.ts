@@ -2,9 +2,15 @@ import { createEffect, createRoot } from "solid-js";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import type { Annotation } from "../../bindings/Annotation";
 import { analyzerBus, type AnalyzerBus } from "../../state/chartSync";
-import { annotationHeading, annotationSpan } from "../../lib/annotation";
+import { annotationSpan, annotationMarkerLabel } from "../../lib/annotation";
 import { chartTheme } from "../../state/themes";
 import { ANNOTATION_STRIP_H } from "../annotations/strip";
+import {
+  ANNOTATION_LABEL_FONT,
+  annotationRules,
+  drawAnnotationChip,
+  drawAnnotationRules,
+} from "../annotations/rules";
 import {
   createLaneDrag,
   drawLane,
@@ -25,9 +31,6 @@ import type { AnalyzerId } from "../../state/analyzer";
  * published by the annotations store, so cross-window and store changes redraw in step. A
  * range annotation shows a handle on each edge. See `docs/annotations.md`.
  */
-
-/** The selected annotation's marker label font — larger than the axis font, so it reads. */
-const NOTE_LABEL_FONT = "600 12px Inter, sans-serif";
 
 /** Canvas geometry for the lane's markers. */
 export type AnnotationGeom = LaneGeom;
@@ -62,11 +65,6 @@ export function annotationGroups(tool: AnalyzerId | string): AnnotationGroups {
 export function laneAnnotations(tool: AnalyzerId | string): Annotation[] {
   const { own, others, selected } = annotationGroups(tool);
   return selected ? [...own, ...others, selected] : [...own, ...others];
-}
-
-/** The selected annotation's marker label: its values line, else its heading. */
-export function annotationMarkerLabel(annotation: Annotation): string {
-  return annotation.values?.text || annotationHeading(annotation.body, 32) || "Annotation";
 }
 
 const inRange = (x: number, geom: AnnotationGeom) =>
@@ -184,34 +182,28 @@ export function drawAnnotationMarkers(
       ctx.fillRect(x0, geom.top, Math.max(1, x1 - x0), geom.height);
     }
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = theme.annotation;
-    ctx.lineWidth = span.end > span.start ? 1 : 1.5;
-    for (const edge of span.end > span.start ? [x0, x1] : [x0]) {
-      if (!inRange(edge, geom)) continue;
-      const px = Math.round(edge) + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(px, geom.top);
-      ctx.lineTo(px, geom.top + geom.height);
-      ctx.stroke();
-    }
+    // Both edges of a range (the one edge of a point), full height, in the annotation colour.
+    drawAnnotationRules(
+      ctx,
+      annotationRules(span, geom.xFor).filter((rule) => inRange(rule.x, geom)),
+      {
+        top: geom.top,
+        bottom: geom.top + geom.height,
+        color: theme.annotation,
+        width: span.end > span.start ? 1 : 1.5,
+      },
+    );
     drawHandles(ctx, geom, selected, theme.annotation, 8);
     if (inRange(x0, geom)) {
       // A label chip just above the lane, so it stays readable over a heatmap.
-      const label = annotationMarkerLabel(selected);
-      ctx.font = NOTE_LABEL_FONT;
-      ctx.textBaseline = "bottom";
-      ctx.textAlign = "left";
-      const width = ctx.measureText(label).width;
-      const px = Math.round(x0) + 0.5;
-      let lx = px + 6;
-      if (lx + width > geom.right) lx = Math.max(geom.left, px - 6 - width);
-      const baseline = laneTopOf(geom) - 4;
-      ctx.globalAlpha = 0.82;
-      ctx.fillStyle = theme.background;
-      ctx.fillRect(lx - 3, baseline - 15, width + 6, 16);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = theme.annotation;
-      ctx.fillText(label, lx, baseline);
+      drawAnnotationChip(ctx, annotationMarkerLabel(selected), x0, {
+        color: theme.annotation,
+        background: theme.background,
+        left: geom.left,
+        right: geom.right,
+        baseline: laneTopOf(geom) - 4,
+        font: ANNOTATION_LABEL_FONT,
+      });
     }
   }
   ctx.restore();

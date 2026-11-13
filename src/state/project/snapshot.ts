@@ -4,10 +4,9 @@ import { deepClone } from "../../lib/clone";
 import { toSpec } from "../../lib/graph";
 import { invoke } from "../../lib/ipc";
 import { sharedParams } from "../analysis";
-import { currentResults as cachedResults, isAnalyzerId, toolOptions } from "../analyzer";
-import type { AnalyzerId } from "../analyzer";
+import { currentResults as cachedResults, toolOptions } from "../analyzer";
 import { choice, deviceId, gain, mixMicDeviceId, mixSystemDeviceId, targetPid } from "../capture";
-import { parseCompareTool } from "../compare/id";
+import { parseComparePanel } from "../compare/id";
 import type { CompareViewDto } from "../compare/types";
 import { filterActive, filterEnabled, graphLayout, FILTER_GRAPH, SYNTH_GRAPH } from "../graph";
 import { source } from "../source";
@@ -15,7 +14,7 @@ import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { layoutJson, openCompareIds, openTools } from "../workbench";
 import { projectLabel } from "./paths";
 import { projectName } from "./signals";
-import type { AnalysisSetupDto, LayoutDto, SourceDescriptorDto } from "./types";
+import type { AnalysisSetupDto, CompareOpenDto, LayoutDto, SourceDescriptorDto } from "./types";
 
 /**
  * Read the current stores into the `SOURCE` / `SETUP` / `LAYOUT` shapes the core
@@ -92,20 +91,19 @@ export function currentResults(): CachedResultInput[] {
 }
 
 /**
- * The comparison tools open at save time: compare **tabs** plus compare **popouts**
- * (both save their reference snapshot; a compare panel is never in `LAYOUT`).
+ * The comparisons open at save time, **one entry per pair** (a compare tab or a compare
+ * popout). A compare panel is never in `LAYOUT`, so this is the only record of what to
+ * snapshot; the core writes exactly these pairs' saved comparisons.
  */
-export async function currentCompareOpen(): Promise<AnalyzerId[]> {
-  const tools = new Set<AnalyzerId>();
-  for (const id of openCompareIds()) {
-    const tool = parseCompareTool(id);
-    if (tool) tools.add(tool);
+export async function currentCompareOpen(): Promise<CompareOpenDto[]> {
+  const open = new Map<string, CompareOpenDto>();
+  for (const panelId of openCompareIds()) {
+    const ref = parseComparePanel(panelId);
+    if (ref) open.set(ref.id, ref);
   }
   const popouts = await invoke<CompareViewDto[]>("compare_popouts").catch(() => []);
-  for (const view of popouts) {
-    if (isAnalyzerId(view.tool)) tools.add(view.tool);
-  }
-  return [...tools].sort();
+  for (const view of popouts) open.set(view.id, { tool: view.tool, id: view.id });
+  return [...open.values()].sort((a, b) => `${a.tool}:${a.id}`.localeCompare(`${b.tool}:${b.id}`));
 }
 
 export function defaultFileName(): string {

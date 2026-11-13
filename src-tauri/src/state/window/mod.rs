@@ -4,14 +4,14 @@
 //! label onto it, following popout aliases so a popout is a **view** of its parent
 //! project rather than a project of its own (ADR-11). See `docs/decisions.md`.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tauri::Manager;
 
 use crate::audio::analysis::compare::SavedComparison;
-use crate::audio::analyzers::{AnalyzerId, ToolId};
+use crate::audio::analyzers::ToolId;
 use crate::audio::capture::CaptureHandle;
 
 use super::AudioState;
@@ -42,9 +42,10 @@ pub struct WindowState {
     /// Bumped on every UI-state change, so a peer comparison can tell that a project
     /// moved without polling its whole setup (M25).
     ui_revision: AtomicU64,
-    /// The last successful comparison per tool: the reference side (M25.C). It is the
-    /// project's saved snapshot in memory (written on save, restored on load).
-    saved_compares: Mutex<BTreeMap<AnalyzerId, SavedComparison>>,
+    /// The last successful comparison of every **pair** (M25.C, M23 Phase 3): the
+    /// reference side of each compare tab. It is the project's saved snapshots in memory
+    /// (written on save, restored on load); several entries may share a tool.
+    saved_compares: Mutex<Vec<SavedComparison>>,
 }
 
 impl WindowState {
@@ -54,7 +55,7 @@ impl WindowState {
             capture: Mutex::new(None),
             ui: Mutex::new(HashMap::new()),
             ui_revision: AtomicU64::new(0),
-            saved_compares: Mutex::new(BTreeMap::new()),
+            saved_compares: Mutex::new(Vec::new()),
         }
     }
 

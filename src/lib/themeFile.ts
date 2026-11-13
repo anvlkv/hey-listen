@@ -46,6 +46,11 @@ export interface ChartTheme {
   compareB: string;
   /** The comparison's Δ line / bars. */
   compareDelta: string;
+  /**
+   * The comparison side colours in display order (A, B, …). `compareA` / `compareB` are
+   * its first two entries; more than two sides (an extra reference pair) read on.
+   */
+  comparePalette: string[];
   /** Waveform envelope band fill / area fill for series. */
   waveFill: string;
   /** Horizontal reference line on a chart (targets such as −14 LUFS, or 0 dBFS). */

@@ -28,11 +28,12 @@ pub(super) fn tools() -> Vec<Value> {
          Both sides are the same tool — a different tool is not a comparison. Pass `with` a \
          label from `list_projects` (which reports each project's source shape, window, \
          filter presence and saved comparisons), or `saved: true` to use A's stored snapshot \
-         (no second window needed; `list_projects` reports the snapshot). Headless, `with` is \
+         `(no second window needed; `list_projects` reports the snapshot). Headless, `with` is \
          instead the reference **project file path** (`.heyl`): the session's project is A and \
          the file's saved setup/window is B. Either way the last successful comparison is \
-         stored in A, so `save_project` writes it and the app restores it as a compare tab. \
-         The owner is `target` (default: focused).",
+         stored in A under its `id`, so `save_project` writes it and the app restores it as a \
+         compare tab (a project may hold several comparisons per tool). The response carries \
+         that `id` and the saved `savedFingerprint`. The owner is `target` (default: focused).",
         json!({
             "type": "object",
             "properties": {
@@ -40,13 +41,17 @@ pub(super) fn tools() -> Vec<Value> {
                     "type": "string",
                     "description": "An analyzer id from list_analyzers (the same tool on both sides).",
                 },
+                "id": {
+                    "type": "string",
+                    "description": "The comparison's id. With `saved`, names the saved pair to use (default: the newest for `tool`; a project may hold several). A live comparison stores its snapshot under this id.",
+                },
                 "with": {
                     "type": "string",
                     "description": "The reference side: a project label from list_projects (app), or the reference project's .heyl path (headless). Required unless `saved`.",
                 },
                 "saved": {
                     "type": "boolean",
-                    "description": "Use A's saved reference snapshot instead of a live project (the last comparison saved in the project). Ignores `with`.",
+                    "description": "Use A's saved reference snapshot instead of a live project (ignores `with`). `id` picks one pair; without it the newest saved comparison of `tool` is used.",
                 },
                 "bOffset": {
                     "type": "number",

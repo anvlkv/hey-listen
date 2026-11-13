@@ -1,11 +1,13 @@
 //! Comparability between two project sides (M25, relative alignment in M25.B).
 //!
-//! Each side may legitimately have a different window, filter or settings, so a diff
-//! is **explicit about what can be compared**: a *grid signature* decides whether a
-//! numeric delta exists, every differing setting is reported (never silently
-//! normalised), and the two windows are matched on a **relative** axis — each side
-//! starts at 0, the reference shifted by the fine-tune offset δ. The delta covers the
-//! **common span** `[max(0, δ), min(durA, δ + durB)]`. See `docs/comparison.md` →
+//! A live comparison is **always comparable**: the reference is re-analysed on the
+//! owner's grid (see [`super::compare`]), so only per-side differences remain — the
+//! channel (L vs R is meaningful), the filter, and the window. A **saved** snapshot is
+//! a result from an earlier run, so its *grid signature* can still differ from the
+//! owner's; that is reported (`aligned == false`), never silently normalised. Either
+//! way the two windows are matched on a **relative** axis — each side starts at 0, the
+//! reference shifted by the fine-tune offset δ — and the delta covers the **common
+//! span** `[max(0, δ), min(durA, δ + durB)]`. See `docs/comparison.md` →
 //! "Comparability" and ADR-26.
 
 use serde::{Deserialize, Serialize};
@@ -69,6 +71,31 @@ impl Alignment {
     }
 }
 
+/// The setup B runs with in a **live** comparison: A's shared params and tool options
+/// (the owner's grid), B's own window and channel (L vs R is meaningful).
+///
+/// The analysis rate is part of the grid, so when the sources differ in rate and A does
+/// not pin `resampleTo`, B is resampled to A's effective rate.
+pub(super) fn owner_grid_setup(
+    a: &super::CompareSetup,
+    b: &super::CompareSetup,
+    a_source_rate: u32,
+    b_source_rate: u32,
+) -> super::CompareSetup {
+    let mut params = a.params.clone();
+    params.channel = b.params.channel;
+    let a_rate = super::analysis_rate(a_source_rate, &a.params);
+    if super::analysis_rate(b_source_rate, &params) != a_rate {
+        params.resample_to = Some(a_rate);
+    }
+    super::CompareSetup {
+        start: b.start,
+        end: b.end,
+        params,
+        options: a.options.clone(),
+    }
+}
+
 /// One differing setting, with both values.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,7 +119,9 @@ impl Mismatch {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparability {
-    /// The grids match, so a delta is computed when the shifted windows meet.
+    /// The (normalised) grids match. A live comparison always aligns — the reference
+    /// ran on the owner's grid — so only a **saved** snapshot can fail this. The gate
+    /// itself lives in [`super::assemble`], not here.
     pub aligned: bool,
     /// The relative extents and the common span the delta covers (M25.B).
     pub alignment: Alignment,
@@ -100,7 +129,10 @@ pub struct Comparability {
     /// gates the delta; the CLI's `--overlap` clips both windows to it first).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overlap: Option<Span>,
-    /// Every differing grid-shaping setting, by key.
+    /// Every differing setting, by key. A differing **channel** is a per-side
+    /// difference and never suppresses the delta; the grid keys (`sampleRate`,
+    /// `fftSize`, `hop`, `windowFn`, `band`, `bins`, an option) only appear for a saved
+    /// snapshot, since a live reference is re-gridded to the owner.
     pub mismatches: Vec<Mismatch>,
     /// Both sides are compared **as processed**; a differing filter is listed, not fixed.
     pub filters_differ: bool,
@@ -154,7 +186,7 @@ pub fn comparability(
     }
     if grid_a.channel != grid_b.channel {
         mismatches.push(Mismatch::new(
-            "channel",
+            CHANNEL_KEY,
             json!(grid_a.channel),
             json!(grid_b.channel),
         ));
@@ -186,17 +218,25 @@ pub fn comparability(
         }
     }
 
-    // The relative axis means two windows at different source seconds are comparable;
-    // only differing grids suppress the delta. A time-axis family still needs the
-    // shifted windows to meet — reported through `alignment.common`, not `aligned`.
+    // The relative axis means two windows at different source seconds are comparable.
+    // The channel is a **per-side** difference, so it is reported but never gates; only
+    // a real grid difference (possible for a saved snapshot) can. A time-axis family
+    // still needs the shifted windows to meet — reported through `alignment.common`,
+    // not `aligned`.
     Comparability {
-        aligned: mismatches.is_empty(),
+        aligned: mismatches
+            .iter()
+            .all(|mismatch| mismatch.key == CHANNEL_KEY),
         alignment,
         overlap,
         mismatches,
         filters_differ,
     }
 }
+
+/// The channel mismatch key. A channel is a **per-side** choice, so the delta never
+/// depends on it.
+const CHANNEL_KEY: &str = "channel";
 
 /// Whether the tool's result sits on a time axis, so its delta needs a common span.
 /// Spectrum, modulation and the scalar readouts (`Family::Scalar`) have no time axis

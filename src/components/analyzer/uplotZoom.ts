@@ -1,5 +1,6 @@
-import { createSignal, type Accessor } from "solid-js";
+import { createSignal, onCleanup, type Accessor } from "solid-js";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
+import { createWheelGesture } from "../../lib/wheelGesture";
 import {
   IDENTITY_AXIS,
   publishChartView,
@@ -16,6 +17,10 @@ type UplotInstance = TooltipProps["u"];
  * uPlot has no built-in wheel zoom, so we add it (around the pointer) here, plus
  * explicit zoom in/out and fit. Drag-select zoom stays uPlot's own. The visible
  * x-range is tracked so the controls can show it.
+ *
+ * A plain wheel/trackpad scroll **pans** time from the dominant delta; `Ctrl`/`⌘` + wheel
+ * (a trackpad pinch) **zooms** around the pointer, with the shared gesture model in
+ * `lib/wheelGesture.ts` (M23) so the Timeline and the canvas heatmaps agree.
  *
  * Every action that moves the x-scale publishes the new range on the shared
  * [`analyzerBus`](../../state/chartSync.ts) under its [`SyncGroup`], so the other
@@ -118,6 +123,30 @@ export function createUplotZoom(
     apply(center - half, center + half);
   };
 
+  /** Pan/zoom from the shared wheel gesture (see `lib/wheelGesture.ts`). */
+  const wheelGesture = createWheelGesture({
+    enabled: () => {
+      const u = instance();
+      return !!u?.over && !!scaleX();
+    },
+    apply: (gesture) => {
+      const u = instance();
+      const current = scaleX();
+      if (!u?.over || !current) return;
+      const rect = u.over.getBoundingClientRect();
+      if (gesture.kind === "zoom") {
+        const at = u.posToVal(gesture.clientX - rect.left, "x");
+        apply(at + (current[0] - at) * gesture.factor, at + (current[1] - at) * gesture.factor);
+        return;
+      }
+      // Pan time from the dominant delta, keeping the visible span.
+      const delta = Math.abs(gesture.dx) > Math.abs(gesture.dy) ? gesture.dx : gesture.dy;
+      const dt = (delta / Math.max(rect.width, 1)) * (current[1] - current[0]);
+      apply(current[0] + dt, current[1] + dt);
+    },
+  });
+  onCleanup(wheelGesture.dispose);
+
   return {
     onReady(u) {
       setInstance(u);
@@ -129,14 +158,7 @@ export function createUplotZoom(
       sync(u);
     },
     wheel(event) {
-      const u = instance();
-      const current = scaleX();
-      if (!u || !u.over || !current) return;
-      event.preventDefault();
-      const rect = u.over.getBoundingClientRect();
-      const at = u.posToVal(event.clientX - rect.left, "x");
-      const f = event.deltaY < 0 ? 0.8 : 1.25;
-      apply(at + (current[0] - at) * f, at + (current[1] - at) * f);
+      wheelGesture.wheel(event);
     },
     zoomIn: () => factor(0.5),
     zoomOut: () => factor(2),

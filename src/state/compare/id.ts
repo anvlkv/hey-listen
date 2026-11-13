@@ -2,31 +2,61 @@ import { analyzerById, isAnalyzerId } from "../analyzer/lookup";
 import type { AnalyzerId } from "../analyzer/types";
 
 /**
- * Compare panel ids (M25).
+ * Compare panel ids (M23 Phase 3).
  *
  * A compare view is a transient Workbench tab in the **owner** project, addressed as
- * `compare:<tool>`. It is one per tool per project (tab *or* popout), never in the
- * Sidebar, never a project window, and never saved. See `docs/comparison.md`.
+ * `compare:<tool>:<id>`. The id — not the tool — is the key, because several distinct
+ * comparisons (one per reference pair) can be open for one analyzer. It is never in the
+ * Sidebar, never a project window, and never part of the saved layout.
+ * See `docs/comparison.md`.
  */
 
 /** The compare panel id prefix. */
 export const COMPARE_PREFIX = "compare:";
 
-/** The panel id for `tool`'s comparison. */
-export function comparePanelId(tool: AnalyzerId): string {
-  return `${COMPARE_PREFIX}${tool}`;
+/** One comparison, addressed by its tool and its stable id. */
+export interface CompareRef {
+  tool: AnalyzerId;
+  id: string;
 }
 
-/** The tool a panel id names, or `null` for an ordinary tool id. */
-export function parseCompareTool(panelId: string): AnalyzerId | null {
+/** The panel id for comparison `id` of `tool`. */
+export function comparePanelId(tool: AnalyzerId, id: string): string {
+  return `${COMPARE_PREFIX}${tool}:${id}`;
+}
+
+/** The comparison a panel id names, or `null` for an ordinary / malformed id. */
+export function parseComparePanel(panelId: string): CompareRef | null {
   if (!panelId.startsWith(COMPARE_PREFIX)) return null;
-  const tool = panelId.slice(COMPARE_PREFIX.length);
-  return isAnalyzerId(tool) ? tool : null;
+  const rest = panelId.slice(COMPARE_PREFIX.length);
+  const separator = rest.indexOf(":");
+  if (separator <= 0) return null;
+  const tool = rest.slice(0, separator);
+  const id = rest.slice(separator + 1);
+  if (!id || !isAnalyzerId(tool)) return null;
+  return { tool, id };
 }
 
 /** Whether a panel id is a compare view (even a malformed one). */
 export function isCompareId(panelId: string): boolean {
   return panelId.startsWith(COMPARE_PREFIX);
+}
+
+/** A per-process counter for [`newCompareId`]'s no-`crypto` fallback. */
+let compareCounter = 0;
+
+/**
+ * A fresh id for a **new** live comparison.
+ *
+ * The core upserts the comparison's snapshot by this id, so several pairs of one tool
+ * stay distinct; a saved comparison reuses its snapshot's own `id` instead, so a
+ * restored tab addresses the same pair.
+ */
+export function newCompareId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return `cmp-${uuid}`;
+  compareCounter += 1;
+  return `cmp-${Date.now().toString(36)}-${compareCounter.toString(36)}`;
 }
 
 /**

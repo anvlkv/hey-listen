@@ -7,6 +7,7 @@ import type { NoteMetricsResult, AnalyzerId } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, NotesDiffDto } from "../../state/compare/types";
 import CompareCanvas from "./CompareCanvas";
+import CompareLegend from "./CompareLegend";
 import { compareSides } from "./sides";
 import { noteRows, rowLabel } from "./notes";
 import { resultOrigin, type CompareTime } from "./time";
@@ -130,8 +131,15 @@ export default function CompareNotes(props: {
           mean |Δt|{" "}
           {diff()?.meanAbsDt == null ? "—" : `${(diff()!.meanAbsDt! * 1000).toFixed(1)} ms`}
         </span>
-        <span class="compare-side-note">A above · B below · dashed = one side only</span>
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+        note="A above · B below · dashed = one side only"
+      />
 
       <CompareCanvas
         testid="compare.notes.chart"

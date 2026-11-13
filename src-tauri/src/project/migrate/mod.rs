@@ -34,6 +34,7 @@ use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourceData;
 
 mod v1;
+mod v2;
 
 #[cfg(test)]
 mod tests;
@@ -83,6 +84,38 @@ impl Sections {
     pub(super) fn encode<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, ProjectError> {
         postcard::to_stdvec(value).map_err(|err| ProjectError::Encode(err.to_string()))
     }
+
+    /// Decode a payload that must consume **every** byte.
+    ///
+    /// `postcard::from_bytes` ignores a trailing remainder, which would let a payload
+    /// decode as an older (strict-prefix) layout; a step that tries two layouts needs to
+    /// tell them apart.
+    pub(super) fn decode_exact<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
+        postcard::take_from_bytes(bytes)
+            .ok()
+            .filter(|(_, rest)| rest.is_empty())
+            .map(|(value, _)| value)
+    }
+
+    /// Rewrite the `COMPARE` payload through a migration step, or **drop** it.
+    ///
+    /// A saved comparison is analysis output, so a payload that no known layout can read
+    /// is dropped with a warning (the comparison is recomputable), never a load failure.
+    pub(super) fn replace_compare<T: serde::Serialize>(
+        &mut self,
+        snapshots: Option<Vec<T>>,
+        warning: &str,
+    ) -> Result<(), ProjectError> {
+        match snapshots {
+            Some(snapshots) => self.compare = Some(Self::encode(&snapshots)?),
+            None => {
+                eprintln!("hey-listen: {warning}");
+                self.compare = None;
+                self.dropped.push(DroppedSection::SavedComparisons);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// One version-to-version migration step (ADR-32).
@@ -96,11 +129,18 @@ pub(crate) struct Step {
 /// The migration chain, one step per bump in `MIN_READ_VERSION..VERSION` (ADR-32).
 ///
 /// `tests::the_step_table_covers_every_hop` fails whenever a bump is not followed by its
-/// step here. `v1` is the `COMPARE` snapshot layout change (`referencePath`).
-const STEPS: &[Step] = &[Step {
-    from: 1,
-    apply: v1::from_v1_to_v2,
-}];
+/// step here. `v1` is the `COMPARE` snapshot layout change (`referencePath`); `v2` gives
+/// a snapshot its pair id and pinned owner side.
+const STEPS: &[Step] = &[
+    Step {
+        from: 1,
+        apply: v1::from_v1_to_v2,
+    },
+    Step {
+        from: 2,
+        apply: v2::from_v2_to_v3,
+    },
+];
 
 /// Migrate and decode a read project file.
 pub(crate) fn run(sections: Sections) -> Result<LoadedProject, ProjectError> {

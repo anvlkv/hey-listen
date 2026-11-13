@@ -13,6 +13,7 @@ import { compareViewFamily } from "../../state/compare/id";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, MatrixDiffDto, Span } from "../../state/compare/types";
 import CompareCanvas from "./CompareCanvas";
+import CompareLegend from "./CompareLegend";
 import { compareSides } from "./sides";
 import type { CompareTime } from "./time";
 import {
@@ -183,6 +184,14 @@ export default function CompareMatrix(props: {
           </div>
         </Show>
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta={aligned()}
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+        note="A and B share one colour range; Δ is centred on zero"
+      />
 
       <Show when={aligned() && sides.resultA() && sides.resultB()}>
         <Show

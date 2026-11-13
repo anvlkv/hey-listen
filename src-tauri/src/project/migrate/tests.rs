@@ -1,12 +1,14 @@
-//! The migration chain (M37): the v1 → v2 step, plus the machinery around it.
+//! The migration chain (M37, M23 Phase 3): the v1 → v2 and v2 → v3 steps, plus the
+//! machinery around them.
 //!
-//! The step is the real one (`v1::from_v1_to_v2`, registered in `STEPS`); the guards
-//! (coverage, ordering, a missing/late step, a newer file) are exercised with the same
-//! `apply` / `run_with` the reader uses.
+//! The steps are the real ones (`v1::from_v1_to_v2` and `v2::from_v2_to_v3`, registered
+//! in `STEPS`); the guards (coverage, ordering, a missing/late step, a newer file) are
+//! exercised with the same `apply` / `run_with` the reader uses.
 
 use std::collections::BTreeMap;
 
 use super::v1::SavedComparisonV1;
+use super::v2::SavedComparisonV2;
 use super::*;
 use crate::audio::analysis::fixtures;
 use crate::audio::analysis::{AnalysisResult, SharedParams};
@@ -59,6 +61,27 @@ fn early_v1_snapshot() -> SavedComparisonV1 {
     )
 }
 
+/// The version-2 snapshot layout: a strict prefix of today's struct, with `referencePath`.
+fn v2_snapshot(reference_path: Option<String>) -> SavedComparisonV2 {
+    let saved = snapshot(
+        AnalyzerId::Spectrum,
+        AnalysisResult::Spectrum(fixtures::spectrum()),
+    );
+    (
+        saved.tool,
+        saved.reference_name,
+        saved.source,
+        saved.window,
+        saved.params,
+        saved.options,
+        saved.filter_fingerprint,
+        saved.b_offset,
+        saved.saved_ms,
+        saved.result,
+        reference_path,
+    )
+}
+
 /// A broken step that forgets to advance the version.
 fn stuck(_: &mut Sections) -> Result<(), ProjectError> {
     Ok(())
@@ -98,20 +121,19 @@ fn an_early_v1_compare_snapshot_gains_a_reference_path() {
     assert_eq!(loaded.compare.len(), 1);
     assert_eq!(loaded.compare[0].tool, AnalyzerId::Spectrum);
     assert_eq!(loaded.compare[0].reference_path, None);
+    assert!(!loaded.compare[0].id.is_empty(), "the pair id is assigned");
     assert_eq!(loaded.dropped, vec![DroppedSection::Results]);
 }
 
 #[test]
 fn a_late_v1_compare_snapshot_keeps_its_reference_path() {
     // Version 1 shipped both layouts: a build after `referencePath` landed wrote the
-    // current tuple under the same version.
-    let mut saved = snapshot(
-        AnalyzerId::Spectrum,
-        AnalysisResult::Spectrum(fixtures::spectrum()),
-    );
-    saved.reference_path = Some("/tmp/reference.heyl".to_string());
+    // version-2 tuple under the same version.
     let mut sections = sections_at(1);
-    sections.compare = Some(Sections::encode(&vec![saved]).expect("compare"));
+    sections.compare = Some(
+        Sections::encode(&vec![v2_snapshot(Some("/tmp/reference.heyl".to_string()))])
+            .expect("compare"),
+    );
 
     let loaded = run_with(STEPS, VERSION, sections).expect("migrate");
 
@@ -120,6 +142,31 @@ fn a_late_v1_compare_snapshot_keeps_its_reference_path() {
         loaded.compare[0].reference_path.as_deref(),
         Some("/tmp/reference.heyl")
     );
+}
+
+#[test]
+fn a_v2_compare_snapshot_gains_an_id_and_a_pinned_owner_side() {
+    let mut sections = sections_at(2);
+    sections.compare = Some(
+        Sections::encode(&vec![v2_snapshot(Some("/tmp/reference.heyl".to_string()))])
+            .expect("compare"),
+    );
+
+    let loaded = run_with(STEPS, VERSION, sections).expect("migrate");
+
+    assert_eq!(loaded.upgraded_from, Some(2));
+    assert_eq!(loaded.dropped, vec![DroppedSection::Results]);
+    assert_eq!(loaded.compare.len(), 1);
+    let saved = &loaded.compare[0];
+    assert_eq!(saved.tool, AnalyzerId::Spectrum);
+    assert_eq!(saved.reference_name, "Reference project");
+    assert_eq!(saved.saved_ms, 7);
+    assert_eq!(saved.reference_path.as_deref(), Some("/tmp/reference.heyl"));
+    assert!(saved.id.starts_with("cmp-"), "{}", saved.id);
+    // Version 2 kept no owner side: the snapshot window is the best default.
+    assert_eq!(saved.owner_window.start, saved.window.start);
+    assert_eq!(saved.owner_window.end, saved.window.end);
+    assert_eq!(saved.owner_channel, None);
 }
 
 #[test]

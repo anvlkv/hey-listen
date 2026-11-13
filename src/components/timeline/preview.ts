@@ -1,69 +1,50 @@
-import { createSignal, type Accessor } from "solid-js";
-import { playhead, previewRegion, previewWindow, stop as stopPreview } from "../../audio/preview";
-import { analyzerBus } from "../../state/chartSync";
+import { type Accessor } from "solid-js";
+import {
+  pause as pauseTransport,
+  playRegion,
+  playWindow,
+  resume as resumeTransport,
+  setTransportLoop,
+  stop as stopTransport,
+  transportLoop,
+  transportPosition,
+  transportStatus,
+} from "../../audio/preview";
+import type { TransportStatus } from "../../audio/transport";
+import { source } from "../../state/source";
 import { windowEnd, windowStart } from "../../state/timeline";
-import { EDGE_EXCERPT, PREVIEW_TICK_MS } from "./constants";
+import { EDGE_EXCERPT } from "./constants";
 
-/** The Timeline's preview controller: auditions a region and exposes the playhead. */
+/**
+ * The Timeline's transport controller (M23): a thin view over the project transport
+ * store (`audio/preview.ts`), which owns the status, the position and the core cursor.
+ * It adds the Timeline's **edge excerpt** audition and the `playSec` accessor the canvas
+ * and charts draw from. The transport keeps the playhead visible while paused/stopped;
+ * it is `null` only when there is no source.
+ */
 export interface PreviewController {
-  /** Whether a preview region is currently loaded (drives the play/stop button). */
-  previewing: Accessor<boolean>;
-  /** The playhead time (seconds) while previewing, else `null`. */
+  /** `idle` / `playing` / `paused` (drives the toolbar and the dimmed playhead). */
+  status: Accessor<TransportStatus>;
+  /** The playhead position in source seconds, or `null` without a source. */
   playSec: Accessor<number | null>;
+  /** Whether the loaded region loops. */
+  loop: Accessor<boolean>;
   startPreview: (start: number, end: number, loop: boolean) => void;
   previewEdge: (kind: "start" | "end") => void;
   endPreview: () => void;
-  togglePreview: () => void;
+  pause: () => void;
+  resume: () => void;
+  stop: () => void;
+  /** Play/Pause: playing pauses, paused resumes, idle plays the analysis window. */
+  toggle: () => void;
+  toggleLoop: () => void;
 }
 
-/**
- * Preview playback for the analysis window. `tick` polls the audio engine's
- * playhead on a **timer** (not `requestAnimationFrame`), because the transport's position
- * is a *clock*, not a paint: rAF is suspended while the window is occluded, which froze
- * the position (and the drawn playhead, and the time an annotation-at-the-playhead
- * action lands on)
- * even though the core kept looping the audio. A `null` position means the core stopped
- * (ended or failed), which ends the preview.
- *
- * Each tick also publishes the position on the shared chart bus, so every time chart
- * draws the same playhead (M14 follow-up).
- */
 export function createPreview(): PreviewController {
-  const [previewing, setPreviewing] = createSignal(false);
-  const [playSec, setPlaySec] = createSignal<number | null>(null);
-
-  let timer: ReturnType<typeof setInterval> | undefined;
-
-  /** Publish the playhead for the charts (`null` = stopped). */
-  function publish(secs: number | null) {
-    analyzerBus.setData("playhead", { secs });
-  }
-
-  function tick() {
-    if (!previewing()) return;
-    const position = playhead();
-    setPlaySec(position);
-    publish(position);
-    // A null position means the core stopped (ended or failed) — end the preview.
-    if (position == null) endPreview();
-  }
+  const playSec = () => (source() ? transportPosition() : null);
 
   function startPreview(start: number, end: number, loop: boolean) {
-    previewRegion(start, end, loop);
-    markStarted(start);
-  }
-
-  /** Audition the analysis window; the loop follows it while the window moves. */
-  function startWindowPreview() {
-    previewWindow(windowStart(), windowEnd(), true);
-    markStarted(windowStart());
-  }
-
-  function markStarted(start: number) {
-    setPreviewing(true);
-    setPlaySec(start);
-    publish(start);
-    timer ??= setInterval(tick, PREVIEW_TICK_MS);
+    playRegion(start, end, loop);
   }
 
   /** Audition a short excerpt next to the handle being dragged. */
@@ -75,21 +56,25 @@ export function createPreview(): PreviewController {
     else startPreview(windowStart(), windowStart() + len, true);
   }
 
-  function endPreview() {
-    if (timer !== undefined) {
-      clearInterval(timer);
-      timer = undefined;
-    }
-    stopPreview();
-    setPreviewing(false);
-    setPlaySec(null);
-    publish(null);
+  function toggle() {
+    const state = transportStatus();
+    if (state === "playing") pauseTransport();
+    else if (state === "paused") resumeTransport();
+    else playWindow();
   }
 
-  function togglePreview() {
-    if (previewing()) endPreview();
-    else startWindowPreview();
-  }
-
-  return { previewing, playSec, startPreview, previewEdge, endPreview, togglePreview };
+  return {
+    status: transportStatus,
+    playSec,
+    loop: transportLoop,
+    startPreview,
+    previewEdge,
+    // Releasing an edge handle silences the excerpt but keeps the line where it is.
+    endPreview: stopTransport,
+    pause: pauseTransport,
+    resume: resumeTransport,
+    stop: stopTransport,
+    toggle,
+    toggleLoop: () => setTransportLoop(!transportLoop()),
+  };
 }

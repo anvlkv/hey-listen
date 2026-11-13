@@ -8,6 +8,7 @@ import { mirrorCursor, syncView } from "../analyzer/syncPlugins";
 import { timeTooltip } from "../analyzer/chartCommon";
 import { paddedYRange } from "../analyzer/range";
 import { compareMarkers } from "./peerPlugins";
+import CompareLegend from "./CompareLegend";
 import ComparePlot from "./ComparePlot";
 import { compareSides, liveMarkers } from "./sides";
 import { timeAxis, valueAxis } from "./axes";
@@ -113,12 +114,15 @@ export default function CompareEvents(props: {
         <For each={sets()}>
           {(set) => <Readout label={set.label} value={pairingSummary(set.pairing)} />}
         </For>
-        <div class="compare-event-legend">
-          <span class="compare-event-legend-a">A above</span>
-          <span class="compare-event-legend-b">B below</span>
-          <span>linked = matched · dashed = one side only</span>
-        </div>
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+        note="A above · B below · linked = matched · dashed = one side only"
+      />
 
       <Show
         when={aligned() && merged()}

@@ -89,15 +89,16 @@ export async function waitForSelector(selector: string, timeoutMsg: string, time
  * Charts and the Timeline listen for `wheel` on a canvas/element rather than the DOM
  * scroll container, so the event is dispatched at the element's centre.
  */
-export async function wheelOver(selector: string, deltaY: number): Promise<void> {
+export async function wheelOver(selector: string, deltaY: number, zoom = false): Promise<void> {
   await browser.execute(
-    (sel: string, delta: number) => {
+    (sel: string, delta: number, isZoom: boolean) => {
       const el = document.querySelector(sel) as HTMLElement | null;
       if (!el) throw new Error(`wheelOver: no element for ${sel}`);
       const rect = el.getBoundingClientRect();
       el.dispatchEvent(
         new WheelEvent("wheel", {
           deltaY: delta,
+          ctrlKey: isZoom,
           clientX: rect.left + rect.width / 2,
           clientY: rect.top + rect.height / 2,
           bubbles: true,
@@ -107,6 +108,7 @@ export async function wheelOver(selector: string, deltaY: number): Promise<void>
     },
     selector,
     deltaY,
+    zoom,
   );
 }
 

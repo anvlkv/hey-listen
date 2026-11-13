@@ -2,6 +2,7 @@ import { Dialog } from "@kobalte/core/dialog";
 import { For, Show } from "solid-js";
 import Icon from "../Icon";
 import {
+  closeComparePicker,
   compareNotice,
   compareSaved,
   compareTargets,
@@ -9,18 +10,19 @@ import {
   pickSavedComparison,
   pickerTool,
   savedWindowLabel,
-  setPickerTool,
   shapeLabel,
   targetWindowLabel,
 } from "../../state/compare/picker";
 
 /**
- * The **Compare with…** picker (M25).
+ * The **Compare with…** picker (M23 Phase 3).
  *
  * A modal dialog over the projects the comparison can reference: each shows its name,
  * source shape and analysis window; a project with no source is listed but disabled.
- * With one project open the caller shows a notice instead of this dialog (the picker
- * only opens when there is at least one target). See `docs/comparison.md`.
+ * The project's **saved comparisons** are listed per pair too, so several of them stay
+ * distinguishable. Picking one opens a new compare tab (or retargets the comparison the
+ * picker was opened from). With one project open and no saved comparison the caller
+ * shows a notice instead. See `docs/comparison.md`.
  */
 export default function ComparePicker() {
   const open = () => pickerTool() != null;
@@ -29,7 +31,7 @@ export default function ComparePicker() {
     compareTargets().find((target) => target.name === name) ?? null;
 
   return (
-    <Dialog open={open()} onOpenChange={(next) => !next && setPickerTool(null)}>
+    <Dialog open={open()} onOpenChange={(next) => !next && closeComparePicker()}>
       <Dialog.Portal>
         <Dialog.Overlay class="compare-overlay" />
         <Dialog.Content class="compare-dialog" data-testid="compare.picker">
@@ -40,28 +42,28 @@ export default function ComparePicker() {
             </Dialog.CloseButton>
           </header>
           <Dialog.Description class="compare-dialog-hint">
-            Pick another open project, or the saved reference from the last comparison. Each side
-            keeps its own source, filter, analysis window and params — the comparison is read-only.
+            Pick another open project, or one of this project's saved comparisons. Each side keeps
+            its own source, filter, analysis window and params — the comparison is read-only.
           </Dialog.Description>
           <ul class="compare-targets">
-            <Show when={compareSaved()}>
+            <For each={compareSaved()}>
               {(saved) => (
                 <li>
                   <button
                     type="button"
                     class="compare-target compare-target-saved"
-                    data-testid="compare.target.saved"
+                    data-testid={`compare.target.saved.${saved.id}`}
                     onClick={() => {
                       const tool = pickerTool();
-                      if (tool) void pickSavedComparison(tool);
+                      if (tool) void pickSavedComparison(tool, saved);
                     }}
                   >
-                    <span class="compare-target-name">Saved: {saved().referenceName}</span>
+                    <span class="compare-target-name">Saved: {saved.referenceName}</span>
                     <span class="compare-target-meta">
-                      {shapeLabel(saved().source)} · {savedWindowLabel(saved())} · saved
+                      {shapeLabel(saved.source)} · {savedWindowLabel(saved)} · {saved.id}
                     </span>
                   </button>
-                  <Show when={openMatch(saved().referenceName)}>
+                  <Show when={openMatch(saved.referenceName)}>
                     {(target) => (
                       <p class="compare-dialog-hint" data-testid="compare.saved.hint">
                         “{target().name}” is open — pick it above to reconnect live (the saved
@@ -71,7 +73,7 @@ export default function ComparePicker() {
                   </Show>
                 </li>
               )}
-            </Show>
+            </For>
             <For each={compareTargets()}>
               {(target) => (
                 <li>
@@ -96,7 +98,7 @@ export default function ComparePicker() {
               )}
             </For>
           </ul>
-          <Show when={compareTargets().length === 0 && !compareSaved()}>
+          <Show when={compareTargets().length === 0 && compareSaved().length === 0}>
             <p class="compare-dialog-hint">
               No other project is open and this project has no saved comparison. Use File → New
               Window, then compare again.

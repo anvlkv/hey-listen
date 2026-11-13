@@ -1,12 +1,8 @@
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
 import { exportAllOpenAnalyses, exportAnalysis, exportChart } from "../../lib/export";
-import {
-  previewRegion,
-  previewSpeed,
-  previewWindow,
-  stop as stopPreviewAudio,
-} from "../../audio/preview";
+import { playRegion, playWindow, stop as stopTransport } from "../../audio/preview";
+import { previewSpeed } from "../../audio/transportSpeed";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
 import {
   analyzerById,
@@ -208,12 +204,12 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
       const loop = optionalBool(args, "loop") ?? true;
       const speed = optionalNum(args, "speed");
       // The bare verb auditions the analysis window; an explicit range stays put.
-      if (startArg == null && endArg == null) previewWindow(start, end, loop, speed);
-      else previewRegion(start, end, loop, speed);
+      if (startArg == null && endArg == null) playWindow();
+      else playRegion(start, end, loop, speed);
       return { start, end, speed: previewSpeed() };
     }
     case "stop_preview":
-      stopPreviewAudio();
+      stopTransport();
       return { playing: false };
     case "set_output_gain":
       applyOutputGain(num(args, "gain"));

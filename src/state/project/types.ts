@@ -1,8 +1,8 @@
 import type { AnalysisSetup } from "../../bindings/AnalysisSetup";
 import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
-import type { AnalyzerId } from "../../bindings/AnalyzerId";
 import type { CachedResultInput } from "../../bindings/CachedResultInput";
 import type { CachedResultOutput } from "../../bindings/CachedResultOutput";
+import type { CompareOpen } from "../../bindings/CompareOpen";
 import type { GraphSpec } from "../../bindings/GraphSpec";
 import type { Meta } from "../../bindings/Meta";
 import type { Annotation } from "../../bindings/Annotation";
@@ -42,6 +42,9 @@ export interface LayoutDto {
   filterSpec?: GraphSpec | null;
 }
 
+/** One comparison open at save time: its tool and its stable pair id (M23 Phase 3). */
+export type CompareOpenDto = CompareOpen;
+
 /** The frontend-supplied project data for `save_project`; the core adds `META` + `DATA`. */
 export interface SaveProjectArgs {
   name: string;
@@ -54,8 +57,8 @@ export interface SaveProjectArgs {
   results: CachedResultInput[];
   /** Embed the source PCM (default). `false` writes a reference project. */
   embedSource?: boolean;
-  /** The comparison tools open at save time; the core writes their snapshots (M25.C). */
-  compareOpen: AnalyzerId[];
+  /** The comparisons open at save time, one entry per pair; the core writes their snapshots. */
+  compareOpen: CompareOpenDto[];
 }
 
 /** What `load_project` returns (the `DATA` samples stream separately). */

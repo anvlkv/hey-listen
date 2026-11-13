@@ -84,8 +84,8 @@ async function transportPlaying(): Promise<boolean> {
 
 /** Stop the transport if it is running, so each case starts from a known state. */
 async function stopTransport(): Promise<void> {
-  if (await transportPlaying()) await (await $(SEL.timelinePreview)).click();
-  await waitFor(async () => !(await transportPlaying()), "the preview never stopped");
+  if (await transportPlaying()) await (await $(SEL.timelineStop)).click();
+  await waitFor(async () => !(await transportPlaying()), "the transport never stopped");
 }
 
 /**
@@ -143,11 +143,12 @@ describe("Q. Preview transport", () => {
     const idle = await stableRowSignature(chart);
     expect(await playheadOnChart(chart, idle)).toBe(true);
 
-    // ...and stopping erases it, leaving the chart as it was.
+    // ...and stopping keeps it (dimmed): the playhead is transport state now, so it
+    // persists at the last position instead of being erased with the preview.
     await stopTransport();
     await waitFor(
-      async () => (await rowSignature(chart)) === idle,
-      "the playhead stayed on the chart after the transport stopped",
+      async () => (await rowSignature(chart)) !== idle,
+      "the playhead was erased from the chart after the transport stopped",
     );
     await closeTool("waveform");
   });
@@ -160,10 +161,11 @@ describe("Q. Preview transport", () => {
 
     const idle = await stableRowSignature(chart);
     expect(await playheadOnChart(chart, idle)).toBe(true);
+    // Stopping keeps the playhead (dimmed), not erases it.
     await stopTransport();
     await waitFor(
-      async () => (await rowSignature(chart)) === idle,
-      "the playhead stayed on the heatmap after the transport stopped",
+      async () => (await rowSignature(chart)) !== idle,
+      "the playhead was erased from the heatmap after the transport stopped",
     );
     await closeTool("spectrogram");
   });
@@ -194,8 +196,8 @@ describe("Q. Preview transport", () => {
   });
 
   it("Q4 — the Timeline grows a scrollbar when zoomed in", async () => {
-    // Zoom the *view* (wheel on the waveform) without touching the analysis window.
-    await wheelOver(SEL.timelineCanvas, -240);
+    // Zoom the *view* (⌘/Ctrl-wheel on the waveform) without touching the analysis window.
+    await wheelOver(SEL.timelineCanvas, -240, true);
 
     await waitFor(
       async () => (await count(SEL.timelineScrollThumb)) > 0,

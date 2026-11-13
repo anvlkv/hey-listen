@@ -49,12 +49,6 @@
   overflow-wrap: anywhere;
 }
 
-.params-field .timeline-channel {
-  flex: 1;
-  min-width: 0;
-  max-width: 150px;
-}
-
 .params-dim {
   font-size: 0.6875rem;
   color: var(--fg-faint);

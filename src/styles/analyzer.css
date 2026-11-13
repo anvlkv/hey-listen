@@ -78,11 +78,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The plot surface owns the wheel/trackpad gesture (M23): no page scroll under it and no
+   browser pan/zoom takeover, so a two-finger gesture is always ours to interpret. */
 .analyzer-plot {
   position: relative;
   flex: 1;
   min-height: 0;
   padding: var(--space-chart-tight) 0 0;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 /* The masking view stacks two aligned panels on one frequency axis: the level curves
@@ -112,6 +116,8 @@
   position: relative;
   flex: 1 1 0;
   min-height: 0;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .analyzer-empty {
@@ -173,6 +179,7 @@
   flex: 1;
   min-height: 0;
   padding: var(--space-chart-tight) 0 0;
+  overscroll-behavior: contain;
 }
 
 /* The linked waveform-over-spectrogram pair (M36, `SignalDiagnostic`): the waveform keeps

@@ -1,10 +1,12 @@
 //! Preview playback over `cpal` (ADR-9).
 //!
 //! The Rust core owns the output stream: one stream is kept open and fed from a
-//! mono buffer that the frontend loads per preview region. Control is
-//! fire-and-forget (load / stop / gain), so scrubbing pays neither stream-open nor
-//! IPC latency, and what you hear is the core's (filtered) signal — the same one
-//! the analyzers see from M4.
+//! mono buffer that the frontend loads per transport region. Control is
+//! fire-and-forget (load / pause / resume / seek / stop / gain), so scrubbing pays
+//! neither stream-open nor IPC latency, and what you hear is the core's (filtered)
+//! signal — the same one the analyzers see from M4. The core also owns the cursor:
+//! the frontend polls [`Playback::position`], which keeps returning the last position
+//! when the transport is paused or stopped (M23).
 //!
 //! `cpal::Stream` is `!Send` on macOS, so it lives on a dedicated worker thread;
 //! the audio callback and the command side share only an `Arc<Mutex<PlayState>>`
@@ -133,6 +135,8 @@ impl Playback {
 
     /// Load a mono buffer (already at the device rate) and start looping/playing
     /// `start_secs..end_secs`. `start_secs`/`end_secs` are relative to the buffer.
+    /// `offset_secs` is where inside that region to start (clamped into it), so a reload
+    /// resumes at the playhead instead of jumping back to the region start.
     pub fn load(
         &self,
         mono: Vec<f32>,
@@ -140,6 +144,7 @@ impl Playback {
         start_secs: f64,
         end_secs: f64,
         loop_region: bool,
+        offset_secs: f64,
     ) {
         let mut state = self
             .shared
@@ -151,12 +156,14 @@ impl Playback {
         if end <= start {
             end = frames;
         }
+        let offset = ((offset_secs.max(0.0) * f64::from(rate)).round() as usize).min(end - start);
         state.playing = !mono.is_empty();
+        state.paused = false;
         state.pcm = mono;
         state.rate = rate;
         state.start_frame = start;
         state.end_frame = end;
-        state.pos = start;
+        state.pos = start + offset;
         state.start_secs = start_secs.max(0.0);
         state.loop_region = loop_region;
         state.level = 0.0;
@@ -168,7 +175,44 @@ impl Playback {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         state.playing = false;
+        state.paused = false;
         state.level = 0.0;
+    }
+
+    /// Hold the cursor where it is and emit silence (the audio callback's `paused` flag).
+    pub fn pause(&self) {
+        let mut state = self
+            .shared
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        state.playing = false;
+        state.paused = true;
+        state.level = 0.0;
+    }
+
+    /// Continue from the paused cursor.
+    pub fn resume(&self) {
+        let mut state = self
+            .shared
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        state.paused = false;
+        state.playing = !state.pcm.is_empty();
+    }
+
+    /// Move the cursor to `secs` (source seconds within the loaded region), clamped into
+    /// `start_frame..end_frame`.
+    pub fn seek(&self, secs: f64) {
+        let mut state = self
+            .shared
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if state.rate == 0 {
+            return;
+        }
+        let offset = (secs - state.start_secs).max(0.0);
+        let frame = state.start_frame + (offset * f64::from(state.rate)).round() as usize;
+        state.pos = frame.clamp(state.start_frame, state.end_frame);
     }
 
     pub fn set_gain(&self, gain: f32) {
@@ -179,17 +223,21 @@ impl Playback {
         state.gain = if gain.is_finite() { gain.max(0.0) } else { 1.0 };
     }
 
-    /// Current source-time position (seconds) while playing, else `None`.
+    /// The cursor's source-time position (seconds), or `None` when no region has ever
+    /// been loaded. The last position is kept when stopped or paused, so a playhead can
+    /// stay on screen (M23).
     pub fn position(&self) -> Option<f64> {
         let state = self
             .shared
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        if !state.playing || state.rate == 0 {
+        if state.rate == 0 {
             return None;
         }
         let elapsed = state.pos.saturating_sub(state.start_frame) as f64 / f64::from(state.rate);
-        Some(state.start_secs + elapsed)
+        let length =
+            state.end_frame.saturating_sub(state.start_frame) as f64 / f64::from(state.rate);
+        Some((state.start_secs + elapsed).clamp(state.start_secs, state.start_secs + length))
     }
 
     /// Peak magnitude (0..) of the most recent output block while playing, else `0`.

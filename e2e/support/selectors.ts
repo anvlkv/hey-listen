@@ -77,12 +77,16 @@ export const SEL = {
   timelineCanvas: '[data-testid="timeline.canvas"]',
   timelineReplace: '[data-testid="timeline.replace"]',
   timelinePreview: '[data-testid="timeline.preview"]',
+  timelineStop: '[data-testid="timeline.stop"]',
+  timelineLoop: '[data-testid="timeline.loop"]',
+  timelinePosition: '[data-testid="timeline.position"]',
   // The transport's annotation-at-the-playhead action (enabled only while previewing).
   timelineAnnotationAtCursor: '[data-testid="timeline.annotationAtCursor"]',
   timelineScroll: '[data-testid="timeline.scroll"]',
   timelineScrollThumb: '[data-testid="timeline.scroll.thumb"]',
-  // The channel select keeps its ARIA label (shared with the toolbar popover).
-  channelSelect: '[aria-label="Channel to analyse"]',
+  // The channel rail (M23): one radio per channel plus the downmix toggle.
+  channelMix: '[data-testid="timeline.channel.mix"]',
+  channelRight: '[data-testid="timeline.channel.1"]',
 
   // Graph editors.
   graphError: '[data-testid="graph.error"]',

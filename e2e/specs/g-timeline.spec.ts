@@ -13,8 +13,6 @@ import {
   waitFor,
   openTool,
   openFixture,
-  openSelect,
-  pickOption,
   canvasHasInk,
   waitForAnalyzer,
   closeAllTabs,
@@ -99,8 +97,9 @@ describe("G. Timeline", () => {
     await openFixture("stereo");
     await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
 
-    await openSelect(SEL.channelSelect);
-    await pickOption("Right");
+    // The channel rail is the analysis-channel picker (M23); the source shows one lane
+    // per channel, so the right channel is the second radio.
+    await click(SEL.channelRight);
 
     await openTool("waveform");
     await waitForAnalyzer("waveform");
@@ -125,7 +124,7 @@ describe("G. Timeline", () => {
     await waitFor(async () => (await span()) > 0, "the spectrogram showed no zoom readout");
     const full = await span();
 
-    for (let i = 0; i < 3; i++) await wheelOver(`${chart} canvas`, -240);
+    for (let i = 0; i < 3; i++) await wheelOver(`${chart} canvas`, -240, true);
     await waitFor(async () => (await span()) < full, "the spectrogram never zoomed in");
 
     // Move the analysis window: the chart must re-fit to the *whole new* window, not

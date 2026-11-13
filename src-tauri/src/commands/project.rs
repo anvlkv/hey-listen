@@ -39,6 +39,16 @@ use results::{to_cached, to_stored};
 /// `tauri.conf.json`).
 const PROJECT_EXTENSION: &str = "heyl";
 
+/// One comparison open at save time (a compare tab or popout): its tool and its stable
+/// pair id. Several comparisons may share a tool (M23 Phase 3).
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct CompareOpen {
+    pub tool: AnalyzerId,
+    pub id: String,
+}
+
 /// The frontend-supplied project data for [`save_project`]; the core adds `META`
 /// (timestamps/version) and the `DATA` section (owned source PCM).
 #[derive(Debug, Deserialize, ts_rs::TS)]
@@ -60,10 +70,10 @@ pub struct SaveProjectArgs {
     /// again. Useful when many annotation projects would otherwise duplicate audio.
     #[serde(default = "embed_source_default")]
     pub embed_source: bool,
-    /// The comparison tools open at save time (tabs or popouts, M25.C). The core
-    /// writes each one's last successful reference snapshot from its own state.
+    /// The comparisons open at save time (tabs or popouts, one entry per pair, M25.C).
+    /// The core writes each one's last successful reference snapshot from its own state.
     #[serde(default)]
-    pub compare_open: Vec<AnalyzerId>,
+    pub compare_open: Vec<CompareOpen>,
     /// The frontend's analyzer result cache (one entry per tool), written as `RESULTS`.
     #[serde(default)]
     pub results: Vec<results::CachedResultInput>,
@@ -113,8 +123,12 @@ pub async fn save_project(
     // borrowing the window.
     let state = window_state(&window);
     // One snapshot per comparison open at save time; a closed comparison is dropped.
-    let compare_open = project.compare_open.clone();
-    let compare = state.saved_comparisons_for(&compare_open);
+    let open_ids: Vec<String> = project
+        .compare_open
+        .iter()
+        .map(|comparison| comparison.id.clone())
+        .collect();
+    let compare = state.saved_comparisons_for(&open_ids);
 
     tauri::async_runtime::spawn_blocking(move || {
         // A reference project only makes sense for a file source: the loader can
@@ -145,7 +159,7 @@ pub async fn save_project(
         // the helper creates it rather than failing at the last step of a long run.
         write_project_atomic(Path::new(&path), &save, crate::recent::now_ms())?;
         // The save succeeded, so a comparison no longer open can be forgotten.
-        state.retain_saved_comparisons(&compare_open);
+        state.retain_saved_comparisons(&open_ids);
         Ok(())
     })
     .await

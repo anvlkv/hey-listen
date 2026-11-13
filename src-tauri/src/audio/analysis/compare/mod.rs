@@ -1,8 +1,10 @@
 //! Cross-project comparison (M25): run one tool over **two** projects and diff it.
 //!
 //! A comparison binds an owner project **A** and a reference project **B** to one
-//! analyzer id. Both sides run through the existing [`analysis::run_window`], each from
-//! its own [`WindowState`] (own PCM, own filter), so a comparison can never drift from
+//! analyzer id. The owner's grid always wins: A runs from its own setup, and B is
+//! re-analysed on **A's** shared params and tool options (keeping only its own channel,
+//! window and filter), so a live comparison always produces a delta. Both sides run
+//! through the existing [`analysis::run_window`], so a comparison can never drift from
 //! a normal tool run. Nothing is written to either project; B is read-only.
 //!
 //! The module is `tauri`-free, so the whole contract is unit-tested: [`align`] decides
@@ -84,8 +86,9 @@ pub struct Comparison {
     pub a: ComparisonSide,
     pub b: ComparisonSide,
     pub comparability: Comparability,
-    /// The delta, present only when the grids align (and, for time families, the
-    /// shifted windows meet). The core computes it for **every** family.
+    /// The delta. A live comparison always has one (B ran on A's grid) unless a
+    /// time-axis family's shifted windows do not meet; a saved snapshot also needs its
+    /// grid to match (see [`assemble`]).
     pub diff: Option<ComparisonDiff>,
 }
 
@@ -98,9 +101,11 @@ pub struct SideInput<'a> {
 
 /// Run `tool` over both projects and compare the results.
 ///
-/// Both runs are sequential on the caller's blocking thread; a failure names the side.
-/// `b_offset` (δ) shifts the reference on the relative axis; matching and the delta
-/// cover the common span (M25.B).
+/// A runs from its own setup; B runs on **A's grid** (its params and options, keeping
+/// its own window, channel and filter), so a numeric delta always exists (M23 Phase
+/// 3). Both runs are sequential on the caller's blocking thread; a failure names the
+/// side. `b_offset` (δ) shifts the reference on the relative axis; matching and the
+/// delta cover the common span (M25.B).
 pub fn compare(
     tool: AnalyzerId,
     a: SideInput<'_>,
@@ -110,22 +115,30 @@ pub fn compare(
     let a_source = source_shape(a.state)?;
     let b_source = source_shape(b.state)?;
     let filters_differ = filter_fingerprint(a.state) != filter_fingerprint(b.state);
+    let b_setup = align::owner_grid_setup(
+        &a.setup,
+        &b.setup,
+        a_source.sample_rate,
+        b_source.sample_rate,
+    );
 
-    let a_result = run(tool, &a, "a")?;
-    let b_result = run(tool, &b, "b")?;
+    let a_result = run(tool, a.state, &a.setup, "a")?;
+    let b_result = run(tool, b.state, &b_setup, "b")?;
 
     Ok(assemble(
         tool,
         PreparedSide::new(a.project.clone(), a_source, a.setup.clone(), a_result),
-        PreparedSide::new(b.project.clone(), b_source, b.setup.clone(), b_result),
+        PreparedSide::new(b.project.clone(), b_source, b_setup, b_result),
         b_offset,
         filters_differ,
+        false,
     ))
 }
 
 /// Compare the owner against a **saved reference snapshot** (M25.C): only A is
-/// analysed; B's result comes from the snapshot. The grid comparability still runs, so
-/// a snapshot from a different setup than A is reported, never silently diffed.
+/// analysed; B's result comes from the snapshot. A snapshot was produced by an earlier
+/// run, so its grid can differ from A's — that is reported, and it keeps the grid gate
+/// until the snapshot carries fragment audio to re-grid (M23 Phase 3 slice 2).
 pub fn compare_saved(
     tool: AnalyzerId,
     a: SideInput<'_>,
@@ -134,7 +147,7 @@ pub fn compare_saved(
 ) -> Result<Comparison, AnalysisError> {
     let a_source = source_shape(a.state)?;
     let filters_differ = filter_fingerprint(a.state) != saved.filter_fingerprint;
-    let a_result = run(tool, &a, "a")?;
+    let a_result = run(tool, a.state, &a.setup, "a")?;
 
     Ok(assemble(
         tool,
@@ -147,6 +160,7 @@ pub fn compare_saved(
         ),
         b_offset,
         filters_differ,
+        true,
     ))
 }
 
@@ -189,12 +203,16 @@ impl PreparedSide {
 }
 
 /// Build the comparison from two prepared sides (live or saved).
+///
+/// `require_grid` keeps the grid gate: a live comparison is always diffed because B ran
+/// on A's grid, while a saved snapshot must still match (see [`compare_saved`]).
 fn assemble(
     tool: AnalyzerId,
     a: PreparedSide,
     b: PreparedSide,
     b_offset: f64,
     filters_differ: bool,
+    require_grid: bool,
 ) -> Comparison {
     let a_rate = analysis_rate(a.source.sample_rate, &a.setup.params);
     let b_rate = analysis_rate(b.source.sample_rate, &b.setup.params);
@@ -214,7 +232,7 @@ fn assemble(
         let comparability = align::comparability(tool, &side_a, &side_b, filters_differ, alignment);
         // A time-axis family needs the shifted windows to meet; spectrum, modulation and
         // the scalar readouts diff without one.
-        let comparable = comparability.aligned
+        let comparable = (!require_grid || comparability.aligned)
             && (!align::needs_common_span(tool) || alignment.common.is_some());
         let diff = comparable.then(|| diff::diff(&side_a, &side_b, b_offset, alignment.common));
         (comparability, diff)
@@ -231,16 +249,17 @@ fn assemble(
 
 fn run(
     tool: AnalyzerId,
-    side: &SideInput<'_>,
+    state: &WindowState,
+    setup: &CompareSetup,
     name: &str,
 ) -> Result<AnalysisResult, AnalysisError> {
     analysis::run_window(
-        side.state,
+        state,
         tool,
-        side.setup.start,
-        side.setup.end,
-        &side.setup.params,
-        &side.setup.options,
+        setup.start,
+        setup.end,
+        &setup.params,
+        &setup.options,
     )
     .map_err(|err| match err {
         AnalysisError::NoSource => {

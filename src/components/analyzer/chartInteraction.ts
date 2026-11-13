@@ -10,6 +10,7 @@ import {
 } from "solid-js";
 import { analyzerBus, chartView, publishChartView } from "../../state/chartSync";
 import { onDevicePixelRatioChange } from "../../lib/devicePixelRatio";
+import { createWheelGesture } from "../../lib/wheelGesture";
 import { ANNOTATION_STRIP_H } from "../annotations/strip";
 import { createLaneDrag, type LaneSelection } from "../annotations/lane";
 import { timeRangeLabel } from "./chartCommon";
@@ -70,9 +71,10 @@ export interface ChartInteractionOptions<V extends ChartView, H, R extends TimeE
   /** Translate a view by a plot-relative pointer delta (fractions of the plot size). */
   pan: (view: V, dxFrac: number, dyFrac: number) => V;
   /**
-   * Wheel zoom around a plot-relative pointer position (`xFrac` across, `yFrac` up
-   * from the plot bottom). Returns the zoomed view and whether to publish its time
-   * range, or `null` to ignore the gesture.
+   * Zoom around a plot-relative pointer position (`xFrac` across, `yFrac` up from the plot
+   * bottom) by a continuous `factor` (`< 1` zooms in; see `lib/wheelGesture.ts`). Returns
+   * the zoomed view and whether to publish its time range, or `null` to ignore the gesture.
+   * `shift` picks the frequency axis of a 2-D view.
    */
   wheel: (
     view: V,
@@ -271,19 +273,31 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     }
   }
 
-  function onWheel(event: WheelEvent) {
-    const v = view();
-    const el = canvas();
-    if (!v || !el) return;
-    event.preventDefault();
-    const rect = el.getBoundingClientRect();
-    const b = box();
-    const factor = event.deltaY < 0 ? 0.8 : 1.25;
-    const xFrac = (event.clientX - rect.left - b.x) / b.width;
-    const yFrac = (b.y + b.height - (event.clientY - rect.top)) / b.height;
-    const next = options.wheel(v, xFrac, yFrac, factor, event.shiftKey);
-    if (next) applyView(next.view, next.publish);
-  }
+  /**
+   * Plain wheel/trackpad scroll **pans** (time on `deltaX`, frequency on `deltaY`);
+   * `Ctrl`/`⌘` + wheel zooms at the pointer (time, or frequency with `Shift`). The gesture
+   * model is shared with the Timeline and the uPlot charts — `lib/wheelGesture.ts`.
+   */
+  const wheelGesture = createWheelGesture({
+    enabled: () => !!view() && !!canvas(),
+    apply: (gesture) => {
+      const v = view();
+      const el = canvas();
+      if (!v || !el) return;
+      const rect = el.getBoundingClientRect();
+      const b = box();
+      const xFrac = (gesture.clientX - rect.left - b.x) / b.width;
+      const yFrac = (b.y + b.height - (gesture.clientY - rect.top)) / b.height;
+      if (gesture.kind === "zoom") {
+        const next = options.wheel(v, xFrac, yFrac, gesture.factor, gesture.shift);
+        if (next) applyView(next.view, next.publish);
+        return;
+      }
+      // A scroll down or right advances time and lowers the band, so the content follows
+      // the gesture; `options.pan` takes a pointer-drag delta, hence the negative fractions.
+      applyView(options.pan(v, -gesture.dx / b.width, -gesture.dy / b.height), true);
+    },
+  });
 
   /** Right-click: reframe the timeline window from the time under the pointer. */
   function onContextMenu(event: MouseEvent) {
@@ -337,12 +351,13 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
     observer.observe(node);
     syncSize();
     const stopDpr = onDevicePixelRatioChange(syncSize);
-    // Non-passive so the wheel can zoom instead of scrolling the page.
-    el.addEventListener("wheel", onWheel, { passive: false });
+    // Non-passive so the wheel can pan/zoom instead of scrolling the page.
+    el.addEventListener("wheel", wheelGesture.wheel, { passive: false });
     onCleanup(() => {
       observer.disconnect();
       stopDpr();
-      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("wheel", wheelGesture.wheel);
+      wheelGesture.dispose();
     });
   });
 

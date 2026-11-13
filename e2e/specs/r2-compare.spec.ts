@@ -2,9 +2,9 @@
  * R2. Cross-project comparison (M25).
  *
  * Diff one analyzer across two **independently open projects**. The compare view is a
- * transient Workbench tab in the owner project (`compare:<tool>`), or its native popout;
- * each side keeps its own source, filter, window and params, and the reference project
- * is never changed.
+ * transient Workbench tab in the owner project (`compare:<tool>:<id>`), or its native
+ * popout; each side keeps its own source, filter, window and params, and the reference
+ * project is never changed.
  *
  * Two harness rules from R matter here: a window is listed before its webview boots
  * (`waitForShell()` after every switch to a new window), and every window the spec opens
@@ -97,11 +97,12 @@ describe("R2. Comparison", () => {
     expect(await invokeCore<{ tool: string }[]>("compare_popouts")).toEqual([]);
   });
 
-  it("R2.2 — a differing grid shows the mismatch badge and no delta", async () => {
+  it("R2.2 — a differing grid is normalized to the owner's grid", async () => {
+    // The owner's grid wins (M23 Phase 3): changing the owner's FFT re-runs the
+    // reference on it, so the comparison stays aligned instead of refusing a delta.
     await setFft("1024");
-    await waitForBadge("Grids differ");
-    const readouts = await textOf(compareView("spectrum"));
-    expect(readouts).toContain("—"); // the Δ readouts have no value
+    await waitForBadge("Aligned");
+    expect(await textOf(compareView("spectrum"))).toContain("Δ mean");
     // Restore the shared grid so the later tests compare like with like.
     await setFft("2048");
     await waitForBadge("Aligned");
@@ -153,7 +154,7 @@ describe("R2. Comparison", () => {
     // The comparison is project content now: the tab returns, bound to the snapshot, and
     // presents itself as a saved reference (no "reference closed" banner).
     await waitFor(
-      async () => (await count(tab(compareTab("spectrum")))) === 1,
+      async () => (await count(compareTab("spectrum"))) === 1,
       "the saved compare tab was not restored",
     );
     await waitFor(
@@ -250,7 +251,9 @@ describe("R2. Comparison", () => {
       "the retargeted comparison never came back",
     );
     expect((await openTabTitles()).length).toBe(before);
-    expect(await count(tab(compareTab("spectrum")))).toBe(1);
+    // Several comparisons of one tool may be open (one per pair), so an earlier tab is
+    // not overwritten — this one is retargeted in place.
+    expect(await count(compareTab("spectrum"))).toBeGreaterThan(0);
 
     await browser.tauri.switchWindow(other);
     await waitForShell();
@@ -266,14 +269,19 @@ describe("R2. Comparison", () => {
     await compareFromTabMenu("spectrum", reference);
     await waitForCompareChart("spectrum");
 
+    const tabsBeforePopout = await count(compareTab("spectrum"));
     const popout = await popOutCompareTab("spectrum");
     await waitFor(
-      async () => (await count(tab(compareTab("spectrum")))) === 0,
+      async () => (await count(compareTab("spectrum"))) === tabsBeforePopout - 1,
       "the compare tab stayed",
     );
-    expect(await invokeCore<{ tool: string }[]>("compare_popouts")).toEqual([
-      { tool: "spectrum", with: reference, saved: false },
-    ]);
+    const popouts =
+      await invokeCore<{ id: string; tool: string; with: string; saved: boolean }[]>(
+        "compare_popouts",
+      );
+    expect(popouts).toHaveLength(1);
+    expect(popouts[0]).toMatchObject({ tool: "spectrum", with: reference, saved: false });
+    expect(popouts[0].id).toBeTruthy();
 
     // The popout renders the same compare view (header + chart).
     await browser.tauri.switchWindow(popout);
@@ -289,7 +297,7 @@ describe("R2. Comparison", () => {
     await browser.tauri.switchWindow("main").catch(() => {});
     await waitFor(async () => !(await windowLabels()).includes(popout), `${popout} did not close`);
     expect(await invokeCore<{ tool: string }[]>("compare_popouts")).toEqual([]);
-    expect(await count(tab(compareTab("spectrum")))).toBe(0);
+    expect(await count(compareTab("spectrum"))).toBe(tabsBeforePopout - 1);
   });
 
   // --- M25.A: the remaining chart families ---------------------------------
@@ -313,22 +321,6 @@ describe("R2. Comparison", () => {
       "the Δ legend never appeared",
     );
     expect(await textOf('[data-testid="compare.matrix.legend"]')).toContain("B − A");
-
-    // A differing grid: two side-by-side heatmaps, and no Δ switch.
-    await setFft("1024");
-    await waitForBadge("Grids differ");
-    await waitFor(
-      async () => (await count('[data-testid="compare.matrix.side"]')) === 1,
-      "the side-by-side heatmaps never appeared",
-    );
-    expect(await count('[data-testid="compare.matrix.mode"]')).toBe(0);
-
-    await setFft("2048");
-    await waitForBadge("Aligned");
-    await waitFor(
-      async () => (await count('[data-testid="compare.matrix.mode"]')) === 1,
-      "the A/B/Δ switch never came back",
-    );
   });
 
   it("R2.8 — the rhythm view pairs events and marks one-sided ones", async () => {

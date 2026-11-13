@@ -31,6 +31,8 @@ import { scheduleStampTabIds } from "../workbenchTabIds";
  */
 export default function CompareTab(props: {
   tool: AnalyzerId;
+  /** The comparison's stable id (a tab may be one of several for the same tool). */
+  id: string;
   /** This view's binding: a live project label, or the saved snapshot's name. */
   binding: () => CompareBinding | null;
   /** Change the binding (a tab updates locally; a popout asks the core). */
@@ -46,6 +48,7 @@ export default function CompareTab(props: {
   const live = createCompareLive(() => (binding()?.kind === "live" ? binding()!.reference : null));
   const run = createComparison(
     untrack(() => props.tool),
+    untrack(() => props.id),
     binding,
     () => live.revision(),
     () => props.offset(),
@@ -76,7 +79,7 @@ export default function CompareTab(props: {
     const comparison = run.comparison();
     if (!comparison) return;
     const api = dockApi();
-    const panel = api?.getPanel(comparePanelId(props.tool));
+    const panel = api?.getPanel(comparePanelId(props.tool, props.id));
     if (!api || !panel) return;
     const title = `Compare: ${analyzerById(props.tool).title} — ${
       comparison.a.project ?? "A"
@@ -94,7 +97,7 @@ export default function CompareTab(props: {
   };
 
   return (
-    <div class="compare-tab" data-testid={`compare.${props.tool}`}>
+    <div class="compare-tab" data-testid={`compare.${props.tool}`} data-compare-id={props.id}>
       <Show
         when={binding()}
         fallback={
@@ -103,7 +106,10 @@ export default function CompareTab(props: {
             title="Compare with another project"
             hint="A comparison needs two projects — or a saved comparison. Open another window (File → New Window), then pick it here."
             action={
-              <Button class="compare-btn" onClick={() => void chooseCompareReference(props.tool)}>
+              <Button
+                class="compare-btn"
+                onClick={() => void chooseCompareReference(props.tool, props.id)}
+              >
                 Choose a project…
               </Button>
             }
@@ -136,6 +142,7 @@ export default function CompareTab(props: {
             {(comparison) => (
               <>
                 <CompareHeader
+                  id={props.id}
                   tool={props.tool}
                   comparison={comparison()}
                   swapped={swapped()}

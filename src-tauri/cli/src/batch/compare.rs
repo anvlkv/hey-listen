@@ -58,12 +58,13 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
     let mut failed = false;
     let mut snapshots: Vec<SavedComparison> = Vec::new();
     for &tool in &tools {
+        let owner = a.setup_for(tool);
         let result = comparison::compare(
             tool,
             SideInput {
                 project: Some(a.file.clone()),
                 state: &a.state,
-                setup: a.setup_for(tool),
+                setup: owner.clone(),
             },
             SideInput {
                 project: Some(b.file.clone()),
@@ -80,12 +81,15 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
                 emit(out, &value, request.pretty);
                 // What a `--save` writes: the reference side as the last successful
                 // comparison, exactly like the app's compare tab.
+                let saved_ms = hey_listen_lib::recent::now_ms();
                 snapshots.push(SavedComparison::from_side(
                     tool,
+                    SavedComparison::new_id(saved_ms),
+                    &owner,
                     &comparison.b,
                     comparison::filter_fingerprint(&b.state),
                     request.b_offset,
-                    hey_listen_lib::recent::now_ms(),
+                    saved_ms,
                     Some(b.file.clone()),
                 ));
             }

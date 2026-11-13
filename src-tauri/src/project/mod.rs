@@ -40,7 +40,7 @@ pub use write::{write_project, write_project_atomic, SaveProject};
 /// File magic at offset 0 (`"HEYL"`).
 pub const MAGIC: [u8; 4] = *b"HEYL";
 /// Container version (`docs/project-file-format.md`).
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 /// The oldest container version this build reads. Older files are migrated forward through
 /// the step chain in [`migrate`] (ADR-32); anything outside `MIN_READ_VERSION..=VERSION`
 /// is an `UnsupportedVersion` error.
@@ -64,7 +64,8 @@ pub const SECTION_SETUP: u8 = 0x04;
 pub const SECTION_LAYOUT: u8 = 0x05;
 pub const SECTION_RESULTS: u8 = 0x06;
 pub const SECTION_ANNOTATIONS: u8 = 0x07;
-/// Saved comparison snapshots (M25.C): one reference `AnalysisResult` per tool.
+/// Saved comparison snapshots (M25.C, M23 Phase 3): the reference side of each compare
+/// tab, several per tool.
 pub const SECTION_COMPARE: u8 = 0x08;
 
 /// Interleaved samples per `DATA` chunk (~256 KiB at `f32`). Bounds per-chunk memory

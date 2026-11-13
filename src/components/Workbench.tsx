@@ -17,7 +17,7 @@ import {
   type ToolId,
 } from "../state/workbench";
 import { chooseCompareReference } from "../state/compare/picker";
-import { parseCompareTool } from "../state/compare/id";
+import { parseComparePanel } from "../state/compare/id";
 import { popoutCompare, closeCompare } from "../state/compare/views";
 
 /**
@@ -74,19 +74,19 @@ export default function Workbench() {
       // (M25). Graph editors stay in the workbench.
       getTabContextMenuItems: ({ panel }): ContextMenuItem[] => {
         const id = panel.id;
-        const compareTool = parseCompareTool(id);
-        if (compareTool) {
+        const compare = parseComparePanel(id);
+        if (compare) {
           return [
             {
               label: "Change reference…",
-              action: () => void chooseCompareReference(compareTool),
+              action: () => void chooseCompareReference(compare.tool, compare.id),
             },
             {
               label: "Pop out to window",
-              action: () => void popoutCompare(compareTool),
+              action: () => void popoutCompare(compare.tool, compare.id),
             },
             "separator",
-            { label: "Close tab", action: () => closeCompare(compareTool) },
+            { label: "Close tab", action: () => closeCompare(compare.tool, compare.id) },
           ];
         }
         if (id === "filter" || id === "synth") {

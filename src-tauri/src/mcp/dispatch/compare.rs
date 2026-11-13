@@ -7,8 +7,8 @@
 //! shared params, options and filter, so the delta matches an app/CLI comparison.
 //!
 //! The last successful comparison is stored in the session's window state — the same
-//! per-tool store the app fills — so `save_project` writes it as the project's
-//! `COMPARE` section and the app restores it as a compare tab.
+//! per-comparison store the app fills (several pairs per tool) — so `save_project`
+//! writes it as the project's `COMPARE` section and the app restores it as a compare tab.
 
 use serde_json::Value;
 
@@ -33,9 +33,12 @@ impl HeadlessSession {
     /// Arguments mirror the app tool, except the reference: `with` is a **project
     /// path** (`.heyl`), and `saved: true` reuses the session's stored snapshot.
     /// `params` / `options` / `start` / `end` patch **A** (the session), exactly as
-    /// `run_analysis` does; B always runs with its saved setup.
+    /// `run_analysis` does; B always runs with its saved setup. `id` names the comparison
+    /// (several pairs may share a tool); `saved: true` picks that pair, or the newest one
+    /// for the tool when the id is unknown.
     pub(super) fn compare_analysis(&mut self, args: &Value) -> Result<Value, String> {
         let tool = analyzer(args, "tool")?;
+        let id = args.get("id").and_then(Value::as_str).unwrap_or("");
         let saved = args.get("saved").and_then(Value::as_bool).unwrap_or(false);
         let transient = args::transient(args);
 
@@ -54,14 +57,21 @@ impl HeadlessSession {
         // Resolve and validate the reference side first, so a malformed request reports
         // the real problem even before A has a source.
         let reference = if saved {
-            Reference::Saved(Box::new(self.state.saved_comparison(tool).ok_or_else(
-                || {
+            let stored = self
+                .state
+                .saved_comparison_selected(tool, Some(id))
+                .ok_or_else(|| {
+                    let pair = if id.is_empty() {
+                        format!("for '{tool}'")
+                    } else {
+                        format!("'{id}' for '{tool}'")
+                    };
                     format!(
-                        "no saved comparison for '{tool}' — call `compare_analysis` with a \
-                     `with` project path first"
+                        "no saved comparison {pair} — call `compare_analysis` with a \
+                         `with` project path first"
                     )
-                },
-            )?))
+                })?;
+            Reference::Saved(Box::new(stored))
         } else {
             Reference::Live(
                 args.get("with")
@@ -84,15 +94,16 @@ impl HeadlessSession {
             );
         }
 
+        let owner = CompareSetup {
+            start,
+            end,
+            params,
+            options,
+        };
         let a = SideInput {
             project: self.project_label(),
             state: &self.state,
-            setup: CompareSetup {
-                start,
-                end,
-                params,
-                options,
-            },
+            setup: owner.clone(),
         };
 
         match reference {
@@ -103,6 +114,9 @@ impl HeadlessSession {
                 // The stored result is untouched; only the display offset may have moved.
                 let mut snapshot = stored;
                 snapshot.b_offset = b_offset;
+                // The comparison's own id is the entry's identity; an id-less caller keeps
+                // the pair's id instead of appending one entry per run.
+                snapshot.id = self.state.pin_comparison_id(id, &snapshot);
                 self.state.store_saved_comparison(snapshot.as_ref().clone());
                 Ok(comparison_value(
                     &comparison,
@@ -128,12 +142,16 @@ impl HeadlessSession {
                 .map_err(|err| err.to_string())?;
                 let snapshot = SavedComparison::from_side(
                     tool,
+                    id.to_string(),
+                    &owner,
                     &comparison.b,
                     compare::filter_fingerprint(&side.state),
                     b_offset,
                     crate::recent::now_ms(),
                     Some(path.clone()),
                 );
+                let mut snapshot = snapshot;
+                snapshot.id = self.state.pin_comparison_id(id, &snapshot);
                 self.state.store_saved_comparison(snapshot.clone());
                 Ok(comparison_value(
                     &comparison,
@@ -155,7 +173,7 @@ impl HeadlessSession {
     }
 }
 
-/// The wire value for a comparison, plus the snapshot's fingerprint.
+/// The wire value for a comparison, plus its id and the snapshot's fingerprint.
 fn comparison_value(
     comparison: &Comparison,
     shape: Shape,
@@ -164,6 +182,7 @@ fn comparison_value(
     snapshot: &SavedComparison,
 ) -> Value {
     let mut value = comparison.to_value(shape, max_points, axis);
+    value["id"] = Value::String(snapshot.id.clone());
     value["savedFingerprint"] = Value::String(snapshot.fingerprint());
     value
 }

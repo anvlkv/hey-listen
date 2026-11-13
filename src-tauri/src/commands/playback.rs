@@ -1,8 +1,9 @@
 //! Preview playback commands (ADR-9).
 //!
 //! Playback lives in the core: the frontend drives it with fire-and-forget
-//! commands and asks for the position while scrubbing. The filter graph (if any)
-//! is applied here, so the preview matches what analysis will see from M4.
+//! commands (load / pause / resume / seek / stop) and polls its position for the
+//! transport's playhead. The filter graph (if any) is applied here, so the preview
+//! matches what analysis will see from M4.
 //!
 //! **Varispeed.** `preview_region` takes a `speed` (M14 follow-up). It is a *preview*
 //! control only — analysis always reads the source at 1× — and it is implemented by
@@ -34,10 +35,12 @@ pub async fn list_output_devices() -> Vec<OutputDeviceDto> {
 /// Preview `start..end` (seconds, source time). `channel` is a 0-based channel or
 /// `None` to downmix; `device` selects an output device (or the default); `speed` is the
 /// playback rate (varispeed, default/nonsense = 1×, clamped to
-/// [`MIN_SPEED`]..[`MAX_SPEED`]).
+/// [`MIN_SPEED`]..[`MAX_SPEED`]); `offset` is where inside the region to start playing
+/// (source seconds relative to `start`, default 0) so a reload resumes at the playhead.
 ///
 /// The region is mixed down, filtered by the project graph, resampled to the
 /// device rate, and looped by the core.
+#[allow(clippy::too_many_arguments)] // a Tauri command's flat args mirror the JS invoke object
 #[tauri::command]
 pub async fn preview_region(
     window: WebviewWindow,
@@ -47,8 +50,10 @@ pub async fn preview_region(
     channel: Option<usize>,
     device: Option<String>,
     speed: Option<f64>,
+    offset: Option<f64>,
 ) -> Result<(), PlaybackError> {
     let speed = clamp_speed(speed);
+    let offset = offset.unwrap_or(0.0).max(0.0);
     let (region, rate, channels, filter, device_rate) = {
         let state = window_state(&window);
         let device_rate = state.audio.playback.ensure_started(device)?;
@@ -108,10 +113,14 @@ pub async fn preview_region(
     } else {
         0.0
     };
-    window_state(&window)
-        .audio
-        .playback
-        .load(mono, logical_rate, 0.0, seconds, loop_region);
+    window_state(&window).audio.playback.load(
+        mono,
+        logical_rate,
+        0.0,
+        seconds,
+        loop_region,
+        offset,
+    );
     Ok(())
 }
 
@@ -131,10 +140,28 @@ fn logical_rate(device_rate: u32, speed: f64) -> u32 {
     (f64::from(device_rate) / speed).round().max(1.0) as u32
 }
 
-/// Stop any in-flight preview.
+/// Stop any in-flight preview: silence it, keeping the cursor where it is (M23).
 #[tauri::command]
 pub fn stop_preview(window: WebviewWindow) {
     window_state(&window).audio.playback.stop();
+}
+
+/// Pause the loaded region where it is, emitting silence without moving the cursor.
+#[tauri::command]
+pub fn pause_preview(window: WebviewWindow) {
+    window_state(&window).audio.playback.pause();
+}
+
+/// Resume a paused region from its cursor.
+#[tauri::command]
+pub fn resume_preview(window: WebviewWindow) {
+    window_state(&window).audio.playback.resume();
+}
+
+/// Move the preview cursor to `secs` (source seconds within the loaded region).
+#[tauri::command]
+pub fn seek_preview(window: WebviewWindow, secs: f64) {
+    window_state(&window).audio.playback.seek(secs);
 }
 
 /// Set the preview output gain (linear, finite and ≥ 0).
@@ -143,7 +170,8 @@ pub fn set_output_gain(window: WebviewWindow, gain: f32) {
     window_state(&window).audio.playback.set_gain(gain);
 }
 
-/// Current preview position in source seconds, or `None` when not playing.
+/// The preview cursor in source seconds. Kept when stopped or paused (M23): `None` only
+/// when no region has ever been loaded.
 #[tauri::command]
 pub fn preview_position(window: WebviewWindow) -> Option<f64> {
     window_state(&window).audio.playback.position()

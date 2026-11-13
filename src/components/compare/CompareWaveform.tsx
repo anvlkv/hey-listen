@@ -6,6 +6,7 @@ import Readout from "../analyzer/Readout";
 import { createUplotZoom } from "../analyzer/uplotZoom";
 import { timeTooltip } from "../analyzer/chartCommon";
 import { compareMarkers } from "./peerPlugins";
+import CompareLegend from "./CompareLegend";
 import ComparePlot from "./ComparePlot";
 import CompareTimeChart from "./CompareTimeChart";
 import { compareSides, liveMarkers } from "./sides";
@@ -103,6 +104,15 @@ export default function CompareWaveform(props: {
         <Readout label="Peak A" value={db(sides.resultA()?.peakDb)} />
         <Readout label="Peak B" value={db(sides.resultB()?.peakDb)} />
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta={!!diff()}
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+        note="Each side is anchored at its own window start; δ shifts the reference"
+      />
+
       <Show when={aligned() && !diff()}>
         <div class="compare-banner" data-testid="compare.waveform.note">
           The shifted windows do not meet — adjust the fine-tune offset to compare them.

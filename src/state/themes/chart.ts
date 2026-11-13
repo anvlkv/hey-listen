@@ -30,6 +30,8 @@ export type { ChartTheme };
  */
 
 /** The dark base chart palette. */
+const DARK_COMPARE_SIDES = ["#7fb4ff", "#ff8f6e", "#c084fc", "#6ee7a8"] as const;
+
 export const DARK_CHART: ChartTheme = {
   axis: "#8a8a8a",
   grid: "#2b2b2b",
@@ -40,9 +42,10 @@ export const DARK_CHART: ChartTheme = {
   seriesMin: "#6ee7a8",
   seriesMax: "#ff9d6e",
   seriesMean: "#6ea8ff",
-  compareA: "#7fb4ff",
-  compareB: "#ff8f6e",
+  compareA: DARK_COMPARE_SIDES[0],
+  compareB: DARK_COMPARE_SIDES[1],
   compareDelta: "#c084fc",
+  comparePalette: [...DARK_COMPARE_SIDES],
   waveFill: "rgba(110, 168, 255, 0.22)",
   reference: "rgba(110, 231, 168, 0.9)",
   overlayCentroid: "#6ee7a8",
@@ -66,6 +69,8 @@ export const DARK_CHART: ChartTheme = {
 };
 
 /** The light base chart palette. */
+const LIGHT_COMPARE_SIDES = ["#2f6fd0", "#c2410c", "#7c3aed", "#1f9d6a"] as const;
+
 export const LIGHT_CHART: ChartTheme = {
   axis: "#6b7280",
   grid: "#e0e4e9",
@@ -76,9 +81,10 @@ export const LIGHT_CHART: ChartTheme = {
   seriesMin: "#1f9d6a",
   seriesMax: "#d9722f",
   seriesMean: "#2f6fd0",
-  compareA: "#2f6fd0",
-  compareB: "#c2410c",
+  compareA: LIGHT_COMPARE_SIDES[0],
+  compareB: LIGHT_COMPARE_SIDES[1],
   compareDelta: "#7c3aed",
+  comparePalette: [...LIGHT_COMPARE_SIDES],
   waveFill: "rgba(47, 111, 208, 0.2)",
   reference: "rgba(31, 157, 106, 0.9)",
   overlayCentroid: "#1f9d6a",

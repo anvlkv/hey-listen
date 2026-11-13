@@ -1,5 +1,6 @@
 import { createResource, createSignal, Show, type JSX } from "solid-js";
 import Popover from "../Popover";
+import CompareMenu from "./CompareMenu";
 import ExportMenu from "./ExportMenu";
 import { markdownSummary, renderMarkdown } from "../../lib/markdown";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
@@ -57,6 +58,7 @@ export default function AnalyzerTab(props: {
         </Show>
 
         <div class="analyzer-actions">
+          <CompareMenu id={props.id} />
           <Show when={props.params != null}>
             <Popover
               label="Tool parameters"

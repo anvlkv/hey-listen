@@ -1,5 +1,6 @@
 import { For, Show } from "solid-js";
 import { readoutsFor, type ReadoutResult } from "../analyzer/readouts";
+import CompareLegend from "./CompareLegend";
 import { shapeLabel } from "../../state/compare/picker";
 import type { ComparisonDto, MismatchDto } from "../../state/compare/types";
 
@@ -48,6 +49,11 @@ export default function CompareReadouts(props: { comparison: ComparisonDto; swap
 
   return (
     <div class="compare-readouts">
+      <CompareLegend
+        swapped={props.swapped}
+        aLabel={sideA().project ?? "this project"}
+        bLabel={sideB().project ?? "reference"}
+      />
       <div class="compare-summary">
         <div class="compare-summary-side">
           <div class="compare-summary-label">A · {sideA().project ?? "this project"}</div>

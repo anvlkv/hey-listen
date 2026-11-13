@@ -33,7 +33,7 @@ streaming for very large audio.
 | 0x05 | `LAYOUT` | serde_json | dockview JSON + solid-flow node positions |
 | 0x06 | `RESULTS` | postcard | cached `AnalysisResult` list |
 | 0x07 | `ANNOTATIONS` | postcard | the project's annotations (`Annotation` list: anchor time + optional range, tool, markdown body, frozen values) |
-| 0x08 | `COMPARE` | postcard | saved comparison snapshots (M25.C): one reference analysis result + setup per tool |
+| 0x08 | `COMPARE` | postcard | saved comparison snapshots (M25.C, M23 Phase 3): one reference analysis result + setup per compare tab, several per tool |
 
 ## Cached results (`RESULTS`)
 
@@ -76,15 +76,19 @@ CLI read just the annotations (`hey-listen-cli annotations <FILE.heyl>`).
 
 The `COMPARE` section (id `0x08`) carries the project's **saved comparisons** as a
 `postcard` `Vec<SavedComparison>` (see [`comparison.md`](comparison.md)). Each entry is a
-**snapshot of the reference side**, not a link:
+**snapshot of the reference side** of one comparison (one compare tab = one pair), not a
+link, and several entries may share a tool:
 
 | Field | Meaning |
 | --- | --- |
-| `tool` | The analyzer id (one saved comparison per tool). |
+| `tool` | The analyzer id (several saved comparisons may share a tool). |
+| `id` | A stable id generated when the snapshot is taken, so a compare tab can bind to one entry when a tool has several. |
 | `referenceName` | The reference project's display name (window labels are session-scoped, so they are not stored). |
 | `referencePath` | The reference project's **file path** (`null` when the reference was never saved). The compare view's **Open reference** opens exactly this file; it is not resolved by name. |
 | `source` | The reference's source shape (rate / channels / duration), for the header. |
 | `window` | The reference's analysis window (`start..end`, absolute source seconds). |
+| `ownerWindow` | The **owner's** analysis window at save time (pinned), so the pair restores without its live window. |
+| `ownerChannel` | The owner's channel at save time (`null` = downmix). |
 | `params` / `options` | The shared params and effective tool options the result was produced with. |
 | `filterFingerprint` | A canonical JSON fingerprint of the reference's applied filter (`null` = unfiltered), so `filtersDiffer` still works after reload. |
 | `bOffset` | The fine-tune offset (M25.B) in seconds, relative to the owner. |
@@ -92,13 +96,16 @@ The `COMPARE` section (id `0x08`) carries the project's **saved comparisons** as
 | `result` | The reference's full `AnalysisResult` for that window (M25.C). |
 
 No reference **audio** is embedded: the snapshot is the final analysis window, so a
-saved comparison is reproducible without the other project. `save_project` writes one
-entry per comparison open at save time (tab or popout); `load_project` returns them and
-the core keeps them per window, so a compare view can bind to the snapshot after reload.
-The frontend supplies the open compare tools (`compareOpen`) and the core fills each
-entry from its last successful comparison; a closed comparison is dropped on the next
-save. A **headless** session writes the same section: `compare_analysis` against a
-project file stores that reference side, and `save_project` writes it (M25.D).
+saved comparison is reproducible without the other project. `save_project` writes every
+stored snapshot whose comparison is **open** at save time (tab or popout): the frontend
+sends the open comparisons as `compareOpen: { tool, id }[]` (IPC only — the list itself
+is not stored in the file), and the core writes exactly those `id`s from its per-window
+store, several per tool when several tabs share one. The `id` is the pair's identity: a
+compare tab pins it when it runs, so a reopened file restores one tab bound to that
+entry, and a closed comparison's snapshot is dropped on the next save. `load_project`
+returns the entries and the core keeps them per window. A **headless** session writes
+the same section: `compare_analysis` against a project file stores that reference side,
+and `save_project` writes it (M25.D).
 
 The payload is `postcard` with a **postcard-safe mirror** of the result
 (`results::StoredAnalysisResult`): the IPC enum is internally tagged (`tool` key), which
@@ -118,9 +125,12 @@ file without one loads with no saved comparisons.
 `referencePath` was appended after the first released snapshot layout. Version 1 shipped
 **both** layouts, so a version-1 file is upgraded by the `v1 → v2` migration step
 (`project/migrate/v1.rs`), which reads the early layout too and stores no path for it; the
-current reader is then strict. The reverse still does not hold: a build that predates
-`referencePath` cannot read a newer `COMPARE` payload — postcard carries no field names to
-skip.
+current reader is then strict. Version 3 appended `id` / `ownerWindow` / `ownerChannel`,
+so the `v2 → v3` step (`project/migrate/v2.rs`) **converts** every version-2 snapshot into
+the version-3 shape: it mints the pair `id` and defaults the owner window to the
+snapshot's window (version 2 recorded no owner side), so nothing is dropped. The reverse
+still does not hold: a build that predates a field cannot read a newer `COMPARE` payload
+— postcard carries no field names to skip.
 
 The panel itself is still not in `LAYOUT` (compare panels are sanitised out); restoring a
 saved comparison re-creates its Workbench **tab** after the project state is ready.
@@ -177,7 +187,7 @@ steps are derived from it (see [Migrations](#migrations)).
 | --- | --- | --- |
 | 1 | Initial container (M6). Sections grew **additively** within it: `ANNOTATIONS` (M14), `COMPARE` (M25.C), the `RESULTS` payload, `LAYOUT.filterSpec` (M25.D), and the `COMPARE` `referencePath` field (early v1 has the shorthand snapshot layout, late v1 the full one). | M6 |
 | 2 | `COMPARE` snapshots always carry `referencePath` (the layout version 1 shipped in two shapes). The `v1 → v2` step in `project/migrate/v1.rs` rewrites the early layout; every other section is byte-identical. | M37 |
-| 3 | `COMPARE` becomes `Vec<SavedComparison>` with **one entry per pair** (several per tool): `{ tool, owner, reference, bOffset, savedMs }`, where each side carries its `window` + `channel` and the reference side carries `projectName` / `projectPath`, `source`, `filterFingerprint` and the **fragment audio** (windowed, channel-selected PCM). The `v2 → v3` step in `project/migrate/v2.rs` **converts** each old snapshot into a pair (result-only where no fragment audio exists); nothing is dropped. *(planned — M23, Phase 3)* | M23 |
+| 3 | `COMPARE` snapshots gain the pair fields: a stable `id` (so several comparisons can share a tool, one per compare tab), `ownerWindow` and `ownerChannel` (the owner side pinned at save time), appended after `referencePath`. The `v2 → v3` step in `project/migrate/v2.rs` **converts** each old snapshot (owner window defaults to the snapshot's window, owner channel is unknown); nothing is dropped. The fragment-audio pair restructure Phase 3 also plans is still open and would change the payload again. | M23 |
 
 **Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
 `SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
@@ -203,11 +213,11 @@ contract.
   every payload only after the chain reaches `VERSION`, so each step knows exactly two
   adjacent versions. `DATA` is never copied or rewritten to migrate. The frozen `vN` types
   are release snapshots and are never edited after the fact.
-  The chain today has one step, `v1 → v2` (`project/migrate/v1.rs`): it rewrites the saved
-  comparisons from version 1's two snapshot layouts into the one version 2 writes.
-  M23 (Phase 3) plans the next step, `v2 → v3`: it **converts** each old single-snapshot
-  `COMPARE` entry into one pair (result-only where there is no fragment audio) and passes
-  every other section through — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
+  The chain today has two steps: `v1 → v2` (`project/migrate/v1.rs`) rewrites the saved
+  comparisons from version 1's two snapshot layouts into the one version 2 writes, and
+  `v2 → v3` (`project/migrate/v2.rs`) **converts** each version-2 snapshot into the
+  version-3 shape (pair id + pinned owner side, result-only) and passes every other
+  section through — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
 - **Stored results keep a codec-level tolerance.** The `postcard` mirror of an analysis
   result reads a missing **trailing** optional field as its default
   (`results/stored/decode.rs`), which is how a version-1 comparison snapshot written before

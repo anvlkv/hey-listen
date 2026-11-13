@@ -19,9 +19,9 @@ export const MOVE_HIT = 10;
 export const MOVE_HANDLE_H = 8;
 /** Horizontal gutter so the start/end handles never sit on the very edge. */
 export const PLOT_PAD = 12;
+/** Width of the channel rail along the left of the waveform (2+ channel sources only). */
+export const RAIL_W = 48;
 /** Click-drag preview restart throttle, in ms. */
 export const PREVIEW_THROTTLE = 110;
-/** Interval at which the transport polls its position while previewing, in ms (~60 Hz). */
-export const PREVIEW_TICK_MS = 16;
 /** Length of the excerpt auditioned while dragging a handle, in seconds. */
 export const EDGE_EXCERPT = 0.75;

@@ -4,9 +4,10 @@ import type { CompareViewDto } from "./types";
 
 /**
  * A **compare popout** (M25): a native window showing one comparison, aliased to its
- * owner project. Rust registers it with its `(tool, reference)` rather than as a tool
- * popout, so it is never saved, restored or raised as an analyzer tab; the window
- * asks [`loadComparePopout`] what it shows and retargets through the core.
+ * owner project. Rust registers it with its `(tool, id, reference)` rather than as a
+ * tool popout, so it is never saved, restored or raised as an analyzer tab; the window
+ * asks [`loadComparePopout`] what it shows and retargets through the core. Several
+ * comparisons of one tool may be open, so the stable `id` identifies the pair.
  * See `docs/comparison.md` → "Popout".
  */
 
@@ -21,7 +22,8 @@ export async function loadComparePopout(): Promise<CompareViewDto | null> {
 }
 
 /** Change this popout's binding (the core also raises/retargets a duplicate). */
-export async function retargetComparePopout(reference: string, saved = false) {
-  await invoke("retarget_compare_popout", { reference, saved });
-  setComparePopoutView((view) => (view ? { ...view, with: reference, saved } : view));
+export async function retargetComparePopout(reference: string, saved = false, id?: string) {
+  await invoke("retarget_compare_popout", { id: id ?? null, reference, saved });
+  // Re-read the core's view: a saved target adopts its snapshot's id.
+  await loadComparePopout();
 }

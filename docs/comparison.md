@@ -30,16 +30,18 @@ parts of the original M25 contract; sections below say which rule applies.
   snapshot of one (M25.C).
 - **Tool** — one analyzer id. A comparison is always per tool; two different tools is
   not a comparison (`Compare with…` on the Spectrum tab compares Spectrum).
-- **Compare view** — a Workbench tab in A (`compare:<tool>`), the "diff window", which
-  **pops out like any other tab** (right-click → *Pop out to window*). At most one per
-  tool per project, either as a tab **or** as its popout; choosing another reference
-  retargets that one view. It is not in the Sidebar and not a project window.
+- **Compare view** — a Workbench tab in A (`compare:<tool>:<id>`), the "diff window", which
+  **pops out like any other tab** (right-click → *Pop out to window*). One comparison is
+  one pair; several may be open for one tool (one per tab/popout), keyed by their stable
+  `id`, and choosing another reference retargets that comparison. It is not in the
+  Sidebar and not a project window.
 - **Reference kind** — a view binds either to a **live** project window (the M25 model)
   or to A's **saved snapshot** of its last comparison (M25.C). Live wins when a project is
   reconnected; a saved binding needs no second window open.
 - A and B are **symmetric** in what they contribute: each side runs the tool over its
-  own window, with its own params, options and filter. A is special only in that it owns
-  the view and defines the axis extent.
+  own window, with its own channel and filter. A is special only in that it owns the view,
+  defines the axis extent **and the analysis grid** (B is re-analysed on A's params and
+  options in a live comparison).
 
 > **Why a tab first, with a popout.** The Workbench is already the only tabbed region
 > and the comparison belongs to A, so the tab reuses A's theme and UI state with no new
@@ -61,7 +63,7 @@ can show it with one window open; restoring a saved comparison never invents a p
 | --- | --- |
 | Workbench tab menu | Right-click an **analyzer** tab → **Compare with…** → pick another project. On a **compare** tab: *Change reference…*, *Pop out to window*, *Close tab*. Only the project window has the Workbench; a popout shows no tab strip. |
 | Native menu | **Analysis → Compare with…** acts on the focused analyzer tab (the root project window); with none focused it shows a transient hint instead of a dialog. |
-| MCP | `compare_analysis { tool, with, target?, bOffset?, saved? }` — a live project label (app) or a project file path (headless, M25.D). |
+| MCP | `compare_analysis { tool, id?, with, target?, bOffset?, saved? }` — a live project label (app) or a project file path (headless, M25.D). |
 | CLI | `hey-listen-cli compare A.heyl B.heyl -t TOOL [--b-offset SECS]` (batch, no window). |
 
 On the compare tab itself, **Compare with…** re-targets its reference. The picker lists
@@ -75,9 +77,11 @@ project's name matches the snapshot the picker hints it, but never rebinds on it
 
 The core computes both sides; the frontend never holds B's PCM.
 
-- `run_comparison` takes the caller's window (A), the reference label (B) **or the saved
-  snapshot** (M25.C), the tool, a **setup per side** (`start`/`end`, `params`, `options`),
-  and the fine-tune offset **`bOffset`** (M25.B).
+- `run_comparison` takes the comparison **`id`**, the caller's window (A), the reference
+  label (B) **or the saved snapshot** (M25.C), the tool, a **setup per side**
+  (`start`/`end`, `params`, `options`), and the fine-tune offset **`bOffset`** (M25.B).
+  The id identifies the pair: a compare tab pins it, the snapshot is stored under it, and
+  with `saved` it selects the pair (the newest for the tool when it has no snapshot yet).
 - A's setup comes from A's stores; B's from `compare_peer_setup`, which reads B's shared
   UI state (`timeline` / `params` / `toolOptions`) and source shape. Both sides' options
   pass through the same engine-only filter `run_analysis` uses, so chart-display toggles
@@ -128,41 +132,54 @@ cursor; B's band comes from the snapshot).
 
 ## Comparability
 
-Each side may legitimately have a different window, filter or settings, so the diff is
-**explicit about what can be compared**. There is no silent normalisation.
+Each side may legitimately have a different window, filter or channel, so the result is
+**explicit about what was compared**. There is no silent normalisation.
 
-A **grid signature** decides whether a numeric delta exists:
+**The owner's grid wins (M23 Phase 3).** A **live** comparison runs A from its own
+setup and the reference on **A's** shared params and tool options, keeping only the
+reference's own window, channel and filter. Rate, FFT, hop, window function, band, bin
+count and grid-changing options therefore always agree, so a numeric delta always
+exists (over the common span, below). A **saved** snapshot is a result from an earlier
+run; only A is analysed, so its grid can still differ from the owner's — that is
+reported, never silently normalised.
+
+A **grid signature** describes one result:
 
 - the tool's **`CompareViewFamily`** (`series` / `spectrum` / `spectrogram` / `matrix` /
-  `events` / `annotations` / `modulation` / `waveform` / `scalar` — the display superset of the
+  `events` / `notes` / `modulation` / `waveform` / `scalar` — the display superset of the
   Rust result `Family`);
-- the analysis rate after `resampleTo`, the channel pick, `fftSize`, `hop`, `windowFn`,
-  the frequency band, and the frame/bin dimensions;
+- the analysis rate after `resampleTo`, `fftSize`, `hop`, `windowFn`, the frequency
+  band, and the frame/bin dimensions;
 - the tool options that change the grid (`nMels`, `nBands`, `nMfcc`, `barLength`, …).
+
+The **channel** is part of a side, not of the grid: L vs R (or downmix vs one channel)
+is a meaningful per-side difference, so it is listed but never suppresses the delta.
 
 `comparability` reports:
 
-- `aligned` — the grids match, so a delta is computed. **Overlap is not required** (M25.B):
-  two windows at different source seconds are still comparable because the axis is
-  relative;
+- `aligned` — every grid key matches. A live comparison is always aligned (the
+  reference ran on the owner's grid); only a saved snapshot can be `false`, and then
+  the view shows the two results side by side (A/B toggle for heatmaps) and omits the
+  delta. **Overlap is not required** (M25.B): two windows at different source seconds
+  are still comparable because the axis is relative;
 - `alignment` — `{ aDuration, bDuration, bOffset, common }` in **owner coordinates**,
   where `common` is the relative span `[max(0, δ), min(durA, δ + durB)]` the delta covers
   (`null` when the span is empty, i.e. the shifted windows do not meet) (M25.B);
 - `overlap` — the **absolute** intersection of the two windows, kept as information and
   used by the CLI's `--overlap`; it no longer gates the delta;
-- `mismatches` — every differing setting by key (`fftSize`, `windowFn`, `channel`,
-  `filter`, …) with both values;
+- `mismatches` — every differing setting by key, with both values. A **live** comparison
+  can only differ per side (`channel`; the filter is reported by `filtersDiffer`), while
+  the grid keys (`sampleRate`, `fftSize`, `hop`, `windowFn`, `band`, `bins`, an option)
+  appear only for a saved snapshot;
 - `filtersDiffer` — both sides are compared **as processed**; a differing filter is
   listed, not "fixed".
 
 When the **windows** differ but the grid matches, both results are drawn from 0 and the
 delta covers the common span; the longer side is clipped, and the chart still paints the
 **displayed A** side's full extent. When the windows (after δ) do not meet at all, there
-is no common span: the chart still draws both, but no delta. When the **grid** differs,
-there is no interpolation:
-the view shows the two results side by side (A/B toggle for heatmaps) and the mismatch
-list, and omits the delta. A saved reference reports the same fields; `alignment` uses the
-snapshot's window, so the saved comparison is reproducible.
+is no common span: the chart still draws both, but no delta. A saved reference reports
+the same fields; `alignment` uses the snapshot's window, so the saved comparison is
+reproducible.
 
 ## The delta
 
@@ -257,15 +274,17 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
 
 - The compare tab uses the normal popout path: **Pop out to window** closes the tab and
   creates a native window (a `popout-*` label) aliased to A. It is registered as a
-  **compare popout** (`tool` + `reference`) rather than a tool popout, and its title is
-  `Compare: <Tool> — <A> ↔ <B>`. The popout boot asks `popout_compare` alongside the
+  **compare popout** (`id` + `tool` + `reference`) rather than a tool popout, and its title
+  is `Compare: <Tool> — <A> ↔ <B>`. The popout boot asks `popout_compare` alongside the
   tool/annotation queries and renders the compare view in the popout shell; its picker calls
   `retarget_compare_popout`.
-- **One compare view per tool per project.** If it is already popped out, choosing the
-  same tool again raises the window; choosing another reference **retargets** that window
-  instead of opening a second one. Closing the popout forgets the live view (a saved
-  snapshot, if any, survives in the project), and *Compare with…* opens a tab again (the
-  normal tool-popout behaviour).
+- **One compare view per comparison.** Several comparisons of one tool may be open (one per
+  pair), and a popout is keyed by the comparison's `id`. Choosing the same comparison again
+  raises its window; choosing another reference **retargets** that comparison instead of
+  opening a second window for it. A saved target adopts its snapshot's `id`, so the
+  popout's comparison and its stored snapshot stay the same pair. Closing the popout
+  forgets the live view (a saved snapshot, if any, survives in the project), and *Compare
+  with…* opens a tab again (the normal tool-popout behaviour).
 - The popout pulls A's shared state (window/params/options) through the alias and reads
   B through the same peer commands. It has no Timeline, so both playheads come from
   `compare_live`; A's cursor still arrives through the shared UI state, and hovering the
@@ -284,16 +303,19 @@ The compare **panel** stays out of the dockview layout: `LAYOUT` is sanitised to
 compare panels, `SETUP.openTools` excludes them, and `popout_tools_of` never returns a
 compare popout. Since **M25.C** the comparison **content** is project content:
 
-- `save_project` writes one snapshot per comparison open at save time (tab **or**
-  popout) into the `COMPARE` section — B's last analysis window, not its audio. If the
-  live reference has since closed, the **last successful** result is saved (the one the
-  banner keeps). A comparison that never resolved writes nothing.
+- `save_project` writes a snapshot for each comparison open at save time (tab **or**
+  popout) into the `COMPARE` section — B's last analysis window, not its audio. Several
+  entries may share a tool (M23 Phase 3: one per compare tab). If the live reference has
+  since closed, the **last successful** result is saved (the one the banner keeps). A
+  comparison that never resolved writes nothing.
 - `load_project` restores them as Workbench **tabs** (never as popout windows), bound to
   the saved snapshot until the user reconnects a live project;
 - while a compare view is open, a **settled** change in B's result is part of A's dirty
   signature (the saved snapshot would change), so closing A prompts; snapshots stay out of
   undo/redo and Recent;
-- closing a compare tab and saving drops its snapshot (one saved comparison per tool);
+- closing a comparison and saving drops **its** snapshot; saving keeps exactly the open
+  `{ tool, id }` pairs (several per tool), so a compare tab and a compare popout of the
+  same pair save one entry;
 - a project load / New Project closes compare tabs **and** popouts (via `close_popouts`),
   then re-opens the saved ones after the project state is ready; undo restores the
   dockview layout and closes a compare tab, while a compare popout behaves like a tool
@@ -307,14 +329,14 @@ The picker offers the saved entry and hints when an open project has the same na
 `compare_analysis` (app / headless, M25.D):
 
 ```json
-{ "tool": "spectrum", "with": "main-2", "target": "main", "bOffset": 0.012,
-  "includeData": false, "maxPoints": 512, "summaryOnly": false }
+{ "tool": "spectrum", "id": "cmp-…", "with": "main-2", "target": "main",
+  "bOffset": 0.012, "includeData": false, "maxPoints": 512, "summaryOnly": false }
 ```
 
 Returns:
 
 ```json
-{ "tool": "spectrum",
+{ "tool": "spectrum", "id": "cmp-…", "savedFingerprint": "…",
   "a": { "project": "…", "source": "…", "window": {}, "params": {}, "options": {},
          "summary": {}, "result": {} },
   "b": { "…": "…" },
@@ -329,23 +351,26 @@ Returns:
 - `target` selects A (focused by default); `with` selects B; `bOffset` is the fine-tune
   offset in seconds (M25.B; positive moves B later). It defaults to **0** for a live
   reference and to the **snapshot's stored offset** for a saved one (M25.C).
-- `saved: true` (M25.C) uses A's saved snapshot for B and omits `with`; a live reference
-  is ignored then.
+- `saved: true` (M25.C) uses a saved snapshot for B and omits `with`; a live reference
+  is ignored then. `id` names the pair (a project may hold several per tool); without it
+  the newest saved comparison of `tool` is used.
 - `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`, applied to
   both sides and to the delta.
-- `diff` is omitted when the grids differ or when the shifted windows do not meet
-  (`alignment.common` is `null`). `savedFingerprint` is the content fingerprint of the
-  reference snapshot that would be saved (the frontend's dirty signature uses it).
+- `diff` is omitted when a saved snapshot's grid differs or when the shifted windows do
+  not meet (`alignment.common` is `null`); a live comparison always diffs because B ran on
+  A's grid. `id` and `savedFingerprint` identify the stored snapshot: the id is what a
+  later `saved: true` selects, and the fingerprint is the frontend's dirty signature.
 - `display` (default true) opens / focuses the compare view. Every family now has one
   (`Compare with…` is offered for every analyzer).
 - `compare_analysis` runs with two project windows (a live reference) or one window plus
   a **saved snapshot** (M25.C). **Headless (M25.D)** it compares the session's project
   against a project **file**: `with` is the `.heyl` path and B runs with that file's saved
   setup, window, options and `LAYOUT.filterSpec`; `saved: true` reuses the session's stored
-  snapshot. Either way the last successful comparison is kept in the session, so
-  `save_project` writes it into `COMPARE`, and the app restores it as a compare tab;
-  headless `get_state.savedComparisons` lists what `saved: true` can use, and
-  `save_project` creates the target's parent folders.
+  snapshot (the one `id` names, or its newest). Either way the last successful comparison
+  is kept in the session, so `save_project` writes it into `COMPARE`, and the app restores
+  it as a compare tab; headless `get_state.savedComparisons` lists, per entry, the `id` and
+  reference that `saved: true` can use, and `save_project` creates the target's parent
+  folders.
   The **Reference project** button in the header (`open_reference_window`) raises a live
   reference's window, or opens the file recorded with a saved snapshot (M25.C stores the
   reference project's **path**; there is no name-based fallback). To script the same
@@ -353,9 +378,9 @@ Returns:
   the returned label as `with`.
 
 `list_projects` gains `source` (rate / channels / duration), `window`, `hasFilter` and the
-project's **saved comparisons** (tool + reference name + window), so an agent can pick a
-reference and predict comparability. `get_state` reports the open compare views as
-`compare: [{ tool, with, saved, offset }]` — they are **not** in `openTools`.
+project's **saved comparisons** (id + tool + reference name + window), so an agent can pick
+one. `get_state` reports the open compare views as
+`compare: [{ id, tool, with, saved, offset }]` — they are **not** in `openTools`.
 
 ## CLI
 
@@ -417,7 +442,8 @@ Exit `0` when every tool ran, `1` when either side failed, `2` on a usage error.
 - No B **audio** in the project — only B's last analysis result; editing B afterwards does
   not update A's saved comparison until it is compared and saved again.
 - No **automatic** reconnect to a same-named project; reconnect is explicit.
-- One saved comparison per tool (no reference history).
+- No reference **history**: one snapshot per comparison open at save time (several per
+  tool, one per pair); a snapshot whose comparison is closed is dropped on the next save.
 - No comparison of a *popout's* own state; the popout is a view of the same project.
 - No audio-file compare in the CLI (save a project first); `analyze` covers files.
 - The CLI compares two project files; comparing **one** file against its saved snapshot

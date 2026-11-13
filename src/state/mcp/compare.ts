@@ -7,11 +7,12 @@ import {
   toolOptions,
 } from "../analyzer";
 import { sharedParams } from "../analysis";
+import { newCompareId } from "../compare/id";
 import type { CompareSetupDto, PeerSetupDto } from "../compare/types";
 import { openCompare, openCompareSaved } from "../compare/views";
 import { source } from "../source";
 import { windowEnd, windowStart } from "../timeline";
-import { asArgs, optionalBool, optionalNum, str, type Args } from "./args";
+import { asArgs, optionalBool, optionalNum, optionalStr, str, type Args } from "./args";
 
 /**
  * `compare_analysis` (M25; saved references in M25.C): diff the same analyzer across
@@ -32,6 +33,10 @@ export async function compareAnalysis(args: Args) {
     throw new Error("`with` (a reference project label) is required unless `saved: true`");
   }
   const reference = saved ? "" : str(args, "with");
+  // The comparison id: `saved` selects that pair (the newest of the tool when it is not
+  // given or has no snapshot yet); a live run stores its snapshot under it.
+  const requestedId = optionalStr(args, "id") ?? undefined;
+  const liveId = requestedId ?? newCompareId();
 
   const summaryOnly = optionalBool(args, "summaryOnly") ?? false;
   const includeData = optionalBool(args, "includeData") ?? false;
@@ -74,14 +79,16 @@ export async function compareAnalysis(args: Args) {
 
   // UI following: open/focus the compare view, which charts every family (M25.A).
   if (optionalBool(args, "display") ?? true) {
-    if (saved) await openCompareSaved(tool);
-    else await openCompare(tool, reference);
+    if (saved) await openCompareSaved(tool, requestedId);
+    else await openCompare(tool, reference, liveId);
   }
 
   return invoke("run_comparison", {
     request: {
       tool,
-      ...(saved ? { saved: true } : { reference, b }),
+      ...(saved
+        ? { saved: true, ...(requestedId ? { id: requestedId } : {}) }
+        : { id: liveId, reference, b }),
       a,
       ...(bOffset != null ? { bOffset } : {}),
       shape,

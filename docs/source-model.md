@@ -53,12 +53,13 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 
 - Shows the whole recording plus the **analysis window** (`start..end`).
 - For extra-short windows the timeline **zooms in** on the window.
-- **Zoom / pan** — the wheel zooms around the cursor (M23 changes this to a
-  trackpad-stable gesture: scroll pans, pinch / `⌘`/Ctrl+wheel zooms), dragging the
-  waveform pans, and the toolbar's zoom buttons fit / zoom-to-window. When the view is
-  narrower than the source a **horizontal scrollbar** appears along the bottom of the
-  region (a whole-file overview whose thumb *is* the visible span); drag its thumb to pan,
-  click the track to jump, or use the arrow keys. See `lib/timelineScroll.ts`.
+- **Zoom / pan** — a plain wheel/trackpad scroll **pans** (time, plus frequency on 2-D
+  views), pinch / `⌘`/Ctrl+wheel **zooms** at the cursor, and a horizontal gesture never
+  zooms. Dragging the waveform pans, and the toolbar's zoom buttons fit / zoom-to-window.
+  When the view is narrower than the source a **horizontal scrollbar** appears along the
+  bottom of the region (a whole-file overview whose thumb *is* the visible span); drag its
+  thumb to pan, click the track to jump, or use the arrow keys. See
+  `lib/timelineScroll.ts` and `lib/wheelGesture.ts`.
 - The **filtered** signal (when a filter is active) is drawn as a translucent **overlay**
   over the raw waveform, so its effect reads as a tint on the signal rather than a
   replacement for it.
@@ -93,7 +94,7 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
   or stopped; the ruler seeks, loop is a toggle, and the view can follow the playhead.
 - **Wheel/trackpad** handling is normalized and gesture-based: scroll pans (time, plus
   frequency on 2-D views), pinch / `⌘`/Ctrl+wheel zooms at the cursor, and a horizontal
-  gesture never zooms. No vertical waveform zoom. See `lib/wheelGesture.ts` (planned).
+  gesture never zooms. No vertical waveform zoom. See `lib/wheelGesture.ts`.
 - Annotation ranges and live lane selections draw **full-height vertical rules** at their
   edges in addition to the lane handles. See [`roadmap.md`](roadmap.md) → M23.
 

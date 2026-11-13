@@ -14,6 +14,7 @@ import {
   visibleLevels,
 } from "../analyzer/modulationCommon";
 import { compareMarkers } from "./peerPlugins";
+import CompareLegend from "./CompareLegend";
 import { compareSides, liveMarkers } from "./sides";
 import { rateAxis, valueAxis } from "./axes";
 import type { CompareTime } from "./time";
@@ -109,6 +110,13 @@ export default function CompareModulation(props: {
           </For>
         </div>
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta={!!diff()}
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+      />
 
       <Show
         when={aligned() && plottable()}

@@ -44,6 +44,8 @@ export interface CompareHandle {
 /** A reactive handle over one comparison: A × (live B | saved B) for `tool`. */
 export function createComparison(
   tool: AnalyzerId,
+  /** The comparison's stable id: the core upserts the matching pair's snapshot by it. */
+  id: string,
   binding: () => CompareBinding | null,
   revision: () => number | null,
   /** The fine-tune offset δ: positive moves the reference later (M25.B). */
@@ -87,6 +89,7 @@ export function createComparison(
     try {
       const a = setupA();
       const request: Record<string, unknown> = {
+        id,
         tool,
         a,
         bOffset: bOffset(),
@@ -101,6 +104,11 @@ export function createComparison(
           tool,
         });
         if (token !== generation) return;
+        // The reference's analysis window is empty while its source/timeline is still
+        // settling; `run_comparison` would fail with "the analysis window is empty", and
+        // a settled revision would not re-run it. Skip instead — the revision poll
+        // re-runs the comparison the moment the reference settles.
+        if (peer.window.end <= peer.window.start) return;
         request.reference = target.reference;
         request.b = {
           start: peer.window.start,
@@ -115,7 +123,7 @@ export function createComparison(
       setError(null);
       // The core recorded this result as the saved snapshot; its content fingerprint
       // is part of the project's dirty signature (M25.C).
-      if (reply.savedFingerprint) setCompareFingerprint(tool, reply.savedFingerprint);
+      if (reply.savedFingerprint) setCompareFingerprint(tool, id, reply.savedFingerprint);
     } catch (err) {
       if (token !== generation) return;
       setError(String(err));

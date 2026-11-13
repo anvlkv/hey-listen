@@ -1,6 +1,5 @@
 import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
-import ChannelSelect from "../ChannelSelect";
 import SelectField from "../SelectField";
 import Tooltip from "../Tooltip";
 import { createNumberDrag } from "../../lib/dragNumber";
@@ -92,13 +91,6 @@ export default function SharedParamsForm() {
             onChange={setWindowFn}
             label="Window function"
           />
-        </label>
-      </Tooltip>
-
-      <Tooltip label="Which channel to analyse. Downmix sums all channels to mono; Left/Right (or Channel N) picks one. Applies to every tool.">
-        <label class="params-field">
-          <span class="params-label">Channel</span>
-          <ChannelSelect />
         </label>
       </Tooltip>
 

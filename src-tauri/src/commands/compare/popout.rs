@@ -4,20 +4,24 @@
 
 use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+use crate::audio::analysis::compare::SavedComparison;
 use crate::audio::analyzers::AnalyzerId;
 use crate::commands::window::{next_label, raise};
 use crate::state::{window_state, CompareView, WindowRegistry, WindowState};
 
 use super::peer::peer_state;
+use super::selected_snapshot;
 
-/// Open a compare popout for `tool`, or raise/retarget the one already open.
+/// Open a compare popout for comparison `id`, or raise/retarget the one already open.
 ///
 /// `saved: true` shows the owner's saved reference snapshot (M25.C); otherwise
-/// `reference` names a live project label.
+/// `reference` names a live project label. An omitted `id` mints one for a live view;
+/// a saved view adopts the selected snapshot's id.
 #[tauri::command]
 pub async fn open_compare_popout(
     window: WebviewWindow,
     tool: AnalyzerId,
+    id: Option<String>,
     reference: Option<String>,
     saved: bool,
 ) -> Result<(), String> {
@@ -25,14 +29,14 @@ pub async fn open_compare_popout(
     let registry = app.state::<WindowRegistry>();
     let parent = registry.root_label(window.label());
     let state = window_state(&window);
-    let view = compare_view(&state, tool, reference.as_deref(), saved)?;
+    let view = compare_view(&state, tool, id.as_deref(), reference.as_deref(), saved)?;
     if !view.saved {
         peer_state(app, &view.with)?;
     }
 
-    if let Some(existing) = registry.compare_popout_for(&parent, tool) {
+    if let Some(existing) = registry.compare_popout_for(&parent, &view.id) {
         if let Some(popout) = app.get_webview_window(&existing) {
-            registry.retarget_compare_popout(&existing, &view.with, view.saved);
+            registry.retarget_compare_popout(&existing, view);
             raise(&popout);
             return Ok(());
         }
@@ -53,10 +57,11 @@ pub async fn open_compare_popout(
 }
 
 /// Retarget the **calling** compare popout at another reference project or its saved
-/// snapshot.
+/// snapshot. An `id` may rebind the popout to another comparison.
 #[tauri::command]
 pub fn retarget_compare_popout(
     window: WebviewWindow,
+    id: Option<String>,
     reference: Option<String>,
     saved: bool,
 ) -> Result<(), String> {
@@ -65,11 +70,15 @@ pub fn retarget_compare_popout(
         return Err("this window is not a comparison".to_string());
     };
     let state = window_state(&window);
-    let next = compare_view(&state, current.tool, reference.as_deref(), saved)?;
+    let id = id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .unwrap_or(&current.id);
+    let next = compare_view(&state, current.tool, Some(id), reference.as_deref(), saved)?;
     if !next.saved {
         peer_state(window.app_handle(), &next.with)?;
     }
-    registry.retarget_compare_popout(window.label(), &next.with, next.saved);
+    registry.retarget_compare_popout(window.label(), next);
     Ok(())
 }
 
@@ -80,25 +89,30 @@ pub fn popout_compare(window: WebviewWindow) -> Option<CompareView> {
     registry.compare_popout(window.label())
 }
 
-/// Resolve a popout's `(tool, reference, saved)` into the view it shows.
+/// Resolve a popout's `(tool, id, reference, saved)` into the view it shows.
 fn compare_view(
     state: &WindowState,
     tool: AnalyzerId,
+    id: Option<&str>,
     reference: Option<&str>,
     saved: bool,
 ) -> Result<CompareView, String> {
     if saved {
-        let snapshot = state
-            .saved_comparison(tool)
-            .ok_or_else(|| format!("no saved comparison for '{tool}'"))?;
+        let snapshot = selected_snapshot(state, tool, id)?;
         return Ok(CompareView {
+            id: snapshot.id,
             tool,
             with: snapshot.reference_name,
             saved: true,
         });
     }
     let reference = reference.ok_or_else(|| "`reference` is required".to_string())?;
+    let id = id
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| SavedComparison::new_id(crate::recent::now_ms()));
     Ok(CompareView {
+        id,
         tool,
         with: reference.to_string(),
         saved: false,

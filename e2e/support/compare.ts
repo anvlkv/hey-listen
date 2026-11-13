@@ -2,7 +2,7 @@
  * Driving the M25 compare view from the suite: opening a comparison from a tab's
  * context menu, changing its reference, and popping it out.
  *
- * A compare view is a transient Workbench tab (`compare:<tool>`) — or its native
+ * A compare view is a transient Workbench tab (`compare:<tool>:<id>`) — or its native
  * popout — owned by the **project window the session is in**, so every helper here
  * runs against the current window.
  */
@@ -78,9 +78,15 @@ export async function compareToolFromMain(tool: string, reference: string): Prom
 /** The compare view's root (the header + chart), per tool. */
 export const compareView = (tool: string) => `[data-testid="compare.${tool}"]`;
 
-/** The compare tab's panel id for a tool. */
+/**
+ * A compare tab, matched by its panel-id prefix.
+ *
+ * The panel id is `compare:<tool>:<id>`; the comparison id is generated (or restored
+ * from the project), so the suite addresses the tab by its tool prefix rather than
+ * spelling an id it cannot know.
+ */
 export function compareTab(toolId: string): string {
-  return `compare:${toolId}`;
+  return `[data-testid^="tab.compare:${toolId}:"]`;
 }
 
 /** The comparability badge. */
@@ -124,8 +130,8 @@ export async function badge(): Promise<{ text: string; title: string }> {
   }, BADGE)) as { text: string; title: string };
 }
 
-/** Wait for a badge text, reporting the mismatch list when it never arrives. */
-export async function waitForBadge(expected: string): Promise<void> {
+/** Wait for a badge text, reporting the mismatch list and the view when it never arrives. */
+export async function waitForBadge(expected: string, tool = "spectrum"): Promise<void> {
   try {
     await waitFor(
       async () => (await badge()).text === expected,
@@ -133,7 +139,10 @@ export async function waitForBadge(expected: string): Promise<void> {
     );
   } catch (error) {
     const info = await badge();
-    throw new Error(`${error}\nbadge="${info.text}" mismatches="${info.title}"`, { cause: error });
+    throw new Error(
+      `${error}\nbadge="${info.text}" mismatches="${info.title}"\n${await describeCompare(tool)}`,
+      { cause: error },
+    );
   }
 }
 
@@ -159,10 +168,7 @@ export async function compareFromTabMenu(toolId: string, targetLabel: string): P
   const dialog = await $('[data-testid="compare.picker"]');
   await dialog.waitForExist();
   await pickTarget(targetLabel);
-  await waitFor(
-    async () => (await $(tab(compareTab(toolId)))).isExisting(),
-    "the compare tab did not open",
-  );
+  await waitFor(async () => (await count(compareTab(toolId))) > 0, "the compare tab did not open");
 }
 
 /**
@@ -199,7 +205,7 @@ async function watchedErrors(): Promise<string[]> {
 /** Change an open compare tab's reference through its own tab menu. */
 export async function changeReference(toolId: string, targetLabel: string): Promise<void> {
   await watchErrors();
-  await rightClick(tab(compareTab(toolId)));
+  await rightClick(compareTab(toolId));
   await clickTabMenuItem(CHANGE_REFERENCE_ITEM);
   const dialog = await $('[data-testid="compare.picker"]');
   try {
@@ -215,12 +221,21 @@ export async function changeReference(toolId: string, targetLabel: string): Prom
 /** Pop a compare tab into its native compare window; returns the new window's label. */
 export async function popOutCompareTab(toolId: string): Promise<string> {
   const before = new Set(await windowLabels());
-  await rightClick(tab(compareTab(toolId)));
+  await watchErrors();
+  // Several compare tabs may be open for one tool; act on the newest (the one the caller
+  // just opened) rather than the oldest, which may still be bound to a closed reference.
+  await rightClick(compareTab(toolId), true);
   await clickTabMenuItem(POPOUT_ITEM);
   let label = "";
-  await waitFor(async () => {
-    label = (await windowLabels()).find((l) => /^compare-\d+$/.test(l) && !before.has(l)) ?? "";
-    return label !== "";
-  }, "no compare-* window appeared");
+  try {
+    await waitFor(async () => {
+      label = (await windowLabels()).find((l) => /^compare-\d+$/.test(l) && !before.has(l)) ?? "";
+      return label !== "";
+    }, "no compare-* window appeared");
+  } catch (error) {
+    const errors = await watchedErrors();
+    const why = errors.length > 0 ? `\npage errors: ${errors.join("; ")}` : "";
+    throw new Error(`${error}${why}\n${await describeCompare(toolId)}`, { cause: error });
+  }
   return label;
 }

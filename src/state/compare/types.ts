@@ -273,6 +273,8 @@ export interface CompareTargetDto {
 
 /** A compare view a popout shows (registered in the core). */
 export interface CompareViewDto {
+  /** The comparison's stable id (several comparisons may share one tool). */
+  id: string;
   tool: AnalyzerId;
   /** The live reference project's window label, or the saved reference's name. */
   with: string;

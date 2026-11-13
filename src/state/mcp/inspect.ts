@@ -24,7 +24,8 @@ export async function getState(target?: string) {
     invoke<CompareViewDto[]>("compare_popouts").catch(() => []),
     invoke<SavedComparisonInfo[]>("compare_saved", {}).catch(() => []),
   ]);
-  const offsets = new Map<string, number>(saved.map((info) => [info.tool, info.bOffset]));
+  // Saved comparisons are keyed by their stable pair id (several per tool).
+  const offsets = new Map<string, number>(saved.map((info) => [info.id, info.bOffset]));
   return {
     project: {
       name: projectDisplayName(),
@@ -41,7 +42,7 @@ export async function getState(target?: string) {
     openTools: openTools(),
     compare: [
       ...openCompareTabs(),
-      ...popouts.map((view) => ({ ...view, offset: offsets.get(view.tool) ?? 0 })),
+      ...popouts.map((view) => ({ ...view, offset: offsets.get(view.id) ?? 0 })),
     ],
     filter: { enabled: filterEnabled(), error: filterError() },
     output: { gain: outputGain(), device: outputDeviceId() },

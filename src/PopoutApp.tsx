@@ -5,6 +5,7 @@ import ToolContent from "./components/ToolContent";
 import CompareTab from "./components/compare/CompareTab";
 import AnnotationWindow from "./components/annotations/AnnotationWindow";
 import { analyzerById } from "./state/analyzer";
+import { newCompareId } from "./state/compare/id";
 import { projectName } from "./state/project";
 import { setError, setSource, setStatus, source } from "./state/source";
 import { resetTimeline, windowEnd, windowStart } from "./state/timeline";
@@ -45,6 +46,8 @@ export default function PopoutApp(props: {
   const [ready, setReady] = createSignal(untrack(() => !props.annotationId));
   /** The compare view's fine-tune offset (restored from the saved snapshot). */
   const [offset, setOffset] = createSignal(0);
+  /** The comparison id: a core-registered popout reports it; otherwise a local one. */
+  const localId = untrack(() => props.compare?.id ?? newCompareId());
 
   /** Apply a saved popout's stored offset (a live binding starts at 0). */
   async function applyBindingOffset(view: CompareViewDto | null) {
@@ -52,7 +55,8 @@ export default function PopoutApp(props: {
       setOffset(0);
       return;
     }
-    const info = await fetchSaved(view.tool);
+    const infos = await fetchSaved(view.tool);
+    const info = view.id ? infos.find((entry) => entry.id === view.id) : infos[infos.length - 1];
     setOffset(info?.bOffset ?? 0);
   }
 
@@ -140,11 +144,14 @@ export default function PopoutApp(props: {
               return (
                 <CompareTab
                   tool={current().tool}
+                  id={current().id ?? localId}
                   binding={binding}
                   onBindingChange={(next) =>
-                    void retargetComparePopout(next.reference, next.kind === "saved").then(() =>
-                      applyBindingOffset(comparePopoutView()),
-                    )
+                    void retargetComparePopout(
+                      next.reference,
+                      next.kind === "saved",
+                      current().id ?? localId,
+                    ).then(() => applyBindingOffset(comparePopoutView()))
                   }
                   offset={() => offset()}
                   onOffset={setOffset}

@@ -22,6 +22,8 @@ pub(super) struct PlayState {
     pub(super) end_frame: usize,
     pub(super) pos: usize,
     pub(super) playing: bool,
+    /// Paused at `pos`; the callback emits silence without advancing.
+    pub(super) paused: bool,
     pub(super) loop_region: bool,
     pub(super) gain: f32,
     /// Source-time (seconds) of the region start, for position reporting.
@@ -39,6 +41,7 @@ impl Default for PlayState {
             end_frame: 0,
             pos: 0,
             playing: false,
+            paused: false,
             loop_region: false,
             gain: 1.0,
             start_secs: 0.0,
@@ -192,7 +195,7 @@ fn fill<T: Sample + FromSample<f32>>(state: &mut PlayState, data: &mut [T], chan
 }
 
 fn next_sample(state: &mut PlayState) -> f32 {
-    if !state.playing || state.pcm.is_empty() {
+    if !state.playing || state.pcm.is_empty() || state.paused {
         return 0.0;
     }
     if state.pos >= state.end_frame {

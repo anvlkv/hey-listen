@@ -126,28 +126,50 @@ fn aligned_grids_produce_a_series_delta() {
 }
 
 #[test]
-fn a_differing_fft_size_is_a_mismatch() {
+fn a_differing_fft_size_and_window_run_on_the_owners_grid() {
     let a = state_with(tone(1.0, 440.0, 1.0));
-    let b = state_with(tone(1.0, 440.0, 1.0));
-    let mut a_setup = setup(0.0, 1.0);
+    let b = state_with(tone(1.0, 440.0, 0.5));
     let mut b_setup = setup(0.0, 1.0);
-    a_setup.params.fft_size = 1024;
     b_setup.params.fft_size = 2048;
+    b_setup.params.window_fn = WindowKind::Blackman;
 
-    let comparison = compare_pair(AnalyzerId::Spectrum, (&a, a_setup), (&b, b_setup));
-    assert!(!comparison.comparability.aligned);
-    assert!(comparison.diff.is_none());
-    assert!(comparison
-        .comparability
-        .mismatches
-        .iter()
-        .any(|mismatch| mismatch.key == "fftSize"));
-    // Both results are still returned, so the view can show them side by side.
-    assert!(matches!(
-        comparison.a.result,
-        crate::audio::analysis::AnalysisResult::Spectrum(_)
-    ));
+    let comparison = compare_pair(AnalyzerId::Spectrum, (&a, setup(0.0, 1.0)), (&b, b_setup));
+    // B ran on A's grid, so the grids match by construction and the delta exists.
+    assert!(comparison.comparability.aligned);
+    assert!(comparison.comparability.mismatches.is_empty());
+    assert_eq!(comparison.b.setup.params.fft_size, 1024);
+    assert_eq!(align::window_fn_name(&comparison.b.setup.params), "hann");
+    let Some(ComparisonDiff::Spectrum(diff)) = &comparison.diff else {
+        panic!("expected a spectrum delta despite the differing setup");
+    };
+    assert_eq!(diff.freqs.len(), diff.values.len());
+    assert!(diff.stats.max_abs.is_some());
 }
+
+#[test]
+fn a_differing_band_and_option_run_on_the_owners_grid() {
+    let a = state_with(tone(1.0, 440.0, 1.0));
+    let b = state_with(tone(1.0, 440.0, 0.5));
+    let mut a_setup = setup(0.0, 1.0);
+    a_setup.params.freq_min_hz = 100.0;
+    a_setup.params.freq_max_hz = 5_000.0;
+    let mut b_setup = setup(0.0, 1.0);
+    b_setup.params.freq_min_hz = 1_000.0;
+    b_setup.options.n_mels = Some(40);
+
+    let comparison = compare_pair(AnalyzerId::MelSpectrogram, (&a, a_setup), (&b, b_setup));
+    // B's band and `nMels` are the owner's, so the matrices share their bin axis.
+    let bins = comparison.a.options["nMels"].as_u64().expect("nMels");
+    assert_eq!(comparison.b.setup.params.freq_min_hz, 100.0);
+    assert_eq!(comparison.b.options["nMels"], serde_json::json!(bins));
+    assert_ne!(comparison.b.options["nMels"], serde_json::json!(40));
+    let Some(ComparisonDiff::Matrix(diff)) = &comparison.diff else {
+        panic!("expected a matrix delta");
+    };
+    assert_eq!(diff.bins as u64, bins);
+    assert!(diff.stats.matched > 0);
+}
+
 #[test]
 fn a_spectrum_compares_without_time_overlap() {
     let a = state_with(tone(2.0, 440.0, 1.0));
@@ -166,7 +188,7 @@ fn a_spectrum_compares_without_time_overlap() {
 }
 
 #[test]
-fn a_differing_channel_is_a_mismatch() {
+fn a_differing_channel_is_a_per_side_difference() {
     let a = state_with(tone(1.0, 440.0, 1.0));
     let b = state_with(tone(1.0, 440.0, 1.0));
     let mut a_setup = setup(0.0, 1.0);
@@ -174,14 +196,15 @@ fn a_differing_channel_is_a_mismatch() {
     a_setup.params.channel = None;
     b_setup.params.channel = Some(0);
     let comparison = compare_pair(AnalyzerId::LoudnessIntegrated, (&a, a_setup), (&b, b_setup));
+    // The channel stays per side (L vs R is meaningful): reported, never gating.
     assert!(comparison
         .comparability
         .mismatches
         .iter()
         .any(|mismatch| mismatch.key == "channel"));
-    // A differing channel changes the signal being compared, so no numeric delta.
-    assert!(!comparison.comparability.aligned);
-    assert!(comparison.diff.is_none());
+    assert_eq!(comparison.b.setup.params.channel, Some(0));
+    assert!(comparison.comparability.aligned);
+    assert!(matches!(comparison.diff, Some(ComparisonDiff::Scalar(_))));
 }
 
 #[test]

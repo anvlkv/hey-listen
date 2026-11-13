@@ -6,7 +6,23 @@ import type { Span } from "./Span";
 /**
  * A compact view of a saved comparison for the frontend / MCP (no result payload).
  */
-export type SavedComparisonInfo = { tool: AnalyzerId, referenceName: string, source: SourceShape, window: Span, bOffset: number, savedMs: number, 
+export type SavedComparisonInfo = { 
+/**
+ * The snapshot's stable id (a compare tab binds to it; several per tool).
+ */
+id: string, tool: AnalyzerId, referenceName: string, source: SourceShape, 
+/**
+ * The reference's pinned window.
+ */
+window: Span, 
+/**
+ * The owner's pinned window at save time.
+ */
+ownerWindow: Span, 
+/**
+ * The owner's channel at save time (`null` is the downmix).
+ */
+ownerChannel: number | null, bOffset: number, savedMs: number, 
 /**
  * A content fingerprint (see [`SavedComparison::fingerprint`]); the frontend uses
  * it in the project's dirty signature.

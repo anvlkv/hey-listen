@@ -43,5 +43,12 @@ pub(super) fn snapshot(tool: AnalyzerId, result: AnalysisResult) -> SavedCompari
         saved_ms: 7,
         result: StoredAnalysisResult::from(&result),
         reference_path: None,
+        id: SavedComparison::new_id(7),
+        // Version 2 kept no owner side; the fixture pins the reference window.
+        owner_window: Span {
+            start: 0.0,
+            end: 1.0,
+        },
+        owner_channel: None,
     }
 }

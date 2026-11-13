@@ -107,7 +107,7 @@ describe("H. Project file & multi-window", () => {
     );
   });
 
-  it("H4 — a version 1 project upgrades on open and saves as version 2", async () => {
+  it("H4 — a version 1 project upgrades on open and saves as version 3", async () => {
     // Work on a copy: saving the migrated project rewrites the file.
     const tmpFile = path.join(os.tmpdir(), `heylisten-e2e-v1-${Date.now()}.heyl`);
     await copyFile(LEGACY_PROJECT, tmpFile);
@@ -134,7 +134,7 @@ describe("H. Project file & multi-window", () => {
     // Save in place: the file becomes the current version and the notice clears.
     await menuAction("save");
     await waitFor(
-      () => Promise.resolve(fileVersion(tmpFile) === 2),
+      () => Promise.resolve(fileVersion(tmpFile) === 3),
       "saving did not write the current format version",
     );
     await waitFor(

@@ -1,6 +1,6 @@
 import { invoke } from "../lib/ipc";
 import { createSignal } from "solid-js";
-import { previewPlaying } from "../audio/preview";
+import { transportStatus } from "../audio/preview";
 import type { OutputDeviceDto } from "../bindings/OutputDeviceDto";
 
 /**
@@ -46,13 +46,13 @@ export function applyOutputGain(value: number) {
 export const [outputLevel, setOutputLevel] = createSignal(0);
 
 /**
- * Poll the core's preview output level while a preview is playing, so the toolbar
- * meter tracks the output and falls to silence when nothing is playing. Returns a
- * disposer.
+ * Poll the core's preview output level while the transport is active (playing or
+ * paused), so the toolbar meter tracks the output and falls to silence when the
+ * transport is idle. Returns a disposer.
  */
 export function initOutputMeter(): () => void {
   const timer = window.setInterval(() => {
-    if (!previewPlaying()) {
+    if (transportStatus() === "idle") {
       setOutputLevel(0);
       return;
     }

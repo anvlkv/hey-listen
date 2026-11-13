@@ -206,12 +206,14 @@ annotations resets the analysis window to the whole file (and moves the live win
 so the saved project is not framed on the span being tagged (`lib/saveWindow.ts`). A save with
 no annotations keeps the window the user chose.
 
-**Planned (M23) — full-height rules on the Timeline.** While a span is dragged in the
-lane, when a range is selected, and when an annotation is hovered, the Timeline draws
-**vertical rules at the annotation's edges** across the waveform (plus a live `start → end (Δ)`
-chip while creating), not just the lane handles. Other annotations keep the faint span tint and
-a short stem so the waveform stays readable. This makes the annotated area legible against
-the audio instead of only in the bottom strip. See [`roadmap.md`](roadmap.md) → M23.
+**Full-height rules on the Timeline (M23).** While a span is dragged in the lane, when an
+annotation is selected or hovered, and while a handle is dragged, the Timeline draws
+**vertical rules at the annotation's edges** across the waveform (plus a live
+`start → end (Δ)` chip, and a ghost rule at the edge a drag started from). Other
+annotations keep the faint span tint and a short stem so the waveform stays readable. The
+geometry and painters live in `components/annotations/rules.ts`, shared with the analyzer
+charts, so both surfaces use the chart annotation colour. See
+[`roadmap.md`](roadmap.md) → M23.
 
 ## Creating an annotation
 
@@ -247,7 +249,9 @@ transport facilities are shared with the annotations layer:
 - **The playhead on every time chart.** The position rides the shared chart bus
   (`playhead`), so a chart draws the transport's own solid rule (the uPlot charts via
   `syncPlugins.playheadRule`, the canvas heatmaps via `chartCanvas.drawPlayhead`) — what is
-  being auditioned is visible where the data is, not only on the Timeline.
+  being auditioned is visible where the data is, not only on the Timeline. The line stays
+  put when the transport is paused or stopped (dimmed on the Timeline) and clears only when
+  the source changes (M23).
 - **Annotation at the playhead.** The transport's `annotation-sticky` button drops a **point**
   annotation at the playhead (enabled only while previewing), taking the focused analyzer
   as its chart like the panel's Add — so an observation made *while listening* lands on
@@ -258,7 +262,7 @@ button follows the window when it moves — the Timeline's top move handle, a ch
 *Reframe* menu, an annotation's *Analyze*, undo/redo, or MCP `set_window`. The core mixes, filters
 and resamples a region when it loads it, so the reload is **debounced to the move's
 settle** (~200 ms, matching the analysis auto-run) instead of being re-sent at pointer
-rate; an explicit range (`previewRegion`, e.g. an MCP `preview` with `start`/`end`) stays
+rate; an explicit range (`playRegion`, e.g. an MCP `preview` with `start`/`end`) stays
 where it was.
 
 ## Persistence and cross-window

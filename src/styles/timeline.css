@@ -30,6 +30,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Transport position / duration readout (M23). */
+.timeline-position {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timeline-position strong {
+  color: var(--fg-accent);
+}
+
 .timeline-dim {
   color: var(--fg-muted);
   overflow: hidden;
@@ -78,14 +91,65 @@
   margin-left: auto;
 }
 
-/* Channel selector (only for multichannel sources); reuses the Kobalte Select. */
-.timeline-channel {
-  flex: none;
-  width: 170px;
+/* Channel rail (M23): the analysis-channel picker along the left of the waveform, shown
+   only for a 2+ channel source (the canvas plot starts at its right edge). */
+.timeline-channel-rail {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-right: 1px solid var(--border-soft);
 }
 
-.channel-trigger {
-  height: 24px;
+.rail-channel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  max-width: 100%;
+  padding: 0;
+  font: inherit;
+  font-size: 0.5625rem;
+  line-height: 1.1;
+  color: var(--fg-dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.rail-channel:hover {
+  color: var(--fg-body);
+}
+
+.rail-channel input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.rail-channel-label {
+  max-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-mix {
+  font-size: 0.6875rem;
+  line-height: 1;
+  padding: 2px 5px;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+}
+
+.rail-mix[aria-pressed="true"] {
+  color: var(--fg-accent);
+  border-color: var(--accent);
 }
 
 /* Preview speed (varispeed): a log slider, as compact as the transport buttons. */
@@ -115,6 +179,11 @@
   background: var(--control-hover);
 }
 
+/* Toggle buttons (the transport's loop) show their on state on the button itself. */
+.timeline-btn[aria-pressed="true"] {
+  color: var(--fg-accent);
+}
+
 .timeline-btn:disabled {
   opacity: 0.4;
   cursor: default;
@@ -124,6 +193,9 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  /* The canvas owns the wheel/trackpad gesture (M23): no page scroll or browser pan. */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .timeline-canvas canvas {

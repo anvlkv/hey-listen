@@ -19,8 +19,7 @@ import { isAnalyzerId } from "../state/analyzer/lookup";
 import { setAboutOpen } from "../state/menu";
 import { setAnnotationsPanelOpen } from "../state/settings";
 import { finalizeSource } from "../state/source";
-import { comparePanelId } from "../state/compare/id";
-import { setSavedReference } from "../state/compare/views";
+import { addCompareTab, setSavedReference } from "../state/compare/views";
 import { dockApi, openTool } from "../state/workbench";
 import type { AnalysisEntry } from "./compare";
 import ANALYSIS from "./fixtures/analysis.json";
@@ -115,18 +114,20 @@ async function whenDockReady() {
 /** Open the compare tab for `tool` (a dockview panel, not a Sidebar tool). */
 async function openCompare(tool: AnalyzerId) {
   const info: SavedComparisonInfo = {
+    id: `preview-${tool}`,
     tool,
     referenceName: "Saved reference",
     source: { sampleRate: FIXTURE_SAMPLE_RATE, channels: 1, duration: FIXTURE_SECONDS },
     window: { start: 0, end: FIXTURE_SECONDS },
+    ownerWindow: { start: 0, end: FIXTURE_SECONDS },
+    ownerChannel: null,
     bOffset: 0,
     savedMs: Date.now(),
     fingerprint: "preview-fixture",
   };
-  setSavedReference(tool, info);
+  setSavedReference(tool, info.id, info);
   await whenDockReady();
-  const id = comparePanelId(tool);
-  dockApi()?.addPanel({ id, component: id, title: "Comparison" });
+  addCompareTab(tool, info.id);
 }
 
 /** Seed and open the requested surface. */

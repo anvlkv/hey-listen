@@ -6,13 +6,13 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import {
   compareTargets,
   refreshCompareTargets,
-  shapeLabel,
   showCompareNotice,
 } from "../../state/compare/picker";
 import { fetchSaved, showReference } from "../../state/compare/views";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { CompareBinding } from "../../state/compare/views";
-import type { ComparisonDto, MismatchDto } from "../../state/compare/types";
+import type { CompareSideDto, ComparisonDto, MismatchDto, Span } from "../../state/compare/types";
+import { compareSideColor } from "./palette";
 import type { CompareTime } from "./time";
 
 /** The select value that reconnects the compare view to the project's saved snapshot. */
@@ -25,6 +25,8 @@ const SAVED_VALUE = "__saved__";
  * view".
  */
 export default function CompareHeader(props: {
+  /** The comparison's stable id (addresses its saved snapshot when the reference is saved). */
+  id: string;
   tool: AnalyzerId;
   comparison: ComparisonDto;
   swapped: boolean;
@@ -45,14 +47,17 @@ export default function CompareHeader(props: {
   onRetry: () => void;
 }) {
   // The picker's options are the live projects (refreshed when the header mounts), plus
-  // this tool's own saved snapshot (kept per header: two compare tabs may each have one).
+  // this tool's latest saved comparison. Several saved comparisons may exist; the full
+  // picker (tab menu / toolbar) lists them all.
   const [ready, setReady] = createSignal(false);
-  const [savedInfo, setSavedInfo] = createSignal<SavedComparisonInfo | null>(null);
+  const [savedInfo, setSavedInfo] = createSignal<SavedComparisonInfo[]>([]);
   onMount(() => {
     void Promise.all([refreshCompareTargets(), fetchSaved(props.tool).then(setSavedInfo)]).finally(
       () => setReady(true),
     );
   });
+  /** The latest saved snapshot of this tool, when the project has one. */
+  const latestSaved = () => savedInfo()[savedInfo().length - 1] ?? null;
 
   // The reference select's options. Memoized so the array (and the option objects) keep
   // their identity between the view's frequent re-renders (the live poll), and so the
@@ -62,7 +67,7 @@ export default function CompareHeader(props: {
       value: target.label,
       label: `${target.name}${target.ready ? "" : " (no source)"}`,
     }));
-    const saved = savedInfo();
+    const saved = latestSaved();
     const savedOption =
       saved || props.saved
         ? [
@@ -96,10 +101,10 @@ export default function CompareHeader(props: {
    */
   async function openReference() {
     const binding: CompareBinding = props.saved
-      ? { kind: "saved", reference: savedInfo()?.referenceName ?? props.reference }
+      ? { kind: "saved", reference: latestSaved()?.referenceName ?? props.reference }
       : { kind: "live", reference: props.reference };
     try {
-      await showReference(binding, props.tool);
+      await showReference(binding, props.tool, props.id);
     } catch (err) {
       showCompareNotice(String(err).replace(/^Error:\s*/, ""));
     }
@@ -126,17 +131,18 @@ export default function CompareHeader(props: {
   return (
     <header class="compare-header" data-testid="compare.header">
       <div class="compare-title">
-        <div class="compare-title-tool">
-          Compare: {analyzerById(props.tool).title}
-          <span class="compare-title-sep"> — </span>
-          <span class="compare-project side-a">{a().project ?? "this project"}</span>
-          <span class="compare-title-sep"> ↔ </span>
-          <span class="compare-project side-b">{b().project ?? props.reference}</span>
+        <div class="compare-title-tool">Compare: {analyzerById(props.tool).title}</div>
+        <div class="compare-side-line">
+          <span class="compare-side-chip" style={{ background: compareSideColor(0) }} />
+          <span class="compare-side-text">
+            <span class="compare-side-letter">{props.swapped ? "B" : "A"}</span> {sideLine(a())}
+          </span>
         </div>
-        <div class="compare-title-meta">
-          <span class="compare-shape">{shapeLabel(a().source)}</span>
-          <span class="compare-title-sep">↔</span>
-          <span class="compare-shape">{shapeLabel(b().source)}</span>
+        <div class="compare-side-line">
+          <span class="compare-side-chip" style={{ background: compareSideColor(1) }} />
+          <span class="compare-side-text">
+            <span class="compare-side-letter">{props.swapped ? "A" : "B"}</span> {sideLine(b())}
+          </span>
         </div>
       </div>
 
@@ -172,7 +178,7 @@ export default function CompareHeader(props: {
               onChange={(value) =>
                 props.onBindingChange(
                   value === SAVED_VALUE
-                    ? { kind: "saved", reference: savedInfo()?.referenceName ?? props.reference }
+                    ? { kind: "saved", reference: latestSaved()?.referenceName ?? props.reference }
                     : { kind: "live", reference: value },
                 )
               }
@@ -240,6 +246,26 @@ export default function CompareHeader(props: {
       </Show>
     </header>
   );
+}
+
+/** One compact side line: `project · window · channel`. */
+function sideLine(side: CompareSideDto): string {
+  return `${side.project ?? "this project"} · ${windowLabel(side.window)} · ${channelLabel(
+    side.params.channel,
+  )}`;
+}
+
+/** A side's pinned window (`0.50–1.50 s`). */
+function windowLabel(span: Span): string {
+  return `${span.start.toFixed(2)}–${span.end.toFixed(2)} s`;
+}
+
+/** A channel index as the timeline names it (`mix`, `L`, `R`, `ch 3`). */
+function channelLabel(channel: number | null | undefined): string {
+  if (channel == null) return "mix";
+  if (channel === 0) return "L";
+  if (channel === 1) return "R";
+  return `ch ${channel + 1}`;
 }
 
 /** A badge tooltip listing every differing setting, with both values. */

@@ -2,27 +2,40 @@ import { createSignal } from "solid-js";
 import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
 import { invoke } from "../../lib/ipc";
 import type { AnalyzerId } from "../analyzer";
+import { dockApi } from "../workbench";
+import { comparePanelId } from "./id";
 import type { CompareTargetDto } from "./types";
-import { fetchSaved, openCompare, openCompareSaved } from "./views";
+import {
+  fetchSaved,
+  openCompare,
+  openCompareSaved,
+  setReference,
+  setSavedReference,
+} from "./views";
 
 /**
- * The reference picker (M25; saved references in M25.C).
+ * The reference picker (M23 Phase 3).
  *
- * A comparison needs **two open projects** — or *one* project plus its **saved
- * snapshot** of the last comparison (M25.C). The picker lists every other project
- * window (never a popout) with its display name, source shape and analysis window; a
- * project with no source is listed but disabled. A saved reference is offered as
- * `Saved: <name>` even with one project open. See `docs/comparison.md` → "Entry points".
+ * A comparison needs **two open projects** — or *one* project plus one of its **saved
+ * comparisons**. The picker lists every other project window (never a popout) with its
+ * display name, source shape and analysis window; a project with no source is listed
+ * but disabled. A saved comparison is offered per pair (`Saved: <name>`), even with one
+ * project open. Picking a reference opens a **new** compare tab, unless the picker was
+ * opened from an existing comparison (a retarget). See `docs/comparison.md` → "Entry
+ * points".
  */
 
 /** The projects the picker can reference (refreshed on open). */
 export const [compareTargets, setCompareTargets] = createSignal<CompareTargetDto[]>([]);
 
-/** The tool's saved snapshot, when the project has one (M25.C). */
-export const [compareSaved, setCompareSaved] = createSignal<SavedComparisonInfo | null>(null);
+/** The project's saved comparisons, one per pair (refreshed on open). */
+export const [compareSaved, setCompareSaved] = createSignal<SavedComparisonInfo[]>([]);
 
 /** The tool whose reference is being picked, or `null` when the dialog is closed. */
 export const [pickerTool, setPickerTool] = createSignal<AnalyzerId | null>(null);
+
+/** The comparison being retargeted, or `null` when the picker opens a new tab. */
+export const [pickerId, setPickerId] = createSignal<string | null>(null);
 
 /** A transient one-line notice (no analyzer focused, or no second project open). */
 export const [compareNotice, setCompareNotice] = createSignal<string | null>(null);
@@ -46,43 +59,76 @@ export async function refreshCompareTargets(): Promise<CompareTargetDto[]> {
   return targets;
 }
 
-/** Fetch the saved snapshot for `tool` (one per tool) and cache it for the picker. */
-export async function refreshCompareSaved(tool: AnalyzerId): Promise<SavedComparisonInfo | null> {
+/** Fetch every saved comparison of `tool` (one per pair) and cache it for the picker. */
+export async function refreshCompareSaved(tool: AnalyzerId): Promise<SavedComparisonInfo[]> {
   const saved = await fetchSaved(tool);
   setCompareSaved(saved);
   return saved;
 }
 
+/** Close the picker, forgetting which comparison it would retarget. */
+export function closeComparePicker() {
+  setPickerTool(null);
+  setPickerId(null);
+}
+
 /**
- * Open the picker for `tool` (or explain why it cannot open). This is the one entry
- * point behind both the tab menu and the native Analysis menu.
+ * Open the picker for `tool` (or explain why it cannot open).
+ *
+ * With an `id` the picker retargets that open comparison; without one it opens a **new**
+ * tab. This is the one entry point behind the tab menu, the native Analysis menu and the
+ * analyzer toolbar. See `docs/comparison.md`.
  */
-export async function chooseCompareReference(tool: AnalyzerId) {
+export async function chooseCompareReference(tool: AnalyzerId, id: string | null = null) {
   const [targets, saved] = await Promise.all([refreshCompareTargets(), refreshCompareSaved(tool)]);
-  if (targets.length === 0 && !saved) {
+  if (targets.length === 0 && saved.length === 0) {
     showCompareNotice(
       "A comparison needs two projects (or a saved comparison). Open another window (File → New Window), then compare again.",
     );
     return;
   }
+  setPickerId(id);
   setPickerTool(tool);
+}
+
+/**
+ * Bring a retargeted comparison to the front.
+ *
+ * dockview unmounts a hidden panel, and an unmounted compare view never mounts its
+ * comparison effect — so a reference changed from the **tab context menu** (where the
+ * tab may be behind its analyzer) would leave the view blank until the user clicked it.
+ * A new tab (`openCompare` / `openCompareSaved`) activates itself; a retarget must too.
+ */
+function activateCompareTab(tool: AnalyzerId, id: string) {
+  dockApi()?.getPanel(comparePanelId(tool, id))?.api.setActive();
 }
 
 /** Pick a target: open (or retarget) the comparison and close the dialog. */
 export async function pickCompareTarget(tool: AnalyzerId, target: CompareTargetDto) {
-  setPickerTool(null);
+  const id = pickerId();
+  closeComparePicker();
   if (!target.ready) {
     showCompareNotice(`“${target.name}” has no audio source yet.`);
     return;
   }
-  await openCompare(tool, target.label);
+  if (id) {
+    setReference(tool, id, target.label);
+    activateCompareTab(tool, id);
+  } else {
+    await openCompare(tool, target.label);
+  }
 }
 
-/** Pick the tool's saved snapshot: open (or retarget) the comparison at it. */
-export async function pickSavedComparison(tool: AnalyzerId) {
-  setPickerTool(null);
-  const opened = await openCompareSaved(tool);
-  if (!opened) showCompareNotice("This project has no saved comparison for that tool.");
+/** Pick one of the tool's saved comparisons: open (or retarget) it at that snapshot. */
+export async function pickSavedComparison(tool: AnalyzerId, info: SavedComparisonInfo) {
+  const id = pickerId();
+  closeComparePicker();
+  if (id) {
+    setSavedReference(tool, id, info);
+    activateCompareTab(tool, id);
+  } else {
+    await openCompareSaved(tool, undefined, info);
+  }
 }
 
 /** A project's one-line shape label (`48 kHz · 1 ch · 12.4 s`). */

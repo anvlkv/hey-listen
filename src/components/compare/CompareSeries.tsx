@@ -7,6 +7,7 @@ import { createUplotZoom } from "../analyzer/uplotZoom";
 import { timeTooltip } from "../analyzer/chartCommon";
 import { paddedYRange } from "../analyzer/range";
 import { compareMarkers } from "./peerPlugins";
+import CompareLegend from "./CompareLegend";
 import ComparePlot from "./ComparePlot";
 import CompareTimeChart from "./CompareTimeChart";
 import { timeAxis, valueAxis } from "./axes";
@@ -140,6 +141,13 @@ export default function CompareSeries(props: CompareSeriesProps) {
           </button>
         </Show>
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta={showDelta()}
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+      />
 
       <Show
         when={aligned() && merged()}

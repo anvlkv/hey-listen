@@ -85,6 +85,14 @@ export function annotationLabel(annotation: Pick<Annotation, "title" | "body">):
 }
 
 /**
+ * The label a chart or the Timeline shows beside an annotation's rule: its frozen values
+ * line (the readout, so the mark is self-describing), else its heading, else "Annotation".
+ */
+export function annotationMarkerLabel(annotation: Annotation): string {
+  return annotation.values?.text || annotationHeading(annotation.body, 32) || "Annotation";
+}
+
+/**
  * The annotation body **without** its heading line — what to render under the title, so the
  * first line (shown as the title) is not repeated in the rendered markdown.
  */

@@ -13,10 +13,12 @@ use serde::Deserialize;
 use serde_json::Value;
 use tauri::{Manager, WebviewWindow};
 
-use crate::audio::analysis::compare::{self, CompareSetup, SavedComparisonInfo, SideInput};
+use crate::audio::analysis::compare::{
+    self, CompareSetup, SavedComparison, SavedComparisonInfo, SideInput,
+};
 use crate::audio::analysis::{Axis, Shape};
 use crate::audio::analyzers::AnalyzerId;
-use crate::state::window_state;
+use crate::state::{window_state, WindowState};
 
 pub mod peer;
 pub mod popout;
@@ -24,11 +26,35 @@ pub mod reference;
 
 use peer::{peer_state, project_name, project_path};
 
-/// One `run_comparison` request: the tool, the reference project label **or** the
-/// owner's saved snapshot, both setups, and how much of each result/delta to return.
+/// The comparison a caller selected: `id` names one saved pair, falling back to the newest
+/// one for the tool when it is absent or has no snapshot yet. Several comparisons may
+/// share a tool, so the id is what selects a pair.
+pub(super) fn selected_snapshot(
+    state: &WindowState,
+    tool: AnalyzerId,
+    id: Option<&str>,
+) -> Result<SavedComparison, String> {
+    state
+        .saved_comparison_selected(tool, id)
+        .ok_or_else(|| match id.filter(|id| !id.is_empty()) {
+            Some(id) => format!("no saved comparison '{id}' for '{tool}'"),
+            None => {
+                format!("no saved comparison for '{tool}' — pick a live reference project first")
+            }
+        })
+}
+
+/// One `run_comparison` request: the comparison id, the tool, the reference project
+/// label **or** the owner's saved snapshot, both setups, and how much of each
+/// result/delta to return.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompareRequest {
+    /// The comparison's stable id: the live tab's id, which its saved snapshot is stored
+    /// under. Empty means "keep the pair's existing id, or mint one"; for `saved` it
+    /// selects that pair (falling back to the newest for `tool` when empty or unknown).
+    #[serde(default)]
+    pub id: String,
     pub tool: AnalyzerId,
     /// The reference project's window label (a live comparison).
     #[serde(default)]
@@ -72,6 +98,7 @@ pub async fn run_comparison(
 
     tauri::async_runtime::spawn_blocking(move || {
         let CompareRequest {
+            id,
             tool,
             reference,
             saved,
@@ -82,16 +109,15 @@ pub async fn run_comparison(
             max_points,
             compact_axis,
         } = request;
+        let owner = a;
         let a = SideInput {
             project: a_project,
             state: &a_state,
-            setup: a,
+            setup: owner.clone(),
         };
 
-        let (comparison, snapshot) = if saved {
-            let stored = a_state.saved_comparison(tool).ok_or_else(|| {
-                format!("no saved comparison for '{tool}' — pick a live reference project first")
-            })?;
+        let (comparison, mut snapshot) = if saved {
+            let stored = selected_snapshot(&a_state, tool, Some(&id))?;
             let b_offset = b_offset.unwrap_or(stored.b_offset);
             let comparison = compare::compare_saved(tool, a, &stored, b_offset)
                 .map_err(|err| err.to_string())?;
@@ -121,6 +147,8 @@ pub async fn run_comparison(
             .map_err(|err| err.to_string())?;
             let snapshot = compare::SavedComparison::from_side(
                 tool,
+                id.clone(),
+                &owner,
                 &comparison.b,
                 b_filter,
                 b_offset,
@@ -130,6 +158,11 @@ pub async fn run_comparison(
             (comparison, snapshot)
         };
 
+        // The view's id is the stored entry's id: the tab passes its own, and an id-less
+        // caller keeps the id of the pair it already compared (one entry per pair) or
+        // gets a fresh one. A saved pair retargeted into a view is re-keyed to it, so the
+        // open tab is exactly what a save writes.
+        snapshot.id = a_state.pin_comparison_id(&id, &snapshot);
         a_state.store_saved_comparison(snapshot.clone());
         let axis = if compact_axis.unwrap_or(false) {
             Axis::Compact
@@ -137,6 +170,7 @@ pub async fn run_comparison(
             Axis::Array
         };
         let mut value = comparison.to_value(shape, max_points, axis);
+        value["id"] = Value::String(snapshot.id.clone());
         value["savedFingerprint"] = Value::String(snapshot.fingerprint());
         Ok(value)
     })
@@ -144,7 +178,7 @@ pub async fn run_comparison(
     .map_err(|err| err.to_string())?
 }
 
-/// The owner's saved comparison snapshots (one per tool), for the picker and MCP.
+/// The owner's saved comparison snapshots (several per tool), for the picker and MCP.
 #[tauri::command]
 pub fn compare_saved(window: WebviewWindow, tool: Option<AnalyzerId>) -> Vec<SavedComparisonInfo> {
     let infos = window_state(&window).saved_comparison_infos();

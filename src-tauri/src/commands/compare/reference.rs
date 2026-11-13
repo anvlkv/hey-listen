@@ -23,15 +23,19 @@ use crate::commands::window::project::open_file_window;
 use crate::commands::window::raise;
 use crate::state::window_state;
 
+use super::selected_snapshot;
+
 /// Open the compare view's reference project, or raise the window that shows it.
 ///
-/// `label` is a live reference (a project window label); `tool` names the analyzer whose
-/// saved snapshot to read a reference **path** from. Returns `"focused"` or `"opened"`.
+/// `label` is a live reference (a project window label); `tool` + `id` name the saved
+/// comparison whose snapshot records a reference **path**. Returns `"focused"` or
+/// `"opened"`.
 #[tauri::command]
 pub fn open_reference_window(
     window: WebviewWindow,
     label: Option<String>,
     tool: Option<AnalyzerId>,
+    id: Option<String>,
 ) -> Result<String, String> {
     let app = window.app_handle();
 
@@ -52,9 +56,7 @@ pub fn open_reference_window(
 
     // 2. A saved reference: the project file recorded with its snapshot.
     let tool = tool.ok_or_else(|| "this comparison has no reference project".to_string())?;
-    let snapshot = window_state(&window)
-        .saved_comparison(tool)
-        .ok_or_else(|| format!("no saved comparison for '{tool}'"))?;
+    let snapshot = selected_snapshot(&window_state(&window), tool, id.as_deref())?;
     let path = reference_file(&snapshot)?;
     open_file_window(app, &path)?;
     Ok("opened".to_string())
@@ -107,6 +109,12 @@ mod tests {
             saved_ms: 1,
             result: StoredAnalysisResult::from(&AnalysisResult::Spectrum(fixtures::spectrum())),
             reference_path,
+            id: "cmp-test".to_string(),
+            owner_window: Span {
+                start: 0.0,
+                end: 17.0,
+            },
+            owner_channel: None,
         }
     }
 

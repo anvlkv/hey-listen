@@ -14,6 +14,7 @@ import {
   type FrequencyScale,
 } from "../analyzer/frequencyScale";
 import { compareMarkers } from "./peerPlugins";
+import CompareLegend from "./CompareLegend";
 import { compareSides, liveMarkers } from "./sides";
 import type { CompareTime } from "./time";
 import { activeThemeId, chartTheme } from "../../state/themes";
@@ -146,6 +147,13 @@ export default function CompareSpectrum(props: {
           title="Pearson correlation between A and B over the matched bins"
         />
       </div>
+
+      <CompareLegend
+        swapped={props.swapped}
+        delta={(overlay()?.delta.length ?? 0) > 0}
+        aLabel={sides.a().project ?? "this project"}
+        bLabel={sides.b().project ?? "reference"}
+      />
 
       <Show
         when={aligned() && overlay()}
