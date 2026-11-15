@@ -1,65 +1,57 @@
 ---
 name: audio-analysis
-description: Drive Hey Listen's audio-analysis engine programmatically — via the built-in MCP server (agent access + live UI following) or the batch CLI (`hey-listen-cli analyze`, headless shell/CI). Covers picking the interface, the discover → run → read workflow, the tool inventory, result modes (summary / compact / full), event segmentation, comparisons, building/opening project files (sources, tabs, saved comparisons), and data/chart export. Use when a task needs to open a source, run analyzers, segment calls/syllables/notes, compare projects, save a project with its tabs/comparison, or read results from an MCP client or a shell.
+description: Drive Hey Listen's analysis engine programmatically — via the MCP server (live app + UI following, or headless) or the batch CLI. Covers discovering analyzers, running them (summary/compact/full result modes), segmenting events, comparing projects, and building/opening/saving project files. Load when a task needs to analyze audio, find events or loop points, compare projects, or write a .heyl project.
 ---
 
-# Driving Hey Listen's analysis engine (MCP + CLI)
+# Driving Hey Listen's analysis engine
 
-One analysis engine (`audio::analysis::run_window`), two programmatic interfaces. Both
-return the **same envelope** — effective `window` / `params` / `options`, a canonical
-`summary`, and a `result` shaped by the requested mode.
+One engine, two programmatic surfaces — the **MCP server** and the **batch CLI**. Both
+return the same envelope: effective `window` / `params` / `options`, a canonical `summary`,
+and a `result` shaped by the requested mode.
 
-**This skill is a router.** Read the file for the surface you're using:
+**This file is a router.** Read the file for the surface you're using:
 
-| File | What it covers |
+| File | Covers |
 | --- | --- |
-| [`mcp.md`](mcp.md) | The MCP server: bridge vs headless, the tool inventory, workflow, projects / tabs / comparisons / annotations, data + chart export. |
-| [`cli.md`](cli.md) | The batch CLI: `analyze` / `compare` / `project` / `annotations` / `synth`, options, output, examples. |
-| [`analyzers.md`](analyzers.md) | Every analyzer: id, result family, options + defaults, and a usage hint. |
+| [`mcp.md`](mcp.md) | MCP server: bridge vs headless, tools, workflow, projects/tabs/compare/annotations, export. |
+| [`cli.md`](cli.md) | Batch CLI: `analyze` / `compare` / `project` / `annotations` / `synth`. |
+| [`analyzers.md`](analyzers.md) | Every analyzer: result family, options, usage hint. |
 
-You should not need the Hey Listen sources: the MCP tool list + `get_state` + this skill
+You should not need the Hey Listen source — the MCP tool list + `get_state` + this skill
 are the surface.
 
 ## Pick an interface
 
 | Need | Use |
 | --- | --- |
-| Agent drives the live window; tabs/UI follow | MCP **bridge** |
-| Agent analyzes files with nothing open | MCP **headless** (auto-fallback) |
-| Build a `.heyl` (source, setup, filter, tabs, annotations) | MCP headless `save_project`, or CLI `project` |
+| Drive the live window; tabs/UI follow | MCP **bridge** |
+| Analyze files, nothing open | MCP **headless** (auto-fallback) |
+| Build a `.heyl` (source, setup, tabs, annotations) | MCP headless `save_project`, or CLI `project` |
 | Compare two projects | MCP `compare_analysis`, or CLI `compare` |
-| Shell / CI bulk-analyzes files | **Batch CLI** |
-| Read/edit annotations in a saved `.heyl` | CLI `annotations` (or MCP `save_project`/live tools) |
+| Bulk-analyze files (shell/CI) | **Batch CLI** |
+| Read/edit annotations in a saved `.heyl` | CLI `annotations` |
 
-## The reliable workflow
+## Workflow
 
-Discover before you guess, and read the summary before the arrays:
+Discover before guessing; read the summary before the arrays:
 
 ```text
-list_analyzers                        # compact catalog: id / title / section / family / keywords
-get_analyzer { id }                   # about copy, option ranges, family, decimatable, summary keys
-get_state                             # source shape, window, shared params, project, server mode
+list_analyzers                        # catalog: id / title / section / family / keywords
+get_analyzer { id }                   # option ranges, family, decimatable, summary keys
+get_state                             # source, window, params, project, server mode
 run_analysis { tool, summaryOnly: true }   # one-line answer first
 → read summary.text; ask for result only if you need the series
 ```
 
-- Set shared window/params once (`set_analysis_window` / `set_shared_params`), then
-  per-tool options (`set_tool_options`). Pass overrides inline to `run_analysis` for a
-  single call.
-- `transient: true` on `run_analysis` = independent call; without it, `start`/`end`/
-  `params`/`options` overrides are **written back** and later calls inherit them.
+- Set shared window/params once (`set_analysis_window` / `set_shared_params`), per-tool
+  options with `set_tool_options`. Inline `run_analysis` overrides apply to that call only
+  with `transient: true`; otherwise they are **written back**.
 - `display: false` computes without opening/focusing a tab (default `true`).
 
-## Results: summary / compact / full
+## Result modes
 
-Every `run_analysis` call and CLI `analyze` record carries:
-
-- **`summary`** — `{ tool, label, text, items }`: a stable one-line `text` plus labelled,
-  unit-bearing `items`, computed from the **full** result (identical in every mode). Read
-  it first.
-- **`window` / `params` / `options`** — the **effective** settings used (unset fields
-  omitted, no null padding).
-- **`result`** — by mode:
+Every call carries `summary` (one-line `text` + labelled `items`, identical in every mode),
+the effective `window`/`params`/`options`, and `result`:
 
 | Mode | MCP | CLI | `result` |
 | --- | --- | --- | --- |
@@ -67,48 +59,43 @@ Every `run_analysis` call and CLI `analyze` record carries:
 | compact (default) | — | — | structural stats |
 | full | `includeData: true` | `--full` | raw arrays |
 
-- `summaryOnly` ⇎ `includeData` (`--summary` ⇎ `--full`) are mutually exclusive.
-- Compact is **structural per family**: matrices/spectrograms keep dimensions + peak
-  location (`peakTime`/`peakHz`/`peakDb`); numeric series become stats (with `nulls` for
-  gaps and `hop` so an index maps to a time); event/note arrays keep counts + a 5-record
-  preview. `noteMetrics` also carries **`bounds`** — every span — so segmenting never
-  needs a full result.
-- `maxPoints: N` thins a full result to ≤ N points, **family-aware** (time axes move
-  together, matrices thin by whole frames). It never removes events from
-  `noteMetrics`/`onsets`. Check `decimatable` from `get_analyzer` before relying on it.
-- `axis: "compact"` replaces a `times` array with `{ start, hop, length, end }` (an
-  overlap-add edge frame as `firstHop`/`lastHop`).
+- `summaryOnly` ⇎ `includeData` (`--summary` ⇎ `--full`).
+- Compact is structural per family: matrices/spectrograms keep dims + peak location; series
+  become stats (with `nulls` for gaps, `hop` to map index→time); events/notes keep counts +
+  a 5-record preview. `noteMetrics` also returns **`bounds`** (every span) — segment without
+  a full result.
+- `maxPoints: N` thins a full result family-aware (never drops `noteMetrics`/`onsets`
+  events); check `decimatable` first.
+- `axis: "compact"` replaces a `times` array with `{ start, hop, length, end }`.
 
-## Gotchas that have bitten agents
+## Gotchas
 
-These are the option/behaviour facts that are easy to get wrong. Per-tool detail lives in
-[`analyzers.md`](analyzers.md); the cross-cutting ones are here.
+1. **`frameRms` is the sub-millisecond envelope — and window-capped.** `frameMs`/`hopMs`
+   go to 0.05 ms, but the result caps at **8192 frames** and widens the hop to fit. A long
+   window coarsens (10 s → ~1.2 ms); a short window (≤ ~0.37 s) reaches the **2-sample hop**
+   (45 µs). For sample-accurate loop seams, use a short window and read the reported
+   `hopSize`/`frameSize`.
 
-1. **`frameRms` is the only sub-millisecond envelope — and it's window-capped.**
-   `frameMs` (0.1–1000) and `hopMs` (0.05–1000) are the knobs, but the engine caps the
-   result at **8192 frames** and *widens the hop* to fit. So on a long window the hop
-   coarsens (10 s → ~1.2 ms); to reach the floor of a **2-sample hop** (45 µs) you must
-   use a short window (≤ ~0.37 s). For sample-accurate work (loop seams, click
-   avoidance), set a short window and the engine reports the effective `hopSize`.
+2. **Perception analyzers read ~0 until calibrated.** `loudness`, `specificLoudness`,
+   `sharpness`, `roughness`, `fluctuationStrength`, `tonality`, `masking` take
+   `calibrationDbSpl` (**0 = uncalibrated → ~0**). Set it (e.g. `100`) for absolute values;
+   defaults are mixed across tools (check `get_state.toolOptions`). Summarize with
+   level-gated medians, not min/max (they land on silent frames).
 
-2. **Exports reflect the current analysis window.** `export_analysis` / `export_chart`
-   capture the tool over the project's **current window** — call `set_analysis_window`
-   first when you want a specific range (this is the reliable path; don't assume an
-   ad-hoc range is what got exported).
+3. **`channel` (default 0) picks the analyzed channel; the louder channel varies per
+   instant.** Check **both** channels — for seams (level) *and* for brightness claims (a
+   "brightest" readout can be a panned-channel artifact).
 
-3. **Perception analyzers read ~0 until calibrated.** `loudness` (sone/phon),
-   `specificLoudness`, `sharpness` (acum), `roughness` (asper), `fluctuationStrength`
-   (vacil), `tonality` and `masking` take `calibrationDbSpl` — **0 = uncalibrated**
-   (relative, effectively ~0). Set it to the dB SPL of a full-scale sine (e.g. `100`)
-   to read absolute values. They are custom approximations, not validated standards.
-   Their min/max summaries land on silent frames — gate by level and use medians.
+4. **`hop` is a fraction of `fftSize`, not samples** (`0.25` = 75% overlap; `1` = none).
 
-4. **`channel` (shared param) selects the analyzed channel; default 0.** The tools run
-   on one channel. For stereo work (e.g. a loop seam) the **louder of the two channels**
-   is what determines audibility — check both before committing.
+5. **Analyzer ids are case-sensitive.** Use exact ids from `list_analyzers`
+   (`framerms` → "unknown analyzer").
 
-5. **`hop` (shared param) is a fraction of `fftSize`, not a sample count.** `0.25` =
-   75% overlap; `1` = no overlap.
+6. **A `0` can mean "not applicable".** `tempo` reports `onsets 0` and `onsets` reports
+   `tempo 0` — fields a tool doesn't produce read as `0`, not "none".
 
-6. **`transient: true`** — without it, `run_analysis` overrides are written back to the
-   project and later calls inherit them.
+7. **`set_shared_params` can't return a param to "unset"** (e.g. `channel` back to `null`).
+
+8. **The analysis window is not `transient`.** `export_analysis`/`export_chart` run over the
+   current window, and `set_analysis_window` is written back even when `run_analysis` is
+   `transient`. Snapshot the window before exporting.

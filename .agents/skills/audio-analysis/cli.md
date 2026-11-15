@@ -1,8 +1,8 @@
 # Batch CLI (`hey-listen-cli`)
 
-A subcommand of the app binary that runs the engine over files with no window and prints
-one JSON object per file/tool. Deterministic; for shell/CI. Logs go to **stderr**, so
-**stdout is pure JSONL**.
+A subcommand of the app binary that runs the engine over files with no window, printing one
+JSON object per file/tool. Deterministic; for shell/CI. Logs go to **stderr**, so **stdout
+is pure JSONL**.
 
 ```text
 hey-listen [OPTIONS] [FILE.heyl]
@@ -28,27 +28,27 @@ Options:
 | `-t, --tool <ID>` | Analyzer id; repeatable; required unless `--all`. |
 | `--all` | Run every analyzer. |
 | `--start <SEC>` / `--end <SEC>` | Window (default `0` / full duration). |
-| `--windows <FILE>` | Many windows in one process: one `start,end[,tool…]` per line (`#` comments). A line without tools uses `-t`/`--all`. Not with `--start`/`--end`. |
-| `-p, --param <K=V>` | Patch a **shared** param (repeatable): `fftSize`, `hop` (fraction of `fftSize`; `0.25` = 75% overlap), `windowFn`, `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
-| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable). Name the tool with several (`-o mfcc.nMfcc=13`); bare `-o K=V` scopes to the sole `--tool`. **Run `analyzers <ID>` for exact keys/defaults/ranges.** |
+| `--windows <FILE>` | Many windows in one process: one `start,end[,tool…]` per line (`#` comments). Not with `--start`/`--end`. |
+| `-p, --param <K=V>` | Patch a **shared** param (repeatable): `fftSize`, `hop` (fraction of `fftSize`), `windowFn`, `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
+| `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable). `-o mfcc.nMfcc=13`; bare `-o K=V` scopes to the sole `--tool`. **Run `analyzers <ID>` for exact keys/defaults/ranges.** |
 | `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
-| `--summary` / `--full` | Summary only / raw arrays (default: compacted). Mutually exclusive. |
-| `--pretty` | Pretty-print a single result instead of JSONL. |
+| `--summary` / `--full` | Summary only / raw arrays (default compact). Mutually exclusive. |
+| `--pretty` | Pretty-print a single result. |
 | `--fail-fast` | Stop at the first failure (default: run the whole batch). |
-| `--format <json\|csv>` / `--csv` / `--out <FILE\|DIR>` | Data export: JSON provenance envelope or wide-matrix CSV (+ `.meta.json` sidecar); write to file/dir instead of stdout. |
+| `--format <json\|csv>` / `--csv` / `--out <FILE\|DIR>` | Data export: JSON envelope or wide-matrix CSV (+ `.meta.json`); write to file/dir. |
 
-**Scale:** many **files** → batch CLI (one process, JSONL). Many **windows in one file** →
-`analyze --windows FILE` or one headless MCP session (1k windows ≠ 1k process startups).
+**Scale:** many **files** → batch CLI. Many **windows in one file** → `--windows FILE` or
+one headless MCP session.
 
 ## `compare <A.heyl> <B.heyl>`
 
 Diff **the same analyzer** across two saved projects, each using its own saved window,
-params, options and filter. Matching is **relative** (each side starts at 0); `--overlap`
-opts into the old absolute-intersection rule.
+params, options, filter. Matching is **relative** (each side starts at 0); `--overlap` opts
+into the old absolute-intersection rule.
 
 | Option | Meaning |
 | --- | --- |
-| `-t, --tool <ID>` | Analyzer id; repeatable, one line per tool. Required unless `--all`. |
+| `-t, --tool <ID>` | Analyzer id; repeatable. Required unless `--all`. |
 | `--all` | Every analyzer. |
 | `--start` / `--end` | Override both sides' windows. |
 | `--a-start` / `--a-end` / `--b-start` / `--b-end` | Override one side's window. |
@@ -56,13 +56,12 @@ opts into the old absolute-intersection rule.
 | `--overlap` | Clip both sides to their absolute-time intersection. |
 | `-p` / `-o` / `--filter` | Patch params/options, or override saved filters, on both sides. |
 | `--full` / `--summary` | Delta arrays, or summaries + diff stats only. |
-| `--save <OUT.heyl>` | Write owner A with the reference snapshots (the app reopens it as a compare tab). |
+| `--save <OUT.heyl>` | Write owner A with the reference snapshots (reopens as a compare tab). |
 | `--open-tool <ID>` | With `--save`, override the saved project's tabs (repeatable). |
 
 Each line is `{ tool, a, b, comparability, diff }`; `diff` is absent when the grids differ
-(`comparability.mismatches` says why). Project files only — `analyze` covers raw audio.
-`--save` stores the diff's effective setup in the owner so reopening reproduces it; the
-saved path goes to stderr.
+(`comparability.mismatches` says why). `--save` stores the effective setup so reopening
+reproduces it; the saved path goes to stderr.
 
 ## `project <OUT.heyl>`
 
@@ -76,20 +75,18 @@ Build a project file with no window — the CLI face of the headless
 | `--open-tool <ID>` | Analyzer tab to restore (repeatable). |
 | `--annotations <FILE.json>` | A JSON array of annotation objects (`title`, `body`, `timeSecs`, optional `range`/`tool`). |
 | `--start` / `--end` | Analysis window (default 0 … full duration). |
-| `-p` / `-o` / `--filter` | Shared params, per-tool options (`-o mfcc.nMfcc=13`), and a filter `GraphSpec` saved into the project. |
+| `-p` / `-o` / `--filter` | Shared params, per-tool options (`-o mfcc.nMfcc=13`), a filter `GraphSpec` saved into the project. |
 | `--reference` | Keep only the file `SOURCE` path (no embedded audio). |
 
 One JSON line: `{ path, name, embedded, annotations, openTools }`; parent folders created.
 
 ## `annotations <FILE.heyl>`
 
-List or edit a project's annotations with no window: `--json` / `--full` list,
-`--get <ID>`, `--add <FILE.json>` (an array of annotation objects),
-`--update <ID> --set FIELD=VALUE` (`title`, `body`, `timeSecs`/`time`/`at`,
-`range=start,end` or `none`, `tool=id` or `none`), `--delete <ID>`. Mutations rewrite the
-project atomically; `--to <COPY.heyl>` edits a copy. An open app does not watch the file
-— reload after editing. (The MCP annotation tools operate on the live project and stay
-app-only; headless, pass `annotations` to `save_project` when building, or use this CLI.)
+List or edit a project's annotations: `--json` / `--full` list, `--get <ID>`,
+`--add <FILE.json>` (an array of annotation objects), `--update <ID> --set FIELD=VALUE`
+(`title`, `body`, `timeSecs`/`time`/`at`, `range=start,end` or `none`, `tool=id` or `none`),
+`--delete <ID>`. Mutations rewrite the project atomically; `--to <COPY.heyl>` edits a copy.
+An open app does not watch the file — reload after editing.
 
 ## Output, exit codes, examples
 

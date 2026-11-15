@@ -1,118 +1,111 @@
 # Analyzers
 
 `list_analyzers` is the authoritative catalog (ids, sections, families, keywords, option
-defaults); `get_analyzer { id }` gives `about` copy, **option metadata**
-(`key/label/default/min/max/step/unit/help`), `family`, `decimatable`, and `summaryKeys`.
-Use those for exact ranges — this file is a curated map of *what each tool is for* and the
-non-obvious usage facts. Unknown option keys are **errors** (camelCase; snake_case
-aliases accepted).
+defaults); `get_analyzer { id }` gives `about`, option metadata
+(`key/label/default/min/max/step/unit/help`), `family`, `decimatable`, `summaryKeys`. Use
+those for exact ranges — this file is a curated map of *what each tool is for* + the
+non-obvious facts. Unknown option keys are **errors** (camelCase; snake_case aliases
+accepted).
 
 Result **families** (how `result` is shaped): `scalar`, `series`, `spectrum`,
 `spectrogram`, `matrix`, `events`, `notes`.
 
-## Shared params (apply to every analyzer)
+## Shared params
 
-`fftSize` (2^n), `hop` (**fraction of `fftSize`** — `0.25` = 75% overlap), `windowFn`
-(hann etc.), `channel` (default 0), `resampleTo`, `freqMinHz` / `freqMaxHz` (0 = full
-range), `randomizedOverlap`. Set once with `set_shared_params` / `-p`.
+`fftSize` (2^n), `hop` (**fraction of `fftSize`** — `0.25` = 75% overlap), `windowFn`,
+`channel` (default 0), `resampleTo`, `freqMinHz`/`freqMaxHz` (0 = full range),
+`randomizedOverlap`. Set once (`set_shared_params` / `-p`).
 
-## Cross-cutting notes
+## Cross-cutting
 
-- **Channel.** Tools run on one channel (`channel`, default 0). For stereo work the
-  louder of the two channels sets what's audible — check both.
+- **Channel.** Tools run on one channel (`channel`, default 0). For stereo the **louder**
+  channel sets what's audible — check both (and per instant; see the root gotchas).
 - **Gating.** `frameRms`, `spectralCentroid`, `spectralRolloff`, `spectralFlatness`,
-  `zeroCrossingRate`, `harmonicRatio` take `gateDb` (0 = off; dB below the window peak)
-  and `gateFloorDb` (absolute dBFS floor). Gated frames become `null`.
-- **Reliability flags.** Trust a pitch median only when `voicedFrames ≥ 8`
-  (`f0Reliable: 1`); an FM rate only when `fmReliable: 1`.
-- **`harmonicRatio` is max autocorrelation, not HNR in dB.** Use `spectralFlatness` for
+  `zeroCrossingRate`, `harmonicRatio` take `gateDb` (0 = off; dB below window peak) and
+  `gateFloorDb` (absolute dBFS floor). Gated frames → `null`.
+- **Reliability.** Trust a pitch median only when `voicedFrames ≥ 8` (`f0Reliable: 1`); an
+  FM rate only when `fmReliable: 1`.
+- **`harmonicRatio` is max autocorrelation, not HNR in dB** — use `spectralFlatness` for
   noisiness.
-- **Perception family** (`loudness`, `specificLoudness`, `sharpness`, `roughness`,
-  `fluctuationStrength`, `tonality`, `masking`) needs `calibrationDbSpl` (0 =
-  uncalibrated → ~0). These are custom approximations, not validated standards; their
-  min/max summaries land on silent frames, so gate by level and use medians.
+- **Perception family** needs `calibrationDbSpl` (0 = uncalibrated → ~0). Custom
+  approximations, not validated standards; use level-gated medians, not min/max.
 
 ---
 
 ## Time
 
 ### waveform — `series`
-Peak/RMS envelope over time; full-scale buckets are marked (clipping) and the readout
-counts them. An overview, **not raw samples**. Options: none.
+Peak/RMS envelope over time; full-scale buckets marked (clipping) and counted. Overview,
+**not raw samples**.
 
 ### levels — `scalar`
-Peak, RMS (dBFS) and duration over the window. Quick headroom/loudness check. Options: none.
+Peak, RMS (dBFS), duration. Quick headroom/loudness check.
 
 ### frameRms — `series`
-Frame-centred RMS in dBFS — the amplitude envelope at whatever resolution you ask for.
-Options: `frameMs` 10 (0.1–1000), `hopMs` 5 (0.05–1000), `gateDb` 0, `gateFloorDb` −120.
+Frame-centred RMS in dBFS — the amplitude envelope at your resolution. Options: `frameMs`
+10 (0.1–1000), `hopMs` 5 (0.05–1000), `gateDb` 0, `gateFloorDb` −120.
 
-> **Fine-envelope + cap.** `frameMs`/`hopMs` go sub-millisecond, but the result is capped
-> at **8192 frames** — the engine *widens the hop* to fit, so a long window coarsens it
-> (10 s → ~1.2 ms). To reach the floor of a **2-sample hop** (45 µs) use a short window
-> (≤ ~0.37 s); the effective `hopSize`/`frameSize` are reported. This is the tool for
-> sample-accurate work (loop seams, click avoidance, breaths).
+> Fine-envelope + cap: result capped at **8192 frames** (hop widens to fit); a short window
+> (≤ ~0.37 s) reaches the **2-sample hop** (45 µs). The tool for sample-accurate loop seams.
 
 ## Spectral
 
 ### spectrum — `spectrum`
-Averaged FFT magnitude vs frequency. Spectral balance / timbre; set `fftSize` via shared
-params for more bins. Options: none.
+Averaged FFT magnitude vs frequency. Spectral balance/timbre; more `fftSize` = more bins.
 
 ### spectrogram — `spectrogram`
-STFT magnitude heatmap over time × frequency. Options: none (display options live in the UI).
+STFT magnitude heatmap over time × frequency.
 
 ### melSpectrogram — `matrix`
 Log-mel energies over time × mel bands. Options: `nMels` 64.
 
 ### mfcc — `matrix`
-Mel-frequency cepstral coefficients over time. Options: `nMels` 64, `nMfcc` 13.
+Mel-frequency cepstral coefficients. Options: `nMels` 64, `nMfcc` 13.
 
 ### chromagram — `matrix`
-Energy per pitch class (12) over time. Frames are **normalized (sum ≈ 1)**, so a band is
-a proportion; average frames to get a pitch-class profile / key estimate. To trust the
-letter labels, cross-check against a `pitchYin` f0 histogram. Options: none.
+Energy per pitch class (12) over time, normalized (sum ≈ 1) — a band is a proportion;
+average frames for a pitch-class/key profile. **Bands are numeric indices 0–11, not letter
+names.**
 
 ### spectralCentroid — `series`
-Spectral centre of mass (brightness). Options: `gateDb` 0, `gateFloorDb` −120. Not the
-same as perceived `sharpness` (perception family) — a physical measure.
+Spectral centre of mass (brightness). Options: `gateDb` 0, `gateFloorDb` −120. Physical,
+not the same as perceived `sharpness`.
 
 ### spectralFlux — `series`
-Frame-to-frame spectral change (novelty/onset strength). **Ungated** — a cross-check, not
-a segmenter. Options: none.
+Frame-to-frame spectral change (novelty/onset strength). **Ungated** — cross-check, not a
+segmenter.
 
 ### spectralRolloff — `series`
 Frequency below which `rolloffPercent` of the energy lies. Options: `rolloffPercent` 0.85,
 `gateDb` 0, `gateFloorDb` −120.
 
 ### spectralFlatness — `series`
-Geometric/arithmetic mean ratio: ~0 = tonal, ~1 = noise. Options: `gateDb` 0,
-`gateFloorDb` −120.
+Geometric/arithmetic mean ratio: ~0 tonal, ~1 noise. Options: `gateDb` 0, `gateFloorDb` −120.
 
 ### spectralContrast — `matrix`
 Peak-to-valley ratio per octave band. Options: `nBands` 6.
 
 ### spectralBandwidth — `series`
-Spread around the centroid (spectral variance). Options: none.
+Spread around the centroid.
 
 ### spectralEntropy — `series`
-Shannon entropy of the spectrum (order vs disorder). Options: none.
+Shannon entropy of the spectrum.
 
 ### spectralCrest — `series`
-Peak-to-average spectral power ratio; tonal peaks vs flat/transient. Options: none.
+Peak-to-average spectral power ratio.
 
 ### harmonicRatio — `series`
 Max normalized autocorrelation (0–1), **not HNR in dB**. Options: `minF0Hz` 50,
 `maxF0Hz` 4000, `gateDb` 0, `gateFloorDb` −120.
 
 ### zeroCrossingRate — `series`
-Sign-change rate; low = low-frequency/voiced, high = noisy/percussive. Options: `gateDb` 0,
+Sign-change rate; low = voiced/low-frequency, high = noisy/percussive. Options: `gateDb` 0,
 `gateFloorDb` −120.
 
 ### modulation — `series`
-AM and FM modulation spectra (tremolo / vibrato / trill). Options: `frameMs` 10,
-`hopMs` 5, `modMinHz` 0.5, `modMaxHz` 100, `detrend` 1, `pitchFrameMs` 40,
-`pitchHopMs` 5, `minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` 50, `maxF0Hz` 2000.
+AM + FM modulation spectra (tremolo/vibrato/trill). Options: `frameMs` 10, `hopMs` 5,
+`modMinHz` 0.5, `modMaxHz` 100, `detrend` 1, `pitchFrameMs` 40, `pitchHopMs` 5,
+`minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` 50, `maxF0Hz` 2000.
 
 ## Pitch
 
@@ -126,25 +119,24 @@ Probabilistic YIN (Viterbi-smoothed). Options: `minF0Hz` 50, `maxF0Hz` 2000.
 Autocorrelation fundamental track. Options: `minF0Hz` 60, `maxF0Hz` 1200.
 
 ### noteMetrics — `notes`
-Gated sound events: spans, gaps, level, f0, voice-quality proxies. Options: `frameMs` 10,
-`hopMs` 5, `gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20,
-`minGapMs` 30, `syllableGapMs` 0, `envelopePoints` 7, `pitchFrameMs` 40,
-`pitchHopMs` 5, `minF0Hz` 50, `maxF0Hz` 2000.
+Gated events: spans, gaps, level, f0, voice quality. Options: `frameMs` 10, `hopMs` 5,
+`gateDb` 35, `gateFloorDb` −60, `hysteresisDb` 3, `minNoteMs` 20, `minGapMs` 30,
+`syllableGapMs` 0, `envelopePoints` 7, `pitchFrameMs` 40, `pitchHopMs` 5, `minF0Hz` 50,
+`maxF0Hz` 2000.
 
-> Compact returns **`bounds`** for every event, so segmenting never needs a full result.
-> `syllableGapMs` > 0 also yields `syllables` (adjacent notes merged across a short gap);
-> amplitude belongs to the syllable, not the note. Set `minF0Hz`/`maxF0Hz` per corpus —
-> defaults are voice-ish (50–2000 Hz) and a ~3 kHz swift needs an explicit range.
+> Compact returns **`bounds`** for every event (segment without a full result).
+> `syllableGapMs` > 0 yields `syllables` (adjacent notes merged across a gap); amplitude
+> belongs to the syllable. Set `minF0Hz`/`maxF0Hz` per corpus — defaults are voice-ish
+> (50–2000 Hz).
 
 ## Rhythm
 
 ### tempo — `events`
-BPM + beat grid + onset-strength curve. `confidence` matters: on rubato / no-percussion
-music it can be low (~20–30 %) and the BPM is unreliable — report the confidence, don't
-state the BPM as fact. Options: none.
+BPM + beat grid + onset-strength curve. `confidence` matters: on rubato/no-percussion music
+it's often low (~20–30 %) — report it, don't state BPM as fact.
 
 ### onsets — `events`
-Spectral-flux onset peaks. **Ungated** — a cross-check, not a segmenter. Options: none.
+Spectral-flux onset peaks. **Ungated** — cross-check, not a segmenter.
 
 ### downbeats — `events`
 Estimated bar-start beats. Options: `barLength` 4.
@@ -152,53 +144,45 @@ Estimated bar-start beats. Options: `barLength` 4.
 ## Loudness (EBU R128)
 
 ### loudnessIntegrated — `scalar`
-Integrated LUFS. Options: none.
+Integrated LUFS.
 
 ### loudnessMomentary — `series`
-Momentary (400 ms) LUFS over time. Options: `windowMs` 0 (0 = standard 400 ms block).
-Smooths short events — use `frameRms` for fine dynamics.
+Momentary (400 ms) LUFS. Options: `windowMs` 0 (0 = standard 400 ms). Smears short events —
+use `frameRms` for fine dynamics.
 
 ### loudnessRange — `scalar`
-LRA (loudness spread) in LU — dynamic range. Options: none.
+LRA in LU — dynamic range.
 
 ## Perception
 
-All of these share `calibrationDbSpl` (0 = uncalibrated/relative). Set it to the dB SPL of
-a full-scale sine (e.g. `100`) to read absolute values. They are custom approximations,
-not validated standards; summarize with level-gated medians, not min/max.
+All share `calibrationDbSpl` (0 = uncalibrated). Custom approximations, not validated
+standards; summarize with level-gated medians.
 
 ### criticalBands — `matrix`
-Bark or ERB critical-band energy over time (rectangular bin integration, not an auditory
-filterbank). Options: `scale` 0.
+Bark/ERB critical-band energy over time. Options: `scale` 0.
 
 ### loudness — `series`
-Moore–Glasberg stationary loudness, **sone/phon** (not ISO 532-2 validated). Options:
-`calibrationDbSpl` 0. Not interchangeable with EBU `loudnessIntegrated` (different model).
+Moore–Glasberg loudness, **sone/phon**. Options: `calibrationDbSpl` 0. Not interchangeable
+with EBU `loudnessIntegrated`.
 
 ### specificLoudness — `matrix`
-N′(z) specific-loudness map over ERB bands, **sone/Cam** density. Options:
-`calibrationDbSpl` 0.
+N′(z) over ERB bands, **sone/Cam**. Options: `calibrationDbSpl` 0.
 
 ### sharpness — `series`
-Perceived sharpness, **acum** (custom Bark-weighted model; not DIN 45692). 1 kHz reference
-≈ 1 acum. Options: `calibrationDbSpl` 0.
+Perceived sharpness, **acum** (1 kHz ref ≈ 1 acum). Options: `calibrationDbSpl` 0.
 
 ### roughness — `series`
-Perceived roughness, **asper** (custom band-envelope model near 70 Hz; not ECMA-418-2).
-Options: `calibrationDbSpl` 0.
+Perceived roughness, **asper**. Options: `calibrationDbSpl` 0.
 
 ### fluctuationStrength — `series`
-Perceived fluctuation, **vacil** (custom band-envelope model near 4 Hz; unvalidated).
-Options: `calibrationDbSpl` 0.
+Perceived fluctuation, **vacil**. Options: `calibrationDbSpl` 0.
 
 ### masking — `spectrum`
-Masking threshold + signal-to-mask ratio (MPEG-style codec estimate). Options:
-`calibrationDbSpl` 0.
+Masking threshold + signal-to-mask ratio. Options: `calibrationDbSpl` 0.
 
 ### tonality — `series`
-Tonal-energy ratio proxy (dimensionless; not standardized perceptual tonality). Options:
-`calibrationDbSpl` 0.
+Tonal-energy ratio proxy (dimensionless). Options: `calibrationDbSpl` 0.
 
 ### spatial — `series`
-Mid/side levels and inter-channel correlation (acoustic cues, **not** perceived width).
-Options: `calibrationDbSpl` 0. Correlation near 1 = mono-ish; wide/near −1 = decorrelated.
+Mid/side levels + inter-channel correlation (acoustic cues, **not** perceived width).
+Options: `calibrationDbSpl` 0. Correlation near 1 = mono-ish; near −1 = decorrelated.
