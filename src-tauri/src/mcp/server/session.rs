@@ -17,8 +17,6 @@ const MAX_HANDSHAKE_LEN: usize = 256;
 const MAX_MESSAGE_LEN: usize = 4 * 1024 * 1024;
 /// How long a new connection has to present the token before it is dropped.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
-/// How long an authenticated session may sit idle between messages.
-const IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 /// How many sessions may be open at once.
 const MAX_SESSIONS: usize = 8;
 
@@ -26,7 +24,6 @@ const MAX_SESSIONS: usize = 8;
 #[derive(Debug, Clone, Copy)]
 struct Limits {
     handshake: Duration,
-    idle: Duration,
     max_handshake: usize,
     max_message: usize,
 }
@@ -35,7 +32,6 @@ impl Default for Limits {
     fn default() -> Self {
         Self {
             handshake: HANDSHAKE_TIMEOUT,
-            idle: IDLE_TIMEOUT,
             max_handshake: MAX_HANDSHAKE_LEN,
             max_message: MAX_MESSAGE_LEN,
         }
@@ -117,7 +113,11 @@ fn serve_session<D: FnMut(&str, Value) -> Result<Value, String>>(
         return Ok(());
     }
 
-    stream.set_read_timeout(Some(limits.idle))?;
+    // No idle deadline: the session lasts as long as the bridge holds the connection
+    // (the bridge closes the socket when its own client — the agent — goes away). An
+    // idle deadline would drop a long-lived agent that is simply idle, which is exactly
+    // what the agent and the bridge expect to survive.
+    stream.set_read_timeout(None)?;
     // Ends when the bridge/agent closes the session (no line left to read).
     while let Some(line) = read_line_bounded(&mut reader, limits.max_message)? {
         let trimmed = line.trim();
@@ -196,7 +196,6 @@ mod tests {
     fn limits() -> Limits {
         Limits {
             handshake: Duration::from_millis(200),
-            idle: Duration::from_secs(5),
             max_handshake: 32,
             max_message: 128,
         }
