@@ -21,6 +21,10 @@ export async function initMcp(): Promise<void> {
     // failed tool.
     let queue: Promise<void> = Promise.resolve();
     await listenThisWindow<McpRequest>("mcp:request", (event) => {
+      // Confirm receipt **before** running the tool: the core only holds a call while it
+      // knows the window is on it, so a cold-starting window fails the call fast instead
+      // of leaving the agent waiting until its own request timeout kills the bridge.
+      void acknowledge(event.payload.id);
       queue = queue.then(() => handle(event.payload));
     });
     // Tell the core the listener is live, so forwarded calls are not attempted
@@ -28,6 +32,16 @@ export async function initMcp(): Promise<void> {
     await invoke("mcp_ready");
   } catch (err) {
     console.error("could not initialise the MCP bridge", err);
+  }
+}
+
+/** Tell the core the window has this call in hand (a no-op once the call gave up). */
+async function acknowledge(id: number): Promise<void> {
+  try {
+    await invoke("mcp_ack", { id });
+  } catch (err) {
+    // The call may already have failed fast; the core ignores an unknown id.
+    console.error("could not acknowledge the MCP call", err);
   }
 }
 

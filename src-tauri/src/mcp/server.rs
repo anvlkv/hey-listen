@@ -30,7 +30,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::state::WindowRegistry;
 
-use super::{Pending, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
+use super::{Pending, ACK_TIMEOUT, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
 use session::Sessions;
 
 /// Serve the endpoint until `shutdown` is set.
@@ -98,6 +98,9 @@ fn serve<R: Runtime>(app: AppHandle<R>, stream: TcpStream, token: String) -> std
     session::serve(&stream, &token, &mut dispatch)
 }
 
+/// The message a call gets while the target window cannot answer it.
+const NOT_READY: &str = "the project window is still starting up — try again in a moment";
+
 /// Route one tool call to the target project window and wait for its reply.
 ///
 /// `list_projects` is answered by the server itself; every other tool carries an
@@ -131,17 +134,40 @@ fn dispatch<R: Runtime>(
 
     let pending = app.state::<Pending>();
     if !pending.is_ready(&label) {
-        return Err("the project window is still starting up — try again in a moment".to_string());
+        return Err(NOT_READY.to_string());
     }
-    let (id, rx) = pending.register();
+    let call = pending.register();
     // Clean the waiter up on every early return: a failed emit or a timeout must not
     // leave an entry behind until a late reply arrives (audit P2 #8).
-    let _waiter = pending.waiter(id);
-    let payload = json!({ "id": id, "tool": tool, "arguments": arguments, "target": label });
+    let _waiter = pending.waiter(call.id);
+    let payload = json!({ "id": call.id, "tool": tool, "arguments": arguments, "target": label });
     app.emit_to(&label, REQUEST_EVENT, payload)
         .map_err(|err| format!("could not reach the project window: {err}"))?;
 
-    match rx.recv_timeout(RESPONSE_TIMEOUT) {
+    // `emit_to` reports success even when no listener matched, so the readiness flag is
+    // only a hint. Wait a short budget for the window's **acknowledgement** of receipt:
+    // a window that cannot answer (its frontend is still coming up, or its listener is
+    // gone) must fail fast here instead of holding the caller until the client's own
+    // request timeout kills the bridge.
+    match call.reply.recv_timeout(ACK_TIMEOUT) {
+        // The common case: answered immediately, with no extra round trip.
+        Ok(result) => return result.map(|result| with_server_info(tool, result)),
+        Err(RecvTimeoutError::Disconnected) => {
+            return Err("the project window could not run the tool".to_string())
+        }
+        Err(RecvTimeoutError::Timeout) => {}
+    }
+    // Still running — but only if it confirmed delivery; the acknowledgement fires as
+    // the handler starts, so its absence means the call never reached a live window.
+    match call.ack.try_recv() {
+        Ok(()) => {}
+        // Nothing received it: fail fast with the message an agent can act on.
+        Err(std::sync::mpsc::TryRecvError::Empty) => return Err(NOT_READY.to_string()),
+        // The waiter is gone, which only `resolve` does — the reply is already queued.
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {}
+    }
+
+    match call.reply.recv_timeout(RESPONSE_TIMEOUT) {
         Ok(result) => result.map(|result| with_server_info(tool, result)),
         Err(RecvTimeoutError::Timeout) => {
             Err("the project window did not respond in time".to_string())

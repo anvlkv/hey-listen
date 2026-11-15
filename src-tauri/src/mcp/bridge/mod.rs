@@ -3,90 +3,114 @@
 //! MCP clients launch a local server as a `command` + `args` and
 //! speak MCP over its stdio. The actual server lives in the running Hey Listen
 //! process (so agent calls drive the user's window), so this bridge is a dumb byte
-//! pump: it reads the advertised endpoint from [`INFO_FILE`], connects, sends the
+//! pump: it reads the advertised endpoint (see [`endpoint`]), connects, sends the
 //! token, and forwards bytes both ways.
 
+mod endpoint;
+
 use std::io::{Read, Write};
-use std::net::{Shutdown, SocketAddr, TcpStream};
-use std::path::{Path, PathBuf};
+use std::net::{Shutdown, TcpStream};
 use std::time::{Duration, Instant};
 
-use serde::Deserialize;
-
-use super::INFO_FILE;
+pub use endpoint::wait_for_live;
 
 /// How long to wait for the app to advertise itself before giving up.
 const DISCOVER_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// How long the bridge waits for the server to reject a handshake.
+///
+/// A successful handshake is silent (the server sends nothing until we forward a
+/// request); a rejected one closes the socket immediately. This is the only way to tell
+/// them apart, and it is worth the short wait: see [`handshake`].
+const HANDSHAKE_CHECK: Duration = Duration::from_millis(250);
+
+/// How many times a rejected handshake is retried from a freshly read advertisement.
+const HANDSHAKE_ATTEMPTS: usize = 4;
+
+/// How long to wait between handshake attempts (the app may still be rewriting `mcp.json`).
+const HANDSHAKE_RETRY_PAUSE: Duration = Duration::from_millis(100);
 
 /// How long to wait for the stdin forwarding thread after the socket closes. A normal MCP
 /// client keeps stdin open, so that thread can stay blocked in `read` forever; the bridge
 /// must not wait for it (audit P2 #9).
 const STDIN_GRACE: Duration = Duration::from_millis(500);
 
-/// The endpoint the running app advertises.
-#[derive(Debug, Deserialize)]
-struct Info {
-    port: u16,
-    token: String,
+/// Run the bridge until stdin or the socket closes.
+pub fn run() -> std::io::Result<()> {
+    let stream = connect_live()?;
+    pump(stream, std::io::stdin(), std::io::stdout())
 }
 
-/// Wait up to `grace` for a **live** app endpoint.
+/// Connect to the running app and complete the token handshake.
 ///
-/// The advertisement file alone is not evidence: a crashed app leaves `mcp.json` behind,
-/// and bridging to that port would fail instead of starting the headless server
-/// (audit P2 #7). So the file must also answer on loopback. Returns `true` when a
-/// connection succeeds before the deadline.
-pub fn wait_for_live(grace: Duration) -> bool {
-    info_path()
-        .filter(|path| path.exists())
-        .is_some_and(|path| live_at(&path, grace))
-}
-
-/// Whether the endpoint advertised in `path` accepts a connection within `grace`.
-fn live_at(path: &Path, grace: Duration) -> bool {
-    let deadline = Instant::now() + grace;
+/// The advertisement can be **stale for a moment** right after the app restarts: the
+/// file still describes the previous process, and the kernel often hands the same
+/// ephemeral port back, so the connection succeeds and then the token is rejected. That
+/// used to end the bridge — and with it the client's whole session, whose first request
+/// had not even been read from stdin yet. Retrying here is safe precisely because the
+/// client's bytes are still buffered in stdin (nothing has been forwarded), and the
+/// rejection itself is the signal to re-read the file.
+fn connect_live() -> std::io::Result<TcpStream> {
+    let mut attempt = 1;
     loop {
-        if let Ok(info) = read_info_at(path) {
-            if probe(info.port) {
-                return true;
-            }
+        let info = read_advertisement()?;
+        let stream = connect(info.port)?;
+        match handshake(stream, &info.token) {
+            Ok(stream) => return Ok(stream),
+            Err(err) if attempt >= HANDSHAKE_ATTEMPTS => return Err(err),
+            Err(err) => log::warn!(
+                "MCP handshake rejected ({err}); re-reading the advertisement and retrying"
+            ),
         }
-        if Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(Duration::from_millis(100));
+        attempt += 1;
+        std::thread::sleep(HANDSHAKE_RETRY_PAUSE);
     }
 }
 
-/// Whether `port` on loopback accepts a connection right now (a short timeout, so a
-/// firewall-dropped SYN cannot hang discovery).
-fn probe(port: u16) -> bool {
-    let address = SocketAddr::from(([127, 0, 0, 1], port));
-    TcpStream::connect_timeout(&address, Duration::from_millis(300)).is_ok()
+/// Send the token and confirm the server kept the session.
+///
+/// The first line of the connection is the token (the server rejects a mismatch), after
+/// which a healthy server stays silent until it has a response to write. So: peek for a
+/// moment — end of stream means the handshake was refused, silence means it was accepted.
+/// `peek` never consumes the byte, so a (not expected) early message is still forwarded.
+fn handshake(mut stream: TcpStream, token: &str) -> std::io::Result<TcpStream> {
+    stream.set_nodelay(true)?;
+    stream.write_all(token.as_bytes())?;
+    stream.write_all(b"\n")?;
+    stream.flush()?;
+
+    stream.set_read_timeout(Some(HANDSHAKE_CHECK))?;
+    let mut probe = [0u8; 1];
+    let outcome = match stream.peek(&mut probe) {
+        Ok(0) => Err(std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "the app refused the handshake (stale mcp.json?)",
+        )),
+        Ok(_) => Ok(()),
+        Err(err)
+            if matches!(
+                err.kind(),
+                std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+            ) =>
+        {
+            Ok(())
+        }
+        Err(err) => Err(err),
+    };
+    // The pump reads blocking, without a deadline: the session lives as long as the
+    // client holds it (see `docs/mcp.md`).
+    stream.set_read_timeout(None)?;
+    outcome.map(|()| stream)
 }
 
-/// Run the bridge until stdin or the socket closes.
-pub fn run() -> std::io::Result<()> {
-    let info = discover()?;
-    let stream = connect(info.port)?;
-    pump(stream, &info.token, std::io::stdin(), std::io::stdout())
-}
-
-/// Pump bytes both ways between `stdin`/`stdout` and the app's socket, sending `token`
-/// as the first line.
+/// Pump bytes both ways between `stdin`/`stdout` and the app's socket.
 fn pump(
     stream: TcpStream,
-    token: &str,
     stdin: impl Read + Send + 'static,
     mut stdout: impl Write,
 ) -> std::io::Result<()> {
     stream.set_nodelay(true)?;
     let mut writer = stream.try_clone()?;
-
-    // The token is the connection's first line (the server rejects a mismatch).
-    writer.write_all(token.as_bytes())?;
-    writer.write_all(b"\n")?;
-    writer.flush()?;
 
     // stdin → socket. Closing our write half on EOF tells the server the session
     // ended, which lets it return cleanly while the reader drains any last reply.
@@ -132,10 +156,10 @@ fn pump(
 
 /// Read the advertised endpoint, waiting briefly for the app to publish it (the
 /// server may be added while the app is still starting).
-fn discover() -> std::io::Result<Info> {
+fn read_advertisement() -> std::io::Result<endpoint::Info> {
     let deadline = Instant::now() + DISCOVER_TIMEOUT;
     loop {
-        match read_info() {
+        match endpoint::read_info() {
             Ok(info) => return Ok(info),
             Err(err) if Instant::now() < deadline => {
                 // Keep waiting: the app is probably still starting up.
@@ -144,76 +168,6 @@ fn discover() -> std::io::Result<Info> {
             }
             Err(err) => return Err(err),
         }
-    }
-}
-
-fn read_info() -> std::io::Result<Info> {
-    let path = info_path().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "could not resolve the app data directory",
-        )
-    })?;
-    read_info_at(&path)
-}
-
-fn read_info_at(path: &Path) -> std::io::Result<Info> {
-    let bytes = std::fs::read(path).map_err(|err| {
-        std::io::Error::new(
-            err.kind(),
-            format!(
-                "MCP is off in Hey Listen, or the app isn't running ({}) ",
-                path.display()
-            ),
-        )
-    })?;
-    serde_json::from_slice(&bytes).map_err(|err| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("{} is not valid: {err}", path.display()),
-        )
-    })
-}
-
-/// The app's **data** directory + [`INFO_FILE`] (the server advertises there now, so
-/// the setting lives alongside the `tauri-plugin-store` file).
-///
-/// The bridge is not a Tauri app, so it mirrors Tauri's `app_data_dir()` (the
-/// platform data dir joined with the bundle identifier) — which differs from the
-/// config dir on Linux (`~/.local/share` vs `~/.config`); on macOS and Windows the
-/// two resolve to the same path for this identifier. `HEYLISTEN_MCP_INFO` overrides
-/// the path (used by tests).
-fn info_path() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("HEYLISTEN_MCP_INFO") {
-        return Some(PathBuf::from(path));
-    }
-    Some(data_dir()?.join(INFO_FILE))
-}
-
-fn data_dir() -> Option<PathBuf> {
-    let identifier = "com.anvlkv.heylisten";
-    #[cfg(target_os = "macos")]
-    {
-        let home = std::env::var_os("HOME")?;
-        Some(
-            PathBuf::from(home)
-                .join("Library/Application Support")
-                .join(identifier),
-        )
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let appdata = std::env::var_os("APPDATA")?;
-        Some(PathBuf::from(appdata).join(identifier))
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        let base = std::env::var_os("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .or_else(|| {
-                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
-            })?;
-        Some(base.join(identifier))
     }
 }
 
@@ -245,36 +199,6 @@ mod tests {
     use std::io::{BufRead, BufReader};
     use std::net::TcpListener;
     use std::sync::{Arc, Mutex};
-
-    /// A port with nothing listening on it (bind, then release it).
-    fn closed_port() -> u16 {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        listener.local_addr().expect("address").port()
-    }
-
-    fn write_info(path: &Path, port: u16) {
-        std::fs::write(path, format!("{{\"port\":{port},\"token\":\"t\"}}")).expect("write");
-    }
-
-    /// The pre-fix bug: a crashed app left `mcp.json` behind, and auto mode committed to
-    /// bridging to a dead endpoint instead of starting the headless server (audit P2 #7).
-    #[test]
-    fn a_stale_advertisement_is_not_live() {
-        let path = std::env::temp_dir().join("hey_listen_stale_mcp.json");
-        write_info(&path, closed_port());
-        assert!(!live_at(&path, Duration::from_millis(250)));
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn a_serving_endpoint_is_live() {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        let port = listener.local_addr().expect("address").port();
-        let path = std::env::temp_dir().join("hey_listen_live_mcp.json");
-        write_info(&path, port);
-        assert!(live_at(&path, Duration::from_millis(250)));
-        let _ = std::fs::remove_file(&path);
-    }
 
     /// A client that keeps stdin open must not keep the bridge alive after the app closes
     /// its socket (audit P2 #9).
@@ -321,12 +245,55 @@ mod tests {
         let socket = TcpStream::connect(address).expect("connect");
         let sink = Sink(Arc::new(Mutex::new(Vec::new())));
         let started = Instant::now();
-        pump(socket, "token", BlockedStdin, sink.clone()).expect("pump");
+        let socket = handshake(socket, "token").expect("the app accepts the token");
+        pump(socket, BlockedStdin, sink.clone()).expect("pump");
         assert!(
             started.elapsed() < Duration::from_secs(3),
             "the bridge waited for the blocked stdin reader"
         );
         assert!(String::from_utf8_lossy(&sink.0.lock().expect("sink")).contains("result"));
         app.join().expect("app thread");
+    }
+
+    /// Serve one connection with `app`, returning the client end of the pair.
+    fn pair(app: impl FnOnce(TcpStream) + Send + 'static) -> TcpStream {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let address = listener.local_addr().expect("address");
+        std::thread::spawn(move || app(listener.accept().expect("accept").0));
+        TcpStream::connect(address).expect("connect")
+    }
+
+    /// Read the token line the bridge sends.
+    fn read_token(stream: &TcpStream) -> String {
+        let mut line = String::new();
+        BufReader::new(stream.try_clone().expect("clone"))
+            .read_line(&mut line)
+            .expect("handshake");
+        line.trim().to_string()
+    }
+
+    /// A healthy app stays silent after the token, so silence is acceptance.
+    #[test]
+    fn a_silent_handshake_is_accepted() {
+        let socket = pair(|stream| {
+            assert_eq!(read_token(&stream), "token");
+            // Hold the session open, as the app does.
+            std::thread::sleep(HANDSHAKE_CHECK * 3);
+        });
+        let stream = handshake(socket, "token").expect("an accepted handshake returns the socket");
+        // The read deadline must be cleared for the pump's blocking reads.
+        assert!(stream.read_timeout().expect("timeout query").is_none());
+    }
+
+    /// A restarted app can be serving on the previous ephemeral port while `mcp.json` still
+    /// carries the old token: the server closes the socket, and the bridge must see that as
+    /// a refusal (so it re-reads the advertisement) instead of pumping into a dead session.
+    #[test]
+    fn a_refused_handshake_is_reported() {
+        let socket = pair(|stream| {
+            assert_eq!(read_token(&stream), "token");
+            stream.shutdown(Shutdown::Both).expect("the app refuses");
+        });
+        assert!(handshake(socket, "token").is_err());
     }
 }

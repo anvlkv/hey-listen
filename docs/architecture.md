@@ -47,7 +47,7 @@ src-tauri/src/
 │   ├── project.rs   # save/load binary project file               ✅ (M6: save/load_project, pick_project_*_path)
 │   ├── ui.rs        # project UI-state sync                      ✅ (M7: get_ui_state, set_ui_state)
 │   ├── window.rs    # window management                           ✅ (M7: open_project_window, open_popout_window, popout_tool(s))
-│   ├── mcp.rs       # MCP tool-call replies + settings            ✅ (M9: mcp_respond, mcp_ready, get_mcp_status, set_mcp_config)
+│   ├── mcp.rs       # MCP tool-call forwarding + settings       ✅ (M9: mcp_respond, mcp_ack, mcp_ready, get_mcp_status, set_mcp_config)
 │   ├── themes.rs    # theme file store (list/write/delete + import/export) ✅ (M11: list_themes, write_theme, delete_theme, theme_dir, import_theme_file, export_theme_file, pick_theme_*_path, reveal_theme_dir)
 │   ├── templates.rs # template store (list/read/write/import/…)   (M13, planned)
 │   └── export.rs    # export_analysis / export_all + save/write plumbing ✅ (M12)
@@ -185,7 +185,7 @@ milestone annotations record the details.
 | Window | `focus_popout` | raise an already-popped-out tool instead of opening a duplicate tab (M7) ✅ |
 | Comparison | `open_compare_popout`, `popout_compare`, `compare_popouts`, `retarget_compare_popout` | a compare view popped out like any tab: aliased to A, registered with `(tool, reference)`, raised/retargeted rather than duplicated, and never recorded as a tool popout (M25) ✅ |
 | UI | `get_ui_state`, `set_ui_state` | the project's shared UI state: pull / patch + broadcast (M7, ADR-11) ✅ |
-| MCP | `mcp_respond`, `mcp_ready` | a window's reply / readiness for a forwarded MCP tool call (M9) ✅ |
+| MCP | `mcp_respond`, `mcp_ack`, `mcp_ready` | a window's reply / receipt / readiness for a forwarded MCP tool call (M9) ✅ |
 | MCP | `get_mcp_status`, `set_mcp_config` | the MCP server's status / config (on-off + port), owned by `mcp::settings::McpController` (M9) ✅ |
 | Theme | `list_themes`, `write_theme`, `delete_theme`, `theme_dir`, `import_theme_file`, `export_theme_file`, `pick_theme_import_path`, `pick_theme_export_path`, `reveal_theme_dir` | installed theme files (M11) ✅ |
 | App | `open_external_url` | open an `http(s)` URL (the About dialog's license links) in the system browser ✅ |
@@ -240,8 +240,8 @@ milestone annotations record the details.
   **other** windows when `set_ui_state` changes a value (M7, ADR-11); the sender is
   skipped, and each receiver applies the patch to its stores.
 - `mcp:request` — one MCP tool call (`{ id, tool, arguments, target }`) forwarded to a
-  project window's frontend, which runs the tool and answers through the
-  `mcp_respond` command (M9); `target` is the resolved project window label. See
+  project window's frontend, which confirms receipt (`mcp_ack`) and then answers through
+  the `mcp_respond` command (M9); `target` is the resolved project window label. See
   [`mcp.md`](mcp.md).
 
 > **Channel ordering:** Tauri routes a `Channel` message above a size threshold

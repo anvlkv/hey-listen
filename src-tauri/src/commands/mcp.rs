@@ -1,8 +1,8 @@
-//! MCP tool-call replies (M9).
+//! MCP tool-call forwarding (M9).
 //!
 //! The MCP server forwards each `tools/call` to a project window's frontend
-//! (`mcp:request`) and blocks until the frontend runs the tool and answers through
-//! this command. See [`crate::mcp`] and `docs/mcp.md`.
+//! (`mcp:request`); the window confirms receipt (`mcp_ack`) and then answers with the
+//! result or its error (`mcp_respond`). See [`crate::mcp`] and `docs/mcp.md`.
 
 use serde_json::Value;
 use tauri::{AppHandle, Manager, WebviewWindow};
@@ -20,6 +20,18 @@ pub fn mcp_ready(window: WebviewWindow) {
         .app_handle()
         .state::<Pending>()
         .mark_ready(window.label());
+}
+
+/// Confirm that the calling window received forwarded MCP tool call `id`.
+///
+/// The frontend sends this the moment its `mcp:request` handler runs, before it starts
+/// the tool. The server cannot tell on its own whether an emit reached a listener
+/// (`emit_to` is fire-and-forget), so without this it would hold a call for the whole
+/// response timeout while a cold-starting window — or a client that already gave up —
+/// waited on nothing. A late acknowledgement (the call already failed fast) is ignored.
+#[tauri::command]
+pub fn mcp_ack(app: AppHandle, id: u64) {
+    app.state::<Pending>().acknowledge(id);
 }
 
 /// Complete a forwarded MCP tool call with its result (`ok: true`) or message.

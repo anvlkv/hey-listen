@@ -297,6 +297,7 @@ pub fn run() {
             commands::window::popout_tools,
             commands::window::focus_popout,
             commands::mcp::mcp_respond,
+            commands::mcp::mcp_ack,
             commands::mcp::mcp_ready,
             commands::mcp::get_mcp_status,
             commands::mcp::set_mcp_config,

@@ -36,9 +36,25 @@ a local server as a `command` + `args` and speak MCP over its stdio.
   `mcp-settings.json` store file). The file is removed when the server stops.
 - Every `tools/call` is forwarded to the **focused project window's** frontend as the
   `mcp:request` event (or to the window named by an optional `target` — see
-  *Multi-project* below); the frontend runs the tool through the same stores and
-  `invoke` commands the UI uses and replies through the `mcp_respond` command. The
-  server thread blocks on that reply, so a tool call is a normal request/response.
+  *Multi-project* below); the frontend confirms receipt (`mcp_ack`), runs the tool
+  through the same stores and `invoke` commands the UI uses, and replies through the
+  `mcp_respond` command. The server thread blocks on that reply, so a tool call is a
+  normal request/response.
+- **A call never waits on a window that cannot answer it.** `emit_to` is
+  fire-and-forget (it reports success even when no listener matched), so the readiness
+  flag alone cannot be trusted: the server waits `ACK_TIMEOUT`
+  (`src-tauri/src/mcp/mod.rs`) for the window's `mcp_ack` and, when it does not arrive,
+  fails the call fast with "still starting up" instead of holding it. The reply budget
+  after an acknowledgement (`RESPONSE_TIMEOUT`) stays **under a client's own request
+  timeout** (60 s in Zed): past that the client has already aborted and closed the
+  bridge's stdin, so waiting longer only turns an actionable error into a dead session.
+- **A stale advertisement is retried, not fatal.** Right after an app restart `mcp.json`
+  can still describe the previous process while the kernel hands the same ephemeral port
+  back, so the connection opens and the token is refused. The bridge detects a refused
+  handshake (the server closes the socket; a good one stays silent until it has a reply
+  to write), re-reads the advertisement and tries again — safe because the client's
+  bytes are still unread in stdin at that point. Once the pump has started, a closed
+  socket still ends the bridge: the session belongs to the client.
 - A focused **popout** resolves to the project window that owns it, so a call never
   lands in a single-tool popout.
 - The transport **blocks in `accept()`** rather than polling: the thread parks until the
@@ -426,7 +442,7 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src-tauri/src/mcp/tools/` | the static tool catalog (names + JSON schemas + the shared `target`). |
 | `src-tauri/src/mcp/server.rs` | the loopback transport, `list_projects`, and the `target` routing. |
 | `src-tauri/src/mcp/settings.rs` | `McpConfig` / `McpStatus` + the `McpController` (persist + start/stop/rebind). |
-| `src-tauri/src/mcp/bridge.rs` | the stdio ⇄ socket bridge + the advertisement probe. |
+| `src-tauri/src/mcp/bridge/` | the stdio ⇄ socket bridge (`mod`: handshake + pump; `endpoint`: the advertisement + its liveness probe). |
 | `src-tauri/src/mcp/dispatch/` | the headless session: the engine subset (no window); the shared `set_filter_graph`. |
 | `src-tauri/src/mcp/headless.rs` | the headless stdio loop. |
 | `src-tauri/src/cli/mod.rs` | the app binary's `tauri-plugin-cli` flags (`--mcp` / `--headless`). |
@@ -434,7 +450,7 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 | `src-tauri/src/app_activity.rs` | the macOS user-initiated activity (opts out of App Nap). |
 | `src-tauri/Info.plist` | macOS bundle additions — `NSAppSleepDisabled` (opts out of App Nap). |
 | `src-tauri/src/audio/analyzers.rs` | the Rust analyzer catalog for headless `list_analyzers`. |
-| `src-tauri/src/commands/mcp.rs` | `mcp_respond` / `mcp_ready` and `get_mcp_status` / `set_mcp_config`. |
+| `src-tauri/src/commands/mcp.rs` | `mcp_respond` / `mcp_ack` / `mcp_ready` and `get_mcp_status` / `set_mcp_config`. |
 | `src/state/mcp/` | the GUI tool handlers (run against the app's stores). |
 | `src/state/mcpSettings.ts` | the popover's view over the MCP status + the snippet/copy helpers. |
 | `src-tauri/src/themes.rs`, `src-tauri/src/commands/themes.rs` | the theme-file store + commands (M11). |

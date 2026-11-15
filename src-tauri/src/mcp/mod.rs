@@ -57,8 +57,20 @@ pub const INFO_FILE: &str = "mcp.json";
 /// clients negotiate their own revision.
 pub const PROTOCOL_VERSION: &str = "2025-06-18";
 
-/// How long a forwarded tool call waits for the window to answer.
-pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
+/// How long a forwarded call waits for the window to **acknowledge** it.
+///
+/// A window that cannot answer (its frontend is still starting up, or its listener is
+/// gone) must fail fast: the emit is fire-and-forget, so without this the server would
+/// block for [`RESPONSE_TIMEOUT`] while the client gave up and killed the bridge.
+pub const ACK_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// How long a forwarded tool call waits for the window to answer **after** it has
+/// acknowledged receipt.
+///
+/// Kept under an MCP client's own request timeout (60 s in Zed) on purpose: past that
+/// the client has already aborted the call and closed the bridge's stdin, so a longer
+/// wait only turns an actionable "did not respond in time" error into a dead session.
+pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(50);
 
 /// The default loopback port for the local MCP server (the popover shows / edits it).
 pub const DEFAULT_PORT: u16 = 47100;
@@ -83,29 +95,71 @@ pub fn run(force_headless: bool) -> std::io::Result<()> {
     headless::run()
 }
 
-/// In-flight tool calls forwarded to a window's frontend, awaiting its reply.
+/// In-flight tool calls forwarded to a window's frontend, awaiting its receipt and
+/// then its reply.
 ///
 /// The server thread registers a request, emits [`REQUEST_EVENT`], and blocks on the
-/// channel; the frontend completes it through the `mcp_respond` command.
+/// channels; the frontend acknowledges it through the `mcp_ack` command as soon as it
+/// receives it and completes it through `mcp_respond`.
 #[derive(Default)]
 pub struct Pending {
-    waiters: Mutex<HashMap<u64, SyncSender<Result<Value, String>>>>,
+    waiters: Mutex<HashMap<u64, Channels>>,
     /// Windows whose frontend has registered its MCP listener (so a forwarded
     /// call can be answered). A call before this fails fast instead of waiting.
     ready: Mutex<HashSet<String>>,
     seq: AtomicU64,
 }
 
+/// One registered call's two channels: the window's receipt, then its reply.
+struct Channels {
+    ack: SyncSender<()>,
+    reply: SyncSender<Result<Value, String>>,
+}
+
+/// A registered forwarded call: the id to put in the payload, plus the channels the
+/// caller waits on.
+pub struct Call {
+    pub id: u64,
+    /// Fires when the target window has the request in hand (see [`Pending::acknowledge`]).
+    pub ack: Receiver<()>,
+    /// Carries the tool result, or the message that explains why there is none.
+    pub reply: Receiver<Result<Value, String>>,
+}
+
 impl Pending {
-    /// Allocate an id and a channel to wait on the frontend's reply.
-    pub fn register(&self) -> (u64, Receiver<Result<Value, String>>) {
+    /// Allocate an id and the channels to wait on the frontend's receipt and reply.
+    pub fn register(&self) -> Call {
         let id = self.seq.fetch_add(1, Ordering::Relaxed) + 1;
-        let (tx, rx) = sync_channel(1);
+        let (ack_tx, ack) = sync_channel(1);
+        let (reply_tx, reply) = sync_channel(1);
         self.waiters
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())
-            .insert(id, tx);
-        (id, rx)
+            .insert(
+                id,
+                Channels {
+                    ack: ack_tx,
+                    reply: reply_tx,
+                },
+            );
+        Call { id, ack, reply }
+    }
+
+    /// Record that the frontend received call `id`.
+    ///
+    /// Returns `false` when the call is no longer waiting (the caller already gave up),
+    /// so a late acknowledgement is a no-op rather than a blocking send.
+    pub fn acknowledge(&self, id: u64) -> bool {
+        let ack = self
+            .waiters
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .get(&id)
+            .map(|channels| channels.ack.clone());
+        match ack {
+            Some(ack) => ack.try_send(()).is_ok(),
+            None => false,
+        }
     }
 
     /// A guard that removes `id`'s waiter when dropped.
@@ -124,7 +178,13 @@ impl Pending {
             .unwrap_or_else(|poison| poison.into_inner())
             .remove(&id);
         match waiter {
-            Some(tx) => tx.send(result).is_ok(),
+            Some(channels) => {
+                // A reply also proves the window got the request, so it satisfies the
+                // acknowledgement — the caller must never see "no ack" for a call that
+                // answered before the ack landed.
+                let _ = channels.ack.try_send(());
+                channels.reply.send(result).is_ok()
+            }
             None => false,
         }
     }
@@ -186,13 +246,13 @@ mod tests {
     #[test]
     fn a_dropped_waiter_is_cancelled() {
         let pending = Pending::default();
-        let (id, _rx) = pending.register();
+        let call = pending.register();
         {
-            let _waiter = pending.waiter(id);
+            let _waiter = pending.waiter(call.id);
         }
         assert_eq!(pending.pending_len(), 0);
         assert!(
-            !pending.resolve(id, Ok(Value::Null)),
+            !pending.resolve(call.id, Ok(Value::Null)),
             "a cancelled waiter cannot be resolved"
         );
     }
@@ -200,11 +260,12 @@ mod tests {
     #[test]
     fn a_timed_out_waiter_is_cancelled() {
         let pending = Pending::default();
-        let (id, rx) = pending.register();
-        let waiter = pending.waiter(id);
+        let call = pending.register();
+        let waiter = pending.waiter(call.id);
 
         let started = Instant::now();
-        let error = rx
+        let error = call
+            .reply
             .recv_timeout(Duration::from_millis(20))
             .expect_err("the window does not answer");
         assert!(matches!(error, std::sync::mpsc::RecvTimeoutError::Timeout));
@@ -217,10 +278,67 @@ mod tests {
     #[test]
     fn an_answered_waiter_leaves_nothing_behind() {
         let pending = Pending::default();
-        let (id, rx) = pending.register();
-        let _waiter = pending.waiter(id);
-        assert!(pending.resolve(id, Ok(Value::Null)));
-        assert!(rx.recv().expect("answered").is_ok());
+        let call = pending.register();
+        let _waiter = pending.waiter(call.id);
+        assert!(pending.resolve(call.id, Ok(Value::Null)));
+        assert!(call.reply.recv().expect("answered").is_ok());
         assert_eq!(pending.pending_len(), 0);
+    }
+
+    /// The frontend acknowledges a call it received, so the server can tell "busy window"
+    /// from "window that cannot answer" instead of blocking for the whole response timeout.
+    #[test]
+    fn an_acknowledged_call_waits_for_its_reply() {
+        let pending = Pending::default();
+        let call = pending.register();
+        let _waiter = pending.waiter(call.id);
+
+        assert!(pending.acknowledge(call.id));
+        call.ack.try_recv().expect("the receipt is recorded");
+        // It must still wait for the result after acknowledging.
+        assert!(matches!(
+            call.reply.recv_timeout(Duration::from_millis(20)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+
+        assert!(pending.resolve(call.id, Ok(Value::Null)));
+        assert!(call.reply.recv().expect("answered").is_ok());
+    }
+
+    /// An unanswered call is identifiable as such: no receipt arrives within the budget.
+    #[test]
+    fn an_unreceived_call_gets_no_acknowledgement() {
+        let pending = Pending::default();
+        let call = pending.register();
+        let _waiter = pending.waiter(call.id);
+
+        let error = call
+            .ack
+            .recv_timeout(Duration::from_millis(20))
+            .expect_err("a window that cannot answer never acknowledges");
+        assert!(matches!(error, std::sync::mpsc::RecvTimeoutError::Timeout));
+    }
+
+    /// A reply that arrives before the acknowledgement must not look like "no ack" — the
+    /// `is_ready` fast path is not the only way a call can be proven delivered.
+    #[test]
+    fn a_reply_satisfies_the_acknowledgement() {
+        let pending = Pending::default();
+        let call = pending.register();
+        let _waiter = pending.waiter(call.id);
+
+        assert!(pending.resolve(call.id, Ok(Value::Null)));
+        assert!(call.ack.try_recv().is_ok(), "the reply implies receipt");
+    }
+
+    /// A late acknowledgement (the caller already timed out and cancelled) is a no-op:
+    /// it must not block the frontend's `mcp_ack` command.
+    #[test]
+    fn a_late_acknowledgement_is_a_no_op() {
+        let pending = Pending::default();
+        let call = pending.register();
+        drop(pending.waiter(call.id));
+        assert!(!pending.acknowledge(call.id));
+        assert!(!pending.acknowledge(4242), "an unknown id is ignored");
     }
 }
