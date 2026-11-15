@@ -26,6 +26,8 @@ function distance(a: Rgb, b: Rgb): number {
 const MIN_STOP_DISTANCE = 24;
 /** An overlay line must separate from the ramp behind it by at least this ratio. */
 const MIN_OVERLAY_CONTRAST = 1.8;
+/** Text drawn on a chart (the move-handle label) must meet WCAG AA on its fill. */
+const MIN_LABEL_CONTRAST = 4.5;
 
 /** The chart roles drawn *over* a heatmap (contours, markers, the cursor and rules). */
 const OVERLAY_ROLES = [
@@ -99,4 +101,15 @@ for (const base of BASES) {
       ).toBeGreaterThanOrEqual(MIN_OVERLAY_CONTRAST);
     });
   }
+
+  // The Timeline move handle's Δ-duration label is text over the handle fill, which
+  // itself sits on the waveform surface — it must stay readable in every theme.
+  it(`${base} move-handle label vs handle fill`, () => {
+    const fill = composite(BASE_CHART[base].handleFill, parseRgb(BASE_CHART[base].surface).rgb);
+    const ratio = contrast(parseRgb(BASE_CHART[base].handleLabel).rgb, fill);
+    expect(
+      ratio,
+      `${base} move-handle label is ${ratio.toFixed(2)}:1 on the handle fill`,
+    ).toBeGreaterThanOrEqual(MIN_LABEL_CONTRAST);
+  });
 }

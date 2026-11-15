@@ -225,31 +225,58 @@ function drawHandle(
   ctx.fillRect(x - 4, top, 8, 12);
 }
 
+/** The move handle's Δ-duration label: bold, so it reads over the coloured bar. */
+const MOVE_LABEL_FONT = "600 11px Inter, sans-serif";
+
 /** The grab bar spanning the window along the top of the waveform (move handle). */
 function drawMoveHandle(ctx: CanvasRenderingContext2D, x0: number, x1: number, top: number): void {
   const w = x1 - x0;
   if (w <= 2) return;
-  ctx.fillStyle = chartTheme().handleFill;
+  const theme = chartTheme();
+  ctx.fillStyle = theme.handleFill;
   ctx.fillRect(x0, top, w, MOVE_HANDLE_H);
-  // Grip ridges so the bar reads as a draggable handle.
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  const cx = Math.round((x0 + x1) / 2) + 0.5;
-  for (let i = -1; i <= 1; i++) {
-    const gx = cx + i * 4;
-    ctx.moveTo(gx, top + 2);
-    ctx.lineTo(gx, top + MOVE_HANDLE_H - 2);
+
+  const midX = (x0 + x1) / 2;
+  const midY = top + MOVE_HANDLE_H / 2;
+  const label = formatTime(windowEnd() - windowStart());
+  ctx.font = MOVE_LABEL_FONT;
+  const labelW = ctx.measureText(label).width;
+
+  // Grip ticks near each end — never under the centred label — so the bar still reads
+  // as a draggable handle without competing with the duration readout.
+  if (w >= labelW + 44) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = theme.handleLabel;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const lx = Math.round(x0 + 5 + i * 4) + 0.5;
+      const rx = Math.round(x1 - 5 - i * 4) + 0.5;
+      ctx.moveTo(lx, top + 4);
+      ctx.lineTo(lx, top + MOVE_HANDLE_H - 4);
+      ctx.moveTo(rx, top + 4);
+      ctx.lineTo(rx, top + MOVE_HANDLE_H - 4);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
-  ctx.stroke();
 
   // The window's Δ duration, readable without the toolbar (which keeps the full
-  // `start – end · Δ` readout).
-  ctx.fillStyle = chartTheme().axis;
-  ctx.font = "10px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(formatTime(windowEnd() - windowStart()), (x0 + x1) / 2, top + MOVE_HANDLE_H / 2);
+  // `start – end · Δ` readout). A background-coloured halo keeps it legible over any
+  // theme's handle fill.
+  if (labelW <= w - 10) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = theme.background;
+    ctx.lineWidth = 3;
+    ctx.strokeText(label, midX, midY);
+    ctx.fillStyle = theme.handleLabel;
+    ctx.fillText(label, midX, midY);
+    ctx.restore();
+  }
 }
 
 /**

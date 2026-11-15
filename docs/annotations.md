@@ -192,19 +192,18 @@ window move handle and of a chart's drag/zoom area. The lane is also where they 
 **Selection follows the click:** selecting an annotation **opens (or raises) the chart it
 belongs to** but **never moves the analysis window** — an annotation is a remark about a moment, not a
 request to reframe. Moving the window onto an annotation is the row's explicit **Analyze**
-action (a range becomes the window; a point gets a window of the current width starting
-at its time), so both *creating* and *selecting* an annotation leave the analysis alone. See
+action (a range becomes the window; a point gets a short window **centred** on it), so
+both *creating* and *selecting* an annotation leave the analysis alone. See
 [Creating an annotation](#creating-a-annotation) and `decisions.md` → ADR-19.
 
 **The selected annotation is a panel concept.** Closing the rail clears the selection, which
 also clears every chart's full-height overlay and the Timeline's stem; the lane anchors stay
 (they are the index of where the annotations are) but are drawn **dull**.
 
-**Saving with annotations stores the whole source.** Curating annotations while listening to
-a fragment leaves the analysis window on that fragment; a **project save** that carries
-annotations resets the analysis window to the whole file (and moves the live window with it),
-so the saved project is not framed on the span being tagged (`lib/saveWindow.ts`). A save with
-no annotations keeps the window the user chose.
+**Saving keeps the analysis window.** A **project save** persists whatever analysis
+window the user has, annotations or not — it never widens to the whole file and never
+moves the live window. The window is ordinary project content (like the shared params),
+so saving must not change it; a fragment the user framed is exactly what a reopen shows.
 
 **Full-height rules on the Timeline (M23).** While a span is dragged in the lane, when an
 annotation is selected or hovered, and while a handle is dragged, the Timeline draws
@@ -259,11 +258,13 @@ transport facilities are shared with the annotations layer:
 
 The transport **keeps auditioning the analysis window**: a preview started from the play
 button follows the window when it moves — the Timeline's top move handle, a chart's
-*Reframe* menu, an annotation's *Analyze*, undo/redo, or MCP `set_window`. The core mixes, filters
-and resamples a region when it loads it, so the reload is **debounced to the move's
-settle** (~200 ms, matching the analysis auto-run) instead of being re-sent at pointer
-rate; an explicit range (`playRegion`, e.g. an MCP `preview` with `start`/`end`) stays
-where it was.
+*Reframe* menu, an annotation's *Analyze*, undo/redo, or MCP `set_window`. A preview that
+is playing **exactly the window** also follows — so an agent's `preview` whose explicit
+`start`/`end` equal the analysis window keeps auditioning the new window when it is moved.
+The core mixes, filters and resamples a region when it loads it, so the reload is
+**debounced to the move's settle** (~200 ms, matching the analysis auto-run) instead of
+being re-sent at pointer rate; a true **sub-range** (`playRegion`, e.g. an edge excerpt or
+an MCP `preview` of a narrower range) keeps its own bounds.
 
 ## Persistence and cross-window
 

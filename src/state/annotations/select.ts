@@ -2,7 +2,7 @@ import type { Annotation } from "../../bindings/Annotation";
 import { isAnalyzerId, type AnalyzerId } from "../analyzer";
 import { clampAnnotationTime } from "../../lib/annotation";
 import { source } from "../source";
-import { setWindowEnd, setWindowStart, windowEnd, windowStart } from "../timeline";
+import { setWindowEnd, setWindowStart } from "../timeline";
 import { focusedAnalyzer, openTool } from "../workbench";
 import { annotationById } from "./reads";
 import { setSelectedAnnotationId } from "./signals";
@@ -28,8 +28,8 @@ export function selectAnnotation(id: string | null) {
 
 /**
  * The **only** action that moves the analysis window onto an annotation: the row's Analyze
- * button. A range annotation becomes the window exactly; a point annotation gets a window of the
- * current width (or a tenth of the source) starting at its time.
+ * button. A range annotation becomes the window exactly; a point annotation gets a short
+ * window **centred** on its time.
  */
 export function analyzeAnnotation(id: string | null) {
   selectAnnotation(id);
@@ -38,7 +38,10 @@ export function analyzeAnnotation(id: string | null) {
   applyAnnotationWindow(annotation);
 }
 
-/** Move the analysis window onto an annotation (its span, or a window starting at its time). */
+/** The short analysis window a point annotation is analysed in (seconds). */
+const MOMENT_WINDOW_S = 0.5;
+
+/** Move the analysis window onto an annotation: its span, or a short window centred on a point. */
 function applyAnnotationWindow(annotation: Annotation) {
   const duration = source()?.duration ?? 0;
   if (annotation.range) {
@@ -46,12 +49,26 @@ function applyAnnotationWindow(annotation: Annotation) {
     setWindowEnd(annotation.range.endSecs);
     return;
   }
-  const width = windowEnd() - windowStart();
-  const start = clampAnnotationTime(annotation.timeSecs, duration);
-  const fallback = duration > 0 ? Math.max(0.05, duration * 0.1) : 0;
-  const end = duration > 0 ? Math.min(duration, start + (width > 0 ? width : fallback)) : start;
-  setWindowStart(start);
-  setWindowEnd(Math.max(end, start));
+  // A point gets a short window **centred** on it, so the moment sits mid-fragment with
+  // context on both sides; near an edge the window keeps its width and slides inward.
+  const center = clampAnnotationTime(annotation.timeSecs, duration);
+  if (!(duration > 0)) {
+    setWindowStart(center);
+    setWindowEnd(center);
+    return;
+  }
+  const width = Math.min(duration, MOMENT_WINDOW_S);
+  let start = center - width / 2;
+  let end = center + width / 2;
+  if (start < 0) {
+    end -= start;
+    start = 0;
+  } else if (end > duration) {
+    start -= end - duration;
+    end = duration;
+  }
+  setWindowStart(Math.max(0, start));
+  setWindowEnd(end);
 }
 
 /** The focused analyzer tab, for the panel's "Add annotation" default tool. */

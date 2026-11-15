@@ -66,6 +66,7 @@ export const DARK_CHART: ChartTheme = {
   markerDownbeat: "rgba(255, 92, 122, 0.95)",
   filtered: "#ffb454",
   handleFill: "rgba(88, 152, 255, 0.6)",
+  handleLabel: "#ffffff",
 };
 
 /** The light base chart palette. */
@@ -105,6 +106,7 @@ export const LIGHT_CHART: ChartTheme = {
   markerDownbeat: "rgba(198, 40, 62, 0.95)",
   filtered: "#d9722f",
   handleFill: "rgba(47, 111, 208, 0.45)",
+  handleLabel: "#0b2540",
 };
 
 /** The base chart palettes, keyed by base. */

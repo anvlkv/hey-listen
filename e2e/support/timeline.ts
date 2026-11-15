@@ -13,7 +13,7 @@ import { SEL } from "./selectors.ts";
 const PLOT_PAD = 12;
 /** `RULER_H` and the move handle's hit band — mirrors `timeline/constants.ts`. */
 const RULER_H = 22;
-const MOVE_HIT = 10;
+const MOVE_HIT = 14;
 /** Clear of `HANDLE_HIT` (9 px) when grabbing the window's move bar. */
 const MOVE_GRAB_INSET = 24;
 

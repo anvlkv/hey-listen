@@ -1,9 +1,7 @@
 import { deepClone } from "../../lib/clone";
 import { invoke } from "../../lib/ipc";
-import { windowForSave } from "../../lib/saveWindow";
 import { annotations } from "../annotations";
-import { setWindowEnd, setWindowStart, windowEnd, windowStart } from "../timeline";
-import { setWindowTitle, source } from "../source";
+import { setWindowTitle } from "../source";
 import { markClean } from "./dirty";
 import { basename, projectLabel } from "./paths";
 import { rememberRecent } from "./recents";
@@ -39,19 +37,6 @@ import type { SaveProjectArgs } from "./types";
 async function write(path: string, embedSource = !referenceProject()): Promise<boolean> {
   setProjectStatus("saving");
   setProjectError(null);
-  // A save that carries annotations stores the whole source, not the fragment the user
-  // was listening to while curating (hey-listen-report §6.6). Apply it to the live
-  // window too, so what is saved is also what the user then sees.
-  const saved = windowForSave(
-    windowStart(),
-    windowEnd(),
-    source()?.duration ?? 0,
-    annotations().length > 0,
-  );
-  if (saved.startSecs !== windowStart() || saved.endSecs !== windowEnd()) {
-    setWindowStart(saved.startSecs);
-    setWindowEnd(saved.endSecs);
-  }
   try {
     const args: SaveProjectArgs = {
       name: projectLabel(path),

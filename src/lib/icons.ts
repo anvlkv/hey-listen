@@ -53,6 +53,7 @@ export const ICON_GLYPHS = {
   "arrow-up-right-from-square": "f08e",
   expand: "f065",
   "magnifying-glass": "f002",
+  crosshairs: "f05b",
   "diagram-project": "f542",
   // --- Theme actions ----------------------------------------------------------
   copy: "f0c5",

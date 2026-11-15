@@ -91,6 +91,11 @@ export interface ChartTheme {
   filtered: string;
   /** Timeline window move-handle fill (semi-transparent accent). */
   handleFill: string;
+  /**
+   * The Δ-duration label drawn on the move handle: a strong foreground that contrasts
+   * with `handleFill` (white over dark bars, near-black over light ones).
+   */
+  handleLabel: string;
 }
 
 /** The `kind` discriminator every theme file carries. */

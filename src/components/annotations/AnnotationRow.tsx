@@ -78,7 +78,7 @@ export function AnnotationRow(props: {
               aria-label="Analyze this annotation"
               onClick={() => analyzeAnnotation(props.annotation.id)}
             >
-              <Icon name="arrows-left-right-to-line" />
+              <Icon name={props.annotation.range ? "arrows-left-right-to-line" : "crosshairs"} />
             </Button>
           </Tooltip>
           <Show when={def()}>

@@ -343,13 +343,17 @@ function cancelFollow() {
 }
 
 /**
- * Reload a window-following preview once the window settles. The core mixes, filters
- * and resamples a region *when it is loaded*, so re-issuing at pointer rate would
- * thrash it and restart the loop on every move; the trailing debounce coalesces a
- * whole drag into one reload, matching the analysis auto-run's settle window.
+ * Reload a window-following preview when the window settles (debounced like the analysis
+ * auto-run): a window preview, or one playing **exactly** the moved window — not a sub-range.
  */
-function followWindowChange() {
-  if (status() !== "playing" || !followWindow) return;
+function followWindowChange(previous: readonly number[]): void {
+  if (status() !== "playing") return;
+  const loaded = region();
+  const onWindow =
+    followWindow ||
+    (Math.abs(loaded.start - previous[0]) < 1e-6 && Math.abs(loaded.end - previous[1]) < 1e-6);
+  if (!onWindow) return;
+  followWindow = true;
   cancelFollow();
   followTimer = setTimeout(() => {
     followTimer = undefined;
@@ -382,6 +386,14 @@ createRoot(() => {
       defer: true,
     }),
   );
-  createEffect(on([windowStart, windowEnd], followWindowChange, { defer: true }));
+  createEffect(
+    on(
+      [windowStart, windowEnd],
+      (_now, previous) => {
+        if (previous) followWindowChange(previous);
+      },
+      { defer: true },
+    ),
+  );
   createEffect(on(source, resetTransport, { defer: true }));
 });
