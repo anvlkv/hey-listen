@@ -1,36 +1,9 @@
-/* The perception drill-down companions under a series chart (M36): the per-band
-   contribution heatmap, the pYIN candidate grid, and, for the rate-spectrum tools,
-   the band × rate grid at the shared cursor's frame. Read-only, so each takes a
-   compact fixed picture height and lets the timeline chart above keep the remaining
-   space. */
-.contribution-panel,
-.pitch-candidates,
-.rate-matrix {
-  display: flex;
-  flex-direction: column;
-  flex: none;
-  min-height: 0;
-}
+/* The one heatmap colourbar (M36) and the drill-down hover card (M38).
 
-.heatmap-panel {
-  display: flex;
-  flex-direction: column;
-  flex: none;
-  min-height: 0;
-  padding-top: var(--space-chart-tight);
-  border-top: 1px solid var(--border-soft);
-}
-
-.heatmap-panel-title {
-  padding: 0 var(--space-chart-wide);
-  font-size: 0.6875rem;
-  color: var(--fg-faint);
-}
-
-.heatmap-panel-plot {
-  position: relative;
-  height: 112px;
-}
+   Both belong to the shared analyzer chrome: the bar is what every heatmap uses
+   (matrix views, the spectrogram, a tool's in-plot drill-down lane) and the card is
+   what a timeline chart shows for the frame under the cursor. Neither takes a row of
+   its own — the bar rides the chart's legend line, the card floats over the plot. */
 
 /* Matrix heatmap colourbar (M36): the ramp, labelled **on** the stripe at the domain's
    ends in the result's own unit — the bar keeps its full width for colour, and the
@@ -120,4 +93,134 @@
   .heatmap-scale-tick.is-min {
     display: none;
   }
+}
+
+/* The drill-down hover card (M38): the frame under the cursor, as a bar register over
+   the row axis plus the frame's strongest rows and (for a rate tool) its band × rate
+   grid. Inert, so it can never take a hover or a drag from the chart behind it. */
+.drilldown-card {
+  position: absolute;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--ui-scale, 1));
+  width: calc(212px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
+  background: var(--tooltip-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px var(--shadow);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.drilldown-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.drilldown-card-time {
+  color: var(--fg-strong);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.drilldown-card-label {
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The chart's own tracks at the cursor: the tooltip's content, on the card. */
+.drilldown-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.drilldown-readout-label {
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drilldown-readout-value {
+  color: var(--fg-strong);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* What one cell of the register is, in the result's own words. */
+.drilldown-card-caption {
+  margin-top: calc(2px * var(--ui-scale, 1));
+  overflow: hidden;
+  color: var(--fg-faint);
+  font-size: 0.625rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One bar per row (band), lowest on the left — the same order as the lane's rows. */
+.drilldown-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: calc(42px * var(--ui-scale, 1));
+}
+
+.drilldown-bars i {
+  flex: 1 1 0;
+  min-width: 1px;
+  height: var(--drilldown-h);
+  background: var(--drilldown-fill);
+  border-radius: 1px 1px 0 0;
+}
+
+.drilldown-axis {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--fg-faint);
+  font-size: 0.625rem;
+  white-space: nowrap;
+}
+
+.drilldown-top-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--fg-body);
+}
+
+.drilldown-top-at {
+  color: var(--fg-muted);
+}
+
+.drilldown-top-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.drilldown-rate-caption {
+  margin-top: calc(2px * var(--ui-scale, 1));
+}
+
+/* The frame's band × rate grid: rows are bands, columns modulation rates. */
+.drilldown-rate {
+  display: grid;
+  grid-template-columns: repeat(var(--drilldown-rate-cols), 1fr);
+  gap: 1px;
+  height: calc(34px * var(--ui-scale, 1));
+}
+
+.drilldown-rate i {
+  background: var(--drilldown-fill);
+  border-radius: 1px;
 }

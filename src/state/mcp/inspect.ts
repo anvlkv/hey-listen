@@ -11,7 +11,7 @@ import { outputDeviceId, outputGain } from "../output";
 import { dirty, projectDisplayName, projectPath } from "../project";
 import { source } from "../source";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
-import { openTools } from "../workbench";
+import { openTools, workbenchGroups } from "../workbench";
 import { openCompareTabs } from "../compare/views";
 import type { CompareViewDto } from "../compare/types";
 
@@ -40,6 +40,9 @@ export async function getState(target?: string) {
     params: sharedParams(),
     toolOptions: deepClone(toolOptions),
     openTools: openTools(),
+    // The Workbench's groups: the ids `open_tool { position }` addresses. Absent
+    // headless (there is no layout); compare panels are never in `tools`.
+    workbench: { groups: workbenchGroups() },
     compare: [
       ...openCompareTabs(),
       ...popouts.map((view) => ({ ...view, offset: offsets.get(view.id) ?? 0 })),

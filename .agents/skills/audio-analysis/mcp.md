@@ -16,7 +16,8 @@ Turn the server on in the Toolbar **MCP** popover; its **Copy** button gives the
 ## Bridge vs headless
 
 - **App running + MCP on** → each `tools/call` runs through the same stores/commands the UI
-  uses; the UI follows (`open_tool` opens a tab, `open_audio_file` replaces the timeline).
+  uses; the UI follows (`open_tool` opens a tab — its optional `position` splits the
+  Workbench into a grid — `open_audio_file` replaces the timeline).
 - **No app** → falls back to a **core-native headless** server (no window), covering the
   compute subset.
 
@@ -32,7 +33,7 @@ Turn the server on in the Toolbar **MCP** popover; its **Copy** button gives the
 | Observe | `get_state`, `list_analyzers`, `get_analyzer` | yes |
 | Source | `open_audio_file`, `close_source`, `render_synth`, `list_input_devices`, `list_output_devices`, `list_processes` | yes |
 | Analyze | `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `set_filter_graph` | yes |
-| Tabs | `open_tool`, `close_tool` | yes — headless they maintain `SETUP.openTools`, which `save_project` writes |
+| Tabs | `open_tool`, `close_tool` | yes — headless they maintain `SETUP.openTools`, which `save_project` writes (no layout: `open_tool.position` is ignored) |
 | Project | `save_project`, `open_project`, `new_project` | yes (source + setup + annotations + `openTools`; parents created) |
 | Project window | `open_project_window` | app-only (opens/raises a window at a `.heyl`, returns its label) |
 | Compare | `compare_analysis`, `list_projects` | `compare_analysis` yes (project **path** headless, live label bridged, or `saved: true`) |
@@ -77,6 +78,29 @@ get_state                                 # → openTools + savedComparisons + w
 
 `open_project { path }` loads a project's tabs/comparison into the session;
 `compare_analysis { saved: true }` re-runs against the loaded snapshot.
+
+## Workbench layout: tabs vs a grid (app-only)
+
+`open_tool` adds a **tab** to the main group by default. Pass a `position` to place it —
+the way to show several analyzers as a grid instead of stacked tabs:
+
+```text
+get_state                            # → workbench.groups: [{ id, tools, activeTool }]
+open_tool { tool: "spectrogram" }                                    # a tab (default)
+open_tool { tool: "spectrum", position: { direction: "right" } }    # split main group
+open_tool { tool: "mfcc", position: { referenceGroup: "spectrogram", direction: "below" } }
+```
+
+- `direction`: `within` (a tab in that group — the default) or `left` / `right` /
+  `above` / `below` (split that group and put the tab on that side). Spellings are
+  dockview's.
+- `referenceGroup`: a group id from `get_state.workbench.groups`, **or** a tool id already
+  open in the group (easier). Omitted = the main group. An unknown value **fails**
+  (no silent fallback), so read the groups again if a tab was closed.
+- `close_tool` merges nothing back: closing the last tab of a group collapses it.
+- **App-only.** Headless has no layout: `position` is ignored, only `SETUP.openTools` is
+  recorded, and the app opens those tabs in one group. A grid survives a save only when
+  the app saved the project (`LAYOUT.dockview`); a headless `save_project` writes no layout.
 
 **Bridged (app running)** — two live windows:
 
@@ -123,6 +147,8 @@ can't tell when one pass ended.
 
 ## What still needs the app
 
-Visual work only: rendered tabs, editor-layout graph editing (`get_graph`/`set_synth_graph`),
-live preview/capture, annotations (`create_annotation` & co.), chart-image export, and live
-two-window comparison. Everything else is scriptable without a window.
+Visual work only: rendered tabs, Workbench **layout** (`open_tool.position` — the tab
+itself is recorded headless, the grid is not), editor-layout graph editing
+(`get_graph`/`set_synth_graph`), live preview/capture, annotations (`create_annotation`
+& co.), chart-image export, and live two-window comparison. Everything else is scriptable
+without a window.

@@ -16,12 +16,31 @@ pub(super) fn tools() -> Vec<Value> {
             "Open tool",
             ToolClass::SETTINGS,
             "Open (or focus) a Workbench tab: an analyzer id, or `filter` / `synth`. \
-             Headless there is no webview, so this records the tab in the project's \
-             `SETUP.openTools`: `get_state.openTools` reports it and `save_project` writes \
-             it, so the app opens the tab when the project loads.",
+             The optional `position` places the tab: omit it for a tab in the main group, \
+             or name a `referenceGroup` (a group id from `get_state.workbench.groups`, or \
+             a tool id open in that group) and a `direction` (`within` = a tab there; \
+             `left` / `right` / `above` / `below` split that group) to lay analyzers out \
+             side by side. Ignored headless, where there is no webview: the tab is \
+             recorded in the project's `SETUP.openTools`, which `get_state.openTools` \
+             reports, `save_project` writes, and the app opens when the project loads.",
             json!({
                 "type": "object",
-                "properties": { "tool": { "type": "string" } },
+                "properties": {
+                    "tool": { "type": "string" },
+                    "position": {
+                        "type": "object",
+                        "description": "App-only placement. Omitted = a tab in the main Workbench group.",
+                        "properties": {
+                            "referenceGroup": { "type": "string", "description": "A group id from get_state.workbench.groups, or a tool id open in that group." },
+                            "direction": {
+                                "type": "string",
+                                "enum": ["within", "left", "right", "above", "below"],
+                                "description": "`within` (default) adds a tab to the group; the others split it and place the tab on that side.",
+                            },
+                        },
+                        "additionalProperties": false,
+                    },
+                },
                 "required": ["tool"],
                 "additionalProperties": false,
             }),

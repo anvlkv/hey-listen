@@ -290,7 +290,15 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
 - **series** — one scalar per frame over time. Declarative options pick a line /
   area / step / impulse (**stems**) path; pitch tracks use a **log-frequency y-axis
   with semitone gridlines**; bounded ratios fix `0…1`; momentary loudness adds a
-  **−14 LUFS reference line**.
+  **−14 LUFS reference line**. A tool that carries a **drill-down** paints it as a
+  lane inside the same plot rather than as a second chart — see *Composite charts*
+  below.
+- **masking** — the averaged spectrum with the threshold in quiet (`Tq`) and the
+  global masking threshold (`Tg`) on the level axis, and the signal-to-mask ratio on
+  the **right-hand SMR axis** of the same plot (one frequency axis, two scales);
+  masked bins are a comb drawn under the curves, from the spectrum to `Tg` — the comb
+  *is* the negative SMR, so the two marks share a colour. Individual tonal / residual
+  maskers are vertical rules, named in the legend.
 - **waveform** — the min/max envelope; the **dB scale** toggle collapses it to a
   |peak| curve in dBFS with a 0 dBFS line. Full-scale buckets are marked at the plot
   edges and counted in the readouts; the **linked spectrogram** toggle stacks the
@@ -326,6 +334,35 @@ from a time (the heatmaps, a note's values line) maps it back through `windowSta
 - **annotations** — every time-axis chart also draws its project annotations as anchors in a thin
   strip along the bottom (its own at full strength, other charts' muted, the selected
   one as a full-height rule with a label). See [`annotations.md`](annotations.md) → Surfacing.
+
+**Composite charts (M38).** A view is **one plot** whenever its data shares an axis: a
+second quantity gets a second *scale*, never a second chart.
+
+- **Two scales, one plot.** Masking's SMR, loudness's phon level and a pitch track's
+  confidence each sit on the right-hand axis of the plot they belong to, with their
+  own range; a reference curve draws no grid of its own, so one axis owns the grid.
+- **A drill-down is a lane, not a chart** (`components/analyzer/drilldown.ts`). A
+  result's extra 2-D payload — `Contribution` (frames × bands) or `CandidateGrid`
+  (frames × semitones) — shares the track's **time** axis, so it is painted as a
+  register along the bottom of the same plot (`drilldownLane.ts`): no second time
+  axis, no second colourbar row, no second legend. One `drilldownScale` is shared by
+  the pixels, the legend's ramp swatch and the hover card.
+- **A lane's colour mapping is built for a strip, not a panel.** The theme ramp's
+  near-black low end would vanish into the plot background and a decomposition's cells
+  are dominated by small values, so `drilldownScale` samples the ramp from a **visible
+  floor** and distributes it on a **square root** (with the inverse kept in `at`, so a
+  colourbar's mid tick still names the right value). A drill-down chart also drops the
+  track's area wash: the lane owns the plot floor, and a translucent fill over it would
+  only tint the heatmap.
+- **The detail is under the cursor** (`DrilldownCard.tsx`). Hovering reads out the
+  frame: the tool's own track(s), the row profile as a bar register, its strongest
+  rows in the result's own unit and — for `roughness` / `fluctuationStrength` — the
+  frame's band × modulation-rate grid (`rateContribution`). On a drill-down chart the
+  card *is* the cursor readout (one hover surface), and it is inert, so it can never
+  take a hover from the chart.
+- **A quantity on another axis stays a companion.** The rhythm view's tempo-salience
+  panel is on **BPM**, not time, so it cannot share the envelope's axis and remains a
+  small companion chart.
 
 **Cursors and overlays** are theme roles, not per-tool constants (see
 [`theming.md`](theming.md) → the `ChartTheme` role list): `hover` is where the pointer

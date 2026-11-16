@@ -2707,3 +2707,78 @@ marker, saves, and asserts the header is version 2.
 >
 > Depends on `read_project` / `write_project_atomic` (M6) and the console binary
 > (`hey-listen-cli`, M33.B) for the script surface.
+
+## M38 — Composite analyzer charts ✅
+
+**One plot per view.** A second quantity gets a second **axis**; a result's drill-down
+becomes a lane inside the same plot, with its per-frame detail under the cursor. The
+stacked companion charts M36 added (masking's SMR panel, the pYIN candidate heatmap, the
+per-band contribution heatmap, the band × rate matrix) made one tab show two or three
+charts, each with its own axis row, colourbar row and legend.
+
+See [`analysis-tools.md`](analysis-tools.md) → *Composite charts* for the convention and
+the view-kind table it belongs to.
+
+### Two scales, one plot
+
+- `FrequencyChart` takes a **`yAnchor`** column: the level window is drawn around the
+  primary series' peak, so a threshold model's out-of-range ceiling (masking's `Tq`
+  saturates at 160 dB SPL above 20 kHz) can no longer flatten the plot. A window taken
+  from every series' extent put the spectrum itself below the visible range.
+- Its `reference` curve is generalised (`axisLabel`, `range`, `alpha`, `inTooltip`) and
+  draws no grid of its own, so masking's **SMR** rides the right-hand axis with its own
+  dB domain and a faint stroke. `MaskingSmrPanel.tsx` is gone.
+- The masking comb is the plot's **first** series (drawn under the curves) at a reduced
+  alpha: in a mostly-masked window it otherwise painted a solid block over the spectrum.
+
+### Drill-downs as a lane + a hover card
+
+- `components/analyzer/drilldown.ts` normalises both payloads — `Contribution`
+  (frames × bands) and `CandidateGrid` (frames × semitones) — into one `DrilldownGrid`,
+  and exposes the frame slice, the nearest frame, the shared scale/image, and the
+  band × rate snapshot.
+- `drilldownLane.ts` paints that grid along the bottom of the timeline plot's **own** box
+  (`drawClear`), framed by a theme-role border, on the chart's existing time axis. The
+  trace keeps its contrast through a background-coloured halo drawn in `drawAxes` (after
+  the grid, before the series), so the line reads over the heatmap without a second
+  colour.
+- `DrilldownCard.tsx` is the cursor readout: the tool's own track(s), the row profile as
+  a bar register, the strongest rows in the result's own unit, and — for `roughness` /
+  `fluctuationStrength` — the frame's band × rate grid. On a drill-down chart it *is* the
+  readout (one hover surface, not a tooltip beside a card), it is `pointer-events: none`,
+  and it flips from the plot's edges without measuring itself.
+- `ChartLegend` gains a **`ramp`** mark: the lane's scale is one legend entry (a swatch of
+  the same stops plus the domain in the result's unit), not an extra colourbar row.
+- **Contrast for a strip, not a panel.** The theme ramp starts at near-black on the dark
+  base, which is a shade of the plot background — a lane drawn with it read as a hole, and
+  a decomposition's cells are dominated by small values, so a linear mapping spent almost
+  no colour on them. `drilldownScale` now samples the ramp from a **visible floor** and
+  distributes it on a **square root**, keeping the inverse in `at` so the ticks still name
+  the right values; a drill-down chart also drops the track's area wash, which would only
+  tint the heatmap it is there to show.
+- `ContributionPanel`, `RateMatrix`, `PitchCandidatesPanel` and `HeatmapPanel` are
+  deleted with their CSS; `cursorTimeMarks`, `frameTimeExtent` and `bandIndexValues` went
+  with them.
+
+> **Deliberately unchanged:** the rhythm view's tempo-salience panel is on **BPM**, not
+> time, so it shares no axis with the onset envelope and stays a small companion chart.
+
+### What the lane exposed
+
+- **Display-fixture precision.** `generate-fixtures.ts` rounded every grid cell to four
+> **decimals**, which zeroed an entire sharpness grid (`N'·g·z` is ~1e-5 sone/Cam in an
+> uncalibrated run) and left the new lane empty. Grid cells now keep four **significant**
+> digits, and `specificLoudness`/`sharpness` carry usable drill-downs.
+- **Adaptive unit precision.** The heatmap formatter prints a value that is smaller than
+> its fixed precision in exponent form (`7.8e-8 sone/Cam`) instead of `0.000`, so a tiny
+> domain is named rather than blanked. This also fixes the uncalibrated
+> `specificLoudness` colourbar whose three ticks all read `0.000 sone/Cam`.
+
+> **Validation:** `npm run typecheck`, `npm run build`, `npm run maid` (0 clones, no file
+> past its budget), the fixture regeneration
+> (`HEY_LISTEN_CLI=…/hey-listen-cli npm run lighthouse:fixtures`), and the preview
+> surfaces (`?fixture=` for `sharpness`, `roughness`, `fluctuationStrength`, `pitchPyin`,
+> `tonality`, `masking`, `spectrum`; both built-in theme bases) checked by hand — lane,
+> hover card and masking composite rendered as designed. The native E2E suite was not
+> re-run for this change: no spec asserts the removed panels, and the affected surfaces
+> are preview-checked.

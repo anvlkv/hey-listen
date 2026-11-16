@@ -2,8 +2,23 @@ import { Show } from "solid-js";
 import type { HeatmapScale } from "./heatmapScale";
 
 /** The ramp as a CSS gradient, sampled from the same stops the pixels use. */
-function gradient(stops: HeatmapScale["stops"]): string {
+export function rampGradient(stops: HeatmapScale["stops"]): string {
   const parts = stops.map(([at, [r, g, b]]) => `rgb(${r} ${g} ${b}) ${(at * 100).toFixed(1)}%`);
+  return `linear-gradient(to right, ${parts.join(", ")})`;
+}
+
+/**
+ * The same gradient taken from a **scale's own** ramp, not its stops — so a scale that
+ * samples a lifted range (a drill-down's, see `drilldownScale`) draws a swatch that
+ * matches its pixels rather than the raw theme ramp.
+ */
+export function scaleGradient(scale: HeatmapScale, steps = 10): string {
+  const parts: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const at = i / steps;
+    const [r, g, b] = scale.ramp(at);
+    parts.push(`rgb(${r} ${g} ${b}) ${(at * 100).toFixed(1)}%`);
+  }
   return `linear-gradient(to right, ${parts.join(", ")})`;
 }
 
@@ -25,7 +40,7 @@ export default function HeatmapColorScale(props: { scale: HeatmapScale; label?: 
         <span class="heatmap-scale-label">{props.label}</span>
       </Show>
       <span class="heatmap-scale-bar">
-        <span class="heatmap-scale-ramp" style={{ background: gradient(props.scale.stops) }} />
+        <span class="heatmap-scale-ramp" style={{ background: rampGradient(props.scale.stops) }} />
         <span class="heatmap-scale-ticks">
           <span class="heatmap-scale-tick is-min">{props.scale.formatter(props.scale.min)}</span>
           <span class="heatmap-scale-tick is-mid">

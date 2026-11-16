@@ -89,19 +89,6 @@
   overscroll-behavior: contain;
 }
 
-/* The masking view stacks two aligned panels on one frequency axis: the level curves
-   keep the larger share, the SMR panel a compact strip beneath them. */
-.masking-level {
-  flex: 2 1 0;
-}
-
-.masking-smr {
-  flex: 1 1 0;
-  min-height: 80px;
-  margin-top: var(--space-chart-tight);
-  border-top: 1px solid var(--border-soft);
-}
-
 /* The shared frequency chart fills its container and keeps the legend on its bottom
    edge, outside the plot, so it can never cover the data. */
 .frequency-chart {

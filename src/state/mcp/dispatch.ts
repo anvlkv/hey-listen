@@ -68,7 +68,7 @@ import {
   type ThemeMode,
   type ThemePreference,
 } from "../themes";
-import { dockApi, openTool, openTools } from "../workbench";
+import { dockApi, openTool, openTools, workbenchGroups } from "../workbench";
 import { clampSet, runAnalysis, setAnalysisWindow } from "./analyze";
 import {
   applyNullable,
@@ -86,6 +86,7 @@ import {
   slotThemeId,
   str,
   toolId,
+  toolPosition,
   type Args,
 } from "./args";
 import { getState, annotationSummary, sourceSummary } from "./inspect";
@@ -169,9 +170,10 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     }
 
     // --- workbench ----------------------------------------------------------
-    case "open_tool":
-      await openTool(toolId(str(args, "tool")));
-      return { openTools: openTools() };
+    case "open_tool": {
+      await openTool(toolId(str(args, "tool")), toolPosition(args));
+      return { openTools: openTools(), workbench: { groups: workbenchGroups() } };
+    }
     case "close_tool": {
       const id = toolId(str(args, "tool"));
       dockApi()?.getPanel(id)?.api.close();

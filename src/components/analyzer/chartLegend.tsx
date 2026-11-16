@@ -5,8 +5,13 @@ export interface ChartLegendEntry {
   label: string;
   /** The mark's colour — a `chartTheme()` role, never a literal. */
   color: string;
-  /** The mark's shape: a line (default), a dashed line, a filled band, or a two-tone split. */
-  kind?: "line" | "dashed" | "fill" | "split";
+  /**
+   * The mark's shape: a line (default), a dashed line, a filled band, a two-tone split,
+   * or a colour ramp (an in-plot heatmap lane's scale).
+   */
+  kind?: "line" | "dashed" | "fill" | "split" | "ramp";
+  /** For a `ramp` mark: the CSS gradient it paints (see `HeatmapColorScale`). */
+  gradient?: string;
   /** An optional live value (e.g. what the series reads under the cursor). */
   value?: string | null;
 }
@@ -32,7 +37,10 @@ export default function ChartLegend(props: {
           <span class="chart-legend-item">
             <span
               class={`chart-legend-mark is-${entry.kind ?? "line"}`}
-              style={{ "--legend-color": entry.color }}
+              style={{
+                "--legend-color": entry.color,
+                ...(entry.gradient ? { background: entry.gradient } : {}),
+              }}
             >
               <Show when={(entry.kind ?? "line") === "split"}>
                 <i />

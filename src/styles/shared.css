@@ -132,6 +132,15 @@
   opacity: 0.28;
 }
 
+/* A heatmap lane's scale, shown as the ramp itself (M38): the same stops the pixels use,
+   so a drill-down's colours need no extra colourbar row under the chart. */
+.chart-legend-mark.is-ramp {
+  width: 20px;
+  height: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+}
+
 .chart-legend-value {
   color: var(--fg-body);
   font-variant-numeric: tabular-nums;

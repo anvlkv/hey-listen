@@ -65,12 +65,23 @@ function resolveDomain(lo: number, hi: number): [number, number] {
   return [low, high];
 }
 
+/**
+ * Format a number at `decimals` places, but never as a row of zeros: a heatmap's domain
+ * can be far smaller than the fixed precision (an uncalibrated run's specific loudness
+ * is ~1e-5 sone/Cam), and `0.000` would name no value at all.
+ */
+function sample(value: number, decimals: number): string {
+  if (!Number.isFinite(value)) return "—";
+  if (value !== 0 && Math.abs(value) < 10 ** -decimals) return value.toExponential(1);
+  return value.toFixed(decimals);
+}
+
 /** Format a value in the result's own unit, without guessing a tool. */
 function unitFormatter(unit: string | null, normalized: boolean): (value: number) => string {
   if (normalized || unit == null) return (value) => value.toFixed(2);
   const lower = unit.toLowerCase();
-  if (lower.includes("sone")) return (value) => `${value.toFixed(3)} ${unit}`;
-  if (lower === "db" || lower === "dbfs") return (value) => `${value.toFixed(1)} ${unit}`;
+  if (lower.includes("sone")) return (value) => `${sample(value, 3)} ${unit}`;
+  if (lower === "db" || lower === "dbfs") return (value) => `${sample(value, 1)} ${unit}`;
   return (value) => `${value.toPrecision(3)} ${unit}`;
 }
 

@@ -3,7 +3,7 @@ import type { Annotation } from "../../bindings/Annotation";
 import { isAnalyzerId } from "../analyzer";
 import { annotationById } from "../annotations";
 import { themeById } from "../themes";
-import type { ToolId } from "../workbench";
+import { isToolDirection, TOOL_DIRECTIONS, type ToolId, type ToolPosition } from "../workbench";
 
 export type Args = Record<string, unknown>;
 
@@ -103,6 +103,23 @@ export function graphKind(args: Args): "filter" | "synth" {
     throw new Error(`\`graph\` must be "filter" or "synth"`);
   }
   return graph;
+}
+
+/** Read `open_tool`'s optional placement (`{ referenceGroup, direction }`). */
+export function toolPosition(args: Args): ToolPosition | undefined {
+  const value = args.position;
+  if (value == null) return undefined;
+  const position = asArgs(value);
+  const direction = position.direction;
+  if (direction != null && !isToolDirection(direction)) {
+    throw new Error(
+      `unknown direction: ${String(direction)} (one of ${TOOL_DIRECTIONS.join(", ")})`,
+    );
+  }
+  return {
+    referenceGroup: optionalStr(position, "referenceGroup") ?? undefined,
+    direction: direction ?? undefined,
+  };
 }
 
 /** Read a slot theme id, validating it names a registered theme. */

@@ -2,6 +2,12 @@
 
 This document follows the twelve-item work order in [`chart-review.md`](chart-review.md). The recommendations are grounded in the current SolidJS/uPlot implementation and generated IPC result types. Shared mechanisms should be implemented once and reused; in particular, gaps 1/3 share time synchronization and pitch overlays, gaps 2/4/11 share heatmap scales and colour maps, and gaps 5/6 share frequency-axis transforms and annotations.
 
+> **Status.** M36 implemented these conventions. The **stacked companion panels** proposed
+> for masking (item 1) and for the perception drill-downs (item 7) were then superseded by
+> M38: one plot with a second axis, the drill-down as an in-plot lane, and its per-frame
+> detail in a hover card. See [`../analysis-tools.md`](../analysis-tools.md) →
+> *Composite charts* for the design that ships.
+
 ## 1. Make `waveform` + `spectrogram` a linked primary diagnostic pair
 
 ### Goal

@@ -81,6 +81,24 @@ fn run_analysis_is_not_destructive_and_compare_is_read_only() {
 }
 
 #[test]
+fn open_tool_position_matches_dockviews_directions() {
+    let tools = super::list();
+    let tool = tools
+        .iter()
+        .find(|tool| tool["name"] == "open_tool")
+        .expect("open_tool is registered");
+    // `openTool` (`state/workbench.ts`) forwards these spellings to dockview verbatim.
+    let position = &tool["inputSchema"]["properties"]["position"];
+    assert_eq!(
+        position["properties"]["direction"]["enum"],
+        serde_json::json!(["within", "left", "right", "above", "below"])
+    );
+    assert_eq!(position["properties"]["referenceGroup"]["type"], "string");
+    // Placement is optional: the default stays a tab in the main group.
+    assert_eq!(tool["inputSchema"]["required"], serde_json::json!(["tool"]));
+}
+
+#[test]
 fn open_project_window_is_non_destructive_and_requires_a_path() {
     let tools = super::list();
     let tool = tools

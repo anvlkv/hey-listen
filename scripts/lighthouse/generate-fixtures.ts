@@ -156,8 +156,16 @@ function thinMatrix(result: Result) {
 }
 
 /** Round a display value so the committed JSON stays compact. */
-function round(value: number): number {
-  return Math.round(value * 1e4) / 1e4;
+/**
+ * Round a **grid cell** while keeping four *significant* digits.
+ *
+ * A drill-down's cells can be orders of magnitude smaller than the scalar they
+ * decompose: sharpness' weighting is `N'·g·z` in sone/Cam, ~1e-5 in an uncalibrated
+ * run, so fixed decimal places would round an entire grid to zero and the chart's lane
+ * would have nothing to paint.
+ */
+function roundCell(value: number): number {
+  return Number.isFinite(value) && value !== 0 ? Number(value.toPrecision(4)) : value;
 }
 
 /**
@@ -173,7 +181,7 @@ function thinGrid(grid: unknown, frames: number[], countKey: string, axisKey: st
   const values: number[] = [];
   for (const frame of frames) {
     for (const column of columnIndices) {
-      values.push(round((g.values as number[])[frame * cols + column]));
+      values.push(roundCell((g.values as number[])[frame * cols + column]));
     }
   }
   g.values = values;
@@ -196,7 +204,7 @@ function thinRateGrid(grid: unknown, frames: number[]) {
   for (const frame of frames) {
     for (const band of bandIndices) {
       for (const rate of rateIndices) {
-        values.push(round((g.values as number[])[frame * bands * rates + band * rates + rate]));
+        values.push(roundCell((g.values as number[])[frame * bands * rates + band * rates + rate]));
       }
     }
   }

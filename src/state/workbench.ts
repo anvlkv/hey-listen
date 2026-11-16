@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { invoke } from "../lib/ipc";
 import { sanitizeLayout } from "../lib/dockviewLayout";
-import type { DockviewApi, SerializedDockview } from "dockview";
+import type { DockviewApi, DockviewGroupPanel, SerializedDockview } from "dockview";
 import { ANALYZERS } from "./analyzer/defs";
 import { isAnalyzerId } from "./analyzer/lookup";
 import type { AnalyzerId } from "./analyzer/types";
@@ -75,8 +75,27 @@ export function focusedAnalyzer(): AnalyzerId | null {
   return tool && isAnalyzerId(tool) ? tool : null;
 }
 
+/**
+ * Where a new tab goes: dockview's directions. `within` adds a tab to the group (the
+ * default); the other four split that group and put the tab on that side of it.
+ */
+export const TOOL_DIRECTIONS = ["within", "left", "right", "above", "below"] as const;
+export type ToolDirection = (typeof TOOL_DIRECTIONS)[number];
+
+export function isToolDirection(value: unknown): value is ToolDirection {
+  return typeof value === "string" && (TOOL_DIRECTIONS as readonly string[]).includes(value);
+}
+
+/** `open_tool`'s optional placement: dockview's `position`, addressed from the Workbench. */
+export interface ToolPosition {
+  /** A group id (`get_state.workbench.groups`), or a tool id open in that group. */
+  referenceGroup?: string;
+  /** `within` (default) adds a tab; the others split the group and place the tab there. */
+  direction?: ToolDirection;
+}
+
 /** Open a tool's tab, or focus it if it is already open (no duplicate tabs). */
-export async function openTool(id: ToolId) {
+export async function openTool(id: ToolId, position?: ToolPosition) {
   const api = dockApi();
   if (!api) return;
   const existing = api.getPanel(id);
@@ -89,18 +108,20 @@ export async function openTool(id: ToolId) {
   const raised = await invoke<boolean>("focus_popout", { toolId: id }).catch(() => false);
   if (raised) return;
   // New tools always open in the **main** window, even when a popout is focused.
-  addToMainGrid(api, id, toolById(id).title);
+  addToMainGrid(api, id, toolById(id).title, position);
 }
 
 /** Add a tool to the main window's grid — never into a popped-out group. */
-function addToMainGrid(api: DockviewApi, id: ToolId, title: string) {
-  const grid = api.groups.find((group) => group.api.location.type === "grid");
-  if (grid) {
+function addToMainGrid(api: DockviewApi, id: ToolId, title: string, position?: ToolPosition) {
+  const reference = position?.referenceGroup
+    ? requireGroup(api, position.referenceGroup)
+    : mainGridGroup(api);
+  if (reference) {
     api.addPanel({
       id,
       component: id,
       title,
-      position: { referenceGroup: grid, direction: "within" },
+      position: { referenceGroup: reference, direction: position?.direction ?? "within" },
     });
   } else {
     // Every group is popped out (or the grid is empty): create a fresh one.
@@ -112,6 +133,40 @@ function addToMainGrid(api: DockviewApi, id: ToolId, title: string) {
       position: { referenceGroup: group, direction: "within" },
     });
   }
+}
+
+/** The group a tab joins when the caller names none: the first one in the grid. */
+function mainGridGroup(api: DockviewApi): DockviewGroupPanel | undefined {
+  return api.groups.find((group) => group.api.location.type === "grid");
+}
+
+/**
+ * Resolve a placement's `referenceGroup`: a group id, or the id of a tool open in that
+ * group (agents know tools, not dockview's generated group ids). An unknown value is an
+ * error — falling back would put the tab somewhere the caller did not ask for.
+ */
+function requireGroup(api: DockviewApi, referenceGroup: string): DockviewGroupPanel {
+  const group =
+    api.groups.find((candidate) => candidate.id === referenceGroup) ??
+    api.getPanel(referenceGroup)?.group;
+  if (!group) {
+    throw new Error(
+      `unknown referenceGroup: ${referenceGroup} (a group id from get_state.workbench.groups, or an open tool id)`,
+    );
+  }
+  return group;
+}
+
+/** The Workbench's groups, for `get_state`: the ids `open_tool.position` accepts. */
+export function workbenchGroups() {
+  const api = dockApi();
+  if (!api) return [];
+  return api.groups.map((group) => ({
+    id: group.id,
+    tools: group.panels.map((panel) => panel.id).filter((id) => !isCompareId(id)),
+    activeTool:
+      group.activePanel && !isCompareId(group.activePanel.id) ? group.activePanel.id : null,
+  }));
 }
 
 /**

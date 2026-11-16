@@ -1,18 +1,18 @@
-import { For, Show } from "solid-js";
+import { For, Show, createMemo } from "solid-js";
 import Readout from "./Readout";
 import ReframeMenu from "./ReframeMenu";
-import TimeSeriesChart, { type SecondaryTrack } from "./TimeSeriesChart";
-import ContributionPanel from "./ContributionPanel";
-import PitchCandidatesPanel from "./PitchCandidatesPanel";
-import RateMatrix from "./RateMatrix";
+import TimeSeriesChart, { type SecondaryTrack, type SeriesDrilldown } from "./TimeSeriesChart";
 import ChartLegend, { type ChartLegendEntry } from "./chartLegend";
+import { scaleGradient } from "./HeatmapColorScale";
 import ToolLink from "./ToolLink";
 import { useTimeChart, timeSeriesData } from "./timeChart";
 import { octaveAmbiguityMarks } from "./seriesPlugins";
 import { NoAudioState, UplotChartPlot } from "./chartCommon";
+import { drilldownOf, drilldownScale, rateSnapshotAt, type DrilldownGrid } from "./drilldown";
+import type { HeatmapScale } from "./heatmapScale";
 import { coverage, seriesReadouts } from "./readouts";
 import { percentile, present } from "../../lib/percentiles";
-import { chartTheme } from "../../state/themes";
+import { activeThemeId, chartTheme } from "../../state/themes";
 import {
   analyzerById,
   toolOptions,
@@ -47,6 +47,19 @@ function pitchEmptyHint(id: AnalyzerId, result: SeriesResult): string {
     "No voiced frames — the signal may be unpitched or polyphonic, or its fundamental " +
     `may lie outside ${range}. ${advice}`
   );
+}
+
+/**
+ * A drill-down's domain, in its own unit, with the unit written **once**: the scale's
+ * formatter appends it to every value, and a legend entry needs one short range.
+ */
+function domainText(grid: DrilldownGrid, scale: HeatmapScale): string {
+  const tail = grid.unit ? ` ${grid.unit}` : "";
+  const short = (value: number) => {
+    const text = scale.formatter(value);
+    return tail && text.endsWith(tail) ? text.slice(0, -tail.length) : text;
+  };
+  return `${short(scale.min)} – ${short(scale.max)}${tail}`;
 }
 
 /** The tooltip / axis name of the confidence track the descriptor declares. */
@@ -153,6 +166,39 @@ export default function SeriesView(props: {
 
   /** A pitch chart's extra draw plugins: the rings on octave-ambiguous frames. */
   const pitchPlugins = () => (pitch() ? [octaveAmbiguityMarks(ambiguousFlags)] : []);
+
+  /**
+   * The tool's drill-down (M38): the per-band contribution or the pYIN candidate grid,
+   * painted as a lane inside the track's own plot with the frame detail on hover. The
+   * scale is resolved here — once — so the lane, the card and the legend stripe cannot
+   * disagree about the domain or the ramp.
+   */
+  const drilldown = createMemo<SeriesDrilldown | undefined>(() => {
+    activeThemeId(); // the ramp is a theme role
+    const grid = drilldownOf(result());
+    if (!grid) return undefined;
+    return {
+      grid,
+      scale: drilldownScale(grid),
+      rate: (frame) => rateSnapshotAt(result(), frame),
+      rateTarget: view().rateTarget,
+    };
+  });
+
+  /** The drill-down's own legend entry: the lane's ramp and its domain (M38). */
+  const drilldownLegend = (): ChartLegendEntry[] => {
+    const spec = drilldown();
+    if (!spec) return [];
+    return [
+      {
+        label: spec.grid.cellLabel,
+        color: chartTheme().series,
+        kind: "ramp",
+        gradient: scaleGradient(spec.scale),
+        value: domainText(spec.grid, spec.scale),
+      },
+    ];
+  };
 
   /** A pitch chart's marks: f0, the reliability track, its display guide and the rings. */
   const pitchLegend = (): ChartLegendEntry[] => {
@@ -261,7 +307,9 @@ export default function SeriesView(props: {
                 formatY={view().formatY}
                 seriesStyle={view().style}
                 sampling={view().sampling}
-                fill={view().fill}
+                // A drill-down's lane owns the plot floor: an area wash over it would only
+                // tint the heatmap it is there to show (M38).
+                fill={view().fill && !drilldown()}
                 points={view().points}
                 yScale={view().yScale}
                 yRange={view().yRange}
@@ -272,12 +320,13 @@ export default function SeriesView(props: {
                 yAxisSize={pitch() ? 64 : undefined}
                 secondary={confidenceTrack()}
                 plugins={pitchPlugins()}
+                drilldown={drilldown()}
               />
             </Show>
           </UplotChartPlot>
           <Show when={plottable()}>
             <ChartLegend
-              entries={pitch() ? pitchLegend() : featureLegend()}
+              entries={[...(pitch() ? pitchLegend() : featureLegend()), ...drilldownLegend()]}
               note={
                 pitch()
                   ? ambiguousCount() > 0
@@ -287,11 +336,9 @@ export default function SeriesView(props: {
               }
             />
           </Show>
-          {/* Result drill-downs (M36): the optional grids a tool carries. Each renders
-              nothing when its payload is absent (YIN/autocorrelation, older results). */}
-          <PitchCandidatesPanel result={result} zoom={zoom} />
-          <ContributionPanel result={result} zoom={zoom} />
-          <RateMatrix id={props.id} result={result} />
+          {/* The drill-down itself is drawn **inside** the track's plot (M38): the
+              frame × band grid is a lane on its own time axis, and the frame under the
+              cursor is read out in a hover card — no second chart, axis or colourbar. */}
           <ReframeMenu target={menu()} onClose={() => setMenu(null)} tool={props.id} />
         </div>
       )}

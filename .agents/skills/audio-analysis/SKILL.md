@@ -25,6 +25,7 @@ are the surface.
 | Need | Use |
 | --- | --- |
 | Drive the live window; tabs/UI follow | MCP **bridge** |
+| Lay analyzers out as a grid (not just tabs) | MCP **bridge** — `open_tool { position }`, app-only |
 | Analyze files, nothing open | MCP **headless** (auto-fallback) |
 | Build a `.heyl` (source, setup, tabs, annotations) | MCP headless `save_project`, or CLI `project` |
 | Compare two projects | MCP `compare_analysis`, or CLI `compare` |

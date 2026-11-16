@@ -108,23 +108,3 @@ export function frequencyAxisValues(
     return zoomed ? `${noteName(tick)} ${formatFrequency(tick)}` : formatFrequency(tick);
   });
 }
-
-/**
- * A tick formatter for an **index** axis whose rows are band centres (a matrix whose
- * vertical axis is an ordinal band, not a frequency scale): the tick is a row index,
- * labelled with that row's physical value in Hz. Ticks outside the grid stay blank.
- */
-export function bandIndexValues(
-  bands: () => number[],
-  count: () => number,
-): (self: unknown, ticks: (number | null)[]) => string[] {
-  return (_self, ticks) => {
-    const values = bands();
-    const bins = count();
-    return ticks.map((tick) => {
-      if (tick == null) return "";
-      const band = Math.round(tick);
-      return band >= 0 && band < bins ? formatFrequency(values[band]) : "";
-    });
-  };
-}

@@ -2,11 +2,15 @@ import { SolidUplot } from "@dschz/solid-uplot";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
 import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
 import uPlot from "uplot";
-import { Show, untrack } from "solid-js";
+import { Show, createMemo, createSignal, untrack } from "solid-js";
 import { type UplotZoom } from "./uplotZoom";
 import { mirrorCursor, playheadRule, syncView } from "./syncPlugins";
 import { referenceLine, semitoneGrid } from "./seriesPlugins";
 import { annotationMarkers } from "./annotationPlugins";
+import { drilldownLane, drilldownImage } from "./drilldownLane";
+import DrilldownCard, { type CardCursor } from "./DrilldownCard";
+import { nearestFrame, type DrilldownGrid, type RateSnapshot } from "./drilldown";
+import type { HeatmapScale } from "./heatmapScale";
 import { logYRange, paddedYRange } from "./range";
 import {
   frequencyAxisValues,
@@ -54,6 +58,14 @@ function sparsePoints(u: uPlot): boolean {
   const xs = u.data[0];
   const width = u.bbox?.width ?? u.width ?? 0;
   return xs.length > 0 && width / xs.length >= 4;
+}
+
+/**
+ * A sample's formatted value, or a dash for a gap — the cursor readout's own cell.
+ * `undefined` is a real case: uPlot's columns may be shorter than the sample index.
+ */
+function formatSample(format: (value: number) => string, value: unknown): string {
+  return typeof value === "number" ? format(value) : "–";
 }
 
 /**
@@ -110,6 +122,25 @@ export interface TimeSeriesChartProps {
   secondary?: SecondaryTrack;
   /** Extra `draw` plugins appended to the synced stack (the octave-ambiguity rings). */
   plugins?: UplotPluginFactory<AnalyzerBus>[];
+  /** A result drill-down: painted inside the plot, detailed under the cursor (M38). */
+  drilldown?: SeriesDrilldown;
+}
+
+/**
+ * A drill-down a series tool carries: the time × row grid behind its scalar track.
+ *
+ * The grid shares the chart's **time axis**, so it is drawn as a lane inside the same
+ * plot rather than as a second chart with its own axis, colourbar and legend. The frame
+ * under the cursor is read out in a card (`DrilldownCard.tsx`).
+ */
+export interface SeriesDrilldown {
+  grid: DrilldownGrid;
+  /** The one colour scale the lane, the hover card and the legend stripe share. */
+  scale: HeatmapScale;
+  /** The band × rate grid at a frame (roughness / fluctuation strength only). */
+  rate?: (frame: number) => RateSnapshot | null;
+  /** The model's weighted rate, named in the card's rate caption. */
+  rateTarget?: number;
 }
 
 /**
@@ -156,97 +187,179 @@ export default function TimeSeriesChart(props: TimeSeriesChartProps) {
     ...(props.referenceLines ?? []).map((line) => referenceLine(line, line.scale)),
   ];
 
+  /** The drill-down's colour scale and image — the caller resolves the scale once (M38). */
+  const laneScale = () => props.drilldown?.scale ?? null;
+  const laneImage = createMemo(() => {
+    // The ramp comes from the active theme, so a theme switch must rebuild the lane.
+    activeThemeId();
+    const spec = props.drilldown;
+    return spec ? drilldownImage(spec.grid, spec.scale) : null;
+  });
+
+  /** Where the pointer sits, or `null` when it is off the plot. */
+  const [hover, setHover] = createSignal<CardCursor | null>(null);
+  const [instance, setInstance] = createSignal<Parameters<UplotZoom["onReady"]>[0] | null>(null);
+
+  /** The hovered frame's band × rate grid, when the tool carries one. */
+  const hoverRate = createMemo(() => {
+    const point = hover();
+    const spec = props.drilldown;
+    if (!point || !spec?.rate) return null;
+    return spec.rate(nearestFrame(spec.grid, point.time));
+  });
+
+  /**
+   * The cursor readout the card carries in place of the tooltip (one hover surface):
+   * each drawn track's value at the cursor's sample, formatted by its own tool.
+   */
+  const hoverValues = (): { label: string; value: string }[] => {
+    const point = hover();
+    const u = instance();
+    if (!point || !u) return [];
+    const rows = [
+      { label: props.yLabel, value: formatSample(props.formatY, u.data[1]?.[point.idx]) },
+    ];
+    const secondary = props.secondary;
+    if (secondary) {
+      rows.push({
+        label: secondary.label,
+        value: formatSample(secondary.format, u.data[2]?.[point.idx]),
+      });
+    }
+    return rows;
+  };
+
+  /** The lane is drawn inside this plot; its `pointerleave` hides the card. */
+  const drilldownPlugins = () =>
+    props.drilldown
+      ? [
+          drilldownLane({
+            grid: () => props.drilldown?.grid ?? null,
+            image: laneImage,
+            onLeave: () => setHover(null),
+          }),
+        ]
+      : [];
+
   return (
-    <Show when={activeThemeId()} keyed>
-      <SolidUplot
-        autoResize
-        pluginBus={analyzerBus}
-        plugins={[
-          cursor(),
-          tooltip(Tooltip),
-          mirrorCursor("time"),
-          syncView("time"),
-          playheadRule(),
-          annotationMarkers(props.id),
-          ...referencePlugins(),
-          ...(props.semitoneGrid ? [semitoneGrid()] : []),
-          ...(props.plugins ?? []),
-        ]}
-        onCreate={props.zoom.onReady}
-        data={data()}
-        series={[
-          {},
-          {
-            label: props.yLabel,
-            stroke: chartTheme().series,
-            width: 1,
-            fill: filled() ? chartTheme().waveFill : undefined,
-            // A gated / unvoiced frame is a gap: never join across one.
-            spanGaps: false,
-            points: {
-              show: showPoints() ? (u: uPlot) => (props.points ? true : sparsePoints(u)) : false,
-              size: 4,
+    <>
+      <Show when={activeThemeId()} keyed>
+        <SolidUplot
+          autoResize
+          pluginBus={analyzerBus}
+          plugins={[
+            cursor(),
+            // A drill-down chart's readout is the card, so the tooltip would be a second
+            // floating box beside it (one hover surface — M38).
+            ...(props.drilldown ? [] : [tooltip(Tooltip)]),
+            mirrorCursor("time"),
+            syncView("time"),
+            playheadRule(),
+            annotationMarkers(props.id),
+            ...referencePlugins(),
+            ...(props.semitoneGrid ? [semitoneGrid()] : []),
+            ...drilldownPlugins(),
+            ...(props.plugins ?? []),
+          ]}
+          onCreate={(u) => {
+            setInstance(() => u);
+            setHover(null);
+            props.zoom.onReady(u);
+          }}
+          onCursorMove={({ cursor }) =>
+            setHover({
+              left: cursor.position.left,
+              top: cursor.position.top,
+              idx: cursor.idx,
+              time: cursor.xValue,
+            })
+          }
+          data={data()}
+          series={[
+            {},
+            {
+              label: props.yLabel,
+              stroke: chartTheme().series,
+              width: 1,
+              fill: filled() ? chartTheme().waveFill : undefined,
+              // A gated / unvoiced frame is a gap: never join across one.
+              spanGaps: false,
+              points: {
+                show: showPoints() ? (u: uPlot) => (props.points ? true : sparsePoints(u)) : false,
+                size: 4,
+              },
+              paths: paths(),
             },
-            paths: paths(),
-          },
-          ...(props.secondary
-            ? [
-                {
-                  label: props.secondary.label,
-                  scale: "y2",
-                  stroke: props.secondary.stroke,
-                  width: 1,
-                  dash: props.secondary.dash,
-                  spanGaps: false,
-                  points: { show: props.secondary.points ?? false, size: 4 },
-                },
-              ]
-            : []),
-        ]}
-        scales={{
-          x: { time: false },
-          y:
-            props.yScale === "log"
-              ? { distr: 3, log: 10, range: logYRange }
-              : { range: props.yRange ? () => props.yRange! : paddedYRange },
-          ...(props.secondary
-            ? {
-                y2: props.secondary.yRange
-                  ? { range: () => props.secondary!.yRange! }
-                  : { range: paddedYRange },
-              }
-            : {}),
-        }}
-        axes={[
-          {
-            ...chartAxisStyle(),
-            label: "time (s)",
-            size: X_AXIS_SIZE,
-            space: TIME_AXIS_SPACE,
-            values: timeAxisValues,
-          },
-          {
-            ...chartAxisStyle(),
-            label: props.yLabel,
-            size: props.yAxisSize ?? Y_AXIS_SIZE,
-            space: Y_AXIS_SPACE,
-            values: props.frequencyY ? frequencyAxisValues : undefined,
-          },
-          ...(props.secondary
-            ? [
-                {
-                  ...chartAxisStyle(),
-                  scale: "y2",
-                  side: 1 as const,
-                  label: props.secondary.yLabel,
-                  size: Y_AXIS_SIZE,
-                  space: Y_AXIS_SPACE,
-                  grid: { show: false },
-                },
-              ]
-            : []),
-        ]}
-      />
-    </Show>
+            ...(props.secondary
+              ? [
+                  {
+                    label: props.secondary.label,
+                    scale: "y2",
+                    stroke: props.secondary.stroke,
+                    width: 1,
+                    dash: props.secondary.dash,
+                    spanGaps: false,
+                    points: { show: props.secondary.points ?? false, size: 4 },
+                  },
+                ]
+              : []),
+          ]}
+          scales={{
+            x: { time: false },
+            y:
+              props.yScale === "log"
+                ? { distr: 3, log: 10, range: logYRange }
+                : { range: props.yRange ? () => props.yRange! : paddedYRange },
+            ...(props.secondary
+              ? {
+                  y2: props.secondary.yRange
+                    ? { range: () => props.secondary!.yRange! }
+                    : { range: paddedYRange },
+                }
+              : {}),
+          }}
+          axes={[
+            {
+              ...chartAxisStyle(),
+              label: "time (s)",
+              size: X_AXIS_SIZE,
+              space: TIME_AXIS_SPACE,
+              values: timeAxisValues,
+            },
+            {
+              ...chartAxisStyle(),
+              label: props.yLabel,
+              size: props.yAxisSize ?? Y_AXIS_SIZE,
+              space: Y_AXIS_SPACE,
+              values: props.frequencyY ? frequencyAxisValues : undefined,
+            },
+            ...(props.secondary
+              ? [
+                  {
+                    ...chartAxisStyle(),
+                    scale: "y2",
+                    side: 1 as const,
+                    label: props.secondary.yLabel,
+                    size: Y_AXIS_SIZE,
+                    space: Y_AXIS_SPACE,
+                    grid: { show: false },
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </Show>
+      <Show when={props.drilldown && hover() && instance() && laneScale()}>
+        <DrilldownCard
+          u={instance()!}
+          cursor={hover()!}
+          grid={props.drilldown!.grid}
+          scale={laneScale()!}
+          values={hoverValues()}
+          rate={hoverRate()}
+          rateTarget={props.drilldown!.rateTarget}
+        />
+      </Show>
+    </>
   );
 }

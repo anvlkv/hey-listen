@@ -71,7 +71,8 @@ a local server as a `command` + `args` and speak MCP over its stdio.
   which would otherwise stall in the background.
 
 Because the tool runs in the window, **UI following is automatic**: `open_tool`
-opens a Workbench tab, `run_analysis` opens the analyzer tab and sets the analysis
+opens a Workbench tab (a `position` splits the Workbench instead of adding a tab),
+`run_analysis` opens the analyzer tab and sets the analysis
 window, `open_audio_file` replaces the timeline — and `get_state` reports exactly
 what the window shows. When **no app is running**, the same command line falls back
 to a **core-native headless** server instead (see *Headless CLI* below).
@@ -134,7 +135,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 
 | Tool | Purpose |
 | --- | --- |
-| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, project name/path/dirty, filter + output settings, the **annotations** + the selected annotation id (wire key `selectedAnnotationId`), and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout) and `savedComparisons` lists the project's stored comparison snapshots — the same compact shape `list_projects` reports. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
+| `get_state` | Observe: source shape, analysis window + viewport, shared params, tool options, open tabs, the Workbench's **groups** (`workbench: [{ id, tools, activeTool }]` — the ids `open_tool.position` addresses; app-only, compare panels excluded), project name/path/dirty, filter + output settings, the **annotations** + the selected annotation id (wire key `selectedAnnotationId`), and `server: { mode, version }`. Headless, `openTools` reports the analyzer tabs the project was opened/saved with (they are restored when the app loads a project without a Workbench layout) and `savedComparisons` lists the project's stored comparison snapshots — the same compact shape `list_projects` reports. Open **compare views** are reported separately as `compare: [{ tool, with, saved, offset }]` (M25.B/M25.C) — they are not in `openTools`, and `saved: true` means the reference is the project's snapshot. |
 | `list_analyzers` | The compact analyzer catalog (id/title/description/section/**family**/keywords), plus each tool's per-tool option keys and defaults. The list is mirrored under `structuredContent.analyzers` (the 2025-06-18 revision), while `content[0].text` keeps the JSON array. **(M16, M21.A)** |
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
@@ -146,7 +147,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_view` | Set the timeline's visible range. |
 | `set_shared_params` | Patch the shared analysis params. |
 | `set_tool_options` | Patch one analyzer's own options. Keys are canonical camelCase (`nMels`, `yinThreshold`, `minF0Hz`); snake_case aliases are accepted; an unknown key or non-numeric value fails. See `list_analyzers` for each tool's keys/defaults. **(M16)** |
-| `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). Headless there is no webview, so the tab joins/leaves the project's `SETUP.openTools` restore list (reported by `get_state.openTools`, written by `save_project`, opened by the app on load). **(M25.D)** |
+| `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). `open_tool` takes an optional **`position: { referenceGroup, direction }`** (`within` = a tab, the default; `left` / `right` / `above` / `below` split that group) so an agent can lay analyzers out side by side; `referenceGroup` is a group id from `get_state.workbench.groups` **or** a tool id open in that group, and an unknown one fails rather than falling back. Headless there is no webview, so the tab joins/leaves the project's `SETUP.openTools` restore list (reported by `get_state.openTools`, written by `save_project`, opened by the app on load) and `position` is ignored — no `LAYOUT` is written. **(M25.D)** |
 | `get_graph` | Read a graph editor's `{ nodes, edges }`. |
 | `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). In headless mode takes a `GraphSpec` directly. |
 | `set_synth_graph` | Replace the synth graph. |
@@ -184,6 +185,22 @@ aliases (`min_f0_hz`, `n_mels`, …) are accepted at every boundary. An **unknow
 error**, not a silent no-op, on the GUI MCP path, headless, and the CLI. Chart-display
 toggles (`showMean`, `frequencyScale`, …) are not engine options and are never sent to the
 engine. `list_analyzers` carries each tool's compact option map (keys + defaults).
+
+**Workbench layout (`open_tool.position`).** A tab joins the main group by default. To
+split the Workbench into a grid, pass a `position`:
+
+```text
+get_state                                    # → workbench.groups: [{ id, tools, activeTool }]
+open_tool { tool: "spectrogram", position: { referenceGroup: "<group id or tool id>", direction: "below" } }
+```
+
+`direction` is `within` (a tab in that group, the default) or one of `left` / `right` /
+`above` / `below` (split it and place the tab on that side). `referenceGroup` is a group id
+from `get_state.workbench.groups`, or — usually easier — a tool id already open in the group
+to split; an unknown value fails instead of silently falling back. The direction spellings
+are dockview's (`src/state/workbench.ts` → `TOOL_DIRECTIONS`), and the placement is
+**app-only**: headless has no layout, so `position` is ignored and only `SETUP.openTools` is
+recorded (a headless-saved project opens its tabs in one group).
 
 **`target`.** Every tool accepts an optional `target` (a label from `list_projects`)
 to address a specific project window instead of the focused one. `get_state` reports
@@ -293,7 +310,8 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
      `save_project` / `open_project` / `new_project` (source + setup + annotations + openTools;
      no Workbench layout) — plus the **data** halves of the export tools
      (`export_analysis`, `export_all`; `export_chart` needs the canvas).
-     UI-only tools — Workbench tabs, the editor-layout graphs (`get_graph` /
+     UI-only tools — the Workbench **layout** (`open_tool.position`; the tab itself is
+     recorded headless), the editor-layout graphs (`get_graph` /
      `set_synth_graph`), and live preview/capture (real device I/O with no UI to
      configure it) — answer "requires the app".
    - One shared engine path: the GUI command and the headless dispatcher both call

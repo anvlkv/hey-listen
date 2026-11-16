@@ -13,7 +13,8 @@ pub(super) fn tools() -> Vec<Value> {
             ToolClass::OBSERVE,
             "Observe the current project: the source (name, rate, channels, duration), \
              the analysis window and viewport, the shared analysis params, each analyzer's \
-             effective options, the open Workbench tabs, the project name/path/dirty flag, \
+             effective options, the open Workbench tabs and their groups, the project \
+             name/path/dirty flag, \
              the annotations + the selected annotation id (wire key `selectedAnnotationId`), and \
              the filter + output settings. \
              Start here to see what the user is looking at.",

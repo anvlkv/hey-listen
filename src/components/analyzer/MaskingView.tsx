@@ -1,8 +1,7 @@
 import uPlot from "uplot";
 import { For, Show } from "solid-js";
 import Readout from "./Readout";
-import FrequencyChart from "./FrequencyChart";
-import MaskingSmrPanel from "./MaskingSmrPanel";
+import FrequencyChart, { type FrequencyReference } from "./FrequencyChart";
 import type { ChartLegendEntry } from "./chartLegend";
 import { createUplotZoom } from "./uplotZoom";
 import { verticalMarks, type VerticalMark } from "./verticalMarkers";
@@ -19,7 +18,11 @@ import {
 /**
  * Vertical bands between the spectrum and the global masking threshold wherever a
  * bin is masked (`smrDb < 0`). The series' own values carry the spectrum level at
- * those bins; the builder reads the threshold curve (series 3) for the other end.
+ * those bins; the builder reads the threshold curve (`tg` column) for the other end.
+ *
+ * It is the chart's **first** series, so the comb sits under the level curves it
+ * explains rather than over them — with a mostly-masked window the bands would
+ * otherwise paint a solid block across the spectrum.
  */
 const maskedBands = (
   u: uPlot,
@@ -30,7 +33,7 @@ const maskedBands = (
   const path = new Path2D();
   const xs = u.data[0];
   const spectrum = u.data[seriesIdx];
-  const threshold = u.data[3];
+  const threshold = u.data[TG_COLUMN];
   if (!xs) return null;
   for (let i = idx0; i <= idx1; i++) {
     const x = xs[i];
@@ -49,16 +52,39 @@ const maskedBands = (
 };
 
 /**
- * Masking view (M30, M36): the averaged spectrum with the threshold in quiet `Tq`
- * and the global masking threshold `Tg` on one **level** panel, and the
- * signal-to-mask ratio on a separate, aligned **SMR** panel (a different quantity
- * must not share one y-scale). Masked bins (negative SMR) are drawn as bands between
- * the level and `Tg`.
+ * The data columns: `[x, masked, spectrum, Tq, Tg]`. The masked bands come first so they
+ * are drawn under the curves; `maskedBands` reads `Tg` at [`TG_COLUMN`], and the level
+ * window is anchored on the spectrum, not on a threshold's out-of-range ceiling.
+ */
+const SPECTRUM_COLUMN = 2;
+const TG_COLUMN = 4;
+
+/**
+ * The SMR's right-hand range always contains the 0 dB threshold, so "above / below the
+ * masking threshold" is readable even when every bin sits on one side of it.
+ */
+function smrRange(_u: unknown, min: number, max: number): [number, number] {
+  const lo = Math.min(min, 0);
+  const hi = Math.max(max, 0);
+  const pad = Math.max((hi - lo) * 0.08, 0.5);
+  return [lo - pad, hi + pad];
+}
+
+/**
+ * Masking view (M30, M36, M38): the averaged spectrum with the threshold in quiet `Tq`
+ * and the global masking threshold `Tg` on one **level** axis, and the
+ * signal-to-mask ratio on the right-hand **SMR** axis of the same plot. Masked bins
+ * (negative SMR) are drawn as bands between the level and `Tg` — the bands *are* the
+ * negative SMR, so the ratio curve and the bands share one colour.
+ *
+ * The two quantities keep their own scales (a ratio must never be plotted on a level
+ * axis), but they share one frequency axis, so one plot replaces the stacked pair of
+ * panels: no second axis row, no second legend, no second zoom chrome.
  *
  * The level axis is `level (dB SPL)` only when the run is calibrated; otherwise it is
  * `relative level (dB)` and the legend says `Tq` is dB SPL — the two are not directly
  * comparable without calibration. Zoom and cursor are synced with the other frequency
- * charts on the `"freq"` group, and the two panels share that sync.
+ * charts on the `"freq"` group.
  *
  * The model's individual maskers are drawn on the level panel as vertical rules, tonal
  * and residual in distinct colours (their own legend entries), so a threshold can be
@@ -70,12 +96,32 @@ export default function MaskingView(props: {
 }) {
   const result = () => props.analysis.result() as MaskingResult | null;
   const levelZoom = createUplotZoom("freq");
-  const smrZoom = createUplotZoom("freq");
 
-  // Only the level panel provides the tab's PNG export.
+  // The tab's PNG export follows the one plot.
   useUplotImage(() => props.id, levelZoom.instance);
 
+  /** The masked bins' level, drawn as bands down to `Tg` (they are the negative SMR). */
   const masked = (r: MaskingResult) => r.smrDb.map((smr, i) => (smr < 0 ? r.spectrumDb[i] : null));
+
+  /**
+   * The SMR on the plot's right-hand axis: its own scale, on the shared frequency axis.
+   * Bins the analyser left non-finite become gaps rather than zeros.
+   */
+  const smrReference = (r: MaskingResult | null): FrequencyReference | undefined => {
+    if (!r) return undefined;
+    return {
+      values: r.smrDb.map((value) => (Number.isFinite(value) ? value : null)),
+      label: "SMR",
+      stroke: chartTheme().markerDownbeat,
+      dash: [],
+      axisLabel: "SMR (dB)",
+      range: smrRange,
+      inTooltip: true,
+      // A per-bin quotient is far noisier than the level curves: keep it a backdrop so
+      // the spectrum and the thresholds stay the chart's subject.
+      alpha: 0.5,
+    };
+  };
 
   /** The maskers the model summed into `Tg` (empty for a result stored before M36). */
   const maskers = () => result()?.maskers ?? [];
@@ -102,7 +148,7 @@ export default function MaskingView(props: {
   ] => {
     const r = result();
     if (!r || r.freqs.length === 0) return [[], [], [], [], []];
-    return [r.freqs, r.spectrumDb, r.thresholdQuietDb, r.globalMaskDb, masked(r)];
+    return [r.freqs, masked(r), r.spectrumDb, r.thresholdQuietDb, r.globalMaskDb];
   };
 
   const hasData = () => {
@@ -118,7 +164,8 @@ export default function MaskingView(props: {
       { label: "spectrum", color: chartTheme().seriesMean },
       { label: "threshold in quiet (Tq)", color: chartTheme().seriesMin, kind: "dashed" },
       { label: "masking threshold (Tg)", color: chartTheme().seriesMax, kind: "dashed" },
-      { label: "masked (SMR < 0)", color: chartTheme().markerDownbeat },
+      { label: "SMR (right axis)", color: chartTheme().markerDownbeat },
+      { label: "masked (SMR < 0)", color: chartTheme().markerDownbeat, kind: "fill" },
     ];
     if (maskers().length > 0) {
       rows.push(
@@ -199,11 +246,18 @@ export default function MaskingView(props: {
             </div>
           }
         >
-          <div class="analyzer-plot masking-level">
+          <div class="analyzer-plot">
             <FrequencyChart
               zoom={levelZoom}
               data={data()}
               series={[
+                {
+                  label: "masked",
+                  stroke: chartTheme().markerDownbeat,
+                  width: 1,
+                  alpha: 0.4,
+                  paths: maskedBands,
+                },
                 {
                   label: "spectrum",
                   stroke: chartTheme().seriesMean,
@@ -221,25 +275,14 @@ export default function MaskingView(props: {
                   width: 1,
                   dash: [4, 3],
                 },
-                {
-                  label: "masked",
-                  stroke: chartTheme().markerDownbeat,
-                  width: 3,
-                  paths: maskedBands,
-                },
               ]}
               yWindow={100}
               yLabel={levelLabel()}
+              yAnchor={SPECTRUM_COLUMN}
               legend={legend()}
               legendNote={legendNote()}
               plugins={maskerPlugins()}
-            />
-          </div>
-          <div class="analyzer-plot masking-smr" onWheel={smrZoom.wheel}>
-            <MaskingSmrPanel
-              zoom={smrZoom}
-              freqs={result()?.freqs ?? []}
-              smrDb={result()?.smrDb ?? []}
+              reference={smrReference(result())}
             />
           </div>
         </Show>

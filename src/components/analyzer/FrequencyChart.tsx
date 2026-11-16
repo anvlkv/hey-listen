@@ -35,6 +35,14 @@ export interface FrequencyReference {
   label: string;
   stroke: string;
   dash?: number[];
+  /** The right-hand axis title (default `reference (dB SPL)`). */
+  axisLabel?: string;
+  /** A fixed right-hand domain (masking's SMR must always contain 0 dB). */
+  range?: (self: uPlot, min: number, max: number) => [number, number];
+  /** Show the reference in the cursor tooltip (masking's SMR is a readout of its own). */
+  inTooltip?: boolean;
+  /** Draw the reference faintly under the primary series (a derived, noisier quantity). */
+  alpha?: number;
 }
 
 /** Props for the shared frequency-axis chart (spectrum and its masking overlay). */
@@ -46,6 +54,13 @@ export interface FrequencyChartProps {
   series: uPlot.Series[];
   /** The dB span kept in view, anchored on the peak. */
   yWindow: number;
+  /**
+   * The data column the level window is anchored on (default `1`, the first series).
+   * A series with a sentinel value (a threshold model's out-of-range ceiling) must not
+   * stretch the window: the plot is drawn around the primary curve, and a threshold
+   * above it simply leaves the top of the plot.
+   */
+  yAnchor?: number;
   /**
    * The frequency-axis scale. A caller that never offers the control keeps the
    * default (linear Hz); `spectrum` passes the `frequencyScale` view params.
@@ -105,6 +120,7 @@ export default function FrequencyChart(props: FrequencyChartProps) {
         stroke: reference.stroke,
         width: 1.25,
         dash: reference.dash ?? [6, 4],
+        alpha: reference.alpha,
         scale: "y2",
         points: { show: false },
       },
@@ -114,18 +130,35 @@ export default function FrequencyChart(props: FrequencyChartProps) {
   const scales = (): uPlot.Scales => ({
     x: frequencyScaleXScale(scale()),
     y: {
-      range: (_u, min, max): [number, number] => {
-        const hi = Math.max(max, min + 6);
-        return [Math.max(min, hi - props.yWindow), hi + 2];
+      range: (u, min, max): [number, number] => {
+        const column = u.data[props.yAnchor ?? 1];
+        let lo = Infinity;
+        let hi = -Infinity;
+        if (column) {
+          for (const value of column) {
+            if (typeof value !== "number" || !Number.isFinite(value)) continue;
+            if (value < lo) lo = value;
+            if (value > hi) hi = value;
+          }
+        }
+        // An empty anchor column falls back to every series' extent (uPlot's own scan).
+        if (!(hi > lo)) {
+          lo = min;
+          hi = max;
+        }
+        const top = Math.max(hi, lo + 6) + 2;
+        return [Math.max(lo, top - props.yWindow), top];
       },
     },
     ...(props.reference
       ? {
           y2: {
-            range: (_u: uPlot, min: number, max: number): [number, number] => [
-              Math.max(0, Math.floor(min / 10) * 10 - 5),
-              Math.ceil(max / 10) * 10 + 5,
-            ],
+            range:
+              props.reference.range ??
+              ((_u: uPlot, min: number, max: number): [number, number] => [
+                Math.max(0, Math.floor(min / 10) * 10 - 5),
+                Math.ceil(max / 10) * 10 + 5,
+              ]),
           },
         }
       : {}),
@@ -152,9 +185,11 @@ export default function FrequencyChart(props: FrequencyChartProps) {
         ...chartAxisStyle(),
         scale: "y2",
         side: 1,
-        label: "reference (dB SPL)",
+        label: props.reference.axisLabel ?? "reference (dB SPL)",
         size: Y_AXIS_SIZE,
         space: Y_AXIS_SPACE,
+        // One grid: both axes are dB, but the quantities are not comparable.
+        grid: { show: false },
       });
     }
     return list;
@@ -180,7 +215,11 @@ export default function FrequencyChart(props: FrequencyChartProps) {
             pluginBus={analyzerBus}
             plugins={[
               cursor(),
-              tooltip(frequencyDbTooltip(scale)),
+              tooltip(
+                frequencyDbTooltip(scale, {
+                  hideScales: props.reference?.inTooltip ? [] : ["y2"],
+                }),
+              ),
               mirrorCursor("freq", transform()),
               syncView("freq", transform()),
               ...(props.plugins ?? []),

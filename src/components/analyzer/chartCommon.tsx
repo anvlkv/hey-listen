@@ -192,10 +192,11 @@ export function timeTooltip(formatY: (value: number) => string, options?: TimeTo
  * the view is transformed (M36) — so it is inverted back to Hz, and the rate is shown
  * beside it. A chart in any mode therefore reports the same physical frequency.
  */
-export function frequencyDbTooltip(scale: () => FrequencyScale) {
+export function frequencyDbTooltip(scale: () => FrequencyScale, options?: TimeTooltipOptions) {
   return (props: TooltipProps) => (
     <ChartTooltip
       {...props}
+      {...(options ?? {})}
       xLabel="f"
       formatX={(value) => frequencyCursor(value, scale())}
       formatY={(value) => `${value.toFixed(1)} dB`}

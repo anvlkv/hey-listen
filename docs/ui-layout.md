@@ -217,6 +217,13 @@ None of these are closable, draggable, or tabbed.
 - Tabs are dragged to reorder / **split / join** groups. The drag runs on
   dockview's **pointer** strategy (`dndStrategy: "pointer"`): the system WebView
   does not drive HTML5 drag-and-drop reliably, which left edge drops inoperative.
+- **MCP can split too.** `open_tool` takes an optional
+  `position: { referenceGroup, direction }` (`within` = a tab, the default; `left` /
+  `right` / `above` / `below` split that group), so an agent can lay analyzers out as a
+  grid. `referenceGroup` is a group id from `get_state.workbench.groups` or a tool id
+  open in that group; the direction spellings are `TOOL_DIRECTIONS` in
+  `src/state/workbench.ts`. Headless has no layout, so the placement is ignored there
+  and only `SETUP.openTools` is recorded. See [`mcp.md`](mcp.md) → "Workbench layout".
 - Every group header carries a **Tabs (N)** menu with a search field, so an
   overflowing strip never hides a tab behind a truncated title. It lists every tab of
   that group (in tab order) with the **fully wrapped** title — long names are never
