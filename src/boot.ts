@@ -32,12 +32,16 @@ function describe(error: unknown): string {
 // would run too late, because the separately chunked uPlot bundle — which reads
 // `navigator.language` at module scope — is evaluated before this module's body.
 
-window.addEventListener("error", (event) =>
+window.addEventListener("error", (event) => {
+  // A `ResizeObserver` loop is reported on `window.error`, but it is a benign
+  // notification (the spec calls the condition non-fatal), not a failure the app can act
+  // on: logging it would put a false "uncaught error" in every bug report.
+  if (event.message.startsWith("ResizeObserver loop")) return;
   reportStartupFailure(
     `uncaught error at ${event.filename}:${event.lineno}`,
     event.error ?? event.message,
-  ),
-);
+  );
+});
 
 window.addEventListener("unhandledrejection", (event) =>
   reportStartupFailure("unhandled rejection", event.reason),

@@ -32,10 +32,21 @@ import {
   textOf,
 } from "../support/helpers.ts";
 import { FIXTURES } from "../support/fixtures.ts";
-import { appLogPath } from "../support/logs.ts";
+import { appLogPath, expectLogErrors } from "../support/logs.ts";
 import { invokeCore } from "../support/ipc.ts";
 import { closeCurrentWindow, windowLabels } from "../support/windows.ts";
 import { addPaletteNode, ensureFilterEnabled, toggleFilter } from "../support/graph.ts";
+
+// Every case in this file forces a failure on purpose; the app log is expected to record
+// each one. Anything else in it is a surprise — and fails the spec (see `logHooks.ts`).
+expectLogErrors(
+  "probe_file failed: unsupported or unrecognized audio format", // I1
+  "run_analysis failed: analysis failed (mock)", // I2
+  "set_filter_graph failed: filter push failed (mock)", // I3
+  "render_synth failed: render failed (mock)", // I4
+  "preview_region failed: no audio output device is available", // I6
+  "preview failed", // I6's own report of that rejection
+);
 
 /** Kobalte portals every popover panel with this class. */
 const POP_PANEL = ".pop-panel";
@@ -293,6 +304,7 @@ describe("I. Errors & warnings", () => {
   it("I7 — a frontend error reaches the app log and the log preview", async () => {
     // A unique marker per run: a previous run's file must not satisfy the assertions.
     const probe = `e2e-log-probe-${Date.now()}`;
+    expectLogErrors(probe);
     await browser.execute((marker: string) => console.error(marker), probe);
 
     // The bridge forwards `console.error` to the core, which appends it to this run's log

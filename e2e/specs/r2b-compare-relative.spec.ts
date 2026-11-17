@@ -28,6 +28,10 @@ import {
   waitForCompareChart,
 } from "../support/compare.ts";
 import { closeCurrentWindow, closeWindowsMatching, windowLabels } from "../support/windows.ts";
+import { expectLogErrors } from "../support/logs.ts";
+
+// R2.11 closes the reference project on purpose; the comparison still open reports it.
+expectLogErrors(/compare_peer_setup failed: the reference project '.*' is closed/);
 
 describe("R2b. Comparison — relative alignment", () => {
   /** The chirp reference project (`secondProject`). */

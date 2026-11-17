@@ -43,12 +43,17 @@ import {
   waitForBadge,
   waitForCompareChart,
 } from "../support/compare.ts";
+import { expectLogErrors } from "../support/logs.ts";
 import {
   closeCurrentWindow,
   closeWindowsMatching,
   openProjectWindow,
   windowLabels,
 } from "../support/windows.ts";
+
+// R2.3 closes the reference project on purpose, so the open comparison reports the
+// peer-closed banner — the ipc failure is that condition, not a defect.
+expectLogErrors(/compare_peer_setup failed: the reference project '.*' is closed/);
 
 /** The "reference project closed" banner. */
 const BANNER = '[data-testid="compare.banner"]';

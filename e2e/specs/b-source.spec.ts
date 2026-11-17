@@ -7,6 +7,7 @@
  * so it is a documented manual smoke and `skip`ped here.
  */
 import { SEL } from "../support/selectors.ts";
+import { expectLogErrors } from "../support/logs.ts";
 import {
   waitForApp,
   waitFor,
@@ -22,6 +23,9 @@ import {
   count,
   textOf,
 } from "../support/helpers.ts";
+
+// B4 forces the capture start to fail, so the app records exactly that error.
+expectLogErrors("start_capture failed: capture permission denied");
 
 /** The Timeline toolbar's window readout (e.g. `0:00.00 – 0:02.00 Δ …`). */
 async function timelineReadout(): Promise<string> {

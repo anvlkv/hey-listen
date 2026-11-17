@@ -34,6 +34,9 @@
 
     // E2E suite: each spec is a root; `e2e/support/**` is reached via imports.
     "e2e/specs/**/*.spec.ts",
+    // The per-spec app-log contract: a Mocha root hook plugin named by **path** in
+    // `wdio.conf.ts` (`mochaOpts.require`), so no import reaches it.
+    "e2e/support/logHooks.ts",
     "e2e/screenshots/**/*.spec.ts",
     "screenshots.wdio.conf.ts",
   ],

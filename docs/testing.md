@@ -66,6 +66,16 @@ the app's. A failing test also saves a screenshot of the window it left behind
 (`wdio.conf.ts` → `afterTest`), because a stalled popout and a missing element look
 identical in a log. CI uploads the directory as the `e2e-report-<os>` artifact.
 
+**The app log is a spec's second verdict.** Each spec file starts with an empty log and
+ends with a check that the app logged no `[ERROR]` it did not declare
+(`e2e/support/logHooks.ts`, a Mocha root-hook plugin — a WDIO `after` hook error is
+logged and swallowed, so it cannot fail a file). A case that forces a failure declares it
+from its spec file with `expectLogErrors(...)`; conditions the **harness** cannot provide —
+a real capture is refused because the app has no microphone grant — are declared once in
+`HARNESS_LOG_ERRORS` (`e2e/support/logs.ts`), matching a stable prefix because the
+backend's text is platform-specific. A spec whose own test failed is not checked further,
+so a broken case reports one failure instead of its symptoms.
+
 **One app instance per run.** WebdriverIO launches the app once, so spec files share
 it and carry state. Helpers account for that: `openFixture` is duration-aware (it
 skips a reload when the same fixture is already loaded), each spec's `before`

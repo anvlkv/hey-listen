@@ -151,6 +151,11 @@ export const config: Options.Testrunner & {
   reporters: ["spec", ["json", {}]],
   mochaOpts: {
     ui: "bdd",
+    // `logHooks.ts` as a Mocha root hook plugin: every spec file starts with an empty app
+    // log and fails when it ends with an error the spec did not declare. Root hooks are
+    // the only shape that can fail a file — a WDIO `after` hook error is swallowed. See
+    // docs/testing.md → Artifacts.
+    require: ["./e2e/support/logHooks.ts"],
     // Analysis can be slow on the longest fixture; a generous per-test ceiling.
     timeout: 120_000,
   },

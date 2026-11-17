@@ -16,6 +16,7 @@
  * they share the one app window's graph state.
  */
 import { SEL, sidebarTool, tab } from "../support/selectors.ts";
+import { expectLogErrors } from "../support/logs.ts";
 import {
   waitForApp,
   waitFor,
@@ -45,6 +46,9 @@ import {
   seedEdgeMidpoint,
   toggleFilter,
 } from "../support/graph.ts";
+
+// C4 forces a rejected graph push, so the app records exactly that error.
+expectLogErrors("set_filter_graph failed: graph rejected by test");
 
 describe("C. Graph editors", () => {
   before(async () => {
