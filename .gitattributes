@@ -1,3 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# A .heyl embeds its PCM, so story assets reach tens of MB. Keep them in LFS
+# rather than in the pack. Test fixtures stay normal blobs (see e2e/fixtures).
 video/story-assets/*.heyl filter=lfs diff=lfs merge=lfs -text
