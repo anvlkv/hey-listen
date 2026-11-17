@@ -30,7 +30,7 @@ pub fn next_label(prefix: &str) -> String {
 }
 
 /// Bring a window to the front (un-minimize first: `set_focus` alone can leave it behind).
-pub(crate) fn raise(window: &tauri::WebviewWindow) {
+pub(crate) fn raise<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) {
     let _ = window.unminimize();
     let _ = window.set_focus();
 }
@@ -95,6 +95,12 @@ pub async fn close_popouts(window: tauri::WebviewWindow) -> Result<(), String> {
     let registry = app.state::<crate::state::WindowRegistry>();
     let root = registry.root_label(window.label());
     for label in registry.popouts_of(&root) {
+        // The log preview is **app-wide** content: a load replaces the old project's
+        // views, and the log is not one of them — otherwise every File → Open would
+        // close the preview.
+        if registry.popout_log(&label) {
+            continue;
+        }
         if let Some(popout) = app.get_webview_window(&label) {
             if popout.destroy().is_ok() {
                 registry.remove(&label);
@@ -219,6 +225,57 @@ pub fn popout_annotation(window: tauri::WebviewWindow) -> Option<String> {
         .app_handle()
         .state::<crate::state::WindowRegistry>()
         .popout_annotation(window.label())
+}
+
+/// Open (or raise) the **log preview**, aliased to `parent`'s project.
+///
+/// One window for the whole app (a singleton): an existing preview is raised, whichever
+/// project opened it. It is still a *view* (ADR-11), so it closes with the window it was
+/// opened from and its commands resolve to that project, while `popout_log` tells its
+/// frontend which list to render. Registered **before** the window loads, so the first
+/// paint can already ask.
+pub(crate) fn open_log_window_for<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    parent: &str,
+) -> Result<String, String> {
+    let registry = app.state::<crate::state::WindowRegistry>();
+    if let Some(existing) = registry.log_popout() {
+        if let Some(popout) = app.get_webview_window(&existing) {
+            raise(&popout);
+            return Ok(existing);
+        }
+        registry.remove(&existing);
+    }
+
+    let label = next_label("popout");
+    registry.add_log_popout(&label, parent);
+    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+        .title("Log — Hey Listen")
+        .inner_size(900.0, 640.0)
+        .min_inner_size(520.0, 360.0)
+        .build();
+
+    if let Err(err) = built {
+        registry.remove(&label);
+        return Err(err.to_string());
+    }
+    Ok(label)
+}
+
+/// Open the log preview for the calling window's project (Help → Show Log… calls
+/// [`open_log_window_for`] directly: it needs no webview).
+#[tauri::command]
+pub async fn open_log_window(window: tauri::WebviewWindow) -> Result<String, String> {
+    open_log_window_for(window.app_handle(), window.label())
+}
+
+/// Whether the calling window shows the log preview.
+#[tauri::command]
+pub fn popout_log(window: tauri::WebviewWindow) -> bool {
+    window
+        .app_handle()
+        .state::<crate::state::WindowRegistry>()
+        .popout_log(window.label())
 }
 
 /// The tools currently popped out of the calling window's project.

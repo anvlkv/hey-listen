@@ -92,7 +92,11 @@ pub fn take_pending_open_paths(state: State<'_, OpenedFiles>) -> Vec<String> {
 #[tauri::command]
 pub async fn add_recent_project(app: AppHandle, path: String) {
     crate::recent::record(&app, &path);
-    let _ = crate::menu::rebuild(&app);
+    // A failed rebuild leaves File → Open Recent stale until the next change, which is
+    // otherwise a silent no-op.
+    if let Err(err) = crate::menu::rebuild(&app) {
+        log::warn!("could not rebuild the menu after recording a recent project: {err}");
+    }
 }
 
 /// Queue file-open requests and notify a running frontend. Paths are queued so a
@@ -123,7 +127,11 @@ pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Ve
     }
     // If a window already exists, also route the request to the focused one.
     if let Some(label) = focused_label(app) {
-        let _ = app.emit_to(label, OPEN_EVENT, paths);
+        // A failed delivery leaves the file unopened: the request is queued above, so a
+        // restart still opens it, but nothing else would say why this window did not.
+        if let Err(err) = app.emit_to(label.clone(), OPEN_EVENT, paths) {
+            log::warn!("could not deliver an open request to {label}: {err}");
+        }
     }
 }
 

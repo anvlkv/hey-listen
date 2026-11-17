@@ -4,7 +4,7 @@
 //! label onto it, following popout aliases so a popout is a **view** of its parent
 //! project rather than a project of its own (ADR-11). See `docs/decisions.md`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -120,6 +120,10 @@ struct RegistryInner {
     /// Popout label → the **compare** view it shows (M25). Kept apart from the tool
     /// map so a compare popout is never saved, restored or raised as a tool popout.
     popout_compares: HashMap<String, CompareView>,
+    /// Popout labels that show the **log preview** (ADR-33). Kept apart from the tool and
+    /// annotation maps so the preview is never saved, restored or raised as one — it is a
+    /// view of the app, not of the project that happened to open it.
+    log_popouts: HashSet<String>,
 }
 
 #[derive(Default)]
@@ -206,6 +210,40 @@ impl WindowRegistry {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         inner.popout_annotations.get(label).cloned()
+    }
+
+    /// Register `popout` as a view of `parent`'s project showing the **log preview**.
+    ///
+    /// The preview is app-wide content but still a view of a project (ADR-11), so it keeps
+    /// the parent alias — that is what routes its commands and closes it with the window it
+    /// was opened from — while its own marker set keeps it out of every project-listing
+    /// surface.
+    pub fn add_log_popout(&self, popout: &str, parent: &str) {
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        inner.aliases.insert(popout.to_string(), parent.to_string());
+        inner.log_popouts.insert(popout.to_string());
+    }
+
+    /// Whether `label` shows the log preview (its frontend asks this to pick its view).
+    pub fn popout_log(&self, label: &str) -> bool {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        inner.log_popouts.contains(label)
+    }
+
+    /// The open log preview, if there is one. The preview is a **singleton** for the whole
+    /// app, so the lookup spans projects rather than resolving one.
+    pub fn log_popout(&self) -> Option<String> {
+        let inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        inner.log_popouts.iter().next().cloned()
     }
 
     /// Every window of `label`'s project: the owning (root) window plus any popout
@@ -298,6 +336,7 @@ impl WindowRegistry {
             inner.popout_tools.remove(label);
             inner.popout_annotations.remove(label);
             inner.popout_compares.remove(label);
+            inner.log_popouts.remove(label);
             inner.aliases.retain(|_, parent| parent != label);
             inner.states.remove(label)
         };

@@ -56,9 +56,15 @@ sets its own. A real dialog must never appear; if one does, a helper mock is mis
 
 **Artifacts.** `outputDir` is `e2e/artifacts` (gitignored): the service writes its
 log there, WDIO writes one JSON per spec, and `onComplete` merges them into
-`wdio-report.json`. A failing test also saves a screenshot of the window it left
-behind (`wdio.conf.ts` → `afterTest`), because a stalled popout and a missing element
-look identical in a log. CI uploads the directory as the `e2e-report-<os>` artifact.
+`wdio-report.json`. The app's **own log** is written there too — the service passes
+`HEYLISTEN_LOG_DIR` (and an explicit `HEYLISTEN_LOG_LEVEL`) to the binary it spawns, so
+`e2e/artifacts/logs/hey-listen.log` holds both the core's and the webview's lines
+(`e2e/support/logs.ts`, [`logging.md`](logging.md)). A frontend `console` line appears
+twice in a suite run — once from the app's bridge and once from `@wdio/tauri-plugin`'s own
+console forwarding, which is only loaded under the suite — so read the `[ui …]` line as
+the app's. A failing test also saves a screenshot of the window it left behind
+(`wdio.conf.ts` → `afterTest`), because a stalled popout and a missing element look
+identical in a log. CI uploads the directory as the `e2e-report-<os>` artifact.
 
 **One app instance per run.** WebdriverIO launches the app once, so spec files share
 it and carry state. Helpers account for that: `openFixture` is duration-aware (it
@@ -324,6 +330,7 @@ capture error (B4) and the graph connection warning (C4) complete the picture.
 | I4 | Synth graph tab | Mock `render_synth` to reject | Red `graph-error` shows the message; Render button re-enables | Scenario |
 | I5 | Graph tabs (warning) | Disconnect the `output` node | Persistent `graph-warn` "Output is not connected…" shows, then clears once rewired | Scenario |
 | I6 | Toolbar (preview) | Mock `preview_region` to reject | Red `toolbar.preview.error` names the failure; the transport does not look alive; a successful retry clears it | Scenario |
+| I7 | App log + preview | `console.error` a unique marker in the page | The line is in the run's app log (`e2e/artifacts/logs/hey-listen.log`) and in the preview window's list; opening the preview again raises the same window | Scenario |
 
 ### K. MCP server (M9)
 

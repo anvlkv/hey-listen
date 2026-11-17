@@ -12,6 +12,7 @@ pub mod compare;
 pub mod decode;
 pub mod export;
 pub mod graph;
+pub mod log;
 pub mod mcp;
 pub mod playback;
 pub mod project;

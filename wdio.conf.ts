@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import type { Options } from "@wdio/types";
 import { writeFixtures } from "./e2e/support/fixtures.ts";
 import { restoreWindowSize } from "./e2e/support/app.ts";
+import { E2E_LOG_DIR } from "./e2e/support/logs.ts";
 
 /**
  * WebdriverIO config for the Hey Listen E2E suite (M8).
@@ -68,7 +69,7 @@ async function resetStaleApps(): Promise<void> {
   }
 }
 
-/** All run artifacts (JSON report + service logs) land here (gitignored). */
+/** All run artifacts (JSON report, service logs, the app log) land here (gitignored). */
 const ARTIFACTS_DIR = "./e2e/artifacts";
 
 /** A failing test's screenshot name: suite + title, filesystem-safe and short. */
@@ -126,6 +127,14 @@ export const config: Options.Testrunner & {
         frontendLogLevel: "info",
         commandTimeout: 30_000,
         startTimeout: 90_000,
+        // The app's own log (ADR-33) rides the `env` the service merges over `process.env`
+        // when it spawns the binary: `HEYLISTEN_LOG_DIR` moves the file target into the
+        // run's artifacts, and an explicit level keeps a developer's shell setting out of
+        // the run. See docs/testing.md → Artifacts.
+        env: {
+          HEYLISTEN_LOG_DIR: E2E_LOG_DIR,
+          HEYLISTEN_LOG_LEVEL: "info",
+        },
       },
     ],
   ],
@@ -170,6 +179,9 @@ export const config: Options.Testrunner & {
     // Clear any app left over from a previous run *before* the service launches one.
     await resetStaleApps();
     await mkdir(ARTIFACTS_DIR, { recursive: true });
+    // A previous run's app log must not satisfy this run's assertions (the core rotates
+    // the file on launch, but a run that never launched must leave nothing behind).
+    await rm(E2E_LOG_DIR, { recursive: true, force: true });
     // Clear a previous run's JSON so the merge below only sees this run (the
     // service's own log file may already be open here, so leave non-JSON alone).
     for (const name of await readdir(ARTIFACTS_DIR)) {

@@ -5,8 +5,9 @@
 import { reportStartupFailure } from "./boot";
 import { render } from "solid-js/web";
 import { invoke } from "./lib/ipc";
-import { attachConsole } from "@tauri-apps/plugin-log";
+import { initLogMirror } from "./lib/log";
 import App from "./App";
+import LogApp from "./LogApp";
 import PopoutApp from "./PopoutApp";
 import type { CompareViewDto } from "./state/compare/types";
 import { isProjectWindow } from "./lib/windowRole";
@@ -18,10 +19,10 @@ import { isProjectWindow } from "./lib/windowRole";
  */
 const POPOUT_QUERY_TIMEOUT_MS = 2_000;
 
-// Mirror Rust logs into the webview console. (The reverse direction does not exist:
-// the frontend's `console.*` is not forwarded to the log file — `reportStartupFailure`
-// logs explicitly for that.)
-void attachConsole();
+// Mirror the core's log records into the webview console (dev only). The console bridge
+// in `src/lib/log.ts` sends this side's `console.*` to the same file, so one log holds
+// both producers; `boot.ts` installed it already.
+void initLogMirror();
 
 void start();
 
@@ -51,39 +52,42 @@ async function start(): Promise<void> {
     return;
   }
 
-  // A project window renders immediately; a popout view (tool, annotation or
-  // comparison, all non-project labels) asks which view it is.
+  // A project window renders immediately; a popout view (tool, annotation, comparison
+  // or the log preview, all non-project labels) asks which view it is.
   const target = isProjectWindow ? null : await popoutTarget();
   try {
-    render(
-      () =>
-        target ? (
-          <PopoutApp
-            toolId={target.kind === "tool" ? target.id : undefined}
-            annotationId={target.kind === "annotation" ? target.id : undefined}
-            compare={target.kind === "compare" ? target.view : undefined}
-          />
-        ) : (
-          <App />
-        ),
-      root,
-    );
+    render(() => {
+      if (!target) return <App />;
+      if (target.kind === "log") return <LogApp />;
+      return (
+        <PopoutApp
+          toolId={target.kind === "tool" ? target.id : undefined}
+          annotationId={target.kind === "annotation" ? target.id : undefined}
+          compare={target.kind === "compare" ? target.view : undefined}
+        />
+      );
+    }, root);
   } catch (err) {
     reportStartupFailure("the app failed to render", err);
   }
 }
 
-/** What this window pops out: a Workbench **tool**, a **annotation**, or a **comparison**. */
+/**
+ * What this window pops out: a Workbench **tool**, an **annotation**, a **comparison**, or
+ * the app-wide **log preview**.
+ */
 type PopoutTarget =
   | { kind: "tool"; id: string }
   | { kind: "annotation"; id: string }
-  | { kind: "compare"; view: CompareViewDto };
+  | { kind: "compare"; view: CompareViewDto }
+  | { kind: "log" };
 
 /**
- * The tool, annotation or comparison this popout window shows, or `null` when it is none.
+ * The tool, annotation, comparison or log preview this popout window shows, or `null`
+ * when it is none.
  *
  * Asked only by a popout view (`!isProjectWindow`): a project window renders without it.
- * Rust registers which kind a popout is (ADR-11), so the window asks for all three and
+ * Rust registers which kind a popout is (ADR-11), so the window asks for all four and
  * takes whichever answers (only one can). The first paint must never be gated on a
  * command that can fail or never answer: a rejected query renders the project window
  * (and is reported), and so does one that does not come back within
@@ -104,9 +108,11 @@ async function popoutTarget(): Promise<PopoutTarget | null> {
     invoke<string | null>("popout_tool"),
     invoke<string | null>("popout_annotation"),
     invoke<CompareViewDto | null>("popout_compare"),
+    invoke<boolean>("popout_log"),
   ])
-    .then(([tool, annotation, compare]): PopoutTarget | null => {
+    .then(([tool, annotation, compare, log]): PopoutTarget | null => {
       settle();
+      if (log) return { kind: "log" };
       if (compare != null) return { kind: "compare", view: compare };
       if (tool != null) return { kind: "tool", id: tool };
       if (annotation != null) return { kind: "annotation", id: annotation };

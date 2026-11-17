@@ -1,62 +1,14 @@
-//! Native application menu (File / Edit / View / Window / Help).
+//! The application menu's items and submenus.
 //!
-//! The File and Edit actions are emitted to the frontend on the [`MENU_EVENT`]
-//! channel — the frontend owns the project state (`state/project/` reacts to the
-//! File actions; `state/menu.ts` routes undo/redo to `state/history.ts`). View and
-//! Window use **predefined** items (fullscreen / minimize / maximize), so they work
-//! without a round-trip. On macOS the first submenu is the application menu
-//! (About / Services / Hide / Quit); elsewhere About lives under Help.
-//!
-//! **File → Open Recent** is rebuilt from [`crate::recent`] whenever the list changes
-//! ([`rebuild`]); choosing an entry re-emits it as an open request.
-//!
-//! See `docs/ui-layout.md` and `docs/architecture.md`.
+//! Split from `menu/mod.rs` (the event surface) to keep both files small. The ids come
+//! from [`super::MenuAction`], so a label and the action it fires are stated together with
+//! the id the frontend parses.
 
-use tauri::menu::{IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{AppHandle, Runtime};
 
-use crate::commands::{focused_label, project::OPEN_EVENT};
-use crate::recent::{self, RecentProject};
-
-/// Event carrying a menu action id (File / Edit) to the frontend.
-pub const MENU_EVENT: &str = "app:menu";
-
-/// The actions the frontend handles (ids match `state/project/`, `state/menu.ts` and
-/// `state/history.ts`). The native menu and the emitted event share these ids.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    strum::EnumString,
-    strum::Display,
-    strum::AsRefStr,
-    strum::IntoStaticStr,
-    strum::EnumIter,
-    strum::VariantNames,
-)]
-#[strum(serialize_all = "camelCase")]
-pub enum MenuAction {
-    New,
-    NewWindow,
-    Open,
-    PreviousProject,
-    NextProject,
-    Save,
-    SaveAs,
-    Undo,
-    Redo,
-    About,
-    Compare,
-    CheckForUpdates,
-    InstallCliTool,
-}
-
-/// Id prefix for an "Open Recent" entry; the rest of the id is the file path.
-const RECENT_PREFIX: &str = "recent:";
-/// Id of the "Open Recent → Clear Menu" item.
-const RECENT_CLEAR: &str = "recent-clear";
+use super::{recent_submenu, MenuAction};
+use crate::recent;
 
 /// Build the application menu, ready for `App::set_menu`.
 pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -234,11 +186,44 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         None::<&str>,
     )?;
 
+    // The log actions (ADR-33) need no webview at all: the core opens the folder or
+    // raises the preview itself, so they work before a window has finished booting.
+    let show_log = MenuItem::with_id(
+        app,
+        MenuAction::ShowLog.as_ref(),
+        "Show Log…",
+        true,
+        None::<&str>,
+    )?;
+    let open_log_folder = MenuItem::with_id(
+        app,
+        MenuAction::OpenLogFolder.as_ref(),
+        "Open Log Folder",
+        true,
+        None::<&str>,
+    )?;
+
     // About lives in the macOS application menu; elsewhere it lives under Help.
     #[cfg(target_os = "macos")]
-    let help = Submenu::with_items(app, "Help", true, &[&check_updates, &install_cli])?;
+    let help = Submenu::with_items(
+        app,
+        "Help",
+        true,
+        &[&show_log, &open_log_folder, &check_updates, &install_cli],
+    )?;
     #[cfg(not(target_os = "macos"))]
-    let help = Submenu::with_items(app, "Help", true, &[&about, &check_updates, &install_cli])?;
+    let help = Submenu::with_items(
+        app,
+        "Help",
+        true,
+        &[
+            &about,
+            &show_log,
+            &open_log_folder,
+            &check_updates,
+            &install_cli,
+        ],
+    )?;
 
     #[cfg(target_os = "macos")]
     let app_menu = Submenu::with_items(
@@ -267,111 +252,4 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let menu = Menu::with_items(app, &[&file, &edit, &view, &analysis, &window, &help])?;
 
     Ok(menu)
-}
-
-/// Rebuild and install the menu (after the recent-projects list changes).
-pub fn rebuild<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let menu = build(app)?;
-    app.set_menu(menu)?;
-    Ok(())
-}
-
-/// Emit a File/Edit action to the frontend; other items are handled natively.
-pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
-    let id = event.id().as_ref();
-
-    if id == RECENT_CLEAR {
-        // Rebuild once the current menu event has been dispatched.
-        let handle = app.clone();
-        tauri::async_runtime::spawn(async move {
-            recent::clear(&handle);
-            let _ = rebuild(&handle);
-        });
-        return;
-    }
-
-    if let Some(path) = id.strip_prefix(RECENT_PREFIX) {
-        // `recent:none` is the disabled placeholder and never fires, but guard anyway.
-        if !path.is_empty() && path != "none" {
-            // Same routing as an OS file-open (`handle_open_paths`): the **focused** project
-            // window opens it, not every window (`Emitter::emit` is a global broadcast).
-            if let Some(label) = focused_label(app) {
-                let _ = app.emit_to(label, OPEN_EVENT, vec![path.to_string()]);
-            }
-        }
-        return;
-    }
-
-    if let Ok(action) = id.parse::<MenuAction>() {
-        // Emit only to the focused window: with N project windows, a menu action must
-        // apply to the project the user is looking at (M7), not broadcast.
-        if let Some(label) = focused_label(app) {
-            let _ = app.emit_to(label, MENU_EVENT, action.as_ref());
-        }
-    }
-}
-
-/// The "Open Recent" submenu: one item per existing file, then Clear Menu.
-fn recent_submenu<R: Runtime>(
-    app: &AppHandle<R>,
-    recents: &[RecentProject],
-) -> tauri::Result<Submenu<R>> {
-    if recents.is_empty() {
-        let empty = MenuItem::with_id(
-            app,
-            "recent:none",
-            "No Recent Projects",
-            false,
-            None::<&str>,
-        )?;
-        return Submenu::with_items(app, "Open Recent", true, &[&empty]);
-    }
-
-    let mut entries = Vec::with_capacity(recents.len());
-    for item in recents {
-        entries.push(MenuItem::with_id(
-            app,
-            format!("{RECENT_PREFIX}{}", item.path),
-            &item.name,
-            true,
-            None::<&str>,
-        )?);
-    }
-    let separator = PredefinedMenuItem::separator(app)?;
-    let clear = MenuItem::with_id(app, RECENT_CLEAR, "Clear Menu", true, None::<&str>)?;
-
-    let mut items: Vec<&dyn IsMenuItem<R>> = entries
-        .iter()
-        .map(|entry| entry as &dyn IsMenuItem<R>)
-        .collect();
-    items.push(&separator);
-    items.push(&clear);
-    Submenu::with_items(app, "Open Recent", true, &items)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use strum::IntoEnumIterator;
-
-    #[test]
-    fn action_ids_match_the_frontend() {
-        // The frontend routes these exact strings (`state/menu.ts`).
-        assert_eq!(MenuAction::New.as_ref(), "new");
-        assert_eq!(MenuAction::NewWindow.as_ref(), "newWindow");
-        assert_eq!(MenuAction::Open.as_ref(), "open");
-        assert_eq!(MenuAction::PreviousProject.as_ref(), "previousProject");
-        assert_eq!(MenuAction::NextProject.as_ref(), "nextProject");
-        assert_eq!(MenuAction::Save.as_ref(), "save");
-        assert_eq!(MenuAction::SaveAs.as_ref(), "saveAs");
-        assert_eq!(MenuAction::Undo.as_ref(), "undo");
-        assert_eq!(MenuAction::Redo.as_ref(), "redo");
-        assert_eq!(MenuAction::About.as_ref(), "about");
-        assert_eq!(MenuAction::Compare.as_ref(), "compare");
-        assert_eq!(MenuAction::CheckForUpdates.as_ref(), "checkForUpdates");
-        assert_eq!(MenuAction::InstallCliTool.as_ref(), "installCliTool");
-        for action in MenuAction::iter() {
-            assert_eq!(action.as_ref().parse::<MenuAction>(), Ok(action));
-        }
-    }
 }

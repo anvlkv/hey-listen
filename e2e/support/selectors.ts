@@ -112,6 +112,13 @@ export const SEL = {
 
   // Dockview tab strip.
   tab: ".dv-tab",
+
+  // Log preview window (ADR-33).
+  logWindow: '[data-testid="log.window"]',
+  logList: '[data-testid="log.list"]',
+  logFilter: '[data-testid="log.filter"]',
+  logFollow: '[data-testid="log.follow"]',
+  logReveal: '[data-testid="log.reveal"]',
 } as const;
 
 /** A Sidebar tool entry (`filter`, `synth`, or an analyzer id). */

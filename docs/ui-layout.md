@@ -72,12 +72,14 @@ compact "Add audio" state has a fixed height).
   Open Recent → up to 10 files + Clear Menu / Save / Save As… —
   `CmdOrCtrl+N` / `O` / `S` / `Shift+S` — plus **Templates ▸** (Apply / Save as
   Template… / Import / Export, M13 planned) and Close on macOS / Quit elsewhere),
-  **View** (fullscreen), **Window** (minimize/maximize), and **Help** (*Check for
-  Updates…*, *Install Command Line Tool…*, plus *About* off macOS). On
+  **View** (fullscreen), **Window** (minimize/maximize), and **Help** (*Show Log…*,
+  *Open Log Folder*, *Check for Updates…*, *Install Command Line Tool…*, plus *About* off
+  macOS). On
   macOS the standard application menu (About / Services / Hide / Quit) precedes
   them. **About** is a custom item that opens the in-app **About** dialog (identity +
   attributions) rather than the native panel. File actions are emitted to the
-  frontend via `app:menu`; the rest are native. An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
+  frontend via `app:menu`; the rest are native, including **Show Log…** and **Open Log
+  Folder**, which the core handles itself (see [`logging.md`](logging.md)). An **Edit** menu carries **Undo** (`CmdOrCtrl+Z`) and **Redo**
   (`Shift+CmdOrCtrl+Z`) for the app-level edit history (see
   [`roadmap.md`](roadmap.md) → Backlog), followed by the **predefined** Cut / Copy / Paste /
   Select All items. Those must stay predefined: macOS dispatches `Cmd+C` / `X` / `V` / `A`

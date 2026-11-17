@@ -1,4 +1,8 @@
-import { error as logError } from "@tauri-apps/plugin-log";
+import { installLogBridge } from "./lib/log";
+
+// The console bridge comes first: the handlers below (and every module that loads
+// afterwards) report through `console.*`, which this forwards to the app's log file.
+installLogBridge();
 
 /**
  * Startup diagnostics.
@@ -8,18 +12,13 @@ import { error as logError } from "@tauri-apps/plugin-log";
  * reported by a handler that is already installed.
  *
  * A failure during the first paint is otherwise invisible: no window, no error, and
- * nothing in the log file. Annotation the direction of the log plugin's APIs — `attachConsole`
- * mirrors *Rust* logs into the webview console; it does **not** forward the frontend's
- * `console.*` to the log file. So every startup failure is reported twice: to the
- * webview console (visible in `npm run tauri dev`) and explicitly to the Tauri log
- * (the rotated log file plus stdout, which is what a CI run and a user's bug report
- * can actually show). See `docs/testing.md` → "When the shell does not render".
+ * nothing in the log file. `console.error` reaches the file through the bridge in
+ * `src/lib/log.ts` (one line, with its `[ui …]` origin), so a startup failure is reported
+ * once and lands where a bug report and a CI run can actually see it.
+ * See `docs/testing.md` → "When the shell does not render".
  */
 export function reportStartupFailure(message: string, error?: unknown): void {
-  const detail = describe(error);
-  console.error(`[startup] ${message}`, detail);
-  // Fire-and-forget: reporting a failure must never be able to fail startup itself.
-  void logError(`[startup] ${message} ${detail}`).catch(() => {});
+  console.error(`[startup] ${message}`, describe(error));
 }
 
 function describe(error: unknown): string {

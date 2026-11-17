@@ -1086,3 +1086,46 @@ after release, and pinned by a fixture test that the old file still loads the sa
 a second CLI surface (`migrate`) to keep in step with the engine. See
 [`project-file-format.md`](project-file-format.md) → Format version history + Migrations,
 and M37 in [`roadmap.md`](roadmap.md).
+
+## ADR-33 — One log file for both producers, previewed in a popout window
+
+**Context.** The Rust core wrote a rotated log file; the webview's `console.*` went only to
+devtools, and `attachConsole` received nothing because the plugin had no webview target. A
+bug report therefore carried one side, or neither: an uncaught frontend error, a rejected
+command and a Rust panic were all invisible in the file.
+
+**Decision.**
+
+- **One sink, two producers.** `tauri-plugin-log` writes one file; the builder adds
+  `TargetKind::Webview` so frontend records reach it, and the frontend bridge
+  (`src/lib/log.ts`) forwards `console.*` with a short `[ui <file>:<line>]` origin. The
+  plugin's target says which side wrote a line, so splitting the file per producer would
+  only make a bug report two attachments.
+- **Errors are logged where the failure is finally known.** Every rejected `invoke` is
+  reported once by the IPC façade; Rust panics are logged through a `panic` hook before the
+  process aborts; a Rust command's returned `Err` is **not** logged in the core, because the
+  façade line already carries it (logging both would double every expected failure).
+- **The preview is a popout window.** A Workbench tab would need an ADR-10 amendment, and a
+  modal would block the interaction that produces the log. The preview reuses the popout
+  machinery (ADR-11): label `popout-N`, a marker set in `WindowRegistry` so nothing that
+  lists projects or saves popouts learns a new kind, and a `{ kind: "log" }` answer to the
+  window's "which view am I?" query. It is a singleton for the app and closes with the
+  window it was opened from; `close_popouts` (the project-load path) skips it.
+- **It polls the file, not `log://log`.** The event is broadcast to every window and would
+  have to be reconciled with the history already on disk; one bounded read a second is
+  cheap because the file is capped before it rotates.
+- **The Help items are handled natively.** *Show Log…* and *Open Log Folder* need no
+  webview round trip, so they work while a window is still booting and cannot be lost with
+  a project window.
+- **A destination for E2E.** `HEYLISTEN_LOG_DIR` moves the file target (the suite points it
+  at `e2e/artifacts/logs`), and `HEYLISTEN_LOG_LEVEL` overrides the filter so a bug report
+  can be taken at `debug` without a rebuild.
+
+**Status: accepted, delivered.** `src-tauri/src/logging.rs` (targets, level, paths,
+`guard_panics`, the shared `open_in_file_manager`), `commands/log.rs`, the log popout in
+`commands/window.rs` + `state/window/`, `src/lib/log.ts`, `src/LogApp.tsx` +
+`components/log/LogView.tsx`, `e2e/support/logs.ts`. See [`logging.md`](logging.md).
+
+**Consequence:** one log file explains both sides of a failure, and Help reaches it. Costs:
+the bridge patches global `console` methods (so it is installed first, from `src/boot.ts`,
+and must never throw), and the preview polls rather than streaming.

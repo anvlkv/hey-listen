@@ -21,12 +21,13 @@ macro_rules! serialize_error_as_string {
 mod app_activity;
 mod cli;
 mod commands;
+mod logging;
 mod menu;
 mod themes;
 // The engine surface (`audio` … `state`) is public so the console crates
 // (`hey-listen-cli`, `heylisten-mcp`) can link it: they call the same decode, analysis,
 // project store and headless session the app commands do (ADR-29). App-only modules
-// (`cli`, `commands`, `menu`, `app_activity`, `themes`) stay private.
+// (`cli`, `commands`, `logging`, `menu`, `app_activity`, `themes`) stay private.
 pub mod audio;
 pub mod export;
 pub mod mcp;
@@ -52,27 +53,6 @@ pub fn run_mcp(headless: bool) -> std::io::Result<()> {
     mcp::run(headless)
 }
 
-/// The log plugin's targets for this entry.
-///
-/// The GUI keeps its rotated log file. The **CLI** entries (`--mcp`, `--headless`) log
-/// to **stderr only**: a sandboxed or concurrent headless/CI run must not abort because
-/// the log directory is unwritable or another instance holds the file, and it must never
-/// write into the MCP entry's stdout (hey-listen-report §2.3). The batch CLI is a
-/// separate console binary with no log plugin at all (ADR-29).
-fn log_targets(cli_invocation: bool) -> Vec<tauri_plugin_log::Target> {
-    use tauri_plugin_log::{Target, TargetKind};
-    let stderr = Target::new(TargetKind::Stderr);
-    if cli_invocation {
-        return vec![stderr];
-    }
-    vec![
-        stderr,
-        Target::new(TargetKind::LogDir {
-            file_name: Some("hey-listen".to_string()),
-        }),
-    ]
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // A CLI invocation (`--mcp`, `--headless`) must not register the WebDriver server:
@@ -90,8 +70,8 @@ pub fn run() {
         // logs must never share that stream (the file target keeps the GUI's history).
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .targets(log_targets(cli_invocation))
+                .level(logging::level())
+                .targets(logging::targets(cli_invocation))
                 .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
                 .max_file_size(2_000_000)
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
@@ -151,6 +131,11 @@ pub fn run() {
                 }
                 cli::Entry::Gui => {}
             }
+
+            // A panic must reach the log file: a release build aborts, so the default
+            // report goes to stderr only. Chrome and analysis run on worker threads, so
+            // this is the only place their crashes become a line a bug report carries.
+            logging::guard_panics();
 
             // Keep the process responsive while it is in the background: the MCP server
             // answers an agent in another window, and capture keeps running when the user
@@ -292,8 +277,10 @@ pub fn run() {
             commands::window::sync_popouts,
             commands::window::close_popouts,
             commands::window::open_annotation_window,
+            commands::window::open_log_window,
             commands::window::popout_tool,
             commands::window::popout_annotation,
+            commands::window::popout_log,
             commands::window::popout_tools,
             commands::window::focus_popout,
             commands::mcp::mcp_respond,
@@ -310,6 +297,9 @@ pub fn run() {
             commands::themes::pick_theme_import_path,
             commands::themes::pick_theme_export_path,
             commands::themes::reveal_theme_dir,
+            commands::log::log_path,
+            commands::log::read_log_tail,
+            commands::log::open_log_dir,
             commands::app::open_external_url,
             commands::app::e2e_enabled,
             commands::cli_install::cli_tool_status,
@@ -342,24 +332,5 @@ fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::
             commands::project::handle_open_paths(app, paths);
         }
         _ => {}
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::log_targets;
-
-    /// A CLI entry never opens the log file: a sandboxed or concurrent headless run used
-    /// to abort on the log path (hey-listen-report §2.3).
-    #[test]
-    fn a_cli_entry_logs_to_stderr_only() {
-        let targets = log_targets(true);
-        assert_eq!(targets.len(), 1);
-    }
-
-    /// The GUI keeps both its stderr mirror and its rotated log file.
-    #[test]
-    fn the_gui_keeps_its_log_file() {
-        assert_eq!(log_targets(false).len(), 2);
     }
 }

@@ -54,7 +54,10 @@ pub async fn confirm(app: AppHandle, message: String, title: String) -> bool {
 /// guard cannot loop.
 #[tauri::command]
 pub async fn close_window(window: tauri::WebviewWindow) {
-    let _ = window.destroy();
+    // The user asked to close: a failure leaves the window open with no feedback at all.
+    if let Err(err) = window.destroy() {
+        log::warn!("could not close window {}: {err}", window.label());
+    }
 }
 
 /// Drop the core-owned source PCM and silence preview (the timeline is changing).

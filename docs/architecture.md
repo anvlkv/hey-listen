@@ -141,11 +141,11 @@ polls on a timer while the app is in the background.
 launches), `tauri-plugin-cli` (the app binary's `--mcp` / `--headless` flags,
 declared in `tauri.conf.json` → `plugins.cli`), `tauri-plugin-store` (the persisted
 MCP settings) and `tauri-plugin-clipboard-manager` (the popover's Copy button) —
-both added with M9 — and `tauri-plugin-log` (file + stderr logging) are registered in
-the builder. `@tauri-apps/plugin-log`'s `attachConsole()` mirrors **Rust** logs into the
-webview console (the reverse direction — the frontend's `console.*` is not forwarded, and
-the builder sets no `TargetKind::Webview`, so the mirror currently receives nothing); the
-plan that puts frontend logs in the same file is [`logging.md`](logging.md).
+both added with M9 — and `tauri-plugin-log` (one log file for the core **and** the
+webview, stderr, and the webview mirror target) are registered in the builder. The
+frontend's half lives in `src/lib/log.ts`: it forwards `console.*` to that same file with
+a short `[ui …]` origin, and mirrors the core's records into the dev webview console.
+See [`logging.md`](logging.md) and ADR-33.
 Logging writes to the app's log directory — on macOS
 `~/Library/Logs/com.anvlkv.heylisten/hey-listen.log` — starting a **fresh file on
 every launch** (`FileOpenStrategy::Rotate`) and rotating once it exceeds 2 MB

@@ -24,7 +24,15 @@ export function setInvokeOverride(next: InvokeHandler | null): void {
 }
 
 export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
-  return override ? override<T>(cmd, args, options) : tauriInvoke<T>(cmd, args, options);
+  const call = override ? override<T>(cmd, args, options) : tauriInvoke<T>(cmd, args, options);
+  // Report every rejected command **once**, here, where the failure is finally known: the
+  // console bridge (`src/lib/log.ts`) puts the line — with its origin — in the app log, so
+  // a command that fails has a log entry even when its caller only shows a banner. The
+  // bridge invokes `plugin:log|log` directly, so this cannot recurse.
+  return call.catch((err: unknown) => {
+    console.error(`[ipc] ${cmd} failed: ${errorMessage(err)}`);
+    throw err;
+  });
 }
 
 /** The readable message of a rejected call — Tauri rejects with an `Error` or a string. */

@@ -1,7 +1,7 @@
 # Logging
 
-**Status:** planned. Deliberately **not** a milestone — `roadmap.md` stays as it is until
-this is scheduled; treat this doc as the design of record once it is.
+**Status:** delivered. Deliberately **not** a milestone — `roadmap.md` has no entry for it;
+this doc is the design of record, recorded as ADR-33 in [`decisions.md`](decisions.md).
 
 One log file should hold what **both** sides of the app say. The Rust core already writes
 one (`tauri-plugin-log`); this plan completes the other half (the webview), makes a failure
@@ -18,7 +18,10 @@ on either side land in it, and puts the file one Help-menu click away.
 5. **A dedicated log destination for E2E**, so a CI artifact carries the app's own log
    instead of leaving it in the runner's home directory.
 
-## Current state
+## Before this change
+
+This section is the **history** the design answers — it describes the state the plan started
+from, not the app as it is now.
 
 ### Backend — working
 
@@ -53,7 +56,7 @@ sentence is wrong and this plan corrects it.
 
 ### Errors
 
-| Origin | Today |
+| Origin | Before |
 | --- | --- |
 | Uncaught error / unhandled rejection | `src/boot.ts` handlers → webview console **and** the log file ✅ |
 | `console.error` anywhere else (`src/state/**`, ~30 call sites) | webview console only ❌ |
@@ -213,8 +216,7 @@ no change, because `popout_tool` / `popout_annotation` stay `None` for it.
 - **D1 — the preview is a popout window.** A Workbench tab would need an ADR-10 amendment
   and new tab chrome; a modal dialog would block the interaction that produces the log. The
   popout needs no new window role (only a marker in the registry), so nothing that lists
-  projects learns a new kind. Record D1 as ADR-33 in `decisions.md` when the work is
-  scheduled.
+  projects learns a new kind. Recorded as ADR-33 in [`decisions.md`](decisions.md).
 - **D2 — poll the file, do not stream events, in the preview.** `log://log` is broadcast to
   every window and would have to be reconciled with the history already on disk.
 - **D3 — one file for both producers.** Separating `hey-listen.log` / `webview.log` (which

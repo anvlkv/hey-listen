@@ -1,14 +1,17 @@
 /**
- * I. Errors & warnings — matrix rows I1–I6 (`docs/testing.md`).
+ * I. Errors & warnings — matrix rows I1–I7 (`docs/testing.md`).
  *
  * One case per UI surface: force the condition, assert the message appears in the
  * right place, and assert the app stays usable. I2–I4 and I6 force the failure by
  * mocking the IPC command the surface rides on; I1 lets a real `probe_file` fail on the
- * corrupt fixture. I5 is a best-effort edge deletion (see its comment).
+ * corrupt fixture. I5 is a best-effort edge deletion (see its comment). I7 covers the
+ * other half of the error contract: a frontend error must land in the app's own log and
+ * be readable in the log preview (ADR-33).
  *
  * Every test restores its mocks so nothing leaks into the next — a fresh app session
  * per spec file, but tests within this file share the window.
  */
+import { readFile } from "node:fs/promises";
 import { SEL, tab, analyzerPanel } from "../support/selectors.ts";
 import {
   waitForApp,
@@ -29,6 +32,9 @@ import {
   textOf,
 } from "../support/helpers.ts";
 import { FIXTURES } from "../support/fixtures.ts";
+import { appLogPath } from "../support/logs.ts";
+import { invokeCore } from "../support/ipc.ts";
+import { closeCurrentWindow, windowLabels } from "../support/windows.ts";
 import { addPaletteNode, ensureFilterEnabled, toggleFilter } from "../support/graph.ts";
 
 /** Kobalte portals every popover panel with this class. */
@@ -281,6 +287,52 @@ describe("I. Errors & warnings", () => {
     await waitFor(
       async () => !(await $(SEL.timelineAnnotationAtCursor).isEnabled()),
       "the preview did not stop",
+    );
+  });
+
+  it("I7 — a frontend error reaches the app log and the log preview", async () => {
+    // A unique marker per run: a previous run's file must not satisfy the assertions.
+    const probe = `e2e-log-probe-${Date.now()}`;
+    await browser.execute((marker: string) => console.error(marker), probe);
+
+    // The bridge forwards `console.error` to the core, which appends it to this run's log
+    // (`HEYLISTEN_LOG_DIR`, set by the service's `env` in `wdio.conf.ts`).
+    await waitFor(
+      async () => (await readFile(appLogPath(), "utf8").catch(() => "")).includes(probe),
+      `the frontend error never reached ${appLogPath()}`,
+      10_000,
+    );
+
+    // Help → Show Log… runs the same core entry point; it returns the window's label.
+    const label = await invokeCore<string>("open_log_window");
+    expect(label).toMatch(/^popout-\d+$/);
+    await browser.tauri.switchWindow(label);
+    await waitFor(
+      async () => (await count(SEL.logWindow)) > 0,
+      "the log preview window did not render",
+    );
+    // The preview polls the same file, so the line the app just wrote is what it shows.
+    await waitFor(
+      async () => (await textOf(SEL.logList)).includes(probe),
+      "the log preview did not show the forwarded error",
+      10_000,
+    );
+
+    // Opening it again raises the same window instead of adding a second preview.
+    expect(await invokeCore<string>("open_log_window")).toBe(label);
+
+    // Close it and leave the session on the project window: the cleanup hooks run there.
+    await closeCurrentWindow();
+    await browser
+      .waitUntil(async () => !(await windowLabels()).includes(label), {
+        timeout: 5_000,
+        timeoutMsg: "the log preview did not close",
+      })
+      .catch(() => {});
+    await browser.tauri.switchWindow("main");
+    await waitFor(
+      async () => (await count(SEL.workbench)) > 0,
+      "the project window did not come back after closing the log preview",
     );
   });
 });

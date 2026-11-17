@@ -222,10 +222,13 @@ pub fn write_file(path: &str, content: &str) -> Result<(), ThemeError> {
 }
 
 /// Reveal the themes directory in the OS file manager (creating it first).
+///
+/// The platform program lives in [`crate::logging::open_in_file_manager`]: the log
+/// directory's reveal uses the same one.
 pub fn reveal<R: Runtime>(app: &AppHandle<R>) -> Result<(), ThemeError> {
     let dir = theme_dir(app)?;
     std::fs::create_dir_all(&dir)?;
-    open_in_file_manager(&dir);
+    crate::logging::open_in_file_manager(&dir);
     Ok(())
 }
 
@@ -250,20 +253,6 @@ fn validate_id(id: &str) -> Result<(), ThemeError> {
         Ok(())
     } else {
         Err(ThemeError::InvalidId(id.to_string()))
-    }
-}
-
-/// Open a directory in the platform's file manager.
-fn open_in_file_manager(dir: &Path) {
-    #[cfg(target_os = "macos")]
-    let program = "open";
-    #[cfg(target_os = "windows")]
-    let program = "explorer";
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let program = "xdg-open";
-
-    if let Err(err) = std::process::Command::new(program).arg(dir).spawn() {
-        log::warn!("could not open {}: {err}", dir.display());
     }
 }
 
