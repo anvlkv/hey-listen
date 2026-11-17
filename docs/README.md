@@ -28,6 +28,7 @@ design. See [`roadmap.md`](roadmap.md) for current milestone status and
 | [mcp.md](mcp.md) | The MCP server: agent access, the stdio bridge, UI following, tool list |
 | [cli.md](cli.md) | The batch CLI (`hey-listen-cli analyze`): analyze files / render synth from a shell, no window |
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
+| [logging.md](logging.md) | Logging plan: one log file for the Rust core and the webview, the Help-menu log actions, the log preview window, and the E2E log destination |
 | [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
 | [decisions.md](decisions.md) | Architecture decision records (ADRs) |
 | [code-hygiene.md](code-hygiene.md) | The quality gate (the maid): format, lint, file-length budget, duplication, dead code, and the hooks/CI that run it |
