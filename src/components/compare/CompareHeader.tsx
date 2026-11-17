@@ -20,16 +20,14 @@ const SAVED_VALUE = "__saved__";
 
 /**
  * A compare view's header (M25; saved references in M25.C): the tab's title, both
- * projects by name with their source shape, the **comparability badge**, **Swap A/B**
- * (display only), and the reference picker. See `docs/comparison.md` → "The compare
- * view".
+ * projects by name with their source shape, the **comparability badge**, the fine-tune
+ * offset δ, and the reference picker. See `docs/comparison.md` → "The compare view".
  */
 export default function CompareHeader(props: {
   /** The comparison's stable id (addresses its saved snapshot when the reference is saved). */
   id: string;
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   /** The live project label, or the saved reference's name. */
   reference: string;
   /** Whether `reference` names the project's saved snapshot (M25.C). */
@@ -42,7 +40,6 @@ export default function CompareHeader(props: {
   /** The fine-tune offset δ in seconds. */
   offset: number;
   onOffset: (seconds: number) => void;
-  onSwap: () => void;
   onBindingChange: (binding: CompareBinding) => void;
   onRetry: () => void;
 }) {
@@ -90,8 +87,8 @@ export default function CompareHeader(props: {
     return [...savedOption, ...targets];
   });
 
-  const a = () => (props.swapped ? props.comparison.b : props.comparison.a);
-  const b = () => (props.swapped ? props.comparison.a : props.comparison.b);
+  const a = () => props.comparison.a;
+  const b = () => props.comparison.b;
   const comparability = () => props.comparison.comparability;
 
   /**
@@ -121,8 +118,8 @@ export default function CompareHeader(props: {
     if (!comparability().aligned) return null;
     const common = props.comparison.comparability.alignment.common;
     if (!common) return "The shifted windows do not meet — adjust the fine-tune offset";
-    const start = props.time.delta(common.start);
-    const end = props.time.delta(common.end);
+    const start = common.start;
+    const end = common.end;
     const extent = props.time.extent();
     if (start <= 1e-6 && end >= extent - 1e-6) return null;
     return `Delta over the common span ${start.toFixed(2)}–${end.toFixed(2)} s`;
@@ -135,13 +132,13 @@ export default function CompareHeader(props: {
         <div class="compare-side-line">
           <span class="compare-side-chip" style={{ background: compareSideColor(0) }} />
           <span class="compare-side-text">
-            <span class="compare-side-letter">{props.swapped ? "B" : "A"}</span> {sideLine(a())}
+            <span class="compare-side-letter">A</span> {sideLine(a())}
           </span>
         </div>
         <div class="compare-side-line">
           <span class="compare-side-chip" style={{ background: compareSideColor(1) }} />
           <span class="compare-side-text">
-            <span class="compare-side-letter">{props.swapped ? "A" : "B"}</span> {sideLine(b())}
+            <span class="compare-side-letter">B</span> {sideLine(b())}
           </span>
         </div>
       </div>
@@ -204,9 +201,6 @@ export default function CompareHeader(props: {
             {props.saved ? "Open reference" : "Show reference"}
           </Button>
         </Show>
-        <Button class="compare-btn" data-testid="compare.swap" onClick={props.onSwap}>
-          Swap A/B
-        </Button>
       </div>
 
       <Show when={props.timeAxis}>

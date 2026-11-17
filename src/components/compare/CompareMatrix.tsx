@@ -47,7 +47,6 @@ const MODES: { id: Mode; label: string }[] = [
 export default function CompareMatrix(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
   /** The relative display transform (M25.B). */
   time: CompareTime;
@@ -57,10 +56,7 @@ export default function CompareMatrix(props: {
   const spectrogram = () => family() === "spectrogram";
 
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<GridResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<GridResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const diff = (): MatrixDiffDto | null =>
     props.comparison.diff?.kind === "matrix" ? props.comparison.diff : null;
@@ -91,14 +87,12 @@ export default function CompareMatrix(props: {
     const d = diff();
     if (!d || d.times.length === 0 || d.bins === 0) return null;
     const limit = deltaLimit(d.values);
-    // Swap flips the sign of the core's `B − A` (display only).
-    const sign = props.swapped ? -1 : 1;
     return buildHeatmapImage(
       d.times.length,
       d.bins,
       -limit,
       2 * limit,
-      (x, row) => sign * d.values[x * d.bins + row],
+      (x, row) => d.values[x * d.bins + row],
       // The image's `t` is 0…1; the ramp takes a signed −1…+1 Δ.
       (t) => divergingColor(t * 2 - 1),
       // A frame with no B counterpart is a **null** column, never a zero Δ (M25.B).
@@ -131,11 +125,8 @@ export default function CompareMatrix(props: {
   ) => {
     const covered = deltaSpan(d);
     if (!covered) return;
-    // The core's frame times are in owner coordinates; the display may be swapped.
-    blitRange(ctx, box, at, image, {
-      start: props.time.delta(covered.start),
-      end: props.time.delta(covered.end),
-    });
+    // The core's frame times are already on the relative (owner) axis.
+    blitRange(ctx, box, at, image, { start: covered.start, end: covered.end });
     if (sides.resultA()) drawBands(ctx, box, sides.resultA()!);
   };
 
@@ -186,7 +177,6 @@ export default function CompareMatrix(props: {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta={aligned()}
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}
@@ -211,7 +201,7 @@ export default function CompareMatrix(props: {
               else {
                 const result = mode() === "a" ? sides.resultA() : sides.resultB();
                 if (result) {
-                  // Displayed A is anchored; displayed B is shifted by δ (or −δ swapped).
+                  // A is anchored; B is shifted by the fine-tune δ.
                   const shift = mode() === "a" ? 0 : props.time.shiftB();
                   paintGrid(ctx, box, at, image, result, shift);
                 }
@@ -231,7 +221,7 @@ export default function CompareMatrix(props: {
               }}
             />
             <span>+{formatLimit(deltaLimit(diff()!.values))}</span>
-            <span class="compare-diverging-note">{props.swapped ? "A − B" : "B − A"}</span>
+            <span class="compare-diverging-note">B − A</span>
           </div>
         </Show>
       </Show>
@@ -240,7 +230,7 @@ export default function CompareMatrix(props: {
         <div class="compare-side-by-side" data-testid="compare.matrix.side">
           <div class="compare-side-note">Grids differ — A and B are drawn separately; no Δ.</div>
           <GridSide
-            label={props.swapped ? "B" : "A"}
+            label="A"
             result={sides.resultA()}
             live={props.live}
             time={props.time}
@@ -248,7 +238,7 @@ export default function CompareMatrix(props: {
             image={imageA()}
           />
           <GridSide
-            label={props.swapped ? "A" : "B"}
+            label="B"
             result={sides.resultB()}
             live={props.live}
             time={props.time}

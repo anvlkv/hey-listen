@@ -17,8 +17,8 @@ import type { ComparisonDto } from "../state/compare/types";
 
 /**
  * Unit checks for the compare **relative-time axis** (M25.B) and the id-keyed open-view
- * state (M23 Phase 3): the display transform, swap, clipping, saved-reference restore,
- * and the dirty signature / prune behaviour across several tabs per tool.
+ * state (M23 Phase 3): the display transform, clipping, saved-reference restore, and the
+ * dirty signature / prune behaviour across several tabs per tool.
  */
 
 const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
@@ -61,10 +61,7 @@ function comparisonFor(
 }
 
 it("each side starts at 0 and the reference is shifted by the offset", () => {
-  const time = compareTime(
-    () => comparisonFor(2, 1, 5, 0.6, 0.1),
-    () => false,
-  );
+  const time = compareTime(() => comparisonFor(2, 1, 5, 0.6, 0.1));
   expect(time.originA()).toBe(2);
   expect(time.originB()).toBe(5);
   expect(time.extent()).toBe(1);
@@ -74,20 +71,6 @@ it("each side starts at 0 and the reference is shifted by the offset", () => {
   expect(time.clipped()).toBe(true);
   expect(time.toSource(0.5)).toBe(2.5);
   expect(time.fromSource(2.5)).toBe(0.5);
-});
-
-it("Swap A/B swaps the extent, clipping and the offset sign", () => {
-  const swapped = compareTime(
-    () => comparisonFor(2, 1, 5, 0.6, 0.1),
-    () => true,
-  );
-  expect(swapped.originA()).toBe(5);
-  expect(swapped.extent()).toBe(0.6);
-  expect(round6(swapped.a(5.2))).toBe(0.2);
-  expect(round6(swapped.b(2.5))).toBe(0.4); // A's 0.5 into its window, −0.1 δ
-  expect(swapped.bWindow()).toEqual({ start: -0.1, end: 0.9 });
-  expect(round6(swapped.delta(0.2))).toBe(0.1);
-  expect(round6(swapped.toSource(0.2))).toBe(2.3);
 });
 
 it("relative times and clipping trim a side at the axis end", () => {

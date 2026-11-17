@@ -44,17 +44,13 @@ function lineOf(result: ModulationResult | undefined, band: Band, bins: number):
 export default function CompareModulation(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
-  /** The relative display transform; a rate chart only uses it for the swap. */
+  /** The relative display transform (the markers ignore it on a rate axis). */
   time: CompareTime;
 }) {
   const [band, setBand] = createSignal<Band>("am");
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<ModulationResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<ModulationResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const diff = (): ModulationDiffDto | null =>
     props.comparison.diff?.kind === "modulation" ? props.comparison.diff : null;
@@ -65,7 +61,6 @@ export default function CompareModulation(props: {
     compareMarkers(
       liveMarkers({
         live: props.live,
-        swapped: () => props.swapped,
         time: props.time,
         axis: "rate",
       }),
@@ -112,7 +107,6 @@ export default function CompareModulation(props: {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta={!!diff()}
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}
@@ -131,18 +125,8 @@ export default function CompareModulation(props: {
             }
           >
             <div class="compare-side-by-side" data-testid="compare.modulation.side">
-              <ModSide
-                label={props.swapped ? "B" : "A"}
-                result={sides.resultA()}
-                band={band()}
-                markers={markers}
-              />
-              <ModSide
-                label={props.swapped ? "A" : "B"}
-                result={sides.resultB()}
-                band={band()}
-                markers={markers}
-              />
+              <ModSide label="A" result={sides.resultA()} band={band()} markers={markers} />
+              <ModSide label="B" result={sides.resultB()} band={band()} markers={markers} />
             </div>
           </Show>
         }
@@ -174,8 +158,8 @@ export default function CompareModulation(props: {
               data={data()}
               series={[
                 {},
-                { label: props.swapped ? "B" : "A", stroke: chartTheme().compareA, width: 1.4 },
-                { label: props.swapped ? "A" : "B", stroke: chartTheme().compareB, width: 1.4 },
+                { label: "A", stroke: chartTheme().compareA, width: 1.4 },
+                { label: "B", stroke: chartTheme().compareB, width: 1.4 },
               ]}
               scales={{ x: { time: false }, y: { range: () => MOD_Y_RANGE } }}
               axes={[{ ...rateAxis(), values: rateAxisValues }, valueAxis("relative level (dB)")]}

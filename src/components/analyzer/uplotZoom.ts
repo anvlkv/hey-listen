@@ -18,9 +18,10 @@ type UplotInstance = TooltipProps["u"];
  * explicit zoom in/out and fit. Drag-select zoom stays uPlot's own. The visible
  * x-range is tracked so the controls can show it.
  *
- * A plain wheel/trackpad scroll **pans** time from the dominant delta; `Ctrl`/`⌘` + wheel
- * (a trackpad pinch) **zooms** around the pointer, with the shared gesture model in
- * `lib/wheelGesture.ts` (M23) so the Timeline and the canvas heatmaps agree.
+ * A vertical wheel **zooms** around the pointer (and so does a trackpad pinch /
+ * `Ctrl`/`⌘` + wheel); a horizontal wheel or `Shift` + vertical **pans** time from the
+ * dominant delta. The shared gesture model lives in `lib/wheelGesture.ts` (M23), so the
+ * Timeline and the canvas heatmaps agree.
  *
  * Every action that moves the x-scale publishes the new range on the shared
  * [`analyzerBus`](../../state/chartSync.ts) under its [`SyncGroup`], so the other

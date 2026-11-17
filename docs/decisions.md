@@ -734,6 +734,9 @@ control can fan out to the per-tool options later without a schema change. See
 
 ## ADR-26 — Compare alignment is relative, with a manual fine-tune offset
 
+> **Amended (M23 Phase 3):** the display `Swap A/B` is dropped — the relative axis and the
+> fine-tune δ stay. Read “displayed A” below as A (see `roadmap.md` → M23, Phase 3).
+
 **Context:** ADR-24 compares the two windows over their **absolute-time intersection**.
 That is the right rule for "the same moment of the same recording", but it makes two
 normal cases uncomparable: windows that start at different points, and windows of

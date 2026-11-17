@@ -1373,7 +1373,8 @@ land in the project file, so the comparison rework carries the container bump.
   the ruler, the window handles and the annotation lane stay **shared** and span all lanes.
   Each lane is just its min/max waveform — the existing `lib/waveform.ts` pyramid, now one
   `Peaks` **per channel** (built lazily past the first two, so a stereo file pays 2× and a
-  high-channel file pays only for what is shown).
+  high-channel file pays only for what is shown). The selected analysis channel's lane
+  draws at full strength; the others are dimmed (with Downmix every lane stays equal).
 - The region keeps **the same height no matter the channel count**: the lanes split the
   fixed waveform area equally, so N channels shrink each lane rather than growing the
   Timeline. There is no per-lane ruler or annotation strip — those stay global.
@@ -1389,15 +1390,18 @@ land in the project file, so the comparison rework carries the container bump.
 - **Duration on the move bar.** The window's upper handle draws the window's `Δ` duration
   (`formatTime(windowEnd() − windowStart())`) centred in it, so the length is readable
   without the toolbar. The toolbar keeps its full `start – end · Δ` readout.
-- **Middle-button pan.** A middle-button drag pans the view (the wheel/trackpad pan of
-  Phase 2 does too). This frees the primary button for selection.
+- **Middle-button pan.** A middle-button drag pans the view (the wheel's horizontal /
+  `Shift` + vertical pan of Phase 2 does too). This frees the primary button for selection.
 - **Text-like window selection.** A plain **left** drag in the waveform body (below the
   move bar, above the annotation lane) draws a **new window** like selecting text: a live
   `start → end` readout follows the pointer, `Escape` cancels, and release commits it and
-  frames it through `reframeWindow`. This **replaces** the earlier Shift+drag plan — the
-  primary button selects, the middle button (or wheel) pans. The start/end edge handles and
-  the move bar keep their hit priority in their own zones, and a ruler drag still seeks, so
-  select / pan / seek never compete.
+  frames it through `reframeWindow`. A drag that starts in a channel lane makes that lane
+  the shared analysis channel (`SharedParams.channel` is one pick or `"mix"`; true
+  multi-channel selection stays out of scope). This **replaces** the earlier Shift+drag
+  plan — the primary button selects, the middle button (or wheel) pans. The start/end edge
+  handles and the move bar keep their hit priority in their own zones. A ruler **click**
+  seeks the playhead and a ruler **drag** selects a window, so select / pan / seek never
+  compete.
 
 ### Reframe → frame + focus
 
@@ -1416,8 +1420,8 @@ land in the project file, so the comparison rework carries the container bump.
   focuses.
 - **Selection gesture.** The primary-button drag of *Window readout, pan and select* above
   is the selection gesture (it was `Shift`+drag in an earlier plan; the primary button now
-  selects and the middle button pans, so no modifier is needed). A plain ruler click/drag
-  is seek (below), so select / pan / seek never compete.
+  selects and the middle button pans, so no modifier is needed). A plain ruler click is
+  seek and a ruler drag selects (below), so select / pan / seek never compete.
 
 ### Transport: play/pause, not start/stop
 
@@ -1435,9 +1439,9 @@ land in the project file, so the comparison rework carries the container bump.
   interpolate locally for 60 fps drawing (no drift, still smooth). The playhead stays
   visible while paused/idle (dimmed when paused) and rides the chart bus as
   `{ secs, playing }`, so every time chart dims it too. Clear only on source change.
-- **Seek.** Click/drag in the ruler, or drag the playhead's ruler handle, sets the
-  position; a middle-button drag pans the waveform (a left drag selects a window — see
-  Phase 1). Draw a small handle in the ruler.
+- **Seek.** A click in the ruler, or a drag of the playhead's ruler handle, sets the
+  position; a middle-button drag pans the waveform, while a left drag (in the ruler or the
+  body) selects a window — see Phase 1. Draw a small handle in the ruler.
 - **Loop / follow.** A loop toggle (default on, window-following); off plays to the
   window end and stops, leaving the playhead there. A *follow playhead* toggle pans the
   view when the line nears the right edge; a manual pan/zoom disables it until the next
@@ -1461,23 +1465,27 @@ per gesture, so a two-finger scroll becomes a violent zoom, a horizontal swipe i
 - **One helper, every host.** Extract `lib/wheelGesture.ts` and use it in the Timeline
   (`interaction.ts`), uPlot (`uplotZoom.ts`) and the canvas heatmaps
   (`chartInteraction.ts`), so zoom/pan semantics agree everywhere (they are synchronized).
-- **Intent per gesture.** The first significant event in a burst (until ~150 ms of quiet)
-  decides the gesture: `Ctrl`/`⌘` + wheel (a trackpad pinch) → **zoom** anchored at the
-  pointer; otherwise → **pan**.
+- **Intent per gesture.** The first significant event in a burst (until ~150 ms of quiet,
+  or a modifier change) decides the gesture: a **vertical** wheel → **zoom** anchored at
+  the pointer, so a mouse needs no modifier; `Ctrl`/`⌘` + wheel (a trackpad pinch) → zoom
+  too; a **horizontal-dominant** delta or `Shift` + vertical → **pan**.
 - **What pans.** Timeline and 1-D charts pan time from the dominant delta. The 2-D
   spectrogram/matrix pan time on `deltaX` and frequency on `deltaY`. A horizontal-dominant
-  gesture is **always** a pan, never a zoom. When a 2-D view is zoomed, `Shift` selects the
-  frequency axis (time otherwise), preserving today's Shift+wheel meaning.
+  gesture is **always** a pan, never a zoom. A pinch with `Shift` still selects the 2-D
+  frequency axis (time otherwise), so the old Shift+wheel meaning survives without
+  stealing the plain-Shift pan.
 - **Normalized, continuous zoom.** Convert `deltaMode` (pixel / line / page) to pixels,
   ignore sub-pixel jitter, and use a clamped exponential factor (e.g.
   `exp(clamp(delta, -120, 120) * 0.002)` — a 100 px pinch is ~1.22×) instead of a fixed
   0.8/1.25 step per event. Accumulate deltas and apply at most once per animation frame.
 - **Contain the gesture.** `touch-action: none` and `overscroll-behavior: contain` on the
   canvas/plot wrappers, `preventDefault` on a consumable wheel, and reset the accumulator
-  and intent after the gesture ends so a momentum tail cannot re-trigger zoom.
-- **Mouse users** keep explicit zoom via the toolbar, `+`/`-` and pinch/`⌘`/Ctrl+wheel. A
-  *Wheel zooms* preference (restoring the old one-finger wheel zoom) is deferred; the
-  default is scroll-pan because it is predictable on both devices.
+  and intent after the gesture ends (a quiet gap or a modifier change), so a momentum
+  tail cannot flip the gesture mid-stream.
+- **Mouse and trackpad agree.** A plain vertical wheel zooms — the mouse's natural zoom —
+  while a horizontal wheel or `Shift` + vertical pans, which is also what a trackpad's
+  two-finger scroll reports. The toolbar's `+`/`-` and zoom-to-window stay available, and
+  no *Wheel zooms* preference is needed: a vertical delta always zooms.
 - **No vertical waveform zoom.** Amplitude scaling stays out of scope; this only makes the
   existing horizontal view predictable.
 
@@ -1567,11 +1575,11 @@ playhead / annotations / window edges / a zoom-dependent grid; numeric start/end
 fields; wider handle / move-bar hit targets; window history + previous/next annotation;
 centre-on-playhead / page-follow modes; accessibility (focusable canvas, ARIA
 announcements); waveform editing; spectral selection; multi-range selection; per-selection
-analysis; and a per-user *Wheel zooms* preference.
+analysis.
 
 **Files:** `src-tauri/src/audio/playback/{mod,stream}.rs`,
 `src-tauri/src/commands/playback.rs`, `src/audio/preview.ts`,
-`src/components/timeline/{preview,interaction,draw,constants}.ts`,
+`src/components/timeline/{preview,interaction,draw,constants,selection,zoom,colors}.ts`,
 `src/components/timeline/{TimelineToolbar,ChannelRail}.tsx`, `src/components/Timeline.tsx`,
 `src/lib/waveform.ts` (per-channel pyramids), `src/state/timeline.ts`,
 `src/state/analysis.ts` (the channel rail), `src/state/annotations/select.ts`,
@@ -1599,9 +1607,10 @@ paused/stopped; ruler click seeks; loop off stops at the end; **left-drag** sele
 frames a window (middle-drag pans); the move bar shows the window duration; a multichannel
 source shows one lane per channel at a fixed total height, the rail radio switches the
 analysed channel, and the Downmix toggle appears only with 2+ channels; lane selection
-paints full-height rules; hover shows the time readout; a burst of tiny wheel events pans
-by the accumulated delta (or zooms proportionally with `Ctrl`/`⌘`), instead of stepping
-once per event, and a horizontal gesture never zooms. E2E (compare, extended `r2-compare`):
+paints full-height rules; hover shows the time readout; a burst of tiny vertical wheel
+events zooms proportionally (with or without `Ctrl`/`⌘`), a horizontal or `Shift` gesture
+pans by the accumulated delta instead of stepping once per event, and a horizontal gesture
+never zooms. E2E (compare, extended `r2-compare`):
 the toolbar Compare popover opens a new compare tab; multiple windows of one reference and
 multiple references open as distinct tabs, each a start-aligned relative pair diffed on the
 owner's grid; the fragment timeline previews; a legend and one colour per side appear on

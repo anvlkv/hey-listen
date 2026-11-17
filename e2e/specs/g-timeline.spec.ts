@@ -80,11 +80,11 @@ describe("G. Timeline", () => {
     await waitForAnalyzer("waveform");
   });
 
-  it("G2 — zooming keeps the waveform rendering", async () => {
+  it("G2 — a plain vertical wheel zooms and keeps the waveform rendering", async () => {
     await openFixture("sine440");
     await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
 
-    // A synthetic wheel event at the canvas centre drives the Timeline's zoom.
+    // No modifier: a mouse wheel's vertical delta zooms the view (M23).
     await wheelOver(SEL.timelineCanvas, -240);
 
     await waitFor(

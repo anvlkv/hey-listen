@@ -48,16 +48,12 @@ const levelAxis = () => ({
 export default function CompareSpectrum(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
-  /** The relative display transform; a frequency chart only uses it for the swap. */
+  /** The relative display transform (the markers ignore it on a frequency axis). */
   time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<SpectrumResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<SpectrumResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const diff = (): SpectrumDiffDto | null =>
     props.comparison.diff?.kind === "spectrum" ? props.comparison.diff : null;
@@ -70,7 +66,6 @@ export default function CompareSpectrum(props: {
     compareMarkers(
       liveMarkers({
         live: props.live,
-        swapped: () => props.swapped,
         time: props.time,
         axis: "freq",
       }),
@@ -96,9 +91,7 @@ export default function CompareSpectrum(props: {
       freqs: a.freqs.slice(0, bins),
       a: a.magDb.slice(0, bins),
       b: b.magDb.slice(0, bins),
-      delta: delta
-        ? delta.values.slice(0, bins).map((value) => (props.swapped ? -value : value))
-        : [],
+      delta: delta ? delta.values.slice(0, bins) : [],
     };
   };
 
@@ -106,14 +99,14 @@ export default function CompareSpectrum(props: {
     const data = overlay();
     const base = [
       {},
-      { label: props.swapped ? "B" : "A", stroke: chartTheme().compareA, width: 1.2 },
-      { label: props.swapped ? "A" : "B", stroke: chartTheme().compareB, width: 1.2 },
+      { label: "A", stroke: chartTheme().compareA, width: 1.2 },
+      { label: "B", stroke: chartTheme().compareB, width: 1.2 },
     ];
     if (!data || data.delta.length === 0) return base;
     return [
       ...base,
       {
-        label: props.swapped ? "Δ (A − B)" : "Δ (B − A)",
+        label: "Δ (B − A)",
         stroke: chartTheme().compareDelta,
         width: 1,
         dash: [5, 3],
@@ -149,7 +142,6 @@ export default function CompareSpectrum(props: {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta={(overlay()?.delta.length ?? 0) > 0}
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}
@@ -160,7 +152,7 @@ export default function CompareSpectrum(props: {
         fallback={
           <div class="compare-side-by-side">
             <SideSpectrum
-              label={props.swapped ? "B" : "A"}
+              label="A"
               color={chartTheme().compareA}
               spectrum={sides.resultA()}
               scale={scale()}
@@ -169,7 +161,7 @@ export default function CompareSpectrum(props: {
               markers={markers}
             />
             <SideSpectrum
-              label={props.swapped ? "A" : "B"}
+              label="B"
               color={chartTheme().compareB}
               spectrum={sides.resultB()}
               scale={scale()}

@@ -85,20 +85,31 @@ export async function waitForSelector(selector: string, timeoutMsg: string, time
 }
 
 /**
- * Dispatch a wheel gesture at the centre of an element (`deltaY < 0` zooms in).
- * Charts and the Timeline listen for `wheel` on a canvas/element rather than the DOM
- * scroll container, so the event is dispatched at the element's centre.
+ * Dispatch a wheel gesture at the centre of an element.
+ *
+ * The app's gesture model (M23) is: a **vertical** delta **zooms**, while a
+ * **horizontal** delta (`deltaX`) or `Shift` + vertical **pans**. `zoom` adds the
+ * `Ctrl`/`⌘` pinch modifier, which also zooms — the trackpad-pinch path. Charts and the
+ * Timeline listen for `wheel` on a canvas/element rather than the DOM scroll container,
+ * so the event is dispatched at the element's centre.
  */
-export async function wheelOver(selector: string, deltaY: number, zoom = false): Promise<void> {
+export async function wheelOver(
+  selector: string,
+  deltaY: number,
+  zoom = false,
+  options: { deltaX?: number; shift?: boolean } = {},
+): Promise<void> {
   await browser.execute(
-    (sel: string, delta: number, isZoom: boolean) => {
+    (sel: string, delta: number, isZoom: boolean, deltaX: number, shift: boolean) => {
       const el = document.querySelector(sel) as HTMLElement | null;
       if (!el) throw new Error(`wheelOver: no element for ${sel}`);
       const rect = el.getBoundingClientRect();
       el.dispatchEvent(
         new WheelEvent("wheel", {
+          deltaX,
           deltaY: delta,
           ctrlKey: isZoom,
+          shiftKey: shift,
           clientX: rect.left + rect.width / 2,
           clientY: rect.top + rect.height / 2,
           bubbles: true,
@@ -109,6 +120,8 @@ export async function wheelOver(selector: string, deltaY: number, zoom = false):
     selector,
     deltaY,
     zoom,
+    options.deltaX ?? 0,
+    options.shift ?? false,
   );
 }
 

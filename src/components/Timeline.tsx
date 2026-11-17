@@ -24,10 +24,11 @@ import TimelineScrollBar from "./timeline/ScrollBar";
  * Timeline (fixed region): waveform of the whole source plus the draggable
  * analysis window.
  *
- * - Wheel zooms around the cursor, the middle button pans, buttons fit /
- *   zoom-to-window.
- * - A plain left drag in the waveform body **selects** a new window (text-like); the
- *   middle button pans. Dragging a `start`/`end` handle previews an excerpt at that edge
+ * - Wheel zooms around the cursor (a horizontal wheel or Shift+wheel pans), the middle
+ *   button pans, buttons fit / zoom-to-window.
+ * - A plain left drag in the waveform body **selects** a new window (text-like); a ruler
+ *   drag does too, while a ruler click seeks. The middle button pans. Dragging a
+ *   `start`/`end` handle previews an excerpt at that edge
  *   and reframes on release (see `docs/source-model.md`).
  * - Dragging the grab bar along the top of the window moves the whole window,
  *   keeping its width (no edge excerpt or reframe; a preview that is playing
@@ -158,6 +159,7 @@ export default function Timeline() {
     span,
     plotW,
     laneSelection: interaction.selection,
+    windowSelection: interaction.windowSelection,
     laneDrag: interaction.laneDrag,
     laneHover: interaction.laneHover,
   };
@@ -214,6 +216,7 @@ export default function Timeline() {
     selectedAnnotationId();
     interaction.laneHover();
     interaction.laneDrag();
+    interaction.windowSelection();
     draw();
   });
 

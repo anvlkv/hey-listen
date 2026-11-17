@@ -97,12 +97,11 @@ The core computes both sides; the frontend never holds B's PCM.
   The core returns delta `times` in that relative axis. The per-side analyzer results are
   unchanged by the offset; only the matching moves.
 - **Coordinates.** The core works in **owner coordinates**: owner A starts at 0 and the
-  reference B is shifted by `bOffset` (δ). `Swap A/B` is a **display transform** — the
-  displayed side is anchored at 0 and the other is shifted by −δ — so the core contract
-  and `bOffset`'s meaning do not change with the swap; only the Δ sign flips.
+  reference B is shifted by `bOffset` (δ). That relative axis **is** the display axis: the
+  display `Swap A/B` was dropped in M23 Phase 3 (the fine-tune δ stays), so a side's
+  identity, colour, Δ sign and axis extent never change behind the user's back.
 - **Common span (M25.B).** In owner coordinates the delta and pairings cover
-  `[max(0, δ), min(durA, δ + durB)]` — the longer side is clipped to the shorter. The
-  displayed span is the same interval mapped by the swap transform.
+  `[max(0, δ), min(durA, δ + durB)]` — the longer side is clipped to the shorter.
 - A side failure (no source, an empty window, a filter error) names the side (`a` or
   `b`) so the view and MCP/CLI callers can report which project failed.
 - **Peer reads never create state.** A closed live reference is resolved against the
@@ -175,8 +174,8 @@ is a meaningful per-side difference, so it is listed but never suppresses the de
   listed, not "fixed".
 
 When the **windows** differ but the grid matches, both results are drawn from 0 and the
-delta covers the common span; the longer side is clipped, and the chart still paints the
-**displayed A** side's full extent. When the windows (after δ) do not meet at all, there
+delta covers the common span; the longer side is clipped, and the chart still paints
+A's full extent. When the windows (after δ) do not meet at all, there
 is no common span: the chart still draws both, but no delta. A saved reference reports
 the same fields; `alignment` uses the snapshot's window, so the saved comparison is
 reproducible.
@@ -193,7 +192,7 @@ Per result family:
 | rhythm | onset-strength envelope delta plus paired events, all on the relative axis |
 | events (`onsets`, `downbeats`, `noteMetrics`) | events paired by nearest **relative** time within a tolerance (`max(20 ms, 2 hops)`; 50 ms default) inside the common span: matched pairs, only-A, only-B, mean \|Δt\| |
 | modulation | AM/FM spectra aligned by modulation-rate bin; delta per line |
-| waveform | envelope delta over the common span. Buckets are 2048 per window with a length-dependent step, so M25.B samples the other envelope at **A's** bucket times (nearest within one bucket; the view maps to display coordinates after a swap); exact when the durations match, and the view says *clipped to the shorter window* when they do not |
+| waveform | envelope delta over the common span. Buckets are 2048 per window with a length-dependent step, so M25.B samples the other envelope at **A's** bucket times (nearest within one bucket; the core's times are already on the relative axis); exact when the durations match, and the view says *clipped to the shorter window* when they do not |
 | readouts (levels, LUFS, LRA) | field-by-field delta over the scalar result |
 
 The default output is **stats**, not arrays. Raw delta arrays are included only on
@@ -214,19 +213,16 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
 ## The compare view
 
 - **Tab title** `Compare: <Tool> — <A> ↔ <B>`. The header names A and B by **project**
-  (with their source shape: rate / channels / duration), the **comparability badge**, the
-  **fine-tune slider** (M25.B), and **Swap A/B**.
-- **Relative time.** Time-axis charts read `elapsed (s)`: displayed A starts at 0 at its
-  window start, and displayed B's own window start sits at +δ on that axis (so B's result
-  also begins at 0). The axis extent is the **displayed A** side's duration; displayed B
-  is clipped where its data ends.
-- **Fine-tune slider (δ).** It moves displayed B relative to displayed A: ±1 s, 1 ms
-  steps, 0 by default, positive = B later, with a reset. It only re-aligns the results
+  (with their source shape: rate / channels / duration), the **comparability badge**, and
+  the **fine-tune slider** (M25.B).
+- **Relative time.** Time-axis charts read `elapsed (s)`: A starts at 0 at its window
+  start, and B's own window start sits at +δ on that axis (so B's result also begins at
+  0). The axis extent is A's duration; B is clipped where its data ends.
+- **Fine-tune slider (δ).** It moves B relative to A: ±1 s, 1 ms steps, 0 by default,
+  positive = B later, with a reset. It only re-aligns the results
   (no re-analysis); the comparison re-runs debounced, so the Δ line, stats and pairings
   follow. It is shown for the time-axis families (series, matrix/spectrogram, events,
-  annotations, waveform); spectrum/modulation/readouts have no time axis and no slider.
-- **Swap A/B** swaps the sides, the **axis extent and clipping**, and the offset's sign —
-  not only the labels and the Δ sign. The slider always moves the side shown as B.
+  notes, waveform); spectrum/modulation/readouts have no time axis and no slider.
 - **Chart**, by family:
   - series / spectrum: A and B overlaid in `compareA` / `compareB`, with an optional Δ
     line (default off); a differing grid switches to two side-by-side plots rather than
@@ -248,8 +244,8 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
 - **B's analysis window** is drawn as a faint band at `[δ, δ + bDur]`, so a window
   difference is visible rather than only listed.
 - **Markers are remapped** onto the relative axis (owner coordinates): A's
-  playhead/cursor at `t − aStart`, B's at `t − bStart + δ`; the swap transform then moves
-  them into display coordinates. The compare chart stays in A's `time` / `freq` / `mod`
+  playhead/cursor at `t − aStart`, B's at `t − bStart + δ`. The compare chart stays in
+  A's `time` / `freq` / `mod`
   sync group by converting absolute ↔ relative at the plugin boundary, so A's zoom and
   cursor still mirror the project's other charts.
 - **Saved reference (M25.C).** The badge/banner says **saved reference**; B's band comes
@@ -497,15 +493,15 @@ binary's flags only).
 - **Unit (TS)** — dockview sanitiser (compare panels removed, empty groups pruned, an
   active compare group re-pointed), compare panel id parsing, the compare-panel
   derivation (the M25 regression where any panel add/remove dropped the reference), peer
-  poll latest-wins, relative merge/clipping, the swap sign, marker mapping, and the
+  poll latest-wins, relative merge/clipping, marker mapping, and the
   picker's target/saved filtering.
 - **E2E `r2-compare` / `r2b-compare-relative`** — two projects with distinct tones:
   Compare with… from Spectrum shows both series and the legend; B's cursor and B's
   playhead appear on the compare chart and follow B; a differing FFT size shows the badge
   and no delta; closing B shows the banner; retargeting reuses the tab. **M25.B**
   (`r2b-compare-relative`): adjacent windows compare from 0, the offset slider moves the
-  common span, Swap moves the axis/clip, and an add/remove of another tab keeps the
-  reference. **M25.C**: saving with a compare tab and reopening one project restores the
+  common span, and an add/remove of another tab keeps the reference. **M25.C**: saving
+  with a compare tab and reopening one project restores the
   compare tab with the **saved reference** badge and B's band; reconnect is explicit; a
   settled B change marks A dirty.
 - **E2E compare views (M25.A, `r2-compare` / `r2b-compare-relative`)** — R2.7–R2.10:
@@ -513,7 +509,7 @@ binary's flags only).
   only-A / only-B), the `noteMetrics` table's A/B/Δ rows, the modulation AM/FM toggle;
   R2.11–R2.12 (M25.B): the waveform overlays a differing window and says it is clipped to
   the common span, adjacent windows compare from 0, the δ slider moves the common span,
-  Swap moves the axis/clipping, and the reference survives opening another tab.
+  and the reference survives opening another tab.
 - **E2E popout** — *Pop out to window* closes the compare tab and shows a window titled
   `Compare: Spectrum — <B>` with the same overlay; B's cursor/playhead still follow; A's
   hover in the popout moves A's cursor in the project window; closing the popout forgets
@@ -551,7 +547,7 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 
 5. Core: relative matching, `bOffset`, `alignment` in `comparability`, matrix nulls,
    waveform nearest-bucket, then MCP/CLI `bOffset` and the Rust tests.
-6. Frontend: the relative axis, the offset slider, swap-aware extent/clipping, marker
+6. Frontend: the relative axis, the offset slider, the relative extent/clipping, marker
    remapping, the sync transform, the compare-panel derivation fix, then the E2E/unit
    pass.
 
@@ -616,8 +612,8 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 
 > **Delivered (M25.B) — relative alignment.** Replaces the absolute overlap rule:
 >
-> - both sides use `x = t − result.windowStart`; the axis extent is the **displayed A**
->   side's duration, and `Swap A/B` swaps the extent, clipping and offset sign;
+> - both sides use `x = t − result.windowStart`; the axis extent is A's duration
+>   (**M23 Phase 3 drops the display `Swap A/B`** — the fine-tune δ stays);
 > - a fine-tune **δ slider** (±1 s, 1 ms steps, 0 default, positive = B later) moves
 >   displayed B without re-analyzing; the comparison re-runs debounced;
 > - the Δ/pairings/matrix cover the **common span** `[max(0, δ), min(durA, δ + durB)]`;

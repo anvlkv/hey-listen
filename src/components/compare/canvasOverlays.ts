@@ -51,8 +51,8 @@ export function drawLiveMarkers(
   time: CompareTime | undefined,
 ): void {
   if (!live || !time || !(span.end > span.start)) return;
-  const a = time.swapped() ? live.b() : live.a();
-  const b = time.swapped() ? live.a() : live.b();
+  const a = live.a();
+  const b = live.b();
   drawRule(ctx, box, span, a.playhead == null ? null : time.a(a.playhead), chartTheme().playhead);
   drawRule(
     ctx,

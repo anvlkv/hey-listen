@@ -1,4 +1,5 @@
 import type { MatrixResult, SpectrogramResult } from "../../state/analyzer";
+import { mix, parseToRgba } from "color2k";
 import { chartTheme } from "../../state/themes";
 import type { MatrixDiffDto, Span } from "../../state/compare/types";
 import { clamp01 } from "../analyzer/colormap";
@@ -89,35 +90,44 @@ export function blitRange(
 
 // --- diverging ramp ---------------------------------------------------------
 
-/** The cached 256-stop ramp, keyed by the three theme colours it was built from. */
+/** Steps in the cached Δ ramp: a match for the 8-bit output the heatmap writes. */
+const RAMP_STEPS = 256;
+
+/** The cached Δ ramp (RGB triples), keyed by the three theme colours it was built from. */
 let cacheKey = "";
-let cache: Uint8ClampedArray | null = null;
+let cache: Uint8Array | null = null;
+
+/** One hue of the Δ ramp: the background at zero, A or B at the poles (color2k `mix`). */
+function poleColor(theme: ReturnType<typeof chartTheme>, at: number): [number, number, number] {
+  const color =
+    at <= 0.5
+      ? mix(theme.spectroBackground, theme.compareA, 1 - at * 2)
+      : mix(theme.spectroBackground, theme.compareB, at * 2 - 1);
+  const [r, g, b] = parseToRgba(color);
+  return [Math.round(r), Math.round(g), Math.round(b)];
+}
 
 /**
  * A **diverging** colour for a signed Δ (`-1 … +1`): A's colour at the negative pole,
- * the heatmap background at zero, B's colour at the positive pole. Sampled from a
- * canvas gradient once per theme, so a theme file's arbitrary CSS colours work without
- * a colour parser.
+ * the heatmap background at zero, B's colour at the positive pole. The A→background→B
+ * ramp is built once per theme with color2k (so a theme file's arbitrary CSS colours
+ * work) and cached as a 256-step table, because the Δ heatmap samples it per pixel.
  */
 export function divergingColor(value: number): [number, number, number] {
   const theme = chartTheme();
   const key = `${theme.compareA}|${theme.spectroBackground}|${theme.compareB}`;
-  if (key !== cacheKey) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 1;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return [0, 0, 0];
-    const gradient = ctx.createLinearGradient(0, 0, 256, 0);
-    gradient.addColorStop(0, theme.compareA);
-    gradient.addColorStop(0.5, theme.spectroBackground);
-    gradient.addColorStop(1, theme.compareB);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 256, 1);
-    cache = ctx.getImageData(0, 0, 256, 1).data;
+  let table = cache;
+  if (key !== cacheKey || !table) {
+    table = new Uint8Array(RAMP_STEPS * 3);
+    for (let i = 0; i < RAMP_STEPS; i++) {
+      const [r, g, b] = poleColor(theme, i / (RAMP_STEPS - 1));
+      table[i * 3] = r;
+      table[i * 3 + 1] = g;
+      table[i * 3 + 2] = b;
+    }
+    cache = table;
     cacheKey = key;
   }
-  if (!cache) return [0, 0, 0];
-  const index = Math.round(clamp01((value + 1) / 2) * 255) * 4;
-  return [cache[index], cache[index + 1], cache[index + 2]];
+  const index = Math.round(clamp01((value + 1) / 2) * (RAMP_STEPS - 1)) * 3;
+  return [table[index], table[index + 1], table[index + 2]];
 }

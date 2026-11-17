@@ -49,6 +49,7 @@
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-store": "^2.5.0",
     "@tauri-apps/plugin-updater": "^2.14.1",
+    "color2k": "^2.0.4",
     "dockview": "^8.5.1",
     "dompurify": "^3.4.17",
     "marked": "^18.1.1",

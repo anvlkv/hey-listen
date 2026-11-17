@@ -1,6 +1,5 @@
 /**
- * Layout and interaction constants for the Timeline canvas (all in CSS pixels
- * unless annotationd). Kept together so the drawing helpers (`draw.ts`) and the pointer
+ * Layout and interaction constants for the Timeline canvas (all in CSS pixels). Kept together so the drawing helpers (`draw.ts`) and the pointer
  * handling (`interaction.ts`) agree on the geometry.
  *
  * The annotation lane's height and grab radius are shared with the analyzer charts — see
@@ -15,6 +14,8 @@ export const HANDLE_HIT = 9;
 export const LABEL_GAP = 8;
 /** Vertical hit zone at the top of the waveform for the window move handle. */
 export const MOVE_HIT = 14;
+/** Horizontal travel (px) before a ruler press becomes a window selection instead of a seek. */
+export const RULER_DRAG_PX = 3;
 /** Height of the drawn window move handle bar (tall enough for its duration label). */
 export const MOVE_HANDLE_H = 12;
 /** Horizontal gutter so the start/end handles never sit on the very edge. */

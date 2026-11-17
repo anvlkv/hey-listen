@@ -1,4 +1,5 @@
 import { columnExtent, type Peaks } from "../../lib/waveform";
+import { channel } from "../../state/analysis";
 import { analyzerBus, readBusMessage } from "../../state/chartSync";
 import { filteredSamples } from "../../state/filtered";
 import { filterActive } from "../../state/graph";
@@ -9,7 +10,9 @@ import { LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
 import { formatRulerTime, formatTime, niceStep } from "./format";
 import { drawWaveformLanes } from "./waveformLanes";
 import { drawTimelineAnnotations } from "./annotationOverlay";
+import { timelineColors, type TimelineColors } from "./colors";
 import type { LaneHandleDrag, LaneSelection } from "../annotations/lane";
+import type { WindowSpan } from "./selection";
 
 /**
  * The filtered overlay's opacity: 85% opaque, so the filtered envelope **blends with**
@@ -42,6 +45,8 @@ export interface TimelineDrawDeps {
   plotW: () => number;
   /** The span being dragged out in the annotation lane (for the live selection). */
   laneSelection: () => LaneSelection;
+  /** The analysis window being dragged out, for the selection rectangle. */
+  windowSelection: () => WindowSpan | null;
   /** The annotation handle being dragged (for the moving edge and its ghost). */
   laneDrag: () => LaneHandleDrag | null;
   /** The annotation the pointer is over in the lane (drawn promoted). */
@@ -50,7 +55,8 @@ export interface TimelineDrawDeps {
 
 /**
  * Paint the whole timeline: background, waveform (raw plus the filtered overlay),
- * ruler, annotation lane/rules, window handles and the playhead.
+ * the live window selection, ruler, annotation lane/rules, window handles and the
+ * playhead.
  */
 export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: TimelineDrawDeps): void {
   const w = deps.cssW();
@@ -64,6 +70,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
   const waveTop = RULER_H;
   const waveH = h - RULER_H;
   const t = chartTheme();
+  const colors = timelineColors(t.series);
 
   ctx.fillStyle = t.background;
   ctx.fillRect(0, 0, w, h);
@@ -74,9 +81,10 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
   const ws = deps.t2x(windowStart());
   const we = deps.t2x(windowEnd());
 
-  // Analysis window shading.
+  // Analysis window shading. A hue-shifted, translucent tint (not the waveform's own
+  // colour) keeps the selected region from reading as unfiltered data.
   if (s) {
-    ctx.fillStyle = t.waveFill;
+    ctx.fillStyle = colors.window;
     ctx.fillRect(ws, waveTop, we - ws, waveH);
   }
 
@@ -97,7 +105,12 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
         sampleRate: s.sampleRate,
         peaks: deps.channelPeaks(),
       },
-      { wave: t.series, midline: t.midline },
+      {
+        wave: t.series,
+        dimmed: colors.laneDim,
+        midline: t.midline,
+        active: channel(),
+      },
       deps.x2t,
     );
 
@@ -127,6 +140,11 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
   }
 
   drawRuler(ctx, w, deps);
+
+  // The live selection drag: a translucent rectangle with full-strength edges, so the
+  // window being drawn is obvious while the pointer is down.
+  const dragging = deps.windowSelection();
+  if (dragging) drawWindowSelection(ctx, dragging, waveTop, waveH, deps.t2x, colors);
 
   // Annotation rules stay under the window handles and the playhead (M23), so the
   // window stays the loudest mark on the canvas.
@@ -203,6 +221,32 @@ function drawRuler(ctx: CanvasRenderingContext2D, w: number, deps: TimelineDrawD
     ctx.fillText(label, lx, RULER_H / 2);
     lastRight = lx + width;
   }
+}
+
+/** Draw the live window selection: a translucent fill and two full-height edges. */
+function drawWindowSelection(
+  ctx: CanvasRenderingContext2D,
+  span: WindowSpan,
+  top: number,
+  height: number,
+  t2x: (t: number) => number,
+  colors: TimelineColors,
+): void {
+  const x0 = t2x(span.start);
+  const x1 = t2x(span.end);
+  const left = Math.min(x0, x1);
+  ctx.save();
+  ctx.fillStyle = colors.selectFill;
+  ctx.fillRect(left, top, Math.abs(x1 - x0), height);
+  ctx.strokeStyle = colors.windowEdge;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x0, top);
+  ctx.lineTo(x0, top + height);
+  ctx.moveTo(x1, top);
+  ctx.lineTo(x1, top + height);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** A vertical start/end handle with a wider grab tab at the top. */

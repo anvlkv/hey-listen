@@ -8,7 +8,6 @@
  */
 import { tab } from "../support/selectors.ts";
 import {
-  click,
   closeAllTabs,
   closeTool,
   count,
@@ -96,7 +95,7 @@ describe("R2b. Comparison — relative alignment", () => {
     await waitFor(async () => !(await windowLabels()).includes(same), `${same} did not close`);
   });
 
-  it("R2.12 — adjacent windows compare from 0, the offset and swap follow", async () => {
+  it("R2.12 — adjacent windows compare from 0 and the offset follows", async () => {
     const reference = await secondProject();
     await compareTool("frameRms", reference);
     await waitForCompareChart("frameRms");
@@ -137,15 +136,6 @@ describe("R2b. Comparison — relative alignment", () => {
     await waitFor(
       async () => (await textOf('[data-testid="compare.span"]')).includes("0.50"),
       "the common span did not follow the offset",
-    );
-
-    // Swap moves the axis/clipping with the sides: displayed A is now the reference
-    // (1.5 s), which the common span covers, so the clipping note clears.
-    await click('[data-testid="compare.swap"]');
-    await waitForBadge("Aligned");
-    await waitFor(
-      async () => (await count('[data-testid="compare.span"]')) === 0,
-      "the swapped view still claimed a clipped span",
     );
     expect(await textOf('[data-testid="compare.offset.value"]')).toContain("500 ms");
 

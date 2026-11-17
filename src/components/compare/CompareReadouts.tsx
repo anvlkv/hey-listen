@@ -33,14 +33,13 @@ function formatDeltaField(key: string, value: number): string {
 /**
  * The **readouts** compare view (M25): three columns — A, B and Δ — over a scalar
  * result (levels, integrated loudness, LRA). The canonical summaries sit above, so the
- * same numbers an agent reads are visible here. `Swap A/B` is display-only; the Δ
- * column flips sign.
+ * same numbers an agent reads are visible here.
  */
-export default function CompareReadouts(props: { comparison: ComparisonDto; swapped: boolean }) {
+export default function CompareReadouts(props: { comparison: ComparisonDto }) {
   const fields = () =>
     props.comparison.diff?.kind === "scalar" ? props.comparison.diff.fields : [];
-  const sideA = () => (props.swapped ? props.comparison.b : props.comparison.a);
-  const sideB = () => (props.swapped ? props.comparison.a : props.comparison.b);
+  const sideA = () => props.comparison.a;
+  const sideB = () => props.comparison.b;
 
   const cards = (side: "a" | "b") => {
     const result = (side === "a" ? sideA() : sideB()).result;
@@ -50,7 +49,6 @@ export default function CompareReadouts(props: { comparison: ComparisonDto; swap
   return (
     <div class="compare-readouts">
       <CompareLegend
-        swapped={props.swapped}
         aLabel={sideA().project ?? "this project"}
         bLabel={sideB().project ?? "reference"}
       />
@@ -75,8 +73,8 @@ export default function CompareReadouts(props: { comparison: ComparisonDto; swap
           <thead>
             <tr>
               <th>Field</th>
-              <th>{props.swapped ? "B" : "A"}</th>
-              <th>{props.swapped ? "A" : "B"}</th>
+              <th>A</th>
+              <th>B</th>
               <th>Δ</th>
             </tr>
           </thead>
@@ -85,11 +83,9 @@ export default function CompareReadouts(props: { comparison: ComparisonDto; swap
               {(field) => (
                 <tr>
                   <td class="compare-field">{FIELD_LABELS[field.key] ?? field.key}</td>
-                  <td>{formatField(field.key, props.swapped ? field.b : field.a)}</td>
-                  <td>{formatField(field.key, props.swapped ? field.a : field.b)}</td>
-                  <td class="compare-delta">
-                    {formatDeltaField(field.key, props.swapped ? -field.delta : field.delta)}
-                  </td>
+                  <td>{formatField(field.key, field.a)}</td>
+                  <td>{formatField(field.key, field.b)}</td>
+                  <td class="compare-delta">{formatDeltaField(field.key, field.delta)}</td>
                 </tr>
               )}
             </For>

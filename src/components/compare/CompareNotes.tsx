@@ -26,16 +26,12 @@ const key = (secs: number) => secs.toFixed(5);
 export default function CompareNotes(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
   /** The relative display transform (M25.B). */
   time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<NoteMetricsResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<NoteMetricsResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const axisSpan = () => ({ start: 0, end: props.time.extent() });
   const notesA = (): NoteMetric[] => sides.resultA()?.notes ?? [];
@@ -48,20 +44,18 @@ export default function CompareNotes(props: {
     return d ? noteRows(d) : [];
   });
 
-  const matchedA = () =>
-    new Set((diff()?.pairs ?? []).map((pair) => key(props.swapped ? pair.bStart : pair.aStart)));
-  const matchedB = () =>
-    new Set((diff()?.pairs ?? []).map((pair) => key(props.swapped ? pair.aStart : pair.bStart)));
+  const matchedA = () => new Set((diff()?.pairs ?? []).map((pair) => key(pair.aStart)));
+  const matchedB = () => new Set((diff()?.pairs ?? []).map((pair) => key(pair.bStart)));
 
-  // The pairings are in **owner** coordinates (core A relative, core B shifted by δ);
-  // the displayed sides swap with the header, so their keys follow the swap.
+  // The pairings are in **owner** coordinates (A relative, B shifted by δ), so a note's
+  // source second maps onto the same key by subtracting its own side's origin.
   const originCoreA = () => resultOrigin(props.comparison.a);
   const originCoreB = () => resultOrigin(props.comparison.b);
   const offset = () => props.comparison.comparability.alignment.bOffset;
   const keyA = (secs: number) => secs - originCoreA();
   const keyB = (secs: number) => secs - originCoreB() + offset();
-  const keyOfA = (secs: number) => key(props.swapped ? keyB(secs) : keyA(secs));
-  const keyOfB = (secs: number) => key(props.swapped ? keyA(secs) : keyB(secs));
+  const keyOfA = (secs: number) => key(keyA(secs));
+  const keyOfB = (secs: number) => key(keyB(secs));
 
   const paint = (
     ctx: CanvasRenderingContext2D,
@@ -102,8 +96,8 @@ export default function CompareNotes(props: {
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (const pair of diff()?.pairs ?? []) {
-      const xa = xOf(props.time.delta(pair.aStart));
-      const xb = xOf(props.time.delta(pair.bStart));
+      const xa = xOf(pair.aStart);
+      const xb = xOf(pair.bStart);
       ctx.moveTo(xa, mid - 4);
       ctx.lineTo(xb, mid + 4);
     }
@@ -134,7 +128,6 @@ export default function CompareNotes(props: {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}

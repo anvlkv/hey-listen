@@ -1,3 +1,4 @@
+import type { ChannelPick } from "../../lib/waveform";
 import { columnExtent, type Peaks } from "../../lib/waveform";
 
 /**
@@ -9,6 +10,17 @@ import { columnExtent, type Peaks } from "../../lib/waveform";
 
 /** Fraction of a lane's half-height the envelope may use. */
 const LANE_AMPLITUDE = 0.94;
+
+/**
+ * The channel lane under `y` (a canvas-relative pointer y), or `null` above the waveform.
+ * Lanes split the area below the ruler equally, so this is the inverse of the lane split
+ * in [`drawWaveformLanes`].
+ */
+export function laneAtY(y: number, top: number, height: number, channels: number): number | null {
+  if (channels < 1 || height <= 0 || y < top) return null;
+  const lane = Math.floor(((y - top) / height) * channels);
+  return Math.max(0, Math.min(channels - 1, lane));
+}
 
 /** Where the lanes are drawn, and the samples they read. */
 export interface WaveformLanes {
@@ -27,11 +39,17 @@ export interface WaveformLanes {
   peaks: Peaks[];
 }
 
-/** Paint one min/max lane per channel, each centred on its own midline. */
+/**
+ * Paint one min/max lane per channel, each centred on its own midline.
+ *
+ * The **selected analysis channel** (`active`) draws in the full series colour; the other
+ * lanes draw **dimmed**, so the lane an analyzer reads is obvious at a glance. Downmix
+ * (`active === "mix"`) analyses every lane equally, so every lane stays at full strength.
+ */
 export function drawWaveformLanes(
   ctx: CanvasRenderingContext2D,
   lanes: WaveformLanes,
-  style: { wave: string; midline: string },
+  style: { wave: string; dimmed: string; midline: string; active: ChannelPick },
   x2t: (x: number) => number,
 ): void {
   const { top, height, left, right, samples, frames, channels, sampleRate, peaks } = lanes;
@@ -42,8 +60,9 @@ export function drawWaveformLanes(
   for (let c = 0; c < channels; c++) {
     const mid = top + laneH * (c + 0.5);
     const half = (laneH / 2) * LANE_AMPLITUDE;
+    const selected = style.active === "mix" || style.active === c;
 
-    ctx.strokeStyle = style.wave;
+    ctx.strokeStyle = selected ? style.wave : style.dimmed;
     ctx.beginPath();
     for (let x = left; x < right; x++) {
       const f0 = x2t(x) * sampleRate;

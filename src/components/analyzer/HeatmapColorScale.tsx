@@ -1,9 +1,10 @@
 import { Show } from "solid-js";
+import { rgba } from "color2k";
 import type { HeatmapScale } from "./heatmapScale";
 
 /** The ramp as a CSS gradient, sampled from the same stops the pixels use. */
 export function rampGradient(stops: HeatmapScale["stops"]): string {
-  const parts = stops.map(([at, [r, g, b]]) => `rgb(${r} ${g} ${b}) ${(at * 100).toFixed(1)}%`);
+  const parts = stops.map(([at, [r, g, b]]) => `${rgba(r, g, b, 1)} ${(at * 100).toFixed(1)}%`);
   return `linear-gradient(to right, ${parts.join(", ")})`;
 }
 
@@ -17,7 +18,7 @@ export function scaleGradient(scale: HeatmapScale, steps = 10): string {
   for (let i = 0; i <= steps; i++) {
     const at = i / steps;
     const [r, g, b] = scale.ramp(at);
-    parts.push(`rgb(${r} ${g} ${b}) ${(at * 100).toFixed(1)}%`);
+    parts.push(`${rgba(r, g, b, 1)} ${(at * 100).toFixed(1)}%`);
   }
   return `linear-gradient(to right, ${parts.join(", ")})`;
 }

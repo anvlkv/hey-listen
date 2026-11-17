@@ -271,9 +271,10 @@ None of these are closable, draggable, or tabbed.
   or window change while a result is on screen) spins in the **bottom-right corner**
   so the stale result stays visible.
 - Analyzer charts carry an on-chart **zoom control** (zoom in / out / fit with a range
-  readout); a plain wheel/trackpad scroll **pans** (time; frequency on 2-D views), pinch /
-  `⌘`/Ctrl+wheel **zooms** at the cursor, `Shift` picks the frequency axis on a 2-D view when
-  zooming, and a horizontal gesture never zooms. See [`roadmap.md`](roadmap.md) → M23 and
+  readout); a **vertical** wheel **zooms** at the cursor (a mouse needs no modifier;
+  pinch / `⌘`/Ctrl+wheel too), a horizontal wheel or `Shift` + vertical **pans** (time;
+  frequency on 2-D views), `Ctrl`/`⌘` + `Shift` + wheel picks the frequency axis on a 2-D
+  view, and a horizontal gesture never zooms. See [`roadmap.md`](roadmap.md) → M23 and
   `lib/wheelGesture.ts`.
 - Axis labels stay **un-truncated** — sized margins and formatted ticks/units (the
   charts and the Timeline ruler).

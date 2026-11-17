@@ -32,16 +32,12 @@ import type { ComparisonDto, WaveformDiffDto } from "../../state/compare/types";
 export default function CompareWaveform(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
   /** The relative display transform (M25.B). */
   time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<WaveformResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<WaveformResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const diff = (): WaveformDiffDto | null =>
     props.comparison.diff?.kind === "waveform" ? props.comparison.diff : null;
@@ -56,7 +52,6 @@ export default function CompareWaveform(props: {
     compareMarkers(
       liveMarkers({
         live: props.live,
-        swapped: () => props.swapped,
         time: props.time,
         axis: "time",
       }),
@@ -88,12 +83,8 @@ export default function CompareWaveform(props: {
     return toUplotData(merged).slice(0, 3) as uPlot.AlignedData;
   };
 
-  /** The signed delta, flipped after a swap (display only). */
-  const deltaValues = () => {
-    const values = diff()?.values;
-    if (!values) return undefined;
-    return props.swapped ? values.map((value) => -value) : values;
-  };
+  /** The core's `B − A` bucket delta, already on the relative axis. */
+  const deltaValues = () => diff()?.values;
 
   return (
     <div class="analyzer-chart compare-chart" data-testid="compare.waveform">
@@ -106,7 +97,6 @@ export default function CompareWaveform(props: {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta={!!diff()}
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}
@@ -130,13 +120,13 @@ export default function CompareWaveform(props: {
         fallback={
           <div class="compare-side-by-side" data-testid="compare.waveform.side">
             <WaveSide
-              label={props.swapped ? "B" : "A"}
+              label="A"
               color={chartTheme().compareA}
               result={sides.resultA()}
               markers={markers}
             />
             <WaveSide
-              label={props.swapped ? "A" : "B"}
+              label="B"
               color={chartTheme().compareB}
               result={sides.resultB()}
               markers={markers}
@@ -155,13 +145,13 @@ export default function CompareWaveform(props: {
               series={[
                 {},
                 {
-                  label: `${props.swapped ? "B" : "A"} peak`,
+                  label: "A peak",
                   stroke: chartTheme().compareA,
                   width: 1,
                   fill: chartTheme().waveFill,
                 },
                 {
-                  label: `${props.swapped ? "A" : "B"} peak`,
+                  label: "B peak",
                   stroke: chartTheme().compareB,
                   width: 1,
                 },

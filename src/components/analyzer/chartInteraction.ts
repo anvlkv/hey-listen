@@ -74,7 +74,7 @@ export interface ChartInteractionOptions<V extends ChartView, H, R extends TimeE
    * Zoom around a plot-relative pointer position (`xFrac` across, `yFrac` up from the plot
    * bottom) by a continuous `factor` (`< 1` zooms in; see `lib/wheelGesture.ts`). Returns
    * the zoomed view and whether to publish its time range, or `null` to ignore the gesture.
-   * `shift` picks the frequency axis of a 2-D view.
+   * `shift` (with a pinch) picks the frequency axis of a 2-D view.
    */
   wheel: (
     view: V,
@@ -274,9 +274,10 @@ export function createChartInteraction<V extends ChartView, H, R extends TimeExt
   }
 
   /**
-   * Plain wheel/trackpad scroll **pans** (time on `deltaX`, frequency on `deltaY`);
-   * `Ctrl`/`⌘` + wheel zooms at the pointer (time, or frequency with `Shift`). The gesture
-   * model is shared with the Timeline and the uPlot charts — `lib/wheelGesture.ts`.
+   * A vertical wheel **zooms** at the pointer (time, or the frequency band with
+   * `Ctrl`/`⌘` + `Shift`); a horizontal wheel or `Shift` + vertical **pans** (time on
+   * `deltaX`, the band on `deltaY`). The gesture model is shared with the Timeline and the
+   * uPlot charts — `lib/wheelGesture.ts`.
    */
   const wheelGesture = createWheelGesture({
     enabled: () => !!view() && !!canvas(),

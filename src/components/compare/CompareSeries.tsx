@@ -28,7 +28,6 @@ import type { ComparisonDto, SeriesDiffDto } from "../../state/compare/types";
 export interface CompareSeriesProps {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
   /** The relative display transform (M25.B). */
   time: CompareTime;
@@ -50,10 +49,7 @@ function logYRange(_u: unknown, min: number, max: number): [number, number] {
 export default function CompareSeries(props: CompareSeriesProps) {
   const view = () => analyzerById(props.tool).view as SeriesViewConfig;
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<SeriesResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<SeriesResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const diff = (): SeriesDiffDto | null =>
     props.comparison.diff?.kind === "series" ? props.comparison.diff : null;
@@ -67,8 +63,6 @@ export default function CompareSeries(props: CompareSeriesProps) {
     if (!a || !b) return null;
     const d = diff();
     const values = d?.values ?? [];
-    // Swap A/B flips the sign of the core's `B − A` delta (display only).
-    const deltaValues = props.swapped ? values.map((v) => (v == null ? null : -v)) : values;
     const end = props.time.extent();
     const aRel = clipSeries(displayTimes(a.times, props.time.originA()), a.values, 0, end);
     const bRel = clipSeries(
@@ -77,12 +71,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
       0,
       end,
     );
-    const deltaRel = clipSeries(
-      (d?.times ?? []).map((time) => props.time.delta(time)),
-      deltaValues,
-      0,
-      end,
-    );
+    const deltaRel = clipSeries(d?.times ?? [], values, 0, end);
     return mergeSeries(
       aRel.times,
       aRel.values,
@@ -102,7 +91,6 @@ export default function CompareSeries(props: CompareSeriesProps) {
     compareMarkers(
       liveMarkers({
         live: props.live,
-        swapped: () => props.swapped,
         time: props.time,
         axis: "time",
       }),
@@ -143,7 +131,6 @@ export default function CompareSeries(props: CompareSeriesProps) {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta={showDelta()}
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}
@@ -154,7 +141,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
         fallback={
           <div class="compare-side-by-side">
             <SidePlot
-              label={props.swapped ? "B" : "A"}
+              label="A"
               color={chartTheme().compareA}
               times={
                 sides.resultA() ? displayTimes(sides.resultA()!.times, props.time.originA()) : []
@@ -165,7 +152,7 @@ export default function CompareSeries(props: CompareSeriesProps) {
               markers={markers}
             />
             <SidePlot
-              label={props.swapped ? "A" : "B"}
+              label="B"
               color={chartTheme().compareB}
               times={
                 sides.resultB()
@@ -192,19 +179,19 @@ export default function CompareSeries(props: CompareSeriesProps) {
                 series={[
                   {},
                   {
-                    label: props.swapped ? "B" : "A",
+                    label: "A",
                     stroke: chartTheme().compareA,
                     width: 1.4,
                   },
                   {
-                    label: props.swapped ? "A" : "B",
+                    label: "B",
                     stroke: chartTheme().compareB,
                     width: 1.4,
                   },
                   ...(showDelta()
                     ? [
                         {
-                          label: props.swapped ? "Δ (A − B)" : "Δ (B − A)",
+                          label: "Δ (B − A)",
                           stroke: chartTheme().compareDelta,
                           width: 1,
                           dash: [5, 3],

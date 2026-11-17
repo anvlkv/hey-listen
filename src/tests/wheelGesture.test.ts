@@ -17,9 +17,10 @@ import {
  * npm run test:unit
  * ```
  *
- * Covers the pure half of the M23 contract: `deltaMode` is normalized to pixels, the first
- * significant event decides pan vs zoom (a horizontal-dominant gesture never zooms), and
- * the zoom factor is a clamped exponential rather than a fixed step.
+ * Covers the pure half of the M23 contract: `deltaMode` is normalized to pixels, a plain
+ * vertical wheel zooms (a mouse needs no modifier) while a horizontal-dominant gesture or
+ * `Shift` + vertical pans, and the zoom factor is a clamped exponential rather than a
+ * fixed step.
  */
 
 it("normalizes every deltaMode to CSS pixels", () => {
@@ -31,13 +32,19 @@ it("normalizes every deltaMode to CSS pixels", () => {
   });
 });
 
-it("picks zoom only for a vertical gesture with the pinch modifier", () => {
+it("zooms a vertical wheel and pans a horizontal or Shift gesture", () => {
   const vertical = { x: 0, y: -30 };
   const horizontal = { x: 40, y: -10 };
-  expect(wheelIntent(vertical, true)).toBe("zoom");
-  expect(wheelIntent(vertical, false)).toBe("pan");
+  // A plain vertical wheel zooms, so a mouse user needs no modifier.
+  expect(wheelIntent(vertical, false, false)).toBe("zoom");
+  // Shift + vertical pans (a trackpad's two-finger scroll).
+  expect(wheelIntent(vertical, true, false)).toBe("pan");
   // A horizontal swipe is always a pan, even with Ctrl/⌘ held.
-  expect(wheelIntent(horizontal, true)).toBe("pan");
+  expect(wheelIntent(horizontal, false, false)).toBe("pan");
+  expect(wheelIntent(horizontal, false, true)).toBe("pan");
+  // A pinch zooms, and wins over Shift so a 2-D chart keeps its frequency-axis zoom.
+  expect(wheelIntent(vertical, false, true)).toBe("zoom");
+  expect(wheelIntent(vertical, true, true)).toBe("zoom");
 });
 
 it("scales the zoom exponentially and clamps a runaway delta", () => {

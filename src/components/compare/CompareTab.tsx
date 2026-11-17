@@ -1,4 +1,4 @@
-import { createEffect, Match, Show, Switch, createSignal, untrack } from "solid-js";
+import { createEffect, Match, Show, Switch, untrack } from "solid-js";
 import Button from "../Button";
 import EmptyState from "../EmptyState";
 import CompareHeader from "./CompareHeader";
@@ -53,20 +53,16 @@ export default function CompareTab(props: {
     () => live.revision(),
     () => props.offset(),
   );
-  const [swapped, setSwapped] = createSignal(false);
 
-  /** The relative display transform (M25.B): displayed A at 0, displayed B at δ. */
-  /* eslint-disable solid/reactivity -- compareTime stores the accessors and calls them
-     from tracked chart scopes; reading `swapped` here would freeze the transform. */
-  const time = compareTime(
-    () => {
-      const comparison = run.comparison();
-      if (!comparison) throw new Error("the comparison has not resolved yet");
-      return comparison;
-    },
-    () => swapped(),
-  );
-  /* eslint-enable solid/reactivity */
+  /**
+   * The relative display transform (M25.B): A at 0, B shifted by the fine-tune δ. The
+   * accessor is stored, so the charts call `run.comparison()` inside their tracked scopes.
+   */
+  const time = compareTime(() => {
+    const comparison = run.comparison();
+    if (!comparison) throw new Error("the comparison has not resolved yet");
+    return comparison;
+  });
   /** Only the time-axis families show the fine-tune slider and the relative note. */
   const timeAxis = () =>
     ["series", "matrix", "spectrogram", "events", "notes", "waveform"].includes(
@@ -145,7 +141,6 @@ export default function CompareTab(props: {
                   id={props.id}
                   tool={props.tool}
                   comparison={comparison()}
-                  swapped={swapped()}
                   reference={current().reference}
                   saved={current().kind === "saved"}
                   live={live}
@@ -153,7 +148,6 @@ export default function CompareTab(props: {
                   timeAxis={timeAxis()}
                   offset={props.offset()}
                   onOffset={props.onOffset}
-                  onSwap={() => setSwapped((on) => !on)}
                   onBindingChange={props.onBindingChange}
                   onRetry={retry}
                 />
@@ -177,7 +171,6 @@ export default function CompareTab(props: {
                       <CompareSpectrum
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
@@ -186,7 +179,6 @@ export default function CompareTab(props: {
                       <CompareSeries
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
@@ -195,7 +187,6 @@ export default function CompareTab(props: {
                       <CompareMatrix
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
@@ -204,7 +195,6 @@ export default function CompareTab(props: {
                       <CompareEvents
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
@@ -213,7 +203,6 @@ export default function CompareTab(props: {
                       <CompareNotes
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
@@ -222,7 +211,6 @@ export default function CompareTab(props: {
                       <CompareModulation
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
@@ -231,13 +219,12 @@ export default function CompareTab(props: {
                       <CompareWaveform
                         tool={props.tool}
                         comparison={comparison()}
-                        swapped={swapped()}
                         live={live}
                         time={time}
                       />
                     </Match>
                     <Match when={compareViewFamily(props.tool) === "scalar"}>
-                      <CompareReadouts comparison={comparison()} swapped={swapped()} />
+                      <CompareReadouts comparison={comparison()} />
                     </Match>
                   </Switch>
                 </div>

@@ -1,5 +1,6 @@
 import { For, Show, createMemo } from "solid-js";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
+import { rgba } from "color2k";
 import {
   formatRow,
   frameProfile,
@@ -29,7 +30,7 @@ const TOP_ROWS = 3;
 /** One cell's colour, sampled from exactly the ramp the lane was built with. */
 function cellColor(scale: HeatmapScale, value: number): string {
   const [r, g, b] = scale.ramp(scale.position(value));
-  return `rgb(${r} ${g} ${b})`;
+  return rgba(r, g, b, 1);
 }
 
 /** The strongest rows of one frame, strongest first (a zero row is not a finding). */

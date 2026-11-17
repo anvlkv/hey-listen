@@ -51,14 +51,17 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 
 ## Timeline behavior (all sources)
 
-- Shows the whole recording plus the **analysis window** (`start..end`).
+- Shows the whole recording plus the **analysis window** (`start..end`); the window is
+  shaded in a **hue-shifted** tint (derived from the theme's series colour, not the same
+  colour as the waveform), so it reads as a selection rather than as more signal.
 - For extra-short windows the timeline **zooms in** on the window.
-- **Zoom / pan** — a plain wheel/trackpad scroll **pans** (time, plus frequency on 2-D
-  views), pinch / `⌘`/Ctrl+wheel **zooms** at the cursor, and a horizontal gesture never
-  zooms. Dragging the waveform pans, and the toolbar's zoom buttons fit / zoom-to-window.
-  When the view is narrower than the source a **horizontal scrollbar** appears along the
-  bottom of the region (a whole-file overview whose thumb *is* the visible span); drag its
-  thumb to pan, click the track to jump, or use the arrow keys. See
+- **Zoom / pan** — a **vertical** wheel **zooms** at the cursor (a mouse needs no
+  modifier, and a trackpad pinch / `⌘`/Ctrl+wheel zooms too), while a horizontal wheel or
+  `Shift` + vertical **pans** (time, plus frequency on 2-D views); a horizontal gesture
+  never zooms. A middle-button drag pans, and the toolbar's zoom buttons fit /
+  zoom-to-window. When the view is narrower than the source a **horizontal scrollbar**
+  appears along the bottom of the region (a whole-file overview whose thumb *is* the
+  visible span); drag its thumb to pan, click the track to jump, or use the arrow keys. See
   `lib/timelineScroll.ts` and `lib/wheelGesture.ts`.
 - The **filtered** signal (when a filter is active) is drawn as a translucent **overlay**
   over the raw waveform, so its effect reads as a tint on the signal rather than a
@@ -75,8 +78,9 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - For a **multichannel** source, a channel picker picks the channel to display/analyse,
   or downmixes to mono. It is the shared analysis param, so the waveform, preview playback
   and analyzers all agree. From M23 the picker is a **rail of per-channel lanes** on the
-  Timeline (a radio per channel + a Downmix toggle) rather than a toolbar dropdown — see
-  [`roadmap.md`](roadmap.md) → M23, Phase 1.
+  Timeline (a radio per channel + a Downmix toggle) rather than a toolbar dropdown; the
+  **selected lane** draws at full strength and the others are dimmed (with Downmix every
+  lane stays equal). See [`roadmap.md`](roadmap.md) → M23, Phase 1.
 
 ### Planned — transport and framing (M23)
 
@@ -91,10 +95,12 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
   owner's grid (windows stay pinned; the reference carries its fragment audio, shown in a
   reference-fragment timeline) — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
 - The transport becomes **play/pause** with a seekable playhead that persists when paused
-  or stopped; the ruler seeks, loop is a toggle, and the view can follow the playhead.
-- **Wheel/trackpad** handling is normalized and gesture-based: scroll pans (time, plus
-  frequency on 2-D views), pinch / `⌘`/Ctrl+wheel zooms at the cursor, and a horizontal
-  gesture never zooms. No vertical waveform zoom. See `lib/wheelGesture.ts`.
+  or stopped; a ruler **click** seeks (a ruler **drag** selects a window), loop is a
+  toggle, and the view can follow the playhead.
+- **Wheel/trackpad** handling is normalized and gesture-based: a vertical wheel zooms at
+  the cursor (pinch / `⌘`/Ctrl+wheel too), a horizontal wheel or `Shift` + vertical pans
+  (time, plus frequency on 2-D views), and a horizontal gesture never zooms. No vertical
+  waveform zoom. See `lib/wheelGesture.ts`.
 - Annotation ranges and live lane selections draw **full-height vertical rules** at their
   edges in addition to the lane handles. See [`roadmap.md`](roadmap.md) → M23.
 

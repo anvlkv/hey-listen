@@ -196,8 +196,9 @@ describe("Q. Preview transport", () => {
   });
 
   it("Q4 — the Timeline grows a scrollbar when zoomed in", async () => {
-    // Zoom the *view* (⌘/Ctrl-wheel on the waveform) without touching the analysis window.
-    await wheelOver(SEL.timelineCanvas, -240, true);
+    // Zoom the *view* with a plain vertical wheel (a mouse needs no modifier) without
+    // touching the analysis window.
+    await wheelOver(SEL.timelineCanvas, -240);
 
     await waitFor(
       async () => (await count(SEL.timelineScrollThumb)) > 0,

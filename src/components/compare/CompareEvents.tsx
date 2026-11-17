@@ -38,16 +38,12 @@ import type { ComparisonDto, EventsDiffDto } from "../../state/compare/types";
 export default function CompareEvents(props: {
   tool: AnalyzerId;
   comparison: ComparisonDto;
-  swapped: boolean;
   live: CompareLiveHandle;
   /** The relative display transform (M25.B). */
   time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<RhythmResult>(
-    () => props.comparison,
-    () => props.swapped,
-  );
+  const sides = compareSides<RhythmResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
   const diff = (): EventsDiffDto | null =>
     props.comparison.diff?.kind === "events" ? props.comparison.diff : null;
@@ -56,22 +52,8 @@ export default function CompareEvents(props: {
   const kinds = () => (analyzerById(props.tool).view as RhythmViewConfig).markers as EventKind[];
   const sets = (): PairingSet[] => {
     const d = diff();
-    if (!d) return [];
-    // The core pairs events in owner coordinates; the display may be swapped, so its
-    // times move by −δ (M25.B). The counts and mean |Δt| are unaffected.
-    return pairingSets(kinds(), d).map((set) => ({
-      ...set,
-      pairing: {
-        ...set.pairing,
-        pairs: set.pairing.pairs.map((pair) => ({
-          ...pair,
-          a: props.time.delta(pair.a),
-          b: props.time.delta(pair.b),
-        })),
-        onlyATimes: set.pairing.onlyATimes.map((secs) => props.time.delta(secs)),
-        onlyBTimes: set.pairing.onlyBTimes.map((secs) => props.time.delta(secs)),
-      },
-    }));
+    // The core pairs events in owner coordinates, i.e. already on the relative axis.
+    return d ? pairingSets(kinds(), d) : [];
   };
 
   const merged = createMemo(() => {
@@ -98,7 +80,6 @@ export default function CompareEvents(props: {
     compareMarkers(
       liveMarkers({
         live: props.live,
-        swapped: () => props.swapped,
         time: props.time,
         axis: "time",
       }),
@@ -117,7 +98,6 @@ export default function CompareEvents(props: {
       </div>
 
       <CompareLegend
-        swapped={props.swapped}
         delta
         aLabel={sides.a().project ?? "this project"}
         bLabel={sides.b().project ?? "reference"}
@@ -129,7 +109,7 @@ export default function CompareEvents(props: {
         fallback={
           <div class="compare-side-by-side" data-testid="compare.events.side">
             <EnvelopeSide
-              label={props.swapped ? "B" : "A"}
+              label="A"
               color={chartTheme().compareA}
               rhythm={sides.resultA()}
               origin={props.time.originA()}
@@ -137,7 +117,7 @@ export default function CompareEvents(props: {
               markers={markers}
             />
             <EnvelopeSide
-              label={props.swapped ? "A" : "B"}
+              label="B"
               color={chartTheme().compareB}
               rhythm={sides.resultB()}
               origin={props.time.originB()}
@@ -172,13 +152,13 @@ export default function CompareEvents(props: {
                 series={[
                   {},
                   {
-                    label: props.swapped ? "B" : "A",
+                    label: "A",
                     stroke: chartTheme().compareA,
                     width: 1,
                     fill: chartTheme().waveFill,
                   },
                   {
-                    label: props.swapped ? "A" : "B",
+                    label: "B",
                     stroke: chartTheme().compareB,
                     width: 1,
                   },

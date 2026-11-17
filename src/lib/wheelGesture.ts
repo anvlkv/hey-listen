@@ -3,14 +3,15 @@
  * uPlot charts and the canvas heatmaps all route their wheel events through
  * [`createWheelGesture`], so the semantics agree everywhere they are synced.
  *
- * - The first significant event of a burst decides the gesture: `Ctrl`/`⌘` + wheel (a
- *   trackpad pinch) **zooms** at the pointer, anything else **pans**. A
- *   horizontal-dominant gesture is always a pan, never a zoom.
+ * - A **vertical** wheel **zooms** at the pointer (a mouse wheel needs no modifier), and
+ *   so does a trackpad pinch (`Ctrl`/`⌘` + wheel).
+ * - A horizontal-dominant gesture **pans**, and so does `Shift` + vertical (a trackpad's
+ *   two-finger scroll becomes a pan).
  * - Deltas are normalized from `deltaMode` to CSS pixels, sub-pixel jitter is dropped,
  *   and a zoom uses a clamped exponential factor instead of a fixed step per event.
  * - Deltas accumulate and apply at most once per animation frame, and the intent resets
- *   after [`WHEEL_QUIET_MS`] of quiet (or as soon as the modifier is released), so a
- *   momentum tail cannot re-trigger a zoom.
+ *   after [`WHEEL_QUIET_MS`] of quiet (or as soon as a modifier changes), so a momentum
+ *   tail cannot change the gesture mid-burst.
  *
  * Dependency-free — the math is pure and unit-tested, and the stateful wrapper only uses
  * `requestAnimationFrame`. See `docs/roadmap.md` → M23 → "Wheel and trackpad stability".
@@ -25,7 +26,7 @@ export interface WheelPixels {
   y: number;
 }
 
-/** What a burst of wheel events is doing: `zoom` (a pinch / ⌘ wheel) or `pan`. */
+/** What a burst of wheel events is doing: `zoom` (a vertical wheel / pinch) or `pan`. */
 export type WheelIntent = "pan" | "zoom";
 
 /**
@@ -49,7 +50,7 @@ export const WHEEL_PAGE_PX = 400;
 export const WHEEL_ZOOM_CLAMP_PX = 120;
 /**
  * The zoom curve's rate: `exp(deltaPx * rate)`. A 100 px pinch is ~1.22×; the sign
- * matches the old step (a scroll/pinch up, `deltaY < 0`, zooms **in**).
+ * matches the old step (a scroll up, `deltaY < 0`, zooms **in**).
  */
 export const WHEEL_ZOOM_RATE = 0.002;
 
@@ -60,12 +61,15 @@ export function wheelPixels(event: WheelDelta): WheelPixels {
 }
 
 /**
- * The gesture a burst starts with. `pinch` is `Ctrl`/`⌘` held on the wheel (what a
- * trackpad pinch reports); a horizontal-dominant delta is always a pan.
+ * The gesture a burst starts with. A vertical wheel **zooms** — a plain mouse wheel needs
+ * no modifier — while a horizontal-dominant delta or `Shift` + vertical **pans**.
+ * `pinch` (`Ctrl`/`⌘`) is a zoom too and wins over `Shift`, so a 2-D chart can still
+ * select its frequency axis with `Ctrl`/`⌘` + `Shift` + wheel.
  */
-export function wheelIntent(pixels: WheelPixels, pinch: boolean): WheelIntent {
+export function wheelIntent(pixels: WheelPixels, shift: boolean, pinch: boolean): WheelIntent {
   if (Math.abs(pixels.x) > Math.abs(pixels.y)) return "pan";
-  return pinch ? "zoom" : "pan";
+  if (shift && !pinch) return "pan";
+  return "zoom";
 }
 
 /** The continuous zoom factor for an accumulated vertical delta (`< 1` zooms in). */
@@ -105,10 +109,13 @@ export function createWheelGesture(options: WheelGestureOptions): WheelGestureHa
   let shift = false;
   let clientX = 0;
   let clientY = 0;
+  /** The modifiers the burst's intent was chosen with (`null` between bursts). */
+  let mods: { shift: boolean; pinch: boolean } | null = null;
   let frame: number | null = null;
 
   const forget = () => {
     intent = null;
+    mods = null;
     dx = 0;
     dy = 0;
   };
@@ -118,7 +125,7 @@ export function createWheelGesture(options: WheelGestureOptions): WheelGestureHa
     const active = intent;
     if (!active) return;
     if (active === "zoom") {
-      // A pinch's vertical component is the signal; the horizontal one is noise.
+      // A vertical wheel / pinch's vertical component is the signal.
       if (dy === 0) return;
       options.apply({
         kind: "zoom",
@@ -142,17 +149,20 @@ export function createWheelGesture(options: WheelGestureOptions): WheelGestureHa
 
     const pixels = wheelPixels(event);
     const now = performance.now();
-    const pinch = event.ctrlKey || event.metaKey;
-    // A quiet gap or a released modifier ends the burst: the next event starts fresh,
-    // so a momentum tail after a pinch pans instead of zooming again.
-    if (now - lastAt > WHEEL_QUIET_MS || (intent === "zoom" && !pinch)) forget();
+    const current = { shift: event.shiftKey, pinch: event.ctrlKey || event.metaKey };
+    // A quiet gap or a changed modifier ends the burst: the next event starts fresh, so
+    // a gesture that starts as a zoom does not turn into a pan mid-momentum (and back).
+    const modsChanged =
+      mods != null && (mods.shift !== current.shift || mods.pinch !== current.pinch);
+    if (now - lastAt > WHEEL_QUIET_MS || modsChanged) forget();
     lastAt = now;
-    if (!intent) intent = wheelIntent(pixels, pinch);
+    mods = current;
+    if (!intent) intent = wheelIntent(pixels, current.shift, current.pinch);
 
     // Sub-pixel events extend the burst but contribute nothing.
     if (Math.abs(pixels.x) >= WHEEL_JITTER_PX) dx += pixels.x;
     if (Math.abs(pixels.y) >= WHEEL_JITTER_PX) dy += pixels.y;
-    shift = event.shiftKey;
+    shift = current.shift;
     clientX = event.clientX;
     clientY = event.clientY;
 
