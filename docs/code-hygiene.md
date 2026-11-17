@@ -49,7 +49,7 @@ Every check is **blocking**. There is no advisory mode.
 | Trigger | What runs | Why that scope |
 | --- | --- | --- |
 | `git commit` | `.husky/pre-commit` → lint-staged: prettier + eslint on the **staged** files, plus the file-length budget | Fast feedback; a commit should not wait on a repo-wide analysis |
-| `git push` | `.husky/pre-push` → `npm run maid` | The full gate, once per push rather than once per commit |
+| `git push` | `.husky/pre-push` → `npm run maid`, then `git lfs pre-push` | The full gate, once per push rather than once per commit. The LFS forward is required: `core.hooksPath` is husky's, so git-lfs's own hook never installs and large assets would stay local. |
 | CI | the frontend job runs the five frontend checks; the rust job runs `cargo fmt`, `cargo clippy` (all three OSes) and — on Linux — `cargo test` | Backstop for `--no-verify` and for platform-specific Rust code. Runs only when code paths change; a docs-only push/PR skips the build/test jobs (Pages still deploys). |
 
 The hooks are installed by `npm install` (the `prepare` script runs `husky`, which
