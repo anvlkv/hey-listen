@@ -144,6 +144,9 @@ can't tell when one pass ended.
 - **`server shut down`** → the bridge died (it does not auto-reconnect). Re-enable the
   `hey-listen` context server in the client. The port may be **ephemeral** (differs from the
   default `47100`); the bridge discovers it automatically.
+- **Analyzer ids are case-sensitive.** Use exact ids from `list_analyzers` (`framerms` →
+  "unknown analyzer").
+- **`set_shared_params` can't return a param to "unset"** (e.g. `channel` back to `null`).
 
 ## What still needs the app
 

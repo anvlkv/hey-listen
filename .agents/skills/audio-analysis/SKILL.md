@@ -32,22 +32,31 @@ are the surface.
 | Bulk-analyze files (shell/CI) | **Batch CLI** |
 | Read/edit annotations in a saved `.heyl` | CLI `annotations` |
 
-## Workflow
+## Cheapest-first rule
 
-Discover before guessing; read the summary before the arrays:
+Every first call is `summaryOnly: true`. Answer from `summary.text`/`items`, then escalate
+only if you need more:
 
-```text
-list_analyzers                        # catalog: id / title / section / family / keywords
-get_analyzer { id }                   # option ranges, family, decimatable, summary keys
-get_state                             # source, window, params, project, server mode
-run_analysis { tool, summaryOnly: true }   # one-line answer first
-→ read summary.text; ask for result only if you need the series
+```
+summary  →  compact (default; noteMetrics.bounds segments without arrays)  →  full,
+            and then always includeData + maxPoints + axis: "compact"
 ```
 
-- Set shared window/params once (`set_analysis_window` / `set_shared_params`), per-tool
-  options with `set_tool_options`. Inline `run_analysis` overrides apply to that call only
-  with `transient: true`; otherwise they are **written back**.
-- `display: false` computes without opening/focusing a tab (default `true`).
+## Workflow
+
+1. `get_state` — once: source shape, window, params, server mode (`bridge`/`headless`).
+2. `list_analyzers` — pick tools. `get_analyzer { id }` only for the tools you'll run
+   (option ranges, `decimatable`, summary keys). Use exact ids.
+3. Set shared window/params once (`set_analysis_window` / `set_shared_params`), per-tool
+   options with `set_tool_options`. Inline `run_analysis` overrides apply to one call only
+   with `transient: true`; otherwise they are **written back**.
+4. `run_analysis { tool, summaryOnly: true }` — always first. `display: false` computes
+   without opening a tab (default `true`).
+5. Escalate only if the summary doesn't answer (see Result modes).
+6. Mutating tools (`open_tool` / `close_tool` / `set_*` / `create_annotation`) are
+   read-modify-write — call them **sequentially**, never in parallel.
+7. Report the numbers you got, the window/annotation you set, and any tool friction —
+   nothing else.
 
 ## Result modes
 
@@ -89,14 +98,5 @@ the effective `window`/`params`/`options`, and `result`:
 
 4. **`hop` is a fraction of `fftSize`, not samples** (`0.25` = 75% overlap; `1` = none).
 
-5. **Analyzer ids are case-sensitive.** Use exact ids from `list_analyzers`
-   (`framerms` → "unknown analyzer").
-
-6. **A `0` can mean "not applicable".** `tempo` reports `onsets 0` and `onsets` reports
+5. **A `0` can mean "not applicable".** `tempo` reports `onsets 0` and `onsets` reports
    `tempo 0` — fields a tool doesn't produce read as `0`, not "none".
-
-7. **`set_shared_params` can't return a param to "unset"** (e.g. `channel` back to `null`).
-
-8. **The analysis window is not `transient`.** `export_analysis`/`export_chart` run over the
-   current window, and `set_analysis_window` is written back even when `run_analysis` is
-   `transient`. Snapshot the window before exporting.
