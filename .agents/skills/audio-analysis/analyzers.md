@@ -39,7 +39,10 @@ Peak/RMS envelope over time; full-scale buckets marked (clipping) and counted. O
 **not raw samples**.
 
 ### levels — `scalar`
-Peak, RMS (dBFS), duration. Quick headroom/loudness check.
+Peak, RMS (dBFS), duration. Quick headroom/loudness check, computed on the
+**selected** channel (shared `channel`; `null` = mixdown). Run it once per channel
+(`channel: 0/1`) to probe both sides of a stereo seam. No per-tool options, no code path
+beyond the channel selection.
 
 ### frameRms — `series`
 Frame-centred RMS in dBFS — the amplitude envelope at your resolution. Options: `frameMs`
@@ -169,10 +172,12 @@ with EBU `loudnessIntegrated`.
 N′(z) over ERB bands, **sone/Cam**. Options: `calibrationDbSpl` 0.
 
 ### sharpness — `series`
-Perceived sharpness, **acum** (1 kHz ref ≈ 1 acum). Options: `calibrationDbSpl` 0.
+Perceived sharpness, **acum** (1 kHz ref ≈ 1 acum). Options: `calibrationDbSpl` 0,
+`gateDb` 0, `gateFloorDb` −120.
 
 ### roughness — `series`
-Perceived roughness, **asper**. Options: `calibrationDbSpl` 0.
+Perceived roughness, **asper**. Options: `calibrationDbSpl` 0, `gateDb` 0,
+`gateFloorDb` −120.
 
 ### fluctuationStrength — `series`
 Perceived fluctuation, **vacil**. Options: `calibrationDbSpl` 0.
@@ -181,7 +186,8 @@ Perceived fluctuation, **vacil**. Options: `calibrationDbSpl` 0.
 Masking threshold + signal-to-mask ratio. Options: `calibrationDbSpl` 0.
 
 ### tonality — `series`
-Tonal-energy ratio proxy (dimensionless). Options: `calibrationDbSpl` 0.
+Tonal-energy ratio proxy (dimensionless). Options: `calibrationDbSpl` 0, `gateDb` 0,
+`gateFloorDb` −120.
 
 ### spatial — `series`
 Mid/side levels + inter-channel correlation (acoustic cues, **not** perceived width).

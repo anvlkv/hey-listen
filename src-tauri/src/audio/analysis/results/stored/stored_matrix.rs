@@ -2,11 +2,11 @@
 //!
 //! See [`super::stored`] for the positional-wrapper rationale. The four trailing
 //! fields (`bandEdges`, `unit`, `calibrated`, `calibrationDbSpl`) are the X3 metadata,
-//! and `model` / `normalized` are the M36 band-axis metadata; they are appended after
-//! the original eleven so a file written before they existed still decodes: `postcard`
-//! is positional, so the reader takes each trailing field as its default when the
-//! buffer ends early (a pre-X3/pre-M36 file, never a corrupt value — the file's
-//! checksum rules that out).
+//! `model` / `normalized` are the M36 band-axis metadata, and `bandLabels` names the axis;
+//! they are appended after the original eleven so a file written before they existed
+//! still decodes: `postcard` is positional, so the reader takes each trailing field as
+//! its default when the buffer ends early (a pre-X3/pre-M36/pre-label file, never a
+//! corrupt value — the file's checksum rules that out).
 
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +33,7 @@ pub struct StoredMatrix {
     pub calibration_db_spl: f32,
     pub model: Option<String>,
     pub normalized: Option<bool>,
+    pub band_labels: Option<Vec<String>>,
 }
 
 impl<'de> Deserialize<'de> for StoredMatrix {
@@ -70,10 +71,12 @@ impl<'de> Deserialize<'de> for StoredMatrix {
                     // The M36 band-axis metadata: a pre-M36 file ends before it.
                     model: f.opt(),
                     normalized: f.opt(),
+                    // The pitch-class legend: a pre-label file ends before it.
+                    band_labels: f.opt(),
                 })
             }
         }
-        deserializer.deserialize_tuple(17, MatrixVisitor)
+        deserializer.deserialize_tuple(18, MatrixVisitor)
     }
 }
 
@@ -103,6 +106,7 @@ impl From<&MatrixResult> for StoredMatrix {
             calibration_db_spl: r.calibration_db_spl,
             model: r.model.clone(),
             normalized: r.normalized,
+            band_labels: r.band_labels.clone(),
         }
     }
 }
@@ -127,6 +131,7 @@ impl From<StoredMatrix> for MatrixResult {
             calibration_db_spl: stored.calibration_db_spl,
             model: stored.model,
             normalized: stored.normalized,
+            band_labels: stored.band_labels,
         }
     }
 }

@@ -20,6 +20,64 @@ fn write(save: &SaveProject, now_ms: u64) -> Cursor<Vec<u8>> {
 }
 
 #[test]
+fn round_trips_matrix_and_calibrated_series_comparisons() {
+    // `bandLabels` and `gate` are the fields the stored mirror appends, and the result is
+    // nested inside the snapshot, so this pins the current (version 4) tuple arity.
+    let matrix = crate::audio::analysis::MatrixResult {
+        band_labels: Some(vec!["C".to_string(), "C#".to_string()]),
+        ..crate::audio::analysis::fixtures::matrix()
+    };
+    let calibrated = crate::audio::analysis::CalibratedSeriesResult {
+        gate: Some(crate::audio::analysis::SeriesGate {
+            gate_db: 30.0,
+            gate_floor_db: -90.0,
+            threshold_db: -60.0,
+            gated_frames: 1,
+            kept_frames: 3,
+        }),
+        ..crate::audio::analysis::fixtures::calibrated_series()
+    };
+    let save = SaveProject {
+        name: "nested".to_string(),
+        created_ms: None,
+        source: None,
+        setup: AnalysisSetup::default(),
+        layout: serde_json::Value::Null,
+        results: Vec::new(),
+        annotations: Vec::new(),
+        compare: vec![
+            snapshot(
+                AnalyzerId::MelSpectrogram,
+                AnalysisResult::MelSpectrogram(matrix.clone()),
+            ),
+            snapshot(
+                AnalyzerId::Sharpness,
+                AnalysisResult::Sharpness(calibrated.clone()),
+            ),
+        ],
+        pcm: None,
+    };
+
+    let bytes = write(&save, 5).into_inner();
+    let loaded = read_project(&mut Cursor::new(bytes)).expect("read");
+    assert_eq!(loaded.compare.len(), 2);
+    match loaded.compare[0].analysis_result() {
+        AnalysisResult::MelSpectrogram(back) => {
+            assert_eq!(back.band_labels, matrix.band_labels);
+            assert_eq!(back.values, matrix.values);
+        }
+        other => panic!("unexpected stored result: {other:?}"),
+    }
+    match loaded.compare[1].analysis_result() {
+        AnalysisResult::Sharpness(back) => {
+            assert_eq!(back.gate, calibrated.gate);
+            assert_eq!(back.values, calibrated.values);
+        }
+        other => panic!("unexpected stored result: {other:?}"),
+    }
+}
+
+#[test]
 fn round_trips_series_comparisons() {
     // `frameSize` / `gate` / `syllables` are the keys the JSON wire omits when absent.
     let plain = crate::audio::analysis::fixtures::series();

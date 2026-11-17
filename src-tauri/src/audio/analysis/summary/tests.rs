@@ -1,7 +1,7 @@
 //! Summary coverage for every result family (M21).
 
 use super::{summarize, summary_keys};
-use crate::audio::analysis::fixtures::{matrix, notes, pitch, samples, series};
+use crate::audio::analysis::fixtures::{calibrated_series, matrix, notes, pitch, samples, series};
 use crate::audio::analysis::{
     AnalysisResult, MatrixResult, NoteMetricsResult, PitchResult, SeriesGate, SeriesResult,
     SyllableMetric,
@@ -13,6 +13,17 @@ use crate::audio::analysis::{
 fn expected_keys(result: &AnalysisResult) -> Vec<&'static str> {
     let mut skip: &[&str] = &[];
     if let Some(series) = result.series() {
+        if series.gate.is_none() {
+            skip = &[
+                "gateDb",
+                "gateFloorDb",
+                "gateThresholdDb",
+                "gatedFrames",
+                "keptFrames",
+            ];
+        }
+    }
+    if let Some(series) = result.calibrated_series() {
         if series.gate.is_none() {
             skip = &[
                 "gateDb",
@@ -60,6 +71,29 @@ fn every_result_has_a_summary_with_the_documented_keys() {
             assert!(item.value.is_finite(), "{tool}: {} is not finite", item.key);
             assert!(!item.label.is_empty(), "{tool}: {} has no label", item.key);
         }
+    }
+}
+
+#[test]
+fn a_gated_calibrated_series_reports_the_effective_gate() {
+    let mut track = calibrated_series();
+    track.gate = Some(SeriesGate {
+        gate_db: 20.0,
+        gate_floor_db: -120.0,
+        threshold_db: -26.0,
+        gated_frames: 1,
+        kept_frames: 3,
+    });
+    let summary = summarize(&AnalysisResult::Sharpness(track));
+    let keys: Vec<&str> = summary.items.iter().map(|item| item.key.as_str()).collect();
+    for key in [
+        "gateDb",
+        "gateFloorDb",
+        "gateThresholdDb",
+        "gatedFrames",
+        "keptFrames",
+    ] {
+        assert!(keys.contains(&key), "missing {key}: {keys:?}");
     }
 }
 

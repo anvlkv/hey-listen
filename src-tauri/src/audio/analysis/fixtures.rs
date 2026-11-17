@@ -117,6 +117,7 @@ pub(crate) fn calibrated_series() -> CalibratedSeriesResult {
         max_value: series.max_value,
         calibrated: true,
         calibration_db_spl: 94.0,
+        gate: None,
         contribution: Some(Contribution {
             frames: 4,
             bins: 2,

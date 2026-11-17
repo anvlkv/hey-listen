@@ -17,6 +17,7 @@ use super::super::support::{
 use super::super::{
     AnalysisError, CalibratedSeriesResult, Contribution, SharedParams, ToolOptions, DB_FLOOR,
 };
+use super::gate::gate_values;
 use super::shared::series_extents;
 
 /// Cap on the frames the per-frame detection runs over, so a long window stays
@@ -79,6 +80,8 @@ pub(super) fn tonality(
         values.push(Some(fraction));
     }
 
+    // Gate on the same STFT grid the per-frame detection uses.
+    let gate = gate_values(&mut values, mono, fft, hop, options);
     let (min_value, max_value) = series_extents(&values);
     let times = frame_times(values.len(), hop, sample_rate);
     Ok(CalibratedSeriesResult {
@@ -92,6 +95,7 @@ pub(super) fn tonality(
         max_value,
         calibrated: calibration > 0.0,
         calibration_db_spl: calibration,
+        gate,
         contribution: Some(Contribution {
             frames: times.len(),
             bins: freqs.len(),

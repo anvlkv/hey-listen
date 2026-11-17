@@ -75,6 +75,39 @@ fn the_gate_applies_to_spectral_series() {
 }
 
 #[test]
+fn the_gate_applies_to_calibrated_series() {
+    // A loud tone, then the same tone 40 dB down: the quiet tail must become gaps, so the
+    // summary min/max cannot land on it (M21.B extended to the perception tracks).
+    let mut mono = sine(1_000.0, 0.5);
+    mono.extend(sine(1_000.0, 0.5).into_iter().map(|sample| sample * 0.01));
+    let options = ToolOptions {
+        gate_db: Some(30.0),
+        gate_floor_db: Some(-80.0),
+        ..ToolOptions::default()
+    };
+    for tool in [
+        AnalyzerId::Sharpness,
+        AnalyzerId::Roughness,
+        AnalyzerId::Tonality,
+    ] {
+        let result = run(tool, &mono, RATE, &params(2_048), &options).expect("a calibrated tool");
+        let series = match result {
+            AnalysisResult::Sharpness(r)
+            | AnalysisResult::Roughness(r)
+            | AnalysisResult::Tonality(r) => r,
+            other => panic!("{tool}: unexpected {other:?}"),
+        };
+        let gate = series.gate.unwrap_or_else(|| panic!("{tool}: no gate"));
+        assert!(gate.gated_frames > 0, "{tool}: gate = {gate:?}");
+        assert!(series.values.iter().any(Option::is_none), "{tool}");
+        assert!(
+            series.min_value >= 0.0,
+            "{tool}: a negative extent means a gated frame leaked in"
+        );
+    }
+}
+
+#[test]
 fn silence_exactly_at_the_gate_floor_is_kept() {
     // Silence floors every frame at DB_FLOOR, which is also the default gate floor.
     // The gate is a strict `<` comparison, so a level equal to the threshold is kept

@@ -368,16 +368,19 @@ near 0; the ISO 226 overlay matches tabulated values at the interpolation points
 | `criticalBands` | `scale` `bark` |
 | `loudness` | `calibrationDbSpl` 0 |
 | `specificLoudness` | `calibrationDbSpl` 0 |
-| `sharpness` | `calibrationDbSpl` 0 |
-| `roughness` | `calibrationDbSpl` 0 |
+| `sharpness` | `calibrationDbSpl` 0, `gateDb` 0, `gateFloorDb` −120 |
+| `roughness` | `calibrationDbSpl` 0, `gateDb` 0, `gateFloorDb` −120 |
 | `fluctuationStrength` | `calibrationDbSpl` 0 |
 | `masking` | `calibrationDbSpl` 0 |
-| `tonality` | `calibrationDbSpl` 0 |
+| `tonality` | `calibrationDbSpl` 0, `gateDb` 0, `gateFloorDb` −120 |
 | `spatial` | `calibrationDbSpl` 0 |
 
 `calibrationDbSpl: 0` means **uncalibrated** everywhere (values are relative, and the
 summary/readouts say so); a positive value is the dB SPL of a full-scale sine and turns
-the dBFS axis absolute before the model runs. All options are canonical camelCase with
+the dBFS axis absolute before the model runs. `gateDb` / `gateFloorDb` are the shared
+window gate (M21.B), exposed by `sharpness`, `roughness` and `tonality` so their
+summary min/max cannot land on silent frames; gated frames become gaps and the effective
+gate is echoed in the result and summary. All options are canonical camelCase with
 snake_case aliases, validated like every other tool (M16).
 
 ## Surfaces

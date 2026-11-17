@@ -83,13 +83,37 @@ const CALIBRATION_CUE: OptionInfo = calibration(
     "dB SPL of a full-scale sine; correlation is dimensionless and mid/side stay dBFS, so calibration does not make them SPL.",
 );
 
+/// The window gate every gated scalar series exposes (M21.B): `0` disables it, and a
+/// frame quieter than `max(gateFloorDb, windowPeakDb − gateDb)` becomes a gap. The
+/// engine is [`super::super::analysis::tools::gate`].
+const GATE_DB: OptionInfo = OptionInfo {
+    key: "gateDb",
+    label: "Gate",
+    default: 0.0,
+    min: 0.0,
+    max: 120.0,
+    help: "0 disables gating. Above 0, frames quieter than this far below the window peak become gaps.",
+};
+/// The absolute floor for that gate, in dBFS.
+const GATE_FLOOR_DB: OptionInfo = OptionInfo {
+    key: "gateFloorDb",
+    label: "Gate floor",
+    default: -120.0,
+    min: -120.0,
+    max: 0.0,
+    help: "Absolute dBFS floor for that gate.",
+};
+
 pub(super) const CALIBRATION_SONE_OPTIONS: &[OptionInfo] = &[CALIBRATION_SONE];
 pub(super) const CALIBRATION_SONE_CAM_OPTIONS: &[OptionInfo] = &[CALIBRATION_SONE_CAM];
-pub(super) const CALIBRATION_ACUM_OPTIONS: &[OptionInfo] = &[CALIBRATION_ACUM];
-pub(super) const CALIBRATION_ASPER_OPTIONS: &[OptionInfo] = &[CALIBRATION_ASPER];
+pub(super) const CALIBRATION_ACUM_OPTIONS: &[OptionInfo] =
+    &[CALIBRATION_ACUM, GATE_DB, GATE_FLOOR_DB];
+pub(super) const CALIBRATION_ASPER_OPTIONS: &[OptionInfo] =
+    &[CALIBRATION_ASPER, GATE_DB, GATE_FLOOR_DB];
 pub(super) const CALIBRATION_VACIL_OPTIONS: &[OptionInfo] = &[CALIBRATION_VACIL];
 pub(super) const CALIBRATION_MASKING_OPTIONS: &[OptionInfo] = &[CALIBRATION_MASKING];
-pub(super) const CALIBRATION_RATIO_OPTIONS: &[OptionInfo] = &[CALIBRATION_RATIO];
+pub(super) const CALIBRATION_RATIO_OPTIONS: &[OptionInfo] =
+    &[CALIBRATION_RATIO, GATE_DB, GATE_FLOOR_DB];
 pub(super) const CALIBRATION_CUE_OPTIONS: &[OptionInfo] = &[CALIBRATION_CUE];
 
 /// The unit an option is measured in, derived from its canonical key (`frameMs` →

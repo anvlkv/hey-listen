@@ -78,6 +78,12 @@ frame, one column per frequency band.
 - **Wide, not long**, for the 2D tools (a spectrogram is `frames × bins`, written rows =
   frames). This matches what a spreadsheet/`pandas` user expects; very wide files are the
   user's choice of FFT/bin count, not a format quirk.
+- **Frame-major memory order.** A 2D result's flat array is `MatrixResult.values`, laid out
+  **frame-major** (`values[frame * bins + band]`, so a row per frame and a column per
+  band); `times` runs down the first column. The wide CSV is that same order written out.
+- **Band labels.** When the band axis is semantic, the result names it: a chromagram's
+  `bandLabels` is `["C", "C#", … "B"]` (`0 = C`), so a wide CSV written from it can name
+  its columns instead of printing bare indices.
 - Numbers are written in full precision (`f64` as-is); the header carries the unit in
   the column name, so no separate unit column is needed.
 - Provenance is **not** embedded in the CSV (public CSV has no comment convention).

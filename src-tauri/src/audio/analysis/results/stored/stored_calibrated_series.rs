@@ -2,15 +2,15 @@
 //!
 //! See [`super::stored`] for the positional-wrapper rationale. The trailing
 //! `contribution` grid and then the `rate_contribution` matrix are appended after the
-//! original nine fields, so a file written before either existed still decodes:
-//! `postcard` is positional, so the reader defaults each trailing field when the buffer
-//! ends early (a pre-M36 file, never a corrupt value — the file's checksum rules that
-//! out).
+//! original nine fields, and the M21.B `gate` state after those, so a file written before
+//! any of them existed still decodes: `postcard` is positional, so the reader defaults
+//! each trailing field when the buffer ends early (a pre-M36/pre-gate file, never a
+//! corrupt value — the file's checksum rules that out).
 
 use serde::{Deserialize, Serialize};
 
 use super::decode::Fields;
-use crate::audio::analysis::{CalibratedSeriesResult, Contribution, RateContribution};
+use crate::audio::analysis::{CalibratedSeriesResult, Contribution, RateContribution, SeriesGate};
 
 /// The postcard-safe stored fields of a [`CalibratedSeriesResult`].
 #[derive(Clone, Serialize)]
@@ -26,6 +26,7 @@ pub struct StoredCalibratedSeries {
     pub calibration_db_spl: f32,
     pub contribution: Option<Contribution>,
     pub rate_contribution: Option<RateContribution>,
+    pub gate: Option<SeriesGate>,
 }
 
 impl<'de> Deserialize<'de> for StoredCalibratedSeries {
@@ -57,10 +58,12 @@ impl<'de> Deserialize<'de> for StoredCalibratedSeries {
                     contribution: f.opt(),
                     // The M36 band × rate matrix, appended after the contribution grid.
                     rate_contribution: f.opt(),
+                    // The M21.B window gate, appended after the rate matrix.
+                    gate: f.opt(),
                 })
             }
         }
-        deserializer.deserialize_tuple(11, SeriesVisitor)
+        deserializer.deserialize_tuple(12, SeriesVisitor)
     }
 }
 
@@ -84,6 +87,7 @@ impl From<&CalibratedSeriesResult> for StoredCalibratedSeries {
             calibration_db_spl: r.calibration_db_spl,
             contribution: r.contribution.clone(),
             rate_contribution: r.rate_contribution.clone(),
+            gate: r.gate,
         }
     }
 }
@@ -102,6 +106,7 @@ impl From<StoredCalibratedSeries> for CalibratedSeriesResult {
             calibration_db_spl: stored.calibration_db_spl,
             contribution: stored.contribution,
             rate_contribution: stored.rate_contribution,
+            gate: stored.gate,
         }
     }
 }

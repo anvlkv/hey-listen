@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use super::*;
 
 mod decode;
+mod enum_shape;
 mod stored_calibrated_series;
 mod stored_loudness;
 mod stored_masking;
@@ -193,50 +194,16 @@ impl From<StoredNoteMetrics> for NoteMetricsResult {
     }
 }
 
-/// The stored form of one analysis result (see the module note).
-///
-/// Variants are encoded by **index** (postcard): append a new tool at the end rather than
-/// inserting one in the middle, so existing project files keep decoding.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum StoredAnalysisResult {
-    Waveform(StoredWaveform),
-    Spectrum(SpectrumResult),
-    Spectrogram(SpectrogramResult),
-    Levels(LevelsResult),
-    FrameRms(StoredSeries),
-    MelSpectrogram(StoredMatrix),
-    Mfcc(StoredMatrix),
-    Chromagram(StoredMatrix),
-    SpectralContrast(StoredMatrix),
-    SpectralCentroid(StoredSeries),
-    SpectralFlux(StoredSeries),
-    SpectralRolloff(StoredSeries),
-    SpectralFlatness(StoredSeries),
-    SpectralBandwidth(StoredSeries),
-    SpectralEntropy(StoredSeries),
-    SpectralCrest(StoredSeries),
-    HarmonicRatio(StoredSeries),
-    ZeroCrossingRate(StoredSeries),
-    PitchPyin(StoredPitch),
-    PitchYin(StoredPitch),
-    PitchAutocorr(StoredPitch),
-    NoteMetrics(StoredNoteMetrics),
-    Modulation(ModulationResult),
-    Tempo(RhythmResult),
-    Onsets(RhythmResult),
-    Downbeats(RhythmResult),
-    LoudnessIntegrated(LufsResult),
-    LoudnessMomentary(StoredSeries),
-    LoudnessRange(LraResult),
-    CriticalBands(StoredMatrix),
-    Loudness(StoredLoudness),
-    SpecificLoudness(StoredMatrix),
-    Sharpness(StoredCalibratedSeries),
-    Roughness(StoredCalibratedSeries),
-    FluctuationStrength(StoredCalibratedSeries),
-    Masking(StoredMasking),
-    Tonality(StoredCalibratedSeries),
-    Spatial(SpatialResult),
+crate::stored_result_enum! {
+    /// The stored form of one analysis result (see the module note).
+    ///
+    /// Variants are encoded by **index** (postcard): append a new tool at the end rather
+    /// than inserting one in the middle, so existing project files keep decoding.
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum StoredAnalysisResult {
+        matrix = StoredMatrix,
+        series = StoredCalibratedSeries,
+    }
 }
 
 impl From<&AnalysisResult> for StoredAnalysisResult {

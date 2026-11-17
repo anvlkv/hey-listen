@@ -65,6 +65,7 @@ pub(crate) fn series(
         max_value: if max.is_finite() { max } else { 0.0 },
         calibrated: calibration_db_spl > 0.0,
         calibration_db_spl,
+        gate: None,
         contribution: Some(contribution),
         rate_contribution,
     }

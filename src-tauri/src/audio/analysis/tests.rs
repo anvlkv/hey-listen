@@ -249,6 +249,12 @@ fn chromagram_has_twelve_bands() {
     let result = chromagram(&mono, RATE, &params(2048)).expect("chromagram");
     assert_eq!(result.bins, 12);
     assert_eq!(result.values.len(), result.frames * 12);
+    // The band axis is named, so `peakBand` is readable without a second table: 0 = C.
+    let labels = result.band_labels.as_ref().expect("a pitch-class legend");
+    assert_eq!(labels.len(), 12);
+    assert_eq!(labels[0], "C");
+    assert_eq!(labels[1], "C#");
+    assert_eq!(labels[11], "B");
 }
 
 #[test]

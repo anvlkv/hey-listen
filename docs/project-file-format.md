@@ -125,12 +125,17 @@ file without one loads with no saved comparisons.
 `referencePath` was appended after the first released snapshot layout. Version 1 shipped
 **both** layouts, so a version-1 file is upgraded by the `v1 → v2` migration step
 (`project/migrate/v1.rs`), which reads the early layout too and stores no path for it; the
-current reader is then strict. Version 3 appended `id` / `ownerWindow` / `ownerChannel`,
+current reader is then strict. Version 1 also stored the result at its older arity (a
+15-field matrix, a 9-field calibrated series), so that step decodes either layout through
+the frozen `StoredAnalysisResultV1` mirror rather than today's 18 / 12 shape. Version 3
+appended `id` / `ownerWindow` / `ownerChannel`,
 so the `v2 → v3` step (`project/migrate/v2.rs`) **converts** every version-2 snapshot into
 the version-3 shape: it mints the pair `id` and defaults the owner window to the
-snapshot's window (version 2 recorded no owner side), so nothing is dropped. The reverse
-still does not hold: a build that predates a field cannot read a newer `COMPARE` payload
-— postcard carries no field names to skip.
+snapshot's window (version 2 recorded no owner side), so nothing is dropped. Version 4
+appended `gate` / `bandLabels` to the **stored result**; the `v3 → v4` step
+(`project/migrate/v3.rs`) re-encodes version 3's frozen 17 / 11 result into today's shape.
+The reverse still does not hold: a build that predates a field cannot read a newer
+`COMPARE` payload — postcard carries no field names to skip.
 
 The panel itself is still not in `LAYOUT` (compare panels are sanitised out); restoring a
 saved comparison re-creates its Workbench **tab** after the project state is ready.
@@ -188,6 +193,7 @@ steps are derived from it (see [Migrations](#migrations)).
 | 1 | Initial container (M6). Sections grew **additively** within it: `ANNOTATIONS` (M14), `COMPARE` (M25.C), the `RESULTS` payload, `LAYOUT.filterSpec` (M25.D), and the `COMPARE` `referencePath` field (early v1 has the shorthand snapshot layout, late v1 the full one). | M6 |
 | 2 | `COMPARE` snapshots always carry `referencePath` (the layout version 1 shipped in two shapes). The `v1 → v2` step in `project/migrate/v1.rs` rewrites the early layout; every other section is byte-identical. | M37 |
 | 3 | `COMPARE` snapshots gain the pair fields: a stable `id` (so several comparisons can share a tool, one per compare tab), `ownerWindow` and `ownerChannel` (the owner side pinned at save time), appended after `referencePath`. The `v2 → v3` step in `project/migrate/v2.rs` **converts** each old snapshot (owner window defaults to the snapshot's window, owner channel is unknown); nothing is dropped. The fragment-audio pair restructure Phase 3 also plans is still open and would change the payload again. | M23 |
+| 4 | The stored comparison result gains two trailing optional fields: `gate` on a `CalibratedSeriesResult` (postcard tuple 11 → 12) and `bandLabels` on a `MatrixResult` (17 → 18). The result is **nested** inside a snapshot, so the trailing-field tolerance cannot read the older arity; the `v3 → v4` step in `project/migrate/v3.rs` decodes version 3's frozen 17 / 11 shape and re-encodes today's. | M36 follow-up |
 
 **Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
 `SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
@@ -213,18 +219,22 @@ contract.
   every payload only after the chain reaches `VERSION`, so each step knows exactly two
   adjacent versions. `DATA` is never copied or rewritten to migrate. The frozen `vN` types
   are release snapshots and are never edited after the fact.
-  The chain today has two steps: `v1 → v2` (`project/migrate/v1.rs`) rewrites the saved
-  comparisons from version 1's two snapshot layouts into the one version 2 writes, and
+  The chain today has three steps: `v1 → v2` (`project/migrate/v1.rs`) rewrites the saved
+  comparisons from version 1's two snapshot layouts into the one version 2 writes,
   `v2 → v3` (`project/migrate/v2.rs`) **converts** each version-2 snapshot into the
   version-3 shape (pair id + pinned owner side, result-only) and passes every other
-  section through — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
+  section through, and `v3 → v4` (`project/migrate/v3.rs`) re-encodes each snapshot's
+  stored result from the pre-`gate` / pre-`bandLabels` shape into today's — see
+  [`roadmap.md`](roadmap.md) → M23, Phase 3, and the version history above.
 - **Stored results keep a codec-level tolerance.** The `postcard` mirror of an analysis
   result reads a missing **trailing** optional field as its default
-  (`results/stored/decode.rs`), which is how a version-1 comparison snapshot written before
-  the X3 / M36 matrix metadata is decoded by the `v1` step. It is not a container-version
-  rule: version 2 writers always emit every field, so no file this build writes depends on
-  it, and it is deliberately *not* modelled as another step (that would mean freezing the
-  whole result mirror).
+  (`results/stored/decode.rs`), which is how a `RESULTS` entry written before the X3 / M36
+  matrix metadata decodes: a `RESULTS` entry is a length-delimited blob, so the field is
+  the last thing in the buffer. It does **not** cover a `COMPARE` snapshot, where the
+  result is nested and the snapshot's own fields follow it — a reader that defaulted the
+  missing field would consume those instead. That case is the `v3 → v4` step's job. The
+  tolerance is not a container-version rule: version 4 writers always emit every field,
+  so no file this build writes depends on it.
 - **What survives.** `SOURCE`, `DATA`, `SETUP` (open tools, shared params, tool options,
   window/view), `LAYOUT` (both graph editors, `filterSpec`, popouts), `META`, and
   `ANNOTATIONS` must survive every hop. A step that cannot produce one of these fails the

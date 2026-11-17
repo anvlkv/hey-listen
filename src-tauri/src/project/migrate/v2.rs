@@ -7,13 +7,16 @@
 //! can infer — its window is the snapshot's own window and its channel unknown (`None`),
 //! which is what a result-only reload reports until the view re-links the reference.
 //!
-//! `SavedComparisonV2` is a **release snapshot**: never edit it.
+//! The result payload keeps version 2's shape ([`StoredAnalysisResultV3`], 17 / 11
+//! fields); the `v3 → v4` hop appends the fields version 4 stores. `SavedComparisonV2`
+//! is a **release snapshot**: never edit it.
 
 use crate::audio::analysis::compare::{SavedComparison, SourceShape, Span};
-use crate::audio::analysis::{SharedParams, StoredAnalysisResult, ToolOptions};
+use crate::audio::analysis::{SharedParams, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
 use crate::project::ProjectError;
 
+use super::v3::{SavedComparisonV3, StoredAnalysisResultV3};
 use super::Sections;
 
 /// The `COMPARE` payload version 2 writes, in field order (a strict prefix of the
@@ -28,11 +31,11 @@ pub(super) type SavedComparisonV2 = (
     Option<String>,
     f64,
     u64,
-    StoredAnalysisResult,
+    StoredAnalysisResultV3,
     Option<String>,
 );
 
-impl From<SavedComparisonV2> for SavedComparison {
+impl From<SavedComparisonV2> for SavedComparisonV3 {
     fn from(old: SavedComparisonV2) -> Self {
         let (
             tool,
@@ -81,9 +84,9 @@ pub(super) fn from_v2_to_v3(sections: &mut Sections) -> Result<(), ProjectError>
 }
 
 /// Decode a version-2 payload, or a version-3 one written under a version-2 header.
-fn snapshots(bytes: &[u8]) -> Option<Vec<SavedComparison>> {
+fn snapshots(bytes: &[u8]) -> Option<Vec<SavedComparisonV3>> {
     if let Some(old) = Sections::decode_exact::<Vec<SavedComparisonV2>>(bytes) {
-        return Some(old.into_iter().map(SavedComparison::from).collect());
+        return Some(old.into_iter().map(SavedComparisonV3::from).collect());
     }
-    Sections::decode_exact::<Vec<SavedComparison>>(bytes)
+    Sections::decode_exact::<Vec<SavedComparisonV3>>(bytes)
 }

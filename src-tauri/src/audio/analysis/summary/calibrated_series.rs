@@ -35,6 +35,7 @@ pub(super) fn calibrated_series(
         f64::from(r.calibration_db_spl),
         Some("dB SPL"),
     );
+    super::families::gate(b, r.gate.as_ref());
 }
 
 /// The extents of a gapped series and the times they occur at.

@@ -113,7 +113,7 @@ const LOUDNESS: &[&str] = &[
 ];
 
 /// The summary item keys a calibrated scalar series reports (M28): the value
-/// extents over the track plus the calibration state.
+/// extents over the track, the calibration state, and the window gate when one ran.
 const CALIBRATED_SERIES: &[&str] = &[
     "frames",
     "min",
@@ -122,6 +122,11 @@ const CALIBRATED_SERIES: &[&str] = &[
     "maxTime",
     "calibrated",
     "calibrationDbSpl",
+    "gateDb",
+    "gateFloorDb",
+    "gateThresholdDb",
+    "gatedFrames",
+    "keptFrames",
 ];
 
 /// The spectrum plus its masking threshold (M30): the grid, the SMR extents, and the

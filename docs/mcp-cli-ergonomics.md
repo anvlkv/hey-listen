@@ -371,7 +371,8 @@ Follow-up to M21.A: the contract was right, but some measurements still *meant* 
 than they appeared to, and a 1k-window sweep paid one process per window.
 
 - **Gate a series.** `gateDb` / `gateFloorDb` on `frameRms`, `harmonicRatio`,
-  `spectralCentroid`, `spectralRolloff`, `spectralFlatness`, and `zeroCrossingRate`.
+  `spectralCentroid`, `spectralRolloff`, `spectralFlatness`, `zeroCrossingRate`, and the
+  calibrated perception tracks `sharpness`, `roughness`, and `tonality`.
   `0` is off (the default). Gated frames are `null`; `result.gate` and the summary echo
   the effective threshold, gated count, and kept count. Use it instead of a post-pass
   over `frameRms` to drop pre-roll/background.

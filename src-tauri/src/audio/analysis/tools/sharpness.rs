@@ -24,6 +24,7 @@ use super::super::{
     AnalysisError, CalibratedSeriesResult, Contribution, SharedParams, ToolOptions,
 };
 
+use super::gate::gate_values;
 use super::loudness::specific_loudness;
 use super::shared::series_extents;
 
@@ -95,7 +96,7 @@ pub(super) fn sharpness(
         })
         .collect();
     let mut contributions: Vec<f32> = Vec::with_capacity(matrix.frames * bins);
-    let values: Vec<Option<f32>> = if bins == 0 || matrix.bins == 0 {
+    let mut values: Vec<Option<f32>> = if bins == 0 || matrix.bins == 0 {
         vec![None; matrix.frames]
     } else {
         let mut cells = vec![0.0f32; bins];
@@ -107,6 +108,15 @@ pub(super) fn sharpness(
         values
     };
 
+    // Gate on the STFT grid the specific-loudness rows use, so a quiet frame cannot
+    // drag the reported min/max.
+    let gate = gate_values(
+        &mut values,
+        mono,
+        params.fft_size(),
+        matrix.hop_size,
+        options,
+    );
     let (min_value, max_value) = series_extents(&values);
     let times = frame_times(values.len(), matrix.hop_size, sample_rate);
     Ok(CalibratedSeriesResult {
@@ -120,6 +130,7 @@ pub(super) fn sharpness(
         max_value,
         calibrated: calibration > 0.0,
         calibration_db_spl: calibration,
+        gate,
         contribution: Some(Contribution {
             frames: times.len(),
             bins,

@@ -13,6 +13,38 @@ fn shape(result: &AnalysisResult, shape: Shape, max: Option<usize>) -> Option<se
     shape_result_with(result, shape, max, Axis::Array)
 }
 
+fn any_full_time_axis(value: &serde_json::Value, max: usize) -> Option<(String, usize)> {
+    match value {
+        serde_json::Value::Array(items) => {
+            items.iter().find_map(|item| any_full_time_axis(item, max))
+        }
+        serde_json::Value::Object(object) => object.iter().find_map(|(key, item)| {
+            if key == "times" {
+                if let Some(array) = item.as_array() {
+                    if array.len() > max {
+                        return Some((key.clone(), array.len()));
+                    }
+                }
+            }
+            any_full_time_axis(item, max)
+        }),
+        _ => None,
+    }
+}
+
+#[test]
+fn decimation_thins_every_time_axis_in_every_fixture() {
+    for result in crate::audio::analysis::fixtures::samples() {
+        let value = shape(&result, Shape::Full, Some(2)).expect("full returns a result");
+        assert_eq!(
+            any_full_time_axis(&value, 2),
+            None,
+            "{:?} ships a full-resolution time axis with maxPoints",
+            result.tool_id()
+        );
+    }
+}
+
 #[test]
 fn compact_spectrum_keeps_the_peak_and_collapses_the_arrays() {
     let value = shape(&AnalysisResult::Spectrum(spectrum()), Shape::Compact, None)

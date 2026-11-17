@@ -35,6 +35,7 @@ use crate::state::SourceData;
 
 mod v1;
 mod v2;
+mod v3;
 
 #[cfg(test)]
 mod tests;
@@ -130,7 +131,8 @@ pub(crate) struct Step {
 ///
 /// `tests::the_step_table_covers_every_hop` fails whenever a bump is not followed by its
 /// step here. `v1` is the `COMPARE` snapshot layout change (`referencePath`); `v2` gives
-/// a snapshot its pair id and pinned owner side.
+/// a snapshot its pair id and pinned owner side; `v3` appends `gate` / `bandLabels` to the
+/// stored comparison result.
 const STEPS: &[Step] = &[
     Step {
         from: 1,
@@ -139,6 +141,10 @@ const STEPS: &[Step] = &[
     Step {
         from: 2,
         apply: v2::from_v2_to_v3,
+    },
+    Step {
+        from: 3,
+        apply: v3::from_v3_to_v4,
     },
 ];
 

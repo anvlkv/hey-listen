@@ -59,4 +59,10 @@ model?: string,
  * Whether the values are normalized/comparison-only (true) rather than a physical or
  * calibrated level (false). Absent = unspecified.
  */
-normalized?: boolean, };
+normalized?: boolean, 
+/**
+ * Human-readable names for the band axis, parallel to `bands`. A chromagram names
+ * its twelve pitch classes (`bandLabels[0] = "C"`, i.e. **0 = C**); absent when the
+ * axis is numeric-only (mel/mfcc coefficients).
+ */
+bandLabels?: Array<string>, };

@@ -160,7 +160,7 @@ fn frame_rms(b: &mut SummaryBuilder, r: &SeriesResult) {
 }
 
 /// The window gate a series ran with, when gating was on (M21.B).
-fn gate(b: &mut SummaryBuilder, gate: Option<&crate::audio::analysis::SeriesGate>) {
+pub(super) fn gate(b: &mut SummaryBuilder, gate: Option<&crate::audio::analysis::SeriesGate>) {
     let Some(gate) = gate else { return };
     b.push("gateDb", "gate", f64::from(gate.gate_db), Some("dB"));
     b.push(

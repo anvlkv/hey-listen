@@ -382,7 +382,9 @@ is honored.
 >   `null` `values` entries. `SeriesResult.gate` echoes `{ gateDb, gateFloorDb,
 >   thresholdDb, gatedFrames, keptFrames }`, and the summary carries `gateDb`,
 >   `gateFloorDb`, `gateThresholdDb`, `gatedFrames`, and `keptFrames`. Results produced
->   without gating are unchanged (the field is absent).
+>   without gating are unchanged (the field is absent). The calibrated perception tracks
+>   `sharpness`, `roughness`, and `tonality` reuse the same gate and echo it on
+>   `CalibratedSeriesResult.gate`.
 > - **`harmonicRatio` is not HNR.** It is the **maximum normalized autocorrelation** over
 >   the f0 search range: broadband noise can score high, and per-cycle jitter/detune do
 >   not move it. The catalog description and `about` say so and point at

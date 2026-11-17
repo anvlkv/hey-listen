@@ -25,6 +25,7 @@
 
 use super::super::psychoacoustics::modulation::{modulate, roughness_weighting, series};
 use super::super::{AnalysisError, CalibratedSeriesResult, SharedParams, ToolOptions};
+use super::gate::apply_gate;
 
 /// Perceived roughness per analysis frame, in asper.
 pub(super) fn roughness(
@@ -41,7 +42,11 @@ pub(super) fn roughness(
         &roughness_weighting(),
         calibration,
     );
-    Ok(series(modulation, sample_rate, calibration, "asper"))
+    let mut result = series(modulation, sample_rate, calibration, "asper");
+    let hop = result.hop_size;
+    let gate = apply_gate(&mut result, mono, params.fft_size(), hop, options);
+    result.gate = gate;
+    Ok(result)
 }
 
 #[cfg(test)]

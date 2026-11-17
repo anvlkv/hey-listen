@@ -232,6 +232,12 @@ pub struct MatrixResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub normalized: Option<bool>,
+    /// Human-readable names for the band axis, parallel to `bands`. A chromagram names
+    /// its twelve pitch classes (`bandLabels[0] = "C"`, i.e. **0 = C**); absent when the
+    /// axis is numeric-only (mel/mfcc coefficients).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub band_labels: Option<Vec<String>>,
 }
 
 /// Tempo / onset / downbeat analysis over one window: the onset-strength envelope

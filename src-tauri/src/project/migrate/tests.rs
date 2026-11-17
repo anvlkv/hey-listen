@@ -1,17 +1,26 @@
-//! The migration chain (M37, M23 Phase 3): the v1 → v2 and v2 → v3 steps, plus the
-//! machinery around them.
+//! The migration chain (M37, M23 Phase 3, M36 follow-up): the v1 → v2, v2 → v3 and
+//! v3 → v4 steps, plus the machinery around them.
 //!
-//! The steps are the real ones (`v1::from_v1_to_v2` and `v2::from_v2_to_v3`, registered
-//! in `STEPS`); the guards (coverage, ordering, a missing/late step, a newer file) are
-//! exercised with the same `apply` / `run_with` the reader uses.
+//! The steps are the real ones (`v1::from_v1_to_v2`, `v2::from_v2_to_v3` and
+//! `v3::from_v3_to_v4`, registered in `STEPS`); the guards (coverage, ordering, a
+//! missing/late step, a newer file) are exercised with the same `apply` / `run_with` the
+//! reader uses.
 
 use std::collections::BTreeMap;
 
-use super::v1::SavedComparisonV1;
+mod v1;
+
+use super::v1::{SavedComparisonV1, StoredAnalysisResultV1};
 use super::v2::SavedComparisonV2;
+use super::v3::{
+    SavedComparisonV3, StoredAnalysisResultV3, StoredCalibratedSeriesV3, StoredMatrixV3,
+};
 use super::*;
 use crate::audio::analysis::fixtures;
-use crate::audio::analysis::{AnalysisResult, SharedParams};
+use crate::audio::analysis::{
+    AnalysisResult, CalibratedSeriesResult, MatrixResult, SharedParams, StoredAnalysisResult,
+    StoredCalibratedSeries, StoredMatrix,
+};
 use crate::audio::analyzers::AnalyzerId;
 use crate::project::test_support::snapshot;
 use crate::project::{Meta, ProjectError, MIN_READ_VERSION, VERSION};
@@ -57,28 +66,78 @@ fn early_v1_snapshot() -> SavedComparisonV1 {
         saved.filter_fingerprint,
         saved.b_offset,
         saved.saved_ms,
-        saved.result,
+        StoredAnalysisResultV1::Spectrum(fixtures::spectrum()),
     )
 }
 
-/// The version-2 snapshot layout: a strict prefix of today's struct, with `referencePath`.
+/// The version-2 snapshot layout: the early-v1 fields plus `referencePath`.
 fn v2_snapshot(reference_path: Option<String>) -> SavedComparisonV2 {
+    let (a, b, c, d, e, f, g, h, i, result) = early_v1_snapshot();
+    (a, b, c, d, e, f, g, h, i, result.into(), reference_path)
+}
+
+/// The version-3 snapshot: today's fields, a result in the pre-`gate` / pre-`bandLabels`
+/// shape (`postcard` tuple 17 for a matrix, 11 for a calibrated series).
+fn v3_snapshot(tool: AnalyzerId, result: StoredAnalysisResultV3) -> SavedComparisonV3 {
     let saved = snapshot(
         AnalyzerId::Spectrum,
         AnalysisResult::Spectrum(fixtures::spectrum()),
     );
+    SavedComparisonV3 {
+        tool,
+        reference_name: saved.reference_name,
+        source: saved.source,
+        window: saved.window,
+        params: saved.params,
+        options: saved.options,
+        filter_fingerprint: saved.filter_fingerprint,
+        b_offset: saved.b_offset,
+        saved_ms: saved.saved_ms,
+        result,
+        reference_path: saved.reference_path,
+        id: saved.id,
+        owner_window: saved.owner_window,
+        owner_channel: saved.owner_channel,
+    }
+}
+
+fn matrix_v3(r: &MatrixResult) -> StoredMatrixV3 {
+    StoredMatrixV3(
+        (
+            r.sample_rate,
+            r.hop_size,
+            r.frames,
+            r.bins,
+            r.duration,
+            r.times.clone(),
+            r.window_start,
+            r.bands.clone(),
+            r.values.clone(),
+            r.min_value,
+            r.max_value,
+            r.band_edges.clone(),
+            r.unit.clone(),
+            r.calibrated,
+            r.calibration_db_spl,
+            r.model.clone(),
+        ),
+        r.normalized,
+    )
+}
+
+fn calibrated_v3(r: &CalibratedSeriesResult) -> StoredCalibratedSeriesV3 {
     (
-        saved.tool,
-        saved.reference_name,
-        saved.source,
-        saved.window,
-        saved.params,
-        saved.options,
-        saved.filter_fingerprint,
-        saved.b_offset,
-        saved.saved_ms,
-        saved.result,
-        reference_path,
+        r.sample_rate,
+        r.hop_size,
+        r.window_start,
+        r.times.clone(),
+        r.values.clone(),
+        r.min_value,
+        r.max_value,
+        r.calibrated,
+        r.calibration_db_spl,
+        r.contribution.clone(),
+        r.rate_contribution.clone(),
     )
 }
 
@@ -167,6 +226,105 @@ fn a_v2_compare_snapshot_gains_an_id_and_a_pinned_owner_side() {
     assert_eq!(saved.owner_window.start, saved.window.start);
     assert_eq!(saved.owner_window.end, saved.window.end);
     assert_eq!(saved.owner_channel, None);
+}
+
+#[test]
+fn a_v3_compare_snapshot_gains_the_new_result_fields() {
+    // Version 3 stored a result without `gate` / `bandLabels`; the nested payload cannot
+    // use the trailing-field tolerance (the snapshot's own fields follow it), so the step
+    // decodes the frozen 17 / 11 shape and re-encodes the current one.
+    let matrix = fixtures::matrix();
+    let calibrated = fixtures::calibrated_series();
+    let mut sections = sections_at(3);
+    sections.compare = Some(
+        Sections::encode(&vec![
+            v3_snapshot(
+                AnalyzerId::MelSpectrogram,
+                StoredAnalysisResultV3::MelSpectrogram(matrix_v3(&matrix)),
+            ),
+            v3_snapshot(
+                AnalyzerId::Sharpness,
+                StoredAnalysisResultV3::Sharpness(calibrated_v3(&calibrated)),
+            ),
+        ])
+        .expect("compare"),
+    );
+
+    let loaded = run_with(STEPS, VERSION, sections).expect("migrate");
+
+    assert_eq!(loaded.upgraded_from, Some(3));
+    assert_eq!(loaded.dropped, vec![DroppedSection::Results]);
+    assert_eq!(loaded.compare.len(), 2);
+    match loaded.compare[0].analysis_result() {
+        AnalysisResult::MelSpectrogram(back) => {
+            assert_eq!(back.values, matrix.values);
+            assert_eq!(back.band_labels, None);
+        }
+        other => panic!("unexpected stored result: {other:?}"),
+    }
+    match loaded.compare[1].analysis_result() {
+        AnalysisResult::Sharpness(back) => {
+            assert_eq!(back.values, calibrated.values);
+            assert_eq!(back.gate, None);
+        }
+        other => panic!("unexpected stored result: {other:?}"),
+    }
+}
+
+#[test]
+fn a_v2_matrix_comparison_survives_the_chain() {
+    // Version 2 is the last released format (0.6.2); its stored matrix used the same 17
+    // fields version 3 did, so the v2 → v3 hop must read that shape, not today's 18.
+    let matrix = fixtures::matrix();
+    let mut snapshot = v2_snapshot(None);
+    snapshot.0 = AnalyzerId::MelSpectrogram;
+    snapshot.9 = StoredAnalysisResultV3::MelSpectrogram(matrix_v3(&matrix));
+
+    let mut sections = sections_at(2);
+    sections.compare = Some(Sections::encode(&vec![snapshot]).expect("compare"));
+
+    let loaded = run_with(STEPS, VERSION, sections).expect("migrate");
+
+    assert_eq!(loaded.dropped, vec![DroppedSection::Results]);
+    assert_eq!(loaded.compare.len(), 1);
+    match loaded.compare[0].analysis_result() {
+        AnalysisResult::MelSpectrogram(back) => assert_eq!(back.values, matrix.values),
+        other => panic!("unexpected stored result: {other:?}"),
+    }
+}
+
+#[test]
+fn the_frozen_v3_result_is_the_pre_field_prefix_of_the_live_one() {
+    // The live mirror writes the new field last (`None` = one `0x00`), so dropping that
+    // byte leaves exactly the version-3 bytes. Decoding them as the frozen mirror pins the
+    // two wire layouts against each other instead of trusting a field list.
+    let matrix = fixtures::matrix();
+    let live = StoredAnalysisResult::MelSpectrogram(StoredMatrix::from(&matrix));
+    let mut bytes = postcard::to_stdvec(&live).expect("encode matrix");
+    assert_eq!(bytes.pop(), Some(0), "bandLabels None is the last byte");
+    let froze = postcard::from_bytes::<StoredAnalysisResultV3>(&bytes).expect("decode matrix");
+    match froze {
+        StoredAnalysisResultV3::MelSpectrogram(back) => {
+            let back = StoredMatrix::from(back);
+            assert_eq!(back.values, matrix.values);
+            assert_eq!(back.band_labels, None);
+        }
+        _ => panic!("not a matrix"),
+    }
+
+    let series = fixtures::calibrated_series();
+    let live = StoredAnalysisResult::Sharpness(StoredCalibratedSeries::from(&series));
+    let mut bytes = postcard::to_stdvec(&live).expect("encode calibrated series");
+    assert_eq!(bytes.pop(), Some(0), "gate None is the last byte");
+    let froze = postcard::from_bytes::<StoredAnalysisResultV3>(&bytes).expect("decode series");
+    match froze {
+        StoredAnalysisResultV3::Sharpness(back) => {
+            let back = StoredCalibratedSeries::from(back);
+            assert_eq!(back.values, series.values);
+            assert_eq!(back.gate, None);
+        }
+        _ => panic!("not a calibrated series"),
+    }
 }
 
 #[test]

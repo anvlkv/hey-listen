@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Contribution, RateContribution};
+use super::{Contribution, RateContribution, SeriesGate};
 
 /// One calibrated value per analysis frame, plotted against time. A frame with no
 /// measurable value is a gap (`None`).
@@ -29,6 +29,10 @@ pub struct CalibratedSeriesResult {
     pub calibrated: bool,
     /// The dB SPL of a full-scale sine the run assumed (`0` = uncalibrated).
     pub calibration_db_spl: f32,
+    /// The window gate this track ran with (M21.B); absent when gating is off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gate: Option<SeriesGate>,
     /// The per-band decomposition behind `values` (M36 drill-down), when the tool has
     /// one. Absent for a stored result written before the field existed.
     #[serde(default, skip_serializing_if = "Option::is_none")]

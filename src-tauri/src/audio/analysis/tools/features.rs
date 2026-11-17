@@ -3,6 +3,12 @@
 use super::super::support::{build_matrix, frame_grid, mono_buffer, oxi_err};
 use super::super::{AnalysisError, MatrixResult, SharedParams, ToolOptions};
 
+/// The twelve pitch-class names a chromagram's rows carry, in band order
+/// (`PITCH_CLASSES[0] = "C"`). Width-12 equal temperament, sharps spelled with `#`.
+const PITCH_CLASSES: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
+
 /// Attach the band-axis model metadata a chart labels the matrix with.
 ///
 /// `normalized` is `Some(false)` for a level/energy matrix, `Some(true)` for a
@@ -59,6 +65,10 @@ pub fn mfcc(
 }
 
 /// Chromagram (frame × 12 pitch classes).
+/// Chromagram (frame × 12 pitch classes).
+///
+/// The band axis is the twelve pitch classes in order, and the result carries their names
+/// (`bandLabels`) so an agent reading `peakBand` knows **0 = C** without a second table.
 pub fn chromagram(
     mono: &[f32],
     sample_rate: u32,
@@ -70,11 +80,14 @@ pub fn chromagram(
         .into_iter()
         .map(|frame| frame.to_vec())
         .collect();
-    Ok(modelled(
-        build_matrix(frames, hop, sample_rate),
-        "chroma",
-        Some(true),
-    ))
+    let mut result = modelled(build_matrix(frames, hop, sample_rate), "chroma", Some(true));
+    result.band_labels = Some(
+        PITCH_CLASSES
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect(),
+    );
+    Ok(result)
 }
 
 /// Spectral contrast (frame × octave band, in dB).
