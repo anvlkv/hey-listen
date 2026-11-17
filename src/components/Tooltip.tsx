@@ -24,6 +24,8 @@ export default function Tooltip(props: {
   label: JSX.Element;
   placement?: "top" | "bottom" | "left" | "right";
   class?: string;
+  /** Extra class on the popup itself (e.g. a wider, formatted hint). */
+  contentClass?: string;
   children: JSX.Element;
 }) {
   const portal = createPopupMount();
@@ -43,7 +45,9 @@ export default function Tooltip(props: {
         {props.children}
       </KTooltip.Trigger>
       <KTooltip.Portal mount={portal.mount()}>
-        <KTooltip.Content class="tooltip-content">{props.label}</KTooltip.Content>
+        <KTooltip.Content class={`tooltip-content ${props.contentClass ?? ""}`}>
+          {props.label}
+        </KTooltip.Content>
       </KTooltip.Portal>
     </KTooltip>
   );

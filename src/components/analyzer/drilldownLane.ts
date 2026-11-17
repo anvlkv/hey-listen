@@ -4,7 +4,8 @@ import { buildHeatmapImage, paintFrameGrid } from "./chartCanvas";
 import { reactiveData } from "./verticalMarkers";
 import { chartTheme } from "../../state/themes";
 import type { AnalyzerBus } from "../../state/chartSync";
-import type { DrilldownGrid } from "./drilldown";
+import { rowAxisText, type DrilldownGrid } from "./drilldown";
+import type { PlotBox } from "./chartGeometry";
 import type { HeatmapScale } from "./heatmapScale";
 
 /** The uPlot instance type, taken from the wrapper's plugin props. */
@@ -31,6 +32,38 @@ export function drilldownImage(grid: DrilldownGrid, scale: HeatmapScale): HTMLCa
  * pattern, small enough that the scalar track keeps the panel.
  */
 const LANE_SHARE = 0.25;
+
+/** The lane's row-axis caption: its font, and the box it needs to be worth drawing. */
+const ROW_AXIS_FONT = "10px Inter, sans-serif";
+const ROW_AXIS_MIN = { width: 130, height: 26 };
+
+/**
+ * Annotate the lane's **row axis** (M38): the vertical dimension of a drill-down is a
+ * second quantity (bands, semitones), not the plot's y axis, so the strip names it once —
+ * at its top left, on a tint of the plot background — with its two ends.
+ *
+ * Drawn before the trace's halo, so the track keeps precedence over the caption. The
+ * per-row detail is the hover card; the caption is what makes the lane readable at rest.
+ */
+function paintRowAxis(ctx: CanvasRenderingContext2D, box: PlotBox, grid: DrilldownGrid): void {
+  if (box.width < ROW_AXIS_MIN.width || box.height < ROW_AXIS_MIN.height) return;
+  const text = rowAxisText(grid);
+  ctx.save();
+  ctx.font = ROW_AXIS_FONT;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const x = box.x + 7;
+  const y = box.y + 5;
+  // The tint is the plot background, not a new colour: the caption sits on the heatmap
+  // and must never read as a cell.
+  ctx.globalAlpha = 0.78;
+  ctx.fillStyle = chartTheme().spectroBackground;
+  ctx.fillRect(x - 4, y - 3, ctx.measureText(text).width + 8, 16);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = chartTheme().axis;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
 
 /** Options for the in-plot drill-down lane. */
 export interface DrilldownLaneOptions {
@@ -109,6 +142,7 @@ export const drilldownLane =
             Math.round(box.height) - 1,
           );
           ctx.globalAlpha = 1;
+          paintRowAxis(ctx, box, grid);
           // The trace's halo: the plot background itself, so the line stays legible over
           // the heatmap without inventing a colour that would read as data.
           const xs = u.data[0];

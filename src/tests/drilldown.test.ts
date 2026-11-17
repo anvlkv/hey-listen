@@ -7,6 +7,7 @@ import {
   frameProfile,
   nearestFrame,
   rateSnapshotAt,
+  rowAxisText,
 } from "../components/analyzer/drilldown";
 import type { SeriesResult } from "../state/analyzer";
 
@@ -187,6 +188,33 @@ describe("drilldownScale", () => {
     )!;
     const scale = drilldownScale(grid);
     expect(scale.max).toBe(1);
+  });
+});
+
+describe("rowAxisText", () => {
+  it("names the row axis and both of its ends", () => {
+    const grid = contributionGrid(
+      series({
+        times: TIMES,
+        contribution: {
+          frames: 4,
+          bins: 3,
+          times: TIMES,
+          bands: [24, 500, 16_000],
+          values: new Array(12).fill(1),
+          label: "band modulation",
+          unit: "asper",
+        },
+      }),
+    )!;
+    expect(rowAxisText(grid)).toBe("band (Hz) 24 Hz – 16.0 kHz");
+  });
+
+  it("falls back to the axis name alone when the axis has one row", () => {
+    const grid = candidateGrid(
+      series({ times: TIMES, candidates: { bins: 1, freqs: [220], values: [1, 1, 1, 1] } }),
+    )!;
+    expect(rowAxisText(grid)).toBe("semitone (Hz)");
   });
 });
 

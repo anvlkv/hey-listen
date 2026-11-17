@@ -1,5 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
+import { cursor } from "@dschz/solid-uplot/plugins";
+import { tooltip } from "./tooltipPlugins";
 import { createSignal, Show } from "solid-js";
 import AnalyzerTab from "./AnalyzerTab";
 import ToolParamsForm from "./ToolParamsForm";

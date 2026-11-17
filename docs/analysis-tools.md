@@ -11,7 +11,10 @@ as a tab in the Workbench.
 - Each tool has a **params popover** (per-tool config).
 - Each tool has an **about popover** (what it shows, and when to use it). The copy
   is **markdown** — short paragraphs with bold or italic lead-ins — rendered in the
-  panel; the Sidebar's hover hint is a plain-text preview of it.
+  panel. The Sidebar's hover hint renders the **same copy** as a compact formatted
+  preview (`lib/markdown.ts` → `markdownSummary`: bold lead-ins as titles with a wide
+  space, paragraphs kept apart, trimmed to a character budget) through the same
+  sanitizing pipeline — not a second copy of the panel.
 - Each tool carries **keywords** (search terms) for the Sidebar search box, which
   filters analyzers by title and keywords.
 - Each **choice** (window function, hop/overlap, FFT size, analyzer) carries an
@@ -347,6 +350,12 @@ second quantity gets a second *scale*, never a second chart.
   register along the bottom of the same plot (`drilldownLane.ts`): no second time
   axis, no second colourbar row, no second legend. One `drilldownScale` is shared by
   the pixels, the legend's ramp swatch and the hover card.
+- **A lane annotates its own row axis.** A drill-down's vertical dimension is a second
+  quantity (bands, semitones), not the plot's y axis, so the lane names it in place —
+  `rowAxisText` writes the row axis and its two ends (`band (Hz) 24 Hz – 16.0 kHz`) in a
+  caption at the lane's top left, tinted with the plot background so it can never read
+  as a cell, and drawn *under* the track's halo so the trace keeps precedence. The hover
+  card names the same axis, so neither can drift.
 - **A lane's colour mapping is built for a strip, not a panel.** The theme ramp's
   near-black low end would vanish into the plot background and a decomposition's cells
   are dominated by small values, so `drilldownScale` samples the ramp from a **visible

@@ -302,7 +302,7 @@ The remaining tools are trusted through the parametrized smoke test.
 | H1 | Save/load | `save_project` → `load_project`; source + setup + results round-trip | Scenario |
 | H2 | Popout | Right-click a tab → **Pop out to window**; a native window shows just that tool, titled `<tool> — <project>`; selecting it in the Sidebar raises the popout (no duplicate tab); timeline/params/zoom sync; it closes with its parent and reopens on project load | Scenario |
 | H3 | Closed popout returns a tab | Closing the popout window forgets the tool in the core (`popout_tools`); selecting it in the Sidebar then opens a **tab**, not a dead window | Scenario |
-| H4 | A version 1 project upgrades | Open `e2e/fixtures/v1.heyl` (a copy): its audio and setup load, the Toolbar shows **upgraded from v1** and the project stays dirty; **Save** writes header version 2 and clears the notice (M37) | Scenario |
+| H4 | A version 1 project upgrades | Open `e2e/fixtures/v1.heyl` (a copy): its audio and setup load, the Toolbar shows **upgraded from v1** and the project stays dirty; **Save** rewrites the header at the current format version and clears the notice (M37) | Scenario |
 
 > **H2 leaves one window behind.** One app instance is reused across spec files, so a
 > `popout-*` window that survives makes the *next* spec's `execute/sync` calls time out

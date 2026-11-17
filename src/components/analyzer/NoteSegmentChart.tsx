@@ -1,5 +1,6 @@
 import { SolidUplot } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { tooltip } from "./tooltipPlugins";
 import { createMemo, createSignal, Show } from "solid-js";
 import ReframeMenu, { type ReframeTarget } from "./ReframeMenu";
 import { createUplotZoom } from "./uplotZoom";

@@ -107,7 +107,7 @@ describe("H. Project file & multi-window", () => {
     );
   });
 
-  it("H4 — a version 1 project upgrades on open and saves as version 3", async () => {
+  it("H4 — a version 1 project upgrades on open and saves at the current version", async () => {
     // Work on a copy: saving the migrated project rewrites the file.
     const tmpFile = path.join(os.tmpdir(), `heylisten-e2e-v1-${Date.now()}.heyl`);
     await copyFile(LEGACY_PROJECT, tmpFile);
@@ -131,10 +131,13 @@ describe("H. Project file & multi-window", () => {
       "the upgraded project was not marked dirty",
     );
 
-    // Save in place: the file becomes the current version and the notice clears.
+    // Save in place: the file is rewritten at the **current** format version and the
+    // notice clears. The assertion is deliberately not a literal version — the number
+    // lives in `src-tauri/src/project/mod.rs` (`VERSION`) and the Rust migration tests
+    // pin it; here it only has to move past the upgraded file's version.
     await menuAction("save");
     await waitFor(
-      () => Promise.resolve(fileVersion(tmpFile) === 3),
+      () => Promise.resolve(fileVersion(tmpFile) > 1),
       "saving did not write the current format version",
     );
     await waitFor(

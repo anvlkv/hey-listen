@@ -1,5 +1,6 @@
 import { createMemo, For, Show, type JSX } from "solid-js";
 import Icon from "./Icon";
+import MarkdownHint from "./MarkdownHint";
 import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
 import { GRAPH_ICONS, VIEW_ICONS, type IconName } from "../lib/icons";
@@ -25,19 +26,24 @@ import { analyzerQuery, setAnalyzerQuery } from "../state/sidebarSearch";
  *
  * Each analyzer row carries the tool's **chart-type** icon in its bottom-right corner
  * (`lib/icons.ts` → `VIEW_ICONS`); the graph rows carry their editor icons
- * (`GRAPH_ICONS`). Hover copy is a [`Tooltip`](./Tooltip.tsx).
+ * (`GRAPH_ICONS`). Hover copy is a [`Tooltip`](./Tooltip.tsx): analyzers show a
+ * **formatted**, compact markdown hint ([`MarkdownHint`](./MarkdownHint.tsx)) trimmed
+ * from their About copy, the graphs their plain description.
  */
 
-/** A sidebar entry: the workbench tool, its icon, and the hover copy. */
-type SidebarTool = ToolDef & { tooltip: string; icon: IconName };
+/** A sidebar entry: the workbench tool, its icon, and the hover hint. */
+type SidebarTool = ToolDef & { hint: JSX.Element; icon: IconName };
 
-// Analyzers carry markdown `about` copy (when/how to use); surface a plain-text
-// preview on hover — the full, formatted version lives in the tab's About popover.
+/** How much copy a row's hover hint keeps, in plain characters. */
+const HINT_CHARS = 280;
+
+// Analyzers carry markdown `about` copy (what it shows, when to use it). The hint keeps
+// its first paragraphs, formatted; the full copy lives in the tab's About popover.
 const toTool = (def: AnalyzerDef): SidebarTool => ({
   id: def.id,
   title: def.title,
   description: def.description,
-  tooltip: markdownSummary(def.about, 240),
+  hint: <MarkdownHint source={markdownSummary(def.about, HINT_CHARS)} />,
   icon: VIEW_ICONS[def.view.kind],
 });
 
@@ -45,7 +51,7 @@ const toTool = (def: AnalyzerDef): SidebarTool => ({
 const graphTools = (): SidebarTool[] =>
   (["filter", "synth"] as const).map((id) => {
     const tool = toolById(id);
-    return { ...tool, tooltip: tool.description, icon: GRAPH_ICONS[id] };
+    return { ...tool, hint: tool.description, icon: GRAPH_ICONS[id] };
   });
 
 export default function Sidebar(props: { style?: JSX.CSSProperties }) {
@@ -66,7 +72,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
     <div class="sidebar-tools">
       <For each={props.tools}>
         {(tool) => (
-          <Tooltip label={tool.tooltip} placement="right">
+          <Tooltip label={tool.hint} placement="right" contentClass="tooltip-content-wide">
             <button
               type="button"
               class="sidebar-tool"

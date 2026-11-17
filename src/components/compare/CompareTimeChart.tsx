@@ -1,5 +1,6 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
-import { cursor, tooltip, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { cursor, type TooltipProps } from "@dschz/solid-uplot/plugins";
+import { tooltip } from "../analyzer/tooltipPlugins";
 import uPlot from "uplot";
 import { untrack, type Component } from "solid-js";
 import { analyzerBus, type AnalyzerBus, type AxisTransform } from "../../state/chartSync";

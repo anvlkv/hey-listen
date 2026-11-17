@@ -1,5 +1,6 @@
 import { SolidUplot, type UplotPluginFactory } from "@dschz/solid-uplot";
-import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
+import { cursor } from "@dschz/solid-uplot/plugins";
+import { tooltip } from "./tooltipPlugins";
 import uPlot from "uplot";
 import { Show } from "solid-js";
 import ChartLegend, { type ChartLegendEntry } from "./chartLegend";

@@ -2750,7 +2750,9 @@ the view-kind table it belongs to.
   (`drawClear`), framed by a theme-role border, on the chart's existing time axis. The
   trace keeps its contrast through a background-coloured halo drawn in `drawAxes` (after
   the grid, before the series), so the line reads over the heatmap without a second
-  colour.
+  colour. The lane also **annotates its own row axis** (`rowAxisText`): a plot-background
+  tinted caption at its top left names the axis and its two ends, drawn before the halo so
+  the track keeps precedence — a compacted chart's second y axis is labelled, not implied.
 - `DrilldownCard.tsx` is the cursor readout: the tool's own track(s), the row profile as
   a bar register, the strongest rows in the result's own unit, and — for `roughness` /
   `fluctuationStrength` — the frame's band × rate grid. On a drill-down chart it *is* the

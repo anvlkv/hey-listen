@@ -87,3 +87,20 @@
   box-shadow: 0 6px 18px var(--shadow);
   pointer-events: none;
 }
+
+/* A wider popup for a formatted hint (the Sidebar's analyzer rows). */
+.tooltip-content-wide {
+  max-width: 320px;
+}
+
+/* The tooltip's formatted hint reuses `.markdown-body` for its paragraphs, lists and
+   inline code; on the popup's own type scale it only softens the body text and brightens
+   the bold titles — the contrast the About panel gives its lead-ins. */
+.tooltip-content .tooltip-markdown {
+  color: var(--fg-2);
+}
+
+.tooltip-content .tooltip-markdown strong {
+  font-weight: 600;
+  color: var(--fg);
+}

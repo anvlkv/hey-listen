@@ -178,6 +178,22 @@ export function formatRow(value: number): string {
 }
 
 /**
+ * The lane's **row-axis** caption: the row axis' name and its two ends, e.g.
+ * `band (Hz) 24 Hz – 16.0 kHz`.
+ *
+ * A drill-down's vertical dimension is a second quantity (bands, semitones), not the
+ * plot's y axis, so the lane has to name it itself — otherwise the strip is an
+ * unlabelled heatmap and only a hover tells you what a row is. The hover card names the
+ * same axis ([`DrilldownCard`](./DrilldownCard.tsx)), so the two cannot disagree.
+ */
+export function rowAxisText(grid: DrilldownGrid): string {
+  const first = grid.rowCentres[0];
+  const last = grid.rowCentres[grid.rows - 1];
+  if (grid.rows < 2 || !Number.isFinite(first) || !Number.isFinite(last)) return grid.rowLabel;
+  return `${grid.rowLabel} ${formatRow(first)} – ${formatRow(last)}`;
+}
+
+/**
  * The band × rate grid at one frame, or `null` when the tool has no rate spectrum or
  * the frame sits outside the grid. The domain covers the **whole** grid, not this frame,
  * so a card's colours do not re-normalise as the cursor moves.

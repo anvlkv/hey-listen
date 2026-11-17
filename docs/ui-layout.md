@@ -170,6 +170,13 @@ popover. See [`theming.md`](theming.md).
   anchor to — a `display: contents` wrapper puts every tooltip at the top-left) while
   staying layout-transparent: the wrapped control still fills/stretches exactly as it
   did unwrapped. (Static readouts and error/warning spans keep a native `title`.)
+  A hint may be **formatted**: the Sidebar's analyzer rows pass a
+  `components/MarkdownHint.tsx` — the About copy rendered by
+  `lib/markdown.ts` → `markdownSummary` (bold lead-ins as titles with a wide space,
+  paragraphs kept apart, trimmed to a character budget) through the same sanitizing
+  pipeline into `.tooltip-markdown` (the shared `.markdown-body` styles at the popup's
+  type scale) on a wider popup (`contentClass="tooltip-content-wide"`). The tool's About
+  popover keeps the full copy.
 - **About** (`src/components/AboutDialog.tsx`) — a modal opened from the Toolbar's
   `circle-question` button and from native **Help → About** (on macOS, the app menu),
   which emits `about` on `app:menu`. It carries the app identity and the **required

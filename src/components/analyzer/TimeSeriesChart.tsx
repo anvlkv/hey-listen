@@ -1,6 +1,7 @@
 import { SolidUplot } from "@dschz/solid-uplot";
 import type { UplotPluginFactory } from "@dschz/solid-uplot";
-import { cursor, tooltip } from "@dschz/solid-uplot/plugins";
+import { cursor } from "@dschz/solid-uplot/plugins";
+import { tooltip } from "./tooltipPlugins";
 import uPlot from "uplot";
 import { Show, createMemo, createSignal, untrack } from "solid-js";
 import { type UplotZoom } from "./uplotZoom";

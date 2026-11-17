@@ -2,7 +2,7 @@ import { createResource, createSignal, Show, type JSX } from "solid-js";
 import Popover from "../Popover";
 import CompareMenu from "./CompareMenu";
 import ExportMenu from "./ExportMenu";
-import { markdownSummary, renderMarkdown } from "../../lib/markdown";
+import { markdownPlain, renderMarkdown } from "../../lib/markdown";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 
 /**
@@ -84,7 +84,7 @@ export default function AnalyzerTab(props: {
             <div class="about-title">{def().title}</div>
             <Show
               when={aboutHtml()}
-              fallback={<p class="about-body">{markdownSummary(def().about)}</p>}
+              fallback={<p class="about-body">{markdownPlain(def().about)}</p>}
             >
               {(html) => (
                 <div
