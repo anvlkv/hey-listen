@@ -23,13 +23,14 @@
 //!                                                               ▼
 //! ```
 //!
-//! The server binds an ephemeral `127.0.0.1` port and advertises it (with a random
-//! token) in `mcp.json` under the app **data** dir. The `heylisten-mcp` bridge is a
-//! dumb byte pump between stdio and that socket, so the MCP protocol lives in one
-//! place (the app) and an agent always talks to the *running* project.
+//! The server binds a `127.0.0.1` port and publishes it — with the owning pid — in the
+//! MCP settings store ([`advertise`]). The `heylisten-mcp` bridge is a dumb byte pump
+//! between stdio and that socket, so the MCP protocol lives in one place (the app) and an
+//! agent always talks to the *running* project.
 //!
 //! See [`docs/mcp.md`](../../../docs/mcp.md).
 
+pub mod advertise;
 pub mod bridge;
 pub mod dispatch;
 pub mod headless;
@@ -49,8 +50,11 @@ use serde_json::Value;
 /// Event the core emits to a project window's frontend to run one MCP tool.
 pub const REQUEST_EVENT: &str = "mcp:request";
 
-/// File (in the app **data** dir) advertising the local server's port + token.
-pub const INFO_FILE: &str = "mcp.json";
+/// The first line the bridge sends, so the server can reject a connection that is not a
+/// Hey Listen bridge (a reused port). It is a protocol greeting, not a secret: the server
+/// is loopback-only, and a token stored beside the port in a world-readable file bought no
+/// additional protection.
+pub const HELLO: &str = "heylisten-mcp/1";
 
 /// Fallback protocol version when the client does not request one we recognise.
 /// The server echoes the client's requested version when it is present, so newer
@@ -90,16 +94,16 @@ const DISCOVER_GRACE: Duration = Duration::from_secs(20);
 /// **bridges** to it (UI following, as delivered); otherwise it runs the **core-native
 /// headless** server. Discovery keeps probing for [`DISCOVER_GRACE`], so a client started
 /// before the app (or while the app restarts) still bridges once the app advertises
-/// itself. A stale `mcp.json` (a crashed app) does not count — the endpoint is probed, and
-/// a refused connection falls back to headless (audit P2 #7). `force_headless`
-/// (`--headless`) skips the probe.
+/// itself. A stale advertisement (a crashed app) does not count — the recorded pid must be
+/// alive and the endpoint is probed, and a refused connection falls back to headless
+/// (audit P2 #7). `force_headless` (`--headless`) skips the probe.
 pub fn run(force_headless: bool) -> std::io::Result<()> {
     if !force_headless && bridge::wait_for_live(DISCOVER_GRACE) {
         match bridge::attach() {
             Ok(stream) => return bridge::pump_stdio(stream),
             // Discovery saw a live port but the app behind it would not take us — for
-            // example the old port now belongs to another process while `mcp.json` is
-            // stale. No client byte has been read yet (attach never touches stdin), so
+            // example the old port now belongs to another process while the store still
+            // names it. No client byte has been read yet (attach never touches stdin), so
             // serving headless is still safe and beats exiting.
             Err(err) => log::warn!("MCP bridge could not attach ({err}); serving headless"),
         }

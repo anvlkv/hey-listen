@@ -4,13 +4,13 @@
 //! speak MCP over its stdio. The actual server lives in the running Hey Listen
 //! process (so agent calls drive the user's window), so this bridge is a dumb byte
 //! pump: it reads the advertised endpoint (see [`endpoint`]), connects, sends the
-//! token, and forwards bytes both ways.
+//! protocol greeting, and forwards bytes both ways.
 //!
 //! ## Attaching, and where it ends
 //!
-//! [`attach`] retries for [`ATTACH_TIMEOUT`] — waiting for the advertisement, its port,
-//! and a fresh token — because an MCP client may be launched before the app, or while the
-//! app restarts after an update.
+//! [`attach`] retries for [`ATTACH_TIMEOUT`] — waiting for the advertisement, its pid and
+//! its port — because an MCP client may be launched before the app, or while the app
+//! restarts after an update.
 //!
 //! Once the pump has started the bridge **does not reconnect**. The MCP session state
 //! (`initialize`, capabilities, in-flight calls) lives in the app, not here; silently
@@ -26,10 +26,12 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
 
+use crate::mcp::HELLO;
+
 pub use endpoint::wait_for_live;
 
 /// How long an attach keeps retrying: for the advertisement to exist, its port to accept,
-/// and a rejected (stale-token) handshake to be replaced by the restarted app's.
+/// and a rejected handshake to be replaced by the restarted app's endpoint.
 const ATTACH_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// One `connect` attempt's budget (also bounded by the attach deadline).
@@ -38,7 +40,7 @@ const CONNECT_ATTEMPT: Duration = Duration::from_secs(2);
 /// How long to wait between connect attempts.
 const CONNECT_RETRY_PAUSE: Duration = Duration::from_millis(100);
 
-/// How long to wait between attach attempts (the app may still be rewriting `mcp.json`).
+/// How long to wait between attach attempts (the app may still be rewriting the store).
 const ATTACH_RETRY_PAUSE: Duration = Duration::from_millis(100);
 
 /// How long the bridge waits for the server to reject a handshake.
@@ -53,29 +55,32 @@ const HANDSHAKE_CHECK: Duration = Duration::from_millis(250);
 /// must not wait for it (audit P2 #9).
 const STDIN_GRACE: Duration = Duration::from_millis(500);
 
-/// Connect to the running app and complete the token handshake.
+/// Connect to the running app and complete the protocol greeting.
 ///
 /// The advertisement can be **stale for a moment** right after the app restarts: the
-/// file still describes the previous process, and the kernel often hands the same
-/// ephemeral port back, so the connection succeeds and then the token is rejected. That
-/// used to end the bridge — and with it the client's whole session, whose first request
-/// had not even been read from stdin yet. Retrying here is safe precisely because the
-/// client's bytes are still buffered in stdin (nothing has been forwarded), and the
-/// rejection itself is the signal to re-read the file.
+/// store still describes the previous process, and the kernel often hands the same
+/// ephemeral port back, so the connection succeeds and then the peer is not our server
+/// (or is the dying one). That used to end the bridge — and with it the client's whole
+/// session, whose first request had not even been read from stdin yet. Retrying here is
+/// safe precisely because the client's bytes are still buffered in stdin (nothing has
+/// been forwarded), and the rejection itself is the signal to re-read the store.
 pub fn attach() -> std::io::Result<TcpStream> {
-    attach_from(Instant::now() + ATTACH_TIMEOUT, endpoint::read_info)
+    attach_from(
+        Instant::now() + ATTACH_TIMEOUT,
+        endpoint::read_advertisement,
+    )
 }
 
 /// [`attach`] with an explicit deadline and advertisement source (the latter is the test
-/// seam for [`endpoint::read_info_at`]).
+/// seam for [`endpoint::read_advertisement_at`]).
 fn attach_from(
     deadline: Instant,
-    mut read: impl FnMut() -> std::io::Result<endpoint::Info>,
+    mut read: impl FnMut() -> std::io::Result<crate::mcp::advertise::Advertisement>,
 ) -> std::io::Result<TcpStream> {
     loop {
-        let attempt = read().and_then(|info| {
-            let stream = connect_until(info.port, deadline)?;
-            handshake(stream, &info.token)
+        let attempt = read().and_then(|advert| {
+            let stream = connect_until(advert.bound_port, deadline)?;
+            handshake(stream)
         });
         match attempt {
             Ok(stream) => return Ok(stream),
@@ -93,15 +98,15 @@ fn sleep_within(pause: Duration, deadline: Instant) {
     std::thread::sleep(pause.min(deadline.saturating_duration_since(Instant::now())));
 }
 
-/// Send the token and confirm the server kept the session.
+/// Send the greeting and confirm the server kept the session.
 ///
-/// The first line of the connection is the token (the server rejects a mismatch), after
+/// The first line of the connection is [`HELLO`] (the server rejects anything else), after
 /// which a healthy server stays silent until it has a response to write. So: peek for a
 /// moment — end of stream means the handshake was refused, silence means it was accepted.
 /// `peek` never consumes the byte, so a (not expected) early message is still forwarded.
-fn handshake(mut stream: TcpStream, token: &str) -> std::io::Result<TcpStream> {
+fn handshake(mut stream: TcpStream) -> std::io::Result<TcpStream> {
     stream.set_nodelay(true)?;
-    stream.write_all(token.as_bytes())?;
+    stream.write_all(HELLO.as_bytes())?;
     stream.write_all(b"\n")?;
     stream.flush()?;
 
@@ -110,7 +115,7 @@ fn handshake(mut stream: TcpStream, token: &str) -> std::io::Result<TcpStream> {
     let outcome = match stream.peek(&mut probe) {
         Ok(0) => Err(std::io::Error::new(
             std::io::ErrorKind::ConnectionRefused,
-            "the app refused the handshake (stale mcp.json?)",
+            "the app refused the handshake (a restarted app?)",
         )),
         Ok(_) => Ok(()),
         Err(err)

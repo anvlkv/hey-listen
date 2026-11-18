@@ -96,6 +96,11 @@ tauri-plugin-process = "2.4.0"
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+# A relaunch stops the previous instance that still owns the advertised MCP port
+# (`src/mcp/advertise.rs`): `kill(pid, 0/SIGTERM/SIGKILL)`.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 # macOS: declare the process user-initiated so App Nap cannot throttle it while the MCP
 # server or live capture runs in the background (see `src/app_activity.rs`). Both crates
 # are already in the tree via Tauri; this only turns on the `NSProcessInfo` API.

@@ -30,10 +30,17 @@ a local server as a `command` + `args` and speak MCP over its stdio.
 
 - The server is **off by default**. Turn it on from the Toolbar **MCP** popover
   (or `set_mcp_config`); it then binds a loopback port (the configured one, default
-  `47100`, falling back to a free port if that is taken) and advertises it (with a
-  random token) in `mcp.json` under the app **data** dir
-  (`~/Library/Application Support/com.anvlkv.heylisten/mcp.json` on macOS, beside the
-  `mcp-settings.json` store file). The file is removed when the server stops.
+  `47100`, falling back to a free port if that is taken) and publishes the bound port
+  with its own **pid** in the existing `mcp-settings.json` store file (the app data
+  dir; `~/Library/Application Support/com.anvlkv.heylisten/mcp-settings.json` on
+  macOS). There is no second advertisement file. The runtime keys are withdrawn when
+  the server stops.
+- **A relaunch owns the port.** The store records the pid that bound the port. When a
+  new app instance starts, `McpController::load` checks that pid: if it is alive, the
+  record names this build's own executable (the identity sentinel), and the record
+  advertises a bound port, the new instance terminates it (SIGTERM, then SIGKILL after
+  a short grace) before binding. An unrelated process whose pid happens to be reused
+  can never match the executable check, so it is never killed.
 - Every `tools/call` is forwarded to the **focused project window's** frontend as the
   `mcp:request` event (or to the window named by an optional `target` — see
   *Multi-project* below); the frontend confirms receipt (`mcp_ack`), runs the tool
@@ -49,20 +56,22 @@ a local server as a `command` + `args` and speak MCP over its stdio.
   timeout** (60 s in Zed): past that the client has already aborted and closed the
   bridge's stdin, so waiting longer only turns an actionable error into a dead session.
 - **Discovery waits for the app.** The stdio entry probes for a live endpoint for
-  `DISCOVER_GRACE` (20 s, `src-tauri/src/mcp/mod.rs`), re-reading `mcp.json` on every
-  attempt. That covers a client launched **before** the app and the window while a new
-  build relaunches after an update: the first look may find no file (or only the previous
-  process's), and the advertisement that appears later still wins. The budget stays under
-  a client's own startup timeout (60 s in Zed); `--headless` skips the wait.
-- **A stale advertisement is retried, not fatal.** Right after an app restart `mcp.json`
+  `DISCOVER_GRACE` (20 s, `src-tauri/src/mcp/mod.rs`), re-reading the store on every
+  attempt. An advertisement counts only when its pid is alive and its port answers on
+  loopback, so a crashed app's leftovers cannot capture discovery. That covers a client
+  launched **before** the app and the window while a new build relaunches after an
+  update: the first look may find no record (or only the previous process's), and the
+  advertisement that appears later still wins. The budget stays under a client's own
+  startup timeout (60 s in Zed); `--headless` skips the wait.
+- **A stale advertisement is retried, not fatal.** Right after an app restart the store
   can still describe the previous process while the kernel hands the same ephemeral port
-  back, so the connection opens and the token is refused. The bridge detects a refused
-  handshake (the server closes the socket; a good one stays silent until it has a reply
-  to write), re-reads the advertisement and tries again until `ATTACH_TIMEOUT` — safe
-  because the client's bytes are still unread in stdin at that point. The advertisement
-  is written to a temporary file and renamed into place, so a probe never reads a
-  half-written file. If discovery saw a live port that still refuses the handshake, the
-  entry falls back to the headless server (no client byte has been read yet).
+  back, so the connection opens and the peer refuses the greeting. The bridge sends the
+  `heylisten-mcp/1` greeting line (a protocol marker, not a secret), detects a refusal
+  (the server closes the socket; a good one stays silent until it has a reply to write),
+  re-reads the store and tries again until `ATTACH_TIMEOUT` — safe because the client's
+  bytes are still unread in stdin at that point. If discovery saw a live port that still
+  refuses the greeting, the entry falls back to the headless server (no client byte has
+  been read yet).
 - **No reconnect after the session starts.** The bridge is a byte pump; the MCP session
   (`initialize`, capabilities, in-flight calls) lives in the app. Re-attaching to a
   restarted app mid-session would hand its next request to a server that never saw the
@@ -244,26 +253,26 @@ projects with their comparisons visible. `target` and `display` are app-only.
 
 ## Protocol annotations
 
-- JSON-RPC 2.0, newline-delimited, over loopback TCP. The **first line is the token**
-  from `mcp.json`; after it, the stream is ordinary MCP framing (the same framing the
+- JSON-RPC 2.0, newline-delimited, over loopback TCP. The **first line is the greeting**
+  `heylisten-mcp/1`; after it, the stream is ordinary MCP framing (the same framing the
   bridge pumps over stdio). A minimal client is:
 
   ```python
-  sock = socket.create_connection(("127.0.0.1", info["port"]))
-  sock.sendall(info["token"].encode() + b"\n")
+  sock = socket.create_connection(("127.0.0.1", info["boundPort"]))
+  sock.sendall(b"heylisten-mcp/1\n")
   rpc("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
                     "clientInfo": {"name": "my-agent", "version": "1"}})
   notify("notifications/initialized")
   ```
 
-  Read the endpoint/token/pid/version from `mcp.json`; check the pid is alive before
-  connecting (a stale file is removed when the server stops, but a crash can leave it).
-  The stdio entry does this itself: auto mode bridges only to an endpoint that answers
-  on loopback, and falls back to the headless server when the advertisement is stale
-  (`--headless` skips the probe). The transport is bounded: a new connection has **10 s**
-  to present the token and a handshake line is capped at 256 bytes, each message line at
-  4 MiB, at most **8 sessions** run at once, and an idle authenticated session is closed
-  after 30 minutes.
+  Read `boundPort`/`pid`/`binary` from `mcp-settings.json`; check the pid is alive
+  before connecting (a crash can leave a record). The stdio entry does this itself: auto
+  mode bridges only to an endpoint whose pid is alive and that answers on loopback, and
+  falls back to the headless server when the advertisement is stale (`--headless` skips
+  the probe). The transport is bounded: a new connection has **10 s** to present the
+  greeting and a handshake line is capped at 256 bytes, each message line at 4 MiB, at
+  most **8 sessions** run at once, and an idle served session stays open until the
+  bridge closes it.
 - `initialize` echoes the client's requested `protocolVersion` (so newer clients
   negotiate their own revision) and advertises the `tools` capability only.
 - `tools/call` returns a `CallToolResult`: the payload as `content[0].text` (pretty
@@ -276,12 +285,13 @@ projects with their comparisons visible. `target` and `display` are app-only.
 ## Security
 
 - The server is **off by default** — nothing listens until the user enables it.
-- Nothing before the token is unbounded: the handshake has a deadline and a size cap,
+- Nothing before the greeting is unbounded: the handshake has a deadline and a size cap,
   every message line is capped, and the session count is limited, so a local peer cannot
-  hold threads or grow buffers without the token.
-- The endpoint binds `127.0.0.1` only and requires a random token (advertised in the
-  app data dir, readable by the user), so another local process cannot drive the app
-  casually. There is no network exposure.
+  hold threads or grow buffers.
+- The endpoint binds `127.0.0.1` only. There is no token: a secret written beside the
+  port in a user-readable file protected nothing (any local process that can read the
+  store could read it), so the greeting only identifies the protocol. There is no network
+  exposure; the boundary is the local user account, as the popover states.
 - The app drives the same commands the UI does; an agent cannot do anything the UI
   could not.
 - File pickers and the "replace source?" / "discard changes?" prompts still belong
@@ -294,8 +304,9 @@ projects with their comparisons visible. `target` and `display` are app-only.
 Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
 
 1. **In-app MCP control** — the Toolbar **MCP** popover:
-   - **On/off toggle, default off.** Off = no listener and no `mcp.json`, so the
-     bridge falls through to the headless server (or reports that MCP is off).
+   - **On/off toggle, default off.** Off = no listener and no published port in the
+     store, so the bridge falls through to the headless server (or reports that MCP is
+     off).
    - **Port input**, default `47100`; a busy port falls back to a free port and the
      popover shows an inline annotation (no `port_check` crate — the bind itself is the
      check).
@@ -424,9 +435,10 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 ## Limitations / deferred
 
-- **One app instance per data dir.** The advertised port is a single file, so two
-  simultaneously running instances would race for it (last writer wins). The bridge
-  connects to whoever last advertised.
+- **One app instance per data dir.** The advertisement is one store record, so two
+  simultaneously running instances would race for it (last writer wins). A relaunch
+  therefore terminates the previous instance that still advertises a bound port (see
+  *A relaunch owns the port* above), leaving exactly one owner.
 - **Headless is the compute + project subset.** `heylisten-mcp --headless` runs
   analyzers over files, enumerates devices, installs a compute filter
   (`set_filter_graph` with a `GraphSpec`), compares against a project file

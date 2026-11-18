@@ -37,7 +37,7 @@ fn the_pump_returns_after_the_socket_closes_with_stdin_open() {
         let mut reader = BufReader::new(stream.try_clone().expect("clone"));
         let mut hello = String::new();
         reader.read_line(&mut hello).expect("handshake");
-        assert_eq!(hello.trim(), "token");
+        assert_eq!(hello.trim(), HELLO);
         stream
             .try_clone()
             .expect("clone")
@@ -51,7 +51,7 @@ fn the_pump_returns_after_the_socket_closes_with_stdin_open() {
     let socket = TcpStream::connect(address).expect("connect");
     let sink = Sink(Arc::new(Mutex::new(Vec::new())));
     let started = Instant::now();
-    let socket = handshake(socket, "token").expect("the app accepts the token");
+    let socket = handshake(socket).expect("the app accepts the greeting");
     pump(socket, BlockedStdin, sink.clone()).expect("pump");
     assert!(
         started.elapsed() < Duration::from_secs(3),
@@ -69,8 +69,8 @@ fn pair(app: impl FnOnce(TcpStream) + Send + 'static) -> TcpStream {
     TcpStream::connect(address).expect("connect")
 }
 
-/// Read the token line the bridge sends.
-fn read_token(stream: &TcpStream) -> String {
+/// Read the greeting line the bridge sends.
+fn read_greeting(stream: &TcpStream) -> String {
     let mut line = String::new();
     BufReader::new(stream.try_clone().expect("clone"))
         .read_line(&mut line)
@@ -78,68 +78,78 @@ fn read_token(stream: &TcpStream) -> String {
     line.trim().to_string()
 }
 
-fn temp_info(name: &str) -> PathBuf {
+fn temp_store(name: &str) -> PathBuf {
     let path = std::env::temp_dir().join(name);
     let _ = std::fs::remove_file(&path);
     path
 }
 
-fn write_info(path: &Path, port: u16, token: &str) {
-    std::fs::write(path, format!("{{\"port\":{port},\"token\":\"{token}\"}}")).expect("write");
+fn write_advertisement(path: &Path, port: u16) {
+    std::fs::write(
+        path,
+        format!(
+            r#"{{"enabled":true,"port":0,"boundPort":{port},"pid":{},"binary":"{}"}}"#,
+            std::process::id(),
+            crate::mcp::advertise::current_binary().unwrap_or_default()
+        ),
+    )
+    .expect("write");
 }
 
-/// A healthy app stays silent after the token, so silence is acceptance.
+/// A healthy app stays silent after the greeting, so silence is acceptance.
 #[test]
 fn a_silent_handshake_is_accepted() {
     let socket = pair(|stream| {
-        assert_eq!(read_token(&stream), "token");
+        assert_eq!(read_greeting(&stream), HELLO);
         // Hold the session open, as the app does.
         std::thread::sleep(HANDSHAKE_CHECK * 3);
     });
-    let stream = handshake(socket, "token").expect("an accepted handshake returns the socket");
+    let stream = handshake(socket).expect("an accepted handshake returns the socket");
     // The read deadline must be cleared for the pump's blocking reads.
     assert!(stream.read_timeout().expect("timeout query").is_none());
 }
 
-/// A restarted app can be serving on the previous ephemeral port while `mcp.json` still
-/// carries the old token: the server closes the socket, and the bridge must see that as
-/// a refusal (so it re-reads the advertisement) instead of pumping into a dead session.
+/// A restarted app can be serving on the previous ephemeral port while the store still
+/// names the previous process: the server closes the socket, and the bridge must see that
+/// as a refusal (so it re-reads the advertisement) instead of pumping into a dead session.
 #[test]
 fn a_refused_handshake_is_reported() {
     let socket = pair(|stream| {
-        assert_eq!(read_token(&stream), "token");
+        assert_eq!(read_greeting(&stream), HELLO);
         stream.shutdown(Shutdown::Both).expect("the app refuses");
     });
-    assert!(handshake(socket, "token").is_err());
+    assert!(handshake(socket).is_err());
 }
 
-/// The relaunch case: the first attempt meets the previous process's token and is
-/// refused, the app then republishes with its own token, and the retry re-reads the file
-/// and attaches. Before the fix a fixed, tiny retry count could exhaust itself before
-/// the rewritten advertisement landed.
+/// The relaunch case: the first attempt meets the previous process (or another program
+/// on the reused port) and is refused, the app then republishes with its own endpoint,
+/// and the retry re-reads the store and attaches. Before the fix a fixed, tiny retry
+/// count could exhaust itself before the rewritten advertisement landed.
 #[test]
 fn attach_re_reads_a_rewritten_advertisement() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("address").port();
-    let path = temp_info("hey_listen_retry_mcp.json");
-    write_info(&path, port, "old");
+    let second = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let second_port = second.local_addr().expect("address").port();
+    let path = temp_store("hey_listen_retry_store.json");
+    write_advertisement(&path, port);
 
     let server_path = path.clone();
     let app = std::thread::spawn(move || {
-        // The first bridge connection carries the previous process's token. Republish
-        // (as the new app does in `setup`) before refusing it, so the retry reads it.
+        // The first bridge connection reaches the previous process. Republish (as the new
+        // app does in `setup`) before refusing it, so the retry reads the new endpoint.
         let (first, _) = listener.accept().expect("first accept");
-        assert_eq!(read_token(&first), "old");
-        write_info(&server_path, port, "new");
+        read_greeting(&first);
+        write_advertisement(&server_path, second_port);
         first.shutdown(Shutdown::Both).expect("refuse");
 
-        let (second, _) = listener.accept().expect("second accept");
-        assert_eq!(read_token(&second), "new");
+        let (second, _) = second.accept().expect("second accept");
+        assert_eq!(read_greeting(&second), HELLO);
         std::thread::sleep(HANDSHAKE_CHECK * 3);
     });
 
     let stream = attach_from(Instant::now() + Duration::from_secs(5), || {
-        endpoint::read_info_at(&path)
+        endpoint::read_advertisement_at(&path)
     })
     .expect("the retry attaches once the advertisement is rewritten");
     assert!(stream.read_timeout().expect("timeout query").is_none());
@@ -155,13 +165,13 @@ fn attach_re_reads_a_rewritten_advertisement() {
 fn attach_gives_up_at_its_deadline() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("address").port();
-    let path = temp_info("hey_listen_dead_mcp.json");
-    write_info(&path, port, "token");
+    let path = temp_store("hey_listen_dead_store.json");
+    write_advertisement(&path, port);
     drop(listener);
 
     let started = Instant::now();
     let error = attach_from(Instant::now() + Duration::from_millis(300), || {
-        endpoint::read_info_at(&path)
+        endpoint::read_advertisement_at(&path)
     })
     .expect_err("a dead endpoint cannot be attached");
     assert!(

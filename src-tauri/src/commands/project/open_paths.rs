@@ -2,7 +2,6 @@
 //! path filter. Split out of [`super`] for the source-size budget.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -19,14 +18,17 @@ const PROJECT_EXTENSION: &str = "heyl";
 /// Event carrying opened `.heyl` paths to a running frontend (file association).
 pub const OPEN_EVENT: &str = "app:open-project";
 
-/// `.heyl` paths requested before the frontend was ready (command line / macOS
-/// `open`). Drained by [`take_pending_open_paths`] — once, by the first window.
+/// `.heyl` paths requested before the frontend could take them (command line / macOS
+/// `open`). Drained by [`take_pending_open_paths`] whenever a window asks.
+///
+/// The queue is **re-drainable** on purpose. A request can arrive after a window's first
+/// drain yet before (or while) that window is listening; the OS-open path also delivers
+/// with a fire-and-forget `emit`. Leaving a late request queued means the next drain — a
+/// window focus, a new window — still opens it, where a one-shot drain would drop it for
+/// the rest of the process's life (the `.heyl` open regression).
 #[derive(Default)]
 pub struct OpenedFiles {
     pending: Mutex<Vec<String>>,
-    /// Set once the first frontend has drained the queue, so later windows (a new
-    /// project window) don't re-open paths that were already handled.
-    drained: AtomicBool,
 }
 
 /// Paths the OS delivered before `setup` ran. macOS hands a cold-launched app the
@@ -66,9 +68,6 @@ impl OpenedFiles {
     }
 
     fn take(&self) -> Vec<String> {
-        if self.drained.swap(true, Ordering::SeqCst) {
-            return Vec::new();
-        }
         std::mem::take(
             &mut *self
                 .pending
@@ -81,7 +80,13 @@ impl OpenedFiles {
 /// Drain the pending open-file requests (the frontend calls this on startup).
 #[tauri::command]
 pub fn take_pending_open_paths(state: State<'_, OpenedFiles>) -> Vec<String> {
-    state.take()
+    let paths = state.take();
+    // An OS-open that never reaches the frontend leaves no other trace: say that it was
+    // claimed, so a bug report can tell "never delivered" from "delivered and ignored".
+    if !paths.is_empty() {
+        log::info!("opening {} queued path(s)", paths.len());
+    }
+    paths
 }
 
 /// Remember a project file as recently used and refresh the File → Open Recent menu.
@@ -106,6 +111,7 @@ pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Ve
     if paths.is_empty() {
         return;
     }
+    log::info!("OS/file-association open request: {}", paths.join(", "));
     // Queue for the first frontend to drain (cold start / before any window listens).
     // On a cold launch the OS can deliver the request before `setup` manages this
     // state — `state()` would panic (and `panic = "abort"` turns that into SIGABRT),
@@ -125,10 +131,9 @@ pub fn handle_open_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Ve
             }
         }
     }
-    // If a window already exists, also route the request to the focused one.
+    // A window may already be listening — and if it is not yet, the queued copy above is
+    // drained when it is (the frontend also drains on focus, see `state/menu.ts`).
     if let Some(label) = focused_label(app) {
-        // A failed delivery leaves the file unopened: the request is queued above, so a
-        // restart still opens it, but nothing else would say why this window did not.
         if let Err(err) = app.emit_to(label.clone(), OPEN_EVENT, paths) {
             log::warn!("could not deliver an open request to {label}: {err}");
         }
@@ -163,4 +168,46 @@ fn has_extension(path: &str, extensions: &[&str]) -> bool {
         .and_then(|ext| ext.to_str())
         .map(|ext| extensions.iter().any(|want| ext.eq_ignore_ascii_case(want)))
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_openable_path, OpenedFiles};
+
+    fn path(name: &str) -> String {
+        format!("/tmp/{name}")
+    }
+
+    /// The regression: a request that arrives **after** the first frontend drained the
+    /// queue used to be dropped forever (the drain was one-shot), so double-clicking a
+    /// project while the app was coming up could open nothing. It must still be delivered
+    /// by the next drain.
+    #[test]
+    fn a_request_queued_after_a_drain_is_still_delivered() {
+        let files = OpenedFiles::default();
+        assert!(files.take().is_empty(), "the frontend's startup drain");
+
+        files.queue(path("analysis-example.heyl"));
+
+        assert_eq!(files.take(), vec![path("analysis-example.heyl")]);
+        assert!(files.take().is_empty(), "a drained request is not repeated");
+    }
+
+    /// The same path requested twice (macOS can repeat an open request) is queued once.
+    #[test]
+    fn a_repeated_request_is_queued_once() {
+        let files = OpenedFiles::default();
+        files.queue(path("a.heyl"));
+        files.queue(path("a.heyl"));
+        assert_eq!(files.take(), vec![path("a.heyl")]);
+    }
+
+    #[test]
+    fn only_project_and_audio_paths_are_openable() {
+        assert!(is_openable_path("/tmp/song.heyl"));
+        assert!(is_openable_path("/tmp/song.HEYL"));
+        assert!(is_openable_path("/tmp/song.wav"));
+        assert!(!is_openable_path("/tmp/notes.txt"));
+        assert!(!is_openable_path("/tmp/no-extension"));
+    }
 }

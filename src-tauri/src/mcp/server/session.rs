@@ -11,11 +11,11 @@ use serde_json::Value;
 
 use super::super::protocol;
 
-/// The largest handshake line (the token) accepted before authentication, in bytes.
+/// The largest handshake line (the greeting) accepted before serving, in bytes.
 const MAX_HANDSHAKE_LEN: usize = 256;
 /// The largest single JSON message (one newline-delimited line) accepted, in bytes.
 const MAX_MESSAGE_LEN: usize = 4 * 1024 * 1024;
-/// How long a new connection has to present the token before it is dropped.
+/// How long a new connection has to present the greeting before it is dropped.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// How many sessions may be open at once.
 const MAX_SESSIONS: usize = 8;
@@ -90,7 +90,6 @@ impl Drop for SessionPermit {
 /// without a Tauri app).
 fn serve_session<D: FnMut(&str, Value) -> Result<Value, String>>(
     stream: &TcpStream,
-    token: &str,
     limits: Limits,
     dispatch: &mut D,
 ) -> std::io::Result<()> {
@@ -104,12 +103,14 @@ fn serve_session<D: FnMut(&str, Value) -> Result<Value, String>>(
     let mut reader = BufReader::new(reader_stream);
     let mut writer = stream.try_clone()?;
 
-    // Handshake: the first line is the token the bridge read from `mcp.json`.
+    // Handshake: the first line is the bridge's greeting. It proves the peer speaks our
+    // protocol (a stale port may now belong to an unrelated process), not that the peer
+    // is authorized — the server is loopback-only.
     let Some(hello) = read_line_bounded(&mut reader, limits.max_handshake)? else {
         return Ok(());
     };
-    if hello.trim() != token {
-        log::warn!("MCP connection rejected: bad token (stale mcp.json?)");
+    if hello.trim() != crate::mcp::HELLO {
+        log::warn!("MCP connection rejected: not a Hey Listen bridge");
         return Ok(());
     }
 
@@ -170,10 +171,9 @@ fn read_line_bounded<R: BufRead>(reader: &mut R, max: usize) -> std::io::Result<
 /// `dispatch`.
 pub(super) fn serve<D: FnMut(&str, Value) -> Result<Value, String>>(
     stream: &TcpStream,
-    token: &str,
     dispatch: &mut D,
 ) -> std::io::Result<()> {
-    serve_session(stream, token, Limits::default(), dispatch)
+    serve_session(stream, Limits::default(), dispatch)
 }
 
 #[cfg(test)]
@@ -183,7 +183,7 @@ mod tests {
     use std::io::BufReader;
     use std::net::{TcpListener, TcpStream};
 
-    const TOKEN: &str = "test-token";
+    const HELLO: &str = crate::mcp::HELLO;
 
     fn pair() -> (TcpStream, TcpStream) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -210,7 +210,7 @@ mod tests {
     fn serve_in_background(server: TcpStream) -> std::thread::JoinHandle<std::io::Result<()>> {
         std::thread::spawn(move || {
             let mut dispatch = noop;
-            serve_session(&server, TOKEN, limits(), &mut dispatch)
+            serve_session(&server, limits(), &mut dispatch)
         })
     }
 
@@ -224,7 +224,7 @@ mod tests {
         let (server, client) = pair();
         let handle = serve_in_background(server);
         let mut writer = client_writer(&client);
-        writer.write_all(format!("{TOKEN}\n").as_bytes()).unwrap();
+        writer.write_all(format!("{HELLO}\n").as_bytes()).unwrap();
         writer
             .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n")
             .unwrap();
@@ -242,7 +242,7 @@ mod tests {
         let (server, client) = pair();
         let started = std::time::Instant::now();
         let mut dispatch = noop;
-        let result = serve_session(&server, TOKEN, limits(), &mut dispatch);
+        let result = serve_session(&server, limits(), &mut dispatch);
         assert!(result.is_err(), "a silent peer must not be served");
         assert!(started.elapsed() < Duration::from_secs(2));
         drop(client);
@@ -264,17 +264,17 @@ mod tests {
         let (server, client) = pair();
         let handle = serve_in_background(server);
         let mut writer = client_writer(&client);
-        writer.write_all(format!("{TOKEN}\n").as_bytes()).unwrap();
+        writer.write_all(format!("{HELLO}\n").as_bytes()).unwrap();
         writer.write_all(&vec![b'x'; 1024]).unwrap();
         assert!(handle.join().expect("join").is_err());
     }
 
     #[test]
-    fn a_bad_token_is_rejected_without_reading_messages() {
+    fn a_foreign_greeting_is_rejected_without_reading_messages() {
         let (server, client) = pair();
         let handle = serve_in_background(server);
         let mut writer = client_writer(&client);
-        writer.write_all(b"not-the-token\n").unwrap();
+        writer.write_all(b"not-a-hey-listen-bridge\n").unwrap();
         drop(writer);
         assert!(handle.join().expect("join").is_ok());
     }

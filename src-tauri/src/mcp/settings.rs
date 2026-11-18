@@ -1,10 +1,10 @@
 //! MCP settings + server lifecycle (the "in-app control" of the MCP follow-up).
 //!
-//! The persisted settings live in a `tauri-plugin-store` file under the app **data**
-//! dir (alongside the `mcp.json` advertisement). [`McpController`] is the single
-//! writer: `setup` loads the config and applies it, and the Toolbar popover reads /
-//! writes it only through the `get_mcp_status` / `set_mcp_config` commands, so the
-//! two never disagree.
+//! The persisted settings live in the `tauri-plugin-store` file under the app **data**
+//! dir; the same file carries the runtime advertisement ([`super::advertise`]: the bound
+//! port and the owning pid). [`McpController`] is the single writer: `setup` loads the
+//! config and applies it, and the Toolbar popover reads / writes it only through the
+//! `get_mcp_status` / `set_mcp_config` commands, so the two never disagree.
 //!
 //! The server itself is a blocking accept loop ([`super::server::accept_loop`]) with a
 //! shutdown flag, so `set_config` can **stop and rebind** without leaving a stale
@@ -22,10 +22,9 @@ use serde_json::json;
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_store::StoreExt;
 
+use super::advertise::{self, STORE_FILE};
 use super::{server, DEFAULT_PORT};
 
-/// The store file (under the app data dir) holding the MCP settings.
-const STORE_FILE: &str = "mcp-settings.json";
 const KEY_ENABLED: &str = "enabled";
 const KEY_PORT: &str = "port";
 
@@ -96,6 +95,15 @@ impl McpController {
     /// Load the persisted config, apply it (start the server when enabled), and
     /// return the controller. Called once in `setup`.
     pub fn load<R: Runtime>(app: &AppHandle<R>) -> Self {
+        // A relaunch must not leave the previous process serving the advertised port: it
+        // would keep the socket (this instance would fall back to another port) and the
+        // bridge would keep reading its advertisement. Stop it first; the identity check
+        // in `advertise::kill_stale` guarantees only this build's own instance is touched.
+        if let Some(pid) = advertise::kill_stale(app) {
+            log::warn!(
+                "stopped the previous Hey Listen instance (pid {pid}) so this one owns the MCP port"
+            );
+        }
         let config = read_config(app);
         let controller = Self::default();
         *lock(&controller.config) = config.clone();
@@ -142,7 +150,7 @@ impl McpController {
         self.status(app)
     }
 
-    /// Stop the server (and remove the advertisement). Safe to call when stopped.
+    /// Stop the server (and withdraw the advertisement). Safe to call when stopped.
     pub fn stop<R: Runtime>(&self, app: &AppHandle<R>) {
         let running = lock(&self.running).take();
         if let Some(mut running) = running {
@@ -150,7 +158,7 @@ impl McpController {
             // The accept thread is parked in a **blocking** `accept()`, which no flag can
             // interrupt — so wake it with a bare loopback connection: while `thread` is
             // `Some` the listener is bound, so this connect succeeds. It carries no
-            // token, so `serve` reads EOF and exits, and the loop re-checks the flag
+            // greeting, so `serve` reads EOF and exits, and the loop re-checks the flag
             // before spawning a session.
             let address = SocketAddr::from(([127, 0, 0, 1], running.port));
             let _ = TcpStream::connect_timeout(&address, WAKE_TIMEOUT);
@@ -158,7 +166,7 @@ impl McpController {
                 let _ = thread.join();
             }
         }
-        server::remove_info(app);
+        advertise::withdraw(app);
     }
 
     fn start<R: Runtime>(&self, app: &AppHandle<R>, config: &McpConfig) -> Result<(), String> {
@@ -167,18 +175,16 @@ impl McpController {
             .local_addr()
             .map(|address| address.port())
             .unwrap_or(0);
-        let token = server::generate_token();
-        server::write_info(app, bound, &token)
+        advertise::publish(app, bound)
             .map_err(|err| format!("could not advertise the MCP server: {err}"))?;
 
         let shutdown = Arc::new(AtomicBool::new(false));
         let thread = {
             let app = app.clone();
-            let token = token.clone();
             let shutdown = shutdown.clone();
             thread::Builder::new()
                 .name("mcp-server".into())
-                .spawn(move || server::accept_loop(app, listener, token, shutdown))
+                .spawn(move || server::accept_loop(app, listener, shutdown))
                 .map_err(|err| format!("could not start the MCP server thread: {err}"))?
         };
 

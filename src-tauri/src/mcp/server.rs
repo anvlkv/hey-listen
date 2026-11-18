@@ -1,7 +1,7 @@
 //! The local MCP endpoint: a `127.0.0.1` TCP server that speaks MCP.
 //!
-//! The server binds a loopback port and advertises it (with a random token) in
-//! [`INFO_FILE`] under the app **data** dir, then serves one MCP session per
+//! The server binds a loopback port and publishes it (with the owning pid) in the MCP
+//! settings store (see [`super::advertise`]), then serves one MCP session per
 //! connection. Every `tools/call` is forwarded to a **project window's** frontend
 //! over the `mcp:request` event; the frontend runs the tool against the same stores
 //! the UI uses and answers through the `mcp_respond` command. So the agent drives —
@@ -20,7 +20,6 @@
 mod session;
 
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::Arc;
@@ -30,7 +29,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::state::WindowRegistry;
 
-use super::{Pending, ACK_TIMEOUT, INFO_FILE, REQUEST_EVENT, RESPONSE_TIMEOUT};
+use super::{Pending, ACK_TIMEOUT, REQUEST_EVENT, RESPONSE_TIMEOUT};
 use session::Sessions;
 
 /// Serve the endpoint until `shutdown` is set.
@@ -45,11 +44,10 @@ use session::Sessions;
 ///
 /// Each accepted connection gets its own thread (an agent holds one session), up to
 /// [`session::MAX_SESSIONS`]; beyond that a connection is dropped without a thread, so a
-/// local peer cannot exhaust the process before it proves it has the token (audit P2 #6).
+/// local peer cannot exhaust the process before it completes the handshake (audit P2 #6).
 pub fn accept_loop<R: Runtime>(
     app: AppHandle<R>,
     listener: TcpListener,
-    token: String,
     shutdown: Arc<AtomicBool>,
 ) {
     // Guard the assumption below: a non-blocking listener would turn this into a spin.
@@ -73,29 +71,28 @@ pub fn accept_loop<R: Runtime>(
         if shutdown.load(Ordering::SeqCst) {
             break;
         }
-        // Bound the resource a local peer can take before it proves it has the token.
+        // Bound the resource a local peer can take before it completes the handshake.
         let Some(permit) = sessions.try_enter() else {
             log::warn!("MCP connection refused: too many sessions are already open");
             continue;
         };
         log::info!("MCP connection accepted");
         let app = app.clone();
-        let token = token.clone();
         let _ = std::thread::Builder::new()
             .name("mcp-conn".into())
             .spawn(move || {
                 let _permit = permit;
-                if let Err(err) = serve(app, stream, token) {
+                if let Err(err) = serve(app, stream) {
                     log::debug!("MCP connection ended: {err}");
                 }
             });
     }
 }
 
-/// Serve one MCP session: validate the token, then handle newline-delimited messages.
-fn serve<R: Runtime>(app: AppHandle<R>, stream: TcpStream, token: String) -> std::io::Result<()> {
+/// Serve one MCP session: validate the greeting, then handle newline-delimited messages.
+fn serve<R: Runtime>(app: AppHandle<R>, stream: TcpStream) -> std::io::Result<()> {
     let mut dispatch = |tool: &str, arguments: Value| dispatch(&app, tool, arguments);
-    session::serve(&stream, &token, &mut dispatch)
+    session::serve(&stream, &mut dispatch)
 }
 
 /// The message a call gets while the target window cannot answer it.
@@ -179,7 +176,7 @@ fn dispatch<R: Runtime>(
 }
 
 /// Stamp `get_state` with the server's mode and version, so an agent can tell a stale
-/// app from the build it expects without reading `mcp.json` or the log preamble.
+/// app from the build it expects without reading the store file or the log preamble.
 fn with_server_info(tool: &str, result: Value) -> Value {
     if tool != "get_state" {
         return result;
@@ -285,76 +282,7 @@ fn project_window(ui: &std::collections::HashMap<String, Value>) -> Value {
     }
 }
 
-// --- advertisement ---------------------------------------------------------
-
-/// Where the running app advertises its MCP endpoint (also read by the bridge).
-///
-/// The **data** dir (not the config dir) so the advertisement sits with the
-/// `tauri-plugin-store` settings file; on macOS the two resolve to the same path.
-pub fn info_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
-    app.path()
-        .app_data_dir()
-        .ok()
-        .map(|dir| dir.join(INFO_FILE))
-}
-
-/// Remove the advertisement (called when the server stops / the app exits, so a
-/// stale file cannot mislead the bridge).
-pub fn remove_info<R: Runtime>(app: &AppHandle<R>) {
-    if let Some(path) = info_path(app) {
-        let _ = std::fs::remove_file(path);
-    }
-}
-
-/// Write the current endpoint advertisement.
-///
-/// The listener is already **bound** when this runs (see [`super::settings::McpController`]),
-/// so a bridge that probes the port during or after the write always finds a listening
-/// socket; the kernel queues its connection until the accept loop is running.
-///
-/// The file is written to a temporary sibling and renamed into place: the bridge polls
-/// `mcp.json` (discovery and the stale-token retry both re-read it), and a plain
-/// truncating write would let a reader observe an empty or half-written file for a moment
-/// at startup and relaunch.
-pub fn write_info<R: Runtime>(app: &AppHandle<R>, port: u16, token: &str) -> std::io::Result<()> {
-    let path = info_path(app)
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no app data dir"))?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let info = json!({
-        "port": port,
-        "token": token,
-        "pid": std::process::id(),
-        "version": env!("CARGO_PKG_VERSION"),
-    });
-    let bytes = serde_json::to_vec_pretty(&info)?;
-    let temp = path.with_file_name(format!("{INFO_FILE}.{}.tmp", std::process::id()));
-    std::fs::write(&temp, bytes)?;
-    match std::fs::rename(&temp, &path) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            let _ = std::fs::remove_file(&temp);
-            Err(err)
-        }
-    }
-}
-
-/// A random-ish token so another local process cannot drive the app.
-pub fn generate_token() -> String {
-    use std::collections::hash_map::RandomState;
-    use std::hash::{BuildHasher, Hasher};
-
-    let mut hasher = RandomState::new().build_hasher();
-    hasher.write_u64(u64::from(std::process::id()));
-    hasher.write_u128(
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|elapsed| elapsed.as_nanos())
-            .unwrap_or(0),
-    );
-    format!("{:016x}{:08x}", hasher.finish(), std::process::id())
-}
+// --- bridge binary ---------------------------------------------------------
 
 /// The standalone `heylisten-mcp` bridge next to the app binary, when it exists (the
 /// binary is built alongside the app, not shipped inside the bundle).

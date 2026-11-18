@@ -233,11 +233,13 @@ milestone annotations record the details.
   (multiple windows, M7); choosing an **Open Recent** entry is re-emitted as
   `app:open-project`.
 - `app:open-project` — opened `.heyl` paths (file association); routed to the focused
-  window, or queued once for the first frontend if none is listening yet (M6, M7).
+  window and kept in a **re-drainable** queue until a frontend claims it (M6, M7).
   macOS delivers the open-documents Apple Event **before** `RunEvent::Ready` (which
   is when `setup` manages the queue), so `handle_open_paths` falls back to a
   process-level queue that `setup` adopts — calling `state()` that early would panic
-  (and the release profile is `panic = "abort"`).
+  (and the release profile is `panic = "abort"`). Because the emit is fire-and-forget,
+  the frontend also drains the queue when the window gains focus, so a request that
+  lands before the listener (or after the startup drain) is never dropped.
 - `ui-state` — one UI-state patch (`{ key, value, source }`) emitted to the project's
   **other** windows when `set_ui_state` changes a value (M7, ADR-11); the sender is
   skipped, and each receiver applies the patch to its stores.

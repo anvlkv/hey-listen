@@ -75,6 +75,15 @@ export async function stepProject(direction: -1 | 1): Promise<void> {
   await guarded(() => openAdjacentProject(direction));
 }
 
+/** Claim any OS/file-association paths the core is holding and open them. */
+async function drainOpenPaths(): Promise<void> {
+  try {
+    await openPaths(await invoke<string[]>("take_pending_open_paths"));
+  } catch (err) {
+    console.error("could not take the pending open paths", err);
+  }
+}
+
 /**
  * Open dropped/launched paths: a `.heyl` file loads that project, any other path
  * opens as a fresh project with the file as its source. Shared with drag-and-drop so
@@ -175,8 +184,16 @@ export async function initMenu() {
       void openPaths(event.payload);
     });
 
+    // The core keeps a request queued until a frontend claims it: an OS-open can arrive
+    // after this window's startup drain yet before (or while) its listener is live, and
+    // the Rust delivery is a fire-and-forget emit. Re-claim on activation (double-clicking
+    // a project in Finder activates the app), so a request can never be lost.
+    await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) void drainOpenPaths();
+    });
+
     // Files requested before this listener existed (command line / macOS open event).
-    await openPaths(await invoke<string[]>("take_pending_open_paths"));
+    await drainOpenPaths();
     // A window created at a specific project (the compare view's "Open reference",
     // M25.D) drains its path once, after the global launch queue.
     const own = await invoke<string | null>("take_window_open_path");

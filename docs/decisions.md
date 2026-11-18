@@ -232,9 +232,10 @@ its stdio. But the milestone requires **UI following**: the agent must drive —
 observe — the *running* project window, not a headless second copy of the app. A pure
 stdio process cannot reach the app's live state or its webview.
 
-**Decision:** the MCP **server runs inside the app process**. It binds an ephemeral
-`127.0.0.1` port, advertises it (with a random token) in `mcp.json` under the app
-data dir, and serves newline-delimited JSON-RPC. Each `tools/call` is forwarded to
+**Decision:** the MCP **server runs inside the app process**. It binds a
+`127.0.0.1` port, publishes the bound port and its own pid in the existing
+`mcp-settings.json` store file (no separate `mcp.json`, no token — a relaunch stops
+the previous owner of the recorded pid), and serves newline-delimited JSON-RPC. Each `tools/call` is forwarded to
 the focused project window's frontend as the `mcp:request` event; the frontend runs
 the tool against the same stores and `invoke` commands the UI uses and answers
 through the `mcp_respond` command, which completes the server's waiting channel. The
