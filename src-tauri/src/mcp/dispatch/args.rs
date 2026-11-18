@@ -300,10 +300,19 @@ pub(super) fn output_mode(args: &Value) -> Result<(Shape, Option<usize>, Axis), 
     } else {
         Shape::Compact
     };
-    let max_points = args
-        .get("maxPoints")
-        .and_then(Value::as_u64)
-        .map(|points| points as usize);
+    // A point cap only shapes returned arrays, so it is meaningless — and was silently
+    // dropped — unless the caller asked for them. A rejected value is never a no-op.
+    let max_points = match args.get("maxPoints") {
+        Some(value) if include_data => {
+            let points = value
+                .as_u64()
+                .filter(|points| *points > 0)
+                .ok_or("`maxPoints` must be a positive integer")?;
+            Some(points as usize)
+        }
+        Some(_) => return Err("`maxPoints` requires `includeData: true`".to_string()),
+        None => None,
+    };
     // Full results can spell uniform time axes compactly; the default keeps arrays.
     let axis = match args.get("axis").and_then(Value::as_str) {
         Some("compact") => Axis::Compact,

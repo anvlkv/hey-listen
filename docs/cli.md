@@ -95,7 +95,7 @@ hey-listen-cli <COMMAND>
 
 Commands:
   analyzers [ID] [--json]   List the analyzer catalog, or explain one analyzer
-  analyze  <FILE>...        Decode file(s) and run analyzer(s) over them
+  analyze  <FILE>...        Open audio file(s) or saved .heyl project(s) and run analyzers
   compare  <A.heyl> <B.heyl> Diff one analyzer across two project files
   project  <OUT.heyl>       Build a .heyl project (source + setup + tabs), no window
   synth    <GRAPH.json>     Render a synth graph and (optionally) analyze the result
@@ -115,7 +115,11 @@ hey-listen [--mcp] [--headless] [FILE.heyl]
 
 ### `analyze <FILE>...`
 
-Decode each file and run one or more analyzers over a window.
+Open each file and run one or more analyzers over a window. An input is an **audio file**
+(decoded as the source) or a **saved `.heyl` project** (its embedded/referenced source plus
+its saved window, shared params and per-tool options are loaded; the saved window is used
+when `--start`/`--end` are absent). `-p` / `-o` / `--filter` overrides are applied **after**
+loading, so they win over a project's saved setup.
 
 | Option | Meaning |
 | --- | --- |

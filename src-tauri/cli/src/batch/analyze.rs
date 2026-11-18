@@ -1,6 +1,8 @@
-//! `analyze` — decode each file in turn and run the requested tools over it.
+//! `analyze` — open each file in turn (an audio file, or a saved `.heyl` project) and run
+//! the requested tools over it.
 
 use std::io::Write;
+use std::path::Path;
 
 use serde_json::json;
 
@@ -11,8 +13,8 @@ use hey_listen_lib::mcp::dispatch::HeadlessSession;
 use super::output::emit;
 use super::types::Request;
 
-/// Decode each file in turn and run the requested tools over it (over each `--windows`
-/// entry when a window list was given).
+/// Open each file in turn (an audio file, or a saved `.heyl` project) and run the requested
+/// tools over it (over each `--windows` entry when a window list was given).
 pub(super) fn run_analyze(
     session: &mut HeadlessSession,
     request: &Request,
@@ -22,7 +24,13 @@ pub(super) fn run_analyze(
     let windows = resolve_windows(request, &tools);
     let mut failed = false;
     for file in &request.files {
-        if let Err(message) = session.dispatch("open_audio_file", json!({ "path": file })) {
+        let project = is_project_file(file);
+        let open = if project {
+            session.dispatch("open_project", json!({ "path": file }))
+        } else {
+            session.dispatch("open_audio_file", json!({ "path": file }))
+        };
+        if let Err(message) = open {
             emit(
                 out,
                 &json!({ "file": file, "error": message }),
@@ -33,6 +41,14 @@ pub(super) fn run_analyze(
                 return 1;
             }
             continue;
+        }
+        // `open_project` loads the `.heyl`'s saved setup; re-apply the CLI overrides
+        // (`--filter` / `-p` / `-o`) so they win over the saved values.
+        if project {
+            if let Err(message) = super::apply_setup_overrides(session, request) {
+                eprintln!("hey-listen: {message}");
+                return 2;
+            }
         }
         for (start, end, window_tools) in &windows {
             if run_tools(session, request, window_tools, file, *start, *end, out).is_err() {
@@ -153,4 +169,11 @@ pub(super) fn run_tools(
     } else {
         Ok(())
     }
+}
+
+/// Whether `path` names a `.heyl` project file (case-insensitive) rather than an audio file.
+fn is_project_file(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("heyl"))
 }

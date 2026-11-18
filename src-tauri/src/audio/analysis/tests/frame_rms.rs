@@ -57,12 +57,18 @@ fn frame_rms_short_window_still_yields_one_value() {
 #[test]
 fn frame_rms_echoes_the_configured_frame_and_hop() {
     let mono = sine(1_000.0, 0.5);
-    let result = run_frame_rms(&mono, &frame_rms_options(20.0, 10.0));
+    let options = frame_rms_options(20.0, 10.0);
+    let result = run_frame_rms(&mono, &options);
     // 20 ms / 10 ms at 48 kHz → 960 / 480 samples.
     assert_eq!(result.frame_size, Some(960));
     assert_eq!(result.hop_size, 480);
     // 24 000 samples with a 960-sample frame on a 480-sample hop: 49 frames.
     assert_eq!(result.frames, 49);
+    // The requested hop ran as asked, so the response reports no widening.
+    assert_eq!(
+        widened_hop_from(&AnalysisResult::FrameRms(result.clone()), &options),
+        None
+    );
     // The effective frame / hop also survive the wire form (MCP / CLI / project).
     let wire = serde_json::to_value(&result).expect("serialize");
     assert_eq!(wire["frameSize"], 960);
@@ -106,9 +112,17 @@ fn frame_rms_centre_of_an_aligned_tail_is_reported_honestly() {
 fn frame_rms_reports_a_widened_hop_that_leaves_gaps() {
     // 0.1 ms frames on a 0.05 ms hop, over 1.5 s: the frame cap widens the hop past
     // the frame, so frames no longer tile the signal and samples between them are
-    // unmeasured. The result reports the effective (wider) hop.
+    // unmeasured. The result reports the effective (wider) hop, and the response says
+    // which hop was asked for.
     let mono = sine(1_000.0, 1.5);
-    let result = run_frame_rms(&mono, &frame_rms_options(0.1, 0.05));
+    let options = frame_rms_options(0.1, 0.05);
+    let outcome =
+        run(AnalyzerId::FrameRms, &mono, RATE, &params(2048), &options).expect("frame rms");
+    // 0.05 ms at 48 kHz is 2 samples: the requested hop, before the widening.
+    assert_eq!(widened_hop_from(&outcome, &options), Some(2));
+    let AnalysisResult::FrameRms(result) = outcome else {
+        panic!("unexpected result")
+    };
     let frame = result.frame_size.expect("a frame size");
     assert_eq!(frame, 5);
     assert!(
@@ -124,6 +138,11 @@ fn frame_rms_reports_a_widened_hop_that_leaves_gaps() {
         let expected = result.hop_size as f32 / RATE as f32;
         assert!((interval - expected).abs() < 1e-6, "interval {interval}");
     }
+    // The hint is response-only: `hopSize` stays the effective hop, and the result itself
+    // gains no field to store.
+    let wire = serde_json::to_value(&result).expect("serialize");
+    assert_eq!(wire["hopSize"], result.hop_size);
+    assert!(wire.get("hopWidenedFromSamples").is_none());
 }
 
 #[test]

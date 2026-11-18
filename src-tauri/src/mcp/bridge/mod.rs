@@ -5,17 +5,41 @@
 //! process (so agent calls drive the user's window), so this bridge is a dumb byte
 //! pump: it reads the advertised endpoint (see [`endpoint`]), connects, sends the
 //! token, and forwards bytes both ways.
+//!
+//! ## Attaching, and where it ends
+//!
+//! [`attach`] retries for [`ATTACH_TIMEOUT`] — waiting for the advertisement, its port,
+//! and a fresh token — because an MCP client may be launched before the app, or while the
+//! app restarts after an update.
+//!
+//! Once the pump has started the bridge **does not reconnect**. The MCP session state
+//! (`initialize`, capabilities, in-flight calls) lives in the app, not here; silently
+//! re-attaching to a restarted app would deliver the client's next request to a fresh
+//! server that never saw its `initialize`. So when the app's socket closes the bridge
+//! returns and exits promptly, and the client relaunches it for the next session.
 
 mod endpoint;
+#[cfg(test)]
+mod tests;
 
 use std::io::{Read, Write};
-use std::net::{Shutdown, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
 
 pub use endpoint::wait_for_live;
 
-/// How long to wait for the app to advertise itself before giving up.
-const DISCOVER_TIMEOUT: Duration = Duration::from_secs(15);
+/// How long an attach keeps retrying: for the advertisement to exist, its port to accept,
+/// and a rejected (stale-token) handshake to be replaced by the restarted app's.
+const ATTACH_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// One `connect` attempt's budget (also bounded by the attach deadline).
+const CONNECT_ATTEMPT: Duration = Duration::from_secs(2);
+
+/// How long to wait between connect attempts.
+const CONNECT_RETRY_PAUSE: Duration = Duration::from_millis(100);
+
+/// How long to wait between attach attempts (the app may still be rewriting `mcp.json`).
+const ATTACH_RETRY_PAUSE: Duration = Duration::from_millis(100);
 
 /// How long the bridge waits for the server to reject a handshake.
 ///
@@ -24,22 +48,10 @@ const DISCOVER_TIMEOUT: Duration = Duration::from_secs(15);
 /// them apart, and it is worth the short wait: see [`handshake`].
 const HANDSHAKE_CHECK: Duration = Duration::from_millis(250);
 
-/// How many times a rejected handshake is retried from a freshly read advertisement.
-const HANDSHAKE_ATTEMPTS: usize = 4;
-
-/// How long to wait between handshake attempts (the app may still be rewriting `mcp.json`).
-const HANDSHAKE_RETRY_PAUSE: Duration = Duration::from_millis(100);
-
 /// How long to wait for the stdin forwarding thread after the socket closes. A normal MCP
 /// client keeps stdin open, so that thread can stay blocked in `read` forever; the bridge
 /// must not wait for it (audit P2 #9).
 const STDIN_GRACE: Duration = Duration::from_millis(500);
-
-/// Run the bridge until stdin or the socket closes.
-pub fn run() -> std::io::Result<()> {
-    let stream = connect_live()?;
-    pump(stream, std::io::stdin(), std::io::stdout())
-}
 
 /// Connect to the running app and complete the token handshake.
 ///
@@ -50,21 +62,35 @@ pub fn run() -> std::io::Result<()> {
 /// had not even been read from stdin yet. Retrying here is safe precisely because the
 /// client's bytes are still buffered in stdin (nothing has been forwarded), and the
 /// rejection itself is the signal to re-read the file.
-fn connect_live() -> std::io::Result<TcpStream> {
-    let mut attempt = 1;
+pub fn attach() -> std::io::Result<TcpStream> {
+    attach_from(Instant::now() + ATTACH_TIMEOUT, endpoint::read_info)
+}
+
+/// [`attach`] with an explicit deadline and advertisement source (the latter is the test
+/// seam for [`endpoint::read_info_at`]).
+fn attach_from(
+    deadline: Instant,
+    mut read: impl FnMut() -> std::io::Result<endpoint::Info>,
+) -> std::io::Result<TcpStream> {
     loop {
-        let info = read_advertisement()?;
-        let stream = connect(info.port)?;
-        match handshake(stream, &info.token) {
+        let attempt = read().and_then(|info| {
+            let stream = connect_until(info.port, deadline)?;
+            handshake(stream, &info.token)
+        });
+        match attempt {
             Ok(stream) => return Ok(stream),
-            Err(err) if attempt >= HANDSHAKE_ATTEMPTS => return Err(err),
-            Err(err) => log::warn!(
-                "MCP handshake rejected ({err}); re-reading the advertisement and retrying"
-            ),
+            Err(err) if Instant::now() < deadline => {
+                log::warn!("MCP attach attempt failed ({err}); retrying");
+                sleep_within(ATTACH_RETRY_PAUSE, deadline);
+            }
+            Err(err) => return Err(err),
         }
-        attempt += 1;
-        std::thread::sleep(HANDSHAKE_RETRY_PAUSE);
     }
+}
+
+/// Sleep for `pause`, but never past `deadline`.
+fn sleep_within(pause: Duration, deadline: Instant) {
+    std::thread::sleep(pause.min(deadline.saturating_duration_since(Instant::now())));
 }
 
 /// Send the token and confirm the server kept the session.
@@ -154,146 +180,35 @@ fn pump(
     Ok(())
 }
 
-/// Read the advertised endpoint, waiting briefly for the app to publish it (the
-/// server may be added while the app is still starting).
-fn read_advertisement() -> std::io::Result<endpoint::Info> {
-    let deadline = Instant::now() + DISCOVER_TIMEOUT;
-    loop {
-        match endpoint::read_info() {
-            Ok(info) => return Ok(info),
-            Err(err) if Instant::now() < deadline => {
-                // Keep waiting: the app is probably still starting up.
-                let _ = err;
-                std::thread::sleep(Duration::from_millis(200));
-            }
-            Err(err) => return Err(err),
-        }
-    }
+/// Run the byte pump over the process's real stdio, against an attached app socket.
+///
+/// Returns when stdin or the socket closes; the caller then exits (see the module doc for
+/// why this is not reconnected).
+pub fn pump_stdio(stream: TcpStream) -> std::io::Result<()> {
+    pump(stream, std::io::stdin(), std::io::stdout())
 }
 
-/// Connect to the advertised port, retrying briefly (the listener may be a moment
-/// behind the file write).
-fn connect(port: u16) -> std::io::Result<TcpStream> {
-    let address = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let deadline = Instant::now() + Duration::from_secs(5);
+/// Connect to the advertised port, retrying until `deadline` (the listener may be a
+/// moment behind the file write, and a restarted app may briefly refuse).
+fn connect_until(port: u16, deadline: Instant) -> std::io::Result<TcpStream> {
+    let address = SocketAddr::from(([127, 0, 0, 1], port));
+    let mut last: Option<std::io::Error> = None;
     loop {
-        match TcpStream::connect_timeout(&address, Duration::from_secs(2)) {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match TcpStream::connect_timeout(&address, CONNECT_ATTEMPT.min(remaining)) {
             Ok(stream) => return Ok(stream),
-            Err(err) if Instant::now() < deadline => {
-                let _ = err;
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            Err(err) => {
-                return Err(std::io::Error::new(
-                    err.kind(),
-                    format!("could not connect to Hey Listen on 127.0.0.1:{port}: {err}"),
-                ))
-            }
+            Err(err) => last = Some(err),
         }
+        sleep_within(CONNECT_RETRY_PAUSE, deadline);
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::{BufRead, BufReader};
-    use std::net::TcpListener;
-    use std::sync::{Arc, Mutex};
-
-    /// A client that keeps stdin open must not keep the bridge alive after the app closes
-    /// its socket (audit P2 #9).
-    #[test]
-    fn the_pump_returns_after_the_socket_closes_with_stdin_open() {
-        struct BlockedStdin;
-        impl Read for BlockedStdin {
-            fn read(&mut self, _buffer: &mut [u8]) -> std::io::Result<usize> {
-                std::thread::sleep(Duration::from_secs(30));
-                Ok(0)
-            }
-        }
-
-        #[derive(Clone)]
-        struct Sink(Arc<Mutex<Vec<u8>>>);
-        impl Write for Sink {
-            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-                self.0.lock().expect("sink").extend_from_slice(bytes);
-                Ok(bytes.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        let address = listener.local_addr().expect("address");
-        let app = std::thread::spawn(move || {
-            let (stream, _) = listener.accept().expect("accept");
-            let mut reader = BufReader::new(stream.try_clone().expect("clone"));
-            let mut hello = String::new();
-            reader.read_line(&mut hello).expect("handshake");
-            assert_eq!(hello.trim(), "token");
-            stream
-                .try_clone()
-                .expect("clone")
-                .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n")
-                .expect("reply");
-            stream
-                .shutdown(Shutdown::Both)
-                .expect("the app closes the session");
-        });
-
-        let socket = TcpStream::connect(address).expect("connect");
-        let sink = Sink(Arc::new(Mutex::new(Vec::new())));
-        let started = Instant::now();
-        let socket = handshake(socket, "token").expect("the app accepts the token");
-        pump(socket, BlockedStdin, sink.clone()).expect("pump");
-        assert!(
-            started.elapsed() < Duration::from_secs(3),
-            "the bridge waited for the blocked stdin reader"
-        );
-        assert!(String::from_utf8_lossy(&sink.0.lock().expect("sink")).contains("result"));
-        app.join().expect("app thread");
-    }
-
-    /// Serve one connection with `app`, returning the client end of the pair.
-    fn pair(app: impl FnOnce(TcpStream) + Send + 'static) -> TcpStream {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        let address = listener.local_addr().expect("address");
-        std::thread::spawn(move || app(listener.accept().expect("accept").0));
-        TcpStream::connect(address).expect("connect")
-    }
-
-    /// Read the token line the bridge sends.
-    fn read_token(stream: &TcpStream) -> String {
-        let mut line = String::new();
-        BufReader::new(stream.try_clone().expect("clone"))
-            .read_line(&mut line)
-            .expect("handshake");
-        line.trim().to_string()
-    }
-
-    /// A healthy app stays silent after the token, so silence is acceptance.
-    #[test]
-    fn a_silent_handshake_is_accepted() {
-        let socket = pair(|stream| {
-            assert_eq!(read_token(&stream), "token");
-            // Hold the session open, as the app does.
-            std::thread::sleep(HANDSHAKE_CHECK * 3);
-        });
-        let stream = handshake(socket, "token").expect("an accepted handshake returns the socket");
-        // The read deadline must be cleared for the pump's blocking reads.
-        assert!(stream.read_timeout().expect("timeout query").is_none());
-    }
-
-    /// A restarted app can be serving on the previous ephemeral port while `mcp.json` still
-    /// carries the old token: the server closes the socket, and the bridge must see that as
-    /// a refusal (so it re-reads the advertisement) instead of pumping into a dead session.
-    #[test]
-    fn a_refused_handshake_is_reported() {
-        let socket = pair(|stream| {
-            assert_eq!(read_token(&stream), "token");
-            stream.shutdown(Shutdown::Both).expect("the app refuses");
-        });
-        assert!(handshake(socket, "token").is_err());
-    }
+    let err = last.unwrap_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::TimedOut, "the attach deadline passed")
+    });
+    Err(std::io::Error::new(
+        err.kind(),
+        format!("could not connect to Hey Listen on 127.0.0.1:{port}: {err}"),
+    ))
 }

@@ -20,6 +20,17 @@ and a `result` shaped by the requested mode.
 You should not need the Hey Listen source — the MCP tool list + `get_state` + this skill
 are the surface.
 
+## MCP tools vs the CLI — read this first
+
+Drive Hey Listen with **MCP tool calls** — the tools in your tool list (`run_analysis`,
+`open_tool`, `set_analysis_window`, `get_state`, `set_shared_params`, …). Call them
+directly.
+
+The **batch CLI** (`hey-listen-cli …`) is a *separate shell binary*, run from a **terminal**
+for headless batch/CI. It is **not** an MCP tool: don't try to "call" it, and don't paste CLI
+command text into your reply instead of acting. You never need the CLI to drive an open
+project — if a project is open in the app, use the MCP tools.
+
 ## Pick an interface
 
 | Need | Use |
@@ -29,8 +40,8 @@ are the surface.
 | Analyze files, nothing open | MCP **headless** (auto-fallback) |
 | Build a `.heyl` (source, setup, tabs, annotations) | MCP headless `save_project`, or CLI `project` |
 | Compare two projects | MCP `compare_analysis`, or CLI `compare` |
-| Bulk-analyze files (shell/CI) | **Batch CLI** |
-| Read/edit annotations in a saved `.heyl` | CLI `annotations` |
+| Bulk-analyze files (shell/CI) | **Batch CLI** (run in a terminal) |
+| Read/edit annotations in a saved `.heyl` | CLI `annotations` (run in a terminal) |
 
 ## Cheapest-first rule
 

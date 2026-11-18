@@ -75,22 +75,34 @@ pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(50);
 /// The default loopback port for the local MCP server (the popover shows / edits it).
 pub const DEFAULT_PORT: u16 = 47100;
 
-/// How long the stdio entry waits for a running app to advertise itself before
-/// falling back to the headless server. Kept short so `heylisten-mcp` used as a
-/// GUI-less CLI starts promptly; a running, MCP-enabled app writes `mcp.json` in
-/// `setup`, so it is present almost immediately.
-const DISCOVER_GRACE: Duration = Duration::from_millis(1200);
+/// How long the stdio entry waits for a running app to advertise a live endpoint before
+/// falling back to the headless server.
+///
+/// It must outlast a normal app start **and** a relaunch after an update: the MCP client
+/// launches this process, not the app, so it may well be first. Kept under an MCP client's
+/// own startup timeout (60 s in Zed) so a wait never outlives the `initialize` it is
+/// holding up. `--headless` skips the wait entirely.
+const DISCOVER_GRACE: Duration = Duration::from_secs(20);
 
 /// The MCP **stdio entry** shared by `hey-listen --mcp` and `heylisten-mcp`.
 ///
 /// Auto-detects: when a running, MCP-enabled app is advertising a **live** endpoint, it
 /// **bridges** to it (UI following, as delivered); otherwise it runs the **core-native
-/// headless** server. A stale `mcp.json` (a crashed app) does not count — the endpoint is
-/// probed, and a refused connection falls back to headless (audit P2 #7).
-/// `force_headless` (`--headless`) skips the probe.
+/// headless** server. Discovery keeps probing for [`DISCOVER_GRACE`], so a client started
+/// before the app (or while the app restarts) still bridges once the app advertises
+/// itself. A stale `mcp.json` (a crashed app) does not count — the endpoint is probed, and
+/// a refused connection falls back to headless (audit P2 #7). `force_headless`
+/// (`--headless`) skips the probe.
 pub fn run(force_headless: bool) -> std::io::Result<()> {
     if !force_headless && bridge::wait_for_live(DISCOVER_GRACE) {
-        return bridge::run();
+        match bridge::attach() {
+            Ok(stream) => return bridge::pump_stdio(stream),
+            // Discovery saw a live port but the app behind it would not take us — for
+            // example the old port now belongs to another process while `mcp.json` is
+            // stale. No client byte has been read yet (attach never touches stdin), so
+            // serving headless is still safe and beats exiting.
+            Err(err) => log::warn!("MCP bridge could not attach ({err}); serving headless"),
+        }
     }
     headless::run()
 }

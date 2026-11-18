@@ -103,7 +103,8 @@ fn initialize_result(params: &Value) -> Value {
                          the ids and `get_analyzer` before guessing option keys, ranges, or \
                          summary keys. For a quick answer run `run_analysis` with \
                          `summaryOnly: true`; the default result is compact, and `includeData` \
-                         returns raw arrays (`maxPoints` thins series **and matrix** arrays, \
+                         returns raw arrays (`maxPoints` requires `includeData: true` and thins \
+                         series **and matrix** arrays, \
                          keeping first/last points; it never thins event or note lists, so it is \
                          safe — just useless — for `noteMetrics`/`onsets`; `axis: \"compact\"` \
                          replaces a `times` array with `{ start, hop, length, end }`). Set \
@@ -368,7 +369,9 @@ mod tests {
             .expect("instructions")
             .to_string();
         assert!(
-            instructions.contains("never thins") && instructions.contains("matrix"),
+            instructions.contains("never thins")
+                && instructions.contains("matrix")
+                && instructions.contains("`maxPoints` requires `includeData: true`"),
             "stale maxPoints guidance: {instructions}"
         );
         assert!(!instructions.contains("thins series only"));

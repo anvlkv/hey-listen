@@ -31,6 +31,9 @@ pub use summary::*;
 pub use tools::*;
 pub use types::*;
 
+/// The `frameRms` widening as a **response-only** hint (see [`widened_hop_from`]).
+pub(crate) use support::widened_hop_from;
+
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::graph::{self, GraphSpec};
 use crate::audio::pcm;

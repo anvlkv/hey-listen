@@ -58,18 +58,7 @@ fn run_frame_rms_applies_its_option_patch() {
         vec!["frameRms".into()],
     );
     // `-o frameRms.frameMs=20 -o frameRms.hopMs=10` at 8 kHz → 160 / 80 samples.
-    request.options = vec![
-        OptionPatch {
-            tool: hey_listen_lib::audio::analyzers::AnalyzerId::FrameRms,
-            key: "frameMs".into(),
-            value: json!(20),
-        },
-        OptionPatch {
-            tool: hey_listen_lib::audio::analyzers::AnalyzerId::FrameRms,
-            key: "hopMs".into(),
-            value: json!(10),
-        },
-    ];
+    request.options = frame_rms_patch();
 
     let mut out = Vec::new();
     assert_eq!(run(&request, &mut out), 0);
@@ -326,4 +315,46 @@ fn run_reports_a_synth_source_when_no_tool_is_given() {
     assert_eq!(value["file"], path);
     assert_eq!(value["source"]["sampleRate"], 48_000);
     let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn run_analyzes_a_saved_project_file_with_option_overrides() {
+    let path = super::compare::write_project_file(
+        &format!("hey_listen_cli_analyze_project_{}.heyl", std::process::id()),
+        1.0,
+        (0.0, 0.5),
+    );
+    let mut request = analyze_request(vec![path.clone()], vec!["frameRms".into()]);
+    // The patch must win over the project's saved (empty) options.
+    request.options = frame_rms_patch();
+
+    let mut out = Vec::new();
+    assert_eq!(run(&request, &mut out), 0);
+    let values = lines(&out);
+    assert_eq!(values.len(), 1);
+    assert_eq!(values[0]["file"], path);
+    assert_eq!(values[0]["result"]["tool"], "frameRms");
+    // The project's saved window is used when `--start`/`--end` are absent.
+    assert_eq!(values[0]["window"]["start"].as_f64(), Some(0.0));
+    assert_eq!(values[0]["window"]["end"].as_f64(), Some(0.5));
+    assert_eq!(values[0]["result"]["frameSize"], 160);
+    assert_eq!(values[0]["result"]["hopSize"], 80);
+    let _ = std::fs::remove_file(&path);
+}
+
+/// The `-o frameRms.frameMs=20 -o frameRms.hopMs=10` patch shared by the frame-RMS tests
+/// (20 ms / 10 ms at 8 kHz → 160 / 80 samples).
+fn frame_rms_patch() -> Vec<OptionPatch> {
+    vec![
+        OptionPatch {
+            tool: hey_listen_lib::audio::analyzers::AnalyzerId::FrameRms,
+            key: "frameMs".into(),
+            value: json!(20),
+        },
+        OptionPatch {
+            tool: hey_listen_lib::audio::analyzers::AnalyzerId::FrameRms,
+            key: "hopMs".into(),
+            value: json!(10),
+        },
+    ]
 }

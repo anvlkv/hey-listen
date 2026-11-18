@@ -100,3 +100,38 @@ fn a_valid_override_still_applies() {
     assert_eq!(value["options"]["frameMs"], 20.0);
     assert_eq!(value["options"]["hopMs"], 10.0);
 }
+
+#[test]
+fn run_analysis_rejects_a_mis_scoped_max_points() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 0.5 }),
+        )
+        .unwrap();
+
+    // A point cap shapes returned arrays only: with no arrays asked for, rejecting it is
+    // better than silently dropping it.
+    for args in [
+        json!({ "tool": "spectrum", "maxPoints": 8 }),
+        json!({ "tool": "spectrum", "summaryOnly": true, "maxPoints": 8 }),
+    ] {
+        let error = session.dispatch("run_analysis", args).unwrap_err();
+        assert!(error.contains("requires `includeData: true`"), "{error}");
+    }
+
+    // A cap that is not a positive integer is an error, not a silent `None`.
+    for value in [json!(0), json!(1.5), json!("8")] {
+        let error = session
+            .dispatch(
+                "run_analysis",
+                json!({ "tool": "spectrum", "includeData": true, "maxPoints": value }),
+            )
+            .unwrap_err();
+        assert!(error.contains("positive integer"), "{error}");
+    }
+
+    // The well-scoped form still decimates.
+    assert_spectrum_max_points_decimates(&mut session);
+}

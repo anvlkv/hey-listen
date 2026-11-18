@@ -91,35 +91,12 @@ fn run_request(request: &Request, out: &mut impl Write) -> i32 {
         return 1;
     }
 
-    // The --filter graph conditions the signal before analysis, through the same
-    // headless `set_filter_graph` tool the MCP server exposes.
-    if let Some(filter) = &request.filter {
-        let graph = serde_json::to_value(filter).unwrap_or(Value::Null);
-        if let Err(message) = session.dispatch(
-            "set_filter_graph",
-            json!({ "graph": graph, "enabled": true }),
-        ) {
-            eprintln!("hey-listen: {message}");
-            return 2;
-        }
-    }
-
-    // Shared params and per-tool options persist on the session across files/tools.
-    if !request.params.is_empty() {
-        let params: Map<String, Value> = request.params.iter().cloned().collect();
-        if let Err(message) = session.dispatch("set_shared_params", json!({ "params": params })) {
-            eprintln!("hey-listen: {message}");
-            return 2;
-        }
-    }
-    for patch in &request.options {
-        let mut options = Map::new();
-        options.insert(patch.key.clone(), patch.value.clone());
-        let args = json!({ "tool": patch.tool, "options": Value::Object(options) });
-        if let Err(message) = session.dispatch("set_tool_options", args) {
-            eprintln!("hey-listen: {message}");
-            return 2;
-        }
+    // The --filter graph, shared params and per-tool options are applied once before the
+    // command. `analyze` re-applies them after `open_project` (a `.heyl` resets the session
+    // to its saved setup, so CLI overrides must win over the saved values).
+    if let Err(message) = apply_setup_overrides(&mut session, request) {
+        eprintln!("hey-listen: {message}");
+        return 2;
     }
 
     let code = match &request.command {
@@ -146,6 +123,33 @@ fn run_request(request: &Request, out: &mut impl Write) -> i32 {
     } else {
         code
     }
+}
+
+/// Apply the `--filter` / `-p` / `-o` overrides to the session (the same dispatch calls the
+/// MCP server exposes). Shared by the once-before-the-command application and `analyze`'s
+/// re-application after loading a `.heyl`.
+pub(super) fn apply_setup_overrides(
+    session: &mut HeadlessSession,
+    request: &Request,
+) -> Result<(), String> {
+    if let Some(filter) = &request.filter {
+        let graph = serde_json::to_value(filter).unwrap_or(Value::Null);
+        session.dispatch(
+            "set_filter_graph",
+            json!({ "graph": graph, "enabled": true }),
+        )?;
+    }
+    if !request.params.is_empty() {
+        let params: Map<String, Value> = request.params.iter().cloned().collect();
+        session.dispatch("set_shared_params", json!({ "params": params }))?;
+    }
+    for patch in &request.options {
+        let mut options = Map::new();
+        options.insert(patch.key.clone(), patch.value.clone());
+        let args = json!({ "tool": patch.tool, "options": Value::Object(options) });
+        session.dispatch("set_tool_options", args)?;
+    }
+    Ok(())
 }
 
 /// Emit one `error` record per unknown `-t` id; returns whether any was reported.

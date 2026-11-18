@@ -23,7 +23,7 @@ pub(super) fn tools() -> Vec<Value> {
                 "properties": {
                     "tool": { "type": "string", "description": "An analyzer id from list_analyzers." },
                     "format": { "type": "string", "enum": ["json", "csv"], "description": "Data format (default `json`)." },
-                    "path": { "type": "string", "description": "Destination file. Omit to only render the text." },
+                    "path": { "type": "string", "description": "Destination file. Omit (headless) to only render the text; the app bridge requires it." },
                     "includeSidecar": { "type": "boolean", "description": "Write the CSV provenance sidecar (default true)." },
                     "start": { "type": "number", "description": "Window start (source seconds; defaults to the current window)." },
                     "end": { "type": "number", "description": "Window end (source seconds; defaults to the current window)." },
@@ -42,9 +42,9 @@ pub(super) fn tools() -> Vec<Value> {
                 "type": "object",
                 "properties": {
                     "tool": { "type": "string", "description": "An analyzer id whose tab is open." },
-                    "path": { "type": "string", "description": "Destination .png file. Omit to open the save dialog." },
+                    "path": { "type": "string", "description": "Destination .png file (required — the bridge never opens a save dialog)." },
                 },
-                "required": ["tool"],
+                "required": ["tool", "path"],
                 "additionalProperties": false,
             }),
         ),

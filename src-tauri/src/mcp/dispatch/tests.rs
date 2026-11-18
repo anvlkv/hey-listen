@@ -223,3 +223,17 @@ fn sine_graph_value() -> Value {
         "edges": [ { "from": "osc", "from_port": 0, "to": "out", "to_port": 0 } ],
     })
 }
+
+/// Assert that `maxPoints: 8` with `includeData: true` decimates a spectrum's `magDb`
+/// to at most 8 bins (the well-scoped contract the max-points tests pin).
+fn assert_spectrum_max_points_decimates(session: &mut HeadlessSession) {
+    let full = session
+        .dispatch(
+            "run_analysis",
+            json!({ "tool": "spectrum", "includeData": true, "maxPoints": 8 }),
+        )
+        .unwrap();
+    assert!(full["result"]["magDb"]
+        .as_array()
+        .is_some_and(|values| !values.is_empty() && values.len() <= 8));
+}

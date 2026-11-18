@@ -59,6 +59,12 @@ pub struct AnalysisResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub result: Option<Value>,
+    /// The requested `frameRms` hop in samples, when the engine widened it to stay inside
+    /// its frame cap (absent when the hop ran as asked, and for every other tool).
+    /// Response-only: `result.hopSize` stays the effective hop.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hop_widened_from_samples: Option<usize>,
 }
 
 /// One analyzer's catalog detail (the GUI MCP `get_analyzer` path): option metadata
@@ -100,13 +106,18 @@ pub async fn run_analysis(
     tauri::async_runtime::spawn_blocking(move || {
         let result = analysis::run_window(&state, tool, start, end, &params, &options)?;
         let summary = analysis::summarize(&result);
+        let hop_widened_from_samples = analysis::widened_hop_from(&result, &options);
         let axis = if compact_axis.unwrap_or(false) {
             analysis::Axis::Compact
         } else {
             analysis::Axis::Array
         };
         let result = analysis::shape_result_with(&result, shape, max_points, axis);
-        Ok(AnalysisResponse { summary, result })
+        Ok(AnalysisResponse {
+            summary,
+            result,
+            hop_widened_from_samples,
+        })
     })
     .await
     .map_err(|err| AnalysisError::Analysis(err.to_string()))?

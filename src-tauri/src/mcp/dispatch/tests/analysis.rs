@@ -70,15 +70,7 @@ fn run_analysis_modes_summary_compact_and_full() {
     assert_eq!(summary["summary"], compact["summary"]);
 
     // Full data (optionally decimated) returns arrays.
-    let full = session
-        .dispatch(
-            "run_analysis",
-            json!({ "tool": "spectrum", "includeData": true, "maxPoints": 8 }),
-        )
-        .unwrap();
-    assert!(full["result"]["magDb"]
-        .as_array()
-        .is_some_and(|values| !values.is_empty() && values.len() <= 8));
+    assert_spectrum_max_points_decimates(&mut session);
 
     let error = session
         .dispatch(
@@ -198,6 +190,25 @@ fn frame_rms_options_flow_through_the_headless_session() {
     assert_eq!(envelope["result"]["hopSize"], 480);
     assert_eq!(envelope["options"]["frameMs"], 20.0);
     assert_eq!(envelope["options"]["hopMs"], 10.0);
+    // The hop ran as asked, so the envelope reports no widening.
+    assert!(envelope.get("hopWidenedFromSamples").is_none());
+
+    // A 0.05 ms hop over this 1 s window cannot fit the frame cap, so the engine widens
+    // it: the envelope says which hop was requested (2 samples at 48 kHz) beside the
+    // effective `hopSize`, and only at the top level — the result stores nothing extra.
+    let widened = session
+        .dispatch(
+            "run_analysis",
+            json!({
+                "tool": "frameRms",
+                "options": { "frameMs": 0.1, "hopMs": 0.05 },
+                "transient": true,
+            }),
+        )
+        .unwrap();
+    assert_eq!(widened["hopWidenedFromSamples"], 2);
+    assert!(widened["result"]["hopSize"].as_u64().unwrap() > 2);
+    assert!(widened["result"].get("hopWidenedFromSamples").is_none());
 }
 
 #[test]

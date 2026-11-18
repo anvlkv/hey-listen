@@ -35,7 +35,7 @@ struct Cli {
 enum Batch {
     /// List the analyzer catalog, or explain one analyzer's options
     Analyzers(AnalyzersArgs),
-    /// Decode file(s) and run analyzer(s) over a window
+    /// Run analyzer(s) over audio file(s) or saved project(s) (.heyl)
     Analyze(AnalyzeArgs),
     /// Render a synth graph and (optionally) analyze the result
     Synth(SynthArgs),
@@ -114,7 +114,7 @@ struct ExportArgs {
 
 #[derive(Args)]
 struct AnalyzeArgs {
-    /// Audio file(s) to decode and analyze
+    /// Audio or project (.heyl) file(s) to analyze
     #[arg(value_name = "FILE")]
     file: Vec<String>,
     #[command(flatten)]

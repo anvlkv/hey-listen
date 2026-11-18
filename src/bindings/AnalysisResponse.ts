@@ -6,4 +6,10 @@ import type { JsonValue } from "./serde_json/JsonValue";
  * The command's response: the canonical summary beside the shaped result (absent in
  * `summary` mode).
  */
-export type AnalysisResponse = { summary: ResultSummary, result?: JsonValue, };
+export type AnalysisResponse = { summary: ResultSummary, result?: JsonValue, 
+/**
+ * The requested `frameRms` hop in samples, when the engine widened it to stay inside
+ * its frame cap (absent when the hop ran as asked, and for every other tool).
+ * Response-only: `result.hopSize` stays the effective hop.
+ */
+hopWidenedFromSamples?: number, };

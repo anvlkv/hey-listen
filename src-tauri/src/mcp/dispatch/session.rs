@@ -277,6 +277,11 @@ impl HeadlessSession {
             "options": Value::Object(analyzers::effective_options(tool, Some(&options))),
             "summary": summary,
         });
+        // Response-only: `result.hopSize` stays the effective hop, so say which hop was
+        // asked for when the engine widened it (see `analysis::widened_hop_from`).
+        if let Some(requested) = analysis::widened_hop_from(&result, &options) {
+            envelope["hopWidenedFromSamples"] = json!(requested);
+        }
         if let Some(value) = shaped {
             envelope["result"] = value;
         }

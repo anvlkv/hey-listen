@@ -1,8 +1,8 @@
 # Batch CLI (`hey-listen-cli`)
 
-A subcommand of the app binary that runs the engine over files with no window, printing one
-JSON object per file/tool. Deterministic; for shell/CI. Logs go to **stderr**, so **stdout
-is pure JSONL**.
+Run this from a **terminal** (shell) for headless batch/CI — it is **not** an MCP tool and
+there is no tool to "call" it. It runs the engine over files with no window, printing one
+JSON object per file/tool. Deterministic. Logs go to **stderr**, so **stdout is pure JSONL**.
 
 ```text
 hey-listen [OPTIONS] [FILE.heyl]
@@ -10,7 +10,7 @@ hey-listen <COMMAND>
 
 Commands:
   analyzers [ID] [--json]   catalog, or one analyzer's options + summary keys
-  analyze                   decode file(s) and run analyzer(s) over them
+  analyze                   open audio file(s) or .heyl project(s) and run analyzers over them
   synth                     render a synth graph, then (optionally) analyze it
   annotations               list or edit annotations in a project file (.heyl)
   compare A.heyl B.heyl     diff one analyzer across two saved projects (--save writes it)
@@ -22,6 +22,10 @@ Options:
 ```
 
 ## `analyze <FILE>...`
+
+Each input is an **audio file** (decoded as the source) or a saved **`.heyl` project** (its
+source + saved window/params/options are loaded). `-p` / `-o` / `--filter` overrides win over
+a project's saved setup; the saved window is used when `--start`/`--end` are absent.
 
 | Option | Meaning |
 | --- | --- |

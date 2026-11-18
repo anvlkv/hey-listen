@@ -130,16 +130,20 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "export_analysis": {
       const id = analyzerId(args);
       const format = exportFormat(args);
+      const path = optionalStr(args, "path");
+      if (!path) throw new Error("`path` is required — the bridge never opens a save dialog");
       const outcome = await exportAnalysis(id, format, {
-        path: optionalStr(args, "path") ?? undefined,
+        path,
         includeSidecar: optionalBool(args, "includeSidecar") ?? true,
       });
       return outcome ?? { cancelled: true };
     }
     case "export_chart": {
       const id = analyzerId(args);
-      const path = await exportChart(id, optionalStr(args, "path") ?? undefined);
-      return { tool: id, format: "png", path, cancelled: path == null };
+      const path = optionalStr(args, "path");
+      if (!path) throw new Error("`path` is required — the bridge never opens a save dialog");
+      const target = await exportChart(id, path);
+      return { tool: id, format: "png", path: target, cancelled: target == null };
     }
     case "export_all": {
       const dir = optionalStr(args, "dir");

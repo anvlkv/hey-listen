@@ -307,6 +307,15 @@ pub fn remove_info<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Write the current endpoint advertisement.
+///
+/// The listener is already **bound** when this runs (see [`super::settings::McpController`]),
+/// so a bridge that probes the port during or after the write always finds a listening
+/// socket; the kernel queues its connection until the accept loop is running.
+///
+/// The file is written to a temporary sibling and renamed into place: the bridge polls
+/// `mcp.json` (discovery and the stale-token retry both re-read it), and a plain
+/// truncating write would let a reader observe an empty or half-written file for a moment
+/// at startup and relaunch.
 pub fn write_info<R: Runtime>(app: &AppHandle<R>, port: u16, token: &str) -> std::io::Result<()> {
     let path = info_path(app)
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no app data dir"))?;
@@ -319,7 +328,16 @@ pub fn write_info<R: Runtime>(app: &AppHandle<R>, port: u16, token: &str) -> std
         "pid": std::process::id(),
         "version": env!("CARGO_PKG_VERSION"),
     });
-    std::fs::write(&path, serde_json::to_vec_pretty(&info)?)
+    let bytes = serde_json::to_vec_pretty(&info)?;
+    let temp = path.with_file_name(format!("{INFO_FILE}.{}.tmp", std::process::id()));
+    std::fs::write(&temp, bytes)?;
+    match std::fs::rename(&temp, &path) {
+        Ok(()) => Ok(()),
+        Err(err) => {
+            let _ = std::fs::remove_file(&temp);
+            Err(err)
+        }
+    }
 }
 
 /// A random-ish token so another local process cannot drive the app.

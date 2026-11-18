@@ -48,13 +48,26 @@ a local server as a `command` + `args` and speak MCP over its stdio.
   after an acknowledgement (`RESPONSE_TIMEOUT`) stays **under a client's own request
   timeout** (60 s in Zed): past that the client has already aborted and closed the
   bridge's stdin, so waiting longer only turns an actionable error into a dead session.
+- **Discovery waits for the app.** The stdio entry probes for a live endpoint for
+  `DISCOVER_GRACE` (20 s, `src-tauri/src/mcp/mod.rs`), re-reading `mcp.json` on every
+  attempt. That covers a client launched **before** the app and the window while a new
+  build relaunches after an update: the first look may find no file (or only the previous
+  process's), and the advertisement that appears later still wins. The budget stays under
+  a client's own startup timeout (60 s in Zed); `--headless` skips the wait.
 - **A stale advertisement is retried, not fatal.** Right after an app restart `mcp.json`
   can still describe the previous process while the kernel hands the same ephemeral port
   back, so the connection opens and the token is refused. The bridge detects a refused
   handshake (the server closes the socket; a good one stays silent until it has a reply
-  to write), re-reads the advertisement and tries again — safe because the client's
-  bytes are still unread in stdin at that point. Once the pump has started, a closed
-  socket still ends the bridge: the session belongs to the client.
+  to write), re-reads the advertisement and tries again until `ATTACH_TIMEOUT` — safe
+  because the client's bytes are still unread in stdin at that point. The advertisement
+  is written to a temporary file and renamed into place, so a probe never reads a
+  half-written file. If discovery saw a live port that still refuses the handshake, the
+  entry falls back to the headless server (no client byte has been read yet).
+- **No reconnect after the session starts.** The bridge is a byte pump; the MCP session
+  (`initialize`, capabilities, in-flight calls) lives in the app. Re-attaching to a
+  restarted app mid-session would hand its next request to a server that never saw the
+  `initialize`, so the bridge does not try: when the app's socket closes it returns and
+  exits promptly, and the client relaunches it for the next session.
 - A focused **popout** resolves to the project window that owns it, so a call never
   lands in a single-tool popout.
 - The transport **blocks in `accept()`** rather than polling: the thread parks until the
@@ -389,9 +402,12 @@ A cross-cutting follow-up that standardized the compact/annotated contract for e
 analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
 
 - **Summary in the envelope.** `run_analysis` returns `{ window, params, options,
-  summary, result }`; `summary` is a stable `text` line plus labelled, unit-bearing items
-  computed from the full result. It is present in compact and `includeData` modes, and
-  `summaryOnly: true` returns just the summary (the MCP counterpart of `--summary`).
+  summary, result }`, plus `hopWidenedFromSamples` when `frameRms` had to widen the
+  requested hop to stay inside its frame cap (response-only: `result.hopSize` stays the
+  effective hop and nothing is stored, so a saved project does not carry it); `summary` is
+  a stable `text` line plus labelled, unit-bearing items computed from the full result. It
+  is present in compact and `includeData` modes, and `summaryOnly: true` returns just the
+  summary (the MCP counterpart of `--summary`).
 - **Structurally compact results.** Matrices and spectrograms keep dimensions and peak
   time/freq/level; event and annotation arrays get a bounded preview instead of `{ length }`;
   raw arrays still require `includeData: true` (with `maxPoints` to decimate). One Rust
