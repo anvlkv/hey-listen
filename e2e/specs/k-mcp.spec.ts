@@ -1,11 +1,11 @@
 /**
  * K. MCP server (M9) — agent access + UI following.
  *
- * The app hosts the MCP server on a loopback port (advertised in `mcp.json` under
- * the app config dir); the `heylisten-mcp` bridge is a stdio ⇄ socket pump. These
- * tests speak MCP to that endpoint directly from Node (no bridge), driving the
- * **running** app: an agent call opens a source / a Workbench tab in the live
- * window (UI following), and `get_state` reports what the window is showing.
+ * The app hosts the MCP server on a loopback port (advertised in the `mcp-settings.json`
+ * store under the app data dir, key `boundPort`); the `heylisten-mcp` bridge is a
+ * stdio ⇄ socket pump. These tests speak MCP to that endpoint directly from Node (no
+ * bridge), driving the **running** app: an agent call opens a source / a Workbench tab in
+ * the live window (UI following), and `get_state` reports what the window is showing.
  *
  * A source is opened over MCP (not the picker), so the replace-confirm never shows.
  */
@@ -25,11 +25,14 @@ import {
   waitForTab,
 } from "../support/helpers.ts";
 
-/** The endpoint the running app advertises (`src-tauri/src/mcp/server.rs`). */
+/** The endpoint the running app advertises (`src-tauri/src/mcp/advertise.rs`). */
 interface ServerInfo {
-  port: number;
-  token: string;
+  /** The loopback port the MCP server is bound to (store key `boundPort`). */
+  boundPort: number;
 }
+
+/** The protocol greeting the bridge sends (`mcp::HELLO`) — a protocol marker, not a secret. */
+const HELLO = "heylisten-mcp/1";
 
 /** The shape of an MCP `tools/call` result. */
 interface ToolResult {
@@ -38,19 +41,19 @@ interface ToolResult {
   structuredContent?: Record<string, unknown>;
 }
 
-/** The app's `mcp.json` path (mirrors the bridge's `data_dir`). */
-function infoPath(): string {
-  const override = process.env.HEYLISTEN_MCP_INFO;
+/** The app's `mcp-settings.json` store path (mirrors `advertise::store_path`). */
+function storePath(): string {
+  const override = process.env.HEYLISTEN_MCP_SETTINGS;
   if (override) return override;
   const identifier = "com.anvlkv.heylisten";
   if (process.platform === "darwin") {
-    return path.join(homedir(), "Library", "Application Support", identifier, "mcp.json");
+    return path.join(homedir(), "Library", "Application Support", identifier, "mcp-settings.json");
   }
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA ?? homedir(), identifier, "mcp.json");
+    return path.join(process.env.APPDATA ?? homedir(), identifier, "mcp-settings.json");
   }
   const base = process.env.XDG_DATA_HOME ?? path.join(homedir(), ".local", "share");
-  return path.join(base, identifier, "mcp.json");
+  return path.join(base, identifier, "mcp-settings.json");
 }
 
 /** Wait for the app to advertise its MCP endpoint, then read it. */
@@ -58,11 +61,15 @@ async function readInfo(): Promise<ServerInfo> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 50; attempt++) {
     try {
-      return JSON.parse(await readFile(infoPath(), "utf8")) as ServerInfo;
+      const store = JSON.parse(await readFile(storePath(), "utf8")) as { boundPort?: number };
+      if (typeof store.boundPort === "number" && store.boundPort > 0) {
+        return { boundPort: store.boundPort };
+      }
+      lastError = new Error("the store has no boundPort yet");
     } catch (err) {
       lastError = err;
-      await new Promise((resolve) => setTimeout(resolve, 200));
     }
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`the app never advertised its MCP endpoint: ${String(lastError)}`);
 }
@@ -82,11 +89,13 @@ class McpClient {
 
   static async open(info: ServerInfo): Promise<McpClient> {
     const socket = await new Promise<Socket>((resolve, reject) => {
-      const connection = connect({ host: "127.0.0.1", port: info.port }, () => resolve(connection));
+      const connection = connect({ host: "127.0.0.1", port: info.boundPort }, () =>
+        resolve(connection),
+      );
       connection.once("error", reject);
     });
-    // The token is the connection's first line.
-    socket.write(`${info.token}\n`);
+    // The protocol greeting is the connection's first line (no token any more).
+    socket.write(`${HELLO}\n`);
     return new McpClient(socket);
   }
 

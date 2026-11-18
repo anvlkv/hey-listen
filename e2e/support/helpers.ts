@@ -72,6 +72,7 @@ export {
   restoreMocks,
   invokeCore,
   emitEvent,
+  emitEventTo,
   menuAction,
   menuActionIn,
   startInvokeCounts,

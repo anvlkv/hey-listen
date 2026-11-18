@@ -195,16 +195,21 @@ export async function menuAction(action: string): Promise<void> {
  * `emit_to(focused_label, …)`); the app listens for `app:menu` with its own window label as
  * the target (`src/lib/windowEvents.ts`), so only that window runs the action.
  */
-export async function menuActionIn(label: string, action: string): Promise<void> {
+export async function emitEventTo(label: string, name: string, payload: unknown): Promise<void> {
   await browser.tauri.execute(
-    (_tauri, target, event, payload) => {
+    (_tauri, target, event, p) => {
       const g = globalThis as unknown as {
-        __TAURI__: { event: { emitTo: (t: string, e: string, p: unknown) => Promise<void> } };
+        __TAURI__: { event: { emitTo: (t: string, e: string, x: unknown) => Promise<void> } };
       };
-      return g.__TAURI__.event.emitTo(target as string, event as string, payload);
+      return g.__TAURI__.event.emitTo(target as string, event as string, p);
     },
     label,
-    "app:menu",
-    action,
+    name,
+    payload,
   );
+}
+
+/** Trigger a File/Edit menu action in **one named window** (see [`emitEventTo`]). */
+export async function menuActionIn(label: string, action: string): Promise<void> {
+  await emitEventTo(label, "app:menu", action);
 }

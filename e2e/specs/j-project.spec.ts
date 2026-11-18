@@ -25,6 +25,7 @@ import {
   mockReturn,
   closeAllTabs,
   menuAction,
+  emitEventTo,
   waitForSourceLoaded,
   waitFor,
   openTabTitles,
@@ -217,5 +218,33 @@ describe("H. Project file & multi-window", () => {
     await openTool("spectrum");
     await waitForAnalyzer("spectrum");
     expect(await count(tab("spectrum"))).toBe(1);
+  });
+
+  it("H5 — an OS-open request delivers a .heyl path and loads it", async () => {
+    // Save a project with a distinct source (chirp = 3 s), then clear it so the open
+    // request is the only thing that can bring a source back.
+    await openFixture("chirpNoise");
+    const tmpFile = path.join(os.tmpdir(), `heylisten-e2e-openpath-${Date.now()}.heyl`);
+    await mockReturn("pick_project_save_path", tmpFile);
+    await menuAction("saveAs");
+    await waitFor(
+      () => Promise.resolve(existsSync(tmpFile)),
+      "the OS-open test's project was never written",
+      20_000,
+    );
+
+    await mockReturn("confirm", true);
+    await menuAction("new");
+    await waitFor(async () => (await count(SEL.timeline)) === 0, "the project did not clear");
+
+    // The OS file-association delivery: the core queues the path and emits
+    // `app:open-project` to the focused window (`commands/project/open_paths.rs`).
+    await emitEventTo("main", "app:open-project", [tmpFile]);
+
+    await waitForSourceLoaded();
+    await waitFor(
+      async () => (await timelineReadout()).includes("0:03"),
+      "the OS-open request did not load the project",
+    );
   });
 });
