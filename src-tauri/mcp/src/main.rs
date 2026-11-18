@@ -3,8 +3,9 @@
 //! A plain console binary (not the GUI), so it works with no window at all — on a
 //! headless host, in CI, and in the Windows release build where the app binary has
 //! no console. It **auto-detects**: a running, MCP-enabled app serves the tools
-//! (bridge + UI following); otherwise it runs the core-native **headless** server.
-//! Pass `--headless` to skip the bridge probe. See `docs/mcp.md`.
+//! (bridge + UI following); with nothing running it starts the GUI (when it can find it)
+//! and bridges to that; otherwise it runs the core-native **headless** server.
+//! Pass `--headless` to skip the bridge probe and the launch. See `docs/mcp.md`.
 //!
 //! It is its own crate (`src-tauri/mcp/`, package `heylisten-mcp`) that links the app
 //! crate as a library: the app package therefore has no `heylisten-mcp` bin target, so

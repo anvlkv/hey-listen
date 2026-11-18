@@ -26,7 +26,8 @@
 //! The server binds a `127.0.0.1` port and publishes it — with the owning pid — in the
 //! MCP settings store ([`advertise`]). The `heylisten-mcp` bridge is a dumb byte pump
 //! between stdio and that socket, so the MCP protocol lives in one place (the app) and an
-//! agent always talks to the *running* project.
+//! agent always talks to the *running* project. With no app running at all, the bridge
+//! starts the GUI once and attaches to it ([`launch`]).
 //!
 //! See [`docs/mcp.md`](../../../docs/mcp.md).
 
@@ -34,6 +35,7 @@ pub mod advertise;
 pub mod bridge;
 pub mod dispatch;
 pub mod headless;
+pub mod launch;
 pub mod protocol;
 pub mod server;
 pub mod settings;
@@ -80,35 +82,59 @@ pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(50);
 pub const DEFAULT_PORT: u16 = 47100;
 
 /// How long the stdio entry waits for a running app to advertise a live endpoint before
-/// falling back to the headless server.
+/// starting the GUI, and again for the app it just started to advertise.
 ///
 /// It must outlast a normal app start **and** a relaunch after an update: the MCP client
-/// launches this process, not the app, so it may well be first. Kept under an MCP client's
-/// own startup timeout (60 s in Zed) so a wait never outlives the `initialize` it is
-/// holding up. `--headless` skips the wait entirely.
+/// launches this process, not the app, so it may well be first — and during a relaunch
+/// the previous process is gone while the new one has not published yet, which looks like
+/// "nothing running". So the first grace is spent before a launch is even considered: an
+/// app that publishes during it is bridged to instead, and a relaunching app is never
+/// duplicated. Two graces (40 s) stay under an MCP client's own startup timeout (60 s in
+/// Zed), so a wait never outlives the `initialize` it is holding up. `--headless` skips
+/// both.
 const DISCOVER_GRACE: Duration = Duration::from_secs(20);
 
 /// The MCP **stdio entry** shared by `hey-listen --mcp` and `heylisten-mcp`.
 ///
-/// Auto-detects: when a running, MCP-enabled app is advertising a **live** endpoint, it
-/// **bridges** to it (UI following, as delivered); otherwise it runs the **core-native
-/// headless** server. Discovery keeps probing for [`DISCOVER_GRACE`], so a client started
-/// before the app (or while the app restarts) still bridges once the app advertises
-/// itself. A stale advertisement (a crashed app) does not count — the recorded pid must be
-/// alive and the endpoint is probed, and a refused connection falls back to headless
-/// (audit P2 #7). `force_headless` (`--headless`) skips the probe.
+/// Auto-detects: a running, MCP-enabled app is **bridged** to (UI following, as
+/// delivered); with nothing running it **starts the GUI** and bridges to that; otherwise
+/// it runs the **core-native headless** server. Discovery keeps probing for
+/// [`DISCOVER_GRACE`], so a client started before the app (or while the app restarts)
+/// still bridges once the app advertises itself, and an app process that is alive but has
+/// not published yet is never started a second time ([`launch::decide`]). A stale
+/// advertisement (a crashed app) does not count — the recorded pid must match this app and
+/// be alive, and the endpoint is probed (audit P2 #7). `force_headless` (`--headless`)
+/// skips the probe and the launch.
 pub fn run(force_headless: bool) -> std::io::Result<()> {
-    if !force_headless && bridge::wait_for_live(DISCOVER_GRACE) {
-        match bridge::attach() {
-            Ok(stream) => return bridge::pump_stdio(stream),
-            // Discovery saw a live port but the app behind it would not take us — for
-            // example the old port now belongs to another process while the store still
-            // names it. No client byte has been read yet (attach never touches stdin), so
-            // serving headless is still safe and beats exiting.
-            Err(err) => log::warn!("MCP bridge could not attach ({err}); serving headless"),
-        }
+    if force_headless {
+        return headless::run();
+    }
+
+    if bridge::wait_for_live(DISCOVER_GRACE) {
+        return attach();
+    }
+
+    // Nothing answered. Start the GUI only when nothing of ours is running at all, then
+    // give it the same grace a normal start gets before falling back to headless.
+    let mut launcher = launch::Launcher::new(launch::current_target());
+    if launcher.ensure() && bridge::wait_for_live(DISCOVER_GRACE) {
+        return attach();
     }
     headless::run()
+}
+
+/// Bridge to the endpoint discovery found, or serve headless when the app behind it will
+/// not take us — for example the old port now belongs to another process while the store
+/// still names it. No client byte has been read yet (attach never touches stdin), so
+/// serving headless is still safe and beats exiting.
+fn attach() -> std::io::Result<()> {
+    match bridge::attach() {
+        Ok(stream) => bridge::pump_stdio(stream),
+        Err(err) => {
+            log::warn!("MCP bridge could not attach ({err}); serving headless");
+            headless::run()
+        }
+    }
 }
 
 /// In-flight tool calls forwarded to a window's frontend, awaiting its receipt and

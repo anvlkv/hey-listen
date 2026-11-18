@@ -55,14 +55,20 @@ a local server as a `command` + `args` and speak MCP over its stdio.
   after an acknowledgement (`RESPONSE_TIMEOUT`) stays **under a client's own request
   timeout** (60 s in Zed): past that the client has already aborted and closed the
   bridge's stdin, so waiting longer only turns an actionable error into a dead session.
-- **Discovery waits for the app.** The stdio entry probes for a live endpoint for
-  `DISCOVER_GRACE` (20 s, `src-tauri/src/mcp/mod.rs`), re-reading the store on every
-  attempt. An advertisement counts only when its pid is alive and its port answers on
+- **Discovery waits for the app, then starts it.** The stdio entry probes for a live
+  endpoint for `DISCOVER_GRACE` (20 s, `src-tauri/src/mcp/mod.rs`), re-reading the store on
+  every attempt. An advertisement counts only when its pid is alive and its port answers on
   loopback, so a crashed app's leftovers cannot capture discovery. That covers a client
-  launched **before** the app and the window while a new build relaunches after an
-  update: the first look may find no record (or only the previous process's), and the
-  advertisement that appears later still wins. The budget stays under a client's own
-  startup timeout (60 s in Zed); `--headless` skips the wait.
+  launched **before** the app and the window while a new build relaunches after an update:
+  the first look may find no record (or only the previous process's), and the advertisement
+  that appears later still wins. When that whole grace still finds **nothing running**, the
+  entry starts the GUI once (`src-tauri/src/mcp/launch/`) and waits the same grace for it
+  to advertise, so an agent's `open_project` brings the app up instead of going headless.
+  It never starts a second instance: a recorded, alive app process of ours (a relaunching
+  or slow-starting app, or one with the MCP server switched off) is left alone, a failed
+  spawn is not retried, and the helper falls back to headless when it cannot find the app
+  binary. Two graces (40 s) stay under a client's own startup timeout (60 s in Zed);
+  `--headless` skips the wait and the launch.
 - **A stale advertisement is retried, not fatal.** Right after an app restart the store
   can still describe the previous process while the kernel hands the same ephemeral port
   back, so the connection opens and the peer refuses the greeting. The bridge sends the
@@ -139,15 +145,17 @@ to a **core-native headless** server instead (see *Headless CLI* below).
    ```
 
    The helper is built alongside the app — `src-tauri/target/{debug,release}/heylisten-mcp`.
-   Both entry points call the same `mcp::run`, which auto-detects bridge vs headless.
+   Both entry points call the same `mcp::run`: bridge to a running app, start it when
+   nothing is running, otherwise headless.
 
 3. The server's indicator turns green. Ask the agent to *"look at the current
    source"* or *"open the spectrogram and tell me the peak frequency"* — the window
    follows along.
 
-> **No app? No problem.** If Hey Listen is not running, the same command line serves
-> the **compute tools** headlessly (see *Headless CLI*). So an agent can analyze files
-> with nothing open — and start using the UI tools the moment the app is up.
+> **No app? It starts one.** The same command line serves the **compute tools** headlessly
+> when no GUI can be started (a headless host, or a helper that cannot find the app binary),
+> and elsewhere it starts Hey Listen and drives that window — so the UI tools work as soon
+> as the app has finished launching.
 
 ## Tools
 

@@ -45,7 +45,8 @@ use tauri_plugin_prevent_default::Flags;
 /// Run the stdio MCP entry (`heylisten-mcp`, or `hey-listen --mcp`).
 ///
 /// Auto-detects: a running, MCP-enabled app serves the tools (**bridge**, with UI
-/// following); otherwise the **core-native headless** server runs. `headless`
+/// following); with nothing running it **starts the GUI** and bridges to it, and only when
+/// no GUI can be started does the **core-native headless** server run. `headless`
 /// (`--headless`) forces the headless server. The standalone `heylisten-mcp` binary
 /// is a plain console program (no GUI), so this works on a headless host too.
 /// See [`mcp::run`].

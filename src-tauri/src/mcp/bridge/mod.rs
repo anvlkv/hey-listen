@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 
 use crate::mcp::HELLO;
 
-pub use endpoint::wait_for_live;
+pub use endpoint::{app_state, wait_for_live, AppState};
 
 /// How long an attach keeps retrying: for the advertisement to exist, its port to accept,
 /// and a rejected handshake to be replaced by the restarted app's endpoint.

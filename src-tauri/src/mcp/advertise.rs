@@ -233,7 +233,10 @@ pub fn current_binary() -> Option<String> {
 }
 
 /// Whether the recorded executable is **this** executable (canonicalized when possible).
-fn same_binary(recorded: Option<&str>, current: Option<&str>) -> bool {
+///
+/// Shared with the bridge's launch decision ([`super::launch`]): the app an
+/// advertisement names must be the executable the entry would start.
+pub(crate) fn same_binary(recorded: Option<&str>, current: Option<&str>) -> bool {
     match (recorded, current) {
         (Some(recorded), Some(current)) if !recorded.is_empty() => {
             canonical(recorded) == canonical(current)

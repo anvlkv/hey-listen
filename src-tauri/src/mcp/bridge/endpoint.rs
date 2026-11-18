@@ -13,6 +13,49 @@ use crate::mcp::advertise::{self, Advertisement};
 /// How long to pause between discovery attempts.
 const RETRY_PAUSE: Duration = Duration::from_millis(100);
 
+/// What the advertisement says about the app right now.
+///
+/// Used by [`crate::mcp::launch`] to decide whether the GUI may be started: only
+/// [`AppState::Absent`] is a reason to launch one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppState {
+    /// A serving endpoint answered on loopback: bridge to it.
+    Live,
+    /// A process of ours is recorded and alive but not answering: starting (or running
+    /// with the MCP server switched off). Starting a second instance over it would fight
+    /// the relaunch rule, so it is left alone.
+    Starting,
+    /// Nothing is running: no record, a dead pid, or a binary that is not ours.
+    Absent,
+}
+
+/// Classify the advertisement in the app data dir for the app at `app` (its executable).
+///
+/// The identity check is the same one the relaunch guard trusts
+/// ([`advertise::same_binary`]), so an unrelated process whose pid was reused cannot look
+/// like a starting app.
+pub fn app_state(app: &Path) -> AppState {
+    let Some(path) = advertise::store_path() else {
+        return AppState::Absent;
+    };
+    let Ok(advert) = advertise::read_at(&path) else {
+        return AppState::Absent;
+    };
+    if is_live(&advert) {
+        AppState::Live
+    } else if advertise::pid_alive(advert.pid) && advertises(&advert, app) {
+        AppState::Starting
+    } else {
+        AppState::Absent
+    }
+}
+
+/// Whether the advertisement names the executable at `app`.
+fn advertises(advert: &Advertisement, app: &Path) -> bool {
+    let app = app.to_string_lossy();
+    advertise::same_binary(advert.binary.as_deref(), Some(app.as_ref()))
+}
+
 /// Wait up to `grace` for a **live** app endpoint.
 ///
 /// The advertisement alone is not evidence: a crashed app leaves the store behind, and
@@ -91,6 +134,9 @@ mod tests {
     use super::*;
     use std::net::TcpListener;
     use std::sync::Mutex;
+
+    /// Serializes the tests that point [`advertise::STORE_ENV`] at a private store.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     /// A port with nothing listening on it (bind, then release it).
     fn closed_port() -> u16 {
@@ -207,8 +253,7 @@ mod tests {
     /// look — the store-path override lets the test use a private path.
     #[test]
     fn wait_for_live_does_not_short_circuit_on_a_missing_file() {
-        static ENV: Mutex<()> = Mutex::new(());
-        let _guard = ENV.lock().unwrap_or_else(|poison| poison.into_inner());
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
         let path = temp_store("hey_listen_env_mcp_store.json");
         let previous = std::env::var_os(advertise::STORE_ENV);
         std::env::set_var(advertise::STORE_ENV, &path);
@@ -223,5 +268,60 @@ mod tests {
         }
         let _ = std::fs::remove_file(&path);
         assert!(live, "discovery gave up before the advertisement appeared");
+    }
+
+    /// The launch decision reads [`app_state`], so its three answers are pinned through the
+    /// store the bridge really reads: an alive process of **our** app that is not serving
+    /// yet is `Starting` (never launch over it), and a dead pid or a foreign binary is
+    /// `Absent` (safe to launch).
+    #[test]
+    fn a_recorded_alive_pid_is_starting_and_a_dead_or_foreign_one_is_absent() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
+        let path = temp_store("hey_listen_state_mcp_store.json");
+        let previous = std::env::var_os(advertise::STORE_ENV);
+        std::env::set_var(advertise::STORE_ENV, &path);
+        let app = std::env::current_exe().expect("current exe");
+
+        // Alive and ours, but no bound port: the app is up with the MCP server off.
+        std::fs::write(
+            &path,
+            format!(
+                r#"{{"boundPort":0,"pid":{},"binary":"{}"}}"#,
+                std::process::id(),
+                app.display()
+            ),
+        )
+        .expect("write");
+        assert_eq!(app_state(&app), AppState::Starting);
+
+        // A dead owner: nothing is running, so a launch is allowed.
+        std::fs::write(
+            &path,
+            r#"{"boundPort":0,"pid":1,"binary":"/tmp/hey-listen"}"#,
+        )
+        .expect("write");
+        assert_eq!(app_state(&app), AppState::Absent);
+
+        // An alive pid that names another program is not our app (a reused pid).
+        std::fs::write(
+            &path,
+            format!(
+                r#"{{"boundPort":0,"pid":{},"binary":"/tmp/another-app"}}"#,
+                std::process::id()
+            ),
+        )
+        .expect("write");
+        assert_eq!(app_state(&app), AppState::Absent);
+
+        // A serving endpoint wins over everything else.
+        let (_listener, port) = live_endpoint();
+        write_advertisement(&path, port);
+        assert_eq!(app_state(&app), AppState::Live);
+
+        match previous {
+            Some(value) => std::env::set_var(advertise::STORE_ENV, value),
+            None => std::env::remove_var(advertise::STORE_ENV),
+        }
+        let _ = std::fs::remove_file(&path);
     }
 }
