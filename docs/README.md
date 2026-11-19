@@ -12,7 +12,7 @@ design. See [`roadmap.md`](roadmap.md) for current milestone status and
 | [architecture.md](architecture.md) | System architecture, IPC boundary, Rust/TS module layout, data flow, threading |
 | [ui-layout.md](ui-layout.md) | The fixed-region + workbench-tabs layout rule and tab behaviors |
 | [graph-editor.md](graph-editor.md) | The fundsp graph editor: Net model, node palette, rules, planned coverage |
-| [hotkeys.md](hotkeys.md) | Keyboard control: the command registry, default bindings, command palette, and the shortcut explorer (M24, planned) |
+| [hotkeys.md](hotkeys.md) | Keyboard control: the command registry, default bindings, command palette, and the shortcut explorer (M24.B, planned) |
 | [source-model.md](source-model.md) | Audio sources (file / input / synth) and timeline behavior |
 | [data-model.md](data-model.md) | Domain entities and their relationships |
 | [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |

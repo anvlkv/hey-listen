@@ -118,7 +118,7 @@ Covers items **4, 9, 10, 11, 12, 13, 14**.
 ## Dependencies and fit
 
 - Fits after the delivered `M26–M31` psychoacoustic analyzers (the charts being repaired
-  are those tools) and is independent of `M22`/`M23`/`M24` (synth, timeline ergonomics,
+  are those tools) and is independent of `M22`/`M23`/`M24.B` (synth, timeline ergonomics,
   keyboard) and `M34`/`M35` (docs, landing page). It can be scheduled without waiting on
   those; Phases 2–3 overlap the psychoacoustic work already delivered, and Phase 1's
   shared-coordinate work also benefits the planned timeline ergonomics in `M23`.

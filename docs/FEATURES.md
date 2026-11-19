@@ -60,7 +60,7 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 
 - **Reusable analysis templates (M13).** Save a source-independent setup of settings, tools, graphs, and optionally layout; apply it to another recording with a window policy that adapts to its duration. Planned entry points include app UI, MCP, and CLI. [Templates](templates.md)
 - **Live synth workflow (M22).** Audition graph edits without replacing the source, or opt into a live synth-owned source that updates in place so existing windows, annotations, and charts keep their positions. Show a node ghost and landing/connection preview when dragging from the palette. [Roadmap M22](roadmap.md#m22--synth-workflow-live-audition--in-place-source-planned)
-- **Keyboard-first control (M24).** Reach transport, window, annotation, graph, and tab actions by configurable shortcuts; find commands and tools in a palette, and discover or rebind keys in a shortcuts dialog. [Hotkeys](hotkeys.md)
+- **Keyboard-first control (M24.B).** Reach transport, window, annotation, graph, and tab actions by configurable shortcuts; find commands and tools in a palette, and discover or rebind keys in a shortcuts dialog. [Hotkeys](hotkeys.md)
 
 ### Proposed or drafted
 

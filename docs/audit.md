@@ -3,7 +3,7 @@
 **Date:** 2026-11-08  
 **Method:** Read-only, parallel code review of the SolidJS app, Rust core/project format, MCP bridge and dispatcher, and batch CLI. Findings below were checked against the cited implementation and existing tests; the failure scenarios are code-derived unless a runtime reproduction is explicitly stated. No application code was changed. The untracked `docs/hey-listen-report.md` was left untouched.
 
-**Scope:** Delivered functionality in [the roadmap](roadmap.md), not planned M13, M22–M24, or M26–M31 work. Severity: **P1** risks data loss, wrong-audio analysis, or process failure; **P2** breaks a supported workflow or makes results misleading; **P3** is a narrower usability/documentation defect. These are priorities, not proof of exploitability in every deployment.
+**Scope:** Delivered functionality in [the roadmap](roadmap.md), not planned M13, M22–M24.B, or M26–M31 work. Severity: **P1** risks data loss, wrong-audio analysis, or process failure; **P2** breaks a supported workflow or makes results misleading; **P3** is a narrower usability/documentation defect. These are priorities, not proof of exploitability in every deployment.
 
 ## Resolution (2026-11-19)
 

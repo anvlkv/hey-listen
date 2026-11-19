@@ -32,7 +32,7 @@ recorded here — see [`deferred.md`](deferred.md).
 | 20 — Annotations and detected notes are distinct terms | accepted · delivered (M14) | — |
 | 21 — Live synth: audition + in-place rewrite | proposed · planned (M22) | — |
 | 22 — The playhead is transport state | accepted · delivered (M23) | — |
-| 23 — One command registry drives keyboard/palette/UI | proposed · planned (M24) | — |
+| 23 — One command registry drives keyboard/palette/UI | proposed · planned (M24.B) | — |
 | 24 — Comparison is a transient, read-only view | accepted · implemented (M25, M25.A) | amended by ADR-26, ADR-27, ADR-34 |
 | 25 — Psychoacoustics are calibrated and honest | accepted · implemented (M26–M31) | — |
 | 26 — Compare alignment is relative + manual offset | accepted · implemented (M25.B) | amended by ADR-34 |
@@ -46,6 +46,7 @@ recorded here — see [`deferred.md`](deferred.md).
 | 34 — Saved comparisons are pairs of result snapshots | accepted · delivered (M23 Phase 3) | amends ADR-24, ADR-26; supersedes ADR-27 |
 | 35 — Non-goals for the 1.x line | accepted | closes deferred items (see `deferred.md`) |
 | 36 — DOT notation for filter/synth graphs; `GraphSpec` stays the stored form | accepted · planned (M39) | — |
+| 37 — Undo/redo is a core-owned, revision-based project operation | proposed · planned (M24.A) | extends ADR-11 |
 
 ## ADR-1 — dockview for the Workbench
 
@@ -682,7 +683,7 @@ the point. Native menu accelerators stay read-only for this milestone because Ta
 need the menu rebuilt on every binding change; making the menu itself data-driven is a
 follow-up. See [`hotkeys.md`](hotkeys.md).
 
-**Status: proposed (M24).**
+**Status: proposed (M24.B).**
 
 ## ADR-24 — Comparison is a transient, read-only view over two projects
 
@@ -1297,3 +1298,37 @@ lands its nodes at default positions and the editor re-derives the layout. See
 [`roadmap.md`](roadmap.md) → M39 and [`source-model.md`](source-model.md).
 
 **Status: planned (M39).**
+
+## ADR-37 — Undo/redo is a core-owned, revision-based project operation
+
+**Context:** undo/redo shipped in M8.A as a frontend snapshot (`src/state/history.ts`),
+before ADR-11's model (project UI state in the core; windows are views) was fully applied
+to it. The result is a per-window stack over state the frontend does not own: it captures
+remote `ui-state` patches as local edits (ping-pong), every peer edit wipes the redo
+branch, a freshly loaded project acquires a spurious step, and the native menu accelerators
+shadow text-field undo. The same project content is also assembled in two more frontend
+readers (`dirty.ts`'s `projectSignature` and `snapshot.ts`'s save assembly), which have
+already drifted.
+
+**Decision:** the **core owns the undo/redo history** — a bounded stack of project-state
+snapshots per project, in the shape `save_project` persists. The frontend pushes settled
+project-state changes (shared state, graphs, layout) to the core through a coalesced
+channel; undo/redo are core commands that diff the target snapshot against the current one
+and broadcast the changed keys over the existing `ui-state` protocol. The same snapshot
+becomes the single source for **save**, **load**, and **dirty** too — the three frontend
+readers (`history.ts`, `snapshot.ts`, `dirty.ts`) are deleted, and the milestone is
+delivered in three phases (snapshot + undo → save/load → dirty) so the frontend-tuned
+dirty/settle behaviour moves across languages last. `Mod+Z` / `Shift+Mod+Z` become commands
+in the M24.B command registry with a text-field guard (`allowInInput: false`), not native
+menu accelerators.
+
+**Consequence:** one writer, one stack, one snapshot — the local/remote ambiguity, the
+redo-wipe, and the spurious fresh-load step disappear. Windows are pure projections that
+apply restores with a mute flag; history resets on New / Open / source change. The snapshot
+type is the single enforcement point for "what is undoable" (the project-file sections,
+linked, not restated); PCM, `RESULTS`, transport, chart zoom, theme, and the live compare
+stay out (ADR-21, ADR-22, ADR-24). The per-key whole-value patch is reused first; RFC 6902
+within a key is deferred until a single key's value is large enough to justify it. See
+[`undo-redo.md`](undo-redo.md).
+
+**Status: planned (M24.A).**

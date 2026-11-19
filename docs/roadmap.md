@@ -1459,7 +1459,7 @@ comparison rework carries the container bump.
   action; **Stop** silences but leaves the line at its current position. Play resumes from
   the position when it is inside the window, else from the window start. **Return to
   start** puts the playhead at source 0 as a toolbar action (D-02); the global `Home`
-  binding lands with M24.
+  binding lands with M24.B.
 - **The position is authoritative in the core.** Poll `preview_position` at ~10–15 Hz and
   interpolate locally for 60 fps drawing (no drift, still smooth). The playhead stays
   visible while paused/idle (dimmed when paused) and rides the chart bus as
@@ -1468,7 +1468,7 @@ comparison rework carries the container bump.
   waveform, while a left drag (in the ruler or the body) selects a window — see Phase 1.
 - **Loop / follow.** A loop toggle (default on, window-following); off plays to the
   window end and stops, leaving the playhead there. **Follow playhead** (D-03) pages the
-  view when a playing playhead leaves it; the `F` binding lands with M24.
+  view when a playing playhead leaves it; the `F` binding lands with M24.B.
 - **Window vs. playhead.** While playing, the loop follows the window (one reload at the
   settle, resumed at the equivalent position when the playhead is inside it, else from the
   window start). A paused/idle playhead is clamped into a moved window (D-04): a paused
@@ -1627,7 +1627,39 @@ reloads a playing preview), `r2-compare` / `r2b-compare-relative` (one pair per 
 owner's grid, δ, per-side channel, legend, zoom, popout), and the annotation specs
 (Analyze reframes; a lane drag creates a range).
 
-## M24 — Keyboard control (planned)
+## M24.A — Undo/redo as a core project operation (planned)
+
+Rework undo/redo from a per-window frontend snapshot into a **core-owned, revision-based
+project operation** — the prerequisite to M24.B's keyboard registry, because undo/redo can
+only be bound correctly (without stealing text-field undo) once the registry's text-field
+guard exists. See [`undo-redo.md`](undo-redo.md) and **ADR-37**.
+
+- **One snapshot, one owner.** The Rust core owns a single project-state snapshot (the
+  project-file content) plus the undo/redo stacks; windows are projections that push settled
+  changes and apply restores. This removes the per-window stack, the local-vs-remote
+  ping-pong, the redo-wipe on a peer edit, and the spurious step on a freshly opened project.
+- **Undoable = project content.** The snapshot is the project file's sections (linked, not
+  restated); PCM, `RESULTS`, transport, chart zoom, theme, and the live compare stay out.
+- **`Mod+Z` / `Shift+Mod+Z` are commands, not menu accelerators.** The native Undo/Redo items
+  lose their accelerators; `undo` / `redo` become the first two commands in M24.B's registry
+  (`allowInInput: false`), so a focused text field keeps native text undo.
+- **Delivered in three phases:** (1) snapshot + undo/redo + the registry seam; (2) save/load
+  read and write the snapshot (headless/CLI converge); (3) dirty tracking moves to the core.
+  Each phase deletes one of the three frontend readers (`history.ts`, `snapshot.ts`,
+  `dirty.ts`).
+
+**Files:** `src-tauri/src/state/`, `src-tauri/src/commands/` (undo/redo/snapshot), the
+frontend push projection, `src/state/keybindings/` (the registry skeleton + guard);
+`src/state/history.ts` is deleted. See [`undo-redo.md`](undo-redo.md).
+
+**Tests.** Rust unit (reducer, key-boundary diff, snapshot round-trip); frontend unit
+(coalesced push, remote mute); E2E (edit→undo→redo, text-field native undo, empty stack on
+open, a popout edit undoable once, source change resets, transient MCP edits not recorded).
+
+> **Order:** M24.A lands before M24.B; M24.B's command registry builds on the seam M24.A
+> delivers.
+
+## M24.B — Keyboard control (planned)
 
 Every important action becomes reachable from the keyboard, the app is navigable without
 the mouse, and the bindings are both discoverable and editable.
@@ -1693,12 +1725,13 @@ seek, `N` annotates, `Mod+K` opens and runs a palette command, `?` opens the dia
 rebinding a command makes the old key inert and the new one work, a conflict is rejected,
 typing in an annotation/search field never triggers a shortcut, and bindings survive a reload.
 
-> **Order:** M22 is independent; M23 generalizes the transport M22's audition uses; M24
-> builds on M23's transport and window commands. Recommended order: **M22 → M23 → M24**.
+> **Order:** M22 is independent; M23 generalizes the transport M22's audition uses; M24.B
+> builds on M23's transport and window commands and on M24.A's registry seam. Recommended
+> order: **M22 → M23 → M24.A → M24.B**.
 
 > **Confirmed in review:** live writes overwrite the synth-owned source in place (never a
 > splice into a file); ADR-19 selection semantics stay, so only **Analyze** frames and
-> focuses; `Live`/`Audition` start off and are remembered app-level; the M24 default table
+> focuses; `Live`/`Audition` start off and are remembered app-level; the M24.B default table
 > is a starting point, with **`Space` confirmed as play/pause**.
 
 ## M25 — Cross-project comparison ✅
@@ -1813,7 +1846,7 @@ alignment + the fine-tune offset followed in **M25.B**, and saved comparisons in
 **M25.C**.
 
 > **Order:** M25 depends on M23 only for the peer playhead's *paused* position; without
-> M23 it reads the core's playing position. M25 is otherwise independent of M22/M24.
+> M23 it reads the core's playing position. M25 is otherwise independent of M22/M24.B.
 
 > **Decision:** a comparison is a transient, read-only view over two project states
 > computed by the core — not a second track and not saved. See ADR-24.

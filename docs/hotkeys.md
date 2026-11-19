@@ -1,6 +1,6 @@
 # Keyboard control (hotkeys, palette, shortcut explorer)
 
-Plan for **M24** (see [`roadmap.md`](roadmap.md)). The goal is threefold: drive the
+Plan for **M24.B** (see [`roadmap.md`](roadmap.md)). The goal is threefold: drive the
 preview transport from the keyboard, navigate the whole app without the mouse, and make
 every binding **explorable and configurable**.
 
@@ -84,7 +84,7 @@ an empty/non-key binding. A stored value of `null` means **intentionally unbound
 | open dialog | only dialog-scope / `Escape` | only dialog-scope | — |
 
 The Timeline canvas **is focusable** (M23; D-14 added the keyboard set and the ARIA live
-region); clicking it puts the transport keys in their natural context. Until M24's
+region); clicking it puts the transport keys in their natural context. Until M24.B's
 registry owns them, the canvas-local keys are a small subset — see the note under the
 transport table. The **palette** command opts in to working in a text field
 (`allowInInput`); `?` does not, so it stays a normal character while typing. Use Help →
@@ -115,7 +115,7 @@ steals Space from a text field or a focused button (where Space belongs to the c
 
 > **Shipped today (canvas-local, M23/D-14):** `ArrowLeft`/`ArrowRight` nudge the playhead
 > (Shift ×10), `Home` returns to the start, `End` jumps to the end, and
-> `PageUp`/`PageDown` step the window history. The rest of the table is M24's registry
+> `PageUp`/`PageDown` step the window history. The rest of the table is M24.B's registry
 > proposal; each row becomes live when the registry binds it to the command that already
 > exists.
 
@@ -162,9 +162,11 @@ steals Space from a text field or a focused button (where Space belongs to the c
 ### Native menu (read-only)
 
 `Mod+N` New · `Mod+O` Open · `Mod+S` Save · `Mod+Shift+S` Save As · `Mod+Shift+N` New
-Window · `Mod+Z` Undo · `Mod+Shift+Z` Redo · `Mod+Q` Quit · Help → About / Check for
-Updates… / Keyboard Shortcuts. These keep their OS accelerators; the explorer lists them
-so the user can see the whole keyboard surface in one place.
+Window · `Mod+Q` Quit · Help → About / Check for Updates… / Keyboard Shortcuts. These keep
+their OS accelerators; the explorer lists them so the user can see the whole keyboard
+surface in one place. **Undo / Redo are not native menu items** — M24.A makes them the first
+two registry commands (`Mod+Z` / `Shift+Mod+Z`, `allowInInput: false`), so a focused text
+field keeps native text undo. See [`undo-redo.md`](undo-redo.md).
 
 ## Command palette
 
@@ -249,4 +251,4 @@ so the user can see the whole keyboard surface in one place.
 ## Deferred
 
 Every item on this list needs the command registry first; they are [D-25](deferred.md)
-and are not part of M24's first delivery.
+and are not part of M24.B's first delivery.

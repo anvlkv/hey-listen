@@ -16,7 +16,7 @@ the owning milestone/doc records the delivery.
 | --- | --- |
 | `now` | Deliverable today: no decision, milestone, or platform work in the way. |
 | `decision` | Waiting on an architecture decision (an ADR amendment or a new ADR). |
-| `milestone` | Waiting on a planned milestone (M13, M22, M24). |
+| `milestone` | Waiting on a planned milestone (M13, M22, M24.B). |
 | `platform` | Waiting on work nobody has scheduled (AudioUnit-free device enumeration). |
 | `backlog` | Kept, no target. Not refused; simply unscheduled. |
 | `cancelled` | Closed as a non-goal. Reviving it needs a new ADR (see [ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)). |
@@ -39,8 +39,8 @@ the owning milestone/doc records the delivery.
 | ID | Item | Depends on | Plan |
 | --- | --- | --- | --- |
 | D-24 | Click-free smoothing across a net rebuild | M22 | ADR-21 defers a phase-continuous rebuild; `follow` smoothing only glides *within* a compiled net. |
-| D-25 | Hotkey sub-items: chords, modifier-only bindings, per-project bindings, native menu accelerators, keymap import/export, preset keymaps, mouse gestures | M24 | `hotkeys.md` defines them; none can land before the registry exists. Also where the global `Home` / `F` bindings attach — the actions already ship (`hotkeys.md` → Transport). |
-| — | Templates, live synth, keyboard control (whole milestones) | M13, M22, M24 | Tracked in the roadmap and their own docs; not restated here. |
+| D-25 | Hotkey sub-items: chords, modifier-only bindings, per-project bindings, native menu accelerators, keymap import/export, preset keymaps, mouse gestures | M24.B | `hotkeys.md` defines them; none can land before the registry exists. Also where the global `Home` / `F` bindings attach — the actions already ship (`hotkeys.md` → Transport). |
+| — | Templates, live synth, keyboard control (whole milestones) | M13, M22, M24.B | Tracked in the roadmap and their own docs; not restated here. |
 
 ### Phase 4 — platform-gated (`platform`)
 
@@ -72,13 +72,13 @@ in [ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line); reviving one needs 
 graph TD
     ADR[New ADR + container bump] --> P2[Phase 2: fragment audio]
     M22[M22 live synth] --> P3[Milestone: rebuild smoothing]
-    M24[M24 keyboard] --> P31[Milestone: hotkey extras]
+    M24B[M24.B keyboard] --> P31[Milestone: hotkey extras]
     PLAT[AudioUnit-free enumeration] --> P4[Platform: CLI devices]
 ```
 
-The M24 arrow is now a binding-only step: the return-to-start action, follow-playhead
+The M24.B arrow is now a binding-only step: the return-to-start action, follow-playhead
 toggle, window history and annotation stepping **shipped as commands** (D-02, D-03, D-13),
-so M24 binds keys to behaviour that already exists instead of designing it. The canvas also
+so M24.B binds keys to behaviour that already exists instead of designing it. The canvas also
 owns a small keyboard set today (arrows, `Home`, `End`, `PageUp`/`PageDown`); `hotkeys.md`
 records that it is canvas-local until the registry takes over.
 
