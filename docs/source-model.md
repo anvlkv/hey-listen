@@ -82,21 +82,21 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
   **selected lane** draws at full strength and the others are dimmed (with Downmix every
   lane stays equal). See [`roadmap.md`](roadmap.md) → M23, Phase 1.
 
-### Planned — transport and framing (M23)
+### Transport and framing (M23)
 
 - A committed reframe (annotation **Analyze**, a chart's **Reframe** menu, a **left-drag**
-  window selection) **frames the analysis window in the viewport** and focuses the
-  Timeline; selecting an annotation still never moves the window (ADR-19).
+  window selection) **frames the analysis window in the viewport**; selecting an
+  annotation still never moves the window (ADR-19).
 - **Parallel channel lanes**: one waveform lane per channel in a fixed-height area, a
   compact label + radio rail on the left, and a **Downmix** toggle (2+ channels only),
   replacing the toolbar dropdown. A middle-button drag pans; a left drag selects a new
   window like selecting text; the window's move bar shows its `Δ` duration.
-- A **comparison** becomes one pair of windows per tab, aligned relatively and diffed on the
-  owner's grid (windows stay pinned; the reference carries its fragment audio, shown in a
-  reference-fragment timeline) — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
-- The transport becomes **play/pause** with a seekable playhead that persists when paused
-  or stopped; a ruler **click** seeks (a ruler **drag** selects a window), loop is a
-  toggle, and the view can follow the playhead.
+- A **comparison** is one pair of windows per tab, aligned relatively and diffed on the
+  owner's grid (windows stay pinned; the reference window is shown as a band on the time
+  charts) — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
+- The transport is **play/pause** with a seekable playhead that persists when paused or
+  stopped; a ruler **click** seeks (a ruler **drag** selects a window) and loop is a
+  toggle.
 - **Wheel/trackpad** handling is normalized and gesture-based: a vertical wheel zooms at
   the cursor (pinch / `⌘`/Ctrl+wheel too), a horizontal wheel or `Shift` + vertical pans
   (time, plus frequency on 2-D views), and a horizontal gesture never zooms. No vertical

@@ -1347,7 +1347,7 @@ drops where previewed.
 **Deferred:** phase-continuous rebuilds, per-node solo/audition, parameter automation,
 MIDI, and live *input* graphs.
 
-## M23 — Timeline ergonomics + comparison rework (planned, in phases)
+## M23 — Timeline ergonomics + comparison rework ✅
 
 The Timeline becomes the project's transport, navigator and **window picker**, and a
 comparison becomes a **pair of windows per tab, aligned relatively and diffed on the
@@ -1355,10 +1355,10 @@ owner's grid** — two halves of one change, delivered in three self-contained p
 
 **Why together.** Both halves make the **analysis window** a first-class object and use
 **the Timeline as the surface that selects, previews and overlays it**. Phase 1 builds
-compact labelled lanes and a text-like drag to read and pick a window; Phase 3 reuses those
-exact lanes as the compare tab's **reference-fragment timeline**, which pins the reference
-window at its true time while the comparison itself stays start-aligned. Both halves also
-land in the project file, so the comparison rework carries the container bump.
+compact labelled lanes and a text-like drag to read and pick a window; Phase 3 pins the
+reference's window at its true time (drawn as a band on the time charts) while the
+comparison itself stays start-aligned. Both halves also land in the project file, so the
+comparison rework carries the container bump.
 
 - **Phase 1 — Channel lanes + a window you can grab.** Parallel channel waveforms, the
   move-bar duration readout, middle-button pan, and a left-drag text-like selection.
@@ -1366,6 +1366,22 @@ land in the project file, so the comparison rework carries the container bump.
   work below, largely independent of Phase 1.
 - **Phase 3 — Comparison rework.** Pairwise tabs, start-aligned, diffed on the owner's
   grid, with a `v3` project format + convert migration.
+
+> **Delivered (all three phases).** Parallel channel lanes with a rail (radio + Downmix)
+> and a dimmed non-selected lane; the move bar's `Δ` duration; middle-button pan; text-like
+> window selection on the body **and** the ruler (a ruler click seeks) with a live selection
+> rectangle; hue-shifted window shading; a play/pause/stop/seek transport with a looping,
+> window-following region; one wheel model (vertical zooms, horizontal/`Shift` pans) on the
+> Timeline, uPlot charts and canvas heatmaps; full-height annotation rules; and the
+> pairwise comparison rework (one pair per tab, start-aligned relative diff on the owner's
+> grid, optional δ, Swap dropped, per-side channel, compact header, legend, one colour per
+> side, file `v3` + `v2→v3` convert). Colour maths runs through **color2k**. E2E coverage
+> lives in `g-timeline`, `q-transport`, `r2-compare` and `r2b-compare-relative`.
+>
+> **Not shipped (see Deferred):** stored **fragment audio** for saved references (v3
+> snapshots stay result-only on their own grid), a separate reference-fragment timeline
+> strip (the reference window is still a band on time charts), canvas autofocus/flash,
+> Return-to-start/`Home`, and a follow-playhead toggle.
 
 ### Parallel channel lanes
 
@@ -1405,19 +1421,16 @@ land in the project file, so the comparison rework carries the container bump.
 
 ### Reframe → frame + focus
 
-- Add **`reframeWindow({ start, end, frame, focus, origin })`** to `state/timeline.ts`:
-  clamp and batch both ends, then expand the viewport to contain the window with ~12 %
-  padding. Leave the view alone when the window already fills ≥ ~55 % of it; otherwise
-  zoom/centre. Always ensure the window is fully visible.
+- **`reframeWindow({ start, end, frame })`** in `state/timeline.ts`: clamp and batch both
+  ends, then (with `frame`) expand the viewport to contain the window with ~12 % padding.
+  Leave the view alone when the window already fills ≥ ~55 % of it; otherwise zoom/centre.
 - Route **every** window writer through it: annotation **Analyze**, the chart **Reframe**
   menu, the Timeline edge-drag release (fold in `maybeAutoZoom`), MCP `set_window` (frame
   without stealing focus), and project load / template window policy. Ordinary **moves**
   with the top handle do not re-frame: the user is already looking at the window.
-- **Autofocus.** The Timeline canvas becomes focusable (`tabindex=0`). A user reframe
-  focuses it (unless focus is in a text editor) and flashes its focus ring — which also
-  gives the keyboard transport a natural home. ADR-19 is unchanged: selecting an
-  annotation still never moves the window; only Analyze reframes, and it now frames and
-  focuses.
+- **Autofocus (deferred).** Making the Timeline canvas focusable (`tabindex=0`) and
+  flashing its focus ring on a reframe is not shipped. ADR-19 is unchanged either way:
+  selecting an annotation still never moves the window; only Analyze reframes it.
 - **Selection gesture.** The primary-button drag of *Window readout, pan and select* above
   is the selection gesture (it was `Shift`+drag in an earlier plan; the primary button now
   selects and the middle button pans, so no modifier is needed). A plain ruler click is
@@ -1430,25 +1443,22 @@ land in the project file, so the comparison rework carries the container bump.
   an `offset` so a reload resumes at the current playhead. New commands `pause_preview`,
   `resume_preview`, `seek_preview`.
 - **Frontend `transport` store.** State: `status` (`idle` / `playing` / `paused`),
-  `position` (source seconds), `region`, `loop`, `speed`, `owner` (`source` / `synth`).
-  **Play/Pause** is the primary action; **Stop** silences but leaves the line at its
-  current position; **Return to start** (the toolbar action / `Home`) moves it to the
-  window start. Play resumes from the position when it is inside the window, else from the
-  window start.
+  `position` (source seconds), `region`, `loop`, `speed`. **Play/Pause** is the primary
+  action; **Stop** silences but leaves the line at its current position. Play resumes from
+  the position when it is inside the window, else from the window start. (A Return-to-
+  start/`Home` action is deferred.)
 - **The position is authoritative in the core.** Poll `preview_position` at ~10–15 Hz and
   interpolate locally for 60 fps drawing (no drift, still smooth). The playhead stays
   visible while paused/idle (dimmed when paused) and rides the chart bus as
   `{ secs, playing }`, so every time chart dims it too. Clear only on source change.
-- **Seek.** A click in the ruler, or a drag of the playhead's ruler handle, sets the
-  position; a middle-button drag pans the waveform, while a left drag (in the ruler or the
-  body) selects a window — see Phase 1. Draw a small handle in the ruler.
+- **Seek.** A click in the ruler sets the position; a middle-button drag pans the
+  waveform, while a left drag (in the ruler or the body) selects a window — see Phase 1.
 - **Loop / follow.** A loop toggle (default on, window-following); off plays to the
-  window end and stops, leaving the playhead there. A *follow playhead* toggle pans the
-  view when the line nears the right edge; a manual pan/zoom disables it until the next
-  play.
-- **Window vs. playhead.** While paused/idle, a window change clamps the playhead into the
-  new window; while playing, the loop follows the window as today (one reload at the
-  settle, resumed at the equivalent position where possible).
+  window end and stops, leaving the playhead there. A *follow playhead* toggle is
+  deferred.
+- **Window vs. playhead.** While playing, the loop follows the window (one reload at the
+  settle, resumed at the equivalent position when the playhead is inside it, else from the
+  window start). Clamping a paused/idle playhead into a moved window is deferred.
 - **Toolbar.** Play/pause + stop + loop + position/duration readout, keeping speed. The
   output meter follows `status`.
 - **Cross-window.** The transport is per project, not per webview: control and position
@@ -1528,11 +1538,10 @@ equality check). This rework separates them and drops the gate.
   differences become "normalized to the owner's grid" info, not a refusal.
 - **Compare across channels.** A side carries a channel, so two sides of the **same**
   project/window with different channels (e.g. L vs R) are an ordinary pair — no new path.
-- **Reference fragment timeline.** A compact strip at the top of the compare tab (reusing
-  the Phase-1 lane strip) draws the reference fragment at its pinned `[start,end]` on the
-  reference's source and **previews** it; a live reference also shows its playhead. It
-  replaces B's old in-chart "band" — absolute time lives here, while the chart stays
-  relative.
+- **Reference window on the chart.** The reference's pinned `[start,end]` is drawn as a
+  band on the time-axis compare charts, and a live reference's playhead shows too. A
+  dedicated reference-fragment timeline **strip** (reusing the Phase-1 lane strip) is
+  **deferred**; absolute time stays on that band while the chart itself is relative.
 - **Toolbar button.** `AnalyzerTab`'s `analyzer-actions` gains a **Compare** popover (next
   to Export / About / Params) that opens a **new** compare tab: pick a reference project →
   window → channel. The tab-menu and **Analysis → Compare with…** entry points remain, now
@@ -1545,29 +1554,29 @@ equality check). This rework separates them and drops the gate.
 - **Fixed zoom.** Compare charts take the normal zoom/sync path (matrix/heatmap included);
   the M25.A "matrix is read-only" exception is removed.
 - **Consistent colours.** A side maps to one colour used **everywhere** — header chip,
-  fragment timeline, legend and chart series — from the same `chartTheme()` palette the
+  reference band, legend and chart series — from the same `chartTheme()` palette the
   analyzer charts use. No project-label-vs-series drift.
 - **File format `v3` + migration (convert).** `COMPARE` becomes a `Vec<SavedComparison>`
-  with **one entry per pair** (several per tool): `{ tool, owner, reference, bOffset,
-  savedMs }`, where a side carries its `window`, `channel`, and — on the reference side —
-  its `projectName` / `projectPath`, `source` shape, `filterFingerprint`, and the
-  **fragment audio** (the windowed, channel-selected PCM), so it can be re-gridded to the
-  owner and previewed after reopen. This is an **incompatible** `postcard` change, so
-  `VERSION` bumps **2 → 3** and a `v2 → v3` step (`project/migrate/v2.rs`) **converts** each
-  old single snapshot into one pair (reference side = the stored snapshot, owner side = the
-  project's saved setup). Old snapshots have no fragment audio, so they convert as
-  **result-only** (they open and show their stored result, best-effort) with a *re-link
-  reference* affordance (`referencePath`) to capture fragment audio; nothing is dropped.
+  with **one entry per pair** (several per tool). v3 stores the reference's last result
+  plus the pair's identity: `tool`, `id`, the reference's window / params / options /
+  filter fingerprint / source shape / `projectName` / `projectPath`, the **owner's**
+  pinned window and channel (`ownerWindow` / `ownerChannel`), and `bOffset`. It is
+  **result-only**: a live reference is re-analysed on the owner's grid at compare time,
+  while a saved reference shows its stored result on its own grid. This is an
+  **incompatible** `postcard` change, so `VERSION` bumps **2 → 3** and a `v2 → v3` step
+  (`project/migrate/v2.rs`) **converts** each old single snapshot into one pair (reference
+  side = the stored snapshot, owner side = the project's saved setup); nothing is dropped.
   `MIN_READ_VERSION` stays 1, the version history gains the row, and the step-table test
-  keeps covering `MIN_READ_VERSION..VERSION`.
+  keeps covering `MIN_READ_VERSION..VERSION`. Storing the windowed **fragment audio** so a
+  saved reference could be re-gridded and re-linked is deferred.
 
 > **Decision (Phase 2):** the playhead is transport state, not a preview side effect, and
 > a reframe frames the view without changing what the analysis window means. See ADR-22.
 >
 > **Decision (Phase 3):** a comparison is **one pair of windows, aligned relatively and
 > always diffed on the owner's grid** — windows stay pinned, the comparison stays relative.
-> Amends ADR-26 (drops Swap, keeps the optional δ); supersedes ADR-27's one-snapshot /
-> result-only shape; removes the comparability gate in `comparison.md`. See ADR-33 (to be
+> Amends ADR-26 (drops Swap, keeps the optional δ); supersedes ADR-27's one-snapshot-per-
+> project shape; removes the comparability gate in `comparison.md`. See ADR-33 (to be
 > written).
 
 **Deferred:** hover crosshair + time/sample readout; a Timeline context menu; snapping to
@@ -1575,7 +1584,9 @@ playhead / annotations / window edges / a zoom-dependent grid; numeric start/end
 fields; wider handle / move-bar hit targets; window history + previous/next annotation;
 centre-on-playhead / page-follow modes; accessibility (focusable canvas, ARIA
 announcements); waveform editing; spectral selection; multi-range selection; per-selection
-analysis.
+analysis; **Return-to-start/`Home`; a follow-playhead toggle; clamping a paused playhead
+into a moved window; a reference-fragment timeline strip; and fragment-audio re-gridding +
+re-link for saved references.**
 
 **Files:** `src-tauri/src/audio/playback/{mod,stream}.rs`,
 `src-tauri/src/commands/playback.rs`, `src/audio/preview.ts`,
@@ -1588,34 +1599,23 @@ analysis.
 `src/lib/wheelGesture.ts`, `src/state/uiState.ts`;
 **Phase 3:** `src-tauri/src/audio/analysis/compare/{mod,align,diff,saved}.rs`,
 `src-tauri/src/audio/analysis/results/stored.rs`,
-`src-tauri/src/project/{sections,migrate/v2}.rs` (fragment audio + convert),
+`src-tauri/src/project/{sections,migrate/v2}.rs` (v3 convert),
 `src-tauri/src/commands/compare/`, `src-tauri/src/mcp/tools/compare.rs`,
 `src-tauri/cli/src/batch/compare.rs`, `src/state/compare/`, `src/components/compare/`
-(fragment timeline, legend, compact header, new-tab picker), `src/state/themes/chart.ts`.
+(legend, compact header, new-tab picker, per-side colours), `src/state/themes/chart.ts`.
 
-**Tests.** Rust: pause/resume/seek/position state machine (extract a pure state where a
-device is not available); `preview_region` offset; the `v2 → v3` migration **converts**
-each old `COMPARE` snapshot into a pair and keeps `SOURCE`/`DATA`/`SETUP`/`LAYOUT`/`META`/
-`ANNOTATIONS`; the `COMPARE` v3 round-trip (multi-pair, per-side channel + fragment audio).
-Unit: frame math (keep/zoom/clamp),
-snap candidates, annotation rule geometry, transport reducer, wheel intent/normalization
-(delta modes, gesture lock, exponential factor, no horizontal zoom), per-channel pyramid
-build, lane split math, fragment→colour mapping, the selection-drag state machine. E2E
-(`q3-timeline-ergonomics`): Analyze from an annotation zooms the Timeline view and focuses
-it; chart Reframe does the same; Space pauses/resumes and the playhead persists while
-paused/stopped; ruler click seeks; loop off stops at the end; **left-drag** selects and
-frames a window (middle-drag pans); the move bar shows the window duration; a multichannel
-source shows one lane per channel at a fixed total height, the rail radio switches the
-analysed channel, and the Downmix toggle appears only with 2+ channels; lane selection
-paints full-height rules; hover shows the time readout; a burst of tiny vertical wheel
-events zooms proportionally (with or without `Ctrl`/`⌘`), a horizontal or `Shift` gesture
-pans by the accumulated delta instead of stepping once per event, and a horizontal gesture
-never zooms. E2E (compare, extended `r2-compare`):
-the toolbar Compare popover opens a new compare tab; multiple windows of one reference and
-multiple references open as distinct tabs, each a start-aligned relative pair diffed on the
-owner's grid; the fragment timeline previews; a legend and one colour per side appear on
-the chart; compare charts zoom; a saved comparison converts on reopen (result-only) and
-offers re-link.
+**Tests.** Rust: pause/resume/seek/position state machine; `preview_region` offset; the
+`v2 → v3` migration **converts** each old `COMPARE` snapshot into a pair and keeps
+`SOURCE`/`DATA`/`SETUP`/`LAYOUT`/`META`/`ANNOTATIONS`; the `COMPARE` v3 round-trip
+(multi-pair, per-side channel). Unit: frame math (keep/zoom/clamp), annotation rule
+geometry, transport interpolation, wheel intent/normalization (delta modes, gesture lock,
+exponential factor, vertical zoom, horizontal/`Shift` pan), per-channel lane split math,
+the window-selection math (`selectWindow`), and colour-ramp sampling. E2E: `g-timeline`
+(move bar shows the `Δ`; a body or ruler drag selects and frames a window; the wheel
+zooms), `q-transport` (play/pause/stop/seek, loop, the playhead, and a moved window
+reloads a playing preview), `r2-compare` / `r2b-compare-relative` (one pair per tab, the
+owner's grid, δ, per-side channel, legend, zoom, popout), and the annotation specs
+(Analyze reframes; a lane drag creates a range).
 
 ## M24 — Keyboard control (planned)
 

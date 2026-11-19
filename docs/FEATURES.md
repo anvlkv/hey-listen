@@ -12,9 +12,9 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 
 ## Listen and navigate — available
 
-- **Frame the question.** Inspect the waveform, set or move an analysis window, zoom and pan the Timeline, and fit the view or window. Analyzers run on that window, not necessarily the whole recording. [Source model](source-model.md) · [UI layout](ui-layout.md)
-- **Preview a region.** Loop or stop playback, choose a playback device and gain, watch the output meter and shared playhead, and vary playback speed from 0.25× to 4×. Varispeed changes what you hear, not the analysis. [Annotations](annotations.md) · [UI layout](ui-layout.md)
-- **Choose a channel.** Inspect or analyze a specific channel or a mono downmix of multichannel audio. [Analysis tools](analysis-tools.md)
+- **Frame the question.** Inspect the waveform, set or move an analysis window, zoom and pan the Timeline, and fit the view or window. Drag across the waveform (or the ruler) to select a new window like text; read its duration on the move bar. Analyzers run on that window, not necessarily the whole recording. [Source model](source-model.md) · [UI layout](ui-layout.md)
+- **Preview a region.** Play, pause, resume, seek, loop or stop playback, choose a device and gain, and watch the output meter and the shared, persistent playhead. Vary playback speed from 0.25× to 4×; varispeed changes what you hear, not the analysis. [Annotations](annotations.md) · [UI layout](ui-layout.md)
+- **Choose a channel.** Inspect or analyze a specific channel or a mono downmix of multichannel audio — every channel as a parallel lane with a channel/downmix rail, the selected lane standing out. [Analysis tools](analysis-tools.md) · [Source model](source-model.md)
 
 ## Shape sound — available
 
@@ -37,7 +37,7 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 
 - **Annotate a moment or span.** Add a point or range from the Timeline, a chart, or the playhead. Write Markdown and, for a chart annotation, retain a frozen values/settings snapshot even after analysis settings change. [Annotations](annotations.md)
 - **Review without moving the window.** Select an annotation to locate it across charts, edit or discard changes in the Annotations rail, or open it in a separate window. Choose **Analyze** when you want to move the analysis window to that mark. [Annotations](annotations.md)
-- **Compare projects, not tracks.** Run the same analyzer on two independent projects with their own windows, filters, and options. Align by relative time, fine-tune the reference offset, and inspect overlays or deltas when results are comparable; setting mismatches are reported instead of silently interpolated. [Comparison](comparison.md)
+- **Compare projects, not tracks.** Run the same analyzer on two independent projects with their own windows, filters, and options — one pair per tab, several tabs per tool. Align by relative time, fine-tune the reference offset, and inspect overlays and deltas, always diffed on the owner's grid (the reference is re-analysed on it). [Comparison](comparison.md)
 - **Return to a comparison.** Compare live windows or a saved reference snapshot, pop out a compare view, and save the last successful comparison in the owner project for later review without the reference window open. [Comparison](comparison.md)
 - **Export the evidence.** Save analyzer data as provenance-bearing JSON or CSV (with metadata sidecar), copy CSV, export every open analysis, or capture the rendered chart as PNG with its visible theme and zoom. PNG needs the app; data export also works headlessly. [Exports](exports.md)
 
@@ -59,11 +59,10 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 
 - **Reusable analysis templates (M13).** Save a source-independent setup of settings, tools, graphs, and optionally layout; apply it to another recording with a window policy that adapts to its duration. Planned entry points include app UI, MCP, and CLI. [Templates](templates.md)
 - **Live synth workflow (M22).** Audition graph edits without replacing the source, or opt into a live synth-owned source that updates in place so existing windows, annotations, and charts keep their positions. Show a node ghost and landing/connection preview when dragging from the palette. [Roadmap M22](roadmap.md#m22--synth-workflow-live-audition--in-place-source-planned)
-- **Timeline and comparison improvements (M23).** Bring a newly committed window into view and drag to select a new one like text (middle-drag pans), read the window duration on its handle, see every channel as a parallel lane with a channel/downmix rail, seek or pause/resume from a persistent playhead, and make trackpad/wheel pan and zoom consistent across charts. Rework comparisons into pairwise, start-aligned tabs (each a window pair, always diffed on the owner's grid). Show full-height guides when selecting or editing annotation spans. [Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-planned-in-phases)
 - **Keyboard-first control (M24).** Reach transport, window, annotation, graph, and tab actions by configurable shortcuts; find commands and tools in a palette, and discover or rebind keys in a shortcuts dialog. [Hotkeys](hotkeys.md)
 
 ### Proposed or drafted
 
-- **Further Timeline precision (M23 deferred).** Hover time/sample readouts, a context menu, snapping, typed window bounds, easier handles, navigation history, and accessibility announcements remain proposed, not committed. [Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-planned-in-phases)
+- **Further Timeline precision (M23 deferred).** Hover time/sample readouts, a context menu, snapping, typed window bounds, easier handles, navigation history, and accessibility announcements remain proposed, not committed. [Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-)
 - **In-app help and onboarding (M34 draft).** Contextual help for analyzers, graphs, and projects, plus a getting-started path and clearer documentation entry points; surfaces and content are still TBD. [Roadmap M34](roadmap.md#m34--improved-documentation-and-help-drafted)
 - **Landing-page rework (M35 draft).** A clearer public explanation of the open → filter → analyze → annotate → compare workflow; site structure and copy remain TBD. This is a communications plan, not a new analysis capability. [Roadmap M35](roadmap.md#m35--landing-page-rework--remotion-workflow-video-drafted)

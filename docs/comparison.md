@@ -1,12 +1,14 @@
 # Cross-project comparison (M25)
 
-> **Planned rework (M23, Phase 3).** A comparison becomes **one pair of windows per tab**
+> **Delivered rework (M23, Phase 3).** A comparison is **one pair of windows per tab**
 > (an owner window ↔ a reference window, several tabs per tool), always **relative**
 > (start-aligned) and always diffed on the **owner's grid**; windows stay pinned and the
-> reference carries its fragment audio. The `v3` format converts the current `COMPARE`
-> snapshots into pairs (never drops them). The sections below describe the delivered
-> M25–M25.D model; the M23 plan amends ADR-26 (drops Swap, keeps δ) and supersedes ADR-27's
-> one-snapshot / result-only shape. See [`roadmap.md`](roadmap.md) → M23, Phase 3.
+> reference is re-analysed on that grid, so a numeric delta always exists. **Swap is
+> dropped** (δ kept). The `v3` format stores one snapshot per pair, **result-only** (a
+> saved reference shows its stored result on its own grid), and a `v2 → v3` step
+> **converts** the older snapshots into pairs rather than dropping them. The sections below
+> describe the delivered M25–M25.D model; the rework amends ADR-26 and supersedes ADR-27's
+> one-snapshot shape. See [`roadmap.md`](roadmap.md) → M23, Phase 3.
 
 Compare **the same analysis tool** on two project sides. Each side keeps its own source,
 filter, synth, timeline, analysis window, shared params and tool options; the comparison
