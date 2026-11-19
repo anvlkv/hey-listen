@@ -147,7 +147,33 @@ The rule is: **log the failure where it is finally known**.
 | A Rust command that **swallows** an error | audit `let _ = …` / `unwrap_or_default()` in `commands/` and log at `warn!`/`error!` where the user-visible effect is a silent no-op (the existing `results.rs`, `themes.rs`, `cli_install.rs`, `playback.rs` sites are the pattern) |
 | A Rust **panic** | `logging::guard_panics()` installs `std::panic::set_hook`: `log::error!` the message + location, then call the previous hook so stderr keeps the standard report. GUI launches only (a CLI invocation already prints to stderr) |
 
-### 4. Help menu — two actions
+### 4. Runs are named: start, finish, heartbeat
+
+An analysis or a comparison is a **run**, and every run leaves three kinds of line, so a
+user who reports "it just says *comparing…*" gets an answer from the file alone. The
+implementation is `src/lib/runLog.ts`; it logs through `console.*`, so the bridge adds the
+origin like any other line.
+
+| Moment | Level | Example |
+| --- | --- | --- |
+| The run got its inputs | info | `analysis spectrum 0.20–1.80 s started` |
+| It ended | info | `analysis spectrum finished in 412 ms` |
+| It ended early (a newer run replaced it) | info | `comparison masking vs Project B cancelled after 1.2 s: superseded` |
+| It failed | warn | `comparison masking vs saved reference failed after 2.7 s: …` |
+| Still going after 15 s, then every 15 s | warn | `analysis masking 0.00–2.40 s still running after 15 s (analysing)` |
+| A finding, not a failure | warn | `comparison masking vs Project B: 2 settings differ; filters differ` |
+
+- One line each: the label carries the tool and the window, the finish line carries the
+  elapsed time, and the heartbeat carries the current progress phase when the tool has one.
+- A **cancelled** run is logged at info, never as a failure — it is the expected outcome of
+  a superseded run (see `architecture.md` → "Analysis execution model").
+- The MCP paths (`state/mcp/analyze.ts`, `state/mcp/compare.ts`) log the same lines tagged
+  `(mcp)`: an agent's failed call is otherwise invisible in the app log.
+- The timers are torn down by `finish`, so a run that hangs cannot keep beating after its
+  view is gone. The analyzer tab and the compare view show the same elapsed time, so a
+  stalled run is visible in the UI as well as in the log.
+
+### 5. Help menu — two actions
 
 `menu.rs` gains `MenuAction::{OpenLogFolder, ShowLog}` (wire ids `openLogFolder` /
 `showLog`, as the enum's `serialize_all` dictates; the `action_ids_match_the_frontend` test
@@ -161,7 +187,7 @@ same shape as the Open Recent items. No round trip also means the action cannot 
 while a window is still booting, and the log preview does not have to be a project window
 for its own menu item to work.
 
-### 5. The log preview — a **popout window**
+### 6. The log preview — a **popout window**
 
 A Workbench tab is out: ADR-10 fixes the tab set to the graph editors plus the analyzer
 tabs, and `ui-layout.md` fixes the regions. So the preview reuses the **popout** machinery
@@ -201,7 +227,7 @@ no change, because `popout_tool` / `popout_annotation` stay `None` for it.
   the known file (never an arbitrary path), `open_log_dir`. `open_log_dir` shares one
   `open_in_file_manager` helper, lifted out of `themes.rs` (no copied platform match).
 
-### 6. A log destination for E2E
+### 7. A log destination for E2E
 
 - Rust: `HEYLISTEN_LOG_DIR` (read once in `log_targets`) becomes `TargetKind::Folder`.
 - `wdio.conf.ts`: the service's `env` is merged over `process.env` when it spawns the app,

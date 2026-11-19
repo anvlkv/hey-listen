@@ -1,7 +1,8 @@
-import { createEffect, Match, Show, Switch, untrack } from "solid-js";
+import { createEffect, Match, on, Show, Switch, untrack } from "solid-js";
 import Button from "../Button";
 import EmptyState from "../EmptyState";
 import CompareHeader from "./CompareHeader";
+import CompareNotices from "./CompareNotices";
 import CompareEvents from "./CompareEvents";
 import CompareMatrix from "./CompareMatrix";
 import CompareModulation from "./CompareModulation";
@@ -14,6 +15,7 @@ import { compareTime } from "./time";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import { createComparison } from "../../state/compare/run";
 import { createCompareLive } from "../../state/compare/live";
+import { compareNotices, resetNotices } from "../../state/compare/notices";
 import { compareViewFamily, comparePanelId } from "../../state/compare/id";
 import { chooseCompareReference } from "../../state/compare/picker";
 import type { CompareBinding } from "../../state/compare/views";
@@ -42,8 +44,6 @@ export default function CompareTab(props: {
   onOffset: (seconds: number) => void;
 }) {
   const binding = () => props.binding();
-  /** The saved binding's display name, or `null` for a live / unbound view. */
-  const saved = () => (binding()?.kind === "saved" ? binding()!.reference : null);
   /** Only a live reference is polled for markers / revision (M25.C hides B's markers). */
   const live = createCompareLive(() => (binding()?.kind === "live" ? binding()!.reference : null));
   const run = createComparison(
@@ -69,6 +69,23 @@ export default function CompareTab(props: {
       compareViewFamily(props.tool),
     );
 
+  /** This comparison's notice dismissals, held per id (transient UI state). */
+  const notices = untrack(() => compareNotices(props.id));
+
+  // A retargeted comparison starts with a clean notice surface: the previous reference's
+  // dismissals must not hide a notice about the new one. Keyed on the binding itself, so
+  // re-selecting the same reference (which is not a retarget) keeps the user's dismissals.
+  createEffect(
+    on(
+      () => {
+        const target = binding();
+        return target ? `${target.kind}:${target.reference}` : null;
+      },
+      () => resetNotices(props.id),
+      { defer: true },
+    ),
+  );
+
   // The tab is created before the comparison resolves, so its title gains the two
   // project names once they are known (the popout sets its own window title).
   createEffect(() => {
@@ -90,6 +107,16 @@ export default function CompareTab(props: {
   const retry = () => {
     live.refresh();
     run.refresh();
+  };
+
+  /**
+   * The running label. The core has no progress channel for a comparison, so the one
+   * thing the view can honestly report is how long it has been running — which is what
+   * turns a silent wait into a clue (the log carries the matching heartbeat).
+   */
+  const comparingLabel = () => {
+    const seconds = run.elapsed();
+    return seconds >= 1 ? `Comparing… ${Math.round(seconds)} s` : "Comparing…";
   };
 
   return (
@@ -119,8 +146,8 @@ export default function CompareTab(props: {
               <Show
                 when={run.error()}
                 fallback={
-                  <div class="analyzer-empty">
-                    {run.loading() ? "Comparing…" : "Waiting for the reference project…"}
+                  <div class="analyzer-empty" data-testid="compare.loading">
+                    {run.loading() ? comparingLabel() : "Waiting for the reference project…"}
                   </div>
                 }
               >
@@ -144,27 +171,20 @@ export default function CompareTab(props: {
                   reference={current().reference}
                   saved={current().kind === "saved"}
                   live={live}
-                  time={time}
                   timeAxis={timeAxis()}
                   offset={props.offset()}
                   onOffset={props.onOffset}
                   onBindingChange={props.onBindingChange}
                   onRetry={retry}
                 />
-                <Show when={saved()}>
-                  <div class="compare-banner saved" data-testid="compare.saved-banner">
-                    Saved reference — the reference from the last saved comparison. Pick a live
-                    project to reconnect.
-                  </div>
-                </Show>
-                <Show when={!saved() && !live.open()}>
-                  <div class="compare-banner" data-testid="compare.banner">
-                    Reference project closed — showing the last result. Live updates are stopped.
-                  </div>
-                </Show>
-                <Show when={run.error()}>
-                  {(error) => <div class="compare-banner">{error()}</div>}
-                </Show>
+                <CompareNotices
+                  comparison={comparison()}
+                  live={live}
+                  error={run.error}
+                  saved={current().kind === "saved"}
+                  time={time}
+                  notices={notices}
+                />
                 <div class="compare-body">
                   <Switch>
                     <Match when={compareViewFamily(props.tool) === "spectrum"}>

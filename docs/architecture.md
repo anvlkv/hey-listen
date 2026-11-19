@@ -398,6 +398,16 @@ thread); analysis runs in Rust.
 > `Cancelled`, the frontend keeps the last good result, and nothing is logged as a
 > failure.
 >
+> `on_progress` is a **required** command argument (Tauri's `Channel` is a command
+> argument, not a deserializable value, so it cannot be optional). A caller with no
+> view to drive — the MCP handler, the E2E harness reading the raw command — passes a
+> throwaway channel; the messages are simply dropped.
+>
+> Every run is also **named in the app log** (`docs/logging.md`): one line when it
+> starts, one when it ends carrying the elapsed time and the outcome, and a warning
+> every 15 s while it is still going. The analyzer tab and the compare view show that
+> same elapsed time, so a run that hangs says so instead of only spinning.
+>
 > The headless MCP/CLI paths call `run_window`, the same entry point with an inert
 > token and a no-op reporter, so they stay synchronous.
 

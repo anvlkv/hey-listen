@@ -1,5 +1,7 @@
 import { ContextMenu } from "@kobalte/core/context-menu";
+import type { MenuRootOptions } from "@kobalte/core/menu";
 import { createSignal, onCleanup, onMount, type JSX } from "solid-js";
+import { useAnchorLifetime } from "../../lib/anchorLifetime";
 import { createPopupMount } from "../../lib/popupMount";
 import { createAnnotation } from "../../state/annotations";
 import { source } from "../../state/source";
@@ -15,9 +17,10 @@ import { setSnapEnabled, snapEnabled } from "./snapping";
  * Kobalte's `ContextMenu` is the primitive. Its `Trigger` **is** the caller's
  * `.timeline-canvas` wrapper — same class, same ref — so the layout, the CSS and the node
  * `syncCanvasSize` measures are unchanged. The content portals through `createPopupMount`, so
- * a popped-out window mounts it in that document. The pointer time is recorded by our own
- * capture-phase `contextmenu` listener, which runs before Kobalte opens the menu on the same
- * event. See `docs/deferred.md` → D-11 and `docs/annotations.md`.
+ * a popped-out window mounts it in that document, and it closes with the canvas (see
+ * `lib/anchorLifetime.ts`). The pointer time is recorded by our own capture-phase
+ * `contextmenu` listener, which runs before Kobalte opens the menu on the same event. See
+ * `docs/deferred.md` → D-11 and `docs/annotations.md`.
  */
 export default function TimelineContextMenu(props: {
   ref?: (el: HTMLDivElement) => void;
@@ -30,9 +33,25 @@ export default function TimelineContextMenu(props: {
   const portal = createPopupMount();
   /** The time under the right-click; each item reads it live, so no closure can go stale. */
   const [time, setTime] = createSignal(0);
+  /** The menu's open state, mirrored from Kobalte — the only way to shut it from here. */
+  const [open, setOpen] = createSignal(false);
   let trigger: HTMLDivElement | undefined;
 
   const minWindow = () => minWindowFor(source()?.sampleRate);
+
+  useAnchorLifetime({ anchor: portal.anchor, open, onClose: () => setOpen(false) });
+
+  // `ContextMenu.Root` types `open` out — it drives its inner `MenuRoot` from its own
+  // disclosure state — but it passes every other prop through to that `MenuRoot`, which
+  // spreads them *after* its `open`, so this getter is a working controlled value. It has
+  // to be controlled: the menu's close paths (Escape, an outside pointerdown, an item
+  // select) all live in the portaled content, which is exactly what a lost canvas leaves
+  // stranded, so nothing else could shut it.
+  const openProps: Partial<MenuRootOptions> = {
+    get open() {
+      return open();
+    },
+  };
 
   const attach = (node: HTMLDivElement) => {
     trigger = node;
@@ -54,7 +73,13 @@ export default function TimelineContextMenu(props: {
   });
 
   return (
-    <ContextMenu>
+    <ContextMenu
+      {...openProps}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (isOpen) portal.refresh();
+      }}
+    >
       <ContextMenu.Trigger as="div" class="timeline-canvas" ref={attach}>
         {props.children}
       </ContextMenu.Trigger>

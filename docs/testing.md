@@ -281,6 +281,11 @@ One representative per computation family:
 
 The remaining tools are trusted through the parametrized smoke test.
 
+These specs call the real command through `invokeCore`, which attaches a throwaway
+progress `Channel` when the spec passes `{ progress: true }` — `run_analysis` requires one
+because Tauri's `Channel` is a command argument, not a deserializable value (`docs/architecture.md`
+→ "Analysis execution model").
+
 > **M18 note segmentation (Rust unit tests, not wdio):** `noteMetrics` is pinned by
 > `audio::analysis::tests::note_metrics` — tone → gap → tone (2 notes, 1 gap, the right
 > durations and levels), a continuous tone (1 note, 0 gaps), a short-gap merge, relative

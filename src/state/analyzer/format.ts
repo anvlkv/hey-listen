@@ -10,6 +10,8 @@ export const fmtDb = (value: number) => `${value.toFixed(1)} dB`;
 export const fmtRatio = (value: number) => `${(value * 100).toFixed(0)}%`;
 /** Two decimals, unlabelled. */
 export const fmtPlain = (value: number) => value.toFixed(2);
+/** Perceived loudness in sones — the one spelling, used by the chart and its compare view. */
+export const fmtSone = (value: number) => `${value.toFixed(2)} sone`;
 /** Pitch-class row labels for the chromagram (C … B). */
 export const CHROMA_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 

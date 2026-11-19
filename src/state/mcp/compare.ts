@@ -1,4 +1,5 @@
-import { invoke } from "../../lib/ipc";
+import { errorMessage, invoke } from "../../lib/ipc";
+import { comparabilityNote, startRun } from "../../lib/runLog";
 import {
   applyOptionPatch,
   engineOptions,
@@ -8,7 +9,7 @@ import {
 } from "../analyzer";
 import { sharedParams } from "../analysis";
 import { newCompareId } from "../compare/id";
-import type { CompareSetupDto, PeerSetupDto } from "../compare/types";
+import type { CompareSetupDto, ComparisonDto, PeerSetupDto } from "../compare/types";
 import { openCompare, openCompareSaved } from "../compare/views";
 import { source } from "../source";
 import { windowEnd, windowStart } from "../timeline";
@@ -83,7 +84,10 @@ export async function compareAnalysis(args: Args) {
     else await openCompare(tool, reference, liveId);
   }
 
-  return invoke("run_comparison", {
+  const against = saved ? "saved reference" : reference;
+  const log = startRun("comparison", `${tool} vs ${against} (mcp)`);
+  log.start();
+  const reply = await invoke<ComparisonDto>("run_comparison", {
     request: {
       tool,
       ...(saved
@@ -95,5 +99,15 @@ export async function compareAnalysis(args: Args) {
       ...(maxPoints != null ? { maxPoints } : {}),
       ...(compactAxis ? { compactAxis: true } : {}),
     },
+  }).catch((err: unknown) => {
+    log.finish("failed", errorMessage(err));
+    throw err;
   });
+  const warning = comparabilityNote(
+    reply.comparability.mismatches.length,
+    reply.comparability.filtersDiffer,
+  );
+  if (warning) log.warn(warning);
+  log.finish("ok");
+  return reply;
 }

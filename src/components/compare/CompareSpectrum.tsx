@@ -17,10 +17,11 @@ import {
 import { compareMarkers } from "./peerPlugins";
 import CompareLegend from "./CompareLegend";
 import { compareSides, liveMarkers } from "./sides";
+import { spectrumCurve, type SpectrumCurve } from "./curves";
 import type { CompareTime } from "./time";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
-import { toolOptions, type AnalyzerId, type SpectrumResult } from "../../state/analyzer";
+import { toolOptions, type AnalyzerId, type AnyAnalysisResult } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto, SpectrumDiffDto } from "../../state/compare/types";
 
@@ -42,9 +43,10 @@ const levelAxis = () => ({
 });
 
 /**
- * The **spectrum** compare chart (M25): A and B's averaged magnitudes over one
- * frequency axis, with an optional Δ layer (B − A per bin). A differing grid shows the
- * two spectra side by side rather than interpolating one onto the other.
+ * The **spectrum** compare chart (M25): the two sides' curves over one frequency axis —
+ * a spectrum's averaged magnitudes, or masking's SMR (see [`spectrumCurve`]) — with an
+ * optional Δ layer (B − A per bin). A differing grid shows the two curves side by side
+ * rather than interpolating one onto the other.
  */
 export default function CompareSpectrum(props: {
   tool: AnalyzerId;
@@ -54,14 +56,22 @@ export default function CompareSpectrum(props: {
   time: CompareTime;
 }) {
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<SpectrumResult>(() => props.comparison);
+  const sides = compareSides<AnyAnalysisResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
+  const curveA = () => spectrumCurve(sides.resultA());
+  const curveB = () => spectrumCurve(sides.resultB());
   const diff = (): SpectrumDiffDto | null =>
     props.comparison.diff?.kind === "spectrum" ? props.comparison.diff : null;
   const aligned = sides.aligned;
 
-  /** The spectrum's frequency scale is a per-tool display option (`spectrum`'s). */
-  const scale = () => frequencyScaleOf(toolOptions.spectrum?.frequencyScale);
+  /**
+   * The frequency scale is a per-tool display option: a tool that offers one owns it,
+   * otherwise the comparison borrows the spectrum's (masking has no axis control).
+   */
+  const scale = () =>
+    frequencyScaleOf(
+      toolOptions[props.tool]?.frequencyScale ?? toolOptions.spectrum?.frequencyScale,
+    );
 
   const markers = () =>
     compareMarkers(
@@ -83,15 +93,15 @@ export default function CompareSpectrum(props: {
   };
 
   const overlay = () => {
-    const a = sides.resultA();
-    const b = sides.resultB();
+    const a = curveA();
+    const b = curveB();
     if (!a || !b) return null;
-    const bins = Math.min(a.freqs.length, a.magDb.length, b.magDb.length);
+    const bins = Math.min(a.freqs.length, a.values.length, b.values.length);
     const delta = diff();
     return {
       freqs: a.freqs.slice(0, bins),
-      a: a.magDb.slice(0, bins),
-      b: b.magDb.slice(0, bins),
+      a: a.values.slice(0, bins),
+      b: b.values.slice(0, bins),
       delta: delta ? delta.values.slice(0, bins) : [],
     };
   };
@@ -140,6 +150,11 @@ export default function CompareSpectrum(props: {
           value={diff()?.stats.correlation != null ? diff()!.stats.correlation!.toFixed(3) : "—"}
           title="Pearson correlation between A and B over the matched bins"
         />
+        <Readout
+          label="Curve"
+          value={curveA()?.label ?? curveB()?.label ?? "—"}
+          title="The quantity the chart and the Δ line plot"
+        />
       </div>
 
       <CompareLegend
@@ -155,7 +170,7 @@ export default function CompareSpectrum(props: {
             <SideSpectrum
               label="A"
               color={chartTheme().compareA}
-              spectrum={sides.resultA()}
+              curve={curveA()}
               scale={scale()}
               xScale={xScale()}
               yScale={yScale}
@@ -164,7 +179,7 @@ export default function CompareSpectrum(props: {
             <SideSpectrum
               label="B"
               color={chartTheme().compareB}
-              spectrum={sides.resultB()}
+              curve={curveB()}
               scale={scale()}
               xScale={xScale()}
               yScale={yScale}
@@ -195,7 +210,7 @@ export default function CompareSpectrum(props: {
 function SideSpectrum(props: {
   label: string;
   color: string;
-  spectrum: SpectrumResult | undefined;
+  curve: SpectrumCurve | null;
   scale: FrequencyScale;
   xScale: uPlot.Scale;
   yScale: uPlot.Scale;
@@ -207,16 +222,16 @@ function SideSpectrum(props: {
         {props.label}
       </div>
       <Show
-        when={props.spectrum}
+        when={props.curve}
         fallback={<div class="analyzer-empty">This project has no spectrum for the window.</div>}
       >
-        {(spectrum) => (
+        {(curve) => (
           <Show when={activeThemeId()} keyed>
             <SolidUplot
               autoResize
               pluginBus={analyzerBus}
               plugins={[props.markers()]}
-              data={[frequencyColumn(spectrum().freqs, props.scale), spectrum().magDb]}
+              data={[frequencyColumn(curve().freqs, props.scale), curve().values]}
               series={[{}, { label: props.label, stroke: props.color, width: 1.2 }]}
               scales={{ x: props.xScale, y: props.yScale }}
               axes={[freqAxis(props.scale), levelAxis()]}

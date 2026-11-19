@@ -1,5 +1,6 @@
 import { Combobox as KCombobox } from "@kobalte/core/combobox";
-import { createMemo } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
+import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { unwrapSingle } from "../lib/kobalte";
 import { createPopupMount } from "../lib/popupMount";
 
@@ -14,7 +15,8 @@ export interface ComboOption {
  * A thin wrapper over Kobalte's accessible `Combobox`, keeping our own
  * `{ value, label }` contract with `null` meaning "none". The popup is portaled
  * and positioned by Kobalte/Floating UI, so it flips above the bottom-left panel
- * instead of being clipped by it.
+ * instead of being clipped by it. Its open state is controlled so the popup closes
+ * with its input — see [`useAnchorLifetime`](../lib/anchorLifetime.ts).
  */
 export default function Combobox(props: {
   options: ComboOption[];
@@ -36,6 +38,8 @@ export default function Combobox(props: {
   onOpen?: () => void;
 }) {
   const portal = createPopupMount();
+  const [open, setOpen] = createSignal(false);
+  useAnchorLifetime({ anchor: portal.anchor, open, onClose: () => setOpen(false) });
   const all = createMemo<ComboOption[]>(() =>
     props.emptyLabel ? [{ value: "", label: props.emptyLabel }, ...props.options] : props.options,
   );
@@ -45,6 +49,7 @@ export default function Combobox(props: {
   return (
     <KCombobox<ComboOption>
       class="combo"
+      open={open()}
       options={all()}
       optionValue="value"
       optionTextValue="label"
@@ -59,6 +64,7 @@ export default function Combobox(props: {
       disabled={props.disabled}
       triggerMode="focus"
       onOpenChange={(isOpen) => {
+        setOpen(isOpen);
         if (isOpen) {
           portal.refresh();
           props.onOpen?.();

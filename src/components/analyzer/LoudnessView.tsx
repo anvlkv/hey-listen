@@ -6,6 +6,7 @@ import ChartLegend from "./chartLegend";
 import { useTimeChart, timeSeriesData } from "./timeChart";
 import { NoAudioState, UplotChartPlot } from "./chartCommon";
 import { mean, percentile, present } from "../../lib/percentiles";
+import { fmtSone } from "../../state/analyzer/format";
 import { chartTheme } from "../../state/themes";
 import {
   type AnalysisHandle,
@@ -14,7 +15,6 @@ import {
   type LoudnessResult,
 } from "../../state/analyzer";
 
-const sones = (value: number) => `${value.toFixed(3)} sone`;
 const phons = (value: number) => `${value.toFixed(1)} phon`;
 
 /** A track's median level, or `null` when the payload is absent or off the frame grid. */
@@ -112,23 +112,23 @@ export default function LoudnessView(props: {
     return [
       {
         label: "N5",
-        value: sones(n5),
+        value: fmtSone(n5),
         title: "Loudness exceeded 5% of the time — the 95th percentile of the track",
       },
       {
         label: "N50",
-        value: sones(percentile(values, 0.5)),
+        value: fmtSone(percentile(values, 0.5)),
         title: "Median loudness — the 50th percentile of the track",
       },
       {
         label: "N95",
-        value: sones(percentile(values, 0.05)),
+        value: fmtSone(percentile(values, 0.05)),
         title: "Loudness exceeded 95% of the time — the 5th percentile of the track",
       },
-      { label: "Mean", value: sones(mean(values)), title: "Mean loudness over the window" },
+      { label: "Mean", value: fmtSone(mean(values)), title: "Mean loudness over the window" },
       {
         label: "Max",
-        value: sones(values.length ? Math.max(...values) : 0),
+        value: fmtSone(values.length ? Math.max(...values) : 0),
         title: "Loudest analysed frame",
       },
       {
@@ -200,7 +200,7 @@ export default function LoudnessView(props: {
                 zoom={zoom}
                 data={data()}
                 yLabel="loudness (sone)"
-                formatY={sones}
+                formatY={fmtSone}
                 sampling="block"
                 fill
                 secondary={phonTrack()}

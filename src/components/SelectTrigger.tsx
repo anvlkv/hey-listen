@@ -1,4 +1,6 @@
 import { Select } from "@kobalte/core/select";
+import { createSignal } from "solid-js";
+import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { unwrapSingle } from "../lib/kobalte";
 import { createPopupMount } from "../lib/popupMount";
 
@@ -16,7 +18,9 @@ export interface SelectOption<T> {
  * It owns the trigger chrome (value readout + chevron) and the portaled popup, so
  * the `select-trigger` / `select-value` / `select-icon` / `pop-*` markup lives in
  * one place; callers pass the options, the selected option and the change handler.
- * Keyboard support, typeahead and ARIA wiring come from Kobalte (ADR-8).
+ * Keyboard support, typeahead and ARIA wiring come from Kobalte (ADR-8). The open
+ * state is controlled so the listbox closes with its trigger — see
+ * [`useAnchorLifetime`](../lib/anchorLifetime.ts).
  */
 export interface SelectTriggerProps<T> {
   options: SelectOption<T>[];
@@ -36,10 +40,13 @@ export interface SelectTriggerProps<T> {
 
 export default function SelectTrigger<T>(props: SelectTriggerProps<T>) {
   const portal = createPopupMount();
+  const [open, setOpen] = createSignal(false);
+  useAnchorLifetime({ anchor: portal.anchor, open, onClose: () => setOpen(false) });
 
   return (
     <Select<SelectOption<T>>
       class={props.class}
+      open={open()}
       options={props.options}
       optionValue="value"
       optionTextValue="label"
@@ -50,6 +57,7 @@ export default function SelectTrigger<T>(props: SelectTriggerProps<T>) {
         if (option) props.onChange(option.value);
       }}
       onOpenChange={(isOpen) => {
+        setOpen(isOpen);
         if (isOpen) portal.refresh();
       }}
       sameWidth

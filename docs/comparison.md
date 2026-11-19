@@ -110,7 +110,7 @@ The core computes both sides; the frontend never holds B's PCM.
 - **Peer reads never create state.** A closed live reference is resolved against the
   open windows (not `WindowRegistry::get`, which lazily creates an empty state); it
   returns `None` / an error, which the view renders as the **Reference project closed**
-  banner. With a saved snapshot there is nothing to resolve: the view shows the stored B
+  notice. With a saved snapshot there is nothing to resolve: the view shows the stored B
   and says **saved reference**.
 - B is **read-only**: a comparison never changes B's source, filter, window, params,
   options, transport or tabs.
@@ -149,7 +149,9 @@ A **grid signature** describes one result:
 
 - the tool's **`CompareViewFamily`** (`series` / `spectrum` / `spectrogram` / `matrix` /
   `events` / `notes` / `modulation` / `waveform` / `scalar` — the display superset of the
-  Rust result `Family`);
+  Rust result `Family`). It follows the **delta's** shape, which is not always the tool's
+  own chart kind: masking is a `spectrum` comparison over SMR, and sone loudness a
+  `series` comparison over sones;
 - the analysis rate after `resampleTo`, `fftSize`, `hop`, `windowFn`, the frequency
   band, and the frame/bin dimensions;
 - the tool options that change the grid (`nMels`, `nBands`, `nMfcc`, `barLength`, …).
@@ -189,8 +191,8 @@ Per result family:
 
 | View | Delta |
 | --- | --- |
-| series (spectral tracks, pitch, RMS, loudness-over-time) | B−A on matched **relative** frames inside the common span; min/max/mean/RMS of the delta, max absolute delta, Pearson correlation, matched frames |
-| spectrum | B−A per bin (same band and bin count); max and mean absolute delta |
+| series (spectral tracks, pitch, RMS, momentary loudness, **sone loudness**) | B−A on matched **relative** frames inside the common span; min/max/mean/RMS of the delta, max absolute delta, Pearson correlation, matched frames. Sone loudness diffs its `loudnessSone` track (the tool's headline curve, not the phon restatement) |
+| spectrum (level, and **masking**) | B−A per bin (same band and bin count); max and mean absolute delta. Masking diffs its **SMR** (`L` − `Tg`), the tool's headline curve, not the raw level |
 | matrix / spectrogram (mel, MFCC, chroma, contrast) | B−A per frame×band inside the common span; displayed A's frames are the columns, and a frame with no B counterpart is a **null** column (transparent, ignored by the stats); max/mean absolute delta and dimensions |
 | rhythm | onset-strength envelope delta plus paired events, all on the relative axis |
 | events (`onsets`, `downbeats`, `noteMetrics`) | events paired by nearest **relative** time within a tolerance (`max(20 ms, 2 hops)`; 50 ms default) inside the common span: matched pairs, only-A, only-B, mean \|Δt\| |
@@ -209,9 +211,15 @@ existing canonical `summary`; the comparison adds a `diff.summary` line (e.g. `�
 −1.2 dB · Δ peak 0.8 dB`).
 
 **Views.** The core delta ships for **every** family, and the compare view charts all of
-them: **series, spectrum and readouts** (pitch, every spectral series, momentary loudness,
-the level/LUFS/LRA cards) plus **matrix/spectrogram, rhythm/events, `noteMetrics`,
+them: **series, spectrum and readouts** (pitch, every spectral series, momentary and sone
+loudness, the level/LUFS/LRA cards) plus **matrix/spectrogram, rhythm/events, `noteMetrics`,
 modulation and waveform** (M25.A). *Compare with…* is offered for every analyzer.
+
+A family is chosen by the **delta's** shape, not by the tool's own chart kind: masking is a
+spectrum comparison (over SMR) and sone loudness a series comparison (over sones). The one
+place that maps a result to the curve its chart draws is
+`src/components/compare/curves.ts`, so a chart can never plot a different field than the Δ
+line measures.
 
 ## The compare view
 
@@ -229,7 +237,8 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
 - **Chart**, by family:
   - series / spectrum: A and B overlaid in `compareA` / `compareB`, with an optional Δ
     line (default off); a differing grid switches to two side-by-side plots rather than
-    interpolating;
+    interpolating. The curve is the one the delta measures: masking draws **SMR**, sone
+    loudness draws the **sone** track;
   - matrix / spectrogram: a segmented control **A / B / Δ** (Δ uses a diverging
     ramp);
   - events / rhythm: A's markers above the axis, B's below, matched pairs linked;
@@ -237,6 +246,18 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   - waveform: overlaid peak envelopes clipped to the common span (side by side only
     when the **grid** differs, never merely because the windows differ);
   - readouts: three columns (A, B, Δ).
+- **Notice strip.** The view's small facts sit in **one quiet, dismissable row per
+  notice** under the header, above the chart — not a stack of equal-weight banners. The
+  kinds are the saved reference, a closed reference (which also owns the failure row, since
+  a closed peer is what a run fails on), a failed run, the common span (or "the windows do
+  not meet"), a clipped waveform, and settings that differ. Each row is dismissed **per
+  comparison id** and the dismissal is transient UI state (never saved); re-targeting the
+  view clears them. The comparability badge keeps its one-line summary, and the per-key
+  detail is shown once in the strip's disclosure rather than in the badge's tooltip.
+- **Elapsed time.** There is no progress channel for a comparison (the core has one for
+  `run_analysis` only), so the running state reads `Comparing… 12 s`. The matching
+  lifecycle lines — start, finish with elapsed, a warning every 15 s while it runs — are in
+  the app log (`docs/logging.md`), so a stalled run is named rather than silent.
 - **Both cursors.** A's cursor is the normal crosshair (and mirrors A's other charts);
   B's is a read-only dashed rule in `compareB`, labelled **B**, from `compare_live`.
   On a frequency / modulation-rate chart it is the matching axis value; on a time chart
@@ -257,8 +278,8 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   A's `time` / `freq` / `mod`
   sync group by converting absolute ↔ relative at the plugin boundary, so A's zoom and
   cursor still mirror the project's other charts.
-- **Saved reference (M25.C).** The badge/banner says **saved reference**; B's band comes
-  from the snapshot and B has no live playhead/cursor.
+- **Saved reference (M25.C).** The badge and the notice strip say **saved reference**; B's
+  band comes from the snapshot and B has no live playhead/cursor.
 - **Reference project button (M25.D).** Beside the reference picker: a **live** reference
   reads **Show reference** and raises that project's window; a **saved** reference reads
   **Open reference** and opens the reference **file recorded with the snapshot** (raising
@@ -270,7 +291,7 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   the `v1 → v2` migration, so opening it does not lose the path it does have.)
 - Empty / error states: peer closed (live), peer has no source, grids differ; a saved
   reference never reports "no overlap" — its common span is computed from the snapshot.
-- **A cramped panel scrolls.** The header (whose tools row wraps), readouts and banners keep
+- **A cramped panel scrolls.** The header (whose tools row wraps), readouts and notices keep
   their height and the chart area keeps a 200 px minimum, so a short Workbench panel (a
   small window, a split group) scrolls the view instead of squeezing the chart to 0 px —
   `uPlot` draws nothing at all when its plot area has no height.
@@ -299,7 +320,7 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   Project closes them with the rest of the old project's views. Their comparison content
   is saved like a tab's (M25.C), but the **window** is not restored.
 - Closing A closes its compare popout (the alias); closing a live B leaves the last result
-  with a **Reference project closed** banner and stops live updates (the snapshot, if
+  with a **Reference project closed** notice and stops live updates (the snapshot, if
   any, remains).
 
 ## Lifecycle: live view, saved snapshot
@@ -311,7 +332,7 @@ compare popout. Since **M25.C** the comparison **content** is project content:
 - `save_project` writes a snapshot for each comparison open at save time (tab **or**
   popout) into the `COMPARE` section — B's last analysis window, not its audio. Several
   entries may share a tool (M23 Phase 3: one per compare tab). If the live reference has
-  since closed, the **last successful** result is saved (the one the banner keeps). A
+  since closed, the **last successful** result is saved (the one the notice keeps). A
   comparison that never resolved writes nothing.
 - `load_project` restores them as Workbench **tabs** (never as popout windows), bound to
   the saved snapshot until the user reconnects a live project;
@@ -507,7 +528,7 @@ binary's flags only).
 - **E2E `r2-compare` / `r2b-compare-relative`** — two projects with distinct tones:
   Compare with… from Spectrum shows both series and the legend; B's cursor and B's
   playhead appear on the compare chart and follow B; a differing FFT size shows the badge
-  and no delta; closing B shows the banner; retargeting reuses the tab. **M25.B**
+  and no delta; closing B shows the closed notice; retargeting reuses the tab. **M25.B**
   (`r2b-compare-relative`): adjacent windows compare from 0, the offset slider moves the
   common span, and an add/remove of another tab keeps the reference. **M25.C**: saving
   with a compare tab and reopening one project restores the
@@ -643,7 +664,7 @@ matrix, so every analyzer compares in the view as well as through MCP/CLI.
 >   B audio;
 > - saved comparisons restore as **tabs** (never popouts); they bind to the snapshot until
 >   an explicit reconnect (the picker hints a same-named open project);
-> - a saved reference hides B's live markers and marks the badge/banner **saved
+> - a saved reference hides B's live markers and marks the badge/notice **saved
 >   reference**;
 > - a settled change in live B is part of A's dirty signature while the view is open;
 >   snapshots stay out of undo/redo; closing the tab and saving drops the snapshot;

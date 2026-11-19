@@ -10,6 +10,7 @@ use super::*;
 use crate::audio::analysis::{Axis, RhythmResult, Shape, SharedParams, ToolOptions, WindowKind};
 use crate::state::{SourceData, WindowState};
 
+mod curves;
 mod relative;
 
 const RATE: u32 = 48_000;

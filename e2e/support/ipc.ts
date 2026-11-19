@@ -156,15 +156,37 @@ export async function restoreMocks(): Promise<void> {
   );
 }
 
+/** Extra behaviour for [`invokeCore`]. */
+export interface InvokeCoreOptions {
+  /**
+   * Attach a throwaway progress `Channel`. `run_analysis` requires one (D-21): Tauri's
+   * `Channel` is a command argument rather than a deserializable value, so a caller
+   * that only reads the reply — the specs — must still hand over an unused channel.
+   */
+  progress?: boolean;
+}
+
 /** Call a real Tauri command from the test. */
 export async function invokeCore<T = unknown>(
   command: string,
   args: Record<string, unknown> = {},
+  options: InvokeCoreOptions = {},
 ): Promise<T> {
   return (await browser.tauri.execute(
-    (tauri, c, a) => tauri.core.invoke(c as string, a as Record<string, unknown>),
+    (tauri, c, a, progress) => {
+      const argv = a as Record<string, unknown>;
+      if (!progress) return tauri.core.invoke(c as string, argv);
+      const Channel = (tauri.core as unknown as { Channel?: new () => unknown }).Channel;
+      if (!Channel) {
+        throw new Error(
+          "window.__TAURI__.core.Channel is missing — `run_analysis` needs a progress channel",
+        );
+      }
+      return tauri.core.invoke(c as string, { ...argv, onProgress: new Channel() });
+    },
     command,
     args,
+    options.progress ?? false,
   )) as T;
 }
 

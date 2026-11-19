@@ -1,0 +1,81 @@
+/* The compare view's notice strip (M25) — split from `compare.css` to stay inside the
+   400-line budget (see `docs/code-hygiene.md`).
+
+   One quiet strip under the header: a single muted line per notice, a hairline between
+   rows, and a colour only where it carries meaning — `--warn` for an actual warning,
+   `--accent-2` for the saved reference. No background block per row: a stack of equally
+   loud banners is the thing this replaced. */
+
+.compare-notices {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel);
+}
+
+.compare-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+
+.compare-notice + .compare-notice,
+.compare-notice-actions {
+  border-top: 1px solid var(--border-soft);
+}
+
+.compare-notice.closed,
+.compare-notice.error {
+  color: var(--warn);
+}
+
+.compare-notice.saved {
+  color: var(--accent-2);
+}
+
+.compare-notice-text,
+.compare-notice-details {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.compare-notice-details > summary {
+  cursor: pointer;
+}
+
+.compare-notice-list {
+  margin: 3px 0 1px;
+  padding-left: 16px;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-notice-dismiss,
+.compare-notice-dismiss-all {
+  flex: 0 0 auto;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font-size: 0.75rem;
+  color: var(--fg-faint);
+  cursor: pointer;
+}
+
+.compare-notice-dismiss {
+  line-height: 1.2;
+}
+
+.compare-notice-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 12px;
+}
+
+.compare-notice-dismiss:hover,
+.compare-notice-dismiss-all:hover {
+  color: var(--fg);
+}

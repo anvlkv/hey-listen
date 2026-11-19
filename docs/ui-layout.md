@@ -179,6 +179,15 @@ popover. See [`theming.md`](theming.md).
   pipeline into `.tooltip-markdown` (the shared `.markdown-body` styles at the popup's
   type scale) on a wider popup (`contentClass="tooltip-content-wide"`). The tool's About
   popover keeps the full copy.
+- **An overlay lives as long as its anchor** (`lib/anchorLifetime.ts`). Every portaled
+  tooltip, popover, select, combobox and menu can only be closed *through its trigger*
+  (hover-out, blur, a click), and Kobalte never asks whether that trigger is still in the
+  document — so a tab closed, a panel moved to a popout (`dockview` *adopts* the DOM node
+  instead of unmounting it) or a view re-rendered under an open overlay used to leave it
+  floating over the app. `useAnchorLifetime` (always paired with
+  `lib/popupMount.ts`'s `anchor`) watches only while the overlay is open and closes it when
+  the trigger leaves its document or that document's window loses focus. Every overlay
+  wrapper calls it once; a new wrapper must too.
 - **About** (`src/components/AboutDialog.tsx`) — a modal opened from the Toolbar's
   `circle-question` button and from native **Help → About** (on macOS, the app menu),
   which emits `about` on `app:menu`. It carries the app identity and the **required

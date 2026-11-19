@@ -64,6 +64,12 @@ export function newCompareId(): string {
  * splits (`modulation`, `waveform`), with `scalar` for the readouts. Derived from
  * `AnalyzerView["kind"]`; the core computes the delta for every `Family`, so MCP/CLI
  * compare any tool. Do not confuse it with `Family` (the wire shape).
+ *
+ * A family is the shape the **delta** has, which is not always the shape the tool's own
+ * chart draws: `masking` is a spectrum view because its delta is the spectrum delta over
+ * SMR (`masking_delta`), and `loudness` is a series because its delta is the sone track.
+ * When a view kind and its delta disagree, the delta wins — the compare chart must read
+ * the same curve the Δ line measures.
  */
 export type CompareViewFamily =
   | "series"
@@ -95,8 +101,12 @@ export function compareViewFamily(tool: AnalyzerId): CompareViewFamily {
       return "modulation";
     case "waveform":
       return "waveform";
+    // A masking result is a spectrum, and the core diffs its SMR curve.
     case "masking":
       return "spectrum";
+    // Loudness draws one sone track; the core diffs that same track.
+    case "loudness":
+      return "series";
     default:
       return "scalar";
   }

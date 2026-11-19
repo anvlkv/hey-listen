@@ -1,4 +1,6 @@
-import { invoke } from "../../lib/ipc";
+import { Channel } from "@tauri-apps/api/core";
+import { errorMessage, invoke } from "../../lib/ipc";
+import { hopWidenedNote, runSpanLabel, startRun } from "../../lib/runLog";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
 import {
   applyOptionPatch,
@@ -16,6 +18,7 @@ import { asArgs, optionalBool, optionalNum, str, type Args } from "./args";
 interface AnalysisReply {
   summary: unknown;
   result?: unknown;
+  hopWidenedFromSamples?: number;
 }
 
 /**
@@ -88,6 +91,8 @@ export async function runAnalysis(args: Args) {
   // A uniform time axis can be echoed as `{ start, hop, length }` instead of an array.
   // Only meaningful with `includeData`; the default keeps arrays for compatibility.
   const compactAxis = args.axis === "compact";
+  const log = startRun("analysis", `${tool} ${runSpanLabel(span.start, span.end)} (mcp)`);
+  log.start();
   const response = await invoke<AnalysisReply>("run_analysis", {
     request: {
       tool,
@@ -99,7 +104,17 @@ export async function runAnalysis(args: Args) {
       ...(maxPoints != null ? { maxPoints } : {}),
       ...(compactAxis ? { compactAxis: true } : {}),
     },
+    // The command's stage progress is required as a `Channel` (D-21). An agent call has
+    // no view to drive, so the messages go to a channel nobody listens on.
+    onProgress: new Channel(),
+  }).catch((err: unknown) => {
+    log.finish("failed", errorMessage(err));
+    throw err;
   });
+  if (response.hopWidenedFromSamples != null) {
+    log.warn(hopWidenedNote(response.hopWidenedFromSamples));
+  }
+  log.finish("ok");
 
   const envelope: Record<string, unknown> = {
     window: span,

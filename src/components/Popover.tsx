@@ -1,8 +1,9 @@
 import { Popover as KPopover } from "@kobalte/core/popover";
-import type { JSX } from "solid-js";
+import { createSignal, type JSX } from "solid-js";
 import Icon from "./Icon";
 import Tooltip from "./Tooltip";
 import type { IconName } from "../lib/icons";
+import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { createPopupMount } from "../lib/popupMount";
 
 /**
@@ -15,7 +16,9 @@ import { createPopupMount } from "../lib/popupMount";
  * `title` attribute, which looked out of place next to the app's own tooltips).
  *
  * The panel is portaled into the *trigger's* document (`mount`), so a popped-out
- * analyzer tab still opens its popover in the secondary window, not the main one.
+ * analyzer tab still opens its popover in the secondary window, not the main one. The
+ * open state is controlled so the panel can be shut when that trigger goes away (a
+ * closed tab or a retargeted view) — see [`useAnchorLifetime`](../lib/anchorLifetime.ts).
  */
 export default function Popover(props: {
   /** The trigger's label — its visible text, or its accessible name when `icon` is set. */
@@ -33,6 +36,8 @@ export default function Popover(props: {
   children: JSX.Element;
 }) {
   const portal = createPopupMount();
+  const [open, setOpen] = createSignal(false);
+  useAnchorLifetime({ anchor: portal.anchor, open, onClose: () => setOpen(false) });
 
   // The trigger MUST stay inline (not hoisted into a variable): Solid evaluates a
   // hoisted JSX expression eagerly, before `<KPopover>` has provided its context, so
@@ -40,9 +45,11 @@ export default function Popover(props: {
   // As an inline child it is a lazy getter, evaluated inside the provider.
   return (
     <KPopover
+      open={open()}
       placement="bottom-end"
       gutter={6}
       onOpenChange={(isOpen) => {
+        setOpen(isOpen);
         if (isOpen) {
           portal.refresh();
           props.onOpen?.();

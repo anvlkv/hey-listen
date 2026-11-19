@@ -96,7 +96,9 @@ pub fn analyzer_catalog() -> Vec<Value> {
 /// workers stay free (see `docs/architecture.md` → "Analysis execution model").
 ///
 /// Stage progress streams back on `on_progress` (D-21), and `cancel_analysis` with the
-/// same `request_id` stops the run at its next cancellation check.
+/// same `request_id` stops the run at its next cancellation check. The channel is
+/// required because Tauri's `Channel` is a command argument, not a deserializable
+/// value: a caller with no one to report to passes a throwaway one.
 #[tauri::command]
 pub async fn run_analysis(
     window: WebviewWindow,

@@ -26,8 +26,8 @@ import type { ComparisonDto, WaveformDiffDto } from "../../state/compare/types";
  * Both peak envelopes are drawn on the **relative** axis, starting at 0 at their own
  * window, with the reference shifted by the fine-tune offset. The delta samples the
  * other envelope at A's bucket times over the **common span** (the core does the
- * sampling); the view says *clipped to the shorter window* whenever the span does not
- * cover the displayed A side. A differing **grid** still draws the two separately.
+ * sampling); the view's notice strip (`CompareNotices`) says so whenever the span does
+ * not cover the displayed A side. A differing **grid** still draws the two separately.
  */
 export default function CompareWaveform(props: {
   tool: AnalyzerId;
@@ -104,18 +104,6 @@ export default function CompareWaveform(props: {
         bLabel={sides.b().project ?? "reference"}
         note="Each side is anchored at its own window start; δ shifts the reference"
       />
-
-      <Show when={aligned() && !diff()}>
-        <div class="compare-banner" data-testid="compare.waveform.note">
-          The shifted windows do not meet — adjust the fine-tune offset to compare them.
-        </div>
-      </Show>
-      <Show when={diff() && props.time.clipped()}>
-        <div class="compare-banner" data-testid="compare.waveform.note">
-          The windows differ — the delta is clipped to the shorter window, and the other envelope is
-          sampled at this side's bucket times.
-        </div>
-      </Show>
 
       <Show
         when={aligned() && sides.resultA() && sides.resultB()}

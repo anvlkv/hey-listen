@@ -197,8 +197,14 @@ export interface ModulationView {
   kind: "modulation";
 }
 
-/** Sone/phon loudness over time (M27). */
-export interface LoudnessView {
+/**
+ * Sone/phon loudness over time (M27).
+ *
+ * The compare chart draws it as a single track, so it carries the same axis label and
+ * y-formatter a `SeriesView` does: sones are the headline curve, and the phon level is
+ * the same measurement stated on another scale.
+ */
+export interface LoudnessView extends Pick<SeriesView, "yLabel" | "formatY"> {
   kind: "loudness";
 }
 

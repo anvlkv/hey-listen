@@ -19,11 +19,12 @@
  * in flight, and a cancelled run is not an error (the last good result stays).
  */
 import { Channel } from "@tauri-apps/api/core";
-import { createEffect, createSignal, on, onCleanup } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, untrack } from "solid-js";
 import type { AnalysisPhase } from "../../bindings/AnalysisPhase";
 import type { AnalysisProgress } from "../../bindings/AnalysisProgress";
 import type { ResultSummary } from "../../bindings/ResultSummary";
 import { errorMessage, invoke } from "../../lib/ipc";
+import { hopWidenedNote, runSpanLabel, startRun, type RunLog } from "../../lib/runLog";
 import {
   channel,
   fftSize,
@@ -96,6 +97,8 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
   let timer: number | undefined;
   /** The token of the run still in flight, or `null` when there is nothing to cancel. */
   let inFlight: number | null = null;
+  /** The run whose log is still open, so a teardown closes it instead of letting it beat. */
+  let activeLog: RunLog | null = null;
 
   /**
    * Stop a run that is **still in flight**, and only that one: a finished run has already
@@ -172,6 +175,13 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
     const token = ++generation;
     const requestId = nextRequestId++;
     inFlight = requestId;
+    const log = startRun(
+      "analysis",
+      `${tool} ${runSpanLabel(request.start, request.end)}`,
+      () => untrack(progress)?.phase ?? null,
+    );
+    log.start();
+    activeLog = log;
     // One channel per run: a message is applied only when it carries this run's token, so
     // a stale channel (an older run still finishing) cannot overwrite the current stage.
     const onProgress = new Channel<AnalysisProgress>();
@@ -182,7 +192,11 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
     setProgress(null);
     setLoading(true);
     try {
-      const response = await invoke<{ summary: ResultSummary; result?: T }>("run_analysis", {
+      const response = await invoke<{
+        summary: ResultSummary;
+        result?: T;
+        hopWidenedFromSamples?: number;
+      }>("run_analysis", {
         request: {
           tool,
           start: request.start,
@@ -194,7 +208,10 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
         },
         onProgress,
       });
-      if (token !== generation) return;
+      if (token !== generation) {
+        log.finish("cancelled", "superseded");
+        return;
+      }
       const payload = response.result;
       if (payload == null) {
         setResult(null);
@@ -219,15 +236,23 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
         }
       }
       setError(null);
+      if (response.hopWidenedFromSamples != null) {
+        log.warn(hopWidenedNote(response.hopWidenedFromSamples));
+      }
+      log.finish("ok");
     } catch (err) {
-      if (token !== generation) return;
       // A superseded/disappearing/user-stopped run is not a failure: keep the last good
       // result and leave the error signal alone.
-      if (errorMessage(err) === "cancelled") return;
+      if (token !== generation || errorMessage(err) === "cancelled") {
+        log.finish("cancelled", token !== generation ? "superseded" : undefined);
+        return;
+      }
       setError(String(err));
+      log.finish("failed", errorMessage(err));
     } finally {
       // Release the slot only if this run still owns it (a newer run may have taken it).
       if (inFlight === requestId) inFlight = null;
+      if (activeLog === log) activeLog = null;
       if (token === generation) {
         setProgress(null);
         setLoading(false);
@@ -275,6 +300,9 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
     generation++;
     if (timer != null) clearTimeout(timer);
     cancelInFlight();
+    // A run the core never answers cannot beat forever once the tab is gone.
+    activeLog?.finish("cancelled", "closed");
+    activeLog = null;
   });
 
   return {

@@ -1,6 +1,8 @@
 import { Popover as KPopover } from "@kobalte/core/popover";
+import { createSignal } from "solid-js";
 import Icon from "../Icon";
 import Tooltip from "../Tooltip";
+import { useAnchorLifetime } from "../../lib/anchorLifetime";
 import { createPopupMount } from "../../lib/popupMount";
 import { source } from "../../state/source";
 import WindowFields from "./WindowFields";
@@ -9,16 +11,21 @@ import WindowFields from "./WindowFields";
  * The Timeline toolbar's **window-edit** trigger (D-05): a small icon button that sits
  * immediately after the read-only `.timeline-readout` and opens [`WindowFields`] in a
  * portaled popover. The panel is mounted into the trigger's own document, so it also
- * works from a popped-out window (see `lib/popupMount.ts`).
+ * works from a popped-out window (see `lib/popupMount.ts`), and it closes with the
+ * trigger (see `lib/anchorLifetime.ts`).
  */
 export default function WindowEditPopover() {
   const portal = createPopupMount();
+  const [open, setOpen] = createSignal(false);
+  useAnchorLifetime({ anchor: portal.anchor, open, onClose: () => setOpen(false) });
 
   return (
     <KPopover
+      open={open()}
       placement="bottom-start"
       gutter={6}
       onOpenChange={(isOpen) => {
+        setOpen(isOpen);
         if (isOpen) portal.refresh();
       }}
     >

@@ -11,9 +11,9 @@ import {
 import { fetchSaved, showReference } from "../../state/compare/views";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { CompareBinding } from "../../state/compare/views";
-import type { CompareSideDto, ComparisonDto, MismatchDto, Span } from "../../state/compare/types";
+import type { CompareSideDto, ComparisonDto } from "../../state/compare/types";
+import { mismatchSummary, spanLabel } from "../../state/compare/notices";
 import { compareSideColor } from "./palette";
-import type { CompareTime } from "./time";
 
 /** The select value that reconnects the compare view to the project's saved snapshot. */
 const SAVED_VALUE = "__saved__";
@@ -21,7 +21,9 @@ const SAVED_VALUE = "__saved__";
 /**
  * A compare view's header (M25; saved references in M25.C): the tab's title, both
  * projects by name with their source shape, the **comparability badge**, the fine-tune
- * offset δ, and the reference picker. See `docs/comparison.md` → "The compare view".
+ * offset δ, and the reference picker. The common-span note and the per-setting mismatch
+ * detail live in the view's notice strip ([`CompareNotices`]). See `docs/comparison.md`
+ * → "The compare view".
  */
 export default function CompareHeader(props: {
   /** The comparison's stable id (addresses its saved snapshot when the reference is saved). */
@@ -33,8 +35,6 @@ export default function CompareHeader(props: {
   /** Whether `reference` names the project's saved snapshot (M25.C). */
   saved: boolean;
   live: CompareLiveHandle;
-  /** The relative display transform (M25.B). */
-  time: CompareTime;
   /** Whether the family has a time axis (and so shows the fine-tune slider). */
   timeAxis: boolean;
   /** The fine-tune offset δ in seconds. */
@@ -113,17 +113,8 @@ export default function CompareHeader(props: {
     return { text: "Aligned", cls: "ok" };
   };
 
-  /** The common-span line, when the relative windows do not line up exactly. */
-  const spanNote = () => {
-    if (!comparability().aligned) return null;
-    const common = props.comparison.comparability.alignment.common;
-    if (!common) return "The shifted windows do not meet — adjust the fine-tune offset";
-    const start = common.start;
-    const end = common.end;
-    const extent = props.time.extent();
-    if (start <= 1e-6 && end >= extent - 1e-6) return null;
-    return `Delta over the common span ${start.toFixed(2)}–${end.toFixed(2)} s`;
-  };
+  /** The common-span note moved to the notice strip; the badge keeps one compact line. */
+  const badgeTitle = () => mismatchSummary(comparability().mismatches);
 
   return (
     <header class="compare-header" data-testid="compare.header">
@@ -147,7 +138,7 @@ export default function CompareHeader(props: {
         <span
           class={`compare-badge ${badge().cls}`}
           data-testid="compare.badge"
-          title={mismatchTitle(comparability().mismatches)}
+          title={badgeTitle()}
         >
           {badge().text}
         </span>
@@ -230,28 +221,15 @@ export default function CompareHeader(props: {
           </Button>
         </div>
       </Show>
-
-      <Show when={spanNote()}>
-        {(text) => (
-          <div class="compare-overlap" data-testid="compare.span">
-            {text()}
-          </div>
-        )}
-      </Show>
     </header>
   );
 }
 
 /** One compact side line: `project · window · channel`. */
 function sideLine(side: CompareSideDto): string {
-  return `${side.project ?? "this project"} · ${windowLabel(side.window)} · ${channelLabel(
+  return `${side.project ?? "this project"} · ${spanLabel(side.window)} · ${channelLabel(
     side.params.channel,
   )}`;
-}
-
-/** A side's pinned window (`0.50–1.50 s`). */
-function windowLabel(span: Span): string {
-  return `${span.start.toFixed(2)}–${span.end.toFixed(2)} s`;
 }
 
 /** A channel index as the timeline names it (`mix`, `L`, `R`, `ch 3`). */
@@ -260,18 +238,4 @@ function channelLabel(channel: number | null | undefined): string {
   if (channel === 0) return "L";
   if (channel === 1) return "R";
   return `ch ${channel + 1}`;
-}
-
-/** A badge tooltip listing every differing setting, with both values. */
-function mismatchTitle(mismatches: MismatchDto[]): string {
-  if (mismatches.length === 0) return "The two results share a grid, so B − A is computed.";
-  return mismatches
-    .map((mismatch) => `${mismatch.key}: ${formatValue(mismatch.a)} → ${formatValue(mismatch.b)}`)
-    .join("\n");
-}
-
-function formatValue(value: unknown): string {
-  if (Array.isArray(value)) return value.map(String).join("–");
-  if (value == null) return "—";
-  return String(value);
 }

@@ -2,6 +2,7 @@ import { Popover as KPopover } from "@kobalte/core/popover";
 import type { DockviewApi, DockviewGroupPanel } from "dockview";
 import { createSignal, For, onCleanup, Show, untrack } from "solid-js";
 import Icon from "./Icon";
+import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { createPopupMount } from "../lib/popupMount";
 
 /**
@@ -11,7 +12,9 @@ import { createPopupMount } from "../lib/popupMount";
  * It lists every tab of its dockview group (in tab order) with the **full, wrapping**
  * title, filters them as the user types, and activates one on click. The panel list is
  * re-read on every dockview event that can reorder or retitle a tab, so a drag between
- * groups is reflected immediately.
+ * groups is reflected immediately. The menu is portaled into the header's document, so
+ * it closes with its trigger when the group (and thus the header) goes away — see
+ * [`useAnchorLifetime`](../lib/anchorLifetime.ts).
  */
 export default function WorkbenchTabsMenu(props: { group: DockviewGroupPanel; api: DockviewApi }) {
   // A header's group and the api never change for the lifetime of this renderer, so
@@ -56,6 +59,8 @@ export default function WorkbenchTabsMenu(props: { group: DockviewGroupPanel; ap
     api.getPanel(id)?.api.setActive();
     close();
   };
+
+  useAnchorLifetime({ anchor: portal.anchor, open, onClose: close });
 
   return (
     <KPopover

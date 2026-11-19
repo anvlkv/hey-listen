@@ -13,13 +13,14 @@ import CompareTimeChart from "./CompareTimeChart";
 import { timeAxis, valueAxis } from "./axes";
 import { compareSides, liveMarkers } from "./sides";
 import { mergeSeries, toUplotData, type MergedSeries } from "./align";
+import { seriesTrack } from "./curves";
 import { clipSeries, displayTimes, type CompareTime } from "./time";
 import { activeThemeId, chartTheme } from "../../state/themes";
 import { analyzerBus } from "../../state/chartSync";
 import {
   analyzerById,
   type AnalyzerId,
-  type SeriesResult,
+  type AnyAnalysisResult,
   type SeriesView as SeriesViewConfig,
 } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
@@ -41,16 +42,25 @@ function logYRange(_u: unknown, min: number, max: number): [number, number] {
 }
 
 /**
+ * The display fields this chart reads. A `series` view declares all of them; the loudness
+ * view declares the label and formatter and leaves the log scale and fixed range absent,
+ * which is what a sone track wants.
+ */
+type TrackView = Pick<SeriesViewConfig, "yLabel" | "formatY" | "yScale" | "yRange">;
+
+/**
  * The **series** compare chart (M25): A and B overlaid on one absolute-time axis with
  * an optional Δ line, or two side-by-side plots when the grids differ (no
  * interpolation). B's window, cursor and playhead are drawn by [`compareMarkers`];
  * the chart joins A's `time` sync group.
  */
 export default function CompareSeries(props: CompareSeriesProps) {
-  const view = () => analyzerById(props.tool).view as SeriesViewConfig;
+  const view = (): TrackView => analyzerById(props.tool).view as SeriesViewConfig;
   /* eslint-disable solid/reactivity -- both accessors are only read inside tracked scopes */
-  const sides = compareSides<SeriesResult>(() => props.comparison);
+  const sides = compareSides<AnyAnalysisResult>(() => props.comparison);
   /* eslint-enable solid/reactivity */
+  const trackA = () => seriesTrack(sides.resultA());
+  const trackB = () => seriesTrack(sides.resultB());
   const diff = (): SeriesDiffDto | null =>
     props.comparison.diff?.kind === "series" ? props.comparison.diff : null;
   const [showDelta, setShowDelta] = createSignal(false);
@@ -58,8 +68,8 @@ export default function CompareSeries(props: CompareSeriesProps) {
   const aligned = sides.aligned;
 
   const merged = createMemo(() => {
-    const a = sides.resultA();
-    const b = sides.resultB();
+    const a = trackA();
+    const b = trackB();
     if (!a || !b) return null;
     const d = diff();
     const values = d?.values ?? [];
@@ -145,10 +155,8 @@ export default function CompareSeries(props: CompareSeriesProps) {
             <SidePlot
               label="A"
               color={chartTheme().compareA}
-              times={
-                sides.resultA() ? displayTimes(sides.resultA()!.times, props.time.originA()) : []
-              }
-              values={sides.resultA()?.values}
+              times={trackA() ? displayTimes(trackA()!.times, props.time.originA()) : []}
+              values={trackA()?.values}
               view={view()}
               scale={yScale()}
               markers={markers}
@@ -157,11 +165,11 @@ export default function CompareSeries(props: CompareSeriesProps) {
               label="B"
               color={chartTheme().compareB}
               times={
-                sides.resultB()
-                  ? displayTimes(sides.resultB()!.times, props.time.originB(), props.time.shiftB())
+                trackB()
+                  ? displayTimes(trackB()!.times, props.time.originB(), props.time.shiftB())
                   : []
               }
-              values={sides.resultB()?.values}
+              values={trackB()?.values}
               view={view()}
               scale={yScale()}
               markers={markers}
@@ -218,7 +226,7 @@ function SidePlot(props: {
   color: string;
   times: number[];
   values: (number | null)[] | undefined;
-  view: SeriesViewConfig;
+  view: TrackView;
   scale: uPlot.Scale;
   markers: () => ReturnType<typeof compareMarkers>;
 }) {

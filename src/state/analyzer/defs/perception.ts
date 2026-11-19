@@ -1,4 +1,4 @@
-import { fmtDb, formatHz } from "../format";
+import { fmtDb, fmtSone, formatHz } from "../format";
 import type { AnalyzerDef } from "../types";
 import { PERCEPTION_MODEL_ANALYZERS } from "./perceptionModels";
 
@@ -73,7 +73,7 @@ const PERCEPTION_BASE_ANALYZERS: AnalyzerDef[] = [
       "perception",
     ],
     section: "perception",
-    view: { kind: "loudness" },
+    view: { kind: "loudness", yLabel: "loudness (sone)", formatY: fmtSone },
     params: [
       {
         key: "calibrationDbSpl",
