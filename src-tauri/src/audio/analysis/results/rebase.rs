@@ -89,6 +89,11 @@ impl AnalysisResult {
                 if let Some(time) = &mut result.fm_run_end_secs {
                     *time += shift;
                 }
+                // The per-note spans are window-relative until they are re-based here.
+                for note in &mut result.notes {
+                    note.start_secs += shift;
+                    note.end_secs += shift;
+                }
             }
             AnalysisResult::Tempo(result)
             | AnalysisResult::Onsets(result)

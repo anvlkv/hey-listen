@@ -1,6 +1,8 @@
 import { Slider } from "@kobalte/core/slider";
 import { Switch } from "@kobalte/core/switch";
 import { Show } from "solid-js";
+import { returnToStart } from "../../audio/preview";
+import { transportFollow, toggleTransportFollow } from "../../audio/transportFollow";
 import { previewSpeed, setPreviewSpeed } from "../../audio/transportSpeed";
 import type { TransportStatus } from "../../audio/transport";
 import { positionToSpeed, speedToPosition } from "../../lib/previewSpeed";
@@ -8,11 +10,13 @@ import { filterActive, filterComposed, setFilterEnabled } from "../../state/grap
 import { setSourcePanelPinned, sourcePanelPinned } from "../../state/settings";
 import { source, status } from "../../state/source";
 import { windowEnd, windowStart } from "../../state/timeline";
+import { canGoBack, canGoForward, nextWindow, previousWindow } from "../../state/windowHistory";
 import { openTool } from "../../state/workbench";
 import Button from "../Button";
 import Icon from "../Icon";
 import Tooltip from "../Tooltip";
 import { formatTime } from "./format";
+import WindowEditPopover from "./WindowEditPopover";
 
 /** `1.25×`, but `1×` rather than `1.00×` for a whole rate. */
 const speedLabel = (speed: number) => `${Number(speed.toFixed(2))}×`;
@@ -64,6 +68,33 @@ export default function TimelineToolbar(props: {
           <span class="timeline-dim"> / {formatTime(duration())}</span>
         </span>
       </div>
+      {/* The edit trigger and the history arrows sit right after the readout, which stays
+          a plain read-only summary (the E2E suite reads its text). */}
+      <div class="toolbar-group">
+        <WindowEditPopover />
+        <Tooltip label="Previous analysis window">
+          <Button
+            class="timeline-btn icon-btn"
+            data-testid="timeline.windowBack"
+            disabled={!canGoBack()}
+            aria-label="Previous analysis window"
+            onClick={previousWindow}
+          >
+            <Icon name="arrow-left" />
+          </Button>
+        </Tooltip>
+        <Tooltip label="Next analysis window">
+          <Button
+            class="timeline-btn icon-btn"
+            data-testid="timeline.windowForward"
+            disabled={!canGoForward()}
+            aria-label="Next analysis window"
+            onClick={nextWindow}
+          >
+            <Icon name="arrow-right" />
+          </Button>
+        </Tooltip>
+      </div>
       <Tooltip
         label={
           filterActive()
@@ -105,6 +136,17 @@ export default function TimelineToolbar(props: {
             </Button>
           </Tooltip>
         </Show>
+        <Tooltip label="Return the playhead to the start">
+          <Button
+            class="timeline-btn icon-btn"
+            data-testid="timeline.start"
+            disabled={!source()}
+            aria-label="Return the playhead to the start"
+            onClick={returnToStart}
+          >
+            <Icon name="arrows-rotate" />
+          </Button>
+        </Tooltip>
         <Tooltip label={transportLabel()}>
           <Button
             class="timeline-btn icon-label"
@@ -138,6 +180,17 @@ export default function TimelineToolbar(props: {
             onClick={() => props.onToggleLoop()}
           >
             <Icon name="loop" />
+          </Button>
+        </Tooltip>
+        <Tooltip label="Scroll the view to keep a playing playhead visible">
+          <Button
+            class="timeline-btn icon-btn"
+            data-testid="timeline.follow"
+            aria-pressed={transportFollow()}
+            aria-label="Follow the playhead"
+            onClick={toggleTransportFollow}
+          >
+            <Icon name="arrows-left-right-to-line" />
           </Button>
         </Tooltip>
         <div class="timeline-speed" title="Preview speed (varispeed — shifts pitch)">

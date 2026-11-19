@@ -78,13 +78,15 @@ export default function CompareEvents(props: {
   );
   const Tooltip = timeTooltip((value) => value.toFixed(4));
   const markers = () =>
-    compareMarkers(
-      liveMarkers({
+    compareMarkers({
+      ...liveMarkers({
         live: props.live,
         time: props.time,
         axis: "time",
       }),
-    );
+      // The strip labels the reference's absolute window; the chart axis stays relative.
+      absolute: () => props.comparison.b.window,
+    });
 
   const envelopeDelta = () => diff()?.envelope ?? null;
 

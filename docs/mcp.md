@@ -188,7 +188,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `save_project` / `open_project` / `new_project` | Project file actions. Headless `save_project` writes the session's source + setup + the supplied `annotations` and `openTools` (no Workbench layout) and **creates the target's parent folders**; the `openTools` recorded in `SETUP` are restored as tabs when the app opens the file, even when the saved layout is empty (M25.D). A comparison computed headless is written to `COMPARE` like an open compare tab. `embedSource: false` writes a reference project for a file source. **(M21.A, M25.D)** |
 | `open_project_window` | Open a **new project window** at an existing `.heyl` file, leaving the current project untouched; a window already showing that file is raised instead of duplicated. Returns `{ label, path, reused }` — `label` is what `target` and `compare_analysis`'s `with` accept. This is the app-side way to script an A/B. **App-only** (headless compares the file directly). **(M25.D)** |
 | `list_projects` | List the open project windows (label, name, focused; plus each project's source shape, analysis window, filter presence and **saved comparisons**) — answered by the server. **(M25, M25.C)** |
-| `list_annotations` / `get_annotation` / `create_annotation` / `update_annotation` / `delete_annotation` / `set_selected_annotation` | The project's **annotations** (stored as `Annotation`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_annotation` captures the chart's frozen values, `update_annotation` can `recomputeValues`, and `set_selected_annotation` highlights one on every time-based chart. `list_annotations` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_annotation` for the markdown body and frozen snapshot. **App-only** (an annotation lives in a project; headless answers "requires the app"). They are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
+| `list_annotations` / `get_annotation` / `create_annotation` / `update_annotation` / `delete_annotation` / `set_selected_annotation` | The project's **annotations** (stored as `Annotation`): read/write the markdown annotations anchored to a time (+ optional range) and an analyzer tool; `create_annotation` captures the chart's frozen values, `update_annotation` can `recomputeValues`, and `set_selected_annotation` highlights one on every time-based chart. `list_annotations` is compact by default (id/time/range/tool/title, the values text, and a body excerpt); pass `full: true` or call `get_annotation` for the markdown body and frozen snapshot. A created or recomputed snapshot also carries the tool's canonical **summary items** (`values.summary`, D-19); a result adopted from the project cache leaves them empty. **App-only** (an annotation lives in a project; headless answers "requires the app"). They are **not** the `noteMetrics` detected note segments. **(M14, M21)** |
 | `list_themes` / `get_theme` / `set_theme` | The theme registry (bundled + installed) and the active theme (mode + dark/light slots); `import_theme` / `export_theme` are file operations. Headless reports the bundled themes only. |
 | `export_analysis` / `export_chart` / `export_all` | Save an analyzer's data (JSON provenance envelope / wide-matrix CSV) or chart (PNG), or every open analysis to a folder. `export_analysis` recomputes the tool at the current window and is **headless-capable**; `export_chart` needs the rendered canvas. **(M12)** |
 | `list_templates` / `apply_template` / `save_template` / `export_template` / `import_template` | Installed analysis templates; apply to the current project or the headless session. **(M13, planned)** |
@@ -199,7 +199,9 @@ the result's **structure**: matrices and spectrograms keep their dimensions and 
 time/freq/level; waveform/spectrum/series arrays become `{ length, min, max, argmin,
 argmax }` (with `nulls` when a series has gaps, e.g. unvoiced pitch frames, and `hop`
 so an index maps to a time); and event/note lists become `{ length, preview: [first 5],
-truncated }` instead of losing their records. `noteMetrics` also carries `bounds` —
+truncated }` instead of losing their records (`previewRecords: 1..50` changes the bounded
+preview; it applies to the compact result only, so it is rejected with `includeData` or
+`summaryOnly`). `noteMetrics` also carries `bounds` —
 every `{ startSecs, endSecs, gapAfterSecs }` — so segmenting does not need a full
 result. Pass `includeData: true` for the raw result (with `maxPoints: N` to thin
 series/matrices; event lists are never thinned), `axis: "compact"` to replace a
@@ -207,14 +209,16 @@ series/matrices; event lists are never thinned), `axis: "compact"` to replace a
 the summary alone. `summary` and
 `summaryOnly` are mutually exclusive with `includeData`; `summary` is computed from the
 full result, so it is identical in all three modes. One implementation
-(`src-tauri/src/audio/analysis/shape.rs` + `shape/decimate.rs`) serves this server, the
-GUI handler, and the CLI.
+(`src-tauri/src/audio/analysis/shape.rs` + `shape/{compact,decimate,grid,candidates}.rs`)
+serves this server, the GUI handler, and the CLI.
 
 **Option keys (M16).** Per-tool option keys are canonical **camelCase**; the snake_case
 aliases (`min_f0_hz`, `n_mels`, …) are accepted at every boundary. An **unknown key is an
 error**, not a silent no-op, on the GUI MCP path, headless, and the CLI. Chart-display
 toggles (`showMean`, `frequencyScale`, …) are not engine options and are never sent to the
-engine. `list_analyzers` carries each tool's compact option map (keys + defaults).
+engine. A misspelled tool id or option key is rejected **with the nearest catalog name**
+("did you mean …?"), so a typo is a one-token fix rather than a dead end. `list_analyzers`
+carries each tool's compact option map (keys + defaults).
 
 **Workbench layout (`open_tool.position`).** A tab joins the main group by default. To
 split the Workbench into a grid, pass a `position`:
@@ -466,9 +470,12 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   themes, the active mode, and `set_theme` / `import_theme` / `export_theme` need the
   app. With the app running they run in the webview against the same registry the UI
   drives (see [`theming.md`](theming.md)).
-- **The MCP `run_analysis` path does not read the result cache.** The cache the project
-  file persists (`RESULTS`) lives in the frontend; a headless or MCP run recomputes
-  ([D-22](deferred.md)).
+- **The headless session reuses the result cache (D-22).** `run_analysis` keys an in-memory
+  cache on the tool, the effective window, the shared params and the effective options.
+  `open_project` seeds it from `RESULTS`, `save_project` writes it back, and
+  `open_audio_file` / `render_synth` / `set_filter_graph` / `close_source` / `new_project`
+  clear it (the stored entry has no filter field). A corrupt payload falls through to a
+  real run rather than failing the call. The GUI keeps its own cache in the frontend.
 - **Windows release:** use `heylisten-mcp` (the app binary has no console).
 - **Bundling the bridge:** the `heylisten-mcp` binary is built next to the app
   (`target/{debug,release}/heylisten-mcp`) but is **not** shipped inside the

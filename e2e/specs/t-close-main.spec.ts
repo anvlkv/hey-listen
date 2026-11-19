@@ -77,10 +77,18 @@ describe("T. Closing the main window", () => {
     await browser.tauri.switchWindow("main");
     await waitForShell();
     await closeCurrentWindow();
+    // Wait for main to go *before* pointing the session elsewhere. The close is a 250 ms
+    // timer inside main's own webview, and switching focus away can throttle that timer on
+    // WKWebView, so under load the close never fires and the wait exhausts. `windowLabels()`
+    // falls back to WebDriver window handles, so it still reads while the session sits on
+    // the dying window.
+    await waitFor(
+      async () => !(await windowLabels()).includes("main"),
+      "main did not close",
+      30_000,
+    );
     // The session is pinned to the window that just died; recover on a live one.
     await browser.tauri.switchWindow(second).catch(() => {});
-
-    await waitFor(async () => !(await windowLabels()).includes("main"), "main did not close");
     const remaining = await windowLabels();
     expect(remaining).not.toContain(mainPopout);
     expect(remaining).toContain(second);

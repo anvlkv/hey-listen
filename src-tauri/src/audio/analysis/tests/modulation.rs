@@ -12,10 +12,10 @@ use crate::audio::graph::{render_mono, GraphEdge, GraphNode, GraphSpec};
 
 /// A lower rate keeps the two YIN passes quick; every modulation rate tested is far
 /// below its Nyquist.
-const MOD_RATE: u32 = 16_000;
+pub(super) const MOD_RATE: u32 = 16_000;
 
 /// Narrow the f0 search so the graph renders are cheap; the sounds sit at 440 Hz.
-fn mod_options() -> ToolOptions {
+pub(super) fn mod_options() -> ToolOptions {
     ToolOptions {
         min_f0_hz: Some(300.0),
         max_f0_hz: Some(700.0),
@@ -41,7 +41,7 @@ fn edge(from: &str, from_port: usize, to: &str, to_port: usize) -> GraphEdge {
 }
 
 /// Render a synth graph to PCM at [`MOD_RATE`].
-fn render(spec: &GraphSpec, seconds: f32) -> Vec<f32> {
+pub(super) fn render(spec: &GraphSpec, seconds: f32) -> Vec<f32> {
     render_mono(spec, f64::from(seconds), MOD_RATE).expect("render the synth graph")
 }
 
@@ -54,7 +54,7 @@ fn tone(hz: f32) -> GraphSpec {
 }
 
 /// `sine(hz) × Π(1 + depth·sin(2π rate t))`: one `sine_lfo`/`multiply` pair per rate.
-fn am_tone(hz: f32, rates: &[(f32, f32)]) -> GraphSpec {
+pub(super) fn am_tone(hz: f32, rates: &[(f32, f32)]) -> GraphSpec {
     let mut nodes = vec![node("osc", "sine", &[hz])];
     let mut edges = Vec::new();
     let mut last = "osc".to_string();
@@ -100,7 +100,7 @@ fn silence() -> GraphSpec {
     }
 }
 
-fn run_mod(mono: &[f32], options: &ToolOptions) -> ModulationResult {
+pub(super) fn run_mod(mono: &[f32], options: &ToolOptions) -> ModulationResult {
     match run(
         AnalyzerId::Modulation,
         mono,
@@ -116,7 +116,7 @@ fn run_mod(mono: &[f32], options: &ToolOptions) -> ModulationResult {
 }
 
 /// Whether `peaks` contains a rate within `tolerance` Hz of `expected`.
-fn has_peak(peaks: &[ModulationPeak], expected: f32, tolerance: f32) -> bool {
+pub(super) fn has_peak(peaks: &[ModulationPeak], expected: f32, tolerance: f32) -> bool {
     peaks
         .iter()
         .any(|peak| (peak.rate_hz - expected).abs() <= tolerance)

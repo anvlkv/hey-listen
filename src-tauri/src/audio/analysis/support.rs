@@ -5,8 +5,8 @@
 use oxiaudio::{AudioBuffer, ChannelLayout, SampleFormat};
 
 use super::{
-    AnalysisError, AnalysisResult, SharedParams, ToolOptions, DB_FLOOR, MAX_FRAME_RMS_FRAMES,
-    MAX_PITCH_FRAMES, MAX_RHYTHM_FRAMES, MAX_STFT_CELLS,
+    AnalysisError, AnalysisResult, Cancel, SharedParams, ToolOptions, CANCEL_STRIDE, DB_FLOOR,
+    MAX_FRAME_RMS_FRAMES, MAX_PITCH_FRAMES, MAX_RHYTHM_FRAMES, MAX_STFT_CELLS,
 };
 
 mod series;
@@ -71,18 +71,24 @@ pub(super) fn pitch_grid(len: usize, params: &SharedParams) -> (usize, usize) {
 
 /// The onset-strength envelope for the rhythm tools: half-wave-rectified spectral
 /// flux per frame, with the hop widened so the frame count stays bounded.
+///
+/// `spectral_flux` is one `oxiaudio` call, so the token is checked on either side of
+/// it rather than inside it.
 pub(super) fn onset_envelope(
     mono: &[f32],
     sample_rate: u32,
     params: &SharedParams,
-) -> (usize, Vec<f32>) {
+    cancel: &Cancel,
+) -> Result<(usize, Vec<f32>), AnalysisError> {
     let fft = params.fft_size();
     let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
     let min_hop = mono.len().div_ceil(MAX_RHYTHM_FRAMES).max(1);
     let hop = hop.max(min_hop);
     let buf = mono_buffer(mono, sample_rate);
+    cancel.check()?;
     let env = oxiaudio::dsp::spectral::spectral_flux(&buf, fft, hop);
-    (hop, env)
+    cancel.check()?;
+    Ok((hop, env))
 }
 
 /// Frame start times (seconds) for `frames` frames at `hop` samples.
@@ -114,12 +120,16 @@ fn ms_to_samples(ms: f32, sample_rate: u32) -> usize {
 /// The returned `(frame, hop)` are the **effective** samples-per-frame and
 /// samples-per-hop; `frame` is the configured frame, so the final partial frame can be
 /// shorter than the reported size.
+///
+/// The token is checked every [`CANCEL_STRIDE`] frames, so a long envelope stops early
+/// when its run is superseded.
 pub(super) fn frame_rms(
     mono: &[f32],
     sample_rate: u32,
     frame_ms: f32,
     hop_ms: f32,
-) -> (Vec<f32>, Vec<f32>, usize, usize) {
+    cancel: &Cancel,
+) -> Result<(Vec<f32>, Vec<f32>, usize, usize), AnalysisError> {
     let frame = ms_to_samples(frame_ms, sample_rate);
     let requested_hop = ms_to_samples(hop_ms, sample_rate);
     let hop = requested_hop.max(mono.len().div_ceil(MAX_FRAME_RMS_FRAMES).max(1));
@@ -129,7 +139,11 @@ pub(super) fn frame_rms(
     let mut times = Vec::new();
     let mut values = Vec::new();
     let mut start = 0usize;
+    let mut index = 0usize;
     while start < len {
+        if index.is_multiple_of(CANCEL_STRIDE) {
+            cancel.check()?;
+        }
         let end = (start + frame).min(len);
         let slice = &mono[start..end];
         let sum: f64 = slice.iter().map(|&sample| f64::from(sample).powi(2)).sum();
@@ -146,8 +160,9 @@ pub(super) fn frame_rms(
             break;
         }
         start += hop;
+        index += 1;
     }
-    (times, values, frame, hop)
+    Ok((times, values, frame, hop))
 }
 
 /// The hop a `frameRms` result **asked for**, in samples, when the engine widened it to

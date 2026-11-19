@@ -66,6 +66,12 @@ pub(super) fn tools() -> Vec<Value> {
                     "minimum": 2,
                     "description": "With includeData, thin series/matrix arrays to at most this many points.",
                 },
+                "previewRecords": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "Records kept in each compact event/note/object list preview (default 5).",
+                },
                 "axis": {
                     "type": "string",
                     "enum": ["array", "compact"],

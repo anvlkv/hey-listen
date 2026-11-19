@@ -22,19 +22,21 @@ import {
 } from "../../state/timeline";
 import { HANDLE_HIT, MOVE_HIT, PREVIEW_THROTTLE, RULER_DRAG_PX, RULER_H } from "./constants";
 import { formatTime } from "./format";
+import { createHover, type TimelineHover } from "./hover";
 import { ANNOTATION_STRIP_H } from "../annotations/strip";
-import { channelLaneAt, minWindowFor, selectWindow, type WindowSpan } from "./selection";
+import type { WindowSpan } from "./selection";
+import { channelLaneAt, clampTime, minWindowFor, moveWindow, selectWindow } from "./selection";
 import { createTimelineZoom } from "./zoom";
 
 /**
  * Pointer interaction for the Timeline canvas: drag the start/end handles (with an edge
- * preview), drag the move bar to slide the window, **select** a new window with a plain
- * left drag (in the waveform body **or** the ruler), **pan** with the middle button, drag an
- * annotation handle / draw an annotation selection in the bottom lane, wheel zoom/pan, and
- * the toolbar zoom actions. The component-local capabilities arrive in
- * [`TimelineInteractionDeps`]; the shared store reads/writes are imported directly. See
- * `docs/source-model.md` and `docs/roadmap.md` → M23 → "Window readout, pan and select" and
- * "Wheel and trackpad stability".
+ * preview), drag the move bar to slide the window, **select** a new window with a plain left
+ * drag (body **or** ruler) and **seek** with a ruler click, **pan** with the middle button,
+ * drag an annotation handle / draw a lane selection, wheel zoom/pan, the toolbar zoom and the
+ * **hover crosshair** (`hover.ts`). Snapping (D-12) arrives through the `snap*` deps, which are
+ * the identity while it is off. Component-local capabilities arrive in
+ * [`TimelineInteractionDeps`]; store reads/writes are imported. See `docs/source-model.md`,
+ * `docs/roadmap.md` → M23 → "Window readout, pan and select" and "Wheel and trackpad".
  */
 type DragKind = "start" | "end" | "move" | "pan" | "select" | "ruler";
 
@@ -47,12 +49,17 @@ export interface TimelineInteractionDeps {
   span: () => number;
   plotW: () => number;
   applyView: (a: number, b: number) => void;
+  /** Snapping (D-12): the identity while it is off; see `snapping.ts`. */
+  snapTime: (t: number) => number;
+  snapSpan: (a: number, b: number) => WindowSpan;
+  snapMove: (start: number, width: number) => number;
   setAnnotationHint: (hint: { x: number; y: number; text: string } | null) => void;
   previewEdge: (kind: "start" | "end") => void;
   endPreview: () => void;
 }
 
-export interface TimelineInteraction {
+/** The pointer handlers and live gesture state, plus the hover crosshair's `TimelineHover`. */
+export interface TimelineInteraction extends TimelineHover {
   onPointerDown: (e: PointerEvent) => void;
   onPointerMove: (e: PointerEvent) => void;
   onPointerUp: (e: PointerEvent) => void;
@@ -90,6 +97,8 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
   const [laneHover, setLaneHover] = createSignal<string | null>(null);
   /** The window being dragged out, so the canvas can draw the selection rectangle. */
   const [windowSelection, setWindowSelection] = createSignal<WindowSpan | null>(null);
+  /** The hover crosshair's time and x, drawn by the canvas (see `hover.ts`). */
+  const hover = createHover();
 
   /** The Timeline's lane holds **Timeline annotations** (no chart). */
   const lane = createLaneDrag(() => ({
@@ -100,28 +109,19 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
   }));
 
   function pointerX(e: { clientX: number }): number {
-    const rect = deps.canvas().getBoundingClientRect();
-    return e.clientX - rect.left;
+    return e.clientX - deps.canvas().getBoundingClientRect().left;
   }
 
   function pointerY(e: { clientY: number }): number {
-    const rect = deps.canvas().getBoundingClientRect();
-    return e.clientY - rect.top;
+    return e.clientY - deps.canvas().getBoundingClientRect().top;
   }
 
   /** The top of the bottom annotation lane (where annotations are created, grabbed and resized). */
   function laneTop(): number {
-    const rect = deps.canvas().getBoundingClientRect();
-    return rect.height - ANNOTATION_STRIP_H;
+    return deps.canvas().getBoundingClientRect().height - ANNOTATION_STRIP_H;
   }
 
-  function minWindow(): number {
-    return minWindowFor(source()?.sampleRate);
-  }
-
-  function clampTime(t: number): number {
-    return Math.max(0, Math.min(deps.duration(), t));
-  }
+  const minWindow = () => minWindowFor(source()?.sampleRate);
 
   /** The channel lane under a pointer y (a 2+ channel source draws one lane per channel). */
   function laneUnder(y: number): number | null {
@@ -131,22 +131,18 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     return channelLaneAt(y, RULER_H, rect.height - RULER_H, s.channels);
   }
 
-  /** Apply a text-like selection from the drag's anchor to the pointer, and report it. */
+  /** Apply the drag's selection (both ends snapped, direction kept), and report it. */
   function applySelection(anchorPx: number, x: number, e: PointerEvent) {
-    const span = selectWindow(deps.x2t(anchorPx), deps.x2t(x), deps.duration(), minWindow());
+    const snapped = deps.snapSpan(deps.x2t(anchorPx), deps.x2t(x));
+    const [a, b] = x >= anchorPx ? [snapped.start, snapped.end] : [snapped.end, snapped.start];
+    const span = selectWindow(a, b, deps.duration(), minWindow());
     setWindowSelection(span);
     reframeWindow(span);
-    deps.setAnnotationHint({
-      x,
-      y: pointerY(e),
-      text: `${formatTime(span.start)} → ${formatTime(span.end)}`,
-    });
+    const text = `${formatTime(span.start)} → ${formatTime(span.end)}`;
+    deps.setAnnotationHint({ x, y: pointerY(e), text });
   }
 
-  /**
-   * Capture the pointer for the rest of a gesture. Best-effort: a synthetic pointer (the
-   * E2E helpers dispatch one) has no active id; the gesture still works.
-   */
+  /** Capture the pointer for the rest of a gesture, best-effort (a synthetic pointer has no id). */
   function capturePointer(pointerId: number) {
     try {
       deps.canvas().setPointerCapture(pointerId);
@@ -156,8 +152,9 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
   }
 
   function beginDrag(kind: DragKind, x: number, pointerId: number) {
-    // A window gesture takes over: an annotation is no longer hovered.
+    // A gesture takes over: no hovered annotation, no hover crosshair.
     setLaneHover(null);
+    hover.clear();
     drag = {
       kind,
       pointerX: x,
@@ -196,6 +193,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     if (y >= laneTop() && lane.down(x)) {
       laneActive = true;
       setLaneHover(null);
+      hover.clear();
       deps.setAnnotationHint(null);
       capturePointer(e.pointerId);
       return;
@@ -221,7 +219,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
       // lane the drag starts in becomes the analysis channel (one channel or "mix").
       const lane = laneUnder(y);
       if (lane != null) setChannel(lane);
-      const anchor = clampTime(deps.x2t(x));
+      const anchor = clampTime(deps.x2t(x), deps.duration());
       setWindowSelection({ start: anchor, end: anchor });
     } else if (kind === "start" || kind === "end") {
       lastPreview = 0;
@@ -230,21 +228,22 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
   }
 
   function onPointerMove(e: PointerEvent) {
+    const x = pointerX(e);
     if (laneActive) {
-      lane.move(deps.x2t(pointerX(e)));
+      lane.move(deps.x2t(x));
       return;
     }
     if (!drag) {
-      const x = pointerX(e);
       const y = pointerY(e);
       const hovered = y >= laneTop() ? annotationHandleAt(annotationsSorted(), deps.t2x, x) : null;
       deps.setAnnotationHint(
         hovered ? { x, y, text: annotationHintText(hovered.annotation) } : null,
       );
       setLaneHover(hovered?.annotation.id ?? null);
+      // Above the lane the pointer also drives the hover crosshair and its readout chip.
+      hover.setHover(y < laneTop() ? clampTime(deps.x2t(x), deps.duration()) : null, x);
       return;
     }
-    const x = pointerX(e);
 
     if (drag.kind === "ruler") {
       // A click seeks; only a real drag becomes a window selection.
@@ -260,8 +259,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
       return;
     }
 
-    const s = source();
-    if (!s) return;
+    if (!source()) return;
 
     if (drag.kind === "select") {
       // Text-like selection: the window spans the anchor (where the drag began) to the
@@ -272,15 +270,12 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     }
 
     if (drag.kind === "move") {
-      // Slide the whole window by the pointer delta, preserving its width and staying inside
-      // [0, duration]; the viewport is untouched. Both ends are written in one transaction:
-      // unbatched, each write would run every window-dependent effect (repaint, analysis
-      // debounce, chart re-fit, history, cross-window push) on its own, doubling the cost of
-      // a pointer-rate gesture.
+      // Slide the window by the pointer delta; one batch, so dependent effects run once.
       const dur = deps.duration();
       const wLen = drag.origWindowEnd - drag.origWindowStart;
       const dt = deps.x2t(x) - deps.x2t(drag.pointerX);
-      const start = Math.max(0, Math.min(dur - wLen, drag.origWindowStart + dt));
+      const raw = moveWindow(drag.origWindowStart, dt, wLen, dur);
+      const start = Math.max(0, Math.min(dur - wLen, deps.snapMove(raw, wLen)));
       batch(() => {
         setWindowStart(start);
         setWindowEnd(start + wLen);
@@ -288,7 +283,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
       return;
     }
 
-    const t = Math.max(0, Math.min(deps.duration(), deps.x2t(x)));
+    const t = deps.snapTime(clampTime(deps.x2t(x), deps.duration()));
     const gap = minWindow();
     if (drag.kind === "start") {
       setWindowStart(Math.max(0, Math.min(t, windowEnd() - gap)));
@@ -304,14 +299,16 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     }
   }
 
-  /** Not over the canvas any more: no hovered annotation, no hint. */
+  /** Not over the canvas any more: no hovered annotation, no hint, no crosshair. */
   function onPointerLeave() {
     deps.setAnnotationHint(null);
     setLaneHover(null);
+    hover.clear();
   }
 
   function onPointerUp(e: PointerEvent) {
     const canvas = deps.canvas();
+    hover.clear();
     if (laneActive) {
       laneActive = false;
       lane.up();
@@ -325,7 +322,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
 
     // A ruler click (no movement) seeks the transport playhead.
     if (kind === "ruler" && !moved) {
-      seek(clampTime(deps.x2t(pointerX(e))));
+      seek(deps.snapTime(clampTime(deps.x2t(pointerX(e)), deps.duration())));
       return;
     }
 
@@ -369,8 +366,7 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
 
   /**
    * A vertical wheel **zooms** around the pointer; a horizontal wheel or `Shift` + vertical
-   * **pans** the time axis. There is no vertical waveform zoom. See
-   * `lib/wheelGesture.ts` → `wheelIntent`.
+   * **pans** the time axis (no vertical waveform zoom). See `lib/wheelGesture.ts`.
    */
   const zoom = createTimelineZoom({
     canvas: deps.canvas,
@@ -394,5 +390,6 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
     windowSelection,
     laneDrag: lane.drag,
     laneHover,
+    ...hover,
   };
 }

@@ -48,15 +48,18 @@ computed, as a `postcard` `Vec<StoredResult>` — one entry per cached analyzer 
 | `options` | The per-tool options it was computed with. |
 | `result` | The result itself, postcard-encoded. |
 
-`save_project` writes the frontend's result cache (`src/state/analyzer/cache.ts`), which
-holds one entry per tool for the current source **and** applied filter. On load the
-frontend seeds that cache from the section, so the analyzer tabs show the saved results
-instead of re-running every analyzer. The cache key is the source, the window, the
-shared params, the per-tool options and the filter: an entry that does not match the
-restored setup is simply recomputed, and a tool without an entry runs as usual. An
-entry this build cannot decode is logged and skipped, so the section stays
-forward-compatible. Its payload is the postcard-safe mirror of `AnalysisResult`
-(`StoredAnalysisResult`), for the reason the `COMPARE` section gives [below](#comparisons-m25c).
+`save_project` writes the result cache: the GUI's frontend cache
+(`src/state/analyzer/cache.ts`) and, headless, the MCP session's own cache
+(`src-tauri/src/mcp/dispatch/cache.rs`, D-22). Each holds one entry per tool for the
+current source **and** applied filter. On load the frontend seeds its cache from the
+section, and the headless session seeds its cache too, so a reopened project shows (and a
+second MCP run reuses) the saved results instead of re-running every analyzer. The cache
+key is the source, the window, the shared params, the per-tool options and the filter: an
+entry that does not match the restored setup is simply recomputed, and a tool without an
+entry runs as usual. An entry this build cannot decode is logged and skipped (the headless
+cache silently falls back to a real run), so the section stays forward-compatible. Its
+payload is the postcard-safe mirror of `AnalysisResult` (`StoredAnalysisResult`), for the
+reason the `COMPARE` section gives [below](#comparisons-m25c).
 
 ## Annotations (M14)
 
@@ -194,6 +197,8 @@ steps are derived from it (see [Migrations](#migrations)).
 | 2 | `COMPARE` snapshots always carry `referencePath` (the layout version 1 shipped in two shapes). The `v1 → v2` step in `project/migrate/v1.rs` rewrites the early layout; every other section is byte-identical. | M37 |
 | 3 | `COMPARE` snapshots gain the pair fields: a stable `id` (so several comparisons can share a tool, one per compare tab), `ownerWindow` and `ownerChannel` (the owner side pinned at save time), appended after `referencePath`. The `v2 → v3` step in `project/migrate/v2.rs` **converts** each old snapshot (owner window defaults to the snapshot's window, owner channel is unknown); nothing is dropped. The fragment-audio pair restructure Phase 3 also plans is still open and would change the payload again. | M23 |
 | 4 | The stored comparison result gains two trailing optional fields: `gate` on a `CalibratedSeriesResult` (postcard tuple 11 → 12) and `bandLabels` on a `MatrixResult` (17 → 18). The result is **nested** inside a snapshot, so the trailing-field tolerance cannot read the older arity; the `v3 → v4` step in `project/migrate/v3.rs` decodes version 3's frozen 17 / 11 shape and re-encodes today's. | M36 follow-up |
+| 5 | `AnnotationValues` gains the trailing `summary` items (D-19). The snapshot is nested inside an `Annotation` inside a `Vec`, so a missing field cannot be defaulted in place; the `v4 → v5` step in `project/migrate/v4.rs` decodes version 4's frozen shape and re-encodes it with an empty item list. | D-19 |
+| 6 | `ModulationResult` gains the trailing per-note `notes` list (D-18). It is nested inside `StoredAnalysisResult` inside a `SavedComparison`, so the `v5 → v6` step in `project/migrate/v5.rs` decodes `COMPARE` with a frozen result enum (every variant unchanged except `Modulation`) and re-encodes today's shape with an empty list. `RESULTS` stays a cache and is dropped by `run_with` as for any pre-`VERSION` file. | D-18 |
 
 **Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
 `SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
@@ -290,11 +295,17 @@ dialogs.
 - **Section index entries** are `offset u64` + `length u64` + `id u8` + 7 reserved
   zero bytes; offsets are absolute from the start of the file.
 - **`DATA`** sub-layout: a 24-byte self-describing header (`sample_rate u32`,
-  `channels u16`, `format u8` = 0 for `f32`, `frames u64`, `chunk_samples u32`,
-  `chunk_count u32`), then the raw interleaved-`f32` chunks, a trailing chunk index
-  (`offset u64` + `length u64` per chunk, relative to the payload start), and a
-  16-byte footer (`chunk_count u64`, `index_offset u64`). Appending a chunk rewrites
-  only the index/footer, never earlier chunks.
+  `channels u16`, `format u8` = **0 for `f32` / 1 for `i16`**, `frames u64`,
+  `chunk_samples u32`, `chunk_count u32`), then the raw interleaved chunks, a trailing
+  chunk index (`offset u64` + `length u64` per chunk, **in bytes**, relative to the
+  payload start), and a 16-byte footer (`chunk_count u64`, `index_offset u64`). Appending
+  a chunk rewrites only the index/footer, never earlier chunks. `i16` samples are
+  little-endian; the reader maps them to `f32` as `sample / 32768`, and the writer
+  quantizes as `(sample × 32767)` rounded. Both widths go through the same
+  bounds-first checks (`sample_count × width`, whole-sample chunk lengths).
+- **Writing `i16`.** `write_project` keeps the app's default `f32`; the codec also exposes
+  `write_project_with_pcm_format(…, PcmFormat::I16)` (`project/write.rs`) for a future
+  storage setting and for round-trip tests. `save_project` does not choose it yet.
 - **`SOURCE`** is a `kind`-tagged struct (not a Serde enum): `postcard` cannot encode
   internally-tagged enums. `kind` is the `SourceKind` enum (`file` / `mic` / `system` /
   `process` / `mix` / `synth`), serialized as that same string (M15.B); the
@@ -356,7 +367,7 @@ files live under `themes/`). A template reuses the `SETUP` / `LAYOUT` *payload t
 
 ### Deferred
 
-- **`i16` `DATA`.** The format allows it (`format` byte), but the core stores `f32`
-  and always writes `format = 0` ([D-20](deferred.md)).
 - **FLAC-compressed `DATA`** (the optional future optimization) is not implemented
-  ([D-29](deferred.md)).
+  ([D-29](deferred.md)). `i16` is implemented (D-20): the reader accepts `format = 1`,
+  and `write_project_with_pcm_format` can write it, though `save_project` still defaults
+  to `f32`.

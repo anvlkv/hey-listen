@@ -93,6 +93,42 @@
   outline-offset: -3px;
 }
 
+.graph-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 236px;
+  padding: 10px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+}
+
+.graph-inspector-params,
+.graph-inspector-presets,
+.graph-inspector-param {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.graph-inspector-param-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.625rem;
+  color: var(--fg-disabled);
+}
+
+.graph-inspector-input {
+  width: 100%;
+}
+
 .graph-warn {
   max-width: 40%;
   color: var(--warn);

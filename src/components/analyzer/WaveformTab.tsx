@@ -105,6 +105,8 @@ export default function WaveformTab() {
       loading={analysis.loading()}
       error={analysis.error()}
       hasResult={analysis.result() != null}
+      progress={analysis.progress()}
+      onCancel={analysis.cancel}
       params={<ToolParamsForm id="waveform" />}
     >
       <Show when={linkedPair()}>

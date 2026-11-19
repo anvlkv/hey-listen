@@ -2,7 +2,7 @@
 
 use super::*;
 
-fn node(id: &str, kind: &str, params: &[f32]) -> GraphNode {
+pub(super) fn node(id: &str, kind: &str, params: &[f32]) -> GraphNode {
     GraphNode {
         id: id.to_string(),
         kind: kind.to_string(),
@@ -10,7 +10,7 @@ fn node(id: &str, kind: &str, params: &[f32]) -> GraphNode {
     }
 }
 
-fn edge(from: &str, to: &str) -> GraphEdge {
+pub(super) fn edge(from: &str, to: &str) -> GraphEdge {
     GraphEdge {
         from: from.to_string(),
         from_port: 0,
@@ -19,7 +19,7 @@ fn edge(from: &str, to: &str) -> GraphEdge {
     }
 }
 
-fn edge_to(from: &str, from_port: usize, to: &str, to_port: usize) -> GraphEdge {
+pub(super) fn edge_to(from: &str, from_port: usize, to: &str, to_port: usize) -> GraphEdge {
     GraphEdge {
         from: from.to_string(),
         from_port,

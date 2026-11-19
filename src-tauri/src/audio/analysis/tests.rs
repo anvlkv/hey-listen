@@ -30,10 +30,12 @@ pub(crate) fn params(fft_size: usize) -> SharedParams {
     }
 }
 
+mod cancel;
 mod frame_rms;
 mod gating;
 mod loudness;
 mod modulation;
+mod modulation_notes;
 mod note_metrics;
 mod pitch;
 mod spectral_power;

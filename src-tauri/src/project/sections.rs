@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::audio::analysis::SharedParams;
+use crate::audio::analysis::{SharedParams, SummaryItem};
 use crate::audio::analyzers::{AnalyzerId, ToolId};
 use crate::audio::graph::GraphSpec;
 
@@ -223,6 +223,10 @@ pub struct AnnotationValues {
     pub options: BTreeMap<String, f64>,
     /// Capture time, in Unix milliseconds.
     pub captured_ms: u64,
+    /// The tool's canonical summary items at capture time (D-19), when the capturing
+    /// client had a live run's summary. Empty for a result adopted from the project cache.
+    #[serde(default)]
+    pub summary: Vec<SummaryItem>,
 }
 
 /// `RESULTS` section entry: one cached analysis result.

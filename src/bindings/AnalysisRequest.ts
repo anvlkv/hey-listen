@@ -23,4 +23,10 @@ maxPoints?: number,
  * The analyzer tabs leave this false (they read the arrays); MCP/CLI callers can
  * opt in to cut a full result's payload.
  */
-compactAxis?: boolean, };
+compactAxis?: boolean, 
+/**
+ * The frontend's transient run token, echoed in every progress message and used by
+ * `cancel_analysis` to stop this run. `0` (the default) asks for no cancellation, so
+ * a caller that never cancels does not need an id (D-21).
+ */
+requestId: number, };

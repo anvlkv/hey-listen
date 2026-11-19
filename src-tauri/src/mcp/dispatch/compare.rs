@@ -13,10 +13,9 @@
 use serde_json::Value;
 
 use crate::audio::analysis::compare::{self, CompareSetup, Comparison, SavedComparison, SideInput};
-use crate::audio::analysis::{Axis, Shape};
 use crate::project::side::load_side;
 
-use super::args::{self, analyzer};
+use super::args::{self, analyzer, OutputMode};
 use super::HeadlessSession;
 
 /// The reference side a headless call resolved to (M25.D).
@@ -52,7 +51,7 @@ impl HeadlessSession {
         }
 
         let b_offset = args.get("bOffset").and_then(Value::as_f64);
-        let (shape, max_points, axis) = args::output_mode(args)?;
+        let output = args::output_mode(args)?;
 
         // Resolve and validate the reference side first, so a malformed request reports
         // the real problem even before A has a source.
@@ -118,13 +117,7 @@ impl HeadlessSession {
                 // the pair's id instead of appending one entry per run.
                 snapshot.id = self.state.pin_comparison_id(id, &snapshot);
                 self.state.store_saved_comparison(snapshot.as_ref().clone());
-                Ok(comparison_value(
-                    &comparison,
-                    shape,
-                    max_points,
-                    axis,
-                    &snapshot,
-                ))
+                Ok(comparison_value(&comparison, &output, &snapshot))
             }
             Reference::Live(path) => {
                 let b_offset = b_offset.unwrap_or(0.0);
@@ -153,13 +146,7 @@ impl HeadlessSession {
                 let mut snapshot = snapshot;
                 snapshot.id = self.state.pin_comparison_id(id, &snapshot);
                 self.state.store_saved_comparison(snapshot.clone());
-                Ok(comparison_value(
-                    &comparison,
-                    shape,
-                    max_points,
-                    axis,
-                    &snapshot,
-                ))
+                Ok(comparison_value(&comparison, &output, &snapshot))
             }
         }
     }
@@ -176,12 +163,15 @@ impl HeadlessSession {
 /// The wire value for a comparison, plus its id and the snapshot's fingerprint.
 fn comparison_value(
     comparison: &Comparison,
-    shape: Shape,
-    max_points: Option<usize>,
-    axis: Axis,
+    output: &OutputMode,
     snapshot: &SavedComparison,
 ) -> Value {
-    let mut value = comparison.to_value(shape, max_points, axis);
+    let mut value = comparison.to_value_with_preview(
+        output.shape,
+        output.max_points,
+        output.axis,
+        output.preview_records,
+    );
     value["id"] = Value::String(snapshot.id.clone());
     value["savedFingerprint"] = Value::String(snapshot.fingerprint());
     value

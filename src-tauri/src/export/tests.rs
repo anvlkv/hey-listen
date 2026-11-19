@@ -243,6 +243,7 @@ fn modulation_shares_one_rate_axis() {
         fm_std_cents: None,
         fm_reliable: false,
         voiced_fraction: 0.0,
+        notes: Vec::new(),
     });
     let text = super::csv::csv(&result);
     assert_eq!(text.lines().next(), Some("rate_hz,am_db,fm_db"));

@@ -5,8 +5,8 @@ use super::super::support::{
     pitch_grid, pitch_series, series_from_vec,
 };
 use super::super::{
-    AnalysisError, AnalysisResult, LraResult, LufsResult, RhythmResult, SeriesResult, SharedParams,
-    ToolOptions, DB_FLOOR,
+    AnalysisError, AnalysisResult, Cancel, LraResult, LufsResult, RhythmResult, SeriesResult,
+    SharedParams, ToolOptions, DB_FLOOR,
 };
 use super::critical_bands::critical_bands;
 use super::fluctuation::fluctuation_strength;
@@ -61,13 +61,21 @@ fn rhythm_result(
     }
 }
 
-pub fn run(
+/// The single tool dispatcher, with mid-run cancellation (D-21).
+///
+/// Each arm's work is one (or a few) `oxiaudio` bulk calls, which cannot be interrupted;
+/// the token is therefore checked on either side of the dispatch and inside the shared
+/// helpers the heavy tools loop through. A token that is never flipped leaves every
+/// result byte-identical.
+pub fn run_with(
     tool: AnalyzerId,
     mono: &[f32],
     sample_rate: u32,
     params: &SharedParams,
     options: &ToolOptions,
+    cancel: &Cancel,
 ) -> Result<AnalysisResult, AnalysisError> {
+    cancel.check()?;
     let fft = params.fft_size();
     let hop = effective_hop(fft, mono.len(), params.hop_size(fft));
     let (pitch_fft, pitch_hop) = pitch_grid(mono.len(), params);
@@ -82,14 +90,12 @@ pub fn run(
         mono
     };
     let lib_buf = || mono_buffer(lib_mono, sample_rate);
-    match tool {
+    let result = match tool {
         AnalyzerId::Waveform => Ok(AnalysisResult::Waveform(waveform(mono, sample_rate))),
         AnalyzerId::Levels => Ok(AnalysisResult::Levels(levels(mono, sample_rate))),
-        AnalyzerId::FrameRms => Ok(AnalysisResult::FrameRms(frame_rms_envelope(
-            mono,
-            sample_rate,
-            options,
-        ))),
+        AnalyzerId::FrameRms => {
+            frame_rms_envelope(mono, sample_rate, options, cancel).map(AnalysisResult::FrameRms)
+        }
         AnalyzerId::Spectrum => Ok(AnalysisResult::Spectrum(spectrum(
             mono,
             sample_rate,
@@ -289,18 +295,14 @@ pub fn run(
                 (min_f0, max_f0),
             )))
         }
-        AnalyzerId::NoteMetrics => Ok(AnalysisResult::NoteMetrics(note_metrics(
-            mono,
-            sample_rate,
-            options,
-        ))),
-        AnalyzerId::Modulation => Ok(AnalysisResult::Modulation(modulation(
-            mono,
-            sample_rate,
-            options,
-        ))),
+        AnalyzerId::NoteMetrics => {
+            note_metrics(mono, sample_rate, options, cancel).map(AnalysisResult::NoteMetrics)
+        }
+        AnalyzerId::Modulation => {
+            modulation(mono, sample_rate, options, cancel).map(AnalysisResult::Modulation)
+        }
         AnalyzerId::Tempo => {
-            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
+            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params, cancel)?;
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
             Ok(AnalysisResult::Tempo(rhythm_result(
                 est.bpm,
@@ -314,7 +316,7 @@ pub fn run(
             )))
         }
         AnalyzerId::Onsets => {
-            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
+            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params, cancel)?;
             let times = oxiaudio::dsp::detect_onsets(&lib_buf(), fft, hop).map_err(oxi_err)?;
             Ok(AnalysisResult::Onsets(rhythm_result(
                 0.0,
@@ -328,7 +330,7 @@ pub fn run(
             )))
         }
         AnalyzerId::Downbeats => {
-            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params);
+            let (env_hop, onset_strength) = onset_envelope(lib_mono, sample_rate, params, cancel)?;
             let est = oxiaudio::dsp::estimate_tempo(&lib_buf(), fft, hop).map_err(oxi_err)?;
             let downbeats = oxiaudio::dsp::detect_downbeats(
                 &lib_buf(),
@@ -383,5 +385,7 @@ pub fn run(
                 lra: if lra.is_finite() { lra } else { 0.0 },
             }))
         }
-    }
+    };
+    cancel.check()?;
+    result
 }

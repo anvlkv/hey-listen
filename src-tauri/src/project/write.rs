@@ -11,10 +11,9 @@ use super::error::ProjectError;
 use super::read::LoadedProject;
 use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
 use super::{
-    Crc32, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN, FLAGS,
-    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, PCM_FORMAT_F32, SECTION_ANNOTATIONS, SECTION_COMPARE,
-    SECTION_DATA, SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE,
-    VERSION,
+    Crc32, PcmFormat, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN,
+    FLAGS, HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, SECTION_ANNOTATIONS, SECTION_COMPARE, SECTION_DATA,
+    SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
 };
 use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourceData;
@@ -56,12 +55,28 @@ impl<'a> SaveProject<'a> {
     }
 }
 
-/// Write a complete project file to `writer`. `now_ms` is the modification time
-/// (passed in so callers and tests control it).
+/// Write a complete project file to `writer` with an `f32` `DATA` section — the app's
+/// default (`format = 0`). `now_ms` is the modification time (passed in so callers and
+/// tests control it).
 pub fn write_project<W: Write>(
     writer: W,
     save: &SaveProject,
     now_ms: u64,
+) -> Result<(), ProjectError> {
+    write_project_with_pcm_format(writer, save, now_ms, PcmFormat::F32)
+}
+
+/// Write a complete project file to `writer`, encoding `DATA` as `format`.
+///
+/// [`PcmFormat::F32`] is byte-for-byte what [`write_project`] writes; [`PcmFormat::I16`]
+/// halves the section and records `format = 1`, quantizing each sample to `i16`. The
+/// chunk sizes stay counted in **samples**; the index keeps storing bytes, so a reader
+/// needs no separate width table.
+pub fn write_project_with_pcm_format<W: Write>(
+    writer: W,
+    save: &SaveProject,
+    now_ms: u64,
+    format: PcmFormat,
 ) -> Result<(), ProjectError> {
     let meta = Meta {
         name: save.name.clone(),
@@ -83,7 +98,7 @@ pub fn write_project<W: Write>(
     let plan = [
         (SECTION_META, meta_bytes.len() as u64),
         (SECTION_SOURCE, source_bytes.len() as u64),
-        (SECTION_DATA, data_len(save.pcm)),
+        (SECTION_DATA, data_len(save.pcm, format)),
         (SECTION_SETUP, setup_bytes.len() as u64),
         (SECTION_LAYOUT, layout_bytes.len() as u64),
         (SECTION_RESULTS, results_bytes.len() as u64),
@@ -119,7 +134,7 @@ pub fn write_project<W: Write>(
     // Section payloads.
     hashing.write_all(&meta_bytes)?;
     hashing.write_all(&source_bytes)?;
-    write_data(&mut hashing, save.pcm)?;
+    write_data(&mut hashing, save.pcm, format)?;
     hashing.write_all(&setup_bytes)?;
     hashing.write_all(&layout_bytes)?;
     hashing.write_all(&results_bytes)?;
@@ -189,7 +204,7 @@ fn temp_sibling(path: &Path) -> PathBuf {
 }
 
 /// The `DATA` section length for a source, computed without touching the samples.
-fn data_len(pcm: Option<&SourceData>) -> u64 {
+fn data_len(pcm: Option<&SourceData>, format: PcmFormat) -> u64 {
     let total = pcm.map(|p| p.samples.len()).unwrap_or(0);
     let chunk_samples = DATA_CHUNK_SAMPLES.max(1) as u64;
     let chunk_count = if total == 0 {
@@ -197,12 +212,25 @@ fn data_len(pcm: Option<&SourceData>) -> u64 {
     } else {
         (total as u64).div_ceil(chunk_samples)
     };
-    DATA_HEADER_LEN + total as u64 * 4 + chunk_count * DATA_INDEX_ENTRY_LEN + DATA_FOOTER_LEN
+    DATA_HEADER_LEN
+        + total as u64 * format.byte_width()
+        + chunk_count * DATA_INDEX_ENTRY_LEN
+        + DATA_FOOTER_LEN
 }
 
-/// Write the `DATA` section: header, interleaved `f32` chunks, trailing chunk
+/// Quantize a normalized `f32` sample to `i16`: clamp to `[-1, 1]`, scale by `32767` and
+/// round to the nearest integer.
+fn quantize_i16(sample: f32) -> i16 {
+    (sample.clamp(-1.0, 1.0) * 32767.0).round() as i16
+}
+
+/// Write the `DATA` section: header, interleaved-`f32`/`i16` chunks, trailing chunk
 /// index, and a footer pointing at the index.
-fn write_data<W: Write>(writer: &mut W, pcm: Option<&SourceData>) -> Result<(), ProjectError> {
+fn write_data<W: Write>(
+    writer: &mut W,
+    pcm: Option<&SourceData>,
+    format: PcmFormat,
+) -> Result<(), ProjectError> {
     let samples: &[f32] = pcm.map(|p| p.samples.as_slice()).unwrap_or(&[]);
     let sample_rate = pcm.map(|p| p.sample_rate).unwrap_or(0);
     let channels = pcm.map(|p| p.channels.max(1)).unwrap_or(1);
@@ -220,7 +248,7 @@ fn write_data<W: Write>(writer: &mut W, pcm: Option<&SourceData>) -> Result<(), 
     // Self-describing header.
     writer.write_all(&sample_rate.to_le_bytes())?;
     writer.write_all(&channels.to_le_bytes())?;
-    writer.write_all(&[PCM_FORMAT_F32])?;
+    writer.write_all(&[format.format_byte()])?;
     writer.write_all(&[0u8])?; // reserved
     writer.write_all(&frames.to_le_bytes())?;
     writer.write_all(&(chunk_samples as u32).to_le_bytes())?;
@@ -228,12 +256,15 @@ fn write_data<W: Write>(writer: &mut W, pcm: Option<&SourceData>) -> Result<(), 
 
     // Chunks + the index built alongside them.
     let mut index = Vec::with_capacity(chunk_count * DATA_INDEX_ENTRY_LEN as usize);
-    let mut bytes = Vec::with_capacity(chunk_samples * 4);
+    let mut bytes = Vec::with_capacity(chunk_samples * format.byte_width() as usize);
     let mut offset = DATA_HEADER_LEN;
     for chunk in samples.chunks(chunk_samples) {
         bytes.clear();
         for &sample in chunk {
-            bytes.extend_from_slice(&sample.to_le_bytes());
+            match format {
+                PcmFormat::F32 => bytes.extend_from_slice(&sample.to_le_bytes()),
+                PcmFormat::I16 => bytes.extend_from_slice(&quantize_i16(sample).to_le_bytes()),
+            }
         }
         writer.write_all(&bytes)?;
         index.extend_from_slice(&offset.to_le_bytes());

@@ -2,7 +2,7 @@
 //!
 //! A single-file, versioned container: a fixed header, a section index, the section
 //! payloads, and a trailing checksum. Structured sections use `postcard`, the layout
-//! uses `serde_json`, and `DATA` is a raw interleaved-`f32` blob written in fixed
+//! uses `serde_json`, and `DATA` is a raw interleaved-`f32`/`i16` blob written in fixed
 //! chunks with a trailing chunk index, so large audio streams in (and can be seeked)
 //! without holding the whole file twice.
 //!
@@ -35,12 +35,12 @@ pub use sections::{
     SourceKind, StoredResult,
 };
 #[allow(unused_imports)] // `write_project` is the in-memory writer the tests use
-pub use write::{write_project, write_project_atomic, SaveProject};
+pub use write::{write_project, write_project_atomic, write_project_with_pcm_format, SaveProject};
 
 /// File magic at offset 0 (`"HEYL"`).
 pub const MAGIC: [u8; 4] = *b"HEYL";
 /// Container version (`docs/project-file-format.md`).
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 6;
 /// The oldest container version this build reads. Older files are migrated forward through
 /// the step chain in [`migrate`] (ADR-32); anything outside `MIN_READ_VERSION..=VERSION`
 /// is an `UnsupportedVersion` error.
@@ -82,8 +82,52 @@ pub const DATA_CHUNK_SAMPLES: usize = 64 * 1024;
 pub const DATA_HEADER_LEN: u64 = 24;
 pub const DATA_INDEX_ENTRY_LEN: u64 = 16;
 pub const DATA_FOOTER_LEN: u64 = 16;
-/// Sample-format tag for interleaved little-endian `f32` (the only format today).
+/// Sample-format tag for interleaved little-endian `f32` (the app's default).
 pub const PCM_FORMAT_F32: u8 = 0;
+/// Sample-format tag for interleaved little-endian `i16` (D-20).
+pub const PCM_FORMAT_I16: u8 = 1;
+
+/// How a `DATA` payload encodes its samples: the header's `format` byte plus the sample
+/// width every size check needs.
+///
+/// The layout itself is width-agnostic — the chunk index stores **byte** offsets and
+/// lengths — so both formats share the header/chunks/index/footer shape and differ only
+/// in a chunk's decoding. The core always holds `f32`
+/// ([`SourceData`](crate::state::SourceData)); this only selects the on-disk encoding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PcmFormat {
+    /// Little-endian `f32`, the app's default (`format = 0`).
+    F32,
+    /// Little-endian `i16` (`format = 1`): half the size, a `1 / 32768` step.
+    I16,
+}
+
+impl PcmFormat {
+    /// The `DATA` header's `format` byte.
+    pub fn format_byte(self) -> u8 {
+        match self {
+            PcmFormat::F32 => PCM_FORMAT_F32,
+            PcmFormat::I16 => PCM_FORMAT_I16,
+        }
+    }
+
+    /// Bytes per interleaved sample on disk.
+    pub fn byte_width(self) -> u64 {
+        match self {
+            PcmFormat::F32 => 4,
+            PcmFormat::I16 => 2,
+        }
+    }
+
+    /// Parse a `DATA` header's `format` byte; `None` is an unsupported format.
+    pub fn from_byte(byte: u8) -> Option<Self> {
+        match byte {
+            PCM_FORMAT_F32 => Some(PcmFormat::F32),
+            PCM_FORMAT_I16 => Some(PcmFormat::I16),
+            _ => None,
+        }
+    }
+}
 
 /// Decode a **reference** project's file source again (a project saved with
 /// `embedSource: false` has no `DATA` section; the `SOURCE` descriptor keeps the path).

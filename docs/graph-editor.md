@@ -145,30 +145,47 @@ output 0 are free and no cycle would result; otherwise the drop just places the 
 Edge proximity is a distance test against the sampled bezier path (the same control
 points solid-flow draws), with a ~26-unit threshold (`lib/graphEdges.ts`).
 
+## Node inspector and presets
+
+Selecting exactly one non-anchor node opens a docked inspector beside the canvas: the
+kind's label and hint, one row per parameter with its value, unit and declared range, and
+`Reset` per parameter plus `Reset all`. Editing there writes through `updateParam`, so the
+inline node card and the compiled graph follow immediately. Nothing, or more than one
+node, selected → no inspector and the canvas keeps its full width; an `input` / `output`
+anchor is never inspectable.
+
+**Presets are session-scoped.** The inspector saves the selected node's current values
+under a name, keyed by node **kind**, and applies a preset to any node of that kind
+(clamped to each parameter's range). Filter and synth editors share the store. Presets
+live in memory only: the project file carries none, so reopening the app starts empty.
+
+The parameter field is one component (`graphEditor/ParamField.tsx`) shared by the inline
+card and the inspector, so drag-to-adjust and typing behave identically in both.
+
 ## Deferred
 
-Also see [`deferred.md`](deferred.md): the remaining nodes are **D-17** (one `make_unit`
-arm + palette entry + arity each), the per-node inspectors are **D-16**, and click-free
-rebuild smoothing is **D-24**.
+Also see [`deferred.md`](deferred.md): click-free rebuild smoothing is **D-24**. The extra
+shaping, delay-as-signal and envelope/gate nodes
+are delivered (D-17); the remaining families below are still out.
 
 - **`Sequencer`** — it schedules timed `AudioUnit` events (`push`, fades, replay
   mode), which the positional-params node model cannot express; deferred to a future
   event/sequence editor.
 - **Expander** — fundsp provides none (as with the compressor/gate it ships nothing);
   the `gate` node is the practical downward expander.
-- **Remaining fundsp nodes.** The palette now covers the filter families (and their
-  `*_cv` variants), generators, dynamics, modulation, reverbs, **math**, and panning.
-  Still not offered, and why: structural combinators (`bus`/`branch`/`thru`, `feedback`,
-  `fdn`) that need multi-channel/multi-input arity the mono-port model can't express;
-  variable/thru nodes (`tap`, `multitap`, `tap_linear`) that take their delay as a
-  *signal* input (a future control-driven node); envelope/gate nodes (`adsr_live`,
-  `follow`/`afollow`, `hold`) that need an explicit trigger/gate; extra shaping
-  (`clip`/`clip_to`/`shape`/`declick`, `dcblock_hz`, `impulse`, `zero`, `ramp`,
-  `rossler`/`lorenz`, `fir`/`fir3`, `mls_bits`, `oversample`); the dirty/feedback
-  biquads (`dlowpass`/`flowpass`/`dbell`/`fbell`/…); and the introspection/plumbing
-  helpers (`monitor`/`meter`, `snoop`, `timer`, `shared`/`var`, `convolve`, `resynth`,
-  `playwave`, `resample`). These can be added incrementally as focused nodes (each is a
-  `make_unit` arm plus a palette entry and its arity in `kind_arity`).
+- **Remaining fundsp nodes (D-17 delivered a first group).** The palette covers the
+  filter families (and their `*_cv` variants), generators, dynamics, modulation, reverbs,
+  **math**, panning, and now **extra shaping** (`clip_to`, `declick`, `dcblock_hz`),
+  **delay-as-signal** (`tap`) and **envelope/gate** (`follow`, `afollow`, `hold`) plus the
+  `zero`/`impulse` generators. Still not offered, and why: structural combinators
+  (`bus`/`branch`/`thru`, `feedback`, `fdn`) that need multi-channel/multi-input arity the
+  mono-port model can't express; `adsr_live`, which needs an explicit gate edge; the
+  remaining shaping (`shape`, `ramp`, `rossler`/`lorenz`, `fir`/`fir3`, `mls_bits`,
+  `oversample`); the dirty/feedback biquads (`dlowpass`/`flowpass`/`dbell`/`fbell`/…); and
+  the introspection/plumbing helpers (`monitor`/`meter`, `snoop`, `timer`, `shared`/`var`,
+  `convolve`, `resynth`, `playwave`, `resample`). These can still be added incrementally
+  as focused nodes (each is a `make_unit` arm plus a palette entry and its arity in
+  `kind_arity`).
 
 ## Planned
 
@@ -176,5 +193,3 @@ rebuild smoothing is **D-24**.
   glides control signals *within* a compiled net, but a filter edit still rebuilds
   and steps; cross-rebuild (crossfade) smoothing is a future item ([D-24](deferred.md),
   after M22).
-- **Per-node inspectors and presets** (a richer alternative to inline positional
-  params) — [D-16](deferred.md).

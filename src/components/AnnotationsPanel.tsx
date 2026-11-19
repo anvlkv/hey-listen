@@ -8,6 +8,8 @@ import {
   defaultAnnotationTool,
   annotationsSorted,
   openAnnotationWindow,
+  selectNextAnnotation,
+  selectPreviousAnnotation,
 } from "../state/annotations";
 import { setAnnotationsPanelOpen } from "../state/settings";
 import { windowStart } from "../state/timeline";
@@ -43,6 +45,28 @@ export default function AnnotationsPanel(props: { style?: JSX.CSSProperties }) {
           {annotationsSorted().length}
         </span>
         <div class="annotations-header-actions">
+          <Tooltip label="Previous annotation">
+            <Button
+              class="annotation-icon"
+              data-testid="annotations.prev"
+              aria-label="Previous annotation"
+              disabled={annotationsSorted().length === 0}
+              onClick={selectPreviousAnnotation}
+            >
+              <Icon name="chevron-up" />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Next annotation">
+            <Button
+              class="annotation-icon"
+              data-testid="annotations.next"
+              aria-label="Next annotation"
+              disabled={annotationsSorted().length === 0}
+              onClick={selectNextAnnotation}
+            >
+              <Icon name="chevron-down" />
+            </Button>
+          </Tooltip>
           <Tooltip label="Add an annotation at the analysis window">
             <Button
               class="annotation-icon"

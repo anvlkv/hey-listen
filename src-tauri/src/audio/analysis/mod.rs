@@ -15,7 +15,9 @@
 //! hold the data types, [`support`] the shared signal helpers, and [`tools`] the
 //! per-family tool implementations plus the [`run`] dispatcher.
 
+mod cancel;
 pub mod compare;
+mod progress;
 pub mod psychoacoustics;
 mod pyin;
 mod results;
@@ -25,6 +27,8 @@ mod support;
 mod tools;
 mod types;
 
+pub use cancel::{Cancel, Cancels};
+pub use progress::{AnalysisPhase, AnalysisProgress};
 pub use results::*;
 pub use shape::*;
 pub use summary::*;
@@ -79,6 +83,9 @@ const MAX_PITCH_FRAMES: usize = 512;
 const MAX_RHYTHM_FRAMES: usize = 4096;
 /// Cap on frames for the frame-RMS envelope (M17), so a long window stays bounded.
 const MAX_FRAME_RMS_FRAMES: usize = 8192;
+/// Frames an engine-owned loop runs between cancellation checks (D-21): small enough
+/// that a superseded run stops promptly, large enough that the check is free.
+const CANCEL_STRIDE: usize = 256;
 
 const DEFAULT_BAR_LENGTH: usize = 4;
 /// Frame-RMS defaults: 10 ms frames on a 5 ms hop (M17).
@@ -146,7 +153,9 @@ const MIN_RELIABLE_VOICED_FRAMES: usize = 8;
 /// headless MCP dispatcher calls it directly. Keeping the slice + conditioning in
 /// one place means the two paths cannot diverge.
 ///
-/// `start`/`end` are source seconds; the region is clamped to the source.
+/// `start`/`end` are source seconds; the region is clamped to the source. Callers that
+/// need mid-run cancellation and progress use [`run_window_with`] — this is that call
+/// with an inert token and no reporter.
 pub fn run_window(
     state: &crate::state::WindowState,
     tool: AnalyzerId,
@@ -155,6 +164,38 @@ pub fn run_window(
     params: &SharedParams,
     options: &ToolOptions,
 ) -> Result<AnalysisResult, AnalysisError> {
+    run_window_with(
+        state,
+        tool,
+        start,
+        end,
+        params,
+        options,
+        &Cancel::never(),
+        &|_, _| {},
+    )
+}
+
+/// [`run_window`] with mid-run cancellation and progress (D-21).
+///
+/// `cancel` is checked before the slice, after the region copy, between the
+/// conditioning stages, and on either side of the tool call; `progress` is told each
+/// [`AnalysisPhase`] and its fraction, with monotonic fractions. Neither can change a
+/// result: a run that is never cancelled returns exactly what [`run_window`] does.
+#[allow(clippy::too_many_arguments)]
+pub fn run_window_with(
+    state: &crate::state::WindowState,
+    tool: AnalyzerId,
+    start: f64,
+    end: f64,
+    params: &SharedParams,
+    options: &ToolOptions,
+    cancel: &Cancel,
+    progress: &dyn Fn(AnalysisPhase, f32),
+) -> Result<AnalysisResult, AnalysisError> {
+    cancel.check()?;
+    progress(AnalysisPhase::Slicing, 0.05);
+
     // Slice the windowed region (a copy) and read the active filter under the lock,
     // then release it before the CPU-bound work runs.
     let (region, channels, sample_rate, filter) = {
@@ -187,11 +228,14 @@ pub fn run_window(
 
         (region, source.channels.max(1), sample_rate, filter)
     };
+    cancel.check()?;
 
     // The `spatial` tool is the documented exception to the channel params: it needs
     // the interleaved left/right pair **before** the mixdown/filter/resample path, so
     // it bypasses `condition` and reads stereo directly.
     if tool == AnalyzerId::Spatial {
+        progress(AnalysisPhase::Analysing, 0.2);
+        cancel.check()?;
         let mut result = AnalysisResult::Spatial(spatial::spatial(
             &region,
             channels,
@@ -200,23 +244,33 @@ pub fn run_window(
             params,
             options,
         )?);
+        cancel.check()?;
+        progress(AnalysisPhase::Shaping, 0.9);
         result.rebase(start);
+        progress(AnalysisPhase::Done, 1.0);
         return Ok(result);
     }
 
-    let (mono, rate) = condition(
+    progress(AnalysisPhase::Conditioning, 0.2);
+    let (mono, rate) = condition_with(
         &region,
         channels,
         sample_rate,
         filter.as_ref(),
         params.channel,
         params.resample_to,
+        cancel,
     )?;
+    cancel.check()?;
+    progress(AnalysisPhase::Analysing, 0.2);
     // The tools see only the sliced region (their times begin at 0), so re-base the
     // result onto source seconds here — the single place that knows where the window
     // sits. Everything downstream (GUI, MCP, CLI, exports) then speaks absolute time.
-    let mut result = run(tool, &mono, rate, params, options)?;
+    let mut result = run_with(tool, &mono, rate, params, options, cancel)?;
+    cancel.check()?;
+    progress(AnalysisPhase::Shaping, 0.9);
     result.rebase(start);
+    progress(AnalysisPhase::Done, 1.0);
     Ok(result)
 }
 
@@ -230,15 +284,40 @@ pub fn condition(
     channel: Option<usize>,
     resample_to: Option<u32>,
 ) -> Result<(Vec<f32>, u32), AnalysisError> {
+    condition_with(
+        region,
+        channels,
+        sample_rate,
+        filter,
+        channel,
+        resample_to,
+        &Cancel::never(),
+    )
+}
+
+/// [`condition`] with a cancellation check between its stages, so a superseded run
+/// stops before the next expensive stage instead of conditioning audio it will discard.
+pub fn condition_with(
+    region: &[f32],
+    channels: u16,
+    sample_rate: u32,
+    filter: Option<&GraphSpec>,
+    channel: Option<usize>,
+    resample_to: Option<u32>,
+    cancel: &Cancel,
+) -> Result<(Vec<f32>, u32), AnalysisError> {
     let channels = channels.max(1) as usize;
     let rate = sample_rate.max(1);
 
+    cancel.check()?;
     let mono = pcm::mixdown(region, channels, channel);
+    cancel.check()?;
     let mono = match filter {
         Some(spec) => graph::apply_mono(spec, &mono, rate)
             .map_err(|err| AnalysisError::Filter(err.to_string()))?,
         None => mono,
     };
+    cancel.check()?;
     let rate = resample_to
         .map(|to| to.clamp(8_000, 384_000))
         .unwrap_or(rate);

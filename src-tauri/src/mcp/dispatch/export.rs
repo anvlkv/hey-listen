@@ -132,7 +132,7 @@ impl HeadlessSession {
             .iter()
             .map(|item| {
                 let id = item.as_str().ok_or("`tools` must be analyzer ids")?;
-                id.parse().map_err(|_| format!("unknown analyzer: {id}"))
+                id.parse().map_err(|_| analyzers::unknown_analyzer(id))
             })
             .collect::<Result<Vec<AnalyzerId>, String>>()?;
         let dir = args

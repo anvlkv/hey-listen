@@ -125,6 +125,13 @@
   color: var(--accent);
 }
 
+.annotation-icon:disabled {
+  color: var(--fg-muted);
+  background: transparent;
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* The editor's save action reads a little stronger than the surrounding icons. */
 .annotation-icon-primary {
   color: var(--fg);

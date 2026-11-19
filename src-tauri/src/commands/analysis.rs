@@ -13,10 +13,12 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tauri::ipc::Channel;
 use tauri::WebviewWindow;
 
 use crate::audio::analysis::{
-    self, AnalysisError, ResultSummary, Shape, SharedParams, ToolOptions,
+    self, AnalysisError, AnalysisPhase, AnalysisProgress, ResultSummary, Shape, SharedParams,
+    ToolOptions,
 };
 use crate::audio::analyzers::AnalyzerId;
 use crate::state::window_state;
@@ -47,6 +49,11 @@ pub struct AnalysisRequest {
     #[serde(default)]
     #[ts(optional)]
     pub compact_axis: Option<bool>,
+    /// The frontend's transient run token, echoed in every progress message and used by
+    /// `cancel_analysis` to stop this run. `0` (the default) asks for no cancellation, so
+    /// a caller that never cancels does not need an id (D-21).
+    #[serde(default)]
+    pub request_id: u64,
 }
 
 /// The command's response: the canonical summary beside the shaped result (absent in
@@ -71,7 +78,8 @@ pub struct AnalysisResponse {
 /// and summary keys, from the same Rust catalog the headless server uses.
 #[tauri::command]
 pub fn analyzer_detail(id: AnalyzerId) -> Result<Value, String> {
-    crate::audio::analyzers::detail(id).ok_or_else(|| format!("unknown analyzer: {id}"))
+    crate::audio::analyzers::detail(id)
+        .ok_or_else(|| crate::audio::analyzers::unknown_analyzer(id.as_ref()))
 }
 
 /// The analyzer catalog (the GUI MCP `list_analyzers` path), from the Rust catalog so
@@ -83,13 +91,17 @@ pub fn analyzer_catalog() -> Vec<Value> {
 
 /// Run an analysis tool over `start..end` and return its summary + result.
 ///
-/// The slice + condition + run work lives in [`analysis::run_window`], shared with
+/// The slice + condition + run work lives in [`analysis::run_window_with`], shared with
 /// the headless MCP dispatcher; here it just runs on the blocking pool so the async
 /// workers stay free (see `docs/architecture.md` → "Analysis execution model").
+///
+/// Stage progress streams back on `on_progress` (D-21), and `cancel_analysis` with the
+/// same `request_id` stops the run at its next cancellation check.
 #[tauri::command]
 pub async fn run_analysis(
     window: WebviewWindow,
     request: AnalysisRequest,
+    on_progress: Channel<AnalysisProgress>,
 ) -> Result<AnalysisResponse, AnalysisError> {
     let AnalysisRequest {
         tool,
@@ -100,11 +112,29 @@ pub async fn run_analysis(
         shape,
         max_points,
         compact_axis,
+        request_id,
     } = request;
     let state = window_state(&window);
+    let cancel = state.analysis_cancels.begin(request_id);
 
     tauri::async_runtime::spawn_blocking(move || {
-        let result = analysis::run_window(&state, tool, start, end, &params, &options)?;
+        // Forget the token however this task ends (Ok, Err, cancelled, or a panic).
+        let _finished = FinishOnDrop {
+            state: state.as_ref(),
+            request_id,
+        };
+        let report = |phase: AnalysisPhase, fraction: f32| {
+            // A closed webview drops the message: the run itself is unaffected.
+            let _ = on_progress.send(AnalysisProgress {
+                request_id,
+                tool,
+                phase,
+                fraction,
+            });
+        };
+        let result = analysis::run_window_with(
+            &state, tool, start, end, &params, &options, &cancel, &report,
+        )?;
         let summary = analysis::summarize(&result);
         let hop_widened_from_samples = analysis::widened_hop_from(&result, &options);
         let axis = if compact_axis.unwrap_or(false) {
@@ -121,4 +151,26 @@ pub async fn run_analysis(
     })
     .await
     .map_err(|err| AnalysisError::Analysis(err.to_string()))?
+}
+
+/// Ask the run with `request_id` to stop at its next cancellation check (D-21).
+///
+/// Synchronous — flipping a token needs no blocking pool — and a no-op for an unknown
+/// or already finished id, so a late cancel is harmless.
+#[tauri::command]
+pub fn cancel_analysis(window: WebviewWindow, request_id: u64) {
+    window_state(&window).analysis_cancels.cancel(request_id);
+}
+
+/// Removes the run's cancel token when the blocking task ends, so the registry cannot
+/// leak an entry (success, error, cancellation, or a panic inside the tool).
+struct FinishOnDrop<'a> {
+    state: &'a crate::state::WindowState,
+    request_id: u64,
+}
+
+impl Drop for FinishOnDrop<'_> {
+    fn drop(&mut self) {
+        self.state.analysis_cancels.finish(self.request_id);
+    }
 }

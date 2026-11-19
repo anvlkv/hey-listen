@@ -28,6 +28,7 @@ fn write_project_file(name: &str) -> String {
             params: Default::default(),
             options: Default::default(),
             captured_ms: 2,
+            summary: Vec::new(),
         }),
     };
     let timeline_annotation = Annotation {

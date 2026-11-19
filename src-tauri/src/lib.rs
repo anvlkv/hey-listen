@@ -244,6 +244,7 @@ pub fn run() {
             commands::analysis::analyzer_detail,
             commands::analysis::analyzer_catalog,
             commands::analysis::run_analysis,
+            commands::analysis::cancel_analysis,
             commands::compare::run_comparison,
             commands::compare::peer::compare_peer_setup,
             commands::compare::peer::compare_live,

@@ -7,7 +7,9 @@ use super::sections::{AnalysisWindow, AnnotationValues, StoredResult};
 use super::test_support::save_with;
 use super::*;
 use crate::audio::analysis::compare::{SavedComparison, SourceShape, Span};
-use crate::audio::analysis::{SharedParams, SpectrogramResult, StoredAnalysisResult, ToolOptions};
+use crate::audio::analysis::{
+    SharedParams, SpectrogramResult, StoredAnalysisResult, SummaryItem, ToolOptions,
+};
 use crate::audio::analyzers::{AnalyzerId, ToolId};
 use crate::state::SourceData;
 
@@ -61,6 +63,12 @@ fn annotation() -> Annotation {
             params: Default::default(),
             options: BTreeMap::from([("showMean".to_string(), 1.0)]),
             captured_ms: 11,
+            summary: vec![SummaryItem {
+                key: "peakHz".to_string(),
+                label: "peak frequency".to_string(),
+                value: 880.0,
+                unit: Some("Hz".to_string()),
+            }],
         }),
     }
 }
@@ -191,6 +199,9 @@ fn round_trips_every_section() {
     assert_eq!(values.tool, AnalyzerId::Spectrum);
     assert_eq!(values.text, "peak 880.0 Hz, −12.4 dBFS");
     assert_eq!(values.options.get("showMean"), Some(&1.0));
+    assert_eq!(values.summary.len(), 1);
+    assert_eq!(values.summary[0].key, "peakHz");
+    assert_eq!(values.summary[0].value, 880.0);
     let range = loaded.annotations[1].range.expect("range");
     assert_eq!(range.start_secs, 2.34);
     assert_eq!(range.end_secs, 3.10);
@@ -308,6 +319,17 @@ fn typed_ids_keep_the_postcard_string_encoding() {
             "{kind}"
         );
     }
+}
+
+#[test]
+fn annotation_values_round_trip_with_a_summary() {
+    // `summary` is a trailing field, so a current payload round-trips; an older payload
+    // is handled by the v4 → v5 migration (see `project::migrate::tests`), because
+    // postcard is positional and a missing field cannot be defaulted in place.
+    let values = annotation().values.expect("values");
+    let bytes = postcard::to_allocvec(&values).expect("encode");
+    let round_trip: AnnotationValues = postcard::from_bytes(&bytes).expect("decode");
+    assert_eq!(round_trip.summary, values.summary);
 }
 
 #[test]

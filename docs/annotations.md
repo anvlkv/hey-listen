@@ -100,6 +100,11 @@ the annotation's time*, captured when the annotation was written.
   project file). It carries its `window` / `params` / `options` provenance, so it
   lines up with an export envelope ([`exports.md`](exports.md)) or a template
   ([`templates.md`](templates.md)).
+- **Structured summary items (D-19).** Beside the one-line `text`, the snapshot carries
+  the tool's canonical summary `items` (`AnnotationValues.summary`, the same
+  `SummaryItem` list MCP/CLI report) from the live run that produced the chart. A result
+  adopted from the project's `RESULTS` cache carries no summary, so its items are `[]`;
+  the one-line subtitle is unaffected either way.
 - **Recompute** — there is **no Recompute button**. A row always shows the chart's
   **current** readout at the annotation's time; when it differs from the frozen snapshot,
   the snapshot is shown **struck through** beneath the current line. Editing the
@@ -193,8 +198,10 @@ window move handle and of a chart's drag/zoom area. The lane is also where they 
 belongs to** but **never moves the analysis window** — an annotation is a remark about a moment, not a
 request to reframe. Moving the window onto an annotation is the row's explicit **Analyze**
 action (a range becomes the window; a point gets a short window **centred** on it), so
-both *creating* and *selecting* an annotation leave the analysis alone. See
-[Creating an annotation](#creating-a-annotation) and `decisions.md` → ADR-19.
+both *creating* and *selecting* an annotation leave the analysis alone. The panel header's
+**Previous / Next annotation** buttons step the selection in time order (nothing selected →
+next picks the first, previous the last; the ends clamp rather than wrap) and never reframe.
+See [Creating an annotation](#creating-a-annotation) and `decisions.md` → ADR-19.
 
 **The selected annotation is a panel concept.** Closing the rail clears the selection, which
 also clears every chart's full-height overlay and the Timeline's stem; the lane anchors stay
@@ -216,7 +223,7 @@ charts, so both surfaces use the chart annotation colour. See
 
 ## Creating an annotation
 
-Three entry points, one model:
+Four entry points, one model:
 
 - **Annotations panel → Add** — a **point** annotation at the analysis window's start, with
   `tool` = the focused analyzer tab if one is open. Values are captured from that chart.
@@ -225,8 +232,10 @@ Three entry points, one model:
   annotation's handle instead *moves* or *resizes* that annotation; a bare click in the lane does
   nothing.
 - **Chart context menu → Add annotation here** — a **point** annotation at the
-  **clicked time** on that chart, with `tool` = that chart's tool. (The Timeline's own right-click
-  already sets the window — *reframing* — so the Timeline right-click is left alone.)
+  **clicked time** on that chart, with `tool` = that chart's tool.
+- **Timeline context menu → Add annotation here** — a **point** annotation at the
+  right-clicked time, owned by no chart (`null`, a Timeline annotation). The same menu
+  also sets the window start/end at the pointer and restores the whole-source window.
 
 Creating captures the **values snapshot** at that moment (frozen), opens the
 panel if it is collapsed, **opens the new annotation's editor**, and **selects** it — without

@@ -302,6 +302,7 @@ pub(crate) fn modulation() -> ModulationResult {
         fm_std_cents: Some(9.0),
         fm_reliable: true,
         voiced_fraction: 0.6,
+        notes: Vec::new(),
     }
 }
 

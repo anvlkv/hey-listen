@@ -91,7 +91,7 @@ impl HeadlessSession {
                 setup,
                 // No Workbench in headless mode; leave the layout empty.
                 layout: json!({ "dockview": Value::Null, "graphs": {}, "popouts": [] }),
-                results: Vec::new(),
+                results: self.results.clone(),
                 annotations,
                 compare: self.state.saved_comparisons(),
                 pcm: pcm.as_ref(),
@@ -130,6 +130,10 @@ impl HeadlessSession {
         // The loaded project's saved comparisons (M25.C) become the session's snapshots;
         // headless has no compare view, but a later save keeps them.
         self.state.replace_saved_comparisons(loaded.compare.clone());
+        // Its cached analyzer results (`RESULTS`) were computed for the source and filter
+        // this project carries, which are the ones installed just above, so they seed the
+        // session cache as-is — exactly what the GUI's `seedResults` does on load.
+        self.results = loaded.results.clone();
 
         self.params = loaded.setup.shared;
         self.options.clear();
@@ -182,6 +186,7 @@ impl HeadlessSession {
         self.synth = None;
         self.source_path = None;
         self.source_kind = SourceKind::File;
+        self.results.clear();
         self.project_path = None;
         self.project_name = None;
         self.open_tools.clear();
@@ -236,7 +241,9 @@ impl HeadlessSession {
 }
 
 /// The engine option values as the project's numeric map (dropping unset fields).
-fn numeric_options(options: &crate::audio::analysis::ToolOptions) -> BTreeMap<String, f64> {
+pub(super) fn numeric_options(
+    options: &crate::audio::analysis::ToolOptions,
+) -> BTreeMap<String, f64> {
     serde_json::to_value(options)
         .ok()
         .and_then(|value| value.as_object().cloned())

@@ -41,6 +41,8 @@ export {
   analyzeAnnotation,
   defaultAnnotationTool,
   selectAnnotation,
+  selectNextAnnotation,
+  selectPreviousAnnotation,
   setSelectedAnnotation,
 } from "./select";
 export { liveValues, annotationValuesStale } from "./values";

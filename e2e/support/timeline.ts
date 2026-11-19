@@ -13,8 +13,8 @@ import { SEL } from "./selectors.ts";
 const PLOT_PAD = 12;
 /** `RULER_H` and the move handle's hit band — mirrors `timeline/constants.ts`. */
 const RULER_H = 22;
-const MOVE_HIT = 14;
-/** Clear of `HANDLE_HIT` (9 px) when grabbing the window's move bar. */
+const MOVE_HIT = 18;
+/** Clear of `HANDLE_HIT` (14 px) when grabbing the window's move bar. */
 const MOVE_GRAB_INSET = 24;
 
 /** What to grab on the Timeline canvas: an edge handle or the window's move bar. */
@@ -76,7 +76,7 @@ async function dragTimeline(grab: TimelineGrab, dx: number, moves: number): Prom
     PLOT_PAD,
     RULER_H,
     MOVE_HIT,
-    // `HANDLE_HIT` is 9 px, so grabbing 24 px in clears both edge handles.
+    // `HANDLE_HIT` is 14 px, so grabbing 24 px in clears both edge handles.
     MOVE_GRAB_INSET,
   );
   await browser.pause(250);

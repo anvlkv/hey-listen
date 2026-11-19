@@ -4,8 +4,8 @@ import { clampAnnotationTime } from "../../lib/annotation";
 import { source } from "../source";
 import { setWindowEnd, setWindowStart } from "../timeline";
 import { focusedAnalyzer, openTool } from "../workbench";
-import { annotationById } from "./reads";
-import { setSelectedAnnotationId } from "./signals";
+import { annotationById, annotationsSorted } from "./reads";
+import { setSelectedAnnotationId, selectedAnnotationId } from "./signals";
 
 /** Set the selection without side effects (cross-window sync + the MCP tool). */
 export function setSelectedAnnotation(id: string | null) {
@@ -74,4 +74,31 @@ function applyAnnotationWindow(annotation: Annotation) {
 /** The focused analyzer tab, for the panel's "Add annotation" default tool. */
 export function defaultAnnotationTool(): AnalyzerId | null {
   return focusedAnalyzer();
+}
+
+/**
+ * Step the selection to the neighbouring annotation in time order: `direction` is `-1`
+ * for the previous and `1` for the next. With nothing selected, next picks the first
+ * annotation and previous the last; at either end the selection clamps (no wrap).
+ */
+function stepAnnotation(direction: -1 | 1): void {
+  const sorted = annotationsSorted();
+  if (sorted.length === 0) return;
+  const index = sorted.findIndex((annotation) => annotation.id === selectedAnnotationId());
+  if (index < 0) {
+    selectAnnotation(sorted[direction > 0 ? 0 : sorted.length - 1].id);
+    return;
+  }
+  const target = Math.max(0, Math.min(sorted.length - 1, index + direction));
+  selectAnnotation(sorted[target].id);
+}
+
+/** Select the previous annotation in time order (never moves the window; ADR-19). */
+export function selectPreviousAnnotation(): void {
+  stepAnnotation(-1);
+}
+
+/** Select the next annotation in time order (never moves the window; ADR-19). */
+export function selectNextAnnotation(): void {
+  stepAnnotation(1);
 }

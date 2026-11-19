@@ -59,7 +59,8 @@ pub(super) fn tools() -> Vec<Value> {
              canonical `summary` (a `text` line plus labelled, unit-bearing items). The \
              result is **compact by default** — structured stats, dimensions, and bounded \
              previews rather than raw arrays (including `noteMetrics.bounds`, every detected \
-             event span, so you do not need a full result to segment). `includeData: true` \
+             event span, so you do not need a full result to segment; `previewRecords` sets \
+             how many records each event/note/object list keeps). `includeData: true` \
              returns the raw arrays (with `maxPoints` to thin them), and `summaryOnly: true` \
              returns just the summary. `maxPoints` only thins series/matrix families; it never \
              removes events from `noteMetrics`/`onsets` lists. `axis: \"compact\"` replaces a \
@@ -86,6 +87,7 @@ pub(super) fn tools() -> Vec<Value> {
                     "summaryOnly": { "type": "boolean", "description": "Return only the summary, without `result` (default false). Mutually exclusive with `includeData`." },
                     "includeData": { "type": "boolean", "description": "Return the full result arrays (default false, compacted). Mutually exclusive with `summaryOnly`." },
                     "maxPoints": { "type": "integer", "minimum": 2, "description": "With `includeData`, thin series/matrix arrays to at most this many points (keeping first/last). Event and note lists are never thinned; scalars are unchanged." },
+                    "previewRecords": { "type": "integer", "minimum": 1, "maximum": 50, "description": "Records kept in each compact event/note/object list preview (default 5)." },
                     "axis": { "type": "string", "enum": ["array", "compact"], "description": "With `includeData`, `compact` turns a `times` array into `{ start, hop, length, end }` (`firstHop`/`lastHop` carry a differing edge frame; default `array`)." },
                 },
                 "required": ["tool"],

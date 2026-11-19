@@ -155,8 +155,10 @@ events (`CaptureEvent.kind`) are ids and must stay typed.
    - If it crosses `postcard` (the project file), encode it as a **string** with
      hand-written serde — see `src-tauri/src/audio/analyzers/id.rs` and
      `SourceKind`. Never make it an internally-tagged enum (ADR-2).
-   - Regenerate `src/bindings/` with `cargo test` **from `src-tauri/`**; never
-     hand-edit the generated files.
+   - Regenerate `src/bindings/` with `cargo test`. The repo-root `.cargo/config.toml`
+     points ts-rs there, so any working directory works; never hand-edit the generated
+     files (a stray `src-tauri/bindings/` means the config was bypassed — delete it and
+     rerun).
 4. The frontend imports the generated types (`AnalyzerId`, `ToolId`, `SourceKind`,
    `CaptureKind`, …). Do not redeclare a union or `as`-cast a string into one.
 5. Keep the wire unchanged and pin it: add a string-serde / `postcard` round-trip

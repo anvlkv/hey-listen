@@ -202,12 +202,20 @@ describe("Q. Preview transport", () => {
 
   it("Q4 — the Timeline grows a scrollbar when zoomed in", async () => {
     // Zoom the *view* with a plain vertical wheel (a mouse needs no modifier) without
-    // touching the analysis window.
-    await wheelOver(SEL.timelineCanvas, -240);
-
-    await waitFor(
-      async () => (await count(SEL.timelineScrollThumb)) > 0,
-      "the Timeline never showed a scroll thumb when zoomed in",
+    // touching the analysis window. Re-dispatch it until the thumb appears: one synthetic
+    // wheel can be swallowed while the WebView is busy, so a single dispatch is a race
+    // rather than a gesture. The loop stops on the first thumb, so it cannot over-zoom the
+    // view past what is asserted.
+    await browser.waitUntil(
+      async () => {
+        await wheelOver(SEL.timelineCanvas, -240);
+        return (await count(SEL.timelineScrollThumb)) > 0;
+      },
+      {
+        timeout: 30_000,
+        interval: 500,
+        timeoutMsg: "the Timeline never showed a scroll thumb when zoomed in",
+      },
     );
     expect(await count(SEL.timelineScroll)).toBe(1);
   });

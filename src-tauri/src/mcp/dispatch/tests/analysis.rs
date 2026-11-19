@@ -14,8 +14,8 @@ fn get_analyzer_reports_options_and_summary_keys() {
     assert!(detail["about"]
         .as_str()
         .is_some_and(|about| !about.is_empty()));
-    // Eleven engine options, each with its full metadata.
-    assert_eq!(detail["options"].as_array().unwrap().len(), 11);
+    // Every engine option carries its full metadata.
+    assert_eq!(detail["options"].as_array().unwrap().len(), 12);
     assert_eq!(detail["options"][5]["label"], "Pitch frame");
     assert_eq!(detail["options"][5]["unit"], "ms");
     assert_eq!(detail["options"][5]["step"], 1.0);

@@ -12,7 +12,6 @@
 export { ANALYZER_SECTIONS } from "./defs";
 export { formatHz } from "./format";
 export { analyzerById, analyzersInSection, isAnalyzerId, matchesQuery } from "./lookup";
-export { latestResult } from "./results";
 export { currentResults, seedResults } from "./cache";
 export {
   applyOptionPatch,

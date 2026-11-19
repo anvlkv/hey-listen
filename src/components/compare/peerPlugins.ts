@@ -4,6 +4,7 @@ import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import { chartTheme } from "../../state/themes";
 import type { AnalyzerBus } from "../../state/chartSync";
 import type { LiveSideDto, Span } from "../../state/compare/types";
+import { drawReferenceStrip } from "./referenceStrip";
 
 /** The uPlot instance type, taken from the wrapper's plugin props. */
 type Uplot = TooltipProps["u"];
@@ -13,9 +14,10 @@ type Uplot = TooltipProps["u"];
  *
  * One plugin draws everything that belongs to the **reference** project on the owner's
  * chart: its dashed cursor (a time, frequency or modulation-rate value), its playhead
- * (dashed, read from the core — a popout has no Timeline to publish one), and its
- * analysis window as a faint band. A's own playhead is drawn solid, so "where each
- * project is playing" is readable at a glance on a time chart.
+ * (dashed, read from the core — a popout has no Timeline to publish one), its analysis
+ * window as a faint band, and — on a time chart — the fragment strip that labels that
+ * band in the reference's absolute seconds (`referenceStrip.ts`). A's own playhead is
+ * drawn solid, so "where each project is playing" is readable at a glance on a time chart.
  *
  * Repaints on each polled change with `u.redraw()` (not `redraw(false)`, which only
  * commits and is a no-op unless a scale change is pending).
@@ -25,6 +27,8 @@ export function compareMarkers(props: {
   b: () => LiveSideDto;
   /** The reference's analysis window; drawn as a band on time charts. */
   window: () => Span | null;
+  /** The same window in **absolute** source seconds — the fragment strip's label. */
+  absolute?: () => Span | null;
   /** Which axis B's cursor belongs to. */
   axis: "time" | "freq" | "rate";
 }): UplotPluginFactory<AnalyzerBus> {
@@ -38,6 +42,7 @@ export function compareMarkers(props: {
               props.a();
               props.b();
               props.window();
+              props.absolute?.();
               u.redraw();
             });
             return root;
@@ -45,8 +50,11 @@ export function compareMarkers(props: {
         },
         draw: (u) => {
           if (props.axis === "time") {
-            drawBand(u, props.window());
+            // One read, so the band and the strip can never disagree about the span.
+            const band = props.window();
+            drawBand(u, band);
             drawPlayheads(u, props.a(), props.b());
+            drawReferenceStrip(u, band, props.absolute?.() ?? null);
           }
           drawPeerCursor(u, props.b(), props.axis);
         },

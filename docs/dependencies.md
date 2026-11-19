@@ -86,9 +86,13 @@ Core crates require Rust ≥ 1.85 (`flexaudio`, `symphonia`); `tauri-plugin-cli`
   release workflows and a build matrix covering the supported platforms.
 - **Type exchange (ts-rs):** the structured IPC types are defined once in Rust with
   `#[derive(ts_rs::TS)]` + `#[ts(export)]`. `cargo test` regenerates their TypeScript
-  definitions into `src/bindings/` (configured by `src-tauri/.cargo/config.toml`,
-  `TS_RS_LARGE_INT = "number"`), and the frontend imports them — so the two sides
-  cannot drift. Run `cargo test` after changing a boundary type.
+  definitions into `src/bindings/` (configured by the repo-root `.cargo/config.toml`,
+  which also sets `TS_RS_LARGE_INT = "number"`), and the frontend imports them — so the
+  two sides cannot drift. The root config is deliberate: Cargo only discovers a
+  `.cargo/config.toml` walking up from the working directory, so a crate-local one was
+  bypassed by `cargo test --manifest-path src-tauri/Cargo.toml` from the repo root and
+  ts-rs fell back to `src-tauri/bindings/`. Run `cargo test` after changing a boundary
+  type.
 - **MCP server (M9):** the loopback MCP server uses only `std::net` + `serde_json` +
   the Tauri event/command surface. The follow-up adds `tauri-plugin-cli` (the app
   binary's `--mcp` / `--headless` flags), `tauri-plugin-store` (the persisted MCP

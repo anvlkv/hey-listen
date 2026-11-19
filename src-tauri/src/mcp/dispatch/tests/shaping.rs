@@ -6,7 +6,9 @@ use crate::audio::analysis::fixtures::{
     calibrated_series, loudness, masking, matrix, notes, pitch, rhythm, series, series_with_rates,
     spectrum,
 };
-use crate::audio::analysis::{shape_result_with, AnalysisResult, Axis, MatrixResult, Shape};
+use crate::audio::analysis::{
+    shape_result_with, shape_result_with_preview, AnalysisResult, Axis, MatrixResult, Shape,
+};
 
 /// The default `Axis::Array` spelling for the compact/full assertions below.
 fn shape(result: &AnalysisResult, shape: Shape, max: Option<usize>) -> Option<serde_json::Value> {
@@ -103,6 +105,24 @@ fn compact_rhythm_previews_the_event_lists() {
     assert_eq!(value["beatTimes"]["length"], 2);
     assert_eq!(value["beatTimes"]["truncated"], false);
     assert_eq!(value["beatTimes"]["preview"][1], 0.5);
+}
+
+#[test]
+fn a_compact_preview_honours_the_requested_record_count() {
+    let mut rhythm = rhythm();
+    rhythm.beat_times = (0..10).map(|index| index as f32).collect();
+    let result = AnalysisResult::Tempo(rhythm);
+
+    // The default preview keeps five records and says the list was truncated.
+    let default = shape(&result, Shape::Compact, None).expect("compact returns a result");
+    assert_eq!(default["beatTimes"]["length"], 10);
+    assert_eq!(default["beatTimes"]["preview"].as_array().unwrap().len(), 5);
+    assert_eq!(default["beatTimes"]["truncated"], true);
+
+    // A caller may ask for another length (compact results only).
+    let short = shape_result_with_preview(&result, Shape::Compact, None, Axis::Array, 2)
+        .expect("compact returns a result");
+    assert_eq!(short["beatTimes"]["preview"].as_array().unwrap().len(), 2);
 }
 
 #[test]

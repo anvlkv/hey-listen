@@ -83,6 +83,7 @@ function seedAnnotations() {
         params: PARAMS,
         options: {},
         capturedMs: now,
+        summary: [],
       },
     },
     {

@@ -9,11 +9,16 @@
 /** Height of the ruler strip along the top of the canvas. */
 export const RULER_H = 22;
 /** Horizontal hit distance from a start/end handle that starts a drag. */
-export const HANDLE_HIT = 9;
+export const HANDLE_HIT = 14;
+/**
+ * Width of the drawn grab tab at the top of a handle. The tab and `HANDLE_HIT` share this
+ * source of truth: what the user sees (`draw.ts`) is what the pointer target is (`interaction.ts`).
+ */
+export const HANDLE_TAB_W = 12;
 /** Horizontal gap kept between consecutive ruler labels so they never collide. */
 export const LABEL_GAP = 8;
 /** Vertical hit zone at the top of the waveform for the window move handle. */
-export const MOVE_HIT = 14;
+export const MOVE_HIT = 18;
 /** Horizontal travel (px) before a ruler press becomes a window selection instead of a seek. */
 export const RULER_DRAG_PX = 3;
 /** Height of the drawn window move handle bar (tall enough for its duration label). */

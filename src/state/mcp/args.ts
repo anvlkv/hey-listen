@@ -1,9 +1,16 @@
 import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
 import type { Annotation } from "../../bindings/Annotation";
+import { didYouMean } from "../../lib/nearest";
 import { isAnalyzerId } from "../analyzer";
 import { annotationById } from "../annotations";
 import { themeById } from "../themes";
-import { isToolDirection, TOOL_DIRECTIONS, type ToolId, type ToolPosition } from "../workbench";
+import {
+  isToolDirection,
+  TOOL_DIRECTIONS,
+  TOOLS,
+  type ToolId,
+  type ToolPosition,
+} from "../workbench";
 
 export type Args = Record<string, unknown>;
 
@@ -76,9 +83,12 @@ export function analyzerId(args: Args) {
   return tool;
 }
 
+/** Every id `toolId` accepts — the Workbench's tab registry (graph editors + analyzers). */
+const TOOL_IDS = TOOLS.map((tool) => tool.id);
+
 export function toolId(id: string): ToolId {
   if (id !== "filter" && id !== "synth" && !isAnalyzerId(id)) {
-    throw new Error(`unknown tool: ${id}`);
+    throw new Error(`unknown tool: ${id}${didYouMean(id, TOOL_IDS)}`);
   }
   return id as ToolId;
 }

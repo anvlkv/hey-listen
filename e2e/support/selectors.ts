@@ -49,6 +49,9 @@ export const SEL = {
   // Annotations panel (M14).
   annotationsRegion: '[data-testid="region.annotations"]',
   annotationsAdd: '[data-testid="annotations.add"]',
+  // Step the selection through the annotations in time order (no window move).
+  annotationsPrev: '[data-testid="annotations.prev"]',
+  annotationsNext: '[data-testid="annotations.next"]',
   annotationsCollapse: '[data-testid="annotations.collapse"]',
   annotationsEmpty: '[data-testid="annotations.empty"]',
   annotationsRows: '[data-testid="annotations.rows"]',
@@ -80,13 +83,32 @@ export const SEL = {
   timelineStop: '[data-testid="timeline.stop"]',
   timelineLoop: '[data-testid="timeline.loop"]',
   timelinePosition: '[data-testid="timeline.position"]',
+  // Window transport + history (D-03/D-13): return the playhead to the start, follow it.
+  timelineStart: '[data-testid="timeline.start"]',
+  timelineFollow: '[data-testid="timeline.follow"]',
+  // The numeric window form (D-05): its trigger, the history arrows, and the fields.
+  timelineWindowEdit: '[data-testid="timeline.windowEdit"]',
+  timelineWindowBack: '[data-testid="timeline.windowBack"]',
+  timelineWindowForward: '[data-testid="timeline.windowForward"]',
+  windowStart: '[data-testid="window.start"]',
+  windowEnd: '[data-testid="window.end"]',
+  windowDuration: '[data-testid="window.duration"]',
   // The transport's annotation-at-the-playhead action (enabled only while previewing).
   timelineAnnotationAtCursor: '[data-testid="timeline.annotationAtCursor"]',
   timelineScroll: '[data-testid="timeline.scroll"]',
   timelineScrollThumb: '[data-testid="timeline.scroll.thumb"]',
+  // The canvas's polite live region: what a keyboard move (or a settle) announces (D-14).
+  timelineAnnounce: '[data-testid="timeline.announce"]',
   // The channel rail (M23): one radio per channel plus the downmix toggle.
   channelMix: '[data-testid="timeline.channel.mix"]',
   channelRight: '[data-testid="timeline.channel.1"]',
+  // The canvas's right-click menu (D-11) and its snap toggle (D-12).
+  timelineMenu: '[data-testid="timeline.menu"]',
+  timelineMenuStart: '[data-testid="timeline.menu.start"]',
+  timelineMenuEnd: '[data-testid="timeline.menu.end"]',
+  timelineMenuAnnotation: '[data-testid="timeline.menu.annotation"]',
+  timelineMenuWhole: '[data-testid="timeline.menu.whole"]',
+  timelineMenuSnap: '[data-testid="timeline.menu.snap"]',
 
   // Graph editors.
   graphError: '[data-testid="graph.error"]',

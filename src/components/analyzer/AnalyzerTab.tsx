@@ -20,6 +20,11 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
  * mounted, so a chart's canvas and its interactions are not torn down and rebuilt
  * mid-run. While a result is being **recomputed** (a previous one is still shown), a
  * small spinner sits in the bottom-right corner.
+ *
+ * When the run streams its stages (D-21) the toolbar's `computing…` status becomes a
+ * compact phase label with the percentage, a thin bar and a **Cancel** button; a run
+ * that reports no progress keeps the plain `computing…` text, so the spinners above are
+ * unaffected either way.
  */
 export default function AnalyzerTab(props: {
   id: AnalyzerId;
@@ -27,11 +32,18 @@ export default function AnalyzerTab(props: {
   error: string | null;
   /** Whether a result is already shown (drives first-run vs recompute spinner). */
   hasResult: boolean;
+  /** The in-flight run's stage, when the core streams one (`null` = report nothing). */
+  progress?: { phase: string; fraction: number } | null;
+  /** Stop the in-flight run; wired to the progress chip's Cancel button. */
+  onCancel?: () => void;
   /** Extra per-tool params, rendered in the params popover. */
   params?: JSX.Element;
   children: JSX.Element;
 }) {
   const def = () => analyzerById(props.id);
+
+  /** The run's completion as a whole percentage, clamped to the bar's 0…100 range. */
+  const percent = () => Math.round(Math.min(Math.max(props.progress?.fraction ?? 0, 0), 1) * 100);
 
   // The About panel renders the registry's markdown copy. The renderer is a
   // dynamic import, so it is only loaded once the panel is first opened.
@@ -47,7 +59,39 @@ export default function AnalyzerTab(props: {
       <div class="analyzer-toolbar">
         <span class="analyzer-title">{def().title}</span>
         <Show when={props.loading}>
-          <span class="analyzer-status">computing…</span>
+          <Show when={props.progress} fallback={<span class="analyzer-status">computing…</span>}>
+            {(progress) => (
+              <div class="analyzer-progress" data-testid="analyzer.progress">
+                <span class="analyzer-progress-label">
+                  {progress().phase} · {percent()}%
+                </span>
+                <div
+                  class="analyzer-progress-track"
+                  data-testid="analyzer.progress-bar"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent()}
+                  aria-label={`${def().title} progress`}
+                >
+                  <div class="analyzer-progress-fill" style={{ width: `${percent()}%` }} />
+                </div>
+                <Show when={props.onCancel}>
+                  {(cancel) => (
+                    <button
+                      type="button"
+                      class="analyzer-cancel"
+                      data-testid="analyzer.cancel"
+                      title="Stop this run and keep the last result"
+                      onClick={cancel()}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </Show>
+              </div>
+            )}
+          </Show>
         </Show>
         <Show when={props.error}>
           {(message) => (

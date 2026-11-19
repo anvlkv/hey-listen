@@ -247,6 +247,7 @@ const base = (overrides: Partial<AnnotationValues> = {}): AnnotationValues => ({
   },
   options: { showMean: 1 },
   capturedMs: 1,
+  summary: [],
   ...overrides,
 });
 

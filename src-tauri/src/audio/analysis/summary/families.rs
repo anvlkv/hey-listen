@@ -361,6 +361,17 @@ fn modulation(b: &mut SummaryBuilder, r: &ModulationResult) {
         f64::from(r.voiced_fraction) * 100.0,
         Some("%"),
     );
+    // The per-note breakdown (D-18) is optional: absent when `perNote` is off, so the
+    // window summary is unchanged by default.
+    if !r.notes.is_empty() {
+        b.count("noteCount", "notes", r.notes.len());
+        let with_fm = r
+            .notes
+            .iter()
+            .filter(|note| note.fm_rate_hz.is_some())
+            .count();
+        b.count("fmNoteCount", "notes with FM", with_fm);
+    }
 }
 
 fn median(values: &[f64]) -> Option<f64> {

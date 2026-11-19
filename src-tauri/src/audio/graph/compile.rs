@@ -210,6 +210,29 @@ fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
         "brown" => Box::new(brown()),
         "mls" => Box::new(mls()),
 
+        // --- Extra shaping, delay-as-signal and envelope/gate ---
+        "zero" => Box::new(zero()),
+        "impulse" => Box::new(impulse::<U1>()),
+        // The bounds are clamped to the palette's -1..1 and kept ordered, because
+        // `clip_to` clamps to whatever it is given.
+        "clip_to" => {
+            let min = p(0, -1.0).clamp(-1.0, 1.0);
+            let max = p(1, 1.0).clamp(-1.0, 1.0).max(min);
+            Box::new(clip_to(min, max))
+        }
+        "declick" => Box::new(declick_s(p(0, 0.01).max(0.0))),
+        "dcblock_hz" => Box::new(dcblock_hz(p(0, 5.0).max(1.0))),
+        "follow" => Box::new(follow(p(0, 0.05).max(0.0))),
+        "afollow" => Box::new(afollow(p(0, 0.01).max(0.0), p(1, 0.1).max(0.0))),
+        // `hold` and `tap` take their control on input 1; the variabilities and
+        // delays are clamped to the ranges the palette offers.
+        "hold" => Box::new(hold(p(0, 0.1).clamp(0.0, 1.0))),
+        "tap" => {
+            let min_delay = p(0, 0.0).clamp(0.0, 5.0);
+            let max_delay = p(1, 1.0).clamp(0.0, 5.0).max(min_delay);
+            Box::new(tap(min_delay, max_delay))
+        }
+
         other => return Err(GraphError::UnknownKind(other.to_string())),
     };
     Ok(unit)

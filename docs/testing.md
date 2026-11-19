@@ -310,6 +310,22 @@ The remaining tools are trusted through the parametrized smoke test.
 | G4 | Window move re-fits the charts | Zoom a heatmap in, move the analysis window: the chart re-fits to the whole *new* window (waits for the re-run, then matches the same range the Fit control gives) instead of keeping a stale slice | Scenario |
 | G5 | A drag coalesces its pushes | A 20-move handle drag in one gesture moves the window and pushes the shared state a handful of times, not once per move | Scenario |
 
+### G2. Timeline precision & accessibility (D-11 / D-12 / D-14)
+
+Every case starts from the menu's **Window: whole source**, which pins both the window and
+the view, so the pointer→time geometry is deterministic. Helpers live in
+`e2e/support/timelinePrecision.ts` (right-click, menu-item activation, canvas keys, input
+commit).
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| G2.1 | The context menu | A right-click opens it with the window start/end, annotation, whole-source and snap items; Escape dismisses it | Smoke |
+| G2.2 | Window from the pointer | **Set window start here** lands on the computed pointer time; **Window: whole source** restores `0..duration` | Scenario |
+| G2.3 | Annotation from the menu | **Add an annotation here** creates a point annotation at the pointer (not at the window start) and the rail shows it | Scenario |
+| G2.4 | Snapping | It is off by default; with it on the same handle drag lands on the ruler-grid step (a different, nearby value) | Scenario |
+| G2.5 | Keyboard + live region | The canvas is `role="application"`/`tabindex=0`; `ArrowRight` nudges the playhead, `Home` returns to 0, and the polite live region says `Playhead at …` | Scenario |
+| G2.6 | Numeric window + history | Typing `0:01.50` into **End** commits, and the window-history **Previous** button restores the whole-source window | Scenario |
+
 ### H. Project file (M6) & multi-window (M7)
 
 | # | Test | Asserts | Kind |
@@ -487,7 +503,10 @@ and the annotation time are all frontend-side.
 > source-second re-basing is asserted by `cargo test`
 > (`mcp::dispatch::tests::analysis_times_are_rebased_onto_source_seconds`), and the
 > Timeline scrollbar's clamping / thumb geometry by
-> `src/tests/timelineScroll.test.ts` (`npm run test:unit`).
+> `src/tests/timelineScroll.test.ts` (`npm run test:unit`). The Timeline's pure gesture and
+> display helpers have their own suites too: `timelineSelection`, `timelineSnapping`,
+> `timelineHover`, `timeInput` (the numeric window fields), `timelineAnnounce` (the ARIA
+> copy) and `sharedOptions` (the shared pitch/calibration fan-out).
 
 ### R. Two projects at once (M7 multi-window)
 
@@ -616,7 +635,7 @@ stay the last suite file (closing `main` cannot be undone).
 | Milestone | Spec | Asserts |
 | --- | --- | --- |
 | M22 | `q2-synth-live` | Audition calls `preview_synth` (not `preview_region`) and stops on tab close; Live updates the source without resetting the window, view or annotations; a failed live render keeps the last good audio; a palette drag shows the ghost, the drop preview and the splice badge, and drops where previewed. |
-| M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; a **left-drag** selects and frames a window (middle-drag pans); the move bar shows the window duration; a multichannel source draws one lane per channel at a fixed height and the rail radio/downmix toggle switch the analysed channel; a lane selection paints full-height rules; hover shows the time readout; a burst of tiny vertical wheel events zooms proportionally (with or without `Ctrl`/`⌘`), a horizontal or `Shift` gesture pans by the accumulated delta, not once per event, and a horizontal gesture never zooms. |
+| M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; a **left-drag** selects and frames a window (middle-drag pans); the move bar shows the window duration; a multichannel source draws one lane per channel at a fixed height and the rail radio/downmix toggle switch the analysed channel; a lane selection paints full-height rules; a burst of tiny vertical wheel events zooms proportionally (with or without `Ctrl`/`⌘`), a horizontal or `Shift` gesture pans by the accumulated delta, not once per event, and a horizontal gesture never zooms. The hover readout, context menu, snapping, window fields/history and accessibility are already covered by **G2**. |
 | M24 | `q4-keyboard` | Space/arrows drive the transport; `N` annotates; `Mod+K` opens the palette and runs a command; `?` opens the explorer; a rebind takes effect and the old key goes inert; a conflict is rejected; text fields and focused buttons keep their keys; bindings survive a reload. |
 
 > Unit coverage for these milestones: `dropTarget` and the live-render scheduler, frame
@@ -671,10 +690,14 @@ command (the service patches in its own `before`, after ours). Ignore it unless
   waits until the Timeline is gone — instead of assuming the reset landed. Q6 used to
   re-open a fixture immediately after `new`, read the *old* duration in the readout,
   skip the open as "already loaded", and then sit on an empty timeline.
-- **Closing the current window is scheduled, not awaited.** The app's `close_window`
-  destroys the caller, which can kill the WebDriver script's reply first (a 30 s
-  timeout on Windows). `closeCurrentWindow()` returns from the script and destroys a
-  beat later; callers wait for the label to disappear (`windowLabels`).
+- **Closing the current window is fire-and-forget, not awaited.** The app's `close_window`
+  destroys the caller, which can kill the WebDriver script's reply first (a 30 s timeout on
+  Windows). `closeCurrentWindow()` starts the invoke without awaiting it and returns from
+  the script immediately, so the reply is delivered before the window dies; callers then
+  wait for the label to disappear (`windowLabels`, which falls back to window handles).
+  **Do not schedule the destroy with `setTimeout`:** WKWebView throttles timers in a
+  backgrounded window, and a 250 ms timer once fired after ~30 s, making T1 time out just
+  as the close landed.
 - **Cross-window state arrives over IPC.** A cursor/view/playhead mirrored from
   another window repaints *after* the gesture that caused it. Wait for the change
   (`waitForRowChange` in `support/analyzers.ts`) rather than sleeping a fixed time —

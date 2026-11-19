@@ -418,8 +418,8 @@ snake_case aliases, validated like every other tool (M16).
 
 - **Calibration is the user's responsibility.** Sones, phons, aspers, and vacils are
   only absolute when `calibrationDbSpl` is set; uncalibrated results are relative and
-  are labelled. A shared app-level calibration control (one knob fanned out to the
-  per-tool options) is a later UX convenience ([D-08](deferred.md)).
+  are labelled. A shared **Calibration** control in the Analysis-params popover (D-08)
+  fans one value out to the per-tool options of every tool that declares it.
 - **No standards-compliance claim.** The published approximations implement the model
   families; the normative coefficients and conformance procedures behind ISO 532 /
   DIN 45692 / ISO 226 may require purchase. The UI and docs say "model" or "proxy", never

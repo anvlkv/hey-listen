@@ -7,6 +7,7 @@
 use oxiaudio::dsp::{PitchFrame, PitchTracker};
 
 use super::super::support::mono_buffer;
+use super::super::{AnalysisError, Cancel};
 
 /// Cap on a note's pitch frame length (samples), so a very low f0 request cannot
 /// allocate an unbounded analysis window.
@@ -73,7 +74,8 @@ pub(super) fn pitch_track(
     frame_ms: f32,
     hop_ms: f32,
     range: (f32, f32),
-) -> (Vec<PitchFrame>, usize, usize) {
+    cancel: &Cancel,
+) -> Result<(Vec<PitchFrame>, usize, usize), AnalysisError> {
     let (frame, hop) = note_pitch_grid(
         mono.len(),
         sample_rate,
@@ -82,27 +84,31 @@ pub(super) fn pitch_track(
         range.0,
         MAX_NOTE_PITCH_FRAMES,
     );
-    (
-        pitch_track_with_grid(mono, sample_rate, frame, hop, range),
-        frame,
-        hop,
-    )
+    let frames = pitch_track_with_grid(mono, sample_rate, frame, hop, range, cancel)?;
+    Ok((frames, frame, hop))
 }
 
 /// YIN pitch frames over `mono` on an explicit `(frame, hop)` grid, zero-padded to one
 /// frame so a short slice still yields a frame.
+///
+/// `PitchTracker::track` is one `oxiaudio` call and cannot be interrupted mid-way, so
+/// the token is checked on either side of it.
 pub(super) fn pitch_track_with_grid(
     mono: &[f32],
     sample_rate: u32,
     frame: usize,
     hop: usize,
     range: (f32, f32),
-) -> Vec<PitchFrame> {
+    cancel: &Cancel,
+) -> Result<Vec<PitchFrame>, AnalysisError> {
+    cancel.check()?;
     let padded = pad_to(mono, frame);
     let buf = mono_buffer(&padded, sample_rate);
-    PitchTracker::new(frame, hop)
+    let frames = PitchTracker::new(frame, hop)
         .with_range(range.0, range.1)
-        .track(&buf)
+        .track(&buf);
+    cancel.check()?;
+    Ok(frames)
 }
 
 /// `mono` unchanged when it is at least `len` samples, otherwise zero-padded to `len`.

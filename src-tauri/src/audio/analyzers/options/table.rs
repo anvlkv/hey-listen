@@ -250,6 +250,14 @@ pub(crate) const OPTIONS: &[(AnalyzerId, &[OptionInfo])] = &[
                 max: 8_000.0,
                 help: "Highest expected fundamental for the FM track.",
             },
+            OptionInfo {
+                key: "perNote",
+                label: "Per note",
+                default: 0.0,
+                min: 0.0,
+                max: 1.0,
+                help: "1 analyses each detected note segment separately and reports a per-note table; 0 (default) analyses the whole window.",
+            },
         ],
     ),
     (

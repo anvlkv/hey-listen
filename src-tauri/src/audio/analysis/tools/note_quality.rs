@@ -9,7 +9,7 @@
 use oxiaudio::dsp::spectral::harmonic_ratio;
 
 use super::super::support::mono_buffer;
-use super::super::ToolOptions;
+use super::super::{AnalysisError, Cancel, ToolOptions};
 use super::notes::{median, Segment};
 use super::pitch_track::{pad_to, pitch_track};
 
@@ -40,7 +40,8 @@ pub(super) fn proxies(
     options: &ToolOptions,
     times: &[f32],
     levels: &[f32],
-) -> Proxies {
+    cancel: &Cancel,
+) -> Result<Proxies, AnalysisError> {
     let slice = segment_slice(mono, sample_rate, segment);
     let range = options.note_pitch_range();
     let (frames, frame, hop) = pitch_track(
@@ -49,7 +50,8 @@ pub(super) fn proxies(
         options.pitch_frame_ms(),
         options.pitch_hop_ms(),
         range,
-    );
+        cancel,
+    )?;
     let voiced: Vec<(f64, f32)> = frames
         .iter()
         .filter(|frame| frame.is_voiced && frame.frequency_hz > 0.0)
@@ -65,13 +67,14 @@ pub(super) fn proxies(
     let shimmer_proxy_db =
         (note_levels.len() >= MIN_SHIMMER_FRAMES).then(|| population_std(&note_levels));
 
-    Proxies {
+    cancel.check()?;
+    Ok(Proxies {
         voiced_fraction,
         f0_median_hz,
         jitter_proxy_cents,
         shimmer_proxy_db,
         hnr_proxy: hnr(&slice, sample_rate, frame, hop, range),
-    }
+    })
 }
 
 /// The samples covering `[start, end)` of the window.

@@ -2,6 +2,7 @@
 import type { AnalysisWindow } from "./AnalysisWindow";
 import type { AnalyzerId } from "./AnalyzerId";
 import type { SharedParams } from "./SharedParams";
+import type { SummaryItem } from "./SummaryItem";
 
 /**
  * The frozen chart readout an annotation carries as its subtitle (`docs/annotations.md`).
@@ -34,4 +35,9 @@ options: { [key in string]: number },
 /**
  * Capture time, in Unix milliseconds.
  */
-capturedMs: number, };
+capturedMs: number, 
+/**
+ * The tool's canonical summary items at capture time (D-19), when the capturing
+ * client had a live run's summary. Empty for a result adopted from the project cache.
+ */
+summary: Array<SummaryItem>, };

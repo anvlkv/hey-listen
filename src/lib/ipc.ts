@@ -30,7 +30,11 @@ export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOption
   // a command that fails has a log entry even when its caller only shows a banner. The
   // bridge invokes `plugin:log|log` directly, so this cannot recurse.
   return call.catch((err: unknown) => {
-    console.error(`[ipc] ${cmd} failed: ${errorMessage(err)}`);
+    // A cancelled analysis is an expected outcome (a newer window replaced the run), not a
+    // failure worth an error line (D-21).
+    if (errorMessage(err) !== "cancelled") {
+      console.error(`[ipc] ${cmd} failed: ${errorMessage(err)}`);
+    }
     throw err;
   });
 }

@@ -1,4 +1,5 @@
-//! Malformed-`DATA` loader tests (audit P1 #3): a file with a valid checksum but an
+//! `DATA` loader/writer tests: the sample formats (`f32` / `i16`, D-20) and the
+//! malformed-section cases (audit P1 #3), where a file with a valid checksum but an
 //! inconsistent `DATA` header/index must be rejected before any allocation.
 
 use std::io::Cursor;
@@ -16,23 +17,120 @@ fn pcm(samples: usize) -> SourceData {
     }
 }
 
-/// A valid project with `samples` of audio, ready to be tampered with.
+/// A stereo buffer whose amplitudes stay inside ±0.5, so a `× 32767` quantize and a
+/// `÷ 32768` decode round-trip inside one `i16` step.
+fn quiet_pcm(frames: usize) -> SourceData {
+    let mut samples = Vec::with_capacity(frames * 2);
+    for frame in 0..frames {
+        let t = frame as f32 * 0.01;
+        samples.push(0.5 * t.sin());
+        samples.push(0.5 * (t * 1.7).cos());
+    }
+    SourceData {
+        samples,
+        sample_rate: 44_100,
+        channels: 2,
+    }
+}
+
+/// A valid project holding `audio` as `format`, ready to be tampered with.
+fn project_bytes_with_format(audio: &SourceData, format: PcmFormat) -> Vec<u8> {
+    let save = save_with("tamper", Some(audio));
+    let mut cursor = Cursor::new(Vec::new());
+    write_project_with_pcm_format(&mut cursor, &save, 5, format).expect("write");
+    cursor.into_inner()
+}
+
+/// A valid project with `samples` of `f32` audio, ready to be tampered with.
 fn project_bytes(samples: usize) -> Vec<u8> {
-    let audio = pcm(samples);
-    let save = SaveProject {
-        name: "tamper".to_string(),
-        created_ms: None,
-        source: None,
-        setup: AnalysisSetup::default(),
-        layout: serde_json::Value::Null,
-        results: Vec::new(),
-        annotations: Vec::new(),
-        compare: Vec::new(),
-        pcm: Some(&audio),
-    };
+    project_bytes_with_format(&pcm(samples), PcmFormat::F32)
+}
+
+// --- `DATA` sample formats (D-20) -------------------------------------------
+
+/// One `i16` decode step. The bound lets the `× 32767` / `÷ 32768` scale mismatch add
+/// its share on top of the rounding, hence the 1 % margin.
+const I16_STEP: f32 = 1.01 / 32768.0;
+
+#[test]
+fn an_i16_section_round_trips_within_one_quantization_step() {
+    let audio = quiet_pcm(64);
+    let bytes = project_bytes_with_format(&audio, PcmFormat::I16);
+    let loaded = read_project(&mut Cursor::new(bytes)).expect("read");
+    let decoded = loaded.pcm.expect("pcm");
+    assert_eq!(decoded.sample_rate, audio.sample_rate);
+    assert_eq!(decoded.channels, audio.channels);
+    assert_eq!(decoded.samples.len(), audio.samples.len());
+    for (read, original) in decoded.samples.iter().zip(&audio.samples) {
+        assert!(
+            (read - original).abs() <= I16_STEP,
+            "{read} is more than one i16 step from {original}"
+        );
+    }
+}
+
+#[test]
+fn an_i16_section_records_format_one_with_byte_width_two() {
+    let audio = quiet_pcm(64);
+    let bytes = project_bytes_with_format(&audio, PcmFormat::I16);
+    let (offset, length) = data_section(&bytes);
+    assert_eq!(bytes[offset + 6], PCM_FORMAT_I16, "the format byte is i16");
+    // Chunks stay counted in samples, so only the samples halve: the section is the
+    // header, one chunk of 2-byte samples, one index entry and the footer.
+    let expected = DATA_HEADER_LEN
+        + audio.samples.len() as u64 * PcmFormat::I16.byte_width()
+        + DATA_INDEX_ENTRY_LEN
+        + DATA_FOOTER_LEN;
+    assert_eq!(length as u64, expected);
+    // The section index and the checksum still validate around the narrower payload.
+    read_project(&mut Cursor::new(bytes)).expect("the container round-trips");
+}
+
+#[test]
+fn an_f32_section_matches_the_default_writer_exactly() {
+    let audio = quiet_pcm(64);
+    let explicit = project_bytes_with_format(&audio, PcmFormat::F32);
+
+    let save = save_with("tamper", Some(&audio));
     let mut cursor = Cursor::new(Vec::new());
     write_project(&mut cursor, &save, 5).expect("write");
-    cursor.into_inner()
+    assert_eq!(cursor.into_inner(), explicit, "f32 writing is unchanged");
+
+    let (offset, _) = data_section(&explicit);
+    assert_eq!(explicit[offset + 6], PCM_FORMAT_F32);
+    let loaded = read_project(&mut Cursor::new(explicit)).expect("read");
+    assert_eq!(loaded.pcm.expect("pcm").samples, audio.samples);
+}
+
+#[test]
+fn rejects_an_unknown_pcm_format_byte() {
+    let ProjectError::Corrupt(message) = corrupt_after(project_bytes(64), |data| data[6] = 2)
+    else {
+        panic!("an unknown DATA format must be corrupt");
+    };
+    assert!(message.contains("unsupported PCM format"), "{message}");
+}
+
+#[test]
+fn rejects_an_i16_header_declaring_more_frames_than_the_section_holds() {
+    let audio = quiet_pcm(64);
+    let err = corrupt_after(project_bytes_with_format(&audio, PcmFormat::I16), |data| {
+        // The payload holds 256 bytes; 128 frames over 2 channels is 512 bytes at i16.
+        data[8..16].copy_from_slice(&128u64.to_le_bytes());
+    });
+    assert!(matches!(err, ProjectError::Corrupt(_)), "{err:?}");
+}
+
+#[test]
+fn rejects_an_i16_chunk_that_is_not_whole_samples() {
+    let audio = quiet_pcm(64);
+    let err = corrupt_after(project_bytes_with_format(&audio, PcmFormat::I16), |data| {
+        let footer = data.len() - DATA_FOOTER_LEN as usize;
+        let index = u64::from_le_bytes(data[footer + 8..footer + 16].try_into().unwrap()) as usize;
+        // An odd byte length cannot hold whole i16 samples.
+        data[index + 8..index + 16].copy_from_slice(&3u64.to_le_bytes());
+    });
+    assert!(matches!(err, ProjectError::Corrupt(_)), "{err:?}");
 }
 
 // --- malformed `DATA` metadata (audit P1 #3) ---------------------------------

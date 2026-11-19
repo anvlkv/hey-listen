@@ -112,6 +112,7 @@ it("modulation options are engine options with defaults", () => {
     topPeaks: 3,
     minF0Hz: 50,
     maxF0Hz: 2000,
+    perNote: 0,
   });
   expect(
     applyOptionPatch("modulation", {

@@ -102,7 +102,8 @@ fn initialize_result(params: &Value) -> Value {
                          `list_analyzers` for \
                          the ids and `get_analyzer` before guessing option keys, ranges, or \
                          summary keys. For a quick answer run `run_analysis` with \
-                         `summaryOnly: true`; the default result is compact, and `includeData` \
+                         `summaryOnly: true`; the default result is compact (its previews keep \
+                         `previewRecords` records, default 5, at most 50), and `includeData` \
                          returns raw arrays (`maxPoints` requires `includeData: true` and thins \
                          series **and matrix** arrays, \
                          keeping first/last points; it never thins event or note lists, so it is \

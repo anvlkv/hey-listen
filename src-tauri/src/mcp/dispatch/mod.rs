@@ -19,9 +19,11 @@
 //!
 //! The implementation is split into focused submodules: [`args`] applies the agent's
 //! patch objects, [`session`] holds the per-tool implementations, [`project`] the
-//! headless project-file tools, and [`tests`] covers the table.
+//! headless project-file tools, [`cache`] the reused analyzer results, and [`tests`]
+//! covers the table.
 
 mod args;
+mod cache;
 mod compare;
 mod export;
 mod project;
@@ -37,7 +39,7 @@ use serde_json::{json, Value};
 use crate::audio::analysis::{SharedParams, ToolOptions};
 use crate::audio::analyzers::{self, AnalyzerId};
 use crate::audio::graph::GraphSpec;
-use crate::project::SourceKind;
+use crate::project::{SourceKind, StoredResult};
 use crate::state::WindowState;
 
 use args::{analyzer, clamp_span, default_params, merge_options, merge_params, number};
@@ -65,6 +67,11 @@ pub struct HeadlessSession {
     /// The analyzer tabs the project was saved with (`SETUP.openTools`), so a headless
     /// open → save round-trip keeps them.
     open_tools: Vec<crate::audio::analyzers::ToolId>,
+    /// The cached analyzer results (`RESULTS`), the same entries the GUI keeps in
+    /// `src/state/analyzer/cache.ts`: a `run_analysis` whose key matches one adopts it
+    /// instead of recomputing, and `save_project` writes them. Cleared whenever the
+    /// entries can no longer apply to the session's source or filter.
+    results: Vec<StoredResult>,
     name: String,
 }
 
@@ -82,6 +89,7 @@ impl Default for HeadlessSession {
             project_path: None,
             project_name: None,
             open_tools: Vec::new(),
+            results: Vec::new(),
             name: String::new(),
         }
     }
@@ -95,7 +103,7 @@ impl HeadlessSession {
             "list_analyzers" => Ok(Value::Array(analyzers::list())),
             "get_analyzer" => {
                 let id = analyzer(&args, "id")?;
-                analyzers::detail(id).ok_or_else(|| format!("unknown analyzer: {id}"))
+                analyzers::detail(id).ok_or_else(|| analyzers::unknown_analyzer(id.as_ref()))
             }
             "open_audio_file" => self.open_audio_file(&args),
             "close_source" => {
@@ -104,6 +112,7 @@ impl HeadlessSession {
                 self.source_path = None;
                 self.source_kind = SourceKind::File;
                 self.synth = None;
+                self.results.clear();
                 self.window = (0.0, 0.0);
                 self.view = (0.0, 0.0);
                 Ok(json!({ "source": null }))

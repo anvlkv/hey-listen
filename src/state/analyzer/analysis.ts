@@ -6,16 +6,24 @@
  * its per-tool options, and the analysis window, and issues a **debounced**
  * `run_analysis` invoke (trailing ~200 ms), discarding stale responses
  * (latest-wins). The tabs request `shape: "full"` — precompaction is for the MCP/CLI
- * callers — and unwrap the command's `{ summary, result }` response. Auto-run only
- * happens while a tab is mounted, so closed tools are never recomputed. See
- * `docs/analysis-tools.md`.
+ * callers — and keep the command's `{ summary, result }` response: the result becomes the
+ * tab's chart data, and the canonical summary is stored beside it for a later
+ * annotation snapshot's structured items (D-19). See `docs/analysis-tools.md`.
  *
  * Every run first consults the [result cache](cache.ts): a result computed for the
  * same source, window, params and filter — or restored from the project file — is
  * adopted immediately, so reopening a project does not re-run every analyzer.
+ *
+ * A live run also streams its **stages** back on a per-run `Channel` (D-21), and can be
+ * stopped: a superseded, disappearing or user-cancelled run is cancelled iff it is still
+ * in flight, and a cancelled run is not an error (the last good result stays).
  */
+import { Channel } from "@tauri-apps/api/core";
 import { createEffect, createSignal, on, onCleanup } from "solid-js";
-import { invoke } from "../../lib/ipc";
+import type { AnalysisPhase } from "../../bindings/AnalysisPhase";
+import type { AnalysisProgress } from "../../bindings/AnalysisProgress";
+import type { ResultSummary } from "../../bindings/ResultSummary";
+import { errorMessage, invoke } from "../../lib/ipc";
 import {
   channel,
   fftSize,
@@ -33,16 +41,32 @@ import { source, status } from "../source";
 import { windowEnd, windowStart } from "../timeline";
 import { cachedResult, resultCacheKey, storeResult, type CachedResult } from "./cache";
 import { engineOptions } from "./options";
-import { setLatestResult } from "./results";
+import { setLatestResult, setLatestSummary } from "./results";
 import type { AnalyzerId, AnyAnalysisResult } from "./types";
 
 /** Trailing debounce for auto-run, in ms (dragging coalesces). */
 const DEBOUNCE_MS = 200;
 
+/**
+ * The transient run token the core echoes in every progress message and `cancel_analysis`
+ * matches. It is a request token, not a domain id — `0` means "no cancellation".
+ */
+let nextRequestId = 1;
+
+/** One in-flight run's streamed stage (D-21): the phase and how far it has got, 0…1. */
+interface RunProgress {
+  phase: AnalysisPhase;
+  fraction: number;
+}
+
 export interface AnalysisHandle<T> {
   result: () => T | null;
   loading: () => boolean;
   error: () => string | null;
+  /** The in-flight run's latest stage, or `null` when nothing is reporting (D-21). */
+  progress: () => RunProgress | null;
+  /** Stop the in-flight run at the core's next check; a finished run is never cancelled. */
+  cancel: () => void;
   /** Re-run now (bypassing the debounce). */
   run: () => void;
 }
@@ -65,10 +89,26 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
   const [result, setResult] = createSignal<T | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [progress, setProgress] = createSignal<RunProgress | null>(null);
 
   /** Latest-wins token: a newer request invalidates any in-flight result. */
   let generation = 0;
   let timer: number | undefined;
+  /** The token of the run still in flight, or `null` when there is nothing to cancel. */
+  let inFlight: number | null = null;
+
+  /**
+   * Stop a run that is **still in flight**, and only that one: a finished run has already
+   * released the id in its `finally`, and an adopted (cached) result never set one, so
+   * both are no-ops here.
+   */
+  function cancelInFlight() {
+    if (inFlight == null) return;
+    const requestId = inFlight;
+    inFlight = null;
+    setProgress(null);
+    void invoke("cancel_analysis", { requestId }).catch(() => undefined);
+  }
 
   /**
    * Snapshot the engine-facing per-tool options. It reads the engine keys (so an
@@ -100,11 +140,16 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
     timer = undefined;
     setResult(() => cached.result as T);
     setLatestResult(tool, cached.result);
+    // The cache (and the project file's `RESULTS` section) keeps the result alone, so a
+    // cached entry must never be paired with a summary from an earlier live run.
+    setLatestSummary(tool, null);
     setError(null);
     setLoading(false);
   }
 
   async function run() {
+    // A newer run supersedes whatever is still in flight (D-21): stop it before starting.
+    cancelInFlight();
     const request = inputs();
     if (!request) {
       generation++;
@@ -112,6 +157,7 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
       setError(null);
       setLoading(false);
       setLatestResult(tool, null);
+      setLatestSummary(tool, null);
       return;
     }
 
@@ -124,9 +170,19 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
     }
 
     const token = ++generation;
+    const requestId = nextRequestId++;
+    inFlight = requestId;
+    // One channel per run: a message is applied only when it carries this run's token, so
+    // a stale channel (an older run still finishing) cannot overwrite the current stage.
+    const onProgress = new Channel<AnalysisProgress>();
+    onProgress.onmessage = (message) => {
+      if (message.requestId !== requestId) return;
+      setProgress({ phase: message.phase, fraction: message.fraction });
+    };
+    setProgress(null);
     setLoading(true);
     try {
-      const response = await invoke<{ summary: unknown; result?: T }>("run_analysis", {
+      const response = await invoke<{ summary: ResultSummary; result?: T }>("run_analysis", {
         request: {
           tool,
           start: request.start,
@@ -134,16 +190,20 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
           params: request.params,
           options: request.options,
           shape: "full",
+          requestId,
         },
+        onProgress,
       });
       if (token !== generation) return;
       const payload = response.result;
       if (payload == null) {
         setResult(null);
         setLatestResult(tool, null);
+        setLatestSummary(tool, null);
       } else {
         setResult(() => payload);
         setLatestResult(tool, payload as unknown as AnyAnalysisResult);
+        setLatestSummary(tool, response.summary);
         if (request.key != null) {
           storeResult(
             {
@@ -161,9 +221,17 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
       setError(null);
     } catch (err) {
       if (token !== generation) return;
+      // A superseded/disappearing/user-stopped run is not a failure: keep the last good
+      // result and leave the error signal alone.
+      if (errorMessage(err) === "cancelled") return;
       setError(String(err));
     } finally {
-      if (token === generation) setLoading(false);
+      // Release the slot only if this run still owns it (a newer run may have taken it).
+      if (inFlight === requestId) inFlight = null;
+      if (token === generation) {
+        setProgress(null);
+        setLoading(false);
+      }
     }
   }
 
@@ -206,7 +274,15 @@ export function createAnalysis<T>(tool: AnalyzerId): AnalysisHandle<T> {
   onCleanup(() => {
     generation++;
     if (timer != null) clearTimeout(timer);
+    cancelInFlight();
   });
 
-  return { result, loading, error, run: () => void run() };
+  return {
+    result,
+    loading,
+    error,
+    progress,
+    cancel: cancelInFlight,
+    run: () => void run(),
+  };
 }

@@ -17,6 +17,40 @@
   color: var(--fg-muted);
 }
 
+/* Run progress (D-21): a phase + percentage, a thin bar, and Cancel (which reuses the
+   shared toolbar button chrome in `shared.css`). */
+.analyzer-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analyzer-progress-label {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The track is the `progressbar`; the fill's width carries the fraction. */
+.analyzer-progress-track {
+  flex: none;
+  width: 64px;
+  height: 4px;
+  background: var(--control);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.analyzer-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+
+.analyzer-cancel:hover {
+  background: var(--control-hover);
+}
+
 .analyzer-error {
   max-width: 38%;
   color: var(--danger);
@@ -157,6 +191,30 @@
   padding: 0 var(--space-chart-wide) var(--space-chart);
   font-size: 0.6875rem;
   line-height: 1.4;
+  color: var(--fg-faint);
+}
+
+/* The per-note modulation table (D-18): a compact, scrollable list under the window
+   readouts. Absent unless the engine ran with `perNote`, so the default view is
+   unchanged. */
+.mod-notes {
+  flex: none;
+  max-height: 7.5rem;
+  overflow-y: auto;
+  padding: var(--space-chart-tight) var(--space-chart-wide);
+  font-size: 0.6875rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.mod-notes-row {
+  display: grid;
+  grid-template-columns: 2rem 5rem 5rem 5rem 5rem 5rem 6rem;
+  gap: var(--space-chart-wide);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mod-notes-head {
   color: var(--fg-faint);
 }
 

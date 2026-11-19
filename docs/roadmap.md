@@ -49,8 +49,8 @@ this milestone"); it does not keep a second backlog list.
 > (`state/analysis.ts`). Analyzer tabs (waveform / spectrum / spectrogram) are
 > Workbench tabs with params + about popovers, listed in the Sidebar under
 > **Analyzers**; the shared runner (`state/analyzer/`) debounces auto-run and
-> keeps results latest-wins. Progress streaming and core-side cancellation were never
-> implemented; they are tracked in [`deferred.md`](deferred.md) as D-21.
+> keeps results latest-wins. Stage progress streams on a `Channel` and a superseded
+> run is cancelled in the core (D-21); the tab shows its phase and a Cancel button.
 
 ## M5 — Full tool inventory + tabs ✅
 
@@ -98,8 +98,9 @@ this milestone"); it does not keep a second backlog list.
 > layout and restores every store and the Workbench (dockview) layout on load.
 > `RESULTS` was written empty when M6 shipped; it now stores one entry per cached
 > analyzer result and the loader seeds the frontend's cache with it (see
-> [`project-file-format.md`](project-file-format.md) → Cached results). `i16`/FLAC
-> `DATA` remain deferred (the core owns `f32` and always writes `format = 0`). See
+> [`project-file-format.md`](project-file-format.md) → Cached results). The writer still
+> defaults to `f32`, and the reader/writer now support **`i16`** `DATA` (D-20); FLAC
+> compression remains deferred. See
 > [`project-file-format.md`](project-file-format.md) → Implemented / Deferred.
 
 ## M7 — Multi-window + polish + packaging ✅
@@ -1118,9 +1119,10 @@ milestone over M16–M20, not another analyzer.
 - **Tests.** Summary for every result variant (including empty/silent), compact golden
   fixtures, catalog title/annotation coverage, `get_analyzer`, CLI modes, and an
   agent/CLI end-to-end sequence.
-- **Deferred.** Per-tool `outputSchema`, a configurable preview length, "did you mean?"
-  suggestions, and a structured-event contract for long runs: one ledger,
-  [`deferred.md`](deferred.md) (D-31, D-09, D-10, D-32).
+- **Deferred.** Per-tool `outputSchema` and a structured-event contract for long runs:
+  one ledger, [`deferred.md`](deferred.md) (D-31, D-32). The preview length is now a
+  request field (`previewRecords`, D-09), and an unknown id/option suggests the nearest
+  catalog name (D-10).
 
 > **Scope:** M16 owns the generic option mechanism; M17–M20 own their analyzer's catalog
 > entries; **M21 owns the shared summary/compact/annotation contract**. It depends on M16
@@ -1383,11 +1385,14 @@ comparison rework carries the container bump.
 > side, file `v3` + `v2→v3` convert). Colour maths runs through **color2k**. E2E coverage
 > lives in `g-timeline`, `q-transport`, `r2-compare` and `r2b-compare-relative`.
 >
+> **Delivered after the first pass (M23 polish):** the hover time/sample readout and the
+> wider handles; numeric window fields, window history and annotation stepping; the
+> canvas context menu; opt-in snapping; return-to-start and follow-playhead; the
+> paused/idle playhead clamp; and keyboard/ARIA accessibility for the canvas.
+>
 > **Not shipped (see [`deferred.md`](deferred.md)):** stored **fragment audio** for saved
-> references (v3
-> snapshots stay result-only on their own grid), a separate reference-fragment timeline
-> strip (the reference window is still a band on time charts), canvas autofocus/flash,
-> Return-to-start/`Home`, and a follow-playhead toggle.
+> references (v3 snapshots stay result-only on their own grid), and automatic
+> focus/flash on a reframe (the canvas itself is focusable).
 
 ### Parallel channel lanes
 
@@ -1434,9 +1439,10 @@ comparison rework carries the container bump.
   menu, the Timeline edge-drag release (fold in `maybeAutoZoom`), MCP `set_window` (frame
   without stealing focus), and project load / template window policy. Ordinary **moves**
   with the top handle do not re-frame: the user is already looking at the window.
-- **Autofocus (deferred).** Making the Timeline canvas focusable (`tabindex=0`) and
-  flashing its focus ring on a reframe is not shipped. ADR-19 is unchanged either way:
-  selecting an annotation still never moves the window; only Analyze reframes it.
+- **Focus.** The canvas is focusable and keyboard-operable, with a polite live region for
+  window/playhead moves (D-14); automatically focusing it (and flashing the ring) on a
+  reframe is not shipped. ADR-19 is unchanged either way: selecting an annotation still
+  never moves the window; only Analyze reframes it.
 - **Selection gesture.** The primary-button drag of *Window readout, pan and select* above
   is the selection gesture (it was `Shift`+drag in an earlier plan; the primary button now
   selects and the middle button pans, so no modifier is needed). A plain ruler click is
@@ -1451,8 +1457,9 @@ comparison rework carries the container bump.
 - **Frontend `transport` store.** State: `status` (`idle` / `playing` / `paused`),
   `position` (source seconds), `region`, `loop`, `speed`. **Play/Pause** is the primary
   action; **Stop** silences but leaves the line at its current position. Play resumes from
-  the position when it is inside the window, else from the window start. (A Return-to-
-  start/`Home` action is deferred.)
+  the position when it is inside the window, else from the window start. **Return to
+  start** puts the playhead at source 0 as a toolbar action (D-02); the global `Home`
+  binding lands with M24.
 - **The position is authoritative in the core.** Poll `preview_position` at ~10–15 Hz and
   interpolate locally for 60 fps drawing (no drift, still smooth). The playhead stays
   visible while paused/idle (dimmed when paused) and rides the chart bus as
@@ -1460,13 +1467,15 @@ comparison rework carries the container bump.
 - **Seek.** A click in the ruler sets the position; a middle-button drag pans the
   waveform, while a left drag (in the ruler or the body) selects a window — see Phase 1.
 - **Loop / follow.** A loop toggle (default on, window-following); off plays to the
-  window end and stops, leaving the playhead there. A *follow playhead* toggle is
-  deferred.
+  window end and stops, leaving the playhead there. **Follow playhead** (D-03) pages the
+  view when a playing playhead leaves it; the `F` binding lands with M24.
 - **Window vs. playhead.** While playing, the loop follows the window (one reload at the
   settle, resumed at the equivalent position when the playhead is inside it, else from the
-  window start). Clamping a paused/idle playhead into a moved window is deferred.
-- **Toolbar.** Play/pause + stop + loop + position/duration readout, keeping speed. The
-  output meter follows `status`.
+  window start). A paused/idle playhead is clamped into a moved window (D-04): a paused
+  region adopts the new window and reloads on resume.
+- **Toolbar.** Return to start, play/pause, stop, loop, follow playhead, the
+  position/duration readout, window-history arrows, the numeric window popover and speed.
+  The output meter follows `status`.
 - **Cross-window.** The transport is per project, not per webview: control and position
   should be read from the same core state (or mirrored through `uiState`), so a popout's
   playhead agrees. Mark the full cross-window control surface as a stretch.
@@ -1545,9 +1554,9 @@ equality check). This rework separates them and drops the gate.
 - **Compare across channels.** A side carries a channel, so two sides of the **same**
   project/window with different channels (e.g. L vs R) are an ordinary pair — no new path.
 - **Reference window on the chart.** The reference's pinned `[start,end]` is drawn as a
-  band on the time-axis compare charts, and a live reference's playhead shows too. A
-  dedicated reference-fragment timeline **strip** (reusing the Phase-1 lane strip) is
-  **deferred**; absolute time stays on that band while the chart itself is relative.
+  band on the time-axis compare charts, and a live reference's playhead shows too. The
+  reference-fragment timeline **strip** (reusing the Phase-1 lane strip) labels that band
+  in the reference's absolute seconds while the chart itself stays relative.
 - **Toolbar button.** `AnalyzerTab`'s `analyzer-actions` gains a **Compare** popover (next
   to Export / About / Params) that opens a **new** compare tab: pick a reference project →
   window → channel. The tab-menu and **Analysis → Compare with…** entry points remain, now
@@ -1584,18 +1593,18 @@ equality check). This rework separates them and drops the gate.
 > Amends ADR-26 (drops Swap, keeps the optional δ); supersedes ADR-27's one-snapshot-per-
 > project shape; removes the comparability gate in `comparison.md`. See ADR-34.
 
-**Deferred:** the remaining timeline-precision, transport, accessibility and
-reference-strip work is phase 1–2 of [`deferred.md`](deferred.md) (D-01 – D-15); waveform
-editing, spectral selection, multi-range selection and per-selection analysis are
-**cancelled** (ADR-35), and fragment-audio re-gridding is D-23.
+**Deferred:** waveform editing, spectral selection, multi-range selection
+and per-selection analysis are **cancelled** (ADR-35), and fragment-audio re-gridding is
+D-23.
 
 **Files:** `src-tauri/src/audio/playback/{mod,stream}.rs`,
-`src-tauri/src/commands/playback.rs`, `src/audio/preview.ts`,
-`src/components/timeline/{preview,interaction,draw,constants,selection,zoom,colors}.ts`,
-`src/components/timeline/{TimelineToolbar,ChannelRail}.tsx`, `src/components/Timeline.tsx`,
-`src/lib/waveform.ts` (per-channel pyramids), `src/state/timeline.ts`,
-`src/state/analysis.ts` (the channel rail), `src/state/annotations/select.ts`,
-`src/components/analyzer/ReframeMenu.tsx`, `src/components/annotations/lane.ts`,
+`src-tauri/src/commands/playback.rs`, `src/audio/{preview,previewFollow,previewPosition,transportFollow}.ts`,
+`src/components/timeline/{preview,interaction,draw,hover,constants,selection,snapping,zoom,colors,announce,accessibility}.ts`,
+`src/components/timeline/{TimelineToolbar,TimelineContextMenu,WindowEditPopover,WindowFields,ChannelRail}.tsx`,
+`src/components/Timeline.tsx`, `src/lib/waveform.ts` (per-channel pyramids),
+`src/state/{timeline,windowHistory}.ts`, `src/state/analysis.ts` (the channel rail),
+`src/state/annotations/select.ts`, `src/components/analyzer/ReframeMenu.tsx`,
+`src/components/annotations/lane.ts`,
 `src/components/analyzer/{uplotZoom.ts,chartInteraction.ts,AnalyzerTab.tsx}`,
 `src/lib/wheelGesture.ts`, `src/state/uiState.ts`;
 **Phase 3:** `src-tauri/src/audio/analysis/compare/{mod,align,diff,saved}.rs`,

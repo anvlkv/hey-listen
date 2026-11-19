@@ -380,14 +380,26 @@ thread); analysis runs in Rust.
 - Rust: `run_analysis` is an async command on `tauri::async_runtime`; the
   CPU-bound oxiaudio work is wrapped in `spawn_blocking` so it runs on the
   blocking pool, leaving the async workers free for capture/decode.
-- Results return via the invoke promise; long runs stream progress via a
-  `Channel`.
+- Results return via the invoke promise; a run streams **stage progress** back
+  through a `Channel` (`slicing` → `conditioning` → `analysing` → `shaping` → `done`)
+  and can be stopped mid-run.
 
-> **Implemented (M4):** the frontend (`state/analyzer/`) debounces auto-run on
+> **Implemented (M4, D-21):** the frontend (`state/analyzer/`) debounces auto-run on
 > the source / window / shared params / filter, and keeps results latest-wins with
-> a per-tool generation counter. Progress streaming and core-side mid-run
-> cancellation were never implemented; they are tracked in [`deferred.md`](deferred.md)
-> as D-21.
+> a per-tool generation counter. Each run now carries a transient `requestId`, so a
+> superseded run is **cancelled in the core** instead of only ignored, and the tab
+> shows the phase and a Cancel button while it runs.
+>
+> Cancellation is **cooperative and honest**: the token is checked between stages
+> (slice, mixdown, filter, resample) and inside the frame loops the engine owns
+> (`frame_rms` every 256 frames, the pitch tracks and note-quality proxies around
+> their bulk calls). A single bulk `oxiaudio` call cannot be interrupted, so it
+> finishes and its result is discarded. Cancelling is not an error: the core returns
+> `Cancelled`, the frontend keeps the last good result, and nothing is logged as a
+> failure.
+>
+> The headless MCP/CLI paths call `run_window`, the same entry point with an inert
+> token and a no-op reporter, so they stay synchronous.
 
 **Trigger policy:**
 
@@ -402,8 +414,9 @@ thread); analysis runs in Rust.
 **Superseding & cancellation:**
 
 - Each tool carries a generation counter; a new request bumps it and invalidates
-  in-flight results (latest-wins). Long analyses check the counter between
-  blocks to abort early.
+  in-flight results (latest-wins). The superseded run's `requestId` is also sent to
+  `cancel_analysis`, so the core stops it at its next check instead of burning CPU
+  for a result nobody reads (D-21).
 - Results are cached keyed by the source identity, window, shared params, per-tool
   options and the applied filter (`state/analyzer/cache.ts`), so an unchanged tool is
   not recomputed; the same cache is the `RESULTS` section of a saved project.

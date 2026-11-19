@@ -1,5 +1,5 @@
 import type { NodeKindDef } from "../types";
-import { freqParam, gainParam, Q_PARAM } from "../params";
+import { freqParam, gainParam, Q_PARAM, secondsParam } from "../params";
 
 /** Node kinds: processor. */
 export const FILTERS: NodeKindDef[] = [
@@ -224,6 +224,37 @@ export const FILTERS: NodeKindDef[] = [
     outputs: 1,
     params: [{ key: "time", label: "Time", default: 0.25, min: 0, max: 2, step: 0.01, unit: "s" }],
     hint: "Delays the signal by a fixed time.",
+  },
+  // Extra shaping: clipping, a click-free start and a tunable DC blocker.
+  {
+    kind: "clip_to",
+    label: "Clip",
+    category: "processor",
+    inputs: 1,
+    outputs: 1,
+    params: [
+      { key: "min", label: "Min", default: -1, min: -1, max: 1, step: 0.01 },
+      { key: "max", label: "Max", default: 1, min: -1, max: 1, step: 0.01 },
+    ],
+    hint: "Clamps the signal between a minimum and a maximum level.",
+  },
+  {
+    kind: "declick",
+    label: "Declick",
+    category: "processor",
+    inputs: 1,
+    outputs: 1,
+    params: [secondsParam("time", "Time", 0.01, 0.001, 0.1)],
+    hint: "Fades the signal in over the given time, avoiding a click at the start.",
+  },
+  {
+    kind: "dcblock_hz",
+    label: "DC block (Hz)",
+    category: "processor",
+    inputs: 1,
+    outputs: 1,
+    params: [{ key: "cutoff", label: "Cutoff", default: 5, min: 1, max: 100, step: 1, unit: "Hz" }],
+    hint: "Removes DC offset below the given cutoff with a one-pole high-pass.",
   },
   // Stereo: mono→stereo panning and 2-channel processing (join back before Output).
   {

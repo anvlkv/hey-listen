@@ -10,8 +10,9 @@ use serde_json::Value;
 
 use crate::audio::analysis::{
     canonical_option_key, Axis, Shape, SharedParams, ToolOptions, WindowKind,
+    DEFAULT_PREVIEW_RECORDS, MAX_PREVIEW_RECORDS,
 };
-use crate::audio::analyzers::{AnalyzerId, ToolId};
+use crate::audio::analyzers::{nearest, unknown_analyzer, unknown_tool, AnalyzerId, ToolId};
 
 /// The default shared params, matching the frontend's initial store values
 /// (`src/state/analysis.ts`): 2048-point Hann, 75% overlap, no resample, full band.
@@ -88,14 +89,14 @@ fn number_in(value: &Value, key: &str, min: f64, max: f64) -> Result<f64, String
 }
 
 /// Read a required analyzer id from a tool's arguments (parsed once, here).
+///
+/// An unknown id names the nearest declared one, so a typo is a one-token fix.
 pub(super) fn analyzer(args: &Value, key: &str) -> Result<AnalyzerId, String> {
     let value = args
         .get(key)
         .and_then(Value::as_str)
         .ok_or_else(|| format!("`{key}` is required"))?;
-    value
-        .parse()
-        .map_err(|_| format!("unknown analyzer: {value}"))
+    value.parse().map_err(|_| unknown_analyzer(value))
 }
 
 /// Read a required Workbench tool id: an analyzer id, `filter`, or `synth`.
@@ -104,7 +105,7 @@ pub(super) fn tool_id(args: &Value) -> Result<ToolId, String> {
         .get("tool")
         .and_then(Value::as_str)
         .ok_or("`tool` is required")?;
-    value.parse().map_err(|_| format!("unknown tool: {value}"))
+    value.parse().map_err(|_| unknown_tool(value))
 }
 
 /// Merge per-tool option overrides into `entry`, **validating** them against the tool's
@@ -139,8 +140,7 @@ fn apply_options(
     validate: bool,
 ) -> Result<(), String> {
     for (key, value) in options {
-        let canonical =
-            canonical_option_key(key).ok_or_else(|| format!("unknown option for {tool}: {key}"))?;
+        let canonical = canonical_option_key(key).ok_or_else(|| unknown_option(tool, key))?;
         let number = value
             .as_f64()
             .ok_or_else(|| format!("option {canonical} for {tool} must be a number"))?;
@@ -177,10 +177,21 @@ fn apply_options(
             "topPeaks" => entry.top_peaks = Some(number.max(0.0) as usize),
             "scale" => entry.scale = Some(number.max(0.0) as usize),
             "calibrationDbSpl" => entry.calibration_db_spl = Some(number as f32),
-            other => return Err(format!("unknown option for {tool}: {other}")),
+            "perNote" => entry.per_note = Some(number as f32),
+            other => return Err(unknown_option(tool, other)),
         }
     }
     Ok(())
+}
+
+/// The agent-facing error for an option key the tool does not declare, naming the
+/// nearest declared key when the input is a near miss of one.
+fn unknown_option(tool: AnalyzerId, key: &str) -> String {
+    let declared = crate::audio::analyzers::option_defaults(tool);
+    crate::audio::analyzers::hint(
+        format!("unknown option for {tool}: {key}"),
+        nearest(key, declared.keys().map(String::as_str)),
+    )
 }
 
 /// Read a required finite number from a tool's arguments.
@@ -280,8 +291,19 @@ pub(super) fn effective_window(
     (clamp_span(start, end, duration), explicit)
 }
 
-/// The requested result shape, its point cap, and the axis spelling.
-pub(super) fn output_mode(args: &Value) -> Result<(Shape, Option<usize>, Axis), String> {
+/// How a call wants its result shaped: the shape itself, the point cap, the time-axis
+/// spelling, and — for a compact result — how many records each event/note/object list
+/// preview keeps.
+#[derive(Debug)]
+pub(super) struct OutputMode {
+    pub shape: Shape,
+    pub max_points: Option<usize>,
+    pub axis: Axis,
+    pub preview_records: usize,
+}
+
+/// The requested result shape, its point cap, the axis spelling, and the preview length.
+pub(super) fn output_mode(args: &Value) -> Result<OutputMode, String> {
     let summary_only = args
         .get("summaryOnly")
         .and_then(Value::as_bool)
@@ -313,10 +335,33 @@ pub(super) fn output_mode(args: &Value) -> Result<(Shape, Option<usize>, Axis), 
         Some(_) => return Err("`maxPoints` requires `includeData: true`".to_string()),
         None => None,
     };
+    // The preview length bounds the compact object lists only, so it is meaningless in
+    // the two modes that carry no compact result — rejected rather than silently dropped.
+    let preview_records = match args.get("previewRecords") {
+        Some(_) if shape != Shape::Compact => {
+            return Err(
+                "`previewRecords` requires the compact result — omit `includeData` and \
+                 `summaryOnly`"
+                    .to_string(),
+            )
+        }
+        Some(value) => value
+            .as_u64()
+            .filter(|records| (1..=MAX_PREVIEW_RECORDS as u64).contains(records))
+            .ok_or_else(|| {
+                format!("`previewRecords` must be an integer between 1 and {MAX_PREVIEW_RECORDS}")
+            })? as usize,
+        None => DEFAULT_PREVIEW_RECORDS,
+    };
     // Full results can spell uniform time axes compactly; the default keeps arrays.
     let axis = match args.get("axis").and_then(Value::as_str) {
         Some("compact") => Axis::Compact,
         _ => Axis::Array,
     };
-    Ok((shape, max_points, axis))
+    Ok(OutputMode {
+        shape,
+        max_points,
+        axis,
+        preview_records,
+    })
 }

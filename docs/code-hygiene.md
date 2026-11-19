@@ -150,11 +150,14 @@ prettier, eslint, knip and the length budget. Never hand-edit it and never forma
 it — regenerate it. The same goes for the vendored Font Awesome files under
 `public/fonts/`, whose licence comments must stay verbatim.
 
-Run that `cargo test` **from `src-tauri/`**. The export directory comes from
-`src-tauri/.cargo/config.toml` (`TS_RS_EXPORT_DIR = ../src/bindings`), and Cargo only
-picks up a `.cargo/config.toml` on the way *up* from the working directory — so
-`cargo test --manifest-path src-tauri/Cargo.toml` run from the repo root misses it and
-dumps a stray `src-tauri/bindings/` instead of refreshing the real one.
+The export directory comes from the **repo-root** `.cargo/config.toml`
+(`TS_RS_EXPORT_DIR = src/bindings`, relative to the config's parent). One config at the
+root is load-bearing: Cargo only discovers a `.cargo/config.toml` on the way *up* from
+the working directory, so a crate-local file was missed by
+`cargo test --manifest-path src-tauri/Cargo.toml` run from the repo root, and ts-rs fell
+back to its default `src-tauri/bindings/`. With the root config, both that form and
+`cargo test` run inside `src-tauri/` refresh the real tree. A stray
+`src-tauri/bindings/` is never source — delete it and rerun.
 
 ## Deliberately not enforced (yet)
 

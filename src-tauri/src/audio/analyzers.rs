@@ -60,10 +60,12 @@ mod catalog;
 mod family;
 mod id;
 mod options;
+mod suggest;
 
 #[allow(unused_imports)]
 pub use family::{about, family_of, Family};
 pub use id::{AnalyzerId, ToolId};
+pub use suggest::{hint, nearest, unknown_analyzer, unknown_tool};
 
 use std::sync::LazyLock;
 

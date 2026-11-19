@@ -18,7 +18,8 @@
 }
 
 .graph-btn,
-.timeline-btn {
+.timeline-btn,
+.analyzer-cancel {
   height: 24px;
   padding: 0 10px;
   font: inherit;

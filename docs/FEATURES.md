@@ -19,7 +19,7 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 ## Shape sound — available
 
 - **Filter before measuring.** Wire a filter graph, bypass or enable it, hear the result in preview, and compare the processed waveform with the original. The active filter feeds every analyzer. [Graph editor](graph-editor.md) · [Analysis tools](analysis-tools.md)
-- **Build graphs visually.** Search the node palette, place nodes by click or drag, insert them on a connection, wire labeled ports, adjust parameters, zoom, and use the minimap. The palette covers generators, routing, math, filters, dynamics, modulation, reverb, and control; the exact node inventory lives in [Graph editor](graph-editor.md). [Graph editor](graph-editor.md)
+- **Build graphs visually.** Search the node palette, place nodes by click or drag, insert them on a connection, wire labeled ports, adjust parameters inline or in the docked inspector (with per-parameter reset and session-scoped presets per node kind), zoom, and use the minimap. The palette covers generators, routing, math, filters, dynamics, modulation, reverb, and control; the exact node inventory lives in [Graph editor](graph-editor.md). [Graph editor](graph-editor.md)
 
 ## Analyze what changed — available
 
@@ -27,17 +27,18 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 - **Keep measurements comparable.** Set shared FFT, overlap, window function, channel, resampling, and frequency-range controls; tune each analyzer's own options separately. Charts offer cursor readouts and appropriate scales or overlays. [Analysis tools](analysis-tools.md)
 - **See time and level.** Inspect waveform, peak and RMS levels, or a fine-resolution frame-RMS envelope. Frame RMS tracks short changes in amplitude; it is not programme loudness. [Analysis tools](analysis-tools.md) · [Analysis metrics](analysis-metrics.md)
 - **See frequency and timbre.** Use spectrum and time-frequency maps, perceptual or musical feature maps, and descriptors for spectral balance, change, concentration, noisiness, periodicity, and zero crossings. The [tool inventory](analysis-tools.md#tool-inventory-oxiaudio) names each analyzer. [Analysis tools](analysis-tools.md)
-- **Follow pitch and modulation.** Track fundamental frequency with pYIN, YIN, or autocorrelation; bound the pitch range and inspect voiced-frame reliability. Examine amplitude- and frequency-modulation rates and depth. [Analysis metrics](analysis-metrics.md)
+- **Follow pitch and modulation.** Track fundamental frequency with pYIN, YIN, or autocorrelation; bound the pitch range and inspect voiced-frame reliability. Examine amplitude- and frequency-modulation rates and depth, for the whole window or per detected note. [Analysis metrics](analysis-metrics.md)
 - **Find notes, gaps, and syllables.** Segment gated audio into musical note spans and gaps; inspect duration, level, envelope, voiced share, and pitch per segment. Group nearby spans into syllables and examine jitter, shimmer, and periodicity **proxies**, not clinical diagnoses. [Analysis metrics](analysis-metrics.md)
 - **Find timing.** Inspect tempo, onset strength and detected onsets or downbeats. Onsets are not gated note boundaries. [Analysis tools](analysis-tools.md) · [Analysis metrics](analysis-metrics.md)
 - **Measure programme loudness.** Inspect integrated and momentary/windowed LUFS and loudness range (EBU R128). Use frame RMS instead for very short amplitude events. [Analysis tools](analysis-tools.md)
 - **Explore perception.** Inspect critical-band energy, modelled loudness in sones/phons and its frequency distribution, sharpness, roughness, fluctuation strength, masking, tonality, and stereo spatial cues. Add equal-loudness contours to a spectrum or spectrogram. Models and proxies are labelled; SPL-based interpretation needs calibration. [Psychoacoustics](analysis-psychoacoustics.md) · [Roadmap M26–M31](roadmap.md#m26m31--psychoacoustic-analysis-)
+- **Keep long analyses under control.** A running analyzer shows its stage and a percentage, and **Cancel** stops it; a run superseded by a new window or settings is cancelled in the core instead of quietly finishing. Cancellation is cooperative, so a single bulk decoder call finishes and is discarded. [Architecture](architecture.md#analysis-execution-model)
 
 ## Keep the evidence — available
 
 - **Annotate a moment or span.** Add a point or range from the Timeline, a chart, or the playhead. Write Markdown and, for a chart annotation, retain a frozen values/settings snapshot even after analysis settings change. [Annotations](annotations.md)
 - **Review without moving the window.** Select an annotation to locate it across charts, edit or discard changes in the Annotations rail, or open it in a separate window. Choose **Analyze** when you want to move the analysis window to that mark. [Annotations](annotations.md)
-- **Compare projects, not tracks.** Run the same analyzer on two independent projects with their own windows, filters, and options — one pair per tab, several tabs per tool. Align by relative time, fine-tune the reference offset, and inspect overlays and deltas, always diffed on the owner's grid (the reference is re-analysed on it). [Comparison](comparison.md)
+- **Compare projects, not tracks.** Run the same analyzer on two independent projects with their own windows, filters, and options — one pair per tab, several tabs per tool. Align by relative time, fine-tune the reference offset, and inspect overlays and deltas, always diffed on the owner's grid (the reference is re-analysed on it). A labelled strip names the reference window in its own absolute time. [Comparison](comparison.md)
 - **Return to a comparison.** Compare live windows or a saved reference snapshot, pop out a compare view, and save the last successful comparison in the owner project for later review without the reference window open. [Comparison](comparison.md)
 - **Export the evidence.** Save analyzer data as provenance-bearing JSON or CSV (with metadata sidecar), copy CSV, export every open analysis, or capture the rendered chart as PNG with its visible theme and zoom. PNG needs the app; data export also works headlessly. [Exports](exports.md)
 
@@ -63,6 +64,12 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 
 ### Proposed or drafted
 
-- **Further Timeline precision (planned, phased).** Hover time/sample readouts, a context menu, snapping, typed window bounds, easier handles, navigation history, accessibility, and Return-to-start/follow-playhead are planned in phases; see [Deferred work](deferred.md). Waveform editing, spectral selection, and multi-range selection are **not planned** ([ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)). [Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-)
+- **Remaining Timeline work (planned).** Fragment-audio re-gridding for saved comparisons
+  is [D-23](deferred.md). Hover
+  readouts, the context menu, snapping, typed window bounds, wider handles, window and
+  annotation navigation, accessibility, Return-to-start and follow-playhead are
+  **available** ([Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-)).
+  Waveform editing, spectral selection, and multi-range selection are **not planned**
+  ([ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)).
 - **In-app help and onboarding (M34 draft).** Contextual help for analyzers, graphs, and projects, plus a getting-started path and clearer documentation entry points; surfaces and content are still TBD. [Roadmap M34](roadmap.md#m34--improved-documentation-and-help-drafted)
 - **Landing-page rework (M35 draft).** A clearer public explanation of the open → filter → analyze → annotate → compare workflow; site structure and copy remain TBD. This is a communications plan, not a new analysis capability. [Roadmap M35](roadmap.md#m35--landing-page-rework--remotion-workflow-video-drafted)

@@ -24,7 +24,9 @@ export const MODULATION_ANALYZERS: AnalyzerDef[] = [
       "than silently aliased; the FM half is blank when no run is long enough. The FM " +
       "half also needs a *non-staircase* cents track: a run that visits only a few " +
       "quantized levels reports `fmReliable: 0` and no FM rate, instead of inventing a " +
-      "vibrato. A steady run is reliable and simply reports no rate.",
+      "vibrato. A steady run is reliable and simply reports no rate.\n\n" +
+      "**Per note.** Turn on **Per note** to run the same measurement over each detected " +
+      "note segment and list its own AM rate, depth and FM rate beside the window result.",
     keywords: [
       "modulation",
       "am",
@@ -165,6 +167,14 @@ export const MODULATION_ANALYZERS: AnalyzerDef[] = [
         step: 50,
         suffix: "Hz",
         title: "Highest expected fundamental for the FM track.",
+      },
+      {
+        key: "perNote",
+        label: "Per note",
+        kind: "toggle",
+        value: 0,
+        title:
+          "Measure each detected note separately and list its own AM rate, depth and FM rate beneath the window spectra.",
       },
     ],
   },

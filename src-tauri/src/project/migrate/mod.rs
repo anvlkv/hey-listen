@@ -36,6 +36,40 @@ use crate::state::SourceData;
 mod v1;
 mod v2;
 mod v3;
+mod v4;
+mod v5;
+
+/// Convert a frozen `SavedComparisonVn` into today's [`SavedComparison`].
+///
+/// Every step that freezes a snapshot beside the *result* field writes the same field
+/// list, so the conversion lives here **once**: a step names its frozen type and the
+/// macro expands the `From` impl.
+macro_rules! frozen_saved_comparison {
+    ($frozen:ty) => {
+        impl From<$frozen> for $crate::audio::analysis::compare::SavedComparison {
+            fn from(old: $frozen) -> Self {
+                Self {
+                    tool: old.tool,
+                    reference_name: old.reference_name,
+                    source: old.source,
+                    window: old.window,
+                    params: old.params,
+                    options: old.options,
+                    filter_fingerprint: old.filter_fingerprint,
+                    b_offset: old.b_offset,
+                    saved_ms: old.saved_ms,
+                    result: old.result.into(),
+                    reference_path: old.reference_path,
+                    id: old.id,
+                    owner_window: old.owner_window,
+                    owner_channel: old.owner_channel,
+                }
+            }
+        }
+    };
+}
+
+pub(super) use frozen_saved_comparison;
 
 #[cfg(test)]
 mod tests;
@@ -132,7 +166,8 @@ pub(crate) struct Step {
 /// `tests::the_step_table_covers_every_hop` fails whenever a bump is not followed by its
 /// step here. `v1` is the `COMPARE` snapshot layout change (`referencePath`); `v2` gives
 /// a snapshot its pair id and pinned owner side; `v3` appends `gate` / `bandLabels` to the
-/// stored comparison result.
+/// stored comparison result; `v4` appends the annotation `summary`; `v5` drops the
+/// analysis output that nests the changed `ModulationResult` (D-18).
 const STEPS: &[Step] = &[
     Step {
         from: 1,
@@ -145,6 +180,14 @@ const STEPS: &[Step] = &[
     Step {
         from: 3,
         apply: v3::from_v3_to_v4,
+    },
+    Step {
+        from: 4,
+        apply: v4::from_v4_to_v5,
+    },
+    Step {
+        from: 5,
+        apply: v5::from_v5_to_v6,
     },
 ];
 

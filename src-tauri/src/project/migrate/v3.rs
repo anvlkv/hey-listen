@@ -19,7 +19,7 @@ use crate::audio::analysis::{
 use crate::audio::analyzers::AnalyzerId;
 use crate::project::ProjectError;
 
-use super::Sections;
+use super::{frozen_saved_comparison, Sections};
 
 /// The first sixteen [`StoredMatrix`] fields version 3 wrote.
 type MatrixFieldsV3 = (
@@ -210,26 +210,7 @@ pub(super) struct SavedComparisonV3 {
     pub owner_channel: Option<usize>,
 }
 
-impl From<SavedComparisonV3> for SavedComparison {
-    fn from(old: SavedComparisonV3) -> Self {
-        Self {
-            tool: old.tool,
-            reference_name: old.reference_name,
-            source: old.source,
-            window: old.window,
-            params: old.params,
-            options: old.options,
-            filter_fingerprint: old.filter_fingerprint,
-            b_offset: old.b_offset,
-            saved_ms: old.saved_ms,
-            result: old.result.into(),
-            reference_path: old.reference_path,
-            id: old.id,
-            owner_window: old.owner_window,
-            owner_channel: old.owner_channel,
-        }
-    }
-}
+frozen_saved_comparison!(SavedComparisonV3);
 
 /// Rewrite a version-3 `COMPARE` payload in the version-4 layout.
 pub(super) fn from_v3_to_v4(sections: &mut Sections) -> Result<(), ProjectError> {

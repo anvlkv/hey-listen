@@ -48,6 +48,12 @@ export const ICON_GLYPHS = {
   "angle-right": "f105",
   "chevron-down": "f078",
   "chevron-up": "f077",
+  // Timeline window: the numeric-edit trigger and its history pair (D-05). The history
+  // arrows are deliberately *not* chevrons — the trigger is a chevron, so a row of three
+  // chevrons read as one control.
+  "pen-to-square": "f044",
+  "arrow-left": "f060",
+  "arrow-right": "f061",
   pencil: "f303",
   "arrows-left-right-to-line": "e4ba",
   "arrow-up-right-from-square": "f08e",

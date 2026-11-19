@@ -91,12 +91,27 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
   compact label + radio rail on the left, and a **Downmix** toggle (2+ channels only),
   replacing the toolbar dropdown. A middle-button drag pans; a left drag selects a new
   window like selecting text; the window's move bar shows its `Δ` duration.
+- **Pointer readout**: with no gesture active and the pointer above the annotation lane,
+  a dashed rule follows it and a chip in the move-bar band reads `m:ss.mmm · #sample`.
+  The start/end grab tabs and their hit distance share one width constant.
+- **Context menu** (right-click on the canvas): set the window start/end at the pointer,
+  add a Timeline annotation there, restore the whole-source window, zoom/fit, and toggle
+  **snapping**. Snapping is **off by default**; when on, a gesture snaps to the playhead,
+  window edges, annotation anchors/edges, `0`/the source end, or the ruler-grid step within
+  8 px, and a moved window keeps its width.
+- **Numeric window fields** in the toolbar's Window popover, and a **window history** ring
+  with Previous/Next buttons (a drag or a typed value contributes one settled entry).
+  Both commit through `reframeWindow`, so typing, dragging and history restore agree.
 - A **comparison** is one pair of windows per tab, aligned relatively and diffed on the
   owner's grid (windows stay pinned; the reference window is shown as a band on the time
   charts) — see [`roadmap.md`](roadmap.md) → M23, Phase 3.
 - The transport is **play/pause** with a seekable playhead that persists when paused or
   stopped; a ruler **click** seeks (a ruler **drag** selects a window) and loop is a
-  toggle.
+  toggle. **Return to start** (source 0) and **follow playhead** (page the view while
+  playing) are toolbar actions; a paused/idle line is clamped into a moved window.
+- The canvas is **focusable**, with a visible focus ring, hidden keyboard help and a polite
+  live region announcing window/playhead moves; its arrow/`Home`/`End`/
+  `PageUp`/`PageDown` keys are canvas-local until M24's registry owns them.
 - **Wheel/trackpad** handling is normalized and gesture-based: a vertical wheel zooms at
   the cursor (pinch / `⌘`/Ctrl+wheel too), a horizontal wheel or `Shift` + vertical pans
   (time, plus frequency on 2-D views), and a horizontal gesture never zooms. No vertical

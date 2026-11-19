@@ -8,6 +8,7 @@ import { mirrorCursor, syncView } from "./syncPlugins";
 import { FREQ_AXIS_SPACE, X_AXIS_SIZE, Y_AXIS_SIZE, Y_AXIS_SPACE } from "./axisFormat";
 import { chartAxisStyle, NoAudioState, UplotChartPlot } from "./chartCommon";
 import ChartLegend from "./chartLegend";
+import ModulationNotes from "./ModulationNotes";
 import { verticalMarks, verticalRegions, type VerticalMark } from "./verticalMarkers";
 import {
   formatRate,
@@ -56,6 +57,7 @@ function peakMarksOf(peaks: { rateHz: number }[], color: string, dash: number[])
  * The AM series is the frame-RMS envelope's spectrum; the FM series is the longest
  * voiced run's pitch residual in cents. An absent FM run (no long enough voiced
  * stretch) leaves the FM series empty rather than drawing a misleading flat line.
+ * With **Per note** on, the same readouts are listed per detected note below the strip.
  */
 export default function ModulationView(props: {
   id: AnalyzerId;
@@ -163,6 +165,10 @@ export default function ModulationView(props: {
               title="The modulation rates actually analysed after the anti-alias clamp"
             />
           </div>
+
+          <Show when={value().notes.length > 0}>
+            <ModulationNotes notes={value().notes} />
+          </Show>
 
           <ChartLegend
             entries={[

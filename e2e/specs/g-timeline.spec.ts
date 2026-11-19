@@ -124,8 +124,17 @@ describe("G. Timeline", () => {
     await waitFor(async () => (await span()) > 0, "the spectrogram showed no zoom readout");
     const full = await span();
 
-    for (let i = 0; i < 3; i++) await wheelOver(`${chart} canvas`, -240, true);
-    await waitFor(async () => (await span()) < full, "the spectrogram never zoomed in");
+    // Re-dispatch the gesture until the span shrinks: a synthetic wheel can be lost while the
+    // WebView is busy, and the chart's own re-fit can land after the wheels. The loop stops on
+    // the first shrink, so a lost event costs a retry, not the case — and it can never
+    // over-zoom past what the assertion needs.
+    await browser.waitUntil(
+      async () => {
+        await wheelOver(`${chart} canvas`, -240, true);
+        return (await span()) < full;
+      },
+      { timeout: 30_000, interval: 500, timeoutMsg: "the spectrogram never zoomed in" },
+    );
 
     // Move the analysis window: the chart must re-fit to the *whole new* window, not
     // keep the stale zoom. Wait for the re-run to render (the visible range now equals
@@ -134,14 +143,18 @@ describe("G. Timeline", () => {
     await dragTimelineHandle("start", 140);
     const moved = timelineWindow(await timelineReadout());
     expect(moved).not.toBeNull();
-    await waitFor(async () => {
-      const range = readoutWindow(await readout());
-      return (
-        range != null &&
-        Math.abs(range[0] - moved![0]) < 0.02 &&
-        Math.abs(range[1] - moved![1]) < 0.02
-      );
-    }, "the chart did not re-fit to the moved window");
+    await waitFor(
+      async () => {
+        const range = readoutWindow(await readout());
+        return (
+          range != null &&
+          Math.abs(range[0] - moved![0]) < 0.02 &&
+          Math.abs(range[1] - moved![1]) < 0.02
+        );
+      },
+      "the chart did not re-fit to the moved window",
+      30_000,
+    );
 
     // What it shows is the whole *new* window — the same range the Fit control gives.
     const refit = await span();
@@ -149,6 +162,7 @@ describe("G. Timeline", () => {
     await waitFor(
       async () => Math.abs((await span()) - refit) < 0.002,
       "Fit disagrees with the re-fit after the window moved",
+      30_000,
     );
   });
 

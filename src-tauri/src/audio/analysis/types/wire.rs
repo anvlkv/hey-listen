@@ -71,6 +71,8 @@ struct ToolOptionsWire {
     scale: Option<usize>,
     #[serde(default, alias = "calibration_db_spl")]
     calibration_db_spl: Option<f32>,
+    #[serde(default, alias = "per_note")]
+    per_note: Option<f32>,
 }
 
 impl From<ToolOptionsWire> for ToolOptions {
@@ -105,6 +107,7 @@ impl From<ToolOptionsWire> for ToolOptions {
             top_peaks: wire.top_peaks,
             scale: wire.scale,
             calibration_db_spl: wire.calibration_db_spl,
+            per_note: wire.per_note,
         }
     }
 }
@@ -152,6 +155,7 @@ pub fn canonical_option_key(key: &str) -> Option<&'static str> {
         "topPeaks" | "top_peaks" => "topPeaks",
         "scale" => "scale",
         "calibrationDbSpl" | "calibration_db_spl" => "calibrationDbSpl",
+        "perNote" | "per_note" => "perNote",
         _ => return None,
     })
 }

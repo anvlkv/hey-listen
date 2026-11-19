@@ -6,7 +6,8 @@
 
 use super::super::support::{db_or_floor, frame_rms};
 use super::super::{
-    GapMetric, NoteMetric, NoteMetricsResult, SyllableMetric, ToolOptions, DB_FLOOR, MAX_NOTES,
+    AnalysisError, Cancel, GapMetric, NoteMetric, NoteMetricsResult, SyllableMetric, ToolOptions,
+    DB_FLOOR, MAX_NOTES,
 };
 use super::note_quality;
 
@@ -26,6 +27,20 @@ pub(super) struct Gate {
     pub hysteresis_db: f32,
     pub min_note_secs: f32,
     pub min_gap_secs: f32,
+}
+
+/// The gate and duration rules for a frame-level envelope (M18): `gateFloorDb` below
+/// the window peak, plus the hysteresis and the minimum note / gap durations.
+///
+/// Shared by `noteMetrics` and the per-note modulation breakdown (D-18), so both
+/// segment the same window identically.
+pub(super) fn gate_from(options: &ToolOptions, peak_db: f32) -> Gate {
+    Gate {
+        threshold_db: (peak_db - options.gate_db()).max(options.gate_floor_db()),
+        hysteresis_db: options.hysteresis_db(),
+        min_note_secs: options.min_note_ms() / 1_000.0,
+        min_gap_secs: options.min_gap_ms() / 1_000.0,
+    }
 }
 
 /// Segment a frame-level envelope into notes: open above `threshold_db`, close
@@ -110,19 +125,24 @@ pub(super) fn segment_notes(
 /// The counts, gap statistics and syllables describe **every** run the segmenter found;
 /// only the returned records are bounded by [`MAX_NOTES`], so `note_count > notes.len()`
 /// means the record list is truncated (never that the omitted activity was silence).
-pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> NoteMetricsResult {
-    let (times, levels, frame, hop) =
-        frame_rms(mono, sample_rate, options.frame_ms(), options.hop_ms());
+pub fn note_metrics(
+    mono: &[f32],
+    sample_rate: u32,
+    options: &ToolOptions,
+    cancel: &Cancel,
+) -> Result<NoteMetricsResult, AnalysisError> {
+    let (times, levels, frame, hop) = frame_rms(
+        mono,
+        sample_rate,
+        options.frame_ms(),
+        options.hop_ms(),
+        cancel,
+    )?;
     let rate = sample_rate.max(1);
     let duration = mono.len() as f32 / rate as f32;
     let peak_db = levels.iter().copied().fold(DB_FLOOR, f32::max);
-    let threshold_db = (peak_db - options.gate_db()).max(options.gate_floor_db());
-    let gate = Gate {
-        threshold_db,
-        hysteresis_db: options.hysteresis_db(),
-        min_note_secs: options.min_note_ms() / 1_000.0,
-        min_gap_secs: options.min_gap_ms() / 1_000.0,
-    };
+    let gate = gate_from(options, peak_db);
+    let threshold_db = gate.threshold_db;
     let segments = segment_notes(&levels, frame, hop, rate, duration, &gate);
     let all_gaps: Vec<GapMetric> = segments
         .windows(2)
@@ -147,10 +167,11 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
     let mut notes: Vec<NoteMetric> = segments[..shown]
         .iter()
         .enumerate()
-        .map(|(index, segment)| {
+        .map(|(index, segment)| -> Result<NoteMetric, AnalysisError> {
             let (rms_db, peak_db) = segment_levels(mono, rate, segment.start, segment.end);
-            let proxies = note_quality::proxies(mono, rate, *segment, options, &times, &levels);
-            NoteMetric {
+            let proxies =
+                note_quality::proxies(mono, rate, *segment, options, &times, &levels, cancel)?;
+            Ok(NoteMetric {
                 start_secs: segment.start,
                 end_secs: segment.end,
                 duration_secs: segment.end - segment.start,
@@ -166,9 +187,9 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
                 jitter_proxy_cents: proxies.jitter_proxy_cents,
                 shimmer_proxy_db: proxies.shimmer_proxy_db,
                 hnr_proxy: proxies.hnr_proxy,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     // The gap records that belong to the returned notes (the summary keeps the full set).
     let gaps: Vec<GapMetric> = all_gaps[..shown.saturating_sub(1)].to_vec();
@@ -197,7 +218,7 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         syllables
     });
 
-    NoteMetricsResult {
+    Ok(NoteMetricsResult {
         // Filled in by `run_window` — the tool only sees the sliced region.
         window_start: 0.0,
         note_count: segments.len(),
@@ -212,7 +233,7 @@ pub fn note_metrics(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> No
         notes,
         gaps,
         syllables,
-    }
+    })
 }
 
 /// Group adjacent notes whose separating gap is at most `gap_secs` into syllables.

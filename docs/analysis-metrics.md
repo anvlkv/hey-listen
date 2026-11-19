@@ -312,7 +312,12 @@ HNR proxy; short notes return `null` rather than a misleading number.
 > what was actually used. The FM pitch grid caps its frame at ~3 periods of the run's
 > median f0 (bounded by `pitchFrameMs`), so a fast modulation is not smeared. The
 > **AM/FM modulation** view draws both spectra on a modulation-rate axis with readouts
-> and joins its own `mod` chart-sync group. Tests render real **synth graphs** (a sine
+> and joins its own `mod` chart-sync group. With `perNote` on (D-18) it segments the
+> window into notes (the `noteMetrics` gate and duration rules, via the shared
+> `gate_from` + `segment_notes`) and returns one bounded `notes` entry per segment —
+> the readouts and ranked peaks of that note, not its full spectra — so a call whose
+> notes trill at different rates reads per note instead of averaging them. Tests render
+> real **synth graphs** (a sine
 > carrier × LFO multipliers for AM, a control-driven all-pass delay for FM) through
 > `graph::render_mono`, then assert the expected rates/depths; the catalog defaults and
 > the headless `render_synth` → `modulation` flow are covered too. The design notes
@@ -361,6 +366,22 @@ struct ModulationResult {
     fm_peak_to_peak_cents: Option<f32>,
     fm_std_cents: Option<f32>,
     voiced_fraction: f32,
+    // added by D-18: per-note readouts, empty unless the `perNote` option is on
+    notes: Vec<ModulationNote>,
+}
+
+// One note's readouts (the spectra themselves stay window-level).
+struct ModulationNote {
+    start_secs: f32,
+    end_secs: f32,
+    am_depth: Option<f32>,
+    am_peak_to_trough_db: Option<f32>,
+    am_peaks: Vec<ModulationPeak>,
+    fm_rate_hz: Option<f32>,
+    fm_peak_to_peak_cents: Option<f32>,
+    fm_std_cents: Option<f32>,
+    fm_reliable: bool,
+    voiced_fraction: f32,
 }
 ```
 
@@ -368,7 +389,9 @@ struct ModulationResult {
 3 Hz AM plus a 40 Hz AM produces both peaks; a 30 Hz FM sweep (a control-driven
 all-pass delay) produces an FM peak near 30 Hz; a steady carrier and a silent window
 return no spectra; a window with no voiced run returns no FM spectrum; alias clamping
-is honored.
+is honored. With `perNote` on, two separated bursts with different AM rates yield two
+notes with their own rates, a silent window yields none, and a note shorter than the
+measurement's minimum is skipped rather than panicking.
 
 ## M21.B — Measurement reliability + scale ergonomics ✅
 
@@ -478,12 +501,14 @@ contract:
   tuning. Expose the gate/duration options and validate against real clips.
 - AM/FM results depend on what the analysis window contains. If the window includes
   silence, the AM spectrum also contains the note/gap pattern; select the call, or gate
-  the region. M21.B's `gateDb` covers the scalar series; a per-note modulation option
-  reusing the M18 segments is not implemented ([D-18](deferred.md)). The FM result reports
+  the region. M21.B's `gateDb` covers the scalar series; the **`perNote`** option (D-18)
+  instead segments the window with the M18 gate and returns per-note readouts, so a
+  call's notes are measured individually. The FM result reports
   its run span, and `fmReliable` says whether its rate can be trusted.
 - pYIN is ranged in the engine (M33.A, `audio/analysis/pyin.rs`) because `oxiaudio` exposes
   no ranged pYIN; its default remains 50–2000 Hz.
-- A shared **pitch range** control (one setting for every pitch tool) is a UX
-  convenience, not part of M16: it can fan out to the per-tool `minF0Hz` / `maxF0Hz`
-  options without a schema change. It is [D-07](deferred.md).
+- A shared **pitch range** control ships in the Toolbar's Analysis-params popover
+  (D-07): one Min f0 / Max f0 pair fans out to the per-tool `minF0Hz` / `maxF0Hz`
+  options of every tool that declares them, with no schema change. Per-tool values still
+  round-trip in the project file.
 - Export of the new results rides M12; the data model is already export-shaped.

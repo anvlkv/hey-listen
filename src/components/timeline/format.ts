@@ -1,7 +1,8 @@
 /**
  * Pure time-formatting and tick-step helpers for the Timeline — no stores or DOM,
- * so they are trivial to unit-test. `formatTime` feeds the toolbar readout;
- * `formatRulerTime` and `niceStep` drive the canvas ruler (`draw.ts`).
+ * so they are trivial to unit-test. `formatTime` feeds the toolbar readout and
+ * `parseTime` reads the numeric window fields back; `formatRulerTime` and `niceStep`
+ * drive the canvas ruler (`draw.ts`).
  */
 
 /** Ruler tick steps (seconds), smallest-first; `niceStep` picks the first that fits. */
@@ -18,6 +19,30 @@ export function formatTime(seconds: number): string {
   const minutes = Math.floor(abs / 60);
   const secs = abs - minutes * 60;
   return `${sign}${minutes}:${secs.toFixed(2).padStart(5, "0")}`;
+}
+
+/**
+ * `h:mm:ss.mmm` / `m:ss.mmm` / `ss.mmm` / bare seconds → seconds, or `null` when invalid.
+ *
+ * The inverse of [`formatTime`] for the Timeline's numeric window fields (D-05): the
+ * user may type `1:02.5`, `62.5` or `1:02:03.5`, so any `:`-separated 1–3-part form is
+ * accepted and the parts combine as `((h × 60) + m) × 60 + s`. Empty, negative and
+ * non-numeric text is rejected rather than clamped, so a mistyped field can revert. The
+ * result is rounded to whole milliseconds.
+ */
+export function parseTime(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === "") return null;
+  const parts = trimmed.split(":");
+  if (parts.length > 3) return null;
+  let seconds = 0;
+  for (const part of parts) {
+    // Digits with at most one decimal point; a lone "." is not a number.
+    if (!/^(\d+(\.\d*)?|\.\d+)$/.test(part)) return null;
+    seconds = seconds * 60 + Number(part);
+  }
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return Math.round(seconds * 1000) / 1000;
 }
 
 /**

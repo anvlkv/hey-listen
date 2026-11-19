@@ -10,10 +10,10 @@ use super::error::ProjectError;
 use super::migrate::{self, Sections};
 use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
 use super::{
-    Crc32, DroppedSection, CHECKSUM_LEN, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN,
-    HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, MIN_READ_VERSION, PCM_FORMAT_F32, SECTION_ANNOTATIONS,
-    SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT, SECTION_META, SECTION_RESULTS, SECTION_SETUP,
-    SECTION_SOURCE, VERSION,
+    Crc32, DroppedSection, PcmFormat, CHECKSUM_LEN, DATA_FOOTER_LEN, DATA_HEADER_LEN,
+    DATA_INDEX_ENTRY_LEN, HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, MIN_READ_VERSION,
+    SECTION_ANNOTATIONS, SECTION_COMPARE, SECTION_DATA, SECTION_LAYOUT, SECTION_META,
+    SECTION_RESULTS, SECTION_SETUP, SECTION_SOURCE, VERSION,
 };
 use crate::audio::analysis::compare::SavedComparison;
 use crate::state::SourceData;
@@ -195,12 +195,10 @@ fn read_data<R: Read + Seek>(
     reader.read_exact(&mut header)?;
     let sample_rate = u32::from_le_bytes(header[0..4].try_into().unwrap());
     let channels = u16::from_le_bytes(header[4..6].try_into().unwrap()).max(1);
-    if header[6] != PCM_FORMAT_F32 {
-        return Err(ProjectError::Corrupt(format!(
-            "unsupported PCM format {}",
-            header[6]
-        )));
-    }
+    let format = PcmFormat::from_byte(header[6])
+        .ok_or_else(|| ProjectError::Corrupt(format!("unsupported PCM format {}", header[6])))?;
+    // Every size check below is in bytes on disk, so it depends on the sample width.
+    let width = format.byte_width();
     let frames = u64::from_le_bytes(header[8..16].try_into().unwrap());
     let declared_chunks = u32::from_le_bytes(header[20..24].try_into().unwrap());
 
@@ -235,7 +233,7 @@ fn read_data<R: Read + Seek>(
         .checked_mul(u64::from(channels))
         .ok_or_else(|| ProjectError::Corrupt("DATA sample count overflows".to_string()))?;
     let sample_bytes = sample_count
-        .checked_mul(4)
+        .checked_mul(width)
         .ok_or_else(|| ProjectError::Corrupt("DATA sample bytes overflow".to_string()))?;
     if sample_bytes > index_offset - DATA_HEADER_LEN {
         return Err(ProjectError::Corrupt(
@@ -265,8 +263,9 @@ fn read_data<R: Read + Seek>(
         let end = offset
             .checked_add(length)
             .ok_or_else(|| ProjectError::Corrupt("DATA chunk is out of bounds".to_string()))?;
-        // Chunks must end before the index (never inside it or the footer).
-        if length % 4 != 0 || offset < DATA_HEADER_LEN || end > index_offset {
+        // Chunks must end before the index (never inside it or the footer) and hold a
+        // whole number of samples at the section's width.
+        if length % width != 0 || offset < DATA_HEADER_LEN || end > index_offset {
             return Err(ProjectError::Corrupt(
                 "DATA chunk is out of bounds".to_string(),
             ));
@@ -278,9 +277,21 @@ fn read_data<R: Read + Seek>(
         );
         reader.seek(SeekFrom::Start(start + offset))?;
         reader.read_exact(&mut buffer)?;
-        let (chunks, _) = buffer.as_chunks::<4>();
-        for sample in chunks {
-            samples.push(f32::from_le_bytes(*sample));
+        match format {
+            PcmFormat::F32 => {
+                let (chunks, _) = buffer.as_chunks::<4>();
+                samples.extend(chunks.iter().map(|bytes| f32::from_le_bytes(*bytes)));
+            }
+            // `i16` covers `[-1, 1)` at a `1 / 32768` step, so `i16::MIN` maps to `-1.0`
+            // and the stored value is the symmetric decode of the writer's `× 32767`.
+            PcmFormat::I16 => {
+                let (chunks, _) = buffer.as_chunks::<2>();
+                samples.extend(
+                    chunks
+                        .iter()
+                        .map(|bytes| f32::from(i16::from_le_bytes(*bytes)) / 32768.0),
+                );
+            }
         }
     }
 

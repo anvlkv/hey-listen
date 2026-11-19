@@ -246,6 +246,12 @@ modulation and waveform** (M25.A). *Compare with…* is offered for every analyz
   playhead.
 - **B's analysis window** is drawn as a faint band at `[δ, δ + bDur]`, so a window
   difference is visible rather than only listed.
+- **The reference-fragment strip (D-15)** is the labelled lane along the bottom of a
+  **time-axis** chart (`ANNOTATION_STRIP_H`, the annotation lane's height): the reference's
+  pinned window fills it, and the lane's label names that window in the reference's
+  **absolute** source seconds (`ref 12.50–14.00 s`). The band says how wide the reference
+  window is; the strip says *when* it is. Frequency and modulation-rate charts have no
+  strip.
 - **Markers are remapped** onto the relative axis (owner coordinates): A's
   playhead/cursor at `t − aStart`, B's at `t − bStart + δ`. The compare chart stays in
   A's `time` / `freq` / `mod`

@@ -25,6 +25,18 @@ export function timeParam(defaultValue = 0.01, max = 0.2): ParamDef {
   return { key: "time", label: "Time", default: defaultValue, min: 0, max, step: 0.001, unit: "s" };
 }
 
+/** A time constant in seconds with a non-zero minimum (follower/declick style). */
+export function secondsParam(
+  key: string,
+  label: string,
+  defaultValue: number,
+  min: number,
+  max: number,
+  step = 0.001,
+): ParamDef {
+  return { key, label, default: defaultValue, min, max, step, unit: "s" };
+}
+
 /** Pulse width in 0..1. */
 export const WIDTH_PARAM: ParamDef = {
   key: "width",

@@ -107,6 +107,12 @@ pub fn kind_arity(kind: &str) -> Option<(usize, usize)> {
         "lowpass_cv" | "highpass_cv" | "bandpass_cv" | "notch_cv" | "peak_cv" | "allpass_cv"
         | "moog_cv" | "lowrez_cv" | "bandrez_cv" | "resonator_cv" => (3, 1),
         "bell_cv" | "lowshelf_cv" | "highshelf_cv" | "morph_cv" => (4, 1),
+        // Extra shaping and envelope followers.
+        "clip_to" | "declick" | "dcblock_hz" | "follow" | "afollow" => (1, 1),
+        // Signal-controlled processors: input 1 is a control signal (a `hold` trigger
+        // or a `tap` delay time in seconds).
+        "hold" | "tap" => (2, 1),
+        "zero" | "impulse" => (0, 1),
         "dc" | "sine_lfo" | "white" | "pink" | "brown" | "mls" | "sine" | "saw" | "square"
         | "triangle" | "organ" | "hammond" | "soft_saw" | "pulse" | "poly_saw" | "poly_square"
         | "poly_pulse" | "dsf_saw" | "dsf_square" | "pluck" => (0, 1),

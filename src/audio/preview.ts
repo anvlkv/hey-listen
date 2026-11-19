@@ -6,12 +6,9 @@ import { filterRevision } from "../state/graph";
 import { outputDeviceId } from "../state/output";
 import { source } from "../state/source";
 import { windowEnd, windowStart } from "../state/timeline";
-import {
-  clamp,
-  interpolate as interpolatePosition,
-  type TransportRegion,
-  type TransportStatus,
-} from "./transport";
+import { createWindowFollow } from "./previewFollow";
+import { createPositionTracker } from "./previewPosition";
+import { clamp, type TransportRegion, type TransportStatus } from "./transport";
 import { previewSpeed, setPreviewSpeed } from "./transportSpeed";
 
 /**
@@ -33,13 +30,6 @@ import { previewSpeed, setPreviewSpeed } from "./transportSpeed";
  * `"source"` for now; M22's synth audition adds the second owner on the same stream.
  */
 
-/** Core position poll interval (ms): ~12.5 Hz, the authoritative cursor. */
-const POLL_MS = 80;
-/** Local interpolation / chart publish interval (ms): 60 fps drawing. */
-const TICK_MS = 16;
-/** Trailing debounce before a moved analysis window reloads the looped region, in ms. */
-const FOLLOW_DEBOUNCE_MS = 200;
-
 const [status, setStatus] = createSignal<TransportStatus>("idle");
 const [position, setPosition] = createSignal(0);
 const [region, setRegion] = createSignal<TransportRegion>({ start: 0, end: 0 });
@@ -56,82 +46,41 @@ export const [previewError, setPreviewError] = createSignal<string | null>(null)
 
 /** Whether the loaded region loops (a per-region flag; `loop` is the user preference). */
 let regionLoop = true;
-/** Whether the loaded region tracks the analysis window (see `playWindow`). */
-let followWindow = false;
-let followTimer: ReturnType<typeof setTimeout> | undefined;
 /** A filter/channel/device/speed edit landed while paused: reload on resume. */
 let needsReload = false;
 /** Latest-wins token: a superseded load must not stop (or report) a newer transport. */
 let issueToken = 0;
-/** Guards a poll response against a region load that superseded its request. */
-let loadGeneration = 0;
-/** A load is in flight: the core's cursor still belongs to the previous region. */
-let loadSettled = true;
-/** The core position at `anchorAt`, for the local interpolation. */
-let anchorSecs = 0;
-let anchorAt = 0;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
-let tickTimer: ReturnType<typeof setInterval> | undefined;
 
 /** Publish the playhead for the charts (`null` = no position). */
 function publish(secs: number | null) {
   analyzerBus.setData("playhead", { secs });
 }
 
-/** The source seconds the line should be at now (interpolated while playing). */
-function interpolate(): number {
-  return interpolatePosition({
-    status: status(),
-    region: region(),
-    anchor: { secs: anchorSecs, at: anchorAt },
-    speed: previewSpeed(),
-    loop: regionLoop,
-    now: performance.now(),
-  });
+/** Paint the frontend line: the position signal plus the chart bus. */
+function paint(secs: number) {
+  setPosition(secs);
+  publish(secs);
 }
 
-function startTimers() {
-  tickTimer ??= setInterval(tick, TICK_MS);
-  pollTimer ??= setInterval(poll, POLL_MS);
-}
-
-function stopTimers() {
-  if (tickTimer !== undefined) {
-    clearInterval(tickTimer);
-    tickTimer = undefined;
-  }
-  if (pollTimer !== undefined) {
-    clearInterval(pollTimer);
-    pollTimer = undefined;
-  }
-}
-
-/** Paint the interpolated position; a non-looping region stops at its end. */
-function tick() {
-  if (status() !== "playing") return;
-  const at = interpolate();
-  setPosition(at);
-  publish(at);
-  if (!regionLoop && at >= region().end - 1e-9) {
-    stopTimers();
+/** The core cursor's frontend half: the poll, the interpolation and the end-of-region stop. */
+const tracker = createPositionTracker({
+  status,
+  region,
+  loop: () => regionLoop,
+  speed: previewSpeed,
+  publish: paint,
+  onEnded(end) {
     setStatus("idle");
-    publish(region().end);
-  }
-}
+    publish(end);
+  },
+});
 
-/** Re-anchor the interpolation on the core's authoritative cursor. */
-function poll() {
-  if (status() !== "playing" || !loadSettled) return;
-  const generation = loadGeneration;
-  void invoke<number | null>("preview_position")
-    .then((seconds) => {
-      if (status() !== "playing" || generation !== loadGeneration) return;
-      if (seconds == null) return;
-      anchorSecs = region().start + seconds;
-      anchorAt = performance.now();
-    })
-    .catch(() => {});
-}
+/** Keep a playing window preview on the analysis window as it moves. */
+const follow = createWindowFollow({
+  isPlaying: () => status() === "playing",
+  loaded: region,
+  refresh: () => refreshPreview(),
+});
 
 /**
  * Load the region (with `offset` source seconds into it) and start playing. The core
@@ -139,8 +88,7 @@ function poll() {
  */
 function issue(start: number, end: number, loopRegion: boolean, offset: number) {
   const token = ++issueToken;
-  loadGeneration++;
-  loadSettled = false;
+  tracker.loading();
   setPreviewError(null);
   void invoke("preview_region", {
     start,
@@ -153,9 +101,8 @@ function issue(start: number, end: number, loopRegion: boolean, offset: number) 
   })
     .then(() => {
       if (token !== issueToken) return;
-      anchorSecs = start + offset;
-      anchorAt = performance.now();
-      loadSettled = true;
+      tracker.reanchor(start + offset);
+      tracker.loaded();
       // A load starts the core: honour a pause/stop that landed while it was in flight.
       if (status() === "paused") void invoke("pause_preview").catch(() => {});
       else if (status() === "idle") void invoke("stop_preview").catch(() => {});
@@ -163,10 +110,10 @@ function issue(start: number, end: number, loopRegion: boolean, offset: number) 
     .catch((err) => {
       // A newer load (or a stop) superseded this one: its result no longer applies.
       if (token !== issueToken) return;
-      loadSettled = true;
+      tracker.loaded();
       console.error("preview failed", err);
       setPreviewError(`Preview failed: ${String(err)}`);
-      stopTimers();
+      tracker.stop();
       setStatus("idle");
       publish(position());
       // A failed load may have left an older region running; make sure it is silent.
@@ -176,12 +123,10 @@ function issue(start: number, end: number, loopRegion: boolean, offset: number) 
 
 /** Move to `at` and (re)start the timers. */
 function begin(at: number) {
-  anchorSecs = at;
-  anchorAt = performance.now();
-  setPosition(at);
+  tracker.reanchor(at);
+  paint(at);
   setStatus("playing");
-  startTimers();
-  publish(at);
+  tracker.start();
 }
 
 /**
@@ -191,8 +136,8 @@ function begin(at: number) {
  */
 export function playRegion(startSec: number, endSec: number, loopFlag = true, speed?: number) {
   if (speed != null) setPreviewSpeed(speed);
-  followWindow = false;
-  cancelFollow();
+  follow.active = false;
+  follow.cancel();
   const start = Math.max(0, Math.min(startSec, endSec));
   const end = Math.max(start, endSec);
   setRegion({ start, end });
@@ -210,8 +155,8 @@ export function playRegion(startSec: number, endSec: number, loopFlag = true, sp
 export function playWindow() {
   const start = windowStart();
   const end = Math.max(start, windowEnd());
-  followWindow = true;
-  cancelFollow();
+  follow.active = true;
+  follow.cancel();
   setRegion({ start, end });
   regionLoop = loop();
   const inside = position() >= start && position() < end;
@@ -223,22 +168,19 @@ export function playWindow() {
 /** Pause at the current position (silence, cursor kept). */
 export function pause() {
   if (status() !== "playing") return;
-  const at = interpolate();
-  stopTimers();
+  const at = tracker.interpolate();
+  tracker.stop();
   setStatus("paused");
-  setPosition(at);
-  anchorSecs = at;
-  anchorAt = performance.now();
-  publish(at);
+  tracker.reanchor(at);
+  paint(at);
   void invoke("pause_preview").catch(() => {});
   // The local line can be a few ms ahead; adopt the core's exact cursor.
   void invoke<number | null>("preview_position")
     .then((seconds) => {
       if (status() !== "paused" || seconds == null) return;
       const exact = region().start + seconds;
-      anchorSecs = exact;
-      setPosition(exact);
-      publish(exact);
+      tracker.reanchor(exact);
+      paint(exact);
     })
     .catch(() => {});
 }
@@ -265,15 +207,14 @@ export function resume() {
 
 /** Silence the transport, keeping the playhead where it is. */
 export function stop() {
-  const at = status() === "playing" ? interpolate() : position();
+  const at = status() === "playing" ? tracker.interpolate() : position();
   issueToken++;
-  cancelFollow();
-  followWindow = false;
-  stopTimers();
+  follow.cancel();
+  follow.active = false;
+  tracker.stop();
   setStatus("idle");
-  setPosition(at);
-  anchorSecs = at;
-  publish(at);
+  tracker.reanchor(at);
+  paint(at);
   void invoke("stop_preview").catch(() => {});
 }
 
@@ -288,13 +229,23 @@ export function seek(secs: number) {
   } else if (duration > 0) {
     at = Math.min(at, duration);
   }
-  anchorSecs = at;
-  anchorAt = performance.now();
-  setPosition(at);
-  publish(at);
+  tracker.reanchor(at);
+  paint(at);
   if (status() !== "idle") {
     void invoke("seek_preview", { secs: at - region().start }).catch(() => {});
   }
+}
+
+/**
+ * Put the playhead at the source start, stopping a transport whose loaded region excludes 0.
+ *
+ * The core cursor is region-relative (ADR-22), so a playing/paused region that starts later
+ * than 0 has to be stopped before the line can sit at 0 — `seek` never leaves the loaded
+ * region. A region that starts at 0 keeps playing, from the start.
+ */
+export function returnToStart(): void {
+  if (status() !== "idle" && region().start > 1e-9) stop();
+  seek(0);
 }
 
 /** Set the loop preference. A change while a region is loaded re-issues it. */
@@ -312,8 +263,7 @@ export function setTransportLoop(enabled: boolean) {
 function reissueFrom(at: number) {
   const { start, end } = region();
   const offset = clamp(at - start, 0, end - start);
-  anchorSecs = start + offset;
-  anchorAt = performance.now();
+  tracker.reanchor(start + offset);
   issue(start, end, regionLoop, offset);
 }
 
@@ -324,62 +274,61 @@ function refreshPreview() {
     return;
   }
   if (status() !== "playing") return;
-  if (followWindow) {
+  if (follow.active) {
     const start = windowStart();
-    const end = Math.max(start, windowEnd());
-    setRegion({ start, end });
+    setRegion({ start, end: Math.max(start, windowEnd()) });
     regionLoop = loop();
-    reissueFrom(position());
-    return;
   }
   reissueFrom(position());
 }
 
-function cancelFollow() {
-  if (followTimer !== undefined) {
-    clearTimeout(followTimer);
-    followTimer = undefined;
-  }
-}
-
 /**
- * Reload a window-following preview when the window settles (debounced like the analysis
- * auto-run): a window preview, or one playing **exactly** the moved window — not a sub-range.
+ * Clamp a paused/idle playhead into a moved analysis window (D-04): a line outside
+ * `[start, end]` moves to the nearer edge.
+ *
+ * ADR-22: while paused the core cursor is relative to the loaded region, and that region is
+ * still the old window, so `seek_preview` would be clamped back inside it. Adopt the new
+ * window as the region and flag a reload instead — resume starts at the offset — moving only
+ * the frontend position and anchor. Idle has no core cursor to respect, so `seek` (which
+ * clamps to the source and writes the stopped core) is enough.
  */
-function followWindowChange(previous: readonly number[]): void {
-  if (status() !== "playing") return;
-  const loaded = region();
-  const onWindow =
-    followWindow ||
-    (Math.abs(loaded.start - previous[0]) < 1e-6 && Math.abs(loaded.end - previous[1]) < 1e-6);
-  if (!onWindow) return;
-  followWindow = true;
-  cancelFollow();
-  followTimer = setTimeout(() => {
-    followTimer = undefined;
-    if (status() !== "playing" || !followWindow) return;
-    refreshPreview();
-  }, FOLLOW_DEBOUNCE_MS);
+function clampIntoWindow() {
+  if (!source() || status() === "playing") return;
+  const start = windowStart();
+  const end = windowEnd();
+  if (end - start <= 0) return;
+  const at = position();
+  if (at >= start && at <= end) return;
+  const target = clamp(at, start, end);
+  if (status() === "idle") {
+    seek(target);
+    return;
+  }
+  setRegion({ start, end });
+  regionLoop = loop();
+  needsReload = true;
+  tracker.reanchor(target);
+  paint(target);
 }
 
 /** Drop the transport when the source is replaced: nothing loaded, no playhead. */
 function resetTransport() {
   issueToken++;
-  cancelFollow();
-  followWindow = false;
+  follow.cancel();
+  follow.active = false;
   needsReload = false;
-  stopTimers();
+  tracker.stop();
+  tracker.reanchor(0);
   setStatus("idle");
   setPosition(0);
   setRegion({ start: 0, end: 0 });
-  anchorSecs = 0;
-  anchorAt = performance.now();
   publish(source() ? 0 : null);
   void invoke("stop_preview").catch(() => {});
 }
 
 // Re-apply the region when anything that changes the *loaded* buffer changes, keep a
-// window preview on the window as it moves, and clear the transport on a new source.
+// window preview on the window as it moves, clamp a stopped playhead into a moved window,
+// and clear the transport on a new source.
 createRoot(() => {
   createEffect(
     on([channel, filterRevision, outputDeviceId, previewSpeed], () => refreshPreview(), {
@@ -390,10 +339,11 @@ createRoot(() => {
     on(
       [windowStart, windowEnd],
       (_now, previous) => {
-        if (previous) followWindowChange(previous);
+        if (previous) follow.onChange(previous);
       },
       { defer: true },
     ),
   );
+  createEffect(on([windowStart, windowEnd], clampIntoWindow, { defer: true }));
   createEffect(on(source, resetTransport, { defer: true }));
 });

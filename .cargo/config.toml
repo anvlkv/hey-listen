@@ -1,0 +1,15 @@
+# ts-rs writes the TypeScript bindings for the IPC boundary types into the frontend
+# source tree (`src/bindings/`) whenever `cargo test` runs.
+#
+# This config lives at the repo root, not in `src-tauri/.cargo/`, because Cargo only
+# discovers a `.cargo/config.toml` while walking **up** from the working directory:
+# `cargo test --manifest-path src-tauri/Cargo.toml` run from the repo root would miss a
+# crate-local config and let ts-rs fall back to `src-tauri/bindings/`. With one config
+# here, both `cargo test` in `src-tauri/` and the `--manifest-path` form work.
+#
+# `relative = true` resolves against this `.cargo` directory's parent (the repo root).
+# `TS_RS_LARGE_INT = "number"` maps Rust's 64-bit ints (u64/i64) to `number` — the
+# frontend treats frame counts / timestamps as JS numbers, not `bigint`.
+[env]
+TS_RS_EXPORT_DIR = { value = "src/bindings", relative = true }
+TS_RS_LARGE_INT = "number"

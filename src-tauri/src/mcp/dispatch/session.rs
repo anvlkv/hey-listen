@@ -13,6 +13,7 @@ use crate::audio::graph::{self, GraphSpec};
 use crate::state::SourceData;
 
 use super::args::{self, analyzer, tool_id};
+use super::cache::CacheKey;
 use super::HeadlessSession;
 
 impl HeadlessSession {
@@ -115,6 +116,9 @@ impl HeadlessSession {
         };
         let applied = spec.is_some();
         self.state.audio.set_filter(spec);
+        // The cache key carries no filter, so *any* filter change invalidates the entries
+        // (the GUI keys on a filter fingerprint instead).
+        self.results.clear();
         Ok(json!({ "filter": { "enabled": applied } }))
     }
 
@@ -188,6 +192,8 @@ impl HeadlessSession {
         self.source_path = Some(path.clone());
         self.source_kind = crate::project::SourceKind::File;
         self.synth = None;
+        // Cached results belong to the previous source.
+        self.results.clear();
         self.name = std::path::Path::new(&path)
             .file_name()
             .and_then(|name| name.to_str())
@@ -232,6 +238,8 @@ impl HeadlessSession {
         self.synth = Some(spec);
         self.source_path = None;
         self.source_kind = crate::project::SourceKind::Synth;
+        // Cached results belong to the previous source.
+        self.results.clear();
         self.name = "Synth".to_string();
 
         let duration = self.duration();
@@ -258,15 +266,32 @@ impl HeadlessSession {
 
         // Resolve the output mode before the (expensive) analysis so a bad request fails
         // without computing anything.
-        let (shape, max_points, axis) = args::output_mode(args)?;
+        let output = args::output_mode(args)?;
 
-        let result = analysis::run_window(&self.state, tool, start, end, &params, &options)
-            .map_err(|err| err.to_string())?;
+        // Reuse a result the session already holds for this exact key (D-22); a miss runs
+        // the engine and files the result under that same key.
+        let key = CacheKey::new(tool, start, end, &params, &options);
+        let cached = self.cached_result(&key);
+        let result = match cached {
+            Some(result) => result,
+            None => {
+                let result = analysis::run_window(&self.state, tool, start, end, &params, &options)
+                    .map_err(|err| err.to_string())?;
+                self.store_result(&key, &result);
+                result
+            }
+        };
 
         // The summary is computed from the full result, before any shaping, so it is the
         // same in all three modes.
         let summary = analysis::summarize(&result);
-        let shaped = analysis::shape_result_with(&result, shape, max_points, axis);
+        let shaped = analysis::shape_result_with_preview(
+            &result,
+            output.shape,
+            output.max_points,
+            output.axis,
+            output.preview_records,
+        );
 
         // Echo the effective settings the call ran with. The result already carries the
         // `tool` tag, so it is not repeated here; `display` is a UI-only concern (a

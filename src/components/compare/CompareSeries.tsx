@@ -88,13 +88,15 @@ export default function CompareSeries(props: CompareSeriesProps) {
   );
   const Tooltip = timeTooltip(untrack(() => view().formatY));
   const markers = () =>
-    compareMarkers(
-      liveMarkers({
+    compareMarkers({
+      ...liveMarkers({
         live: props.live,
         time: props.time,
         axis: "time",
       }),
-    );
+      // The strip labels the reference's absolute window; the chart axis stays relative.
+      absolute: () => props.comparison.b.window,
+    });
 
   const yScale = (): uPlot.Scale =>
     view().yScale === "log"

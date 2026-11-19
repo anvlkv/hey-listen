@@ -6,10 +6,11 @@ import { filterActive } from "../../state/graph";
 import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
-import { LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
+import { HANDLE_TAB_W, LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
 import { formatRulerTime, formatTime, niceStep } from "./format";
 import { drawWaveformLanes } from "./waveformLanes";
 import { drawTimelineAnnotations } from "./annotationOverlay";
+import { drawHover } from "./hover";
 import { timelineColors, type TimelineColors } from "./colors";
 import type { LaneHandleDrag, LaneSelection } from "../annotations/lane";
 import type { WindowSpan } from "./selection";
@@ -51,6 +52,10 @@ export interface TimelineDrawDeps {
   laneDrag: () => LaneHandleDrag | null;
   /** The annotation the pointer is over in the lane (drawn promoted). */
   laneHover: () => string | null;
+  /** The hovered source time under the pointer, or `null` when it is not hovering. */
+  hoverTime: () => number | null;
+  /** The pointer x (CSS px) the hover crosshair and its readout chip follow. */
+  hoverX: () => number;
 }
 
 /**
@@ -166,6 +171,13 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     drawHandle(ctx, we, waveTop, waveH, t.series);
   }
 
+  // The hover crosshair and its time/sample readout sit under the playhead (and the mirrored
+  // chart cursor), so those stay the loudest marks; a live gesture draws its own marks.
+  const ht = deps.hoverTime();
+  if (s && ht != null && !dragging && !deps.laneDrag()) {
+    drawHover(ctx, { x: deps.hoverX(), time: ht, sampleRate: s.sampleRate, width: w, height: h });
+  }
+
   drawChartCursor(ctx, deps.t2x, h);
 
   const ph = deps.playSec();
@@ -264,9 +276,10 @@ function drawHandle(
   ctx.lineTo(x, top + height);
   ctx.stroke();
 
-  // Wider grab tab at the top of the handle.
+  // Wider grab tab at the top of the handle; the drawn tab and the hit distance share
+  // `HANDLE_TAB_W` / `HANDLE_HIT`, so the tab stays grabbable at any window width.
   ctx.fillStyle = color;
-  ctx.fillRect(x - 4, top, 8, 12);
+  ctx.fillRect(x - HANDLE_TAB_W / 2, top, HANDLE_TAB_W, 12);
 }
 
 /** The move handle's Δ-duration label: bold, so it reads over the coloured bar. */

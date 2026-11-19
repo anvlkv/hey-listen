@@ -102,6 +102,40 @@ fn a_valid_override_still_applies() {
 }
 
 #[test]
+fn preview_records_only_shapes_a_compact_result() {
+    use super::super::args;
+
+    // A preview length bounds the compact object lists only, so asking where there is no
+    // compact result is rejected rather than silently dropped.
+    for value in [
+        json!({ "includeData": true, "previewRecords": 3 }),
+        json!({ "summaryOnly": true, "previewRecords": 3 }),
+    ] {
+        let error = args::output_mode(&value).unwrap_err();
+        assert!(
+            error.contains("`previewRecords` requires the compact result"),
+            "{error}"
+        );
+    }
+
+    // An out-of-range or non-integer count is an error, not a silent default.
+    for value in [json!(0), json!(51), json!(2.5), json!("5")] {
+        let error = args::output_mode(&json!({ "previewRecords": value })).unwrap_err();
+        assert!(error.contains("between 1 and 50"), "{value}: {error}");
+    }
+
+    // Both bounds are inclusive, and an absent field keeps the default.
+    for count in [1usize, 50] {
+        let mode = args::output_mode(&json!({ "previewRecords": count })).unwrap();
+        assert_eq!(mode.preview_records, count);
+    }
+    assert_eq!(
+        args::output_mode(&json!({})).unwrap().preview_records,
+        crate::audio::analysis::DEFAULT_PREVIEW_RECORDS
+    );
+}
+
+#[test]
 fn run_analysis_rejects_a_mis_scoped_max_points() {
     let mut session = HeadlessSession::default();
     session

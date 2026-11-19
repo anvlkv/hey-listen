@@ -12,4 +12,9 @@ export type ToolOptions = { nMels: number | null, nMfcc: number | null, nBands: 
 /**
  * The dB SPL of a full-scale sine (M27); `0` or absent means **uncalibrated**.
  */
-calibrationDbSpl: number | null, };
+calibrationDbSpl: number | null, 
+/**
+ * `modulation`: `1` analyses each detected note segment separately and reports the
+ * per-note table, `0` (absent) analyses the whole window unchanged (D-18).
+ */
+perNote: number | null, };

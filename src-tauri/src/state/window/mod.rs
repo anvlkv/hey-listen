@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use crate::audio::analysis::compare::SavedComparison;
+use crate::audio::analysis::Cancels;
 use crate::audio::analyzers::ToolId;
 use crate::audio::capture::CaptureHandle;
 
@@ -46,6 +47,10 @@ pub struct WindowState {
     /// reference side of each compare tab. It is the project's saved snapshots in memory
     /// (written on save, restored on load); several entries may share a tool.
     saved_compares: Mutex<Vec<SavedComparison>>,
+    /// In-flight analysis runs (`request_id` → cancel token), so `cancel_analysis` can
+    /// stop a superseded run at its next check (D-21). Its lock is a leaf: the map is
+    /// only touched to register, flip and forget a token, never across a run.
+    pub analysis_cancels: Cancels,
 }
 
 impl WindowState {
@@ -56,6 +61,7 @@ impl WindowState {
             ui: Mutex::new(HashMap::new()),
             ui_revision: AtomicU64::new(0),
             saved_compares: Mutex::new(Vec::new()),
+            analysis_cancels: Cancels::default(),
         }
     }
 

@@ -1,4 +1,5 @@
 import { createStore } from "solid-js/store";
+import { didYouMean } from "../../lib/nearest";
 import { ANALYZERS } from "./defs";
 import { analyzerById } from "./lookup";
 import type { AnalyzerId } from "./types";
@@ -40,6 +41,7 @@ const ENGINE_KEYS = [
   "topPeaks",
   "scale",
   "calibrationDbSpl",
+  "perNote",
 ] as const;
 
 /** snake_case aliases accepted at the MCP / CLI boundary (mirrors the Rust side). */
@@ -71,6 +73,7 @@ const OPTION_ALIASES: Record<string, string> = {
   min_voiced_secs: "minVoicedSecs",
   top_peaks: "topPeaks",
   calibration_db_spl: "calibrationDbSpl",
+  per_note: "perNote",
 };
 
 const ENGINE_KEY_SET = new Set<string>(ENGINE_KEYS);
@@ -113,11 +116,12 @@ export function applyOptionPatch(
   patch: Record<string, unknown>,
 ): Record<string, number> {
   const declared = new Set((analyzerById(id).params ?? []).map((field) => field.key));
+  const known = [...ENGINE_KEYS, ...declared];
   const out: Record<string, number> = {};
   for (const [rawKey, value] of Object.entries(patch)) {
     const key = canonicalKey(rawKey);
     if (key == null && !declared.has(rawKey)) {
-      throw new Error(`unknown option for ${id}: ${rawKey}`);
+      throw new Error(`unknown option for ${id}: ${rawKey}${didYouMean(rawKey, known)}`);
     }
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`option ${rawKey} for ${id} must be a number`);
@@ -159,6 +163,33 @@ export function optionDefaults(id: AnalyzerId): Record<string, number> {
     if (field.target !== "view") out[field.key] = field.value;
   }
   return out;
+}
+
+/**
+ * A **model** option: a per-tool option that means the same thing in every tool that
+ * declares it (the pitch f0 band, the perception calibration). The shared control
+ * writes one value to all of them, so no schema or shared IPC field changes (D-07 / D-08).
+ */
+export type SharedModelOption = "minF0Hz" | "maxF0Hz" | "calibrationDbSpl";
+
+/** Every catalog tool whose `params` declare `key`, in Sidebar order. */
+export function toolsDeclaring(key: SharedModelOption): AnalyzerId[] {
+  return ANALYZERS.filter((def) => (def.params ?? []).some((field) => field.key === key)).map(
+    (def) => def.id,
+  );
+}
+
+/** The displayed value: the first catalog tool that declares `key`, or null. */
+export function sharedOptionValue(key: SharedModelOption): number | null {
+  const id = toolsDeclaring(key)[0];
+  if (id == null) return null;
+  return toolOptions[id]?.[key] ?? null;
+}
+
+/** Write one value to every tool that declares `key` (a no-op for a tool that doesn't). */
+export function fanOutOption(key: SharedModelOption, value: number): void {
+  if (!Number.isFinite(value)) return;
+  for (const id of toolsDeclaring(key)) setToolOptions(id, key, value);
 }
 
 export function loadToolOptions(loaded: ToolOptionsState) {

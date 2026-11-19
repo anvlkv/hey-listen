@@ -7,11 +7,13 @@ use crate::audio::analysis::WindowKind;
 use super::HeadlessSession;
 
 mod analysis;
+mod cache;
 mod compare;
 mod export;
 mod modulation;
 mod project;
 mod shaping;
+mod suggest;
 mod validation;
 
 #[test]

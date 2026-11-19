@@ -2,6 +2,7 @@ import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
 import SelectField from "../SelectField";
 import Tooltip from "../Tooltip";
+import SharedModelParams from "./SharedModelParams";
 import { createNumberDrag } from "../../lib/dragNumber";
 import {
   ANALYSIS_RATES,
@@ -161,9 +162,11 @@ export default function SharedParamsForm() {
         </div>
       </Tooltip>
 
+      <SharedModelParams />
+
       <div class="params-annotation">
-        0 Hz max means up to Nyquist; the band limit applies to spectral tools. Pitch tools have
-        their own Min f0 / Max f0 range.
+        0 Hz max means up to Nyquist; the band limit applies to spectral tools. Pitch range and
+        calibration below fan out to every tool that declares them.
       </div>
     </div>
   );

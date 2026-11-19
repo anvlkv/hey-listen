@@ -108,7 +108,8 @@ Sign-change rate; low = voiced/low-frequency, high = noisy/percussive. Options: 
 ### modulation — `series`
 AM + FM modulation spectra (tremolo/vibrato/trill). Options: `frameMs` 10, `hopMs` 5,
 `modMinHz` 0.5, `modMaxHz` 100, `detrend` 1, `pitchFrameMs` 40, `pitchHopMs` 5,
-`minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` 50, `maxF0Hz` 2000.
+`minVoicedSecs` 0.2, `topPeaks` 3, `minF0Hz` 50, `maxF0Hz` 2000, `perNote` 0 (1 adds a
+per-note readout entry per detected note segment).
 
 ## Pitch
 

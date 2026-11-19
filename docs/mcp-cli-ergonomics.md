@@ -280,9 +280,12 @@ list-style tools so "all tools" is not just an analyzer claim:
   the TS `compact`/`decimate` module once no non-MCP caller needs it.
 - **Annotations are hints.** Do not use them to replace the app's prompts or the
   `transient` semantics.
-- **Open items:** [`deferred.md`](deferred.md) — per-tool `outputSchema` (D-31), a
-  structured-event contract (D-32), a configurable preview length (D-09), "did you mean?"
-  (D-10), and summary-aware annotation snapshots (D-19).
+- **Delivered since M21:** the preview length is a request field (`previewRecords`, D-09),
+  an unknown id/option names the nearest catalog entry (D-10), annotation snapshots carry
+  the tool's summary items (D-19), and the headless session reuses and persists the
+  `RESULTS` cache (D-22).
+- **Open items:** [`deferred.md`](deferred.md) — per-tool `outputSchema` (D-31) and a
+  structured-event contract (D-32).
 
 ## M21.A — agent hardening
 

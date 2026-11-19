@@ -13,8 +13,8 @@ logs/
 /.lighthouse/
 /reports/lighthouse/
 
-# ts-rs's fallback export dir: `cargo test` run outside `src-tauri/` misses
-# `src-tauri/.cargo/config.toml` and writes here instead of `src/bindings/`.
+# ts-rs's fallback export dir. The repo-root `.cargo/config.toml` points the export
+# at `src/bindings/`; this entry is only a safety net for a run that bypasses it.
 /src-tauri/bindings/
 
 # The `hey-listen-cli` sidecar copy staged by `npm run sidecar` for

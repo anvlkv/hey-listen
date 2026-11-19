@@ -2,7 +2,9 @@
 //! amplitude envelope (M17).
 
 use super::super::support::{build_series, db_or_floor, envelope, frame_rms, mono_buffer, seconds};
-use super::super::{LevelsResult, SeriesResult, ToolOptions, WaveformResult, MAX_ENVELOPE};
+use super::super::{
+    AnalysisError, Cancel, LevelsResult, SeriesResult, ToolOptions, WaveformResult, MAX_ENVELOPE,
+};
 use super::gate::apply_gate;
 
 /// Time-domain waveform: peak/RMS levels (via `oxiaudio`) and a min/max envelope
@@ -55,9 +57,19 @@ pub fn levels(mono: &[f32], sample_rate: u32) -> LevelsResult {
 /// frame is shorter than `frameSize` and its centre sits closer to its predecessor
 /// than `hopSize`, and a cap-widened hop can leave unmeasured samples between frames.
 /// Consumers must therefore place values from `times`, never `i × hop`.
-pub fn frame_rms_envelope(mono: &[f32], sample_rate: u32, options: &ToolOptions) -> SeriesResult {
-    let (times, values, frame, hop) =
-        frame_rms(mono, sample_rate, options.frame_ms(), options.hop_ms());
+pub fn frame_rms_envelope(
+    mono: &[f32],
+    sample_rate: u32,
+    options: &ToolOptions,
+    cancel: &Cancel,
+) -> Result<SeriesResult, AnalysisError> {
+    let (times, values, frame, hop) = frame_rms(
+        mono,
+        sample_rate,
+        options.frame_ms(),
+        options.hop_ms(),
+        cancel,
+    )?;
     let mut result = build_series(
         times,
         values.into_iter().map(Some).collect(),
@@ -67,5 +79,5 @@ pub fn frame_rms_envelope(mono: &[f32], sample_rate: u32, options: &ToolOptions)
     result.frame_size = Some(frame);
     // The envelope's own RMS values are the gate's levels, so the gate is exact (M21.B).
     result.gate = apply_gate(&mut result, mono, frame, hop, options);
-    result
+    Ok(result)
 }

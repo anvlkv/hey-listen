@@ -1,17 +1,17 @@
-import type { AnalysisWindow } from "../../bindings/AnalysisWindow";
 import type { Annotation } from "../../bindings/Annotation";
 import type { AnnotationValues } from "../../bindings/AnnotationValues";
-import {
-  analyzerById,
-  isAnalyzerId,
-  latestResult,
-  toolOptions,
-  type AnalyzerId,
-  type AnyAnalysisResult,
-} from "../analyzer";
+// Direct sibling imports rather than the `../analyzer` barrel: the barrel re-exports the
+// debounced runner, which pulls `@dschz/solid-uplot` and its CSS and would keep this
+// module out of the browser-free `src/tests/*.test.ts` suite (see `./format.ts`).
+import { isAnalyzerId } from "../analyzer/lookup";
+import { toolOptions } from "../analyzer/options";
+import { latestResult, latestSummary } from "../analyzer/results";
+import type { AnalyzerId, AnyAnalysisResult } from "../analyzer/types";
 import { sharedParams } from "../analysis";
 import { windowEnd, windowStart } from "../timeline";
-import { valuesText } from "./format";
+import { annotationValuesFor } from "./valuesSnapshot";
+
+export { annotationValuesFor };
 
 /** The frozen snapshot for a tool's chart at `timeSecs`, or `null` without a result. */
 export function captureValues(
@@ -21,28 +21,6 @@ export function captureValues(
 ): AnnotationValues | null {
   const result = latestResult(tool);
   return result ? snapshot(tool, result, timeSecs, capturedMs) : null;
-}
-
-/** Build a `AnnotationValues` snapshot from a live result (the readout at the annotation's time). */
-export function annotationValuesFor(args: {
-  tool: AnalyzerId;
-  result: AnyAnalysisResult;
-  timeSecs: number;
-  window: AnalysisWindow;
-  params: AnnotationValues["params"];
-  options: Record<string, number>;
-  capturedMs: number;
-}): AnnotationValues {
-  const def = analyzerById(args.tool);
-  return {
-    tool: args.tool,
-    label: `${def.title} @ ${args.timeSecs.toFixed(3)} s`,
-    text: valuesText(def.id, args.result, args.timeSecs),
-    window: args.window,
-    params: args.params,
-    options: args.options,
-    capturedMs: args.capturedMs,
-  };
 }
 
 /** The frozen snapshot's **current** readout (live from the chart), or `null`. */
@@ -79,6 +57,7 @@ function snapshot(
       params: sharedParams(),
       options: { ...toolOptions[tool] },
       capturedMs,
+      summary: latestSummary(tool)?.items ?? [],
     });
   } catch (err) {
     console.error(`could not read ${tool}'s values at ${timeSecs} s`, err);

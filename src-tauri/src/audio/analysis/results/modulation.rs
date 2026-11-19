@@ -16,6 +16,39 @@ pub struct ModulationPeak {
     pub prominence_db: f32,
 }
 
+/// One note's AM/FM readouts, measured over that note's own span (D-18).
+///
+/// Full spectra are deliberately **not** returned per note: the table keeps the readouts
+/// and the ranked peaks, so a window with many notes stays a bounded payload.
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ModulationNote {
+    /// The note's start, in source seconds.
+    pub start_secs: f32,
+    /// The note's end, in source seconds.
+    pub end_secs: f32,
+    /// `(max − min) / (max + min)` of the note's raw linear amplitude envelope (0…1),
+    /// absent when the span has no level to measure.
+    pub am_depth: Option<f32>,
+    /// Peak-to-trough range of the note's frame-RMS envelope, in dB.
+    pub am_peak_to_trough_db: Option<f32>,
+    /// The note's strongest AM rates, strongest first (empty when its envelope is
+    /// effectively steady, so no rate is invented).
+    pub am_peaks: Vec<ModulationPeak>,
+    /// The note's strongest FM rate, when its voiced run supports one.
+    pub fm_rate_hz: Option<f32>,
+    /// Peak-to-peak depth of the note's detrended cents track.
+    pub fm_peak_to_peak_cents: Option<f32>,
+    /// Standard deviation of that cents track.
+    pub fm_std_cents: Option<f32>,
+    /// Whether the note's FM support is trustworthy (long enough, not a staircase);
+    /// false means no rate was claimed.
+    pub fm_reliable: bool,
+    /// Share of the note's pitch frames the detector found voiced (0…1).
+    pub voiced_fraction: f32,
+}
+
 /// AM/FM modulation spectra over the window (M20): the amplitude-envelope spectrum,
 /// the pitch-residual (cents) spectrum of the longest voiced run, their ranked peaks,
 /// and the depth readouts. Both spectra share `mod_freqs`; `fm_db` is empty when no
@@ -63,4 +96,7 @@ pub struct ModulationResult {
     pub fm_reliable: bool,
     /// Share of the window's pitch frames the detector found voiced (0…1).
     pub voiced_fraction: f32,
+    /// Per-note readouts, one per detected note segment (D-18), in time order. Empty
+    /// unless the `perNote` option is on, so the window analysis is unchanged by default.
+    pub notes: Vec<ModulationNote>,
 }

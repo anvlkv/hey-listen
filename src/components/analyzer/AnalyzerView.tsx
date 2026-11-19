@@ -34,6 +34,8 @@ export default function AnalyzerView(props: { id: AnalyzerId }) {
       loading={analysis.loading()}
       error={analysis.error()}
       hasResult={analysis.result() != null}
+      progress={analysis.progress()}
+      onCancel={analysis.cancel}
       params={def().params?.length ? <ToolParamsForm id={props.id} /> : undefined}
     >
       <Switch>

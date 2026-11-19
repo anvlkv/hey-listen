@@ -35,7 +35,8 @@ uses it. Each `run_analysis` call carries them.
 | Window function | spectral, pitch | Hann / Hamming / Blackman / rectangular |
 | Channel selection | all tools | downmix (mono) / Left / Right / Channel N (0-based) |
 | Analysis sample rate | all tools | optional resample before analysis |
-| Frequency range (min/max Hz) | spectral | band-limit the STFT / mel tools; pitch tools have their own `minF0Hz` / `maxF0Hz` range |
+| Frequency range (min/max Hz) | spectral | band-limit the STFT / mel tools |
+| Model params | catalog-driven | one **Pitch range** pair (`minF0Hz`/`maxF0Hz`) and one **Calibration** value (`calibrationDbSpl`) fan out to every tool that declares the key — no schema change, each tool keeps its own stored option |
 
 Per-tool params (not shared) stay in each tool's params popover and cross IPC in a
 `ToolOptions` object alongside the shared params: the spectrum/spectrogram's
@@ -46,7 +47,8 @@ chroma bins, onset threshold, etc.
 (`nMels`, `yinThreshold`, `minF0Hz`, `maxF0Hz`, …); the snake_case aliases
 (`n_mels`, `min_f0_hz`, …) are accepted at the MCP / CLI boundary. An unknown key is
 **an error** on every path — GUI MCP, headless MCP, and `hey-listen-cli analyze -o` — rather
-than being silently ignored. Chart-display toggles (the spectrum layers, dB scale,
+than being silently ignored, and the message names the **nearest** catalog key
+("did you mean …?"). Chart-display toggles (the spectrum layers, dB scale,
 contour overlays) are marked `target: "view"` in the registry and never cross IPC.
 `list_analyzers` reports each tool's compact option keys and defaults; the full
 label/min/max/help metadata is stored in the Rust catalog and returned by M21's
@@ -201,8 +203,10 @@ engine carries a ranged pYIN (`audio/analysis/pyin.rs`, the same Beta-prior + Vi
 algorithm with the tau bounds — and the reported bins — taken from the requested range).
 Every pitch result carries `effectiveMinF0Hz`/`effectiveMaxF0Hz`, drawn as an **f0 range**
 readout on the chart and named in its empty-state copy, so a request the detector could
-not honour is visible instead of silently truncated. The default is still 50–2000 Hz;
-raise `maxF0Hz` for high calls.
+could not honour is visible instead of silently truncated. The default is still 50–2000 Hz;
+raise `maxF0Hz` for high calls. The Analysis-params popover also carries a **shared**
+Pitch range that fans one Min f0 / Max f0 pair out to every tool declaring those keys
+(D-07), so a project-wide change does not need one tab at a time.
 
 **Pitch confidence (M36).** A pitch track is drawn with its detector's **per-frame
 `confidence`** on a second, fixed 0–1 axis (the pYIN Viterbi state probability, or
@@ -263,7 +267,10 @@ reported when the modulation is meaningful (AM depth ≥ 2%, FM spread ≥ 2 cen
 steady carrier (or silence) shows small depth readouts and **empty** spectra rather
 than an invented rate; the FM half is also empty when no voiced run reaches
 `minVoicedSecs`. The **AM/FM modulation** view draws the two spectra with readouts and
-syncs on its own `mod` group.
+syncs on its own `mod` group. With `perNote` on, the tool segments the window with the
+`noteMetrics` gate and returns a per-note entry (readouts and ranked peaks, not full
+spectra) for each segment, capped at the note limit, and the view lists them under the
+window readouts; a silent window yields none.
 In MCP/CLI a spectrum array is compacted to its stats by the normal rules; the ranked
 peaks and depth fields survive compaction, and `includeData: true` / `--full` returns
 the full spectra.

@@ -1,4 +1,15 @@
-import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
+import { transportFollow } from "../audio/transportFollow";
+import { transportPosition } from "../audio/preview";
 import { computePeaks, type Peaks } from "../lib/waveform";
 import { onDevicePixelRatioChange } from "../lib/devicePixelRatio";
 import { stopFollowing } from "../state/capture";
@@ -12,11 +23,16 @@ import {
 } from "../state/annotations";
 import { source, status } from "../state/source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
+import { createTimelineAccessibility } from "./timeline/accessibility";
 import { PLOT_PAD, RAIL_W } from "./timeline/constants";
 import ChannelRail from "./timeline/ChannelRail";
+import TimelineContextMenu from "./timeline/TimelineContextMenu";
 import { drawTimeline, type TimelineDrawDeps } from "./timeline/draw";
+import { niceStep } from "./timeline/format";
 import { createTimelineInteraction } from "./timeline/interaction";
 import { createPreview } from "./timeline/preview";
+import { clampTime } from "./timeline/selection";
+import { snapEnabled, snapMove, snapSpan, snapTime, type SnapOptions } from "./timeline/snapping";
 import TimelineToolbar from "./timeline/TimelineToolbar";
 import TimelineScrollBar from "./timeline/ScrollBar";
 
@@ -87,6 +103,12 @@ export default function Timeline() {
   const t2x = (t: number) => plotLeft() + ((t - viewStart()) / span()) * plotW();
   const x2t = (x: number) => viewStart() + ((x - plotLeft()) / plotW()) * span();
 
+  /** The source time under a client x, clamped to the source (the context menu's anchor). */
+  const timeAt = (clientX: number) => {
+    const rect = canvas.getBoundingClientRect();
+    return clampTime(x2t(clientX - rect.left), duration());
+  };
+
   const clampView = (a: number, b: number): [number, number] => {
     const dur = duration();
     const minSpan = Math.min(dur, Math.max(1e-4, dur / 100_000));
@@ -120,6 +142,7 @@ export default function Timeline() {
   };
 
   const preview = createPreview();
+  const a11y = createTimelineAccessibility({ span, duration, status: preview.status });
 
   /**
    * Drop a **point** annotation at the preview playhead — the cursor the user is
@@ -132,6 +155,30 @@ export default function Timeline() {
     createAnnotation({ timeSecs: at, tool: defaultAnnotationTool() });
   };
 
+  /**
+   * The snap targets for the **current gesture** (D-12), captured on its first snap and
+   * dropped by the next pointer-down. The window is mid-gesture state: its live edges would
+   * sit right under the pointer and pin a move or a selection, so the snapshot has to predate
+   * the gesture's own writes.
+   */
+  let gestureSnap: SnapOptions | null = null;
+  const snapOpts = (): SnapOptions =>
+    (gestureSnap ??= {
+      candidates: [
+        0,
+        duration(),
+        transportPosition(),
+        windowStart(),
+        windowEnd(),
+        ...annotationsSorted().flatMap((a) =>
+          a.range ? [a.range.startSecs, a.range.endSecs] : [a.timeSecs],
+        ),
+      ],
+      tolerance: (span() / plotW()) * 8,
+      grid: niceStep(span(), plotW()),
+      duration: duration(),
+    });
+
   const interaction = createTimelineInteraction({
     canvas: () => canvas,
     active,
@@ -141,10 +188,20 @@ export default function Timeline() {
     span,
     plotW,
     applyView,
+    snapTime: (t) => (snapEnabled() ? snapTime(t, snapOpts()) : t),
+    snapSpan: (a, b) =>
+      snapEnabled() ? snapSpan(a, b, snapOpts()) : { start: Math.min(a, b), end: Math.max(a, b) },
+    snapMove: (start, width) => (snapEnabled() ? snapMove(start, width, snapOpts()) : start),
     setAnnotationHint,
     previewEdge: preview.previewEdge,
     endPreview: preview.endPreview,
   });
+
+  /** Drop the gesture's snap snapshot, then hand the press to the pointer interaction. */
+  const onPointerDown = (event: PointerEvent) => {
+    gestureSnap = null;
+    interaction.onPointerDown(event);
+  };
 
   const drawDeps: TimelineDrawDeps = {
     cssW,
@@ -162,6 +219,8 @@ export default function Timeline() {
     windowSelection: interaction.windowSelection,
     laneDrag: interaction.laneDrag,
     laneHover: interaction.laneHover,
+    hoverTime: interaction.hoverTime,
+    hoverX: interaction.hoverX,
   };
 
   function draw() {
@@ -217,8 +276,31 @@ export default function Timeline() {
     interaction.laneHover();
     interaction.laneDrag();
     interaction.windowSelection();
+    interaction.hoverTime();
+    interaction.hoverX();
     draw();
   });
+
+  /**
+   * Follow the playhead (D-03): while playing with the toggle on, page the view by its own
+   * span so the line never runs off the edge. The new view keeps ~8% of the span as a
+   * margin — on the left when the playhead went backwards, on the right when it went
+   * forwards — and `applyView` clamps it to the source. The bounds are read untracked so a
+   * view write cannot re-trigger this effect.
+   */
+  createEffect(
+    on([preview.playSec, preview.status, transportFollow], () => {
+      const at = preview.playSec();
+      if (!transportFollow() || preview.status() !== "playing" || !source() || at == null) {
+        return;
+      }
+      const [lo, hi] = untrack(() => [viewStart(), viewEnd()] as const);
+      if (at >= lo && at <= hi) return;
+      const pad = Math.max(1e-9, hi - lo) * 0.08;
+      if (at < lo) applyView(at - pad, at - pad + (hi - lo));
+      else applyView(at + pad - (hi - lo), at + pad);
+    }),
+  );
 
   return (
     <section class="app-timeline" data-testid="region.timeline">
@@ -238,11 +320,22 @@ export default function Timeline() {
         onFit={interaction.fitAll}
       />
 
-      <div class="timeline-canvas" ref={(node) => (wrap = node)}>
+      <TimelineContextMenu
+        ref={(node) => (wrap = node)}
+        timeAt={timeAt}
+        onZoomWindow={interaction.zoomToWindow}
+        onFit={interaction.fitAll}
+      >
         <canvas
           ref={(node) => (canvas = node)}
           data-testid="timeline.canvas"
-          onPointerDown={interaction.onPointerDown}
+          tabIndex={0}
+          role="application"
+          aria-roledescription="interactive timeline"
+          aria-label="Timeline: waveform, analysis window and playhead"
+          aria-describedby="timeline-keyboard-help"
+          onKeyDown={a11y.onKeyDown}
+          onPointerDown={onPointerDown}
           onPointerMove={interaction.onPointerMove}
           onPointerUp={interaction.onPointerUp}
           onPointerCancel={interaction.onPointerUp}
@@ -272,7 +365,21 @@ export default function Timeline() {
             </div>
           )}
         </Show>
-      </div>
+      </TimelineContextMenu>
+      <p id="timeline-keyboard-help" class="timeline-sr">
+        Left and right arrows move the playhead by one grid step (Shift for ten); Home returns to
+        the start; End jumps to the end; PageUp and PageDown step through the analysis-window
+        history.
+      </p>
+      <p
+        class="timeline-sr"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="timeline.announce"
+      >
+        {a11y.announcement()}
+      </p>
       <TimelineScrollBar
         view={() => [viewStart(), viewEnd()]}
         duration={duration}

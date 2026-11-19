@@ -83,10 +83,12 @@ an empty/non-key binding. A stored value of `null` means **intentionally unbound
 | timeline canvas / graph canvas / body | allowed | allowed | allowed |
 | open dialog | only dialog-scope / `Escape` | only dialog-scope | — |
 
-The Timeline becomes focusable in M23; clicking it (or a reframe that focuses it) puts the
-transport keys in their natural context. The **palette** command opts in to working in a
-text field (`allowInInput`); `?` does not, so it stays a normal character while typing.
-Use Help → Keyboard Shortcuts from a text field.
+The Timeline canvas **is focusable** (M23; D-14 added the keyboard set and the ARIA live
+region); clicking it puts the transport keys in their natural context. Until M24's
+registry owns them, the canvas-local keys are a small subset — see the note under the
+transport table. The **palette** command opts in to working in a text field
+(`allowInInput`); `?` does not, so it stays a normal character while typing. Use Help →
+Keyboard Shortcuts from a text field.
 
 ## Default bindings
 
@@ -103,12 +105,19 @@ steals Space from a text field or a focused button (where Space belongs to the c
 | Play / Pause | `Space` | Primary action; resumes from the playhead when it is in the window. |
 | Stop (keep playhead) | `Shift+Space` | Silences; the line stays where it is. |
 | Loop | `L` | Window-following loop on/off. |
-| Seek back / forward | `ArrowLeft` / `ArrowRight` | 100 ms (or 1 % of the window, whichever is smaller). |
-| Seek 1 s | `Shift+ArrowLeft` / `Shift+ArrowRight` | Coarse. |
+| Seek back / forward | `ArrowLeft` / `ArrowRight` | 1 % of the **visible span**, floored at 1 ms. |
+| Seek 10× | `Shift+ArrowLeft` / `Shift+ArrowRight` | Ten nudges. |
 | Seek one frame | `Alt+ArrowLeft` / `Alt+ArrowRight` | `1 / sampleRate`. |
-| Window start / end | `Home` / `End` | Moves the playhead, not the window. |
+| Return to start / jump to end | `Home` / `End` | Return-to-start stops a loaded region that starts after 0; End is clamped into the loaded region. Both move the playhead, not the window. |
+| Window start / end | `PageUp` / `PageDown` | Step through the committed analysis-window history. |
 | Set window start / end at playhead | `[` / `]` | The fast annotation-window gesture. |
 | Follow playhead | `F` | Auto-pan while playing. |
+
+> **Shipped today (canvas-local, M23/D-14):** `ArrowLeft`/`ArrowRight` nudge the playhead
+> (Shift ×10), `Home` returns to the start, `End` jumps to the end, and
+> `PageUp`/`PageDown` step the window history. The rest of the table is M24's registry
+> proposal; each row becomes live when the registry binds it to the command that already
+> exists.
 
 ### Timeline / view
 
