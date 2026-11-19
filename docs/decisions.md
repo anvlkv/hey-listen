@@ -45,6 +45,7 @@ recorded here — see [`deferred.md`](deferred.md).
 | 33 — One log file, previewed in a popout | accepted · delivered | — |
 | 34 — Saved comparisons are pairs of result snapshots | accepted · delivered (M23 Phase 3) | amends ADR-24, ADR-26; supersedes ADR-27 |
 | 35 — Non-goals for the 1.x line | accepted | closes deferred items (see `deferred.md`) |
+| 36 — DOT notation for filter/synth graphs; `GraphSpec` stays the stored form | accepted · planned (M39) | — |
 
 ## ADR-1 — dockview for the Workbench
 
@@ -1249,3 +1250,50 @@ presence is meaningful. Reviving a refused item requires a new ADR that names th
 that changed and the migration it implies — not a new line in a milestone.
 
 **Status: accepted.**
+
+## ADR-36 — DOT notation for filter/synth graphs; `GraphSpec` stays the stored form
+
+**Context:** the filter and synth graphs are set from the CLI and MCP by hand-writing a
+JSON `GraphSpec` (`{ nodes: [{ id, kind, params }], edges: [{ from, fromPort, to, toPort }] }`).
+That is verbose and error-prone for an agent, and the node vocabulary is split across three
+places — the frontend `src/lib/graph/kinds/*` (params, labels, hints),
+`src/lib/graph/ports.ts` (port names), and Rust `kind_arity` (arity only) — so neither an
+agent nor the core has one place that says what a node is. There is also no way to take a
+graph out of a project and reuse it elsewhere.
+
+**Decision:**
+
+- **DOT is the canonical text form** of the compilable graph (`GraphSpec`), for an agent
+  and the user. A multi-port node is a **record** whose `label` names each port
+  (`<audio>`, `<cut>`, `<out>`, …); an edge writes `src:out -> dst:cut`. `id` is a unique
+  handle; `kind` and **keyed** params are explicit attributes
+  (`[kind="lowpass_cv", cutoff=1000, q=1.0]`), resolved against the node catalog — unknown
+  keys and out-of-range values are errors, omitted keys take the default, and port names
+  are the catalog's own (the same ones the editor shows).
+- **`petgraph` is the DOT parse/emit boundary only.** DOT is parsed with `petgraph`
+  (`dot_parser`) at the `dot-parser` **AST** layer, where the `node:port` reference
+  survives (the higher-level `canonical`/`PetGraph` conversion drops it). `GraphSpec`
+  remains the compiled and **stored** form, so the project file is unchanged and
+  petgraph's `serde-1` feature is not used. The editor's node **positions** are a GUI-only
+  concern and are not part of the DOT interchange.
+- **One node catalog.** The kind table (arity, port names, param specs, category, hint,
+  filter/synth-only) becomes a single Rust source of truth exported to the frontend via
+  ts-rs, replacing `kinds/*` + `ports.ts` + `kind_arity`. Discovery mirrors the analyzer
+  catalog: MCP `list_nodes` / `get_node` and a CLI `nodes [KIND]`; `get_node` returns a
+  ready-to-paste DOT skeleton.
+- **DOT in and out at the graph boundaries.** `set_filter_graph` / `render_synth` (MCP)
+  and the CLI `--filter` / `--synth` / `graph` accept a DOT string or a file path (JSON is
+  kept as a legacy alias); the current graph reads back as DOT
+  (`GraphSpec → DOT → GraphSpec` is identity).
+- **Export / import via DOT.** A project's filter graph and synth graph can each be
+  **exported** to a `.dot` file and **imported** from a `.dot` file, so a graph is a
+  shareable artifact independent of the project file.
+
+**Consequence:** agents and users can author and read a graph as text and reuse graphs
+across projects, at the cost of a DOT parser/emitter and a one-time catalog consolidation.
+JSON remains valid input for backward compatibility, but DOT is the documented spelling;
+the editor's node positions are deliberately outside the interchange, so an imported graph
+lands its nodes at default positions and the editor re-derives the layout. See
+[`roadmap.md`](roadmap.md) → M39 and [`source-model.md`](source-model.md).
+
+**Status: planned (M39).**

@@ -2836,3 +2836,89 @@ the view-kind table it belongs to.
 > hover card and masking composite rendered as designed. The native E2E suite was not
 > re-run for this change: no spec asserts the removed panels, and the affected surfaces
 > are preview-checked.
+
+## M39 — DOT notation for filter/synth graphs (planned)
+
+Make the filter and synth graphs editable as **text** — Graphviz DOT — instead of
+hand-written JSON, for an agent and for the user. A graph is read from a DOT string or a
+file path and round-trips back to DOT. Multi-port DSP nodes are **record-based**, so an
+edge names the port it touches.
+
+### The notation
+
+- A node is a **record** when it has more than one input or output: its `label` lists one
+  `<name>` field per port, so an edge writes `src:out -> dst:cut`. Single-port nodes stay
+  bare (`src -> dst`).
+- `id` is a unique handle; `kind` and the **keyed** params are explicit attributes, and
+  the record `label` carries only the ports:
+
+  ```dot
+  digraph {
+    node [shape=record];
+    in  [kind="input"];
+    lp  [kind="lowpass_cv", cutoff=1000, q=1.0,
+         label="<audio> audio | <cut> cut | <Q> q | <out> out"];
+    out [kind="output"];
+    in:out -> lp:audio;
+    lp:out -> out:in;
+  }
+  ```
+
+- Params are resolved against the catalog (below): unknown keys and out-of-range values
+  are parse errors, omitted keys take the catalog default, and port names are the
+  catalog's own names (the same ones the editor shows) — never invented on the spot.
+- Parsing goes through `petgraph` (`dot_parser`) **at the `dot-parser` AST layer**: the
+  `node:port` reference survives only there; the higher-level `canonical`/`PetGraph`
+  conversion drops it. `GraphSpec` stays the compiled and stored form.
+- Every `GraphError` case stays reachable from DOT — unknown kind/port, arity mismatch,
+  duplicate input feed, cycles.
+
+### DOT is the standard text form
+
+- `set_filter_graph` / `render_synth` (MCP) and the CLI `--filter` / `--synth` / `graph`
+  accept a **DOT string or a file path** (`.dot` / `.gv`) — DOT replaces the JSON spelling
+  as the primary form; the JSON `GraphSpec` object is accepted as a legacy alias during
+  migration. The CLI already reads a file, so it gains DOT parsing at that path; the MCP
+  tools gain a `graphFile` path (and inline DOT) alongside the inline object.
+- The current graph is read back **as DOT** (an agent edits in place):
+  `GraphSpec → DOT → GraphSpec` is identity.
+- A graph is a **shareable artifact**: the project's filter graph and synth graph can each
+  be **exported** to a `.dot` file and **imported** from a `.dot` file, independent of the
+  project file (imported nodes land at default positions — the editor re-derives layout).
+- The **project file is unchanged** — `GraphSpec` remains the `SETUP`/postcard
+  representation; `petgraph` is a parse/emit boundary, not a storage type, so its
+  `serde-1` feature is not used. The editor's node **positions** are a GUI-only concern
+  and are not part of the DOT interchange.
+
+### A single node catalog + discovery
+
+- The node catalog becomes **one Rust table** (kind → arity, port names, param specs with
+  label/default/min/max/step/unit, category, hint, filter/synth-only), replacing the
+  three-way split across `src/lib/graph/kinds/*`, `src/lib/graph/ports.ts`, and
+  `kind_arity`. It is exported to the frontend via ts-rs (like the analyzer catalog), so
+  `kind_arity` and the editor palette derive from the one table.
+- **Discovery** mirrors the analyzer catalog: MCP `list_nodes` / `get_node` and a CLI
+  `nodes [KIND] [--json]`. `get_node` returns the ready-to-paste DOT skeleton for a kind
+  (record label + keyed params with defaults), so an agent never guesses a port or a key.
+
+> **Decision (committed):** DOT is the canonical agent/user text for the **compilable
+> graph** (`GraphSpec`); `petgraph` is the DOT parse/emit boundary only; params are
+> **keyed**; the node catalog is a single Rust source of truth exported by ts-rs. See
+> [`decisions.md`](decisions.md) → ADR-36.
+
+**Files:** `src-tauri/src/audio/graph/{dot.rs,nodes.rs}`,
+`src-tauri/src/mcp/tools/workbench.rs`, `src-tauri/src/mcp/dispatch/session.rs`,
+`src-tauri/cli/src/batch/{inputs.rs,args.rs,clap_args.rs,nodes.rs}`,
+`src/lib/graph/{kinds/*,ports.ts,palette.ts,spec.ts}` (collapse into a binding import),
+`src-tauri/Cargo.toml` (add `petgraph` with `dot_parser`), `docs/source-model.md`,
+`docs/mcp-cli-ergonomics.md`.
+
+**Tests.** Rust: `GraphSpec → DOT → GraphSpec` round-trip for every node kind (including
+all multi-port kinds), keyed-param resolution and errors, port-reference resolution,
+file-path loading, and parity with the existing JSON path. MCP/CLI: `list_nodes` /
+`get_node` catalog, `nodes [KIND]`, and DOT accepted at `set_filter_graph` /
+`render_synth`. A test that the catalog's arity, port names and param order agree with
+`kind_arity` and the editor palette (one list, one place).
+
+**Not part of this milestone:** DOT is a text interchange, not a replacement for the
+solid-flow editor; graph layout authoring and a DOT diff/merge view are out of scope.
