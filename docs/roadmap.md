@@ -2420,7 +2420,7 @@ by [`lighthouse-audit-1.md`](lighthouse-audit-1.md); the before/after is
   layout; canvases repaint when the window moves to a display with a different
   DPR. See [`ui-layout.md`](ui-layout.md).
 
-## M33 — Reliability, a console CLI, and self-update
+## M33 — Reliability, a console CLI, and self-update ✅
 
 The milestone that turns a sharp-but-rough tool into a shippable one. Four phases, each
 self-contained and committable. A and B fix what the two read-only reviews found
@@ -2428,6 +2428,36 @@ self-contained and committable. A and B fix what the two read-only reviews found
 delivery story the fixed tool needs (self-update via GitHub Releases, then a first-class
 CLI install). The finding lists live in those two docs and are **linked, not restated**
 here — each phase's scope references them by id.
+
+> **Delivered (all four phases).** **A** closed every finding in the two reviews, each
+> with the regression test that would have caught it: the atomic project writer
+> (`project/write.rs` — temp sibling, sync, rename, old file preserved), the
+> request-ordered source install (an out-of-order decode can no longer make the timeline
+> describe the wrong audio), the bounds-first `DATA` reader, the bounded MCP transport
+> (size/deadline/session limits, a stale advertisement falling back to headless, a waiter
+> guard, a bridge that unblocks), validated headless param/option overrides, the popout
+> subscribe-before-fetch, CLI writer/flush/CSV-sidecar errors as a nonzero exit, the
+> non-fatal log plugin for batch runs, the real `pitchPyin`/`harmonicRatio` pitch range,
+> annotation bodies no longer behind `--full`, and the analysis window resetting on save.
+> Whatever A did not make fatal, it made **reported**: no silent truncation, no silently
+> ignored key, no success exit with missing output.
+>
+> **B** is `hey-listen-cli`, the GUI-free console binary (clap derive, the same JSONL
+> envelope), staged as the `externalBin` sidecar by `scripts/prepareSidecar.mjs`; the app
+> binary keeps `--mcp`/`--headless` and the `.heyl` open path. **C** is
+> `tauri-plugin-updater` + `@tauri-apps/plugin-updater` on a GitHub `latest.json` feed,
+> with the key pair generated and registered by `npm run setup:updater` and the installed
+> CLI refreshed from the new bundle on launch.
+>
+> **D** is *Help → Install Command Line Tool…* driving `src/components/CliToolDialog.tsx`.
+> The reference for C and D is [`updater.md`](updater.md); the batch surface is
+> [`cli.md`](cli.md).
+>
+> **Cross-target fix.** The file-open helper A added for macOS (`opened_paths_from_urls`)
+> was re-exported unconditionally while its only caller (`RunEvent::Opened`) is Apple-
+> gated, so every Windows/Linux build failed on the import — including the release
+> workflow, which builds `hey-listen-cli` through the same lib. The re-export now carries
+> the same `cfg` as the item and its caller.
 
 ### M33.A — Reliability & ergonomics hardening ✅
 
@@ -2489,9 +2519,12 @@ The updater from [`tauri.app/plugin/updater`](https://v2.tauri.app/plugin/update
 **ADR-30** and [`updater.md`](updater.md).
 
 - **Plugin.** `tauri-plugin-updater` (Rust) + `@tauri-apps/plugin-updater` (JS), initialized
-  desktop-only; `createUpdaterArtifacts: true`; the public key in `plugins.updater.pubkey`;
-  `endpoints` pointing at the release feed; `updater:default` in capabilities; a
-  `@tauri-apps/plugin-process` relaunch. The private key is a repo secret — never committed.
+  desktop-only; the public key in `plugins.updater.pubkey`; `endpoints` pointing at the
+  release feed; `updater:default` in capabilities; a `@tauri-apps/plugin-process` relaunch.
+  The private key is a repo secret — never committed. `createUpdaterArtifacts` is *not* in
+  `tauri.conf.json`: the release workflow sets it through `TAURI_CONFIG`, the only place
+  with a signing key, so a local or CI `tauri build` never demands one
+  ([`updater.md`](updater.md) → Configuration).
 - **Delivery.** The release workflow signs the bundles (`TAURI_SIGNING_PRIVATE_KEY`),
   uploads the `.tar.gz`/`.AppImage`/`.msi`/`.exe` + `.sig` artifacts, and publishes a
   `latest.json` feed per platform via tauri-action, so `check()` finds and verifies updates.
