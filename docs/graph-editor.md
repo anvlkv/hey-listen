@@ -147,6 +147,10 @@ points solid-flow draws), with a ~26-unit threshold (`lib/graphEdges.ts`).
 
 ## Deferred
 
+Also see [`deferred.md`](deferred.md): the remaining nodes are **D-17** (one `make_unit`
+arm + palette entry + arity each), the per-node inspectors are **D-16**, and click-free
+rebuild smoothing is **D-24**.
+
 - **`Sequencer`** — it schedules timed `AudioUnit` events (`push`, fades, replay
   mode), which the positional-params node model cannot express; deferred to a future
   event/sequence editor.
@@ -170,6 +174,7 @@ points solid-flow draws), with a ~26-unit threshold (`lib/graphEdges.ts`).
 
 - **Click-free smoothing across net rebuilds** — the current `follow` smoothing
   glides control signals *within* a compiled net, but a filter edit still rebuilds
-  and steps; cross-rebuild (crossfade) smoothing is a future item.
+  and steps; cross-rebuild (crossfade) smoothing is a future item ([D-24](deferred.md),
+  after M22).
 - **Per-node inspectors and presets** (a richer alternative to inline positional
-  params).
+  params) — [D-16](deferred.md).

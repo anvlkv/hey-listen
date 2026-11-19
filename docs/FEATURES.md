@@ -1,6 +1,6 @@
 # Features and workflows
 
-A user-facing map of Hey Listen, including work that has not shipped. **Available** means the [roadmap](roadmap.md) marks it delivered; **Planned** is a defined future milestone; **Proposed** needs confirmation; **Drafted** is an outline, not a commitment. This is not an implementation checklist. For the canonical analyzer inventory, see [Analysis tools](analysis-tools.md); for exact milestone status, see the [roadmap](roadmap.md).
+A user-facing map of Hey Listen, including work that has not shipped. **Available** means the [roadmap](roadmap.md) marks it delivered; **Planned** is a defined future milestone; **Proposed** needs confirmation; **Drafted** is an outline, not a commitment. Work that is deferred, and the phase it belongs to, lives in one place: [Deferred work](deferred.md). This is not an implementation checklist. For the canonical analyzer inventory, see [Analysis tools](analysis-tools.md); for exact milestone status, see the [roadmap](roadmap.md).
 
 ## Start with sound — available
 
@@ -63,6 +63,6 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 
 ### Proposed or drafted
 
-- **Further Timeline precision (M23 deferred).** Hover time/sample readouts, a context menu, snapping, typed window bounds, easier handles, navigation history, and accessibility announcements remain proposed, not committed. [Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-)
+- **Further Timeline precision (planned, phased).** Hover time/sample readouts, a context menu, snapping, typed window bounds, easier handles, navigation history, accessibility, and Return-to-start/follow-playhead are planned in phases; see [Deferred work](deferred.md). Waveform editing, spectral selection, and multi-range selection are **not planned** ([ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)). [Roadmap M23](roadmap.md#m23--timeline-ergonomics--comparison-rework-)
 - **In-app help and onboarding (M34 draft).** Contextual help for analyzers, graphs, and projects, plus a getting-started path and clearer documentation entry points; surfaces and content are still TBD. [Roadmap M34](roadmap.md#m34--improved-documentation-and-help-drafted)
 - **Landing-page rework (M35 draft).** A clearer public explanation of the open → filter → analyze → annotate → compare workflow; site structure and copy remain TBD. This is a communications plan, not a new analysis capability. [Roadmap M35](roadmap.md#m35--landing-page-rework--remotion-workflow-video-drafted)

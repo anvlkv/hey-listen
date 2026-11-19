@@ -7,8 +7,8 @@
 > dropped** (δ kept). The `v3` format stores one snapshot per pair, **result-only** (a
 > saved reference shows its stored result on its own grid), and a `v2 → v3` step
 > **converts** the older snapshots into pairs rather than dropping them. The sections below
-> describe the delivered M25–M25.D model; the rework amends ADR-26 and supersedes ADR-27's
-> one-snapshot shape. See [`roadmap.md`](roadmap.md) → M23, Phase 3.
+> describe the delivered M25–M25.D model; the rework is **ADR-34**, which amends ADR-26 and
+> supersedes ADR-27's one-snapshot shape. See [`roadmap.md`](roadmap.md) → M23, Phase 3.
 
 Compare **the same analysis tool** on two project sides. Each side keeps its own source,
 filter, synth, timeline, analysis window, shared params and tool options; the comparison
@@ -22,8 +22,9 @@ own; the only thing that spans them is the diff.
 Since **M25.B** the two sides share a **relative time axis** (each window starts at 0)
 with a manual fine-tune offset δ, and the delta covers their **common span**, not an
 absolute-time overlap (ADR-26). Since **M25.C** the last comparison is saved in the
-project as a **reference snapshot**, so A can be reopened alone (ADR-27). Both supersede
-parts of the original M25 contract; sections below say which rule applies.
+project as a **reference snapshot**, so A can be reopened alone (ADR-27, superseded in shape
+by ADR-34). Both supersede parts of the original M25 contract; sections below say which
+rule applies.
 
 ## Model
 

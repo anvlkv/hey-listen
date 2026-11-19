@@ -1,5 +1,51 @@
 # Decisions (ADRs)
 
+**The index is authoritative.** A body `**Status:**` line is the snapshot written when the
+ADR landed; the index below is the one place to check whether a decision still binds.
+Status vocabulary: *decision* is `proposed` / `accepted` / `superseded`; *delivery* is
+`planned` / `partial` / `delivered` / `implemented`. Amendments are **append-only**
+blockquotes inside the affected ADR (`> **Amended (M25.C):** …`), never edits to its
+Decision text; the new ADR names what it amends in the index row. Deferred work is not
+recorded here — see [`deferred.md`](deferred.md).
+
+| ADR | Status | Amends / superseded by |
+| --- | --- | --- |
+| 1 — dockview for the Workbench | accepted · delivered (M0, M7) | — |
+| 2 — Binary project file (postcard + PCM sections) | accepted · delivered (M6; container v3) | — |
+| 3 — One window = one project | accepted · delivered (M0) | — |
+| 4 — PCM over `tauri::ipc::Channel` | accepted · delivered (M1) | — |
+| 5 — fundsp for filtering, oxiaudio for analysis | accepted · delivered (M3, M4) | — |
+| 6 — Shared analysis params in the frontend store | accepted · delivered (M4) | — |
+| 7 — Timeline waveform on canvas; preview via Web Audio | accepted · delivered (M1) | superseded in part by ADR-9 |
+| 8 — Kobalte for accessible UI primitives | accepted · delivered (M0) | — |
+| 9 — Preview playback in the Rust core (cpal) | accepted · delivered (M3) | one recorded deviation (full PCM copy in the WebView) |
+| 10 — The graph editors are Workbench tabs | accepted · delivered (M3) | — |
+| 11 — Project UI state in the core | accepted · delivered (M7) | — |
+| 12 — MCP server in the app + stdio bridge | accepted · delivered (M9) | — |
+| 13 — MCP control surface, headless CLI, multi-project | accepted · delivered (M9.A) | — |
+| 14 — Batch CLI is the app binary | accepted · delivered (M10) | superseded for `hey-listen-cli` by ADR-29 |
+| 15 — Themes are data | accepted · delivered (M11) | — |
+| 16 — Exports are self-describing | accepted · delivered (M12) | — |
+| 17 — Templates are source-less JSON presets | accepted · planned (M13) | — |
+| 18 — Annotations are project content | accepted · delivered (M14) | amended by ADR-19 |
+| 19 — An annotation is selected, not refocused | accepted · delivered (M14 follow-up) | amends ADR-18 |
+| 20 — Annotations and detected notes are distinct terms | accepted · delivered (M14) | — |
+| 21 — Live synth: audition + in-place rewrite | proposed · planned (M22) | — |
+| 22 — The playhead is transport state | accepted · delivered (M23) | — |
+| 23 — One command registry drives keyboard/palette/UI | proposed · planned (M24) | — |
+| 24 — Comparison is a transient, read-only view | accepted · implemented (M25, M25.A) | amended by ADR-26, ADR-27, ADR-34 |
+| 25 — Psychoacoustics are calibrated and honest | accepted · implemented (M26–M31) | — |
+| 26 — Compare alignment is relative + manual offset | accepted · implemented (M25.B) | amended by ADR-34 |
+| 27 — The last comparison is saved as a snapshot | accepted · implemented (M25.C) | superseded by ADR-34 |
+| 28 — String identifiers become strum enums | accepted · delivered (M15.B) | — |
+| 29 — The batch CLI is a console binary | accepted · delivered (M33.B) | supersedes ADR-14 for `hey-listen-cli` |
+| 30 — Self-update over GitHub Releases | accepted · delivered (M33.C) | — |
+| 31 — The app installs its own console CLI | accepted · delivered (M33.D) | — |
+| 32 — Project migrations are explicit and incremental | accepted · delivered (M37) | — |
+| 33 — One log file, previewed in a popout | accepted · delivered | — |
+| 34 — Saved comparisons are pairs of result snapshots | accepted · delivered (M23 Phase 3) | amends ADR-24, ADR-26; supersedes ADR-27 |
+| 35 — Non-goals for the 1.x line | accepted | closes deferred items (see `deferred.md`) |
+
 ## ADR-1 — dockview for the Workbench
 
 **Context:** analyzer tabs need docking/splitting, but only inside the central
@@ -686,6 +732,10 @@ every family (series, spectrum, readouts, matrix/spectrogram, rhythm/events,
 manual offset; **ADR-27** (M25.C) made the comparison's reference side a saved project
 snapshot. The compare *panel* still never enters `LAYOUT`.
 
+> **Amended (M23 Phase 3 / ADR-34):** a **saved** comparison is project content now:
+> `COMPARE` holds one entry per pair (several per tool) and saved comparisons restore as
+> Workbench tabs. The **live** compare tab remains transient and outside `LAYOUT`.
+
 ## ADR-25 — Psychoacoustic analyzers are a calibrated, standards-honest layer over dBFS
 
 **Context:** perceptual descriptors (loudness, sharpness, roughness, fluctuation
@@ -777,7 +827,8 @@ alignment (cross-correlation / DTW) remains out of scope. See
 **Status: implemented (M25.B).** The core matches on a relative axis (`Alignment` with
 `aDuration` / `bDuration` / `bOffset` / `common`); `run_comparison`, MCP `bOffset` and
 CLI `--b-offset` expose the offset, and the frontend's `components/compare/time.ts`
-holds the display transform (including the swap).
+holds the display transform. `Swap A/B` was dropped in M23 Phase 3; the delivered pair
+contract is ADR-34.
 
 ## ADR-27 — The last comparison is saved as a reference snapshot
 
@@ -842,6 +893,10 @@ side per tool, saved comparisons restore as tabs bound to the snapshot, and
 `compare_analysis { saved: true }` / `get_state.compare` / `list_projects` expose it.
 See [`comparison.md`](comparison.md) for the delivered contract and its one recorded
 deviation (a compare popout's live change is not in the owner window's dirty flag).
+
+> **Superseded (ADR-34, M23 Phase 3):** `COMPARE` is a `Vec<SavedComparison>` — several
+> pairs per tool — and a pair carries **both** sides' windows and channels. The section
+> stays result-only, so "no reference audio is embedded" still holds.
 
 ## ADR-28 — String identifiers become strum enums
 
@@ -1130,3 +1185,67 @@ command and a Rust panic were all invisible in the file.
 **Consequence:** one log file explains both sides of a failure, and Help reaches it. Costs:
 the bridge patches global `console` methods (so it is installed first, from `src/boot.ts`,
 and must never throw), and the preview polls rather than streaming.
+
+## ADR-34 — Saved comparisons are pairs of result snapshots
+
+**Context:** ADR-27 stored **one** snapshot per tool, bound to whichever comparison was
+open at save time; M25 diffed it over an absolute-time overlap and offered a `Swap A/B`
+display. M23 Phase 3 reworked comparisons into **one pair per tab**, aligned relatively
+(ADR-26 as amended, manual δ, no comparability gate), and the project file's `COMPARE`
+section became a `Vec<SavedComparison>` with several entries per tool (container v3 plus a
+`v2 → v3` convert). The roadmap recorded that decision as "See ADR-33 (to be written)", but ADR-33
+became the logging ADR, so the shipped shape was documented only in the roadmap,
+[`comparison.md`](comparison.md) and [`project-file-format.md`](project-file-format.md).
+
+**Decision:**
+
+- A saved comparison is **one pair**: the owner's pinned window + channel, the
+  reference's window + channel, and one `AnalyzerId`. `COMPARE` is a `Vec<SavedComparison>`;
+  a project may hold **several pairs per tool**, each with a stable `id` the compare tab
+  binds to.
+- The entry stores the reference's **last result** plus its setup and fingerprint. It stays
+  **result-only** — no reference audio is embedded — so a saved reference is shown on its
+  own grid and is not re-gridded to the owner's. Fragment audio is an explicit future
+  reversal, not an implementation detail (see [`deferred.md`](deferred.md) → D-23).
+- A comparison that is open or saved is **project content**: it is written to `COMPARE` and
+  restores as a Workbench tab (never a popout). A **live** comparison tab remains transient
+  and stays out of `LAYOUT`/`openTools`.
+- The comparison always diffs on the **owner's** grid; a live reference is re-analysed on
+  it. Absolute time survives only as the informational `overlap` and the reference band on
+  time charts.
+
+**Consequence:** a project can explain several comparisons per tool and reopen each one
+without the reference project, at the cost of one snapshot per pair in the file (worst
+case ≈0.5 MB for a spectrogram) and a frozen reference until the comparison is made and
+saved again. **Amends ADR-24** (saved comparisons are content and restore as tabs; the
+live tab stays transient) and **ADR-26** (`Swap A/B` is dropped; relative alignment and δ
+stand). **Supersedes ADR-27** (one snapshot per tool).
+
+**Status: delivered (M23 Phase 3).** `audio/analysis/compare/{mod,align,diff,saved}.rs`,
+the `COMPARE` reader/writer + `migrate/v2.rs`, `state/compare/`, and
+`compare_analysis { saved: true }`.
+
+## ADR-35 — Non-goals for the 1.x line
+
+**Context:** several items sat in per-milestone "Deferred" lists for many milestones
+without ever being blocks of work. Most were not deferred at all: they need a different
+product shape, because an existing decision forbids them. Leaving them in a backlog keeps
+re-opening the same discussion and hides the ones that are genuinely schedulable.
+
+**Decision:** the following are **refused** for the 1.x line. They are removed from
+[`deferred.md`](deferred.md), not marked "done".
+
+| Item | Why | What would reopen it |
+| --- | --- | --- |
+| A second track or in-project A/B | ADR-3 (one window = one project) + ADR-24 (a diff is a view over two projects); every store, the file and the Workbench would become track-aware | An ADR that changes the one-source model |
+| Waveform editing, spectral selection | ADR-9 (the core owns the PCM) and ADR-3 (one source per project); only the synth may be rewritten in place (ADR-21) | An editing model ADR + an undo contract for source PCM |
+| Multi-range selection, per-selection analysis | One shared analysis window is the contract behind every analyzer, export and MCP call (ADR-6) | A design for N windows per project that keeps every consumer honest |
+| Copy chart image to the clipboard | The clipboard plugin wants raw RGBA while the capture is a PNG blob; PNG **file** export (ADR-16) covers the use case | A cheaper image-conversion path, if the demand appears |
+| MCP resources / prompts / elicitation | The MCP surface is tools-only by design (ADR-12/13); agent guidance lives in tool descriptions and `get_analyzer` | A concrete client workflow that tools cannot express |
+| Shipping `heylisten-mcp` inside the bundle | `--mcp` on the app binary already serves GUI-less hosts; a sidecar needs a per-triple build step for no user-visible gain (ADR-29) | A host where the app binary cannot be launched with `--mcp` |
+
+**Consequence:** the deferred ledger contains only work we mean to do, so a row's
+presence is meaningful. Reviving a refused item requires a new ADR that names the constraint
+that changed and the migration it implies — not a new line in a milestone.
+
+**Status: accepted.**

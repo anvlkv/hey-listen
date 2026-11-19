@@ -7,6 +7,7 @@ design. See [`roadmap.md`](roadmap.md) for current milestone status and
 | Doc | What it covers |
 | --- | --- |
 | [FEATURES.md](FEATURES.md) | Available and future user-facing features and workflows |
+| [deferred.md](deferred.md) | Deferred work: one ledger of what is not shipped, its blocker, and the phased delivery plan (the owner — area docs keep only the technical reason) |
 | [TONE_OF_VOICE.md](TONE_OF_VOICE.md) | Proposed voice directions and sample product copy |
 | [architecture.md](architecture.md) | System architecture, IPC boundary, Rust/TS module layout, data flow, threading |
 | [ui-layout.md](ui-layout.md) | The fixed-region + workbench-tabs layout rule and tab behaviors |
@@ -30,7 +31,7 @@ design. See [`roadmap.md`](roadmap.md) for current milestone status and
 | [dependencies.md](dependencies.md) | Dependency rationale and licenses |
 | [logging.md](logging.md) | Logging plan: one log file for the Rust core and the webview, the Help-menu log actions, the log preview window, and the E2E log destination |
 | [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
-| [decisions.md](decisions.md) | Architecture decision records (ADRs) |
+| [decisions.md](decisions.md) | Architecture decision records (ADRs) with a status index, amendments and supersessions |
 | [code-hygiene.md](code-hygiene.md) | The quality gate (the maid): format, lint, file-length budget, duplication, dead code, and the hooks/CI that run it |
 | [roadmap.md](roadmap.md) | Phased milestones |
 | [testing.md](testing.md) | E2E test plan + test matrix |

@@ -512,11 +512,13 @@ Deliberately out of scope:
   Limitations). Project save/open is **not** a CLI subcommand, but it is available
   through the headless MCP server (`heylisten-mcp --headless`), which writes the
   session's source + setup + annotations.
-- **Device/process enumeration** (`devices`) — deferred. On macOS enumerating
-  outputs goes through the same `supports_output` → AudioUnit path that makes the
-  GUI picker prompt for microphone/audio-capture permission; a batch CLI must never
-  prompt. It becomes available once the AudioUnit-free enumeration lands (the same
-  fix the picker needs). It is not needed for bulk analysis anyway.
+- **Device/process enumeration** (`devices`) — blocked, not refused. On macOS enumerating
+  outputs goes through the same `supports_output` → AudioUnit path that makes the GUI
+  picker prompt for microphone/audio-capture permission; a batch CLI must never prompt.
+  It becomes available once the AudioUnit-free enumeration lands (the same fix the picker
+  needs). It is not needed for bulk analysis anyway. Tracked as
+  [D-26](deferred.md); the app-side `list_*_devices` / `list_processes` MCP tools are
+  unaffected.
 - **Bridging to a running app** — always standalone (see above).
 - **Live capture input** — file and synth sources only.
 - **Opening a window of any kind** — the command runs and exits before windows exist.

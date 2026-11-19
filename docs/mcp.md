@@ -467,7 +467,8 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   app. With the app running they run in the webview against the same registry the UI
   drives (see [`theming.md`](theming.md)).
 - **The MCP `run_analysis` path does not read the result cache.** The cache the project
-  file persists (`RESULTS`) lives in the frontend; a headless or MCP run recomputes.
+  file persists (`RESULTS`) lives in the frontend; a headless or MCP run recomputes
+  ([D-22](deferred.md)).
 - **Windows release:** use `heylisten-mcp` (the app binary has no console).
 - **Bundling the bridge:** the `heylisten-mcp` binary is built next to the app
   (`target/{debug,release}/heylisten-mcp`) but is **not** shipped inside the
@@ -478,14 +479,15 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   and is meant to be *spawned by the app* under `shell:allow-execute`, not launched by
   an external MCP client. Shipping a helper *inside* the bundle would need an
   `externalBin` entry **plus** a build step that runs `cargo build --bin heylisten-mcp`
-  for the target triple and stages it under `src-tauri/binaries/` — deferred until it
-  is actually needed.
+  for the target triple and stages it under `src-tauri/binaries/`. That is **not planned**
+  ([ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)).
 - **`--mcp` on the app binary** runs the entry in `setup` (routed by
   `tauri-plugin-cli`), so the app process starts before the bridge does; it never opens
   a window, but for a GUI-less host (or Windows release) prefer `heylisten-mcp`, which
   is a plain console binary.
-- **MCP resources / prompts / elicitation** are not implemented (tools only), which
-  is what the milestone scoped.
+- **MCP resources / prompts / elicitation** are not implemented (tools only). That is a
+  **non-goal** ([ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)), not a gap: agent
+  guidance lives in tool descriptions and `get_analyzer`.
 
 ## Files
 

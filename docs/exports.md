@@ -114,9 +114,9 @@ answers "requires the app".
 
 - **Per tab** — an **Export** popover in `AnalyzerTab`'s toolbar (next to Params /
   About): *Data → JSON*, *Data → CSV*, *Chart → PNG*, and *Copy CSV* (the clipboard
-  plugin is already wired). Copying the chart image is deferred: the clipboard plugin
-  wants raw RGBA, while the canvas capture is a PNG blob, and PNG file export covers the
-  use case.
+  plugin is already wired). Copying the chart **image** is **not planned**: the clipboard
+  plugin wants raw RGBA, while the canvas capture is a PNG blob, and PNG file export covers
+  the use case ([ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)).
 - **Tab context menu** — `Workbench.getTabContextMenuItems` gains flat export entries
   (JSON / CSV / PNG, plus *Export all open analyses…*) alongside *Pop out to window*;
   dockview's context menu has no submenu support.

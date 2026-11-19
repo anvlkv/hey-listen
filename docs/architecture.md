@@ -386,7 +386,8 @@ thread); analysis runs in Rust.
 > **Implemented (M4):** the frontend (`state/analyzer/`) debounces auto-run on
 > the source / window / shared params / filter, and keeps results latest-wins with
 > a per-tool generation counter. Progress streaming and core-side mid-run
-> cancellation are deferred to the expensive tools (M5).
+> cancellation were never implemented; they are tracked in [`deferred.md`](deferred.md)
+> as D-21.
 
 **Trigger policy:**
 

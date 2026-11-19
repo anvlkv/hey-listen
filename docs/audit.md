@@ -5,6 +5,32 @@
 
 **Scope:** Delivered functionality in [the roadmap](roadmap.md), not planned M13, M22–M24, or M26–M31 work. Severity: **P1** risks data loss, wrong-audio analysis, or process failure; **P2** breaks a supported workflow or makes results misleading; **P3** is a narrower usability/documentation defect. These are priorities, not proof of exploitability in every deployment.
 
+## Resolution (2026-11-19)
+
+**Every finding below is fixed; this page is the audit as written, not a current defect
+list.** The failure scenarios were reviewed against the current tree and each finding has
+code and a regression test behind it. Keep the text for the reasoning; do not re-open an
+item without checking the cited fix.
+
+| # | Fixed by |
+| --- | --- |
+| 1 | `project/write.rs` writes a unique sibling `.tmp`, syncs, then renames over the destination (line 161); a failed write leaves the previous version intact. |
+| 2 | `commands/decode.rs` claims the open token **before** installing PCM, so a stale completion cannot win. |
+| 3 | `project/read.rs` validates every section allocation with checked arithmetic and the section length before allocating. |
+| 4 | `commands/project.rs` snapshots the PCM under a short lock; the disk write holds no audio-source lock. |
+| 5 | `audio/decode.rs` rebuilds the decoder on `ResetRequired` and continues; a chained-Ogg test asserts both streams decode. |
+| 6 | `mcp/server/session.rs` caps sessions (`MAX_SESSIONS`) and message length (`MAX_MESSAGE_LEN`) with read deadlines. |
+| 7 | `mcp/bridge/endpoint.rs` requires the advertised pid to be alive **and** the port to answer the probe; a stale advertisement is not live (tested). |
+| 8 | `mcp/server.rs` cleans the waiter up on every early return and bounds the ack/response waits. |
+| 9 | `mcp/bridge/mod.rs` waits on the stdin forwarder only for `STDIN_GRACE`, so a socket shutdown cannot hang the bridge. |
+| 10 | `mcp/dispatch/args.rs` validates every override key against the tool catalog and fails the call instead of ignoring it. |
+| 11 | `state/uiState.ts` drops pushes until the initial sync has completed, so a popout cannot overwrite a newer peer value with its seed. |
+| 12 | `cli/src/batch/output.rs` records the first write/flush failure and turns it into a non-zero exit; the sidecar error is propagated too. |
+| 13 | `cli/src/batch/mod.rs` reports an unknown tool as a JSON error record and exits non-zero (one documented contract). |
+| 14 | `cli/src/batch/args.rs` counts `synth`'s source-summary record, so `--pretty` accepts it. |
+| 15 | The MCP `initialize` instructions describe the delivered family-aware `maxPoints`/`axis` contract. |
+| 16 | `state/menu.ts` marks a dropped/OS-opened path handled only after a successful load, so a failed open retries. |
+
 ## P1 — address first
 
 ### 1. Saving an existing project can destroy the previous version

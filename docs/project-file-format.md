@@ -357,5 +357,6 @@ files live under `themes/`). A template reuses the `SETUP` / `LAYOUT` *payload t
 ### Deferred
 
 - **`i16` `DATA`.** The format allows it (`format` byte), but the core stores `f32`
-  and always writes `format = 0`.
-- **FLAC-compressed `DATA`** (the optional future optimization) is not implemented.
+  and always writes `format = 0` ([D-20](deferred.md)).
+- **FLAC-compressed `DATA`** (the optional future optimization) is not implemented
+  ([D-29](deferred.md)).

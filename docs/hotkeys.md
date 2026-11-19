@@ -239,8 +239,5 @@ so the user can see the whole keyboard surface in one place.
 
 ## Deferred
 
-- Chords/sequences (`G` then `F`), modifier-only bindings, and per-project bindings.
-- Rebindable **native menu** accelerators (requires rebuilding the Tauri menu from the
-  registry) and OS-level global shortcuts.
-- Import/export of a keymap file, and preset keymaps (VS Code / DAW style).
-- Mouse gestures that mirror the keyboard (e.g. a drag threshold for "select window").
+Every item on this list needs the command registry first; they are [D-25](deferred.md)
+and are not part of M24's first delivery.

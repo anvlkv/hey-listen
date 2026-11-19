@@ -187,8 +187,8 @@ Add a `title` and `annotations` to every catalog entry. The `tool()` helper gain
 These are **hints**, not enforcement. The source/project prompts remain in the UI, and
 `run_analysis` still writes params/options unless `transient: true`. `title` and
 `annotations` are additive fields; a client on an older negotiated protocol version
-ignores them. `outputSchema` is deferred partly because it is newer and the result is a
-tagged union.
+ignores them. `outputSchema` is not implemented ([D-31](deferred.md)) partly because it is
+newer and the result is a tagged union.
 
 ### Descriptions and metadata
 
@@ -206,10 +206,10 @@ tagged union.
   is shared.
 - `get_state`: include the full per-tool option defaults in both GUI and headless modes
   (the GUI already does; headless currently reports only tools whose options were set).
-- `outputSchema` is **deferred**: the analysis result is a tagged union and the server
-  echoes the client's protocol version, so a full output schema would be high-maintenance
-  and version-sensitive. The `summary` contract plus input-schema descriptions carry the
-  ergonomics for now.
+- `outputSchema` is **not implemented** ([D-31](deferred.md)): the analysis result is a
+  tagged union and the server echoes the client's protocol version, so a full output
+  schema would be high-maintenance and version-sensitive. The `summary` contract plus
+  input-schema descriptions carry the ergonomics for now.
 
 ## CLI ergonomics
 
@@ -280,9 +280,9 @@ list-style tools so "all tools" is not just an analyzer claim:
   the TS `compact`/`decimate` module once no non-MCP caller needs it.
 - **Annotations are hints.** Do not use them to replace the app's prompts or the
   `transient` semantics.
-- **Deferred:** per-tool `outputSchema`, a general structured-event contract, a
-  configurable preview length, "did you mean?" suggestions for unknown tools/options, and
-  summary-aware annotation snapshots.
+- **Open items:** [`deferred.md`](deferred.md) — per-tool `outputSchema` (D-31), a
+  structured-event contract (D-32), a configurable preview length (D-09), "did you mean?"
+  (D-10), and summary-aware annotation snapshots (D-19).
 
 ## M21.A — agent hardening
 

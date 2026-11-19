@@ -1,5 +1,9 @@
 # Roadmap
 
+Deferred work is owned by [`deferred.md`](deferred.md): one ledger with each item's
+blocker and delivery phase. A milestone below keeps only its own scope note ("not part of
+this milestone"); it does not keep a second backlog list.
+
 ## M0 — Shell ✅
 
 - Tauri 2 + SolidJS scaffold, identifier `com.anvlkv.heylisten`.
@@ -45,8 +49,8 @@
 > (`state/analysis.ts`). Analyzer tabs (waveform / spectrum / spectrogram) are
 > Workbench tabs with params + about popovers, listed in the Sidebar under
 > **Analyzers**; the shared runner (`state/analyzer/`) debounces auto-run and
-> keeps results latest-wins. Progress streaming and core-side cancellation are
-> deferred to the expensive tools in M5.
+> keeps results latest-wins. Progress streaming and core-side cancellation were never
+> implemented; they are tracked in [`deferred.md`](deferred.md) as D-21.
 
 ## M5 — Full tool inventory + tabs ✅
 
@@ -221,7 +225,7 @@ originally scoped, an annotation follows the item.
   option B: the net's global I/O stays mono, but internal stereo/panning/`2→2` nodes
   are supported. Smoothing applies `follow` to control-rate parameters **within** a
   compiled net; click-free smoothing across a full rebuild and a fully stereo
-  preview/analysis chain remain deferred.)*
+  preview/analysis chain are not implemented ([D-24](deferred.md), [D-33](deferred.md)).)*
 - **Timeline window drag ✅.** Move the whole analysis window (keeping its width) via
   a top handle.
 - **Axis label readability ✅.** Wider margins and tick formatters/units for the
@@ -1114,9 +1118,9 @@ milestone over M16–M20, not another analyzer.
 - **Tests.** Summary for every result variant (including empty/silent), compact golden
   fixtures, catalog title/annotation coverage, `get_analyzer`, CLI modes, and an
   agent/CLI end-to-end sequence.
-- **Deferred.** Per-tool `outputSchema` (the result is a tagged union and the protocol
-  version is client-negotiated), a configurable preview length, and "did you mean?"
-  suggestions for unknown tools/options.
+- **Deferred.** Per-tool `outputSchema`, a configurable preview length, "did you mean?"
+  suggestions, and a structured-event contract for long runs: one ledger,
+  [`deferred.md`](deferred.md) (D-31, D-09, D-10, D-32).
 
 > **Scope:** M16 owns the generic option mechanism; M17–M20 own their analyzer's catalog
 > entries; **M21 owns the shared summary/compact/annotation contract**. It depends on M16
@@ -1344,8 +1348,9 @@ not `preview_region`, Live updates the source without resetting the window/view/
 failed live render keeps the old audio, palette drag shows the ghost/splice badge and
 drops where previewed.
 
-**Deferred:** phase-continuous rebuilds, per-node solo/audition, parameter automation,
-MIDI, and live *input* graphs.
+**Deferred:** phase-continuous rebuilds are [D-24](deferred.md); per-node solo/audition,
+parameter automation, MIDI and live *input* graphs are [D-34](deferred.md). Both are
+outside M22's slices, not follow-ups to them.
 
 ## M23 — Timeline ergonomics + comparison rework ✅
 
@@ -1378,7 +1383,8 @@ comparison rework carries the container bump.
 > side, file `v3` + `v2→v3` convert). Colour maths runs through **color2k**. E2E coverage
 > lives in `g-timeline`, `q-transport`, `r2-compare` and `r2b-compare-relative`.
 >
-> **Not shipped (see Deferred):** stored **fragment audio** for saved references (v3
+> **Not shipped (see [`deferred.md`](deferred.md)):** stored **fragment audio** for saved
+> references (v3
 > snapshots stay result-only on their own grid), a separate reference-fragment timeline
 > strip (the reference window is still a band on time charts), canvas autofocus/flash,
 > Return-to-start/`Home`, and a follow-playhead toggle.
@@ -1576,17 +1582,12 @@ equality check). This rework separates them and drops the gate.
 > **Decision (Phase 3):** a comparison is **one pair of windows, aligned relatively and
 > always diffed on the owner's grid** — windows stay pinned, the comparison stays relative.
 > Amends ADR-26 (drops Swap, keeps the optional δ); supersedes ADR-27's one-snapshot-per-
-> project shape; removes the comparability gate in `comparison.md`. See ADR-33 (to be
-> written).
+> project shape; removes the comparability gate in `comparison.md`. See ADR-34.
 
-**Deferred:** hover crosshair + time/sample readout; a Timeline context menu; snapping to
-playhead / annotations / window edges / a zoom-dependent grid; numeric start/end/duration
-fields; wider handle / move-bar hit targets; window history + previous/next annotation;
-centre-on-playhead / page-follow modes; accessibility (focusable canvas, ARIA
-announcements); waveform editing; spectral selection; multi-range selection; per-selection
-analysis; **Return-to-start/`Home`; a follow-playhead toggle; clamping a paused playhead
-into a moved window; a reference-fragment timeline strip; and fragment-audio re-gridding +
-re-link for saved references.**
+**Deferred:** the remaining timeline-precision, transport, accessibility and
+reference-strip work is phase 1–2 of [`deferred.md`](deferred.md) (D-01 – D-15); waveform
+editing, spectral selection, multi-range selection and per-selection analysis are
+**cancelled** (ADR-35), and fragment-audio re-gridding is D-23.
 
 **Files:** `src-tauri/src/audio/playback/{mod,stream}.rs`,
 `src-tauri/src/commands/playback.rs`, `src/audio/preview.ts`,

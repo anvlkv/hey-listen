@@ -479,12 +479,11 @@ contract:
 - AM/FM results depend on what the analysis window contains. If the window includes
   silence, the AM spectrum also contains the note/gap pattern; select the call, or gate
   the region. M21.B's `gateDb` covers the scalar series; a per-note modulation option
-  reusing the M18 segments is still deferred. The FM result reports its run span, and
-  `fmReliable` says whether its rate can be trusted.
+  reusing the M18 segments is not implemented ([D-18](deferred.md)). The FM result reports
+  its run span, and `fmReliable` says whether its rate can be trusted.
 - pYIN is ranged in the engine (M33.A, `audio/analysis/pyin.rs`) because `oxiaudio` exposes
   no ranged pYIN; its default remains 50–2000 Hz.
 - A shared **pitch range** control (one setting for every pitch tool) is a UX
   convenience, not part of M16: it can fan out to the per-tool `minF0Hz` / `maxF0Hz`
-  options without a schema change. Revisit after M16 if the per-tool settings feel
-  repetitive.
+  options without a schema change. It is [D-07](deferred.md).
 - Export of the new results rides M12; the data model is already export-shaped.

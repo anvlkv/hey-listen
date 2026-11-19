@@ -419,17 +419,18 @@ snake_case aliases, validated like every other tool (M16).
 - **Calibration is the user's responsibility.** Sones, phons, aspers, and vacils are
   only absolute when `calibrationDbSpl` is set; uncalibrated results are relative and
   are labelled. A shared app-level calibration control (one knob fanned out to the
-  per-tool options) is a later UX convenience, not part of this track.
+  per-tool options) is a later UX convenience ([D-08](deferred.md)).
 - **No standards-compliance claim.** The published approximations implement the model
   families; the normative coefficients and conformance procedures behind ISO 532 /
   DIN 45692 / ISO 226 may require purchase. The UI and docs say "model" or "proxy", never
   "ISO-compliant".
 - **Zwicker loudness (ISO 532-1), time-varying loudness (ISO 532-3), and the Sottek
-  hearing model (ECMA-418-2)** are deferred: M27 commits to one stationary model first,
-  and the scales/modules are structured so a second model can slot in later.
+  hearing model (ECMA-418-2)** are not implemented: M27 commits to one stationary model
+  first, and the scales/modules are structured so a second model can slot in later
+  ([D-27](deferred.md)).
 - **Stereo is a point read, not a width model.** Mid/side and correlation describe a
   recording's stereo structure, not perceived width/distance; binaural cues (ITD/ILD) and
-  a true spaciousness model are deferred.
+  a true spaciousness model are not implemented ([D-28](deferred.md)).
 - **Roughness / fluctuation strength are the heaviest models.** They depend on the
   band-envelope modulation pipeline; defaults are starting points, not species-specific
   tuning, and should be validated against published test signals and real clips.
