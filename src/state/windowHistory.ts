@@ -6,10 +6,11 @@ import { reframeWindow, windowEnd, windowStart } from "./timeline";
  * The Timeline's **window history** (D-13): a ring of recently committed analysis
  * windows behind the toolbar's Previous / Next window buttons.
  *
- * It is deliberately not the app's undo/redo (`state/history.ts`, which snapshots the
- * whole editable project) and not the per-session viewport (`viewStart` / `viewEnd`,
- * the zoom/pan of the timeline): navigating history only re-writes the **analysis
- * window**, and restoring an entry leaves every other store alone.
+ * It is deliberately not the app's undo/redo (the core-owned project history, see
+ * `docs/undo-redo.md`, which snapshots the whole editable project) and not the
+ * per-session viewport (`viewStart` / `viewEnd`, the zoom/pan of the timeline):
+ * navigating history only re-writes the **analysis window**, and restoring an entry
+ * leaves every other store alone.
  *
  * Entries are committed on a trailing debounce, so a drag contributes one entry rather
  * than one per pointer frame. Restoring needs no "applying" flag: the debounced commit

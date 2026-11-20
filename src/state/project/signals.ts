@@ -12,7 +12,10 @@ import { source } from "../source";
 export const [projectPath, setProjectPath] = createSignal<string | null>(null);
 /** An explicit project title (from a save/load); `null` = follow the source name. */
 export const [projectTitle, setProjectTitle] = createSignal<string | null>(null);
-/** Whether there are unsaved edits (drives the title `*` and the close/new/open prompts). */
+/**
+ * Whether there are unsaved edits (drives the title `*` and the close/new/open prompts).
+ * The core owns the answer and broadcasts it; `unsaved.ts` keeps this signal in sync.
+ */
 export const [dirty, setDirty] = createSignal(false);
 /** The project's clean display name (no unsaved marker); shared with popouts. */
 export const projectDisplayName = () => projectTitle() ?? source()?.name ?? "Untitled project";
@@ -30,8 +33,9 @@ export const [projectError, setProjectError] = createSignal<string | null>(null)
 export const [createdMs, setCreatedMs] = createSignal<number | null>(null);
 /**
  * The format version a loaded project was migrated from, or `null` when the file was
- * current (`docs/project-file-format.md` → Migrations). An upgraded project stays dirty
- * until a save writes the current version, so the notice and the dirty marker agree.
+ * current (`docs/project-file-format.md` → Migrations). The core forces the project dirty
+ * until a save writes the current version, so the notice and the dirty marker agree; this
+ * signal is the notice's display.
  */
 export const [upgradedFrom, setUpgradedFrom] = createSignal<number | null>(null);
 /**

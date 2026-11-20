@@ -1,8 +1,10 @@
 import { createEffect, createRoot } from "solid-js";
 import type { Annotation } from "../bindings/Annotation";
+import { compareSignature } from "./compare/views";
 import { analyzerBus, readBusMessage } from "./chartSync";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
+import { graphPristine } from "./graph";
 import {
   selectedAnnotationId,
   annotations,
@@ -135,6 +137,17 @@ export async function initUiState(): Promise<void> {
           name: projectDisplayName(),
           path: projectPath(),
         } satisfies ProjectState),
+      );
+      // Two inputs of the core's dirty signature that are not in the snapshot it already
+      // holds: the open compare views' bindings/offsets/fingerprints (M25.C), and whether
+      // each graph editor is still seeded (the core's `isEmptyProject`). A popout's copies
+      // of both are its own, so only the project window pushes them.
+      createEffect(() => pushUiState("compareSignature", compareSignature()));
+      createEffect(() =>
+        pushUiState("graphPristine", {
+          filter: graphPristine("filter"),
+          synth: graphPristine("synth"),
+        }),
       );
     }
     for (const group of ["time", "freq", "mod"] as const) {

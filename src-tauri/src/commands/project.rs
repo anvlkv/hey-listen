@@ -18,11 +18,8 @@ use crate::audio::analysis::compare::SavedComparisonInfo;
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::STREAM_CHUNK_SAMPLES;
 use crate::commands::stream;
-use crate::project::{
-    read_project, write_project_atomic, AnalysisSetup, Annotation, Meta, ProjectError, SaveProject,
-    SourceDescriptor,
-};
-use crate::state::window_state;
+use crate::project::{read_project, write_project_atomic, ProjectError, SaveProject};
+use crate::state::{window_state, ProjectSnapshot};
 
 pub mod open_paths;
 pub mod results;
@@ -49,34 +46,29 @@ pub struct CompareOpen {
     pub id: String,
 }
 
-/// The frontend-supplied project data for [`save_project`]; the core adds `META`
-/// (timestamps/version) and the `DATA` section (owned source PCM).
+/// The request a save carries beyond the project content: everything here is **not**
+/// undoable. The content itself (name, source, setup, layout, annotations) is the core's
+/// [`ProjectSnapshot`] — the same one undo/redo records — so the file and history cannot
+/// drift (`docs/undo-redo.md` → "Phase 2"). `META`'s timestamps/version and the `DATA`
+/// section (owned source PCM) are added by the core.
 #[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct SaveProjectArgs {
-    pub name: String,
+pub struct SaveProjectRequest {
     /// Preserve the creation time when re-saving a loaded project; `None` = now.
     #[serde(default)]
     pub created_ms: Option<u64>,
-    pub source: Option<SourceDescriptor>,
-    pub setup: AnalysisSetup,
-    pub layout: serde_json::Value,
-    /// The project's annotations (M14).
-    #[serde(default)]
-    pub annotations: Vec<Annotation>,
-    /// Embed the source PCM in `DATA` (default). `false` writes a **reference**
-    /// project: the `SOURCE` descriptor keeps the file path and the loader decodes it
-    /// again. Useful when many annotation projects would otherwise duplicate audio.
+    /// Embed the source PCM in `DATA` (default). `false` writes a **reference** project:
+    /// the `SOURCE` descriptor keeps the file path and the loader decodes it again.
     #[serde(default = "embed_source_default")]
     pub embed_source: bool,
+    /// The frontend's analyzer result cache (the file's `RESULTS` section — not undoable).
+    #[serde(default)]
+    pub results: Vec<results::CachedResultInput>,
     /// The comparisons open at save time (tabs or popouts, one entry per pair, M25.C).
     /// The core writes each one's last successful reference snapshot from its own state.
     #[serde(default)]
     pub compare_open: Vec<CompareOpen>,
-    /// The frontend's analyzer result cache (one entry per tool), written as `RESULTS`.
-    #[serde(default)]
-    pub results: Vec<results::CachedResultInput>,
 }
 
 fn embed_source_default() -> bool {
@@ -90,40 +82,37 @@ fn embed_source_default() -> bool {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct LoadedProjectDto {
-    pub meta: Meta,
-    pub source: Option<SourceDescriptor>,
-    pub setup: AnalysisSetup,
-    pub layout: serde_json::Value,
-    /// The cached analyzer results, restored into the frontend's result cache.
+    /// The project content as one projection (name, source, setup, layout, annotations).
+    pub snapshot: ProjectSnapshot,
+    /// Cached analyzer results (the frontend seeds its cache with them).
     pub results: Vec<results::CachedResultOutput>,
-    /// The project's annotations (empty when the file has no `ANNOTATIONS` section).
-    pub annotations: Vec<Annotation>,
-    /// Saved comparisons (empty when the file has no `COMPARE` section).
+    /// Saved comparisons (compact; the full snapshots are installed in the core).
     pub compare: Vec<SavedComparisonInfo>,
-    /// Whether the file embedded its audio (`DATA`); `false` is a **reference** project,
-    /// which a re-save keeps a reference instead of silently growing into a full copy.
+    /// Whether the file embedded its audio (`DATA`).
     pub embedded: bool,
-    /// The format version the file was written with, when this build migrated it forward.
-    /// The app marks the project dirty so the next save writes the current version.
+    /// The format version the file was migrated from, or `None`.
     pub upgraded_from: Option<u32>,
+    /// The project's creation time (Unix ms).
+    pub created_ms: u64,
     pub sample_rate: u32,
     pub channels: u16,
     pub frames: u64,
 }
 
-/// Write the current project to `path`: the frontend's setup/layout plus the
-/// core-owned source PCM.
+/// Write the current project to `path`: the core's snapshot plus its owned source PCM.
 #[tauri::command]
 pub async fn save_project(
     window: WebviewWindow,
     path: String,
-    project: SaveProjectArgs,
+    request: SaveProjectRequest,
 ) -> Result<(), ProjectError> {
     // Clone the project-state handle so the blocking write can snapshot the PCM without
     // borrowing the window.
     let state = window_state(&window);
+    // The project content is the snapshot the frontend has been pushing (M24.A phase 2).
+    let snapshot = state.project_snapshot();
     // One snapshot per comparison open at save time; a closed comparison is dropped.
-    let open_ids: Vec<String> = project
+    let open_ids: Vec<String> = request
         .compare_open
         .iter()
         .map(|comparison| comparison.id.clone())
@@ -133,8 +122,8 @@ pub async fn save_project(
     tauri::async_runtime::spawn_blocking(move || {
         // A reference project only makes sense for a file source: the loader can
         // decode the path again. Synths and live captures keep their audio.
-        let reference = !project.embed_source
-            && project.source.as_ref().is_some_and(|source| {
+        let reference = !request.embed_source
+            && snapshot.source.as_ref().is_some_and(|source| {
                 source.kind == crate::project::SourceKind::File && source.path.is_some()
             });
         // Snapshot the PCM under a **short** lock: the disk write must not hold it, or a
@@ -145,13 +134,13 @@ pub async fn save_project(
             state.audio.snapshot_source()
         };
         let save = SaveProject {
-            name: project.name,
-            created_ms: project.created_ms,
-            source: project.source,
-            setup: project.setup,
-            layout: project.layout,
-            results: to_stored(project.results),
-            annotations: project.annotations,
+            name: snapshot.name,
+            created_ms: request.created_ms,
+            source: snapshot.source,
+            setup: snapshot.setup,
+            layout: snapshot.layout,
+            results: to_stored(request.results),
+            annotations: snapshot.annotations,
             compare,
             pcm: pcm.as_ref(),
         };
@@ -160,6 +149,9 @@ pub async fn save_project(
         write_project_atomic(Path::new(&path), &save, crate::recent::now_ms())?;
         // The save succeeded, so a comparison no longer open can be forgotten.
         state.retain_saved_comparisons(&open_ids);
+        // The file now holds the current format version, so a migrated project is no
+        // longer dirty on that account (ADR-32 / M37).
+        state.set_upgraded_from(None);
         Ok(())
     })
     .await
@@ -211,6 +203,18 @@ pub async fn load_project(
         ..
     } = loaded;
 
+    // The project content travels as one projection; its `compare` stays empty because a
+    // load's comparisons are the saved snapshots the compact field below restores.
+    let created_ms = meta.created_ms;
+    let snapshot = ProjectSnapshot {
+        name: meta.name,
+        source,
+        setup,
+        layout,
+        annotations,
+        compare: Vec::new(),
+    };
+
     let (sample_rate, channels, frames) = match &pcm {
         Some(pcm) => {
             let channels = pcm.channels.max(1);
@@ -238,21 +242,21 @@ pub async fn load_project(
     let compare_infos: Vec<SavedComparisonInfo> =
         compare.iter().map(|saved| saved.info()).collect();
     window_state(&window).replace_saved_comparisons(compare);
+    // A file from an older format version was migrated in memory; the project stays dirty
+    // until a save writes the current one (`docs/project-file-format.md` → Migrations).
+    window_state(&window).set_upgraded_from(upgraded_from);
 
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).
     stream::send_end_sentinel(&on_chunk)
         .map_err(|err| ProjectError::Io(std::io::Error::other(err)))?;
 
     Ok(LoadedProjectDto {
-        meta,
-        source,
-        setup,
-        layout,
+        snapshot,
         results: to_cached(stored_results),
-        annotations,
         compare: compare_infos,
         embedded,
         upgraded_from,
+        created_ms,
         sample_rate,
         channels,
         frames,

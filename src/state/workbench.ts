@@ -54,6 +54,12 @@ export function toolById(id: ToolId): ToolDef {
 export const [dockApi, setDockApi] = createSignal<DockviewApi | null>(null);
 export const [openTools, setOpenTools] = createSignal<ToolId[]>([]);
 /**
+ * Bumped on every dockview layout change (tab moves, splitter drags, a restore), so the
+ * project-state push notices a layout edit without serializing the layout on every
+ * reactive tick.
+ */
+export const [layoutRevision, setLayoutRevision] = createSignal(0);
+/**
  * The open **compare** panel ids, in dockview order.
  *
  * `openTools` deliberately excludes them (they are not project content), but the

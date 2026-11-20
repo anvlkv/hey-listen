@@ -90,44 +90,17 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         ],
     )?;
 
-    // Edit → Undo / Redo emit to the frontend (the app-level history lives there).
-    let undo = MenuItem::with_id(
-        app,
-        MenuAction::Undo.as_ref(),
-        "Undo",
-        true,
-        Some("CmdOrCtrl+Z"),
-    )?;
-    let redo = MenuItem::with_id(
-        app,
-        MenuAction::Redo.as_ref(),
-        "Redo",
-        true,
-        Some("Shift+CmdOrCtrl+Z"),
-    )?;
-    // The clipboard items must be **predefined**: macOS dispatches Cmd+C / Cmd+X /
+    // Edit → the clipboard items must be **predefined**: macOS dispatches Cmd+C / Cmd+X /
     // Cmd+V / Cmd+A through the Edit menu's key equivalents to the focused responder,
     // so without them a text field (e.g. the annotation editor) cannot copy or paste
-    // at all — the WebView never sees the shortcut.
-    let sep_after_redo = PredefinedMenuItem::separator(app)?;
+    // at all — the WebView never sees the shortcut. Undo/redo are deliberately absent:
+    // they are keybinding-registry commands, so a text field keeps native text undo
+    // (`docs/undo-redo.md`).
     let cut = PredefinedMenuItem::cut(app, None)?;
     let copy = PredefinedMenuItem::copy(app, None)?;
     let paste = PredefinedMenuItem::paste(app, None)?;
     let select_all = PredefinedMenuItem::select_all(app, None)?;
-    let edit = Submenu::with_items(
-        app,
-        "Edit",
-        true,
-        &[
-            &undo,
-            &redo,
-            &sep_after_redo,
-            &cut,
-            &copy,
-            &paste,
-            &select_all,
-        ],
-    )?;
+    let edit = Submenu::with_items(app, "Edit", true, &[&cut, &copy, &paste, &select_all])?;
 
     let view = Submenu::with_items(
         app,

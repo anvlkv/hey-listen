@@ -10,11 +10,10 @@ import {
   stopMonitor,
 } from "../capture";
 import { resetGraph, setFilterEnabled } from "../graph";
-import { resetHistory } from "../history";
 import { resetAnnotations } from "../annotations";
 import { closeSource } from "../source";
 import { closeAllTools } from "../workbench";
-import { beginBaseline, endBaseline } from "./dirty";
+import { resetProjectHistory } from "./push";
 import {
   setCreatedMs,
   setProjectError,
@@ -38,7 +37,7 @@ export async function newProject(): Promise<void> {
     console.error("could not clear the saved comparisons", err),
   );
 
-  beginBaseline();
+  await invoke("begin_project_baseline");
   setProjectError(null);
   closeAllTools();
   resetGraph("filter");
@@ -56,8 +55,10 @@ export async function newProject(): Promise<void> {
   setReferenceProject(false);
   setUpgradedFrom(null);
   resetAnnotations();
-  resetHistory();
+  // Rebase the undo history on the fresh project, so it records no step and cannot step
+  // back into the previous one.
+  await resetProjectHistory();
   // Re-arm the dirty baseline once the resets have settled, so the fresh project is
   // clean but a later edit flags it again (mirrors `loadProject`).
-  endBaseline();
+  await invoke("end_project_baseline");
 }

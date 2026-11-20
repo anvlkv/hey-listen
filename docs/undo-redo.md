@@ -210,17 +210,22 @@ builds on.
 
 ### Phase 2 — save and load read the snapshot
 
-`snapshot.ts`'s assemblers and the `SaveProject` / `LoadedProjectDto` DTOs retire; the save
-path serializes the snapshot the frontend has been pushing, and the load path returns it.
+`snapshot.ts`'s assemblers and the hand-written `SaveProjectArgs` / `LoadedProjectDto` DTOs
+retire; the save path serializes the snapshot the frontend has been pushing, and the load
+path returns it.
 
 - **In scope:** `save_project` writes the core snapshot (plus the PCM the core already owns);
   `load_project` returns the snapshot as one projection; the headless / MCP / CLI save path
   produces the same snapshot shape, so GUI-pushed and headless-assembled converge on one
   definition.
 - **Retired:** `snapshot.ts` as the save-side assembler (its read of the stores becomes the
-  phase-1 push), the `SaveProject` DTO, and the scattered `LoadedProjectDto` assembly.
-- **Touches:** `commands/project/{write,read}.rs` and the migration path (ADR-32 / M37:
-  `upgradedFrom` forces dirty until a save writes the current version).
+  phase-1 push), the `SaveProjectArgs` DTO (the request keeps only what the snapshot does
+  not carry: the creation time, the embedding choice, `RESULTS` and the open comparisons),
+  and the hand-written `LoadedProjectDto` assembly (`load_project` returns the snapshot as
+  one projection).
+- **Touches:** `src-tauri/src/commands/project.rs` (the write/read commands) and the
+  migration path (ADR-32 / M37: `upgradedFrom` forces dirty until a save writes the current
+  version).
 - **Validated by:** the existing save/load round-trip specs (H, N) and the headless-save /
   migration tests.
 
@@ -235,6 +240,17 @@ path serializes the snapshot the frontend has been pushing, and the load path re
 - **Deleted:** `dirty.ts`.
 - **Validated by:** the unsaved-work specs (S), the close guard, and the "freshly loaded
   project is clean" regression (the settle behaviour that bit once before).
+
+As delivered: `ProjectDirty` (`src-tauri/src/state/window/dirty.rs`) reads the snapshot the
+frontend already pushes for undo/redo, so the signature adds only what that snapshot does
+not carry — the source PCM's shape (`frames`, `sample_rate`, `channels`) and two pushed
+`ui-state` keys: `compareSignature` (the open compare views) and `graphPristine` (deciding
+it in the core would restate the node-kind defaults). `upgradedFrom` forces the flag in the
+core (`load_project` sets it, `save_project` clears it). The settle loop mirrors
+`ProjectHistory`'s, and `is_dirty` recomputes before answering so a close guard cannot read
+a 50 ms-old flag. The frontend keeps `dirty` as a signal fed by the `project-dirty`
+broadcast (read widely: the title, the MCP state), and `unsaved.ts` holds the listener +
+`isEmptyProject`; the `upgradedFrom` signal remains as the Toolbar notice's display.
 
 Phase 3 is the *only* place the frontend-tuned settle/baseline and viewport-strip behaviour
 moves between languages — the highest-regression step, deliberately last.
@@ -274,8 +290,8 @@ dirty (phase 3) is the fiddly one because of the settle and viewport-size subtle
 | `src/state/history.ts` | **deleted** — replaced by the core-owned history |
 | `src/state/project/snapshot.ts` | the frontend projection that pushes project state to the core (reuses `currentDescriptor`/`currentSetup`/`currentLayout`) |
 | `src/state/keybindings/` | the minimal registry skeleton + dispatcher guard; `undo`/`redo` are the first two commands |
-| `src/state/project/{save,load}.ts`, `src-tauri/src/commands/project/{write,read}.rs` | save/load read and write the snapshot (phase 2) |
-| `src/state/project/dirty.ts` | **deleted** (phase 3 — dirty moves to the core) |
+| `src/state/project/{save,load}.ts`, `src-tauri/src/commands/project.rs` | save/load read and write the snapshot (phase 2) |
+| `src-tauri/src/state/window/dirty.rs`, `src/state/project/unsaved.ts` | the core-owned dirty signature + broadcast, and the frontend listener (phase 3) |
 | `docs/undo-redo.md`, `docs/decisions.md` | this plan + the ADR |
 
 ## Proposed ADR-37 — Undo/redo is a core-owned, revision-based project operation

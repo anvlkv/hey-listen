@@ -18,49 +18,64 @@ use crate::audio::capture::CaptureHandle;
 use super::AudioState;
 
 mod compare;
+mod dirty;
+mod history;
+/// Alias-chain and popout lookups (a popout is a view of its project).
+mod lookup;
 
 pub use compare::CompareView;
+pub use dirty::ProjectDirty;
+pub use history::ProjectHistory;
+
+use lookup::{popout_showing, resolve_root};
 
 // ---------------------------------------------------------------------------
 // Per-window state (one window = one project = one source, ADR-3)
 // ---------------------------------------------------------------------------
 
 /// The core state that belongs to a single project window: the owned source PCM
-/// (ADR-9), the active filter graph, the preview player, and at most one live
-/// capture session.
-///
-/// Each window gets its own instance, so independent project windows never share
-/// audio — see [`WindowRegistry`].
+/// (ADR-9), the active filter graph, the preview player, at most one live capture
+/// session, and the project's undo/redo history. Each window gets its own instance, so
+/// independent project windows never share audio — see [`WindowRegistry`].
 pub struct WindowState {
     pub audio: AudioState,
     /// The window's running capture session (mic / system / process / mix).
     pub capture: Mutex<Option<CaptureHandle>>,
     /// The project's shared **UI state** (timeline window/view, analysis params,
-    /// per-tool options and chart views, project name, popped-out tools). The
-    /// The frontend owns the shape; the core just stores and broadcasts it, so every
-    /// window of a project (the main window and its popouts) stays in sync.
+    /// per-tool options and chart views, project name, popped-out tools). The frontend
+    /// owns the shape; the core stores and broadcasts it to every window of the project.
     pub ui: Mutex<HashMap<String, serde_json::Value>>,
-    /// Bumped on every UI-state change, so a peer comparison can tell that a project
-    /// moved without polling its whole setup (M25).
+    /// Bumped on every UI-state change, so a peer comparison can tell that a project moved.
     ui_revision: AtomicU64,
-    /// The last successful comparison of every **pair** (M25.C, M23 Phase 3): the
-    /// reference side of each compare tab. It is the project's saved snapshots in memory
-    /// (written on save, restored on load); several entries may share a tool.
+    /// The last successful comparison of every **pair** (M25.C): each compare tab's
+    /// reference side, kept in memory (written on save, restored on load).
     saved_compares: Mutex<Vec<SavedComparison>>,
+    /// The project's undo/redo history: the authoritative snapshot, the bounded stacks
+    /// and the core-owned settle recorder (`docs/undo-redo.md`).
+    pub history: Arc<ProjectHistory>,
+    /// The project's unsaved-work tracking: it compares the pushed snapshot with the last
+    /// clean point and broadcasts the flag (`docs/undo-redo.md` → "Phase 3").
+    pub dirty: Arc<ProjectDirty>,
     /// In-flight analysis runs (`request_id` → cancel token), so `cancel_analysis` can
-    /// stop a superseded run at its next check (D-21). Its lock is a leaf: the map is
-    /// only touched to register, flip and forget a token, never across a run.
+    /// stop a superseded run at its next check (D-21). Its lock is a leaf, never held
+    /// across a run.
     pub analysis_cancels: Cancels,
 }
 
 impl WindowState {
     fn new() -> Self {
+        let audio = AudioState::new();
+        let history = Arc::new(ProjectHistory::new());
+        // The dirty signature reads the source's shape, so it shares the audio handle.
+        let dirty = Arc::new(ProjectDirty::new(audio.source.clone()));
         Self {
-            audio: AudioState::new(),
+            audio,
             capture: Mutex::new(None),
             ui: Mutex::new(HashMap::new()),
             ui_revision: AtomicU64::new(0),
             saved_compares: Mutex::new(Vec::new()),
+            history,
+            dirty,
             analysis_cancels: Cancels::default(),
         }
     }
@@ -68,12 +83,17 @@ impl WindowState {
     /// Apply a UI-state patch; returns the revision it was stored at, or `None` when the
     /// value did not change (so the caller can skip broadcasting it).
     pub fn set_ui(&self, key: &str, value: serde_json::Value) -> Option<u64> {
-        let mut ui = self.ui.lock().unwrap_or_else(|poison| poison.into_inner());
-        if ui.get(key) == Some(&value) {
-            return None;
-        }
-        ui.insert(key.to_string(), value);
-        Some(self.ui_revision.fetch_add(1, Ordering::Relaxed) + 1)
+        let revision = {
+            let mut ui = self.ui.lock().unwrap_or_else(|poison| poison.into_inner());
+            if ui.get(key) == Some(&value) {
+                return None;
+            }
+            ui.insert(key.to_string(), value.clone());
+            self.ui_revision.fetch_add(1, Ordering::Relaxed) + 1
+        };
+        // Some keys feed the dirty signature (the compare views); re-evaluate them.
+        self.dirty.note_ui(key, &value);
+        Some(revision)
     }
 
     /// The UI-state revision (monotonic within a process). A window that pulls the
@@ -105,15 +125,13 @@ impl Default for WindowState {
 
 /// Registry of per-window state, keyed by window label.
 ///
-/// Created lazily on first use and dropped when the window is destroyed (which
-/// also shuts the window's preview player down). This is what makes multiple
-/// project windows independent: each label resolves to its own [`WindowState`],
-/// while the app-wide stores (recent projects, pending open files) stay shared.
+/// Created lazily on first use and dropped when the window is destroyed (which also
+/// shuts the window's preview player down): each label resolves to its own
+/// [`WindowState`], while the app-wide stores stay shared.
 ///
-/// Popout windows are **views** of a project, not projects of their own: their
-/// label is aliased to the parent's, so every command resolves to the parent's
-/// [`WindowState`] (the shared source / filter / playback). The alias also records
-/// which tool or annotation the popout shows.
+/// Popout windows are **views** of a project, not projects of their own: their label is
+/// aliased to the parent's, so every command resolves to the parent's [`WindowState`]
+/// (the shared source / filter / playback). The alias also records what it shows.
 #[derive(Default)]
 struct RegistryInner {
     states: HashMap<String, Arc<WindowState>>,
@@ -351,40 +369,6 @@ impl WindowRegistry {
         // worker thread), and that must not run while holding the registry lock.
         drop(removed);
     }
-}
-
-/// Follow the popout alias chain to the owning (project) window label.
-fn resolve_root(aliases: &HashMap<String, String>, label: &str) -> String {
-    let mut current = label.to_string();
-    let mut seen = std::collections::HashSet::new();
-    while let Some(parent) = aliases.get(&current) {
-        if !seen.insert(current.clone()) {
-            break;
-        }
-        current = parent.clone();
-    }
-    current
-}
-
-/// The popout of `label`'s project whose `shown` table (popout label → shown id) maps
-/// it to `id`, if one is open. `shown` is the tool map or the annotation map, so the two
-/// kinds share one lookup.
-fn popout_showing<K, Q>(
-    inner: &RegistryInner,
-    label: &str,
-    shown: &HashMap<String, K>,
-    id: &Q,
-) -> Option<String>
-where
-    K: std::borrow::Borrow<Q>,
-    Q: PartialEq + ?Sized,
-{
-    let root = resolve_root(&inner.aliases, label);
-    inner.aliases.iter().find_map(|(popout, parent)| {
-        let same_project = resolve_root(&inner.aliases, parent) == root;
-        let shows_id = shown.get(popout).map(std::borrow::Borrow::borrow) == Some(id);
-        (same_project && shows_id).then(|| popout.clone())
-    })
 }
 
 /// Resolve the calling window's project state.

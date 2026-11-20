@@ -55,6 +55,12 @@ export type SourceStatus = "empty" | "probing" | "decoding" | "capturing" | "rea
 
 /** One window = one project = one source, so a single source store suffices. */
 export const [source, setSource] = createSignal<AudioSource | null>(null);
+/**
+ * Bumped whenever the source is replaced **wholesale** (the whole timeline changes, so
+ * the undo history must not step across it). A live capture's growing buffer is not a
+ * replacement, so `setSource` is not itself the trigger.
+ */
+export const [sourceRevision, setSourceRevision] = createSignal(0);
 export const [status, setStatus] = createSignal<SourceStatus>("empty");
 export const [error, setError] = createSignal<string | null>(null);
 
@@ -89,6 +95,7 @@ export function closeSource() {
   resetTimeline(0);
   // The whole timeline changed, so any analyzer zoom no longer applies.
   resetChartViews();
+  setSourceRevision((revision) => revision + 1);
   void setWindowTitle();
 }
 
@@ -118,8 +125,10 @@ export function finalizeSource(opts: {
     probe: opts.probe,
   });
   resetTimeline(duration);
-  // A replaced source replaces the whole timeline, so drop the analyzer zoom.
+  // A replaced source replaces the whole timeline, so drop the analyzer zoom and start a
+  // fresh undo history (`state/project/push.ts`).
   resetChartViews();
+  setSourceRevision((revision) => revision + 1);
   setStatus("ready");
   void setWindowTitle(opts.name);
 }

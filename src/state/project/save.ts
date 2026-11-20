@@ -1,9 +1,8 @@
-import { deepClone } from "../../lib/clone";
+import type { SaveProjectRequest } from "../../bindings/SaveProjectRequest";
 import { invoke } from "../../lib/ipc";
-import { annotations } from "../annotations";
 import { setWindowTitle } from "../source";
-import { markClean } from "./dirty";
 import { basename, projectLabel } from "./paths";
+import { flushProjectPush } from "./push";
 import { rememberRecent } from "./recents";
 import {
   createdMs,
@@ -16,19 +15,15 @@ import {
   setReferenceProject,
   setUpgradedFrom,
 } from "./signals";
-import {
-  currentDescriptor,
-  currentLayout,
-  currentResults,
-  currentSetup,
-  defaultFileName,
-  currentCompareOpen,
-} from "./snapshot";
-import type { SaveProjectArgs } from "./types";
+import { currentCompareOpen, currentDescriptor, currentResults, defaultFileName } from "./snapshot";
+import { refreshDirty } from "./unsaved";
 
 /**
  * Save the project file (see [`project-file-format.md`](../../../docs/project-file-format.md)):
- * the frontend supplies `SOURCE`/`SETUP`/`LAYOUT` and the core fills in `META` + `DATA`.
+ * the core writes the project content it already holds — the same snapshot undo/redo
+ * records — plus `META` and `DATA`. The request carries only what is **not** project
+ * content: the creation time, the embedding choice, the result cache and the open
+ * comparisons (`docs/undo-redo.md` → "Phase 2").
  *
  * `embedSource` defaults to the project's own state: a project loaded as a **reference**
  * stays one, so re-saving it does not silently embed the whole recording.
@@ -38,28 +33,36 @@ async function write(path: string, embedSource = !referenceProject()): Promise<b
   setProjectStatus("saving");
   setProjectError(null);
   try {
-    const args: SaveProjectArgs = {
-      name: projectLabel(path),
-      createdMs: createdMs() ?? undefined,
-      source: currentDescriptor(),
-      setup: currentSetup(),
-      layout: await currentLayout(),
-      annotations: deepClone(annotations()),
+    // Flush the coalesced push first: the core writes the snapshot it holds, so it must
+    // be the state on screen rather than the one from the last settle.
+    await flushProjectPush();
+    const request: SaveProjectRequest = {
+      createdMs: createdMs(),
+      embedSource,
       // The cached analyzer results, so the file restores them instead of re-running.
       results: currentResults(),
-      embedSource,
       // The core writes the saved snapshot of each comparison open at save time (M25.C).
       compareOpen: await currentCompareOpen(),
     };
-    await invoke("save_project", { path, project: args });
+    await invoke("save_project", { path, request });
     setProjectPath(path);
     setProjectTitle(projectLabel(path));
     void setWindowTitle(basename(path));
     rememberRecent(path);
     // The file now holds the current format version and the audio the save was asked for.
+    // The core clears its migration marker when the write succeeds (`load_project` sets
+    // it); this signal is the notice's display.
     setUpgradedFrom(null);
     setReferenceProject(!embedSource && currentDescriptor()?.kind === "file");
-    markClean();
+    // The core takes its clean point from the snapshot it holds, so flush the state this
+    // save just renamed (the push is coalesced) before re-baselining it.
+    await flushProjectPush();
+    await invoke("mark_project_clean").catch((err) =>
+      console.error("could not mark the project clean", err),
+    );
+    // The broadcast is asynchronous; read the flag back so a caller that inspects it right
+    // after a save (MCP `save_project`) sees the saved state.
+    await refreshDirty();
     return true;
   } catch (err) {
     setProjectError(String(err));

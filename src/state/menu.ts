@@ -2,7 +2,6 @@ import { invoke } from "../lib/ipc";
 import { listenThisWindow } from "../lib/windowEvents";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
-import { redo, undo } from "./history";
 import { openPath } from "./source";
 import { checkForUpdates } from "./update";
 import { chooseCompareReference, showCompareNotice } from "./compare/picker";
@@ -19,6 +18,7 @@ import {
   saveProject,
   saveProjectAs,
 } from "./project";
+import { flushProjectPush } from "./project/push";
 
 /**
  * Native menu + OS file-open wiring (M6).
@@ -52,9 +52,15 @@ export const [cliToolOpen, setCliToolOpen] = createSignal(false);
  * Confirm discarding unsaved work before replacing the project; `true` when it is
  * safe to proceed (nothing is dirty, the project is empty, or the user chose to
  * discard).
+ *
+ * The core owns the answer (`docs/undo-redo.md` → "Phase 3"): the state on screen is
+ * pushed first, so an edit made a moment ago is part of what the guard asks about rather
+ * than arriving after the check.
  */
 async function confirmDiscard(): Promise<boolean> {
-  if (!dirty() || isEmptyProject()) return true;
+  await flushProjectPush();
+  const unsaved = await invoke<boolean>("is_dirty").catch(() => dirty());
+  if (!unsaved || (await isEmptyProject())) return true;
   return invoke<boolean>("confirm", {
     message: "You have unsaved changes. Discard them?",
     title: "Discard changes?",
@@ -136,12 +142,6 @@ export async function initMenu() {
           break;
         case "saveAs":
           void saveProjectAs();
-          break;
-        case "undo":
-          undo();
-          break;
-        case "redo":
-          redo();
           break;
         case "about":
           setAboutOpen(true);

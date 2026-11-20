@@ -204,11 +204,12 @@ this milestone"); it does not keep a second backlog list.
 Implemented after M6 as one batch. Where the delivered behaviour is narrower than
 originally scoped, an annotation follows the item.
 
-- **Undo / redo ✅.** App-level snapshot history (`src/state/history.ts`) over graph
-  edits, layout/tab changes, shared params, tool options, and the timeline window,
-  with native **Edit** menu items (`CmdOrCtrl+Z` / `Shift+CmdOrCtrl+Z`). Continuous
-  edits coalesce into one step; history resets on New / Open. *(Menu items stay
-  enabled; the handlers no-op on an empty stack.)*
+- **Undo / redo ✅.** App-level snapshot history over graph edits, layout/tab changes,
+  shared params, tool options, and the timeline window, with native **Edit** menu items
+  (`CmdOrCtrl+Z` / `Shift+CmdOrCtrl+Z`). Continuous edits coalesce into one step; history
+  resets on New / Open. *(Superseded by the core-owned history in M24.A — see
+  [`undo-redo.md`](undo-redo.md): one stack per project, the accelerators move to the
+  keybinding registry.)*
 - **Full fundsp node coverage ✅.** The palette covers every filter family and their
   control-input variants, dynamics, modulation, reverbs, **math**
   (`add`/`subtract`/`multiply`/`divide`/`min`/`max`/`abs`/`invert`), and

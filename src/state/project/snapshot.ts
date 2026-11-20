@@ -17,8 +17,11 @@ import { projectName } from "./signals";
 import type { AnalysisSetupDto, CompareOpenDto, LayoutDto, SourceDescriptorDto } from "./types";
 
 /**
- * Read the current stores into the `SOURCE` / `SETUP` / `LAYOUT` shapes the core
- * writes on save (see [`project-file-format.md`](../../../docs/project-file-format.md)).
+ * Read the current stores into the `SOURCE` / `SETUP` / `LAYOUT` shapes the core's
+ * project snapshot carries (see [`project-file-format.md`](../../../docs/project-file-format.md)).
+ *
+ * The push assembles the snapshot from these (`./push`), so the same values feed undo/redo
+ * and the save that writes them ([`undo-redo.md`](../../../docs/undo-redo.md)).
  */
 
 /** Fill a `SOURCE` descriptor's unused fields with null (the core defaults them too). */

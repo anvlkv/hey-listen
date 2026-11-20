@@ -1,3 +1,4 @@
+import type { LoadedProjectDto } from "../../bindings/LoadedProjectDto";
 import { invoke } from "../../lib/ipc";
 import { pcmStream } from "../../lib/pcmStream";
 import { applySharedParams } from "../analysis";
@@ -18,7 +19,6 @@ import {
 } from "../capture";
 import { loadGraph, setFilterEnabled } from "../graph";
 import { restoreSavedComparisons } from "../compare/views";
-import { resetHistory } from "../history";
 import { replaceAnnotations } from "../annotations";
 import {
   closeSource,
@@ -32,8 +32,8 @@ import {
 } from "../source";
 import { setView, setWindowEnd, setWindowStart } from "../timeline";
 import { dockApi, openTool, restoreLayout, TOOLS } from "../workbench";
-import { beginBaseline, endBaseline } from "./dirty";
 import { basename, projectLabel } from "./paths";
+import { resetProjectHistory } from "./push";
 import { rememberRecent } from "./recents";
 import {
   setCreatedMs,
@@ -44,7 +44,7 @@ import {
   setReferenceProject,
   setUpgradedFrom,
 } from "./signals";
-import type { AnalysisWindowDto, LoadedProjectDto, SourceDescriptorDto } from "./types";
+import type { AnalysisWindowDto, LayoutDto, SourceDescriptorDto } from "./types";
 
 /**
  * Open a project file and restore every store + the Workbench tabs, so the analyzers
@@ -102,15 +102,20 @@ function applyDescriptor(descriptor: SourceDescriptorDto | null) {
 }
 
 /** Restore every store from a loaded project (the PCM already streamed in). */
-function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
+async function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
+  // The project content arrives as one projection (M24.A phase 2); `LAYOUT` is the
+  // frontend-owned JSON the core stored opaquely.
+  const snapshot = loaded.snapshot;
+  const layout = snapshot.layout as unknown as LayoutDto | null;
+
   // 1. Graph editors first, so mounted graph tabs show the restored graphs.
-  loadGraph("filter", loaded.layout?.graphs?.filter);
-  loadGraph("synth", loaded.layout?.graphs?.synth);
+  loadGraph("filter", layout?.graphs?.filter);
+  loadGraph("synth", layout?.graphs?.synth);
 
   // 2. Analysis setup.
-  applySharedParams(loaded.setup.shared);
-  loadToolOptions(loaded.setup.toolOptions ?? {});
-  setFilterEnabled(loaded.setup.filterEnabled ?? true);
+  applySharedParams(snapshot.setup.shared);
+  loadToolOptions(snapshot.setup.toolOptions ?? {});
+  setFilterEnabled(snapshot.setup.filterEnabled ?? true);
 
   // 3. The source PCM + the analysis window / view it was saved with.
   const channels = Math.max(1, loaded.channels);
@@ -121,16 +126,16 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   } else {
     const duration = loaded.sampleRate > 0 ? frames / loaded.sampleRate : 0;
     setSource({
-      name: sourceName(loaded.source),
-      detail: sourceDetail(loaded.source),
+      name: sourceName(snapshot.source),
+      detail: sourceDetail(snapshot.source),
       sampleRate: loaded.sampleRate,
       channels,
       frames,
       duration,
       samples,
       probe:
-        loaded.source?.kind === "file" && loaded.source.path
-          ? fileProbe(loaded.source.path, loaded)
+        snapshot.source?.kind === "file" && snapshot.source.path
+          ? fileProbe(snapshot.source.path, loaded)
           : undefined,
     });
     // Fall back to the full span if the saved window/view is missing, degenerate,
@@ -142,8 +147,8 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
         ? { startSecs: start, endSecs: end }
         : { startSecs: 0, endSecs: fallbackEnd };
     };
-    const win = span(loaded.setup.window, duration);
-    const view = span(loaded.setup.view, duration);
+    const win = span(snapshot.setup.window, duration);
+    const view = span(snapshot.setup.view, duration);
     setWindowStart(win.startSecs);
     setWindowEnd(win.endSecs);
     setView(view.startSecs, view.endSecs);
@@ -152,7 +157,7 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   }
 
   // 4. Source picker.
-  applyDescriptor(loaded.source);
+  applyDescriptor(snapshot.source);
 
   // 4b. Seed the analyzer result cache. The source, graphs, filter, shared params and
   //     window are the loaded project's now, so a seeded entry is keyed for exactly
@@ -160,14 +165,14 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   seedResults(loaded.results);
 
   // 5. Workbench layout last: it mounts the analyzer tabs against the restored state.
-  restoreLayout(loaded.layout?.dockview ?? null);
+  restoreLayout(layout?.dockview ?? null);
 
   // 5a. A headless save has no dockview layout but records the analyzer tabs in
   //    `SETUP.openTools`; open them so the project comes up as it was saved. A GUI
   //    layout already contains them (and restoring must not steal the active tab), so
   //    this only fills an empty Workbench.
   if ((dockApi()?.panels.length ?? 0) === 0) {
-    for (const id of loaded.setup.openTools ?? []) {
+    for (const id of snapshot.setup.openTools ?? []) {
       if (TOOLS.some((tool) => tool.id === id)) void openTool(id);
     }
   }
@@ -181,9 +186,7 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   // the whole project, so the previous project's popouts close and the tools this layout
   // shows popped out get a window (exactly one each). Deferred a tick so the restored
   // state has been pushed to the core before a new popout pulls it.
-  const popouts = (loaded.layout?.popouts ?? []).filter((id) =>
-    TOOLS.some((tool) => tool.id === id),
-  );
+  const popouts = (layout?.popouts ?? []).filter((id) => TOOLS.some((tool) => tool.id === id));
   window.setTimeout(() => {
     void invoke("sync_popouts", { tools: popouts }).catch((err) =>
       console.error("could not restore the popout windows", err),
@@ -192,11 +195,12 @@ function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
 
   // 6. The project's annotations (M14): replace the store (this marks the project clean
   //    again via the baseline below). Applied before the undo history is reset.
-  replaceAnnotations(loaded.annotations ?? []);
+  replaceAnnotations(snapshot.annotations ?? []);
 
-  // 7. Start a fresh undo history for the loaded project (undo must not step
-  //    back across the project boundary).
-  resetHistory();
+  // 7. Rebase the undo history on the loaded project: the push that runs first seeds the
+  //    core's base snapshot with the state just restored, so the load records no step
+  //    and undo cannot step back across the project boundary.
+  await resetProjectHistory();
 }
 
 /**
@@ -238,20 +242,29 @@ export async function loadProject(path: string): Promise<boolean> {
     // arrive asynchronously — see `lib/pcmStream.ts`).
     await stream.done;
     if (token !== currentSourceToken()) return false;
-    beginBaseline();
-    applyProject(loaded, stream.samples());
-    setProjectPath(path);
-    setProjectTitle(projectLabel(path));
-    setCreatedMs(loaded.meta.createdMs || null);
-    // A reference project (no `DATA`) re-saves as a reference, not as a full copy.
-    setReferenceProject(!loaded.embedded);
-    // A file from an older format version is migrated in memory by the core; a save makes
-    // the upgrade durable (see `dirty.ts`). See `docs/project-file-format.md` → Migrations.
-    setUpgradedFrom(loaded.upgradedFrom ?? null);
-    void setWindowTitle(basename(path));
-    rememberRecent(path);
-    endBaseline();
-    return true;
+    // Restoring state is not an edit: the core keeps its dirty baseline open until the
+    // load has settled (`docs/undo-redo.md` → "Phase 3").
+    await invoke("begin_project_baseline");
+    try {
+      await applyProject(loaded, stream.samples());
+      setProjectPath(path);
+      setProjectTitle(projectLabel(path));
+      setCreatedMs(loaded.createdMs || null);
+      // A reference project (no `DATA`) re-saves as a reference, not as a full copy.
+      setReferenceProject(!loaded.embedded);
+      // A file from an older format version is migrated in memory; the core keeps the
+      // project dirty until a save writes the current one (see `signals.ts`).
+      setUpgradedFrom(loaded.upgradedFrom ?? null);
+      void setWindowTitle(basename(path));
+      rememberRecent(path);
+      return true;
+    } finally {
+      // Re-arm the baseline even when the restore failed: state was partially replaced,
+      // and dirty tracking must not stay suppressed.
+      await invoke("end_project_baseline").catch((err) =>
+        console.error("could not re-arm the dirty baseline", err),
+      );
+    }
   } catch (err) {
     if (token === currentSourceToken()) {
       setProjectError(String(err));

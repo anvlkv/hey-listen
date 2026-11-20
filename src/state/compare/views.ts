@@ -114,7 +114,11 @@ export function clearReference(tool: AnalyzerId, id: string) {
   });
 }
 
-/** The save-time signature of the open comparisons (see `project/dirty.ts`). */
+/**
+ * The save-time signature of the open comparisons: one `kind|reference|offset|fingerprint`
+ * string per view. The core's dirty signature reads it (pushed as `compareSignature`), so
+ * a settled change in a live reference marks the project dirty.
+ */
 export function compareSignature(): Record<string, string> {
   const signature: Record<string, string> = {};
   for (const [id, view] of Object.entries(compareViews())) {

@@ -16,6 +16,9 @@ import { sidebarOpen } from "./state/activityBar";
 import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu, aboutOpen, cliToolOpen, setAboutOpen, setCliToolOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
+import { initDispatcher } from "./state/keybindings/dispatcher";
+import { initProjectHistory } from "./state/project/push";
+import { initDirty } from "./state/project/unsaved";
 import {
   annotationsPanelOpen,
   annotationsPanelWidth,
@@ -58,6 +61,7 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = createSignal(SIDEBAR_DEFAULT);
   let main!: HTMLElement;
   let disposeDragDrop: (() => void) | undefined;
+  let disposeDispatcher: (() => void) | undefined;
 
   const clamp = (height: number) => {
     const max = Math.max(BOTTOM_MIN, (main?.clientHeight ?? 0) - TOP_MIN);
@@ -98,19 +102,28 @@ export default function App() {
   const showTimeline = () => source() != null || recording();
 
   onMount(() => {
-    void initUiState();
+    // The history push must start only once the shared state has been pulled, so its
+    // first snapshot is the project's state and not a default.
+    void initUiState().then(() => {
+      initProjectHistory();
+      // The core's dirty flag follows that push; a window opened mid-project pulls the
+      // current one (`docs/undo-redo.md` → "Phase 3").
+      void initDirty();
+    });
     void initCapture();
     void initMenu();
     void initMcp();
     // Load any installed (user) themes; built-ins already applied at module load.
     void refreshThemes();
     disposeDragDrop = initDragDrop();
+    disposeDispatcher = initDispatcher();
     window.addEventListener("resize", handleResize);
   });
   onCleanup(() => {
     window.removeEventListener("resize", handleResize);
     disposeCapture();
     disposeDragDrop?.();
+    disposeDispatcher?.();
   });
 
   return (

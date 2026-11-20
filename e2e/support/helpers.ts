@@ -79,3 +79,6 @@ export {
   takeInvokeCounts,
   lastInvokeArgs,
 } from "./ipc.ts";
+
+// --- Keyboard chords (M24.A seam → M24.B registry) -------------------------
+export { pressChord } from "./keys.ts";

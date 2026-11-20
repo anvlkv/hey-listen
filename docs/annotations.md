@@ -293,8 +293,10 @@ an MCP `preview` of a narrower range) keeps its own bounds.
   *view* of the project, never a project of its own. The window asks `popout_annotation`
   which annotation to render and pulls the annotations from `uiState`; it closes with its parent.
 - **Dirty + history** — an annotation edit marks the project **dirty** and is one
-  **undo/redo** step (`state/history.ts` snapshot gains the annotations + selection).
-  Annotations reset with the history on New / Open.
+  **undo/redo** step (the core-owned project snapshot carries the annotations, see
+  [`undo-redo.md`](undo-redo.md); the selection itself is not undoable, but is cleared
+  when a restore drops the annotation it pointed at). Annotations reset with the history
+  on New / Open.
 
 ## MCP surface
 
@@ -364,7 +366,7 @@ flags — they run against files, not projects, so there is nowhere to store an 
 | `src/components/Toolbar.tsx` | The `annotation-sticky` toggle + its count chip. |
 | `src-tauri/src/project/sections.rs` | The `Annotation` / `AnnotationValues` types (`#[derive(ts_rs::TS)]`) + the `ANNOTATIONS` section id. |
 | `src-tauri/src/project/{write,read}.rs` | Write / read the `ANNOTATIONS` section. |
-| `src/state/project/`, `src/state/history.ts` | Include annotations in save/load, undo/redo, and the dirty signature. |
+| `src/state/project/` | Include annotations in save/load, the core-owned undo/redo snapshot push, and the dirty signature. |
 | `src/state/uiState.ts`, `uiSync.ts`, `settings.ts` | Broadcast annotations + selection across a project's windows; the rail's view settings (open + width), persisted app-level. |
 | `src-tauri/src/commands/window.rs` | `open_annotation_window` / `popout_annotation` — the annotation window. |
 | `src-tauri/src/state/window/mod.rs` | The window registry (popout aliases, tool and annotation). |

@@ -12,6 +12,14 @@ use std::sync::{Arc, Mutex};
 use crate::audio::graph::GraphSpec;
 use crate::audio::playback::Playback;
 
+/// The bounded undo/redo stacks over [`ProjectSnapshot`] (no `tauri` types, so the
+/// reducer is unit-testable). See `docs/undo-redo.md`.
+mod history;
+/// The single authoritative project-state snapshot undo/redo records.
+mod snapshot;
+
+pub use snapshot::ProjectSnapshot;
+
 /// The current source's PCM (interleaved `f32`).
 #[derive(Debug, Clone)]
 pub struct SourceData {
@@ -333,4 +341,6 @@ mod tests {
 
 mod window;
 
-pub use window::{window_state, CompareView, WindowRegistry, WindowState};
+pub use window::{
+    window_state, CompareView, ProjectDirty, ProjectHistory, WindowRegistry, WindowState,
+};

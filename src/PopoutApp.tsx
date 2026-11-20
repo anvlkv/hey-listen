@@ -10,6 +10,7 @@ import { projectName } from "./state/project";
 import { setError, setSource, setStatus, source } from "./state/source";
 import { resetTimeline, windowEnd, windowStart } from "./state/timeline";
 import { initUiState } from "./state/uiState";
+import { initProjectHistory } from "./state/project/push";
 import { refreshThemes } from "./state/themes";
 import { toolById, type ToolId } from "./state/workbench";
 import {
@@ -67,6 +68,9 @@ export default function PopoutApp(props: {
       try {
         // Pull the shared project state first, then load the source's shape.
         await initUiState();
+        // A popout applies a history restore but never pushes project state (its
+        // dockview and source are its own, not the project's).
+        initProjectHistory();
         if (props.compare) {
           const view = await loadComparePopout();
           await applyBindingOffset(view ?? props.compare);

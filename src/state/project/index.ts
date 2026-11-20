@@ -13,22 +13,20 @@
  * This entry point re-exports the names importers use, so they need no changes. The
  * parts live in focused siblings: `types` (the section DTOs), `paths` (the `.heyl`
  * extension + path helpers), `signals` (identity/status/dirty signals + the project
- * name), `snapshot` (reads the stores for a save), `save`, `load`/`open`,
- * `newProject`, `recents` (Open Recent), and `dirty` + `title` (the reactive
- * effects, installed below).
+ * name), `snapshot` (the reads a save pushes), `save`, `load`/`open`, `newProject`,
+ * `recents` (Open Recent), `push` (the core-owned undo/redo push), `unsaved` (the
+ * core's dirty flag + `isEmptyProject`), and `title` (the window-title effect).
  *
  * Only the names a consumer imports are surfaced here; the section DTOs stay
  * available from `./types`, the signal setters from `./signals`, and the path
  * helpers from `./paths`.
  */
 
-// `dirty` and `title` install reactive effects as a side effect of evaluation — import
-// them (in this order) so unsaved-work tracking and the window-title sync start
-// exactly as they did before.
-import "./dirty";
+// `title` installs the window-title effect as a side effect of evaluation — import it
+// so the title sync starts exactly as it did before.
 import "./title";
 
-export { isEmptyProject } from "./dirty";
+export { isEmptyProject } from "./unsaved";
 export { isProjectFile } from "./paths";
 export {
   applyProjectTitle,

@@ -11,6 +11,7 @@ import { source } from "../state/source";
 import { resolvedTheme } from "../state/themes";
 import {
   setDockApi,
+  setLayoutRevision,
   setOpenTools,
   syncOpenTools,
   popoutTool,
@@ -177,6 +178,9 @@ export default function Workbench() {
     };
     api.onDidAddPanel(sync);
     api.onDidRemovePanel(sync);
+    // A splitter drag or tab move changes the project's saved layout without adding or
+    // removing a panel, so the project-state push watches the layout revision too.
+    api.onDidLayoutChange(() => setLayoutRevision((revision) => revision + 1));
     sync();
 
     // Re-apply the theme on the live component when the setting changes.

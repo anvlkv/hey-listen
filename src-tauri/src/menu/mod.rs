@@ -1,11 +1,12 @@
 //! Native application menu (File / Edit / View / Window / Help).
 //!
-//! The File and Edit actions are emitted to the frontend on the [`MENU_EVENT`]
-//! channel — the frontend owns the project state (`state/project/` reacts to the
-//! File actions; `state/menu.ts` routes undo/redo to `state/history.ts`). View and
-//! Window use **predefined** items (fullscreen / minimize / maximize), so they work
-//! without a round-trip. On macOS the first submenu is the application menu
-//! (About / Services / Hide / Quit); elsewhere About lives under Help.
+//! The menu actions the frontend owns are emitted on the [`MENU_EVENT`] channel —
+//! `state/project/` reacts to the File actions and `state/menu.ts` routes the rest
+//! (Analysis, Help). View and Window use **predefined** items (fullscreen / minimize /
+//! maximize), so they work without a round-trip. Undo/redo are **not** menu items: they
+//! are commands in the frontend's keybinding registry (see `docs/undo-redo.md`), so a
+//! focused text field keeps native `Cmd+Z`. On macOS the first submenu is the application
+//! menu (About / Services / Hide / Quit); elsewhere About lives under Help.
 //!
 //! **File → Open Recent** is rebuilt from [`crate::recent`] whenever the list changes
 //! ([`rebuild`]); choosing an entry re-emits it as an open request.
@@ -25,11 +26,11 @@ mod build;
 
 pub use build::build;
 
-/// Event carrying a menu action id (File / Edit) to the frontend.
+/// Event carrying a menu action id (File / Analysis / Help) to the frontend.
 pub const MENU_EVENT: &str = "app:menu";
 
-/// The actions the frontend handles (ids match `state/project/`, `state/menu.ts` and
-/// `state/history.ts`). The native menu and the emitted event share these ids.
+/// The actions the frontend handles (ids match `state/menu.ts` and `state/project/`).
+/// The native menu and the emitted event share these ids.
 #[derive(
     Debug,
     Clone,
@@ -52,8 +53,6 @@ pub enum MenuAction {
     NextProject,
     Save,
     SaveAs,
-    Undo,
-    Redo,
     About,
     Compare,
     CheckForUpdates,
@@ -193,8 +192,6 @@ mod tests {
         assert_eq!(MenuAction::NextProject.as_ref(), "nextProject");
         assert_eq!(MenuAction::Save.as_ref(), "save");
         assert_eq!(MenuAction::SaveAs.as_ref(), "saveAs");
-        assert_eq!(MenuAction::Undo.as_ref(), "undo");
-        assert_eq!(MenuAction::Redo.as_ref(), "redo");
         assert_eq!(MenuAction::About.as_ref(), "about");
         assert_eq!(MenuAction::Compare.as_ref(), "compare");
         assert_eq!(MenuAction::CheckForUpdates.as_ref(), "checkForUpdates");
