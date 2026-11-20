@@ -79,15 +79,20 @@ async function innerSize(): Promise<{ width: number; height: number }> {
  * Give the app window the default size, so the run does not inherit the last session's.
  *
  * The app persists its window geometry (`tauri_plugin_window_state`) and restores it on
- * launch — including a window the user (or an earlier run) shrank, so every spec would
- * otherwise lay out against a different, machine-local size. Best-effort: the compare
- * view scrolls rather than collapsing its chart (see `styles/compare.css`), so a resize
- * the window manager refuses means a smaller chart, not a failure. [`restoreWindowSize`]
- * puts the user's own geometry back at the end of the session.
+ * launch — including a window the user (or an earlier run) shrank **or maximized**, so
+ * every spec would otherwise lay out against a different, machine-local size. A maximized
+ * window is normalized too: a run on a large display would otherwise drive the app at
+ * twice the default width, which changes what the Timeline (scrollbar) and charts (zoom)
+ * show. Best-effort: the compare view scrolls rather than collapsing its chart (see
+ * `styles/compare.css`), so a resize the window manager refuses means a smaller chart, not
+ * a failure. [`restoreWindowSize`] puts the user's own geometry back at the end of the
+ * session.
  */
 async function ensureWindowSize(): Promise<void> {
   const inner = await innerSize();
-  if (inner.width >= WINDOW.width && inner.height >= 600) return;
+  const small = inner.width < WINDOW.width || inner.height < 600;
+  const large = inner.width > WINDOW.width + 40 || inner.height > WINDOW.height + 40;
+  if (!small && !large) return;
   // The rect the driver reports is the **outer** window: its chrome (the title bar) is
   // the difference from the page's inner size — measure it rather than assume it.
   const outer = await browser.getWindowSize().catch(() => null);
@@ -102,12 +107,16 @@ async function ensureWindowSize(): Promise<void> {
   await browser
     .waitUntil(async () => (await innerSize()).width >= WINDOW.width - 40, {
       timeout: 5_000,
-      timeoutMsg: "the app window stayed narrow",
+      timeoutMsg: "the app window ignored the default size",
     })
-    .catch((err) => console.error("the app window stayed narrow:", err.message));
+    .catch((err) => console.error("the app window ignored the default size:", err.message));
 }
 
-/** Put `main` back to the size this session found it at (a test run must not resize it). */
+/** Put `main` back to the size this session found it at (a test run must not resize it).
+ *
+ * Only the size is restored: the maximized flag is the app's own (a window normalized in
+ * [`ensureWindowSize`] stays unmaximized until the user maximizes it again).
+ */
 export async function restoreWindowSize(): Promise<void> {
   const rect = originalRect;
   originalRect = null;

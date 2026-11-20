@@ -39,16 +39,57 @@ type ExpectedError = string | RegExp;
 /**
  * Failures every spec may log because the **harness** cannot provide the condition.
  *
- * A live capture started from the Source panel is refused by the OS: the suite launches
- * the app without a microphone permission grant (the capture happy path, B5, is a manual
- * smoke — `docs/testing.md`). The backend's message text is platform-specific, so only its
- * stable prefix is matched; a **mocked** or otherwise unexpected `start_capture` failure
- * still fails the spec.
+ * - A live capture started from the Source panel is refused by the OS: the suite launches
+ *   the app without a microphone permission grant (the capture happy path, B5, is a manual
+ *   smoke — `docs/testing.md`).
+ * - A desktop CI runner has **no audio output device**, so the first real `preview_region`
+ *   (and the UI's `preview failed` report of it) is rejected. A spec that previews audio
+ *   therefore records these two lines on any machine without an output device.
+ *
+ * Both texts are platform-specific past the prefix, so only the stable part is matched; a
+ * **mocked** or otherwise unexpected failure still fails the spec.
  */
-export const HARNESS_LOG_ERRORS: ExpectedError[] = ["start_capture failed: capture backend error"];
+export const HARNESS_LOG_ERRORS: ExpectedError[] = [
+  "start_capture failed: capture backend error",
+  "preview_region failed",
+  "preview failed",
+];
 
 /** The plugin's record format: `[date][time][target][LEVEL] message`. */
-const RECORD = /^\[[^\]]*\]\[[^\]]*\]\[[^\]]*\]\[([A-Z]+)\]\s?(.*)$/;
+const RECORD = /^\[[^\]]*\]\[[^\]]*\]\[([^\]]*)\]\[([A-Z]+)\]\s?(.*)$/;
+
+/** How many records before (and after) an unexpected error the report shows. */
+const CONTEXT_BEFORE = 6;
+const CONTEXT_AFTER = 2;
+
+/** The most text one reported line carries, so a huge message cannot bury the report. */
+const REPORT_MAX_CHARS = 240;
+
+/** One parsed record of the app log. */
+interface LogRecord {
+  /** The writer: a Rust module, or `webview` / `webview::<location>` for the frontend. */
+  target: string;
+  level: string;
+  message: string;
+}
+
+/**
+ * One unexpected `[ERROR]` the app logged, with the records around it.
+ *
+ * The target and the neighbours are what make a failure diagnosable: the message alone
+ * often names no command, while the target says which side wrote it and the neighbouring
+ * lines say what the app was doing when it did.
+ */
+export interface LogFailure {
+  /** The erroring record's target (see [`LogRecord.target`]). */
+  target: string;
+  /** Its text, with the bridge's `[ui <file>:<line>]` origin kept when it had one. */
+  message: string;
+  /** Records logged before it, oldest first (other unexpected errors left out). */
+  before: string[];
+  /** Records logged after it, oldest first (other unexpected errors left out). */
+  after: string[];
+}
 
 /** How long the last fire-and-forget record gets to reach the file before it is read. */
 const SETTLE_MS = 300;
@@ -74,15 +115,15 @@ export function expectLogErrors(...patterns: ExpectedError[]): void {
 }
 
 /**
- * The app's `[ERROR]` lines since the reset, minus the ones this spec declared.
+ * The app's unexpected `[ERROR]` records since the reset, each with its neighbours.
  *
- * Both producers are checked: a Rust `log::error!` / panic line and a forwarded
- * frontend line have the same record shape (the target says which side wrote it). The
- * frontend bridge's `[ui <file>:<line>]` prefix is stripped for matching and de-duplication
- * — the suite's own console forwarding repeats each line once — while the first record's
- * text (with its origin) is what gets reported.
+ * Both producers are checked: a Rust `log::error!` / panic line and a forwarded frontend
+ * line have the same record shape (the target says which side wrote it). The frontend
+ * bridge's `[ui <file>:<line>]` prefix is stripped for matching and de-duplication — the
+ * suite's own console forwarding repeats each line once — while the first record's text
+ * (with its origin) is what gets reported.
  */
-export async function unexpectedLogErrors(): Promise<string[]> {
+export async function unexpectedLogErrors(): Promise<LogFailure[]> {
   // A frontend line is forwarded fire-and-forget, so the spec's last one may still be in
   // flight when the file is read.
   await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
@@ -90,18 +131,46 @@ export async function unexpectedLogErrors(): Promise<string[]> {
   const patterns = expected;
   expected = [];
 
-  const errors = new Map<string, string>();
-  for (const line of text.split("\n")) {
+  const records = text.split("\n").flatMap((line) => {
     const record = RECORD.exec(line);
     // A continuation line (a formatted stack or object) has no record prefix; the record
     // it belongs to already carried the verdict.
-    if (record?.[1] !== "ERROR") continue;
-    const shown = record[2].trim();
-    const message = stripOrigin(shown);
-    if (!message || patterns.some((pattern) => matches(pattern, message))) continue;
-    if (!errors.has(message)) errors.set(message, shown);
-  }
-  return [...errors.values()];
+    return record ? [{ target: record[1], level: record[2], message: record[3].trim() }] : [];
+  });
+
+  const unexpected = (record: LogRecord) => {
+    if (record.level !== "ERROR") return false;
+    const message = stripOrigin(record.message);
+    return message !== "" && !patterns.some((pattern) => matches(pattern, message));
+  };
+
+  // One entry per distinct message, at the index of its first record: a burst of the same
+  // failure is one defect, not N.
+  const failures = new Map<string, { index: number; record: LogRecord }>();
+  records.forEach((record, index) => {
+    if (!unexpected(record)) return;
+    const key = stripOrigin(record.message);
+    if (!failures.has(key)) failures.set(key, { index, record });
+  });
+
+  const neighbour = (record: LogRecord) => (unexpected(record) ? null : format(record));
+
+  return [...failures.values()].map(({ index, record }) => ({
+    target: record.target,
+    message: record.message,
+    before: records
+      .slice(Math.max(0, index - CONTEXT_BEFORE), index)
+      .flatMap((each) => neighbour(each) ?? []),
+    after: records
+      .slice(index + 1, index + 1 + CONTEXT_AFTER)
+      .flatMap((each) => neighbour(each) ?? []),
+  }));
+}
+
+/** One record as a report line: `[LEVEL] [target] message`, capped in length. */
+function format(record: LogRecord): string {
+  const line = `[${record.level}] [${record.target}] ${record.message}`;
+  return line.length <= REPORT_MAX_CHARS ? line : `${line.slice(0, REPORT_MAX_CHARS)}…`;
 }
 
 /** Drop this app's `[ui <file>:<line>]` origin from a forwarded line. */

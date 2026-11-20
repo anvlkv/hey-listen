@@ -332,12 +332,25 @@ describe("R. Two projects at once", () => {
       "main did not load the saved project",
       30_000,
     );
-    await waitFor(
-      async () => (await textOf(SEL.projectName)).trim() === label,
-      "main did not adopt the loaded project's name",
-      30_000,
-    );
-    expect((await textOf(SEL.projectName)).trim().endsWith("*")).toBe(false);
+    // Read the name **in main** rather than in whatever window the session is pinned to: the
+    // load closes main's old popout (which the previous steps may have focused), and a name
+    // read there would never match. Report what main actually shows when it does not.
+    let shown = "";
+    try {
+      await waitFor(
+        async () => {
+          shown = await textIn("main", SEL.projectName);
+          return shown === label;
+        },
+        "main did not adopt the loaded project's name",
+        30_000,
+      );
+    } catch (err) {
+      throw new Error(`${(err as Error).message} — main showed "${shown}", expected "${label}"`, {
+        cause: err,
+      });
+    }
+    expect((await textIn("main", SEL.projectName)).endsWith("*")).toBe(false);
 
     // The other project is exactly as it was: same name, still dirty, same audio.
     expect(await textIn(second, SEL.projectName)).toBe(secondDirty);

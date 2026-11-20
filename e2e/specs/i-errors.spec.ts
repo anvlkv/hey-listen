@@ -44,8 +44,9 @@ expectLogErrors(
   "run_analysis failed: analysis failed (mock)", // I2
   "set_filter_graph failed: filter push failed (mock)", // I3
   "render_synth failed: render failed (mock)", // I4
-  "preview_region failed: no audio output device is available", // I6
-  "preview failed", // I6's own report of that rejection
+  // I6's mocked rejection. Its `preview failed` report is a harness-level line (a runner
+  // with no output device logs the same one), so only the command's own line is pinned here.
+  "preview_region failed: preview rejected (mock)",
 );
 
 /** Kobalte portals every popover panel with this class. */
@@ -265,12 +266,12 @@ describe("I. Errors & warnings", () => {
 
     // The device-dependent region load fails (the real command does on a runner with
     // no audio output device; force it here so the case is deterministic everywhere).
-    await mockReject("preview_region", "no audio output device is available");
+    await mockReject("preview_region", "preview rejected (mock)");
     const preview = await $(SEL.timelinePreview);
     await preview.click();
 
     await waitFor(
-      async () => (await textOf(SEL.toolbarPreviewError)).includes("no audio output device"),
+      async () => (await textOf(SEL.toolbarPreviewError)).includes("preview rejected (mock)"),
       "the failed preview did not surface in the toolbar",
     );
     // A failed start is not a playing transport: the annotation action must go away again

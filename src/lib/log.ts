@@ -67,11 +67,16 @@ export function installLogBridge(): void {
 /** Wrap one `console` method: print as before, then forward the same call. */
 function patchConsole(method: Method): void {
   const original = (console[method] as ConsoleMethod).bind(console);
-  (console as unknown as Record<Method, ConsoleMethod>)[method] = (...args: unknown[]) => {
+  const ours: ConsoleMethod = (...args: unknown[]) => {
     original(...args);
     if (mirroring) return;
-    forward(METHODS[method], args, origin());
+    // One extra frame per wrapper someone else put **above** this one (the E2E
+    // scaffolding does): without it every line would claim to come from that wrapper, so
+    // the origin would say nothing about which of our modules logged the line.
+    const nested = console[method] === ours ? 0 : 1;
+    forward(METHODS[method], args, origin(SELF_FRAMES + nested));
   };
+  (console as unknown as Record<Method, ConsoleMethod>)[method] = ours;
 }
 
 /** Send one line to the core, capped and unable to fail the caller. */
@@ -127,11 +132,12 @@ const MIRROR_METHOD: Partial<Record<LogLevel, Method>> = {
  * module's own frames. `"?"` when the webview gives no usable stack.
  *
  * `forward` is **not** on this stack: `origin()` is evaluated as its argument, so the two
- * frames above are `origin` itself and the patched console method.
+ * frames above are `origin` itself and the patched console method — plus one per wrapper
+ * another module installed over it (`skip`).
  */
-function origin(): string {
+function origin(skip: number): string {
   const frames = framesOf(new Error().stack);
-  const caller = frames.slice(SELF_FRAMES).find((frame) => !SELF_MODULE.test(frame.url));
+  const caller = frames.slice(skip).find((frame) => !SELF_MODULE.test(frame.url));
   return caller ? `${shortFile(caller.url)}:${caller.line}` : "?";
 }
 

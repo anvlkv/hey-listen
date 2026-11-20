@@ -40,11 +40,6 @@ import {
   waitForApp,
   wheelOver,
 } from "../support/helpers.ts";
-import { expectLogErrors } from "../support/logs.ts";
-
-// A runner without an output device rejects the first real `preview_region` (the spec
-// stubs the device boundary after that), so the app records those two lines on purpose.
-expectLogErrors("preview_region failed", "preview failed");
 
 const ROW = '[data-testid^="annotation.row."]';
 const SPEED_VALUE = '[data-testid="timeline.speed.value"]';

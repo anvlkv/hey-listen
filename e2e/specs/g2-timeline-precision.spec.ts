@@ -31,7 +31,6 @@ import {
   waitFor,
   waitForApp,
 } from "../support/helpers.ts";
-import { expectLogErrors } from "../support/logs.ts";
 import {
   clickMenuItem,
   closeTimelineMenu,
@@ -41,9 +40,6 @@ import {
   pressOnTimeline,
   setInputValue,
 } from "../support/timelinePrecision.ts";
-
-// A runner with no output device rejects the edge excerpt's `preview_region` (see the header).
-expectLogErrors("preview_region failed", "preview failed");
 
 /** `PLOT_PAD` inside the plotted region — mirrors `src/components/Timeline.tsx`. */
 const PLOT_PAD = 12;

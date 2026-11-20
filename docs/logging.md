@@ -112,7 +112,10 @@ One module, imported **first** (from `src/boot.ts`, which is already the first i
    wrapper computes a short `file:line` from `new Error().stack` (skipping its own frames)
    and prefixes the message `[ui <file>:<line>]`. It then calls
    `invoke("plugin:log|log", { level, message })` **without** a location, so the target stays
-   the plain `webview` and the line stays short.
+   the plain `webview` and the line stays short. A bridge installed *below* someone else's
+   `console` wrapper (the E2E scaffolding adds one) notices that `console[method]` is no
+   longer its own function and skips one more frame, so the line still names the module
+   that logged it instead of the wrapper.
 3. **A loop guard.** The plugin's `Webview` target re-emits every record on `log://log`; a
    naive bridge would forward the mirror of its own write forever. `initLogMirror()` replaces
    `attachConsole()` with `attachLogger(...)` inside the same module, **only when

@@ -69,11 +69,14 @@ identical in a log. CI uploads the directory as the `e2e-report-<os>` artifact.
 **The app log is a spec's second verdict.** Each spec file starts with an empty log and
 ends with a check that the app logged no `[ERROR]` it did not declare
 (`e2e/support/logHooks.ts`, a Mocha root-hook plugin — a WDIO `after` hook error is
-logged and swallowed, so it cannot fail a file). A case that forces a failure declares it
-from its spec file with `expectLogErrors(...)`; conditions the **harness** cannot provide —
-a real capture is refused because the app has no microphone grant — are declared once in
-`HARNESS_LOG_ERRORS` (`e2e/support/logs.ts`), matching a stable prefix because the
-backend's text is platform-specific. A spec whose own test failed is not checked further,
+logged and swallowed, so it cannot fail a file). The failure lists each unexpected message
+**with the record's target** (a Rust module, or `webview` / `webview::<location>` for the UI)
+and the records logged before and after it, so a run explains itself without a local
+reproduction. A case that forces a failure declares it
+from its spec file with `expectLogErrors(...)`; conditions the **harness** cannot provide
+(no microphone grant, no audio output device — the list and its reasoning live in
+`HARNESS_LOG_ERRORS`) are declared once in `e2e/support/logs.ts`, matching a stable prefix
+because the backend's text is platform-specific. A spec whose own test failed is not checked further,
 so a broken case reports one failure instead of its symptoms.
 
 **One app instance per run.** WebdriverIO launches the app once, so spec files share

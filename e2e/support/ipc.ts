@@ -176,7 +176,10 @@ export async function invokeCore<T = unknown>(
     (tauri, c, a, progress) => {
       const argv = a as Record<string, unknown>;
       if (!progress) return tauri.core.invoke(c as string, argv);
-      const Channel = (tauri.core as unknown as { Channel?: new () => unknown }).Channel;
+      // Read the class in the **page**, not from the script's (reduced) `tauri` arg.
+      const Channel = (
+        window as unknown as { __TAURI__?: { core?: { Channel?: new () => unknown } } }
+      ).__TAURI__?.core?.Channel;
       if (!Channel) {
         throw new Error(
           "window.__TAURI__.core.Channel is missing — `run_analysis` needs a progress channel",
