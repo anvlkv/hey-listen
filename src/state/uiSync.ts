@@ -118,6 +118,19 @@ export async function flushUiState(key: string): Promise<void> {
 }
 
 /**
+ * Send every queued key now and resolve once the core has them all.
+ *
+ * A project load restores the shared state and then creates the layout's popout windows;
+ * a popout pulls the core's snapshot as it boots, so the restore must be **in** the core
+ * before one starts — otherwise it comes up on the previous project's values and pushes
+ * them back through the sync.
+ */
+export async function flushAllUiState(): Promise<void> {
+  for (const key of new Set([...queued.keys(), ...timers.keys()])) flush(key);
+  await Promise.all([...inFlight.values()]);
+}
+
+/**
  * Pull the project's shared state into the local stores, then start mirroring the
  * project's other windows. Call once, after the stores are registered.
  *

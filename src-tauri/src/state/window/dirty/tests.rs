@@ -2,6 +2,7 @@
 //! marker, and the compare-view input. The loop is driven by hand here (no window, no
 //! timers), so `settle` pays one real `SETTLE_MS` wait.
 
+use super::tick::{SETTLE_MS, TICK_MS};
 use super::*;
 
 fn tracker() -> ProjectDirty {
@@ -102,6 +103,37 @@ fn a_restore_that_keeps_settling_stays_clean() {
     assert!(!dirty.dirty());
 
     dirty.note_snapshot(&named("edited after the load"));
+    assert!(dirty.dirty_now());
+}
+
+/// The regression the multi-project spec caught: a restore that pauses for longer than the
+/// settle window (a streamed PCM, dockview re-mounting the tabs, the popout windows
+/// reconciling) must not lock a baseline halfway through — the rest of the restore would
+/// read as an edit and the freshly loaded project would come up dirty.
+#[test]
+fn a_restore_that_pauses_longer_than_the_settle_stays_open() {
+    let dirty = tracker();
+    dirty.note_snapshot(&named("previous"));
+    settle(&dirty);
+
+    dirty.begin_baseline();
+    dirty.note_snapshot(&named("loaded so far"));
+    dirty.tick();
+    std::thread::sleep(SETTLE_MS * 2);
+    dirty.tick();
+    assert!(
+        dirty.baselining(),
+        "the baseline locked while the restore was still running"
+    );
+
+    // The rest of the restore lands, then the load closes its bracket.
+    dirty.note_snapshot(&named("loaded"));
+    dirty.end_baseline();
+    settle(&dirty);
+    assert!(!dirty.dirty(), "the loaded project came up dirty");
+
+    // A real edit after the load still counts.
+    dirty.note_snapshot(&named("edited"));
     assert!(dirty.dirty_now());
 }
 

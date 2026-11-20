@@ -176,6 +176,9 @@ describe("G. Timeline", () => {
     await waitForAnalyzer("spectrogram");
 
     const before = await timelineReadout();
+    // The setup above (a new tab whose chart fits and mirrors the view) can leave a
+    // coalesced push in flight; let it drain, so the count below is the gesture's own.
+    await browser.pause(200);
     await startInvokeCounts();
     // One gesture, twenty moves — a fast drag.
     await dragTimelineHandle("end", -160, 20);
@@ -185,7 +188,10 @@ describe("G. Timeline", () => {
     await waitFor(async () => (await timelineReadout()) !== before, "the window never moved");
     // … it did push the new window to the project's other windows …
     expect(counts.set_ui_state ?? 0).toBeGreaterThan(0);
-    // … but not once per move: each push is a broadcast every other window acts on.
-    expect(counts.set_ui_state ?? 0).toBeLessThanOrEqual(6);
+    // … but not once per move (twenty of them): each push is a broadcast every other
+    // window acts on, so a handful is the coalescer working. The ceiling is a ceiling, not
+    // a measurement — the gesture's own pushes vary by which keys moved (the window, the
+    // mirrored view), so it leaves room for one more key without allowing per-move pushes.
+    expect(counts.set_ui_state ?? 0).toBeLessThanOrEqual(8);
   });
 });

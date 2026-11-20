@@ -106,6 +106,14 @@ describe("H. Project file & multi-window", () => {
       () => canvasHasInk(SEL.timelineCanvas),
       "the timeline did not render after loading the project",
     );
+
+    // A load is not an edit: the project it restores is the clean point, so the title must
+    // come back without the unsaved marker (the core settles it — `docs/undo-redo.md`).
+    await waitFor(
+      async () => !(await (await $(SEL.projectName)).getText()).includes("*"),
+      "the loaded project came up dirty",
+      20_000,
+    );
   });
 
   it("H4 — a version 1 project upgrades on open and saves at the current version", async () => {

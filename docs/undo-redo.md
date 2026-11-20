@@ -255,6 +255,18 @@ broadcast (read widely: the title, the MCP state), and `unsaved.ts` holds the li
 Phase 3 is the *only* place the frontend-tuned settle/baseline and viewport-strip behaviour
 moves between languages — the highest-regression step, deliberately last.
 
+**Two clocks, not one.** `begin_project_baseline` / `end_project_baseline` bracket the
+restore (`loadProject`, `newProject`), and while the bracket is open the quiet clock is
+**unarmed**: a restore that pauses longer than `SETTLE_MS` — a streamed PCM, dockview
+re-mounting the tabs, the layout's popout windows being created — must not lock a baseline
+halfway through, or the rest of the restore reads as an edit and a freshly loaded project
+shows the unsaved `*` (the R5 failure of the multi-project spec). The load therefore flushes
+its snapshot push and its shared `ui-state` **before** closing the bracket, so the state the
+settle locks already carries the reconciled `LAYOUT.popouts`. A project that does read dirty
+logs the content path that moved (`project is dirty: differs from the clean point at
+layout.popouts`), and a restore logs when it settles, so a CI log answers "why is this
+dirty?" without a debugger.
+
 ### Why phased, not one cut
 
 Each phase deletes one of the three readers and is shippable/testable on its own; the total

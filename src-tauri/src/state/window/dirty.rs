@@ -8,10 +8,13 @@
 //! the one input that is neither in the snapshot nor in `AudioState`.
 //!
 //! The baseline/settle machinery is the same shape as
-//! [`ProjectHistory`](super::ProjectHistory): a load is not one synchronous step (dockview
-//! re-serializes its layout a tick after `fromJSON`, popouts reconcile a tick after that),
-//! so the baseline is re-armed until the restored state has been quiet, rather than a
-//! freshly loaded project coming up marked dirty. See
+//! [`ProjectHistory`](super::ProjectHistory), with one difference: a load (and a new
+//! project) **brackets** its restore (`begin_project_baseline` / `end_project_baseline`),
+//! and while that bracket is open the quiet clock is unarmed. A restore is not one
+//! synchronous step — a streamed PCM, dockview re-serializing its layout after `fromJSON`,
+//! the layout's popout windows being created — so the restore itself says when it is done;
+//! only then does a quiet period (see `dirty/tick.rs` → `SETTLE_MS`) lock the baseline, so a
+//! freshly loaded project never comes up marked dirty. See
 //! [`undo-redo.md`](../../../../docs/undo-redo.md) → "Phase 3".
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -31,14 +34,11 @@ mod content;
 /// The signature's behaviour (the settle clock, the upgrade marker, the compare input).
 #[cfg(test)]
 mod tests;
+/// The settle clock: when a restore becomes the clean point, and why a project is dirty.
+mod tick;
 
 use content::stripped;
-
-/// How long restored state may keep settling before it becomes the clean point.
-pub const SETTLE_MS: Duration = Duration::from_millis(350);
-
-/// How often the loop looks for a change and for a settled restore.
-const TICK_MS: u64 = 50;
+use tick::TICK_MS;
 
 /// The event carrying the dirty flag to the project's windows.
 pub const DIRTY_EVENT: &str = "project-dirty";
@@ -83,6 +83,11 @@ struct DirtyState {
     quiet_since: Option<Instant>,
     /// True while a load/new restores state, so the restore itself is not a change.
     baselining: bool,
+    /// True while that restore is still running: the quiet clock is **not armed** until
+    /// [`ProjectDirty::end_baseline`] says the restore is done, so a slow one (a streamed
+    /// PCM, dockview re-mounting the tabs, the popout windows) cannot lock a baseline
+    /// halfway through and read the rest as an edit.
+    restoring: bool,
     /// Whether the project has unsaved edits (as last broadcast).
     dirty: bool,
 }
@@ -96,6 +101,7 @@ impl Default for DirtyState {
             quiet_since: None,
             // The app starts clean: the first settled state is the baseline.
             baselining: true,
+            restoring: false,
             dirty: false,
         }
     }
@@ -220,15 +226,24 @@ impl ProjectDirty {
     }
 
     /// Suppress dirty tracking while a load/new restores state.
+    ///
+    /// The restore owns the **end** of the bracket ([`Self::end_baseline`]): while it runs,
+    /// changes move the baseline with them and the quiet clock stays unarmed.
     pub fn begin_baseline(&self) {
         let mut state = lock(&self.state);
         state.baselining = true;
+        state.restoring = true;
         state.quiet_since = None;
     }
 
     /// Re-arm the baseline once restored state has settled (see [`Self::tick`]).
     pub fn end_baseline(&self) {
-        lock(&self.state).quiet_since = Some(Instant::now());
+        {
+            let mut state = lock(&self.state);
+            state.restoring = false;
+            state.quiet_since = Some(Instant::now());
+        }
+        log::info!("project restore: the restored state becomes clean once it settles");
     }
 
     /// Set (or clear) the format version the project was migrated from.
@@ -284,58 +299,8 @@ impl ProjectDirty {
         });
     }
 
-    /// Recompute the signature when an input moved, and end a restore once it is quiet.
-    fn tick(&self) {
-        let inputs = self.inputs.swap(false, Ordering::SeqCst);
-        let source = self.source_identity();
-        let upgraded = self.upgraded().is_some();
-        let mut published = None;
-        {
-            let mut state = lock(&self.state);
-            if inputs || source != state.source {
-                state.source = source;
-                let next = self.signature();
-                if next != state.current {
-                    state.current = next;
-                    if state.baselining {
-                        // The restored state becomes the baseline, and a later settling
-                        // change restarts the quiet period (`dirty.ts`'s `armSettle`).
-                        state.baseline = state.current.clone();
-                        state.quiet_since = Some(Instant::now());
-                    } else {
-                        let value = state.current != state.baseline || upgraded;
-                        if value != state.dirty {
-                            state.dirty = value;
-                            published = Some(value);
-                        }
-                    }
-                }
-            }
-            let quiet = state
-                .quiet_since
-                .is_some_and(|since| since.elapsed() >= SETTLE_MS);
-            if state.baselining && quiet {
-                state.baselining = false;
-                state.quiet_since = None;
-                if upgraded != state.dirty {
-                    state.dirty = upgraded;
-                    published = Some(upgraded);
-                }
-            }
-        }
-        if let Some(dirty) = published {
-            self.publish(dirty);
-        }
-    }
-
     fn upgraded(&self) -> Option<u32> {
         *lock(&self.upgraded_from)
-    }
-
-    /// Whether a restore is still settling (the tests drive the loop by hand).
-    #[cfg(test)]
-    fn baselining(&self) -> bool {
-        lock(&self.state).baselining
     }
 
     fn source_identity(&self) -> SourceIdentity {

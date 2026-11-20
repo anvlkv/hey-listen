@@ -60,6 +60,68 @@ fn without_grid_extent(value: Value) -> Value {
     Value::Object(map)
 }
 
+/// The path at which two signatures first differ (`layout.popouts[0]`, `name`), or `None`
+/// when they are equal.
+///
+/// A project that reads dirty is a question the log has to answer without a debugger: the
+/// line reports this path, so the next CI run names the content that moved instead of
+/// leaving two JSON blobs to diff.
+pub(super) fn first_difference(a: &Value, b: &Value) -> Option<String> {
+    let mut path = String::new();
+    differs(a, b, &mut path).then(|| {
+        if path.is_empty() {
+            "(root)".to_string()
+        } else {
+            path
+        }
+    })
+}
+
+/// Walk two values, collecting the path of the first difference into `path`.
+fn differs(a: &Value, b: &Value, path: &mut String) -> bool {
+    match (a, b) {
+        (Value::Object(a), Value::Object(b)) => {
+            // Sorted and deduped, so both sides visit the keys in the same order.
+            let mut keys: Vec<&String> = a.keys().chain(b.keys()).collect();
+            keys.sort_unstable();
+            keys.dedup();
+            for key in keys {
+                let mark = path.len();
+                if !path.is_empty() && !path.ends_with(']') {
+                    path.push('.');
+                }
+                path.push_str(key);
+                let differ = match (a.get(key), b.get(key)) {
+                    (Some(a), Some(b)) => differs(a, b, path),
+                    // A key on one side only is a difference at the key itself.
+                    _ => true,
+                };
+                if differ {
+                    return true;
+                }
+                path.truncate(mark);
+            }
+            false
+        }
+        (Value::Array(a), Value::Array(b)) => {
+            for index in 0..a.len().max(b.len()) {
+                let mark = path.len();
+                path.push_str(&format!("[{index}]"));
+                let differ = match (a.get(index), b.get(index)) {
+                    (Some(a), Some(b)) => differs(a, b, path),
+                    _ => true,
+                };
+                if differ {
+                    return true;
+                }
+                path.truncate(mark);
+            }
+            false
+        }
+        (a, b) => a != b,
+    }
+}
+
 /// Whether both graph editors are still in their seeded shape, from the frontend's
 /// `graphPristine` push (`{ "filter": bool, "synth": bool }`).
 ///
@@ -116,6 +178,29 @@ mod tests {
             },
         });
         assert_eq!(stripped(&content), stripped(&resized));
+    }
+
+    #[test]
+    fn the_first_difference_names_the_path_that_moved() {
+        let base = serde_json::json!({
+            "name": "song",
+            "layout": { "popouts": [], "graphs": { "filter": null } },
+        });
+        let mut current = base.clone();
+        current["layout"]["popouts"] = serde_json::json!(["spectrum"]);
+        assert_eq!(
+            first_difference(&base, &current).as_deref(),
+            Some("layout.popouts[0]")
+        );
+        assert_eq!(first_difference(&base, &base), None);
+
+        // A key that exists on one side only is where the walk stops.
+        let mut shorter = base.clone();
+        shorter["layout"].as_object_mut().unwrap().remove("graphs");
+        assert_eq!(
+            first_difference(&base, &shorter).as_deref(),
+            Some("layout.graphs")
+        );
     }
 
     #[test]
