@@ -161,19 +161,9 @@
 .src-meter {
   flex: 1;
   min-width: 0;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--track);
-  border: 1px solid var(--border);
-  overflow: hidden;
-}
-
-/* Kobalte Meter: the fill width comes from `--kb-meter-fill-width`. */
-.src-meter-fill {
-  width: var(--kb-meter-fill-width);
-  height: 100%;
-  background: linear-gradient(90deg, var(--success), var(--warn-2) 78%, var(--danger));
-  transition: width 60ms linear;
+  height: 8px;
+  --segmeter-gap: 1px;
+  --segmeter-radius: 1px;
 }
 
 /* Kobalte Slider (gain). Kobalte positions the fill/thumb inline, so we only

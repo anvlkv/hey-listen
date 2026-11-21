@@ -5,6 +5,7 @@ import Button from "./Button";
 import Combobox from "./Combobox";
 import Icon from "./Icon";
 import Popover from "./Popover";
+import SegmentedMeter from "./SegmentedMeter";
 import Tooltip from "./Tooltip";
 import SharedParamsForm from "./analyzer/SharedParamsForm";
 import AppearancePopover from "./toolbar/AppearancePopover";
@@ -180,7 +181,7 @@ export default function Toolbar() {
               aria-label="Preview output level"
             >
               <Meter.Track class="toolbar-meter-track">
-                <Meter.Fill class="toolbar-meter-fill" />
+                <SegmentedMeter value={meterPercent(outputLevel())} segments={12} />
               </Meter.Track>
             </Meter>
             <span class="toolbar-readout toolbar-meter-readout">{meterDbLabel(outputLevel())}</span>

@@ -1,4 +1,5 @@
 import { For } from "solid-js";
+import SegmentedMeter from "../SegmentedMeter";
 import type { LevelsResult } from "../../state/analyzer";
 
 /** dBFS positions of the scale ruler (loud → quiet). */
@@ -30,8 +31,7 @@ export default function LevelMeters(props: { result: LevelsResult }) {
           <div class="meter-row">
             <span class="meter-label">{row.label}</span>
             <div class="meter-track">
-              <span class="meter-mask" style={{ left: `${pct(row.db)}%` }} />
-              <span class="meter-hold" style={{ left: `${pct(row.hold)}%` }} />
+              <SegmentedMeter value={pct(row.db)} hold={pct(row.hold)} segments={40} />
             </div>
             <span class="meter-value">{row.db.toFixed(1)} dBFS</span>
           </div>

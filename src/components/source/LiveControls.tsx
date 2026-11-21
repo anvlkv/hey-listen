@@ -4,6 +4,7 @@ import { Slider } from "@kobalte/core/slider";
 import { Show } from "solid-js";
 import Button from "../Button";
 import Icon from "../Icon";
+import SegmentedMeter from "../SegmentedMeter";
 import Tooltip from "../Tooltip";
 import type { NumberDrag } from "../../lib/dragNumber";
 import { formatClock, meterDbLabel, meterPercent } from "../../lib/format";
@@ -75,7 +76,7 @@ export default function LiveControls(props: { startDrag: NumberDrag; stopDrag: N
             Level
           </Meter.Label>
           <Meter.Track class="src-meter">
-            <Meter.Fill class="src-meter-fill" />
+            <SegmentedMeter value={meterPercent(level())} segments={18} />
           </Meter.Track>
           <span class="src-readout">{meterDbLabel(level())}</span>
         </Meter>

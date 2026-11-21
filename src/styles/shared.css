@@ -1,3 +1,81 @@
+/* --- Segmented level meters (M11.A) ------------------------------------- */
+
+/* One analog-style bar meter for the input (source panel), output (toolbar) and
+   `levels` readout meters. `components/SegmentedMeter.tsx` renders the bars; these
+   rules give them a dark housing, desaturated zones, and a dimmer partial bar at the
+   current value. */
+.src-meter,
+.toolbar-meter-track,
+.meter-track {
+  position: relative;
+  overflow: hidden;
+  padding: 1px;
+  background: var(--meter-base);
+  border: 1px solid var(--meter-edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.segmeter {
+  position: relative;
+  display: flex;
+  gap: var(--segmeter-gap, 2px);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.segmeter-seg {
+  flex: 1 1 0;
+  min-width: 1px;
+  border-radius: var(--segmeter-radius, 2px);
+  color: var(--seg-color);
+  background-color: currentColor;
+  /* Unlit bars sit as a faint desaturated tint on the dark housing. */
+  opacity: 0.13;
+  transition: opacity 60ms linear;
+}
+
+.segmeter-low {
+  --seg-color: var(--meter-seg-low);
+  --seg-lit: var(--meter-lit-low);
+}
+
+.segmeter-mid {
+  --seg-color: var(--meter-seg-mid);
+  --seg-lit: var(--meter-lit-mid);
+}
+
+.segmeter-high {
+  --seg-color: var(--meter-seg-high);
+  --seg-lit: var(--meter-lit-high);
+}
+
+/* Lit bars: a flat, bright zone colour with a faint bloom — no gloss or shading,
+   so the level reads as light rather than a shaded analog lens. The partial bar's
+   opacity is set inline by `SegmentedMeter` from its decimal value. */
+.segmeter-lit,
+.segmeter-partial {
+  color: var(--seg-lit);
+}
+
+.segmeter-lit {
+  opacity: 1;
+  box-shadow: 0 0 var(--segmeter-glow, 5px) -1px currentColor;
+}
+
+.segmeter-hold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--meter-peak);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 /* --- Shared control chrome (M15.B) -------------------------------------- */
 
 /* Rules that the toolbar / params / graph / timeline sheets used to repeat

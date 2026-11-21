@@ -95,12 +95,17 @@
   --shadow: rgba(0, 0, 0, 0.5);
   --shadow-strong: rgba(0, 0, 0, 0.55);
 
-  /* Level meters (M11.A) — peak / RMS bars on the `levels` tool. */
-  --meter-low: #3ecf8e;
-  --meter-mid: #ffcf6b;
-  --meter-high: #ff7b72;
-  --meter-peak: #ffffff;
-  --meter-unlit: #1a1a1a;
+  /* Segmented level meters (M11.A) — a dark hardware housing with desaturated
+     unlit bars and bright lit zones. See `components/SegmentedMeter.tsx`. */
+  --meter-base: #141619;
+  --meter-edge: #0a0b0d;
+  --meter-seg-low: #4f9a75;
+  --meter-seg-mid: #c39a4f;
+  --meter-seg-high: #bb665c;
+  --meter-lit-low: #63e0a6;
+  --meter-lit-mid: #ffcf6b;
+  --meter-lit-high: #ff7b72;
+  --meter-peak: #ece8df;
 }
 
 :root[data-theme="light"] {
@@ -174,12 +179,17 @@
   --shadow: rgba(0, 0, 0, 0.16);
   --shadow-strong: rgba(0, 0, 0, 0.2);
 
-  /* Level meters (M11.A). */
-  --meter-low: #1f9d6a;
-  --meter-mid: #d99a00;
-  --meter-high: #d94a3a;
-  --meter-peak: #1b1b1b;
-  --meter-unlit: #d2d6dc;
+  /* Segmented level meters (M11.A). The housing stays dark so the bars still read
+     as a hardware meter against the light UI. */
+  --meter-base: #1b1e22;
+  --meter-edge: #0f1113;
+  --meter-seg-low: #3f8f6a;
+  --meter-seg-mid: #c49a4a;
+  --meter-seg-high: #c06358;
+  --meter-lit-low: #3fe39b;
+  --meter-lit-mid: #ffd166;
+  --meter-lit-high: #ff7b72;
+  --meter-peak: #f2efe8;
 }
 
 * {

@@ -56,41 +56,18 @@
 }
 
 .meter-track {
-  position: relative;
   height: 14px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: linear-gradient(
-    to right,
-    var(--meter-low) 0%,
-    var(--meter-low) 62%,
-    var(--meter-mid) 78%,
-    var(--meter-high) 100%
-  );
-}
-
-/* Covers the unlit portion (from the value to the right edge) so the fill's
-   colours stay anchored to the dBFS scale instead of stretching. */
-.meter-mask {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  background: var(--meter-unlit);
-}
-
-.meter-hold {
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--meter-peak);
+  --segmeter-gap: 2px;
+  --segmeter-radius: 1px;
 }
 
 .meter-track-ruler {
   height: 14px;
+  padding: 0;
   background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   overflow: visible;
 }
 
