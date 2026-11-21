@@ -1,6 +1,6 @@
 /**
  * The command-registry shapes ([`hotkeys.md`](../../../docs/hotkeys.md) → "Command
- * model"). M24.A ships this seam with undo/redo as its first commands; M24.B fills the
+ * model"). M24.A shipped this seam with undo/redo as its first commands; M24.B fills the
  * registry (palette, shortcuts dialog, rebinding).
  */
 
@@ -8,18 +8,63 @@
 export type CommandScope = "global" | "timeline" | "workbench" | "graph" | "annotations" | "dialog";
 
 /**
- * A command id. Ids are **typed**, never arbitrary strings (ADR-28): M24.B extends this
- * union as it registers the transport / navigation / annotation commands.
+ * A command id. Ids are **typed**, never arbitrary strings (ADR-28): adding a command
+ * means extending this union, not passing a literal around.
  */
-export type CommandId = "undo" | "redo";
+export type CommandId =
+  | "undo"
+  | "redo"
+  | "transport.playPause"
+  | "transport.stop"
+  | "transport.loop"
+  | "transport.seekBack"
+  | "transport.seekForward"
+  | "transport.seekBack10x"
+  | "transport.seekForward10x"
+  | "transport.seekFrameBack"
+  | "transport.seekFrameForward"
+  | "transport.returnToStart"
+  | "transport.jumpToEnd"
+  | "transport.windowPrevious"
+  | "transport.windowNext"
+  | "transport.setWindowStartHere"
+  | "transport.setWindowEndHere"
+  | "transport.followPlayhead"
+  | "timeline.zoomToWindow"
+  | "timeline.fitAll"
+  | "timeline.zoomIn"
+  | "timeline.zoomOut"
+  | "annotations.addAtPlayhead"
+  | "annotations.togglePanel"
+  | "annotations.analyzeSelected"
+  | "annotations.editSelected"
+  | "annotations.deleteSelected"
+  | "navigate.commandPalette"
+  | "navigate.keyboardShortcuts"
+  | "navigate.nextRegion"
+  | "navigate.previousRegion"
+  | "navigate.focusAnalyzerSearch"
+  | "navigate.nextWorkbenchTab"
+  | "navigate.previousWorkbenchTab"
+  | "navigate.activateWorkbenchTab1"
+  | "navigate.activateWorkbenchTab2"
+  | "navigate.activateWorkbenchTab3"
+  | "navigate.activateWorkbenchTab4"
+  | "navigate.activateWorkbenchTab5"
+  | "navigate.activateWorkbenchTab6"
+  | "navigate.activateWorkbenchTab7"
+  | "navigate.activateWorkbenchTab8"
+  | "navigate.activateWorkbenchTab9"
+  | "graph.renderSynth";
+
+/** A binding string in portable spelling (`Mod+Shift+K`), or `null` = intentionally unbound. */
+export type Binding = string | null;
 
 /** One command: the single declaration the dispatcher and (from M24.B) the palette read. */
 export interface CommandDef {
   id: CommandId;
   title: string;
   category: "Transport" | "Timeline" | "Navigate" | "Annotations" | "Graph" | "App";
-  /** The binding to dispatch, e.g. `Mod+Z`; `null` = intentionally unbound. */
-  defaultBinding: string | null;
   scope: CommandScope;
   /** Whether the command is available right now; `false` leaves the key unclaimed. */
   when?: () => boolean;

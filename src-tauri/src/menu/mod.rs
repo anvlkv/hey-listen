@@ -57,6 +57,8 @@ pub enum MenuAction {
     Compare,
     CheckForUpdates,
     InstallCliTool,
+    /// Open the in-app Keyboard Shortcuts dialog (handled by the frontend).
+    Shortcuts,
     /// Show the log preview (handled natively: the core raises the window).
     ShowLog,
     /// Reveal the log directory (handled natively: the core opens it).
@@ -196,6 +198,7 @@ mod tests {
         assert_eq!(MenuAction::Compare.as_ref(), "compare");
         assert_eq!(MenuAction::CheckForUpdates.as_ref(), "checkForUpdates");
         assert_eq!(MenuAction::InstallCliTool.as_ref(), "installCliTool");
+        assert_eq!(MenuAction::Shortcuts.as_ref(), "shortcuts");
         assert_eq!(MenuAction::ShowLog.as_ref(), "showLog");
         assert_eq!(MenuAction::OpenLogFolder.as_ref(), "openLogFolder");
         for action in MenuAction::iter() {

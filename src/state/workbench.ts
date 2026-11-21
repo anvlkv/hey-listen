@@ -82,6 +82,20 @@ export function focusedAnalyzer(): AnalyzerId | null {
 }
 
 /**
+ * Step the active group's active tab by `direction`, wrapping at the ends. A group with
+ * fewer than two tabs has nowhere to go.
+ */
+export function cycleWorkbenchTab(direction: 1 | -1): void {
+  const group = dockApi()?.activeGroup;
+  if (!group || group.panels.length < 2) return;
+  const active = group.activePanel;
+  if (!active) return;
+  const index = group.panels.indexOf(active);
+  const next = group.panels[(index + direction + group.panels.length) % group.panels.length];
+  next.api.setActive();
+}
+
+/**
  * Where a new tab goes: dockview's directions. `within` adds a tab to the group (the
  * default); the other four split that group and put the tab on that side of it.
  */

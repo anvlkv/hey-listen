@@ -516,6 +516,23 @@ and the annotation time are all frontend-side.
 > `timelineHover`, `timeInput` (the numeric window fields), `timelineAnnounce` (the ARIA
 > copy) and `sharedOptions` (the shared pitch/calibration fan-out).
 
+### Q4. Keyboard control (M24.B)
+
+The command registry drives the transport, navigation and annotations from the keyboard,
+with `Mod+K` opening the palette and `?` the shortcut explorer. Rebindings are app-level
+(`localStorage`), so the spec resets them to the defaults before and after.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| Q4.1 | Space toggles the transport | `Space` starts the preview and a second `Space` pauses it | Scenario |
+| Q4.2 | Arrows seek | `ArrowRight` nudges the playhead and the live region announces `Playhead at …` | Scenario |
+| Q4.3 | `N` annotates | `N` drops an annotation at the playhead | Scenario |
+| Q4.4 | Palette runs a tool | `Mod+K` opens the palette; typing `spectrum` and Enter opens the tab and closes the palette | Scenario |
+| Q4.5 | Shortcut explorer | `?` opens the Keyboard Shortcuts dialog | Scenario |
+| Q4.6 | Rebind | Recording `P` for Play/Pause makes `P` toggle and `Space` inert; the bindings are reset after | Scenario |
+| Q4.7 | Conflict rejected | Recording a chord already bound (Space for Loop) reports `Already used by …` and does not save | Scenario |
+| Q4.8 | Text field guard | `N` at the analyzer search input does not annotate, while the same key at the body does | Scenario |
+
 ### R. Two projects at once (M7 multi-window)
 
 One window = one project (ADR-3), so H1/H2 only ever exercise a *single* project: H1 replaces
@@ -644,7 +661,6 @@ stay the last suite file (closing `main` cannot be undone).
 | --- | --- | --- |
 | M22 | `q2-synth-live` | Audition calls `preview_synth` (not `preview_region`) and stops on tab close; Live updates the source without resetting the window, view or annotations; a failed live render keeps the last good audio; a palette drag shows the ghost, the drop preview and the splice badge, and drops where previewed. |
 | M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; a **left-drag** selects and frames a window (middle-drag pans); the move bar shows the window duration; a multichannel source draws one lane per channel at a fixed height and the rail radio/downmix toggle switch the analysed channel; a lane selection paints full-height rules; a burst of tiny vertical wheel events zooms proportionally (with or without `Ctrl`/`⌘`), a horizontal or `Shift` gesture pans by the accumulated delta, not once per event, and a horizontal gesture never zooms. The hover readout, context menu, snapping, window fields/history and accessibility are already covered by **G2**. |
-| M24 | `q4-keyboard` | Space/arrows drive the transport; `N` annotates; `Mod+K` opens the palette and runs a command; `?` opens the explorer; a rebind takes effect and the old key goes inert; a conflict is rejected; text fields and focused buttons keep their keys; bindings survive a reload. |
 
 > Unit coverage for these milestones: `dropTarget` and the live-render scheduler, frame
 > math and annotation-rule geometry, the transport reducer, the binding

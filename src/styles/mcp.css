@@ -104,3 +104,20 @@
   font-weight: 600;
   color: var(--fg);
 }
+
+/* A tooltip that pairs its label with a binding chip (e.g. "Command palette ⌘K"). */
+.tooltip-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tooltip-shortcut {
+  padding: 0 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.625rem;
+  color: var(--fg-dim);
+  background: var(--control);
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+}

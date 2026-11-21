@@ -3,9 +3,11 @@ import "./App.css";
 import AboutDialog from "./components/AboutDialog";
 import ActivityBar from "./components/ActivityBar";
 import CliToolDialog from "./components/CliToolDialog";
+import CommandPalette from "./components/CommandPalette";
 import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
 import AnnotationsPanel from "./components/AnnotationsPanel";
 import Sidebar from "./components/Sidebar";
+import ShortcutsDialog from "./components/ShortcutsDialog";
 import SourcePanel from "./components/SourcePanel";
 import Splitter from "./components/Splitter";
 import Timeline from "./components/Timeline";
@@ -220,6 +222,8 @@ export default function App() {
       </Show>
       <AboutDialog open={aboutOpen()} onOpenChange={setAboutOpen} />
       <CliToolDialog open={cliToolOpen()} onOpenChange={setCliToolOpen} />
+      <CommandPalette />
+      <ShortcutsDialog />
       <ComparePicker />
       <CompareNotice />
     </div>

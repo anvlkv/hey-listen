@@ -1,5 +1,5 @@
 import { Tooltip as KTooltip } from "@kobalte/core/tooltip";
-import { createSignal, onMount, type JSX } from "solid-js";
+import { createSignal, onMount, Show, type JSX } from "solid-js";
 import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { createPopupMount } from "../lib/popupMount";
 
@@ -26,6 +26,8 @@ import { createPopupMount } from "../lib/popupMount";
  */
 export default function Tooltip(props: {
   label: JSX.Element;
+  /** A formatted binding chip shown after the label (e.g. `⌘K`). */
+  shortcut?: string;
   placement?: "top" | "bottom" | "left" | "right";
   class?: string;
   /** Extra class on the popup itself (e.g. a wider, formatted hint). */
@@ -54,7 +56,12 @@ export default function Tooltip(props: {
       </KTooltip.Trigger>
       <KTooltip.Portal mount={portal.mount()}>
         <KTooltip.Content class={`tooltip-content ${props.contentClass ?? ""}`}>
-          {props.label}
+          <Show when={props.shortcut} fallback={props.label}>
+            <span class="tooltip-label-row">
+              {props.label}
+              <kbd class="tooltip-shortcut">{props.shortcut}</kbd>
+            </span>
+          </Show>
         </KTooltip.Content>
       </KTooltip.Portal>
     </KTooltip>

@@ -2,7 +2,12 @@ import { onCleanup } from "solid-js";
 import { createWheelGesture } from "../../lib/wheelGesture";
 import { stopFollowing } from "../../state/capture";
 import { source } from "../../state/source";
-import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
+import { viewEnd, viewStart } from "../../state/timeline";
+import {
+  fitAll as storeFitAll,
+  zoomBy as storeZoomBy,
+  zoomToWindow as storeZoomToWindow,
+} from "../../state/timelineView";
 
 /**
  * The Timeline's **view** zoom/pan (M23): the wheel gesture plus the toolbar's zoom
@@ -12,6 +17,10 @@ import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline
  * A vertical wheel zooms around the pointer and a horizontal wheel or `Shift` + vertical
  * pans the time axis; there is no vertical waveform zoom. See `lib/wheelGesture.ts` and
  * `docs/roadmap.md` → M23 → "Wheel and trackpad stability".
+ *
+ * The three named actions delegate to `state/timelineView`, so the toolbar buttons and
+ * the `timeline.*` commands share one implementation; only the wheel needs canvas
+ * geometry and stays local.
  */
 
 export interface TimelineZoomDeps {
@@ -53,26 +62,8 @@ export function createTimelineZoom(deps: TimelineZoomDeps): TimelineZoom {
 
   return {
     onWheel: wheel.wheel,
-    zoomBy(factor) {
-      stopFollowing();
-      const center = (viewStart() + viewEnd()) / 2;
-      deps.applyView(
-        center + (viewStart() - center) * factor,
-        center + (viewEnd() - center) * factor,
-      );
-    },
-    zoomToWindow() {
-      stopFollowing();
-      const wDur = windowEnd() - windowStart();
-      const pad = Math.max(wDur * 0.05, 1e-3);
-      deps.applyView(
-        Math.max(0, windowStart() - pad),
-        Math.min(deps.duration(), windowEnd() + pad),
-      );
-    },
-    fitAll() {
-      stopFollowing();
-      deps.applyView(0, deps.duration());
-    },
+    zoomBy: storeZoomBy,
+    zoomToWindow: storeZoomToWindow,
+    fitAll: storeFitAll,
   };
 }

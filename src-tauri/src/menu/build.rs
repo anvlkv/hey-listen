@@ -159,6 +159,16 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         None::<&str>,
     )?;
 
+    // The shortcut sheet is frontend content: the menu only opens it. Placed beside the
+    // other Help items on every platform (on macOS About lives in the app menu).
+    let shortcuts = MenuItem::with_id(
+        app,
+        MenuAction::Shortcuts.as_ref(),
+        "Keyboard Shortcuts…",
+        true,
+        None::<&str>,
+    )?;
+
     // The log actions (ADR-33) need no webview at all: the core opens the folder or
     // raises the preview itself, so they work before a window has finished booting.
     let show_log = MenuItem::with_id(
@@ -182,7 +192,13 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         app,
         "Help",
         true,
-        &[&show_log, &open_log_folder, &check_updates, &install_cli],
+        &[
+            &show_log,
+            &open_log_folder,
+            &check_updates,
+            &shortcuts,
+            &install_cli,
+        ],
     )?;
     #[cfg(not(target_os = "macos"))]
     let help = Submenu::with_items(
@@ -194,6 +210,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             &show_log,
             &open_log_folder,
             &check_updates,
+            &shortcuts,
             &install_cli,
         ],
     )?;

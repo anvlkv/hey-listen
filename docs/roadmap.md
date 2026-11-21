@@ -1628,12 +1628,19 @@ reloads a playing preview), `r2-compare` / `r2b-compare-relative` (one pair per 
 owner's grid, δ, per-side channel, legend, zoom, popout), and the annotation specs
 (Analyze reframes; a lane drag creates a range).
 
-## M24.A — Undo/redo as a core project operation (planned)
+## M24.A — Undo/redo as a core project operation ✅
+
+**Delivered.** The core owns the snapshot and the undo/redo stacks
+(`src-tauri/src/state/{snapshot,history,window/history}.rs` + `commands/history.rs`); the
+frontend pushes settled project state through a coalesced channel and applies restores with
+a mute flag; save/load and dirty tracking read the same snapshot (the `history.ts`,
+`snapshot.ts` and `dirty.ts` readers are deleted); and `Mod+Z` / `Shift+Mod+Z` became the
+first two command-registry commands. See [`undo-redo.md`](undo-redo.md) and **ADR-37**.
 
 Rework undo/redo from a per-window frontend snapshot into a **core-owned, revision-based
 project operation** — the prerequisite to M24.B's keyboard registry, because undo/redo can
 only be bound correctly (without stealing text-field undo) once the registry's text-field
-guard exists. See [`undo-redo.md`](undo-redo.md) and **ADR-37**.
+guard exists.
 
 - **One snapshot, one owner.** The Rust core owns a single project-state snapshot (the
   project-file content) plus the undo/redo stacks; windows are projections that push settled
@@ -1660,7 +1667,18 @@ open, a popout edit undoable once, source change resets, transient MCP edits not
 > **Order:** M24.A lands before M24.B; M24.B's command registry builds on the seam M24.A
 > delivers.
 
-## M24.B — Keyboard control (planned)
+## M24.B — Keyboard control ✅
+
+**Delivered.** A single command registry (`src/state/keybindings/` — `types`, `defaults`,
+`parse`, `model`, `store`, `registry`, `dispatcher`, `scope`, `palette`) drives the keyboard,
+the command palette (`Mod+K`) and the Keyboard Shortcuts dialog (`?`), with per-command
+rebinding, conflict detection and app-level `localStorage` persistence. Transport, timeline
+zoom, annotation and navigation commands cover the default table (`Space`/arrows/`N`/
+`Mod+K`/`?`/…); the canvas-local transport keys moved into the registry and the store-level
+zoom (`state/timelineView`) + live-region announcement (`state/timelineAnnounce`) are the
+shared actions both the UI and the commands call. Help → Keyboard Shortcuts… is a native
+menu item (`MenuAction::Shortcuts`); the `q4-keyboard` e2e spec covers the surface. See
+[`hotkeys.md`](hotkeys.md) and **ADR-23**.
 
 Every important action becomes reachable from the keyboard, the app is navigable without
 the mouse, and the bindings are both discoverable and editable.

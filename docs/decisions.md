@@ -683,7 +683,11 @@ the point. Native menu accelerators stay read-only for this milestone because Ta
 need the menu rebuilt on every binding change; making the menu itself data-driven is a
 follow-up. See [`hotkeys.md`](hotkeys.md).
 
-**Status: proposed (M24.B).**
+**Status: delivered (M24.B).** `src/state/keybindings/` holds the registry
+(`registry.ts`), the pure parser (`parse.ts`), the binding store (`store.ts`/`model.ts`)
+and the single `keydown` dispatcher (`dispatcher.ts`); the command palette and the Keyboard
+Shortcuts dialog read the same definitions, and the native Help → Keyboard Shortcuts… item
+(`MenuAction::Shortcuts`) opens the dialog. See [`hotkeys.md`](hotkeys.md).
 
 ## ADR-24 — Comparison is a transient, read-only view over two projects
 
@@ -1331,4 +1335,8 @@ stay out (ADR-21, ADR-22, ADR-24). The per-key whole-value patch is reused first
 within a key is deferred until a single key's value is large enough to justify it. See
 [`undo-redo.md`](undo-redo.md).
 
-**Status: planned (M24.A).**
+**Status: delivered (M24.A).** The core owns one snapshot and one bounded undo/redo stack
+(`src-tauri/src/state/{snapshot,history,window/history}.rs`); the frontend pushes settled
+state through `state/project/push.ts` and applies restores under a mute flag. The three
+frontend readers (`history.ts`, `snapshot.ts`, `dirty.ts`) are deleted — save, load and
+dirty all read the core snapshot. See [`undo-redo.md`](undo-redo.md).

@@ -29,10 +29,9 @@ every binding **explorable and configurable**.
 type CommandScope = "global" | "timeline" | "workbench" | "graph" | "annotations" | "dialog";
 
 interface CommandDef {
-  id: string;                 // stable, e.g. "transport.playPause"
+  id: CommandId;              // a typed union, e.g. "transport.playPause"
   title: string;              // "Play / Pause"
   category: "Transport" | "Timeline" | "Navigate" | "Annotations" | "Graph" | "App";
-  defaultBinding: string | null; // e.g. "Space", "Mod+Shift+A"
   scope: CommandScope;
   when?: () => boolean;       // enabled / available right now
   run: () => void | Promise<void>;
@@ -41,6 +40,10 @@ interface CommandDef {
   keywords?: string[];        // palette search
 }
 ```
+
+A command's **binding** is not on `CommandDef` — it lives in `DEFAULT_BINDINGS`
+(`defaults.ts`), merged with the user's overrides by the store (`store.ts`), so the
+dispatcher, the palette and the shortcuts dialog all read one resolved value.
 
 The registry is a flat list (`state/keybindings/registry.ts`). Commands do not import
 components directly; they call store/action functions (`openTool`, transport, annotations, …) so
@@ -113,11 +116,9 @@ steals Space from a text field or a focused button (where Space belongs to the c
 | Set window start / end at playhead | `[` / `]` | The fast annotation-window gesture. |
 | Follow playhead | `F` | Auto-pan while playing. |
 
-> **Shipped today (canvas-local, M23/D-14):** `ArrowLeft`/`ArrowRight` nudge the playhead
-> (Shift ×10), `Home` returns to the start, `End` jumps to the end, and
-> `PageUp`/`PageDown` step the window history. The rest of the table is M24.B's registry
-> proposal; each row becomes live when the registry binds it to the command that already
-> exists.
+> **Delivered (M24.B).** The whole table is live through the command registry — `Space`,
+> the arrows, `Home`, `End`, `PageUp`/`PageDown`, `[`/`]`, `F` and `L` are registry commands
+> — and the M23/D-14 canvas-local map was folded into the app-level dispatcher.
 
 ### Timeline / view
 
@@ -250,5 +251,7 @@ field keeps native text undo. See [`undo-redo.md`](undo-redo.md).
 
 ## Deferred
 
-Every item on this list needs the command registry first; they are [D-25](deferred.md)
-and are not part of M24.B's first delivery.
+The remaining items are the **D-25** extras — chords, modifier-only bindings,
+per-project bindings, native menu accelerators, keymap import/export, preset keymaps and
+mouse gestures ([`deferred.md`](deferred.md)) — none of which are part of M24.B's first
+delivery.

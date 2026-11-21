@@ -39,8 +39,7 @@ the owning milestone/doc records the delivery.
 | ID | Item | Depends on | Plan |
 | --- | --- | --- | --- |
 | D-24 | Click-free smoothing across a net rebuild | M22 | ADR-21 defers a phase-continuous rebuild; `follow` smoothing only glides *within* a compiled net. |
-| D-25 | Hotkey sub-items: chords, modifier-only bindings, per-project bindings, native menu accelerators, keymap import/export, preset keymaps, mouse gestures | M24.B | `hotkeys.md` defines them; none can land before the registry exists. Also where the global `Home` / `F` bindings attach — the actions already ship (`hotkeys.md` → Transport). |
-| — | Templates, live synth, keyboard control (whole milestones) | M13, M22, M24.B | Tracked in the roadmap and their own docs; not restated here. |
+| — | Templates, live synth (whole milestones) | M13, M22 | Tracked in the roadmap and their own docs; not restated here. |
 
 ### Phase 4 — platform-gated (`platform`)
 
@@ -52,6 +51,7 @@ the owning milestone/doc records the delivery.
 
 | ID | Item | Why it is not scheduled |
 | --- | --- | --- |
+| D-25 | Hotkey extras: chords, modifier-only bindings, per-project bindings, native menu accelerators, keymap import/export, preset keymaps, mouse gestures | The command registry shipped in M24.B; these are the extras it unblocks, none of which are in M24.B's first delivery. |
 | D-27 | Second loudness model (Zwicker / ISO 532-1, time-varying, Sottek) | M27 committed to one stationary model; the scales are structured for a second. Large, no blocker. |
 | D-28 | Binaural ITD/ILD + a spaciousness model | The stereo analyzer is a point read by design (ADR-25); a width model is new DSP. |
 | D-29 | FLAC-compressed `DATA` | Storage optimisation; the format has no FLAC slot yet. |
@@ -72,15 +72,12 @@ in [ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line); reviving one needs 
 graph TD
     ADR[New ADR + container bump] --> P2[Phase 2: fragment audio]
     M22[M22 live synth] --> P3[Milestone: rebuild smoothing]
-    M24B[M24.B keyboard] --> P31[Milestone: hotkey extras]
     PLAT[AudioUnit-free enumeration] --> P4[Platform: CLI devices]
 ```
 
-The M24.B arrow is now a binding-only step: the return-to-start action, follow-playhead
-toggle, window history and annotation stepping **shipped as commands** (D-02, D-03, D-13),
-so M24.B binds keys to behaviour that already exists instead of designing it. The canvas also
-owns a small keyboard set today (arrows, `Home`, `End`, `PageUp`/`PageDown`); `hotkeys.md`
-records that it is canvas-local until the registry takes over.
+M24.B is delivered: the command registry, dispatcher, command palette and shortcuts dialog
+shipped, and the canvas-local keyboard set (arrows, `Home`, `End`, `PageUp`/`PageDown`) moved
+into the registry. The remaining hotkey extras are D-25 above.
 
 ## Adding or closing an item
 

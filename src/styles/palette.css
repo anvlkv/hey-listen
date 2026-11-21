@@ -1,0 +1,260 @@
+/* --- Command palette (M24.B) -------------------------------------------- */
+
+.palette-dialog {
+  position: fixed;
+  z-index: 3001;
+  top: 14vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  width: min(640px, calc(100vw - 48px));
+  max-height: min(72vh, 640px);
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px var(--shadow-strong);
+}
+
+.palette-title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.palette-hint {
+  margin: 2px 0 8px;
+  font-size: 0.6875rem;
+  color: var(--fg-faint);
+}
+
+.palette-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  outline: none;
+}
+
+.palette-input:focus {
+  border-color: var(--border-accent);
+}
+
+.palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+.palette-section-title {
+  padding: 8px 8px 3px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint-2);
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--fg-body);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.palette-item-active {
+  color: var(--fg);
+  background: var(--control);
+}
+
+.palette-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item-category {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.palette-empty {
+  padding: 16px 8px;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--fg-muted);
+}
+
+/* Binding chips: both dialogs share one rule so a chord always looks the same. */
+.palette-chip,
+.shortcuts-chip {
+  flex: none;
+  padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.625rem;
+  line-height: 1.4;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  background: var(--control);
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+}
+
+/* --- Keyboard Shortcuts dialog (M24.B) ---------------------------------- */
+
+.shortcuts-dialog {
+  position: fixed;
+  z-index: 3001;
+  top: 7vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 48px));
+  max-height: min(86vh, 780px);
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px var(--shadow-strong);
+}
+
+.shortcuts-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.shortcuts-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.shortcuts-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.shortcuts-hint {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--fg-dim);
+}
+
+.shortcuts-search {
+  margin-top: 12px;
+}
+
+.shortcuts-notice {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--warn);
+}
+
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  overflow-y: auto;
+}
+
+.shortcuts-group-title {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint-2);
+}
+
+.shortcuts-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 5px;
+}
+
+.shortcuts-row:hover {
+  background: var(--control);
+}
+
+.shortcuts-row-main {
+  display: flex;
+  flex: 1;
+  flex-basis: 0;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shortcuts-row-title {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcuts-row-scope {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}
+
+.shortcuts-chips {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.shortcuts-chip-changed {
+  color: var(--accent-2);
+  border-color: var(--border-accent);
+}
+
+.shortcuts-modified {
+  font-size: 0.625rem;
+  color: var(--accent-2);
+}
+
+.shortcuts-record-active {
+  color: var(--accent-2);
+  border-color: var(--border-accent);
+}
+
+.shortcuts-row-native:hover {
+  background: transparent;
+}
+
+.shortcuts-row-native .shortcuts-chip {
+  color: var(--fg-muted);
+}

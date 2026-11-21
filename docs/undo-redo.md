@@ -306,7 +306,7 @@ dirty (phase 3) is the fiddly one because of the settle and viewport-size subtle
 | `src-tauri/src/state/window/dirty.rs`, `src/state/project/unsaved.ts` | the core-owned dirty signature + broadcast, and the frontend listener (phase 3) |
 | `docs/undo-redo.md`, `docs/decisions.md` | this plan + the ADR |
 
-## Proposed ADR-37 — Undo/redo is a core-owned, revision-based project operation
+## ADR-37 — Undo/redo is a core-owned, revision-based project operation
 
 **Context:** undo/redo shipped in M8.A as a frontend snapshot (`src/state/history.ts`),
 before ADR-11's model (project UI state in the core; windows are views) was fully applied
@@ -331,7 +331,7 @@ linked, not restated). The per-key whole-value patch is reused first; RFC 6902 w
 is deferred. `save` and `dirty` are re-pointed at the same snapshot within this milestone
 (phases 2–3), so undo, dirty, and save share one list.
 
-**Status: proposed.**
+**Status: delivered (M24.A) — recorded in [decisions.md](decisions.md).**
 
 ## Decisions and status
 

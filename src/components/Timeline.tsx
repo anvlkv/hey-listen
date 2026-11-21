@@ -23,6 +23,7 @@ import {
 } from "../state/annotations";
 import { source, status } from "../state/source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "../state/timeline";
+import { clampViewRange } from "../state/timelineView";
 import { createTimelineAccessibility } from "./timeline/accessibility";
 import { PLOT_PAD, RAIL_W } from "./timeline/constants";
 import ChannelRail from "./timeline/ChannelRail";
@@ -109,26 +110,7 @@ export default function Timeline() {
     return clampTime(x2t(clientX - rect.left), duration());
   };
 
-  const clampView = (a: number, b: number): [number, number] => {
-    const dur = duration();
-    const minSpan = Math.min(dur, Math.max(1e-4, dur / 100_000));
-    let lo = Math.min(a, b);
-    let hi = Math.max(a, b);
-    if (hi - lo < minSpan) {
-      const mid = (lo + hi) / 2;
-      lo = mid - minSpan / 2;
-      hi = mid + minSpan / 2;
-    }
-    if (lo < 0) {
-      hi = Math.min(dur, hi - lo);
-      lo = 0;
-    }
-    if (hi > dur) {
-      lo = Math.max(0, lo - (hi - dur));
-      hi = dur;
-    }
-    return [Math.max(0, lo), Math.min(dur, hi)];
-  };
+  const clampView = (a: number, b: number) => clampViewRange(a, b, duration());
 
   const applyView = (a: number, b: number) => {
     const [lo, hi] = clampView(a, b);
@@ -142,7 +124,7 @@ export default function Timeline() {
   };
 
   const preview = createPreview();
-  const a11y = createTimelineAccessibility({ span, duration, status: preview.status });
+  const a11y = createTimelineAccessibility({ status: preview.status });
 
   /**
    * Drop a **point** annotation at the preview playhead — the cursor the user is
@@ -334,7 +316,6 @@ export default function Timeline() {
           aria-roledescription="interactive timeline"
           aria-label="Timeline: waveform, analysis window and playhead"
           aria-describedby="timeline-keyboard-help"
-          onKeyDown={a11y.onKeyDown}
           onPointerDown={onPointerDown}
           onPointerMove={interaction.onPointerMove}
           onPointerUp={interaction.onPointerUp}

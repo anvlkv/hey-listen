@@ -1,22 +1,32 @@
+import { matchBinding, parseBinding, type Platform } from "./parse";
 import { COMMANDS } from "./registry";
-import type { CommandDef } from "./types";
+import { getBinding } from "./store";
+import { resolveScope } from "./scope";
+import type { Binding, CommandDef, CommandScope } from "./types";
 
 /**
- * The one window-level `keydown` dispatcher (M24.B's registry seam).
+ * The one window-level `keydown` dispatcher ([`hotkeys.md`](../../../docs/hotkeys.md) →
+ * "Matching" / "Guards").
  *
- * Its **guard** is the point of shipping it here: a bare key and an editing chord never
- * fire inside a text field, so `Mod+Z` in an annotation editor stays native text undo
- * instead of undoing the project ([`hotkeys.md`](../../../docs/hotkeys.md) → "Guards").
- *
- * Matching is the minimal `Mod+<letter>` subset the shipped commands need; M24.B replaces
- * it with the full parser (scopes, `Ctrl`, named keys) and the stored bindings.
+ * It reads each command's binding from the store, resolves the current **scope**, and
+ * prefers the most-specific scope over `global`. Its guards keep the keyboard safe: a
+ * bare key never fires inside a text field or on a focused button, and held-key repeats
+ * are ignored unless the command opts in.
  */
 
-/** `Mod` is ⌘ on macOS and Ctrl elsewhere (`docs/hotkeys.md` → "Binding syntax"). */
-const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+/** `Mod` is ⌘ on macOS and Ctrl elsewhere. */
+const PLATFORM: Platform = /Mac|iPhone|iPad/.test(navigator.platform) ? "mac" : "other";
 
+/** Modifier keydowns carry no chord of their own. */
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
+/** Keys whose `KeyboardEvent.key` never names a binding. */
+const IGNORED_KEYS = new Set(["Dead", "Unidentified"]);
 /** The elements where typing owns the keys. */
 const FIELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+/** Keys a focused button/link already owns. */
+const BUTTON_KEYS = new Set([" ", "Enter"]);
+/** Elements whose Space/Enter activation must not be stolen by a bare binding. */
+const BUTTON_SELECTOR = 'button, a, [role="button"]';
 
 /** Whether `target` is a text field, a select or a contenteditable region. */
 function isTextField(target: EventTarget | null): boolean {
@@ -24,25 +34,41 @@ function isTextField(target: EventTarget | null): boolean {
   return target.isContentEditable || FIELD_TAGS.has(target.tagName);
 }
 
-/** Whether `event` presses `binding`, spelled `Mod+Z` / `Shift+Mod+Z`. */
-function matches(binding: string, event: KeyboardEvent): boolean {
-  const parts = binding.split("+");
-  const key = parts.pop();
-  if (!key || key.toLowerCase() !== event.key.toLowerCase()) return false;
-  if (event.shiftKey !== parts.includes("Shift")) return false;
-  if (event.altKey !== parts.includes("Alt")) return false;
-  // An explicit `Ctrl` ("only where needed") is not among the shipped bindings, so the
-  // other platform's accelerator must be released.
-  if (event.metaKey !== (IS_MAC && parts.includes("Mod"))) return false;
-  return event.ctrlKey === (!IS_MAC && parts.includes("Mod"));
+/** Whether `target` is a button, a link or a `role=button` control. */
+function isButton(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(BUTTON_SELECTOR) !== null;
 }
 
-/** Whether `command` should fire for `event`: binding, guard, repeat, then `when`. */
-function claims(command: CommandDef, event: KeyboardEvent): boolean {
-  if (!command.defaultBinding || !matches(command.defaultBinding, event)) return false;
+/** Whether a bare (unmodified) binding would collide with a focused button's Space/Enter. */
+function collidesWithButton(event: KeyboardEvent, binding: string): boolean {
+  if (!BUTTON_KEYS.has(event.key) || !isButton(event.target)) return false;
+  const parsed = parseBinding(binding);
+  return parsed != null && !(parsed.mod || parsed.ctrl || parsed.alt);
+}
+
+/**
+ * Whether `command` claims `event`: its binding matches, repeats are allowed, and the
+ * text-field, button and `when` guards all pass.
+ */
+function claims(command: CommandDef, event: KeyboardEvent, binding: string): boolean {
+  if (!matchBinding(binding, event, PLATFORM)) return false;
   if (event.repeat && !command.allowRepeat) return false;
   if (isTextField(event.target) && !command.allowInInput) return false;
+  if (collidesWithButton(event, binding)) return false;
   return command.when?.() ?? true;
+}
+
+/** The first command in `scope` (then `global`) that claims `event`. */
+function findCommand(scope: CommandScope, event: KeyboardEvent): CommandDef | undefined {
+  const passes: CommandScope[] = scope === "global" ? ["global"] : [scope, "global"];
+  for (const pass of passes) {
+    for (const command of COMMANDS) {
+      if (command.scope !== pass) continue;
+      const binding: Binding = getBinding(command.id);
+      if (binding && claims(command, event, binding)) return command;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -53,8 +79,9 @@ function claims(command: CommandDef, event: KeyboardEvent): boolean {
  */
 export function initDispatcher(): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented) return;
-    const command = COMMANDS.find((candidate) => claims(candidate, event));
+    if (event.defaultPrevented || event.isComposing) return;
+    if (MODIFIER_KEYS.has(event.key) || IGNORED_KEYS.has(event.key)) return;
+    const command = findCommand(resolveScope(), event);
     if (!command) return;
     event.preventDefault();
     void command.run();

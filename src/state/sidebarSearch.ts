@@ -12,6 +12,11 @@ import type { AnalyzerSection } from "./analyzer/types";
  */
 export const [analyzerQuery, setAnalyzerQuery] = createSignal("");
 
+/** Focus the Sidebar's analyzer search input. */
+export function focusAnalyzerSearch(): void {
+  document.querySelector<HTMLElement>('[data-testid="sidebar.search"]')?.focus();
+}
+
 /** Matching analyzers per section for the current query (empty while the search is idle). */
 export const sectionMatchCounts = createMemo<Partial<Record<AnalyzerSection, number>>>(() => {
   const query = analyzerQuery();

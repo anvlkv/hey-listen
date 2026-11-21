@@ -40,6 +40,12 @@ export const SEL = {
   toolbarAbout: '[data-testid="toolbar.about"]',
   themeMessage: '[data-testid="toolbar.theme.message"]',
   aboutDialog: '[data-testid="about.dialog"]',
+  // Command palette + Keyboard Shortcuts dialog (M24.B).
+  paletteDialog: '[data-testid="palette.dialog"]',
+  paletteInput: '[data-testid="palette.input"]',
+  shortcutsDialog: '[data-testid="shortcuts.dialog"]',
+  shortcutsSearch: '[data-testid="shortcuts.search"]',
+  shortcutsResetAll: '[data-testid="shortcuts.resetAll"]',
   outputGain: '[data-testid="toolbar.output.gain"]',
   outputMeter: '[data-testid="toolbar.output.meter"]',
   toolbarAnnotations: '[data-testid="toolbar.annotations"]',
@@ -166,3 +172,24 @@ export const analyzerAbout = (id: string) => `[data-testid="analyzer.about.${id}
 
 /** The first annotation row in the Annotations panel (ids are uuid-based, so match the prefix). */
 export const firstAnnotationRow = '[data-testid^="annotation.row."]';
+
+/**
+ * A command-palette row (a command id or tool id).
+ *
+ * @public The palette specs address rows through this helper.
+ */
+export const paletteItem = (id: string) => `[data-testid="palette.item.${id}"]`;
+
+/**
+ * A Keyboard Shortcuts row.
+ *
+ * @public The shortcuts specs address rows through this helper.
+ */
+export const shortcutsRow = (id: string) => `[data-testid="shortcuts.row.${id}"]`;
+
+/**
+ * A Keyboard Shortcuts row's Edit/record button.
+ *
+ * @public The shortcuts specs arm recording through this helper.
+ */
+export const shortcutsRecord = (id: string) => `[data-testid="shortcuts.record.${id}"]`;
