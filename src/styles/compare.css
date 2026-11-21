@@ -9,9 +9,9 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  /* A panel too short for the header + readouts + chart scrolls instead of squeezing
-     the chart to 0 px — uPlot is handed no plot area at all and draws nothing. */
-  overflow-y: auto;
+  /* Exactly one scroll owner per region: the readouts / side-by-side panels scroll
+     themselves, so the tab clips instead of scrolling a second time. */
+  overflow: hidden;
 }
 
 /* --- header ---------------------------------------------------------------- */
@@ -280,8 +280,10 @@
 .compare-readouts {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 12px;
   padding: 12px;
+  min-height: 0;
   overflow: auto;
 }
 

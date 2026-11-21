@@ -50,10 +50,7 @@ export default function LiveControls(props: { startDrag: NumberDrag; stopDrag: N
         step={0.05}
         aria-label="Input gain"
       >
-        <Slider.Label class="src-label icon-label">
-          <Icon name="sliders" />
-          Gain
-        </Slider.Label>
+        <Slider.Label class="src-label">Gain</Slider.Label>
         <Slider.Track class="gain-track">
           <Slider.Fill class="gain-fill" />
           <Slider.Thumb class="gain-thumb" aria-label="Input gain">
@@ -71,10 +68,7 @@ export default function LiveControls(props: { startDrag: NumberDrag; stopDrag: N
           maxValue={100}
           getValueLabel={() => meterDbLabel(level())}
         >
-          <Meter.Label class="src-label icon-label">
-            <Icon name="gauge-high" />
-            Level
-          </Meter.Label>
+          <Meter.Label class="src-label">Level</Meter.Label>
           <Meter.Track class="src-meter">
             <SegmentedMeter value={meterPercent(level())} segments={18} />
           </Meter.Track>
@@ -130,33 +124,39 @@ export default function LiveControls(props: { startDrag: NumberDrag; stopDrag: N
           </Button>
         </Show>
         <Show when={countdown() == null && !recording()}>
-          <Button
-            class="src-button src-record icon-label"
-            data-testid="source.record"
-            onClick={() => void startCapture()}
-          >
-            <Icon name="record-vinyl" />
-            Record
-          </Button>
+          <Tooltip label="Record">
+            <Button
+              class="src-button src-record icon-btn"
+              data-testid="source.record"
+              aria-label="Record"
+              onClick={() => void startCapture()}
+            >
+              <Icon name="record-vinyl" />
+            </Button>
+          </Tooltip>
         </Show>
         <Show when={recording()}>
-          <Button
-            class="src-button icon-label"
-            data-testid="source.pause"
-            onClick={() => void togglePause()}
-          >
-            <Icon name={paused() ? "circle-play" : "circle-pause"} />
-            {paused() ? "Resume" : "Pause"}
-          </Button>
-          <Button
-            class="src-button src-stop icon-label"
-            data-testid="source.stop"
-            onClick={() => void stopCapture()}
-          >
-            <Icon name="circle-stop" />
-            Stop
-          </Button>
+          <Tooltip label={paused() ? "Resume" : "Pause"}>
+            <Button
+              class="src-button icon-btn"
+              data-testid="source.pause"
+              aria-label={paused() ? "Resume recording" : "Pause recording"}
+              onClick={() => void togglePause()}
+            >
+              <Icon name={paused() ? "circle-play" : "circle-pause"} />
+            </Button>
+          </Tooltip>
           <span class="src-readout">{readout()}</span>
+          <Tooltip label="Stop">
+            <Button
+              class="src-button src-stop icon-btn"
+              data-testid="source.stop"
+              aria-label="Stop recording"
+              onClick={() => void stopCapture()}
+            >
+              <Icon name="stop" />
+            </Button>
+          </Tooltip>
         </Show>
       </div>
     </>

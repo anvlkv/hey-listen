@@ -33,7 +33,7 @@ import {
 import { annotations } from "../state/annotations";
 import { annotationsPanelOpen, toggleAnnotationsPanel } from "../state/settings";
 import { error, status } from "../state/source";
-import { setAboutOpen, stepProject } from "../state/menu";
+import { stepProject } from "../state/menu";
 import { refreshMcpStatus } from "../state/mcpSettings";
 import { meterDbLabel, meterPercent } from "../lib/format";
 
@@ -135,12 +135,11 @@ export default function Toolbar() {
           <SharedParamsForm />
         </Popover>
 
+        <span class="toolbar-divider" aria-hidden="true" />
+
         <Tooltip label="Preview output gain">
           <div class="toolbar-group">
-            <span class="toolbar-label icon-label">
-              <Icon name="volume-high" />
-              Output
-            </span>
+            <span class="toolbar-label">Output</span>
             <Slider
               class="toolbar-slider"
               value={[outputGain()]}
@@ -167,10 +166,7 @@ export default function Toolbar() {
 
         <Tooltip label="Preview output level">
           <div class="toolbar-group">
-            <span class="toolbar-label icon-label">
-              <Icon name="gauge-high" />
-              Level
-            </span>
+            <span class="toolbar-label">Level</span>
             <Meter
               class="toolbar-meter"
               data-testid="toolbar.output.meter"
@@ -203,22 +199,12 @@ export default function Toolbar() {
           />
         </div>
 
+        <span class="toolbar-divider" aria-hidden="true" />
+
         <AppearancePopover />
 
         <McpPopover />
 
-        <Tooltip label="About Hey Listen">
-          <Button
-            class="toolbar-btn icon-btn"
-            data-testid="toolbar.about"
-            aria-label="About Hey Listen"
-            onClick={() => setAboutOpen(true)}
-          >
-            <Icon name="circle-question" />
-          </Button>
-        </Tooltip>
-
-        {/* The Annotations rail toggle sits apart at the right end of the toolbar. */}
         <span class="toolbar-divider" aria-hidden="true" />
         <Tooltip label="Annotations panel">
           <Button

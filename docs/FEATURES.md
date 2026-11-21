@@ -61,7 +61,7 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 ### Planned
 
 - **Reusable analysis templates (M13).** Save a source-independent setup of settings, tools, graphs, and optionally layout; apply it to another recording with a window policy that adapts to its duration. Planned entry points include app UI, MCP, and CLI. [Templates](templates.md)
-- **Keyboard-first control (M24.B).** Reach transport, window, annotation, graph, and tab actions by configurable shortcuts; find commands and tools in a palette, and discover or rebind keys in a shortcuts dialog. [Hotkeys](hotkeys.md)
+- **Keyboard-first control (M24.B).** Reach transport, window, annotation, graph, and tab actions by configurable shortcuts; find commands and tools in a palette, and discover or rebind keys in a shortcuts window. [Hotkeys](hotkeys.md)
 
 ### Proposed or drafted
 

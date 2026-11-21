@@ -116,7 +116,8 @@
   gap: 6px;
 }
 
-/* A vertical rule that sets the Notes toggle apart at the right end of the toolbar. */
+/* A vertical rule separating the toolbar's control zones (params | output |
+   appearance + MCP | annotations). */
 .toolbar-divider {
   align-self: center;
   width: 1px;

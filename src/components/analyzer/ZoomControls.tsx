@@ -22,7 +22,7 @@ export default function ZoomControls(props: {
           aria-label="Zoom out"
           onClick={() => props.onZoomOut()}
         >
-          <Icon name="minus" />
+          <Icon name="magnifying-glass-minus" />
         </button>
       </Tooltip>
       <Tooltip label="Zoom in">
@@ -32,7 +32,7 @@ export default function ZoomControls(props: {
           aria-label="Zoom in"
           onClick={() => props.onZoomIn()}
         >
-          <Icon name="plus" />
+          <Icon name="magnifying-glass-plus" />
         </button>
       </Tooltip>
       <Tooltip label="Fit to the whole window">

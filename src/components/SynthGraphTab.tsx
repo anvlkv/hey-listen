@@ -2,7 +2,6 @@ import { Show } from "solid-js";
 import { Switch } from "@kobalte/core/switch";
 import Button from "./Button";
 import GraphEditor from "./GraphEditor";
-import Icon from "./Icon";
 import Tooltip from "./Tooltip";
 import { ClearGraphButton, GraphError, GraphNotices } from "./graphEditor/GraphTabChrome";
 import { createNumberDrag } from "../lib/dragNumber";
@@ -72,8 +71,7 @@ export default function SynthGraphTab() {
           checked={liveEnabled()}
           onChange={(enabled) => setLiveEnabled(enabled)}
         >
-          <Switch.Label class="toolbar-label icon-label">
-            <Icon name="arrows-rotate" />
+          <Switch.Label class="toolbar-label">
             Live
             <span class="graph-live-state">
               {liveRendering() ? "rendering" : liveEnabled() ? "on" : "off"}
@@ -91,12 +89,11 @@ export default function SynthGraphTab() {
         </span>
       </Show>
       <Button
-        class="graph-btn graph-btn-primary icon-label"
+        class="graph-btn graph-btn-primary"
         data-testid="graph.render"
         disabled={rendering()}
         onClick={() => void renderSynth(length())}
       >
-        <Icon name="play" />
         {rendering() ? "Rendering…" : "Render"}
       </Button>
       <GraphError message={synthError} />

@@ -97,14 +97,19 @@
 
 /* The drill-down hover card (M38): the frame under the cursor, as a bar register over
    the row axis plus the frame's strongest rows and (for a rate tool) its band × rate
-   grid. Inert, so it can never take a hover or a drag from the chart behind it. */
+   grid. Inert, so it can never take a hover or a drag from the chart behind it. It is
+   fixed in the window and placed by `placeFloating`, which measures the card, so the
+   card's own height never pushes it off screen; the height cap is the fallback for a
+   card taller than the window. */
 .drilldown-card {
-  position: absolute;
+  position: fixed;
   z-index: 12;
   display: flex;
   flex-direction: column;
   gap: calc(3px * var(--ui-scale, 1));
   width: calc(212px * var(--ui-scale, 1));
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
   padding: calc(6px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
   background: var(--tooltip-bg);
   border: 1px solid var(--border-strong);

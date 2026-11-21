@@ -1,5 +1,6 @@
 import { Dialog } from "@kobalte/core/dialog";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import ScrollArea, { type ScrollAreaApi } from "./ScrollArea";
 import { ANALYZER_SECTIONS } from "../state/analyzer/defs";
 import { analyzerById, isAnalyzerId } from "../state/analyzer/lookup";
 import { paletteOpen, setPaletteOpen } from "../state/keybindings/dialogs";
@@ -102,10 +103,14 @@ function rankRows(query: string, rows: PaletteRow[]): PaletteRow[] {
   ).map((item) => byId.get(item.id)!);
 }
 
+/** The DOM id of a row — also the input's `aria-activedescendant` target. */
+const optionId = (key: string | undefined) => `palette-option-${key ?? ""}`;
+
 export default function CommandPalette() {
   const [search, setSearch] = createSignal("");
   const [highlight, setHighlight] = createSignal(0);
   let input!: HTMLInputElement;
+  let listApi: ScrollAreaApi | undefined;
 
   // Reset on every open (and focus after Kobalte's focus trap has run).
   createEffect(() => {
@@ -140,6 +145,24 @@ export default function CommandPalette() {
     const length = flatRows().length;
     return length === 0 ? -1 : Math.min(highlight(), length - 1);
   };
+
+  // Keep the highlighted row inside the scroll area as the selection moves (arrow
+  // keys, hovering). The row is rendered by the time this effect runs; the microtask
+  // lets the list settle before measuring.
+  createEffect(
+    on(
+      activePosition,
+      () => {
+        if (activePosition() < 0) return;
+        const id = optionId(flatRows()[activePosition()]?.key);
+        queueMicrotask(() => {
+          const row = document.getElementById(id);
+          if (row instanceof HTMLElement) listApi?.ensureVisible(row);
+        });
+      },
+      { defer: true },
+    ),
+  );
 
   /** Run a row after closing the palette (so the action sees no modal). */
   function run(row: PaletteRow | undefined) {
@@ -183,9 +206,7 @@ export default function CommandPalette() {
             aria-expanded="true"
             aria-controls="palette-listbox"
             aria-activedescendant={
-              activePosition() >= 0
-                ? `palette-option-${flatRows()[activePosition()]?.key ?? ""}`
-                : undefined
+              activePosition() >= 0 ? optionId(flatRows()[activePosition()]?.key) : undefined
             }
             aria-autocomplete="list"
             placeholder="Type a command or tool…"
@@ -196,46 +217,51 @@ export default function CommandPalette() {
             }}
           />
 
-          <div class="palette-list" id="palette-listbox" role="listbox">
-            <For each={groups()}>
-              {(group) => (
-                <>
-                  <div class="palette-section-title" role="presentation">
-                    {group.title}
-                  </div>
-                  <For each={group.rows}>
-                    {(row, index) => {
-                      const position = () => group.start + index();
-                      return (
-                        <button
-                          type="button"
-                          id={`palette-option-${row.key}`}
-                          class="palette-item"
-                          classList={{ "palette-item-active": position() === activePosition() }}
-                          data-testid={`palette.item.${row.item.id}`}
-                          role="option"
-                          aria-selected={position() === activePosition()}
-                          onMouseEnter={() => setHighlight(position())}
-                          onClick={() => run(row)}
-                        >
-                          <span class="palette-item-title">{row.item.title}</span>
-                          <Show when={row.item.category}>
-                            {(category) => <span class="palette-item-category">{category()}</span>}
-                          </Show>
-                          <Show when={row.item.binding}>
-                            {(binding) => <kbd class="palette-chip">{binding()}</kbd>}
-                          </Show>
-                        </button>
-                      );
-                    }}
-                  </For>
-                </>
-              )}
-            </For>
-            <Show when={flatRows().length === 0}>
-              <div class="palette-empty">No matching commands or tools.</div>
-            </Show>
-          </div>
+          <ScrollArea class="palette-list" resetKey={search()} apiRef={(api) => (listApi = api)}>
+            {/* `aria-controls` targets this inner listbox; the ScrollArea owns the scroll. */}
+            <div class="palette-listbox" id="palette-listbox" role="listbox">
+              <For each={groups()}>
+                {(group) => (
+                  <>
+                    <div class="palette-section-title" role="presentation">
+                      {group.title}
+                    </div>
+                    <For each={group.rows}>
+                      {(row, index) => {
+                        const position = () => group.start + index();
+                        return (
+                          <button
+                            type="button"
+                            id={optionId(row.key)}
+                            class="palette-item"
+                            classList={{ "palette-item-active": position() === activePosition() }}
+                            data-testid={`palette.item.${row.item.id}`}
+                            role="option"
+                            aria-selected={position() === activePosition()}
+                            onMouseEnter={() => setHighlight(position())}
+                            onClick={() => run(row)}
+                          >
+                            <span class="palette-item-title">{row.item.title}</span>
+                            <Show when={row.item.category}>
+                              {(category) => (
+                                <span class="palette-item-category">{category()}</span>
+                              )}
+                            </Show>
+                            <Show when={row.item.binding}>
+                              {(binding) => <kbd class="palette-chip">{binding()}</kbd>}
+                            </Show>
+                          </button>
+                        );
+                      }}
+                    </For>
+                  </>
+                )}
+              </For>
+              <Show when={flatRows().length === 0}>
+                <div class="palette-empty">No matching commands or tools.</div>
+              </Show>
+            </div>
+          </ScrollArea>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog>

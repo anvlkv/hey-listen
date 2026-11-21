@@ -232,6 +232,141 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* --- Native scrollbars (one rule for every native scroll container) ------ */
+
+/* `ScrollArea` draws its own bar; the containers below scroll natively and share one
+   themed bar instead of each sheet repeating the same block. `scrollbar-width` /
+   `scrollbar-color` work on Windows and Linux (a no-op on macOS, whose overlay bar
+   ignores them), and the `-webkit-` rules cover the rest. */
+:root {
+  --scrollbar-size: 12px;
+}
+
+.app-source,
+.events-list,
+.pop-listbox,
+.log-list,
+.note-metrics-scroll,
+.mod-notes,
+.compare-tab,
+.compare-readouts,
+.compare-side-by-side,
+.compare-menu-list,
+.compare-dialog,
+.about-dialog,
+.about-updates-notes,
+.mcp-snippet,
+.tabs-menu-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--panel);
+}
+
+/* Reserve the gutter only where a bar appearing would reflow the content. */
+.log-list,
+.note-metrics-scroll,
+.compare-readouts,
+.compare-side-by-side,
+.compare-menu-list,
+.compare-dialog,
+.about-dialog,
+.about-updates-notes,
+.mcp-snippet,
+.tabs-menu-list {
+  scrollbar-gutter: stable;
+}
+
+.app-source::-webkit-scrollbar,
+.events-list::-webkit-scrollbar,
+.pop-listbox::-webkit-scrollbar,
+.log-list::-webkit-scrollbar,
+.note-metrics-scroll::-webkit-scrollbar,
+.mod-notes::-webkit-scrollbar,
+.compare-tab::-webkit-scrollbar,
+.compare-readouts::-webkit-scrollbar,
+.compare-side-by-side::-webkit-scrollbar,
+.compare-menu-list::-webkit-scrollbar,
+.compare-dialog::-webkit-scrollbar,
+.about-dialog::-webkit-scrollbar,
+.about-updates-notes::-webkit-scrollbar,
+.mcp-snippet::-webkit-scrollbar,
+.tabs-menu-list::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+/* The track and the corner share the panel colour. */
+.app-source::-webkit-scrollbar-track,
+.events-list::-webkit-scrollbar-track,
+.pop-listbox::-webkit-scrollbar-track,
+.log-list::-webkit-scrollbar-track,
+.note-metrics-scroll::-webkit-scrollbar-track,
+.mod-notes::-webkit-scrollbar-track,
+.compare-tab::-webkit-scrollbar-track,
+.compare-readouts::-webkit-scrollbar-track,
+.compare-side-by-side::-webkit-scrollbar-track,
+.compare-menu-list::-webkit-scrollbar-track,
+.compare-dialog::-webkit-scrollbar-track,
+.about-dialog::-webkit-scrollbar-track,
+.about-updates-notes::-webkit-scrollbar-track,
+.mcp-snippet::-webkit-scrollbar-track,
+.tabs-menu-list::-webkit-scrollbar-track,
+.app-source::-webkit-scrollbar-corner,
+.events-list::-webkit-scrollbar-corner,
+.pop-listbox::-webkit-scrollbar-corner,
+.log-list::-webkit-scrollbar-corner,
+.note-metrics-scroll::-webkit-scrollbar-corner,
+.mod-notes::-webkit-scrollbar-corner,
+.compare-tab::-webkit-scrollbar-corner,
+.compare-readouts::-webkit-scrollbar-corner,
+.compare-side-by-side::-webkit-scrollbar-corner,
+.compare-menu-list::-webkit-scrollbar-corner,
+.compare-dialog::-webkit-scrollbar-corner,
+.about-dialog::-webkit-scrollbar-corner,
+.about-updates-notes::-webkit-scrollbar-corner,
+.mcp-snippet::-webkit-scrollbar-corner,
+.tabs-menu-list::-webkit-scrollbar-corner {
+  background: var(--panel);
+}
+
+.app-source::-webkit-scrollbar-thumb,
+.events-list::-webkit-scrollbar-thumb,
+.pop-listbox::-webkit-scrollbar-thumb,
+.log-list::-webkit-scrollbar-thumb,
+.note-metrics-scroll::-webkit-scrollbar-thumb,
+.mod-notes::-webkit-scrollbar-thumb,
+.compare-tab::-webkit-scrollbar-thumb,
+.compare-readouts::-webkit-scrollbar-thumb,
+.compare-side-by-side::-webkit-scrollbar-thumb,
+.compare-menu-list::-webkit-scrollbar-thumb,
+.compare-dialog::-webkit-scrollbar-thumb,
+.about-dialog::-webkit-scrollbar-thumb,
+.about-updates-notes::-webkit-scrollbar-thumb,
+.mcp-snippet::-webkit-scrollbar-thumb,
+.tabs-menu-list::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 3px solid var(--panel);
+  border-radius: 8px;
+}
+
+.app-source::-webkit-scrollbar-thumb:hover,
+.events-list::-webkit-scrollbar-thumb:hover,
+.pop-listbox::-webkit-scrollbar-thumb:hover,
+.log-list::-webkit-scrollbar-thumb:hover,
+.note-metrics-scroll::-webkit-scrollbar-thumb:hover,
+.mod-notes::-webkit-scrollbar-thumb:hover,
+.compare-tab::-webkit-scrollbar-thumb:hover,
+.compare-readouts::-webkit-scrollbar-thumb:hover,
+.compare-side-by-side::-webkit-scrollbar-thumb:hover,
+.compare-menu-list::-webkit-scrollbar-thumb:hover,
+.compare-dialog::-webkit-scrollbar-thumb:hover,
+.about-dialog::-webkit-scrollbar-thumb:hover,
+.about-updates-notes::-webkit-scrollbar-thumb:hover,
+.mcp-snippet::-webkit-scrollbar-thumb:hover,
+.tabs-menu-list::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  border-color: var(--panel);
+}
+
 .params-switch[data-checked] .params-switch-thumb,
 .params-switch-control[data-checked] .params-switch-thumb,
 .toolbar-switch[data-checked] .toolbar-switch-thumb,

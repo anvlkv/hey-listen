@@ -4,6 +4,7 @@ import Icon from "./Icon";
 import LiveControls from "./source/LiveControls";
 import LiveSourceInputs from "./source/LiveSourceInputs";
 import SourceKindSelect from "./source/SourceKindSelect";
+import Tooltip from "./Tooltip";
 import { createNumberDrag } from "../lib/dragNumber";
 import { openFileDialog, source } from "../state/source";
 import { openTool } from "../state/workbench";
@@ -118,20 +119,21 @@ export default function SourcePanel() {
           <SourceKindSelect />
 
           <Show when={choice() === "file"}>
-            <Button
-              class="src-button icon-label"
-              disabled={recording()}
-              data-testid="source.openFile"
-              onClick={() => void openFileDialog()}
-            >
-              <Icon name="folder-open" />
-              Open audio file…
-            </Button>
+            <Tooltip label="Open audio file">
+              <Button
+                class="src-button icon-btn"
+                aria-label="Open audio file"
+                disabled={recording()}
+                data-testid="source.openFile"
+                onClick={() => void openFileDialog()}
+              >
+                <Icon name="folder-open" />
+              </Button>
+            </Tooltip>
           </Show>
 
           <Show when={choice() === "synth"}>
-            <Button class="src-button icon-label" onClick={() => openTool("synth")}>
-              <Icon name="wand-magic-sparkles" />
+            <Button class="src-button" onClick={() => openTool("synth")}>
               Open synth graph…
             </Button>
           </Show>

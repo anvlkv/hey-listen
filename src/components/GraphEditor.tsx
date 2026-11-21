@@ -18,7 +18,6 @@ import {
 import { resolvedTheme, themeFlow } from "../state/themes";
 import Button from "./Button";
 import GraphNode from "./GraphNode";
-import Icon from "./Icon";
 import Tooltip from "./Tooltip";
 import { connectionProblem, onConnected } from "./graphEditor/connections";
 import DragPreview, { type DragPreviewState } from "./graphEditor/DragPreview";
@@ -186,8 +185,7 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
       <div class="graph-toolbar">
         {props.children}
         <Tooltip label="Lay the graph out left to right">
-          <Button class="graph-btn icon-label" data-testid="graph.layout" onClick={autoLayout}>
-            <Icon name="diagram-project" />
+          <Button class="graph-btn" data-testid="graph.layout" onClick={autoLayout}>
             Layout
           </Button>
         </Tooltip>

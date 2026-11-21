@@ -1,5 +1,6 @@
 import { Show, createSignal, untrack } from "solid-js";
 import Button from "../Button";
+import Hint from "../Hint";
 import Popover from "../Popover";
 import {
   copyAnalysisCsv,
@@ -132,7 +133,7 @@ export default function ExportMenu(props: { id: AnalyzerId }) {
         <span>Write CSV sidecar metadata</span>
       </label>
       <Show when={busy()}>
-        <div class="params-annotation">Exporting…</div>
+        <Hint>Exporting…</Hint>
       </Show>
       <Show when={error()}>
         {(message) => (
@@ -148,10 +149,9 @@ export default function ExportMenu(props: { id: AnalyzerId }) {
           </div>
         )}
       </Show>
-      <p class="params-annotation">
-        JSON is a self-describing provenance envelope; CSV is one row per time frame. Both re-run
-        the analysis at the current window and settings.
-      </p>
+      <Hint>
+        JSON keeps provenance; CSV is one row per frame. Both use the current window and settings.
+      </Hint>
     </Popover>
   );
 }

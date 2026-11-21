@@ -57,7 +57,7 @@ pub enum MenuAction {
     Compare,
     CheckForUpdates,
     InstallCliTool,
-    /// Open the in-app Keyboard Shortcuts dialog (handled by the frontend).
+    /// Open the app-wide Keyboard Shortcuts window (handled natively: the core raises it).
     Shortcuts,
     /// Show the log preview (handled natively: the core raises the window).
     ShowLog,
@@ -126,6 +126,16 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
                     if let Err(err) = crate::commands::window::open_log_window_for(&handle, &parent)
                     {
                         log::warn!("could not open the log preview: {err}");
+                    }
+                });
+                return;
+            }
+            MenuAction::Shortcuts => {
+                // Same reason as ShowLog: build the window off the menu's (main) thread.
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(err) = crate::commands::window::open_shortcuts_window_for(&handle) {
+                        log::warn!("could not open the Keyboard Shortcuts window: {err}");
                     }
                 });
                 return;

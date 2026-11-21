@@ -23,6 +23,7 @@ import {
   waitFor,
   waitForApp,
 } from "../support/helpers.ts";
+import { windowLabels } from "../support/windows.ts";
 
 const ROW = '[data-testid^="annotation.row."]';
 const NOTICE = '[data-testid="shortcuts.notice"]';
@@ -43,13 +44,42 @@ async function stopTransport(): Promise<void> {
   await waitFor(async () => !(await transportPlaying()), "the transport never stopped");
 }
 
+/** Whether the app-wide Keyboard Shortcuts window is open. */
+async function shortcutsOpen(): Promise<boolean> {
+  return (await windowLabels()).includes("shortcuts");
+}
+
+/** Open (or raise) the Keyboard Shortcuts window and switch the session to it. */
+async function openShortcuts(): Promise<void> {
+  if (!(await shortcutsOpen())) await pressChord("?");
+  await waitFor(shortcutsOpen, "the shortcuts window never opened");
+  await browser.tauri.switchWindow("shortcuts");
+  await waitFor(
+    async () => (await count(SEL.shortcutsDialog)) === 1,
+    "the shortcuts window never rendered",
+  );
+}
+
+/**
+ * Close the Keyboard Shortcuts window and return to `main`. Escape cancels an armed
+ * recorder first, so closing can take two presses.
+ */
+async function closeShortcuts(): Promise<void> {
+  await browser.tauri.switchWindow("shortcuts").catch(() => {});
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!(await shortcutsOpen())) break;
+    await pressChord("Escape", SEL.shortcutsDialog).catch(() => {});
+    await browser.pause(150);
+  }
+  await browser.tauri.switchWindow("main").catch(() => {});
+  await waitFor(async () => !(await shortcutsOpen()), "the shortcuts window never closed");
+}
+
 /** Open the shortcut explorer and reset every binding to its default. */
 async function resetBindings(): Promise<void> {
-  await pressChord("?");
-  await waitFor(async () => (await count(SEL.shortcutsDialog)) === 1, "shortcuts never opened");
+  await openShortcuts();
   await click(SEL.shortcutsResetAll);
-  await pressChord("Escape", SEL.shortcutsDialog);
-  await waitFor(async () => (await count(SEL.shortcutsDialog)) === 0, "shortcuts never closed");
+  await closeShortcuts();
 }
 
 describe("Q4. Keyboard control (M24.B)", () => {
@@ -65,6 +95,7 @@ describe("Q4. Keyboard control (M24.B)", () => {
   });
 
   afterEach(async () => {
+    await closeShortcuts().catch(() => {});
     await browser.tauri.switchWindow("main").catch(() => {});
     await restoreMocks();
     await mockReturn("preview_region", null);
@@ -135,12 +166,9 @@ describe("Q4. Keyboard control (M24.B)", () => {
     await waitFor(async () => (await count(SEL.paletteDialog)) === 0, "the palette did not close");
   });
 
-  it("Q4.5 — ? opens the Keyboard Shortcuts dialog", async () => {
-    await pressChord("?");
-    await waitFor(async () => (await count(SEL.shortcutsDialog)) === 1, "the dialog never opened");
-
-    await pressChord("Escape", SEL.shortcutsDialog);
-    await waitFor(async () => (await count(SEL.shortcutsDialog)) === 0, "the dialog never closed");
+  it("Q4.5 — ? opens the Keyboard Shortcuts window", async () => {
+    await openShortcuts();
+    await closeShortcuts();
   });
 
   it("Q4.8 — typing in the analyzer search never triggers a shortcut", async () => {
@@ -159,8 +187,7 @@ describe("Q4. Keyboard control (M24.B)", () => {
   });
 
   it("Q4.7 — a conflicting binding is refused", async () => {
-    await pressChord("?");
-    await waitFor(async () => (await count(SEL.shortcutsDialog)) === 1, "the dialog never opened");
+    await openShortcuts();
 
     // Record Space for Loop, which is already Play/Pause's binding.
     await click(shortcutsRecord("transport.loop"));
@@ -173,24 +200,19 @@ describe("Q4. Keyboard control (M24.B)", () => {
     );
     expect(await textOf(NOTICE)).toContain("Already used by");
 
-    // The conflict keeps the row recording: Escape cancels it, a second Escape closes.
-    await pressChord("Escape", SEL.shortcutsDialog);
-    await browser.pause(100);
-    await pressChord("Escape", SEL.shortcutsDialog);
-    await waitFor(async () => (await count(SEL.shortcutsDialog)) === 0, "the dialog never closed");
+    // The conflict keeps the row recording: Escape cancels it, a second closes the window.
+    await closeShortcuts();
   });
 
   it("Q4.6 — a rebind takes effect and the old key goes inert", async () => {
-    await pressChord("?");
-    await waitFor(async () => (await count(SEL.shortcutsDialog)) === 1, "the dialog never opened");
+    await openShortcuts();
 
     // Rebind Play / Pause from Space to P.
     await click(shortcutsRecord("transport.playPause"));
     await browser.pause(100);
     await pressChord("P", SEL.shortcutsDialog);
 
-    await pressChord("Escape", SEL.shortcutsDialog);
-    await waitFor(async () => (await count(SEL.shortcutsDialog)) === 0, "the dialog never closed");
+    await closeShortcuts();
 
     await stopTransport();
     await pressChord("P");

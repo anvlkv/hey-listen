@@ -59,6 +59,15 @@
   color: var(--fg-body);
 }
 
+/* Text-only switch label: the words carry the meaning, so it takes no icon. */
+.timeline-filter .toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--fg-body);
+}
+
 .timeline-filter .toolbar-switch-control {
   width: 26px;
   height: 14px;
@@ -85,9 +94,8 @@
   color: var(--fg-accent);
 }
 
-.timeline-actions {
-  display: flex;
-  gap: 6px;
+/* The last divider absorbs the free space, so the zoom zone sits at the right edge. */
+.timeline-divider-end {
   margin-left: auto;
 }
 
@@ -152,13 +160,25 @@
   border-color: var(--accent);
 }
 
-/* Preview speed (varispeed): a log slider, as compact as the transport buttons. */
+/* Preview speed (varispeed): a label-only trigger showing the current rate, opening the
+   log slider in a popover. */
+.timeline-speed-trigger {
+  flex: none;
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.timeline-speed-panel {
+  width: 190px;
+}
+
 .timeline-speed {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: none;
-  width: 150px;
+  width: 100%;
 }
 
 .timeline-speed-slider {
@@ -167,11 +187,6 @@
 }
 
 .timeline-speed-value {
-  flex: none;
-  min-width: 32px;
-  text-align: right;
-  font-size: 0.7rem;
-  color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
 
@@ -323,4 +338,23 @@
   height: 1px;
   margin: 4px 0;
   background: var(--border);
+}
+
+/* The lane's hover hint chip: it flips left/above near the region's edges (the position
+   comes from `Timeline.tsx`) and wraps rather than clipping its text. */
+.timeline-annotation-hint {
+  position: absolute;
+  z-index: 20;
+  max-width: 320px;
+  padding: 4px 7px;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  white-space: normal;
+  background: var(--tooltip-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px var(--shadow);
+  pointer-events: none;
 }

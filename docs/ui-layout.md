@@ -37,13 +37,28 @@ A third kind of window, the **popout** (a Workbench tab moved to its own window)
 originating window's project state, so it is one project seen through two windows
 (ADR-11). See [Workbench tabs](#workbench-tabs).
 
+One window is **app-wide and not tied to a project**: the **Keyboard Shortcuts** window
+(window label `shortcuts`). It opens from `?`, Help → **Keyboard Shortcuts…** and the
+palette; it is a real Tauri window (the same window pattern as the log preview), **not a
+modal**, so it leaves the project window usable while it is open. It is not aliased to a
+project and is not tracked in `WindowRegistry`, so it survives a project load (see
+[`hotkeys.md`](hotkeys.md) → "Keyboard Shortcuts window"). Its list scrolls in the shared
+`ScrollArea`, so the bar sits in its own gutter. Escape cancels a recording, then closes
+the window. (The **log preview** is also its own window, but it is parented to the project
+window that opened it — see [`logging.md`](logging.md).)
+
 ## Row sizing
 
 The Source + Timeline row has a **fixed, user-adjustable height** — both are the
-same height by construction. The splitter above the row is dragged with the
-pointer; the height is clamped so the Workbench keeps a usable minimum. The
-default is compact (the Source panel's controls are sized to fit it without
-scrolling); shrinking the row below the panel's content makes the panel scroll.
+same height by construction. It defaults to **280 px** and can be dragged down to
+**180 px**; the splitter above the row clamps it so the Workbench keeps at least
+**200 px**. The no-source "Add audio" strip is a fixed **104 px**. The default is compact
+(the Source panel's controls are sized to fit it without scrolling); shrinking the row
+below the panel's content makes the panel scroll.
+
+Column defaults match: the **Sidebar** starts at **260 px** (clamped 160–520 px), the
+**Source** panel is a fixed **260 px** column while it shares the row, and the
+**Annotations** rail defaults to **300 px** (also clamped 160–520 px).
 
 The row's two panels **swap in place** by context (they are not reordered):
 
@@ -93,20 +108,23 @@ compact "Add audio" state has a fixed height).
   The **Toolbar shows the current project name** — the file actions live in the File
   menu, not in the Toolbar.
 - The in-app **Toolbar** has no title/branding — it holds app-level actions and
-  status only. No hero/header like a website. It carries the app-level audio
-  controls (the preview **output gain + device**, and the preview **output meter**
-  which reads the core's playback level via
-  `output_level`, all driving the core, ADR-9), the **Analysis params** popover (the
-  shared, synced analysis params — see [`analysis-tools.md`](analysis-tools.md)), an
-  **Appearance** popover (UI scale + theme — see [Theming](#theming)), a **Templates**
-  popover (save / apply / import / export analysis templates — see
-  [`templates.md`](templates.md)), a **Annotations** toggle (an icon button that shows /
-  hides the right rail — see [Annotations panel](#annotations-panel)), an **MCP** popover (the Model
-  Context Protocol server's on/off, port, live status, and a copyable `mcpServers`
-  snippet — see [`mcp.md`](mcp.md)), and an **About** button (app identity +
-  attributions — see [Icons, tooltips, and About](#icons-tooltips-and-about)). The
-  popover triggers are icons (`sliders` / `circle-half-stroke` / `plug` /
-  `circle-question`) with tooltips; the **Annotations** toggle is the `annotation-sticky` icon.
+  status only. No hero/header like a website. Its zones, left to right:
+  **`[project name + step arrows][statuses] … [Analysis params] | [Output gain, meter,
+  device] | [Appearance][MCP] | [Annotations count]`**. The statuses are the project /
+  capture state and the transient error spans. The app-level audio controls drive the
+  core (ADR-9): the preview **output gain + device** and the preview **output meter**
+  (which reads `output_level`); **Output** and **Level** are **text-only** labels for the
+  slider and meter. **Analysis params** is the shared, synced params popover (see
+  [`analysis-tools.md`](analysis-tools.md)); **Appearance** holds UI scale + theme (see
+  [Theming](#theming)); **MCP** is the server's on/off, port, live status and a copyable
+  `mcpServers` snippet (see [`mcp.md`](mcp.md)); the **Annotations** toggle shows / hides
+  the right rail and carries its **count** pill while the rail is closed (see
+  [Annotations panel](#annotations-panel)). The popover triggers are icons
+  (`sliders` / `circle-half-stroke` / `plug`) with tooltips; the **Annotations** toggle is
+  the `annotation-sticky` icon. There is **no About button** in the Toolbar — About lives
+  in the native Help menu (the app menu on macOS); see
+  [Icons, tooltips, and About](#icons-tooltips-and-about). A **Templates** popover is
+  still planned (M13, [`templates.md`](templates.md)).
   The temporary **`Rust backend:`** status (the M0 IPC-ping scaffold) is gone.
 - **Numeric inputs** support **drag-to-adjust** — drag up to increase, down to
   decrease (Shift for fine control) — in addition to typing. There is no slider; an
@@ -123,12 +141,20 @@ compact "Add audio" state has a fixed height).
 
 ## Scrolling
 
-Lists (the Sidebar tool list, the graph palette) use a custom `ScrollArea`
-(`src/components/ScrollArea.tsx`). macOS WKWebView shows an overlay scrollbar that
-ignores `::-webkit-scrollbar` / `scrollbar-width`, so the viewport is
+Lists (the Sidebar tool list, the graph palette, the Keyboard Shortcuts list) use a
+custom `ScrollArea` (`src/components/ScrollArea.tsx`). macOS WKWebView shows an overlay
+scrollbar that ignores `::-webkit-scrollbar` / `scrollbar-width`, so the viewport is
 `overflow: hidden` and the content is **translated** by `scrollTop` ourselves —
 wheel/trackpad and the draggable thumb drive the same signal, giving a consistent
-bar on every platform with no native scrollbar.
+bar on every platform with no native scrollbar. The bar is a **flex sibling** of the
+viewport in its own gutter (`.scroll-area-bar`, `layout.css`), never an overlay, so it
+cannot cover the content.
+
+`resetKey` scrolls back to the top whenever it changes (a filtered list's search query),
+and a content shrink clamps the offset (`lib/scroll.ts` → `clampScrollTop`), so a filtered
+list never stays scrolled past its new end. Native scroll containers share one themed
+rule in `src/styles/shared.css`; nested scroll owners were removed (a compare tab no
+longer scrolls — its inner readout / body owns it).
 
 ## Theming
 
@@ -161,11 +187,20 @@ popover. See [`theming.md`](theming.md).
     spectrogram / readouts / noteMetrics / modulation), tucked into the **bottom-right
     corner** of the row. Two tools of the same chart type share an icon. Section titles
     and subtitles are plain text (no icons).
-- **Compaction:** self-evident controls are **icon-only** (popover triggers, zoom,
-  MCP copy, graph clear, import / export / delete / reveal, the timeline's replace and
-  zoom, record / pause / stop, the theme-mode buttons, the sidebar rows); primary and
-  transport actions keep a **short label** beside the icon. Icon-only controls always
-  keep an `aria-label`.
+- **Icon or label, never both.** Each button is **icon-only** *or* **label-only**. The
+  conventional controls stay **icon-only**, with an `aria-label` and a tooltip:
+  play/pause, stop, record, open (folder), loop, follow, zoom, window history, add,
+  delete, edit, popout, params and about. **Label-only** is used where the words carry the
+  meaning: **Render**, **Layout**, **Live**, **Nodes**, **Tabs (N)**, **Open synth graph…**,
+  the preview-speed trigger (`1×` at unity, `1.25×` otherwise), and node names in the graph
+  palette. Switch labels and disclosure chevrons are **indicators**, not button icons.
+- **Icon vocabulary.** `magnifying-glass` is **search only**; zoom in / out are
+  `magnifying-glass-plus` / `magnifying-glass-minus`; zoom-to-window is `crosshairs`; add is
+  `plus`; return-to-start is `backward-fast`; compare is `code-compare`; follow-playhead
+  keeps `arrows-left-right-to-line`; the annotations rail keeps `annotation-sticky`; the
+  **Tabs (N)** menu is **label-only** (no `table-list`). Two tools of the same chart / view
+  kind share an icon (`VIEW_ICONS`) by design — that is a shared meaning, not a
+  duplicate-purpose clash.
 - **Tooltip** (`src/components/Tooltip.tsx`) — a theme-styled hint over Kobalte's
   `Tooltip`, replacing the native `title` on controls. The trigger wrapper is a
   single-child **column flexbox**, so it has a real box (Floating UI needs one to
@@ -188,9 +223,9 @@ popover. See [`theming.md`](theming.md).
   `lib/popupMount.ts`'s `anchor`) watches only while the overlay is open and closes it when
   the trigger leaves its document or that document's window loses focus. Every overlay
   wrapper calls it once; a new wrapper must too.
-- **About** (`src/components/AboutDialog.tsx`) — a modal opened from the Toolbar's
-  `circle-question` button and from native **Help → About** (on macOS, the app menu),
-  which emits `about` on `app:menu`. It carries the app identity and the **required
+- **About** (`src/components/AboutDialog.tsx`) — a modal opened from native **Help →
+  About** (on macOS, the app menu), which emits `about` on `app:menu`. There is deliberately
+  no Toolbar About button. It carries the app identity and the **required
   attribution** (Font Awesome), and links to `ACKNOWLEDGEMENTS.md` for the individual
   contributors behind every dependency; license links open in the system browser via
   the `open_external_url` command. Its **Updates** section (`AboutUpdates.tsx`, M33.C)
@@ -201,7 +236,7 @@ popover. See [`theming.md`](theming.md).
 
 | Region | Role | Annotations |
 | --- | --- | --- |
-| **Timeline** (bottom-right) | waveform + analysis-window range slider + the annotation lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; right-click opens the window/annotation/zoom/**snap** menu; pick a channel or downmix to mono for multichannel sources; carries the **Filter switch** (the on/bypassed indicator and bypass control in one — it reads **off** while the filter graph is still the identity seed); **overlays the filtered signal** when a filter is active; carries the **annotation anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor. The canvas is focusable (focus ring, hidden keyboard help, polite live region for window/playhead moves); the toolbar carries the numeric Window popover, window-history arrows, Return-to-start and Follow-playhead |
+| **Timeline** (bottom-right) | waveform + analysis-window range slider + the annotation lane, with a horizontal scrollbar when zoomed in | grows while recording; zooms on short windows; drag start/end previews playback, or drag the whole window by its top handle; right-click opens the window/annotation/zoom/**snap** menu; pick a channel or downmix to mono for multichannel sources; carries the **Filter switch** (the on/bypassed indicator and bypass control in one — it reads **off** while the filter graph is still the identity seed); **overlays the filtered signal** when a filter is active; carries the **annotation anchors** in a thin lane along the bottom, and mirrors the hovered chart's cursor. The canvas is focusable (focus ring, hidden keyboard help, polite live region for window/playhead moves). Its toolbar is zoned: **`[readout][window edit][prev][next] | [return-to-start][play/pause][stop][loop][follow][speed] | [filter switch] | [add annotation][replace source] | [zoom out][zoom in][fit][zoom to window]`**; the speed control is a **label-only** rate popover (`1×` at unity, e.g. `1.25×`; the slider lives inside), not an inline slider |
 | **Activity bar** (far left) | category switcher (VSCode-style) | one icon per analyzer section plus the two graph editors; selecting a tab gives the Sidebar that tab's cards, selecting the showing tab again collapses the rail (a dot marks a section holding search matches); the graph entries open their tabs directly; not a tab, not resizable |
 | **Sidebar** (top-left) | tool picker (analyzers only) | shows the selected tab's analyzer cards (or the two editors on the Graphs tab); a sticky search box filters them; collapses to give the Workbench its width; opens Workbench tabs |
 | **Workbench** (top-right) | hosts the Workbench tabs via `dockview` | the only tabbed area |
@@ -367,6 +402,13 @@ muted pill inside the button while the rail is closed. **Ranges are made where t
 is**: dragging a span in the annotation **lane** along the bottom of the Timeline or of any time
 chart creates a range annotation there, and a range then shows a **handle on each edge** in that
 lane so either end can be dragged (a point annotation has one handle, which moves it).
+
+In an **empty lane** the Timeline draws **Drag to add an annotation** on a padded, rounded
+chip just **right of the channel rail** (`PLOT_PAD + railW`, `annotationOverlay.ts`), so it
+never sits under the rail. The pointer **hover hint** (an annotation's title · tool ·
+values line) is positioned `fixed` and measured: it flips left / above and clamps into the
+viewport (`lib/floatingCard.ts` → `placeFloating`), so it wraps and stays on screen near
+the timeline edges instead of being cut off.
 
 Annotations are surfaced in three places: every annotation in the annotation **lane** along the bottom of
 the Timeline (a range shows a handle on each edge, so either end is draggable, and dragging

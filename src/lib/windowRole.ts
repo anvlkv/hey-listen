@@ -17,3 +17,6 @@ export const isProjectWindow = windowLabel === "main" || windowLabel.startsWith(
 
 /** A popped-out tool/annotation/comparison view (`isProjectWindow` is false). */
 export const isPopoutWindow = !isProjectWindow;
+
+/** The app-wide **Keyboard Shortcuts** window: not a project and not a project view. */
+export const isShortcutsWindow = windowLabel === "shortcuts";

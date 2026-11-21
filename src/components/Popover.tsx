@@ -27,6 +27,12 @@ export default function Popover(props: {
   title?: string;
   /** When set, the trigger shows only this icon (with `label` as its `aria-label`). */
   icon?: IconName;
+  /** Custom trigger content (e.g. a live value); takes precedence over `icon` / `label`. */
+  trigger?: JSX.Element;
+  /** Extra class on the trigger (a toolbar button style). */
+  triggerClass?: string;
+  /** Accessible name override (e.g. when the trigger shows a value instead of the label). */
+  triggerAriaLabel?: string;
   class?: string;
   panelClass?: string;
   /** Optional `data-testid` on the trigger button (for the E2E suite). */
@@ -59,11 +65,11 @@ export default function Popover(props: {
       <Tooltip label={props.title ?? props.label}>
         <KPopover.Trigger
           ref={portal.ref}
-          class={`pop-trigger ${props.icon ? "pop-trigger-icon" : ""} ${props.class ?? ""}`}
-          aria-label={props.label}
+          class={`pop-trigger ${props.icon ? "pop-trigger-icon" : ""} ${props.triggerClass ?? ""} ${props.class ?? ""}`}
+          aria-label={props.triggerAriaLabel ?? props.label}
           data-testid={props.testid}
         >
-          {props.icon ? <Icon name={props.icon} /> : props.label}
+          {props.trigger ?? (props.icon ? <Icon name={props.icon} /> : props.label)}
         </KPopover.Trigger>
       </Tooltip>
       <KPopover.Portal mount={portal.mount()}>

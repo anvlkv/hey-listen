@@ -1,4 +1,5 @@
 import { createResource, createSignal, Show, type JSX } from "solid-js";
+import Hint from "../Hint";
 import Popover from "../Popover";
 import CompareMenu from "./CompareMenu";
 import ExportMenu from "./ExportMenu";
@@ -111,10 +112,7 @@ export default function AnalyzerTab(props: {
               testid={`analyzer.params.${props.id}`}
             >
               {props.params}
-              <div class="params-annotation">
-                Shared params (FFT size, hop/overlap, window, channel, analysis rate, frequency
-                range) are in the toolbar.
-              </div>
+              <Hint>Shared params live in the toolbar.</Hint>
             </Popover>
           </Show>
           <Popover

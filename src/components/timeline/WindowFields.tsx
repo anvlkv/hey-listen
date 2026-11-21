@@ -1,4 +1,5 @@
 import { createEffect, createSignal, For } from "solid-js";
+import Hint from "../Hint";
 import { source } from "../../state/source";
 import { reframeWindow, windowEnd, windowStart } from "../../state/timeline";
 import { formatTime, parseTime } from "./format";
@@ -139,9 +140,9 @@ export default function WindowFields() {
           </label>
         )}
       </For>
-      <div class="params-note params-dim">
+      <Hint>
         <code>m:ss.mmm</code>, <code>h:mm:ss</code> or bare seconds. Enter applies, Escape reverts.
-      </div>
+      </Hint>
     </div>
   );
 }

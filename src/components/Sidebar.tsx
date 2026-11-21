@@ -19,7 +19,8 @@ import { analyzerQuery, setAnalyzerQuery } from "../state/sidebarSearch";
  * Sidebar (fixed region): the tool picker. It shows the cards of the activity bar's
  * **active tab** — one analyzer section, or the two graph editors. A **search box**
  * (hidden on the Graphs tab) filters the active section's analyzers by title,
- * description, and keywords; the query lives in [`sidebarSearch`](../state/sidebarSearch.ts)
+ * description, and keywords; the query is the list's `resetKey`, so a new search
+ * starts at the top, and it lives in [`sidebarSearch`](../state/sidebarSearch.ts)
  * so the Activity bar can mark the sections it matches while another one is showing.
  * Clicking an entry opens (or focuses) its Workbench tab.
  * See `docs/ui-layout.md` and `docs/analysis-tools.md`.
@@ -107,7 +108,7 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
         </div>
       </Show>
 
-      <ScrollArea class="sidebar-scroll">
+      <ScrollArea class="sidebar-scroll" resetKey={analyzerQuery()}>
         <div class="sidebar-section-title">{isGraph() ? "Graphs" : "Analyzers"}</div>
         <Show
           when={isGraph()}

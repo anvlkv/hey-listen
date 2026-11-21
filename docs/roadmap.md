@@ -1661,7 +1661,8 @@ open, a popout edit undoable once, source change resets, transient MCP edits not
 
 **Delivered.** A single command registry (`src/state/keybindings/` — `types`, `defaults`,
 `parse`, `model`, `store`, `registry`, `dispatcher`, `scope`, `palette`) drives the keyboard,
-the command palette (`Mod+K`) and the Keyboard Shortcuts dialog (`?`), with per-command
+the command palette (`Mod+K`) and the Keyboard Shortcuts window (`?`; its own app-wide
+window, not a modal), with per-command
 rebinding, conflict detection and app-level `localStorage` persistence. Transport, timeline
 zoom, annotation and navigation commands cover the default table (`Space`/arrows/`N`/
 `Mod+K`/`?`/…); the canvas-local transport keys moved into the registry and the store-level
@@ -1677,7 +1678,7 @@ the mouse, and the bindings are both discoverable and editable.
 
 - One `state/keybindings/` module defines every command (`id`, title, category, default
   binding, scope, `when`, handler, `allowInInput`, `allowRepeat`) and is the single source
-  of truth for the **dispatcher**, the **command palette**, the **shortcuts dialog**, and
+  of truth for the **dispatcher**, the **command palette**, the **shortcuts window**, and
   tooltip / `aria-keyshortcuts` hints.
 - Bindings use a platform-neutral `Mod` (⌘ on macOS, Ctrl elsewhere); punctuation is
   matched by key, arrows/space by their named keys. A binding is stored app-level in
@@ -1711,19 +1712,21 @@ the mouse, and the bindings are both discoverable and editable.
   **tools** (open/focus an analyzer or graph editor) and **open tabs**, with shortcut
   chips and keyboard navigation. This is the *navigate the app quickly* surface; it
   reuses Kobalte's dialog/combobox primitives.
-- **Keyboard Shortcuts dialog (`?`, and Help → Keyboard Shortcuts…)** — searchable,
+- **Keyboard Shortcuts window (`?`, and Help → Keyboard Shortcuts…)** — searchable,
   grouped by category, showing scope, default and current binding, and a **record** action
   per command: press a combination, see conflicts live, `Backspace` to unbind, `Escape` to
-  cancel, Reset / Reset all. Native menu accelerators appear read-only.
+  cancel, Reset / Reset all. Native menu accelerators appear read-only. It is an app-wide
+  Tauri window (not a modal), with its list in the shared `ScrollArea`.
 - **Hints** — prominent controls gain a `<kbd>` chip in their tooltip and an
-  `aria-keyshortcuts` attribute; the palette and dialog show the same binding data.
+  `aria-keyshortcuts` attribute; the palette and shortcuts window show the same binding data.
 
 > **Decision:** one command registry drives keyboard, palette, and shortcut UI; the native
 > menu stays the owner of its OS accelerators for now. See ADR-23 and
 > [`hotkeys.md`](hotkeys.md).
 
 **Files:** `src/state/keybindings/` (registry, parse/format, dispatcher, store, palette
-ranking), `src/components/ShortcutsDialog.tsx`, `src/components/CommandPalette.tsx`,
+ranking), `src/components/ShortcutsWindow.tsx`, `src/ShortcutsApp.tsx`,
+`src/components/CommandPalette.tsx`,
 `src/components/Tooltip.tsx`, `src/components/timeline/TimelineToolbar.tsx`,
 `src/components/Toolbar.tsx`, `src-tauri/src/menu.rs` (Help item), `src/state/menu.ts`,
 `src/styles/*`.

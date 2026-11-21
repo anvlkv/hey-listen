@@ -158,6 +158,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     waveH,
     width: w,
     t2x: deps.t2x,
+    railW: deps.railW(),
     hasSource: !!s,
     selection: deps.laneSelection(),
     drag: deps.laneDrag(),

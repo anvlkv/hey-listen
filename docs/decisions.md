@@ -675,7 +675,7 @@ inventory, no discoverability, and no way to rebind anything.
 
 **Decision:** a single **command registry** is the source of truth: each command declares
 an id, title, category, default binding, scope/`when`, handler, and whether it may run in a
-text field or repeat. The dispatcher, **command palette**, **Keyboard Shortcuts dialog**,
+text field or repeat. The dispatcher, **command palette**, **Keyboard Shortcuts window**,
 tooltips and `aria-keyshortcuts` all read that registry. Bindings are app-level,
 versioned, persisted in `localStorage`, and rebindable with conflict detection.
 
@@ -687,8 +687,8 @@ follow-up. See [`hotkeys.md`](hotkeys.md).
 **Status: delivered (M24.B).** `src/state/keybindings/` holds the registry
 (`registry.ts`), the pure parser (`parse.ts`), the binding store (`store.ts`/`model.ts`)
 and the single `keydown` dispatcher (`dispatcher.ts`); the command palette and the Keyboard
-Shortcuts dialog read the same definitions, and the native Help → Keyboard Shortcuts… item
-(`MenuAction::Shortcuts`) opens the dialog. See [`hotkeys.md`](hotkeys.md).
+Shortcuts window read the same definitions, and the native Help → Keyboard Shortcuts… item
+(`MenuAction::Shortcuts`) opens the window. See [`hotkeys.md`](hotkeys.md).
 
 ## ADR-24 — Comparison is a transient, read-only view over two projects
 

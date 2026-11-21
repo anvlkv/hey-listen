@@ -1,7 +1,6 @@
 import { Popover as KPopover } from "@kobalte/core/popover";
 import type { DockviewApi, DockviewGroupPanel } from "dockview";
 import { createSignal, For, onCleanup, Show, untrack } from "solid-js";
-import Icon from "./Icon";
 import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { createPopupMount } from "../lib/popupMount";
 
@@ -84,7 +83,6 @@ export default function WorkbenchTabsMenu(props: { group: DockviewGroupPanel; ap
         aria-label={`Workbench tabs (${tabs().length})`}
         data-testid="workbench.tabsMenu"
       >
-        <Icon name="table-list" />
         <span>Tabs ({tabs().length})</span>
       </KPopover.Trigger>
       <KPopover.Portal mount={portal.mount()}>

@@ -1,22 +1,24 @@
 import { createSignal } from "solid-js";
+import { invoke } from "../../lib/ipc";
 
 /**
- * Open state for the two keyboard dialogs ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Command palette" / "Keyboard Shortcuts dialog"). The registry's `navigate.*` commands
- * flip these signals; Phase 3 mounts `<CommandPalette>` / `<ShortcutsDialog>` against
- * them.
+ * The command palette's open state ([`hotkeys.md`](../../../docs/hotkeys.md) →
+ * "Command palette"). The registry's `navigate.commandPalette` command flips the signal;
+ * `<CommandPalette>` is mounted against it.
+ *
+ * The **Keyboard Shortcuts** explorer is not a dialog signal: it is an app-wide Tauri
+ * window, raised through [`openShortcutsWindow`].
  */
 export const [paletteOpen, setPaletteOpen] = createSignal(false);
-export const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
 
-/** Open the command palette, closing the shortcuts dialog first (they are both modal). */
+/** Open the command palette. */
 export function openCommandPalette(): void {
-  if (shortcutsOpen()) setShortcutsOpen(false);
   setPaletteOpen(true);
 }
 
-/** Open the Keyboard Shortcuts dialog, closing the command palette first. */
-export function openShortcutsDialog(): void {
-  if (paletteOpen()) setPaletteOpen(false);
-  setShortcutsOpen(true);
+/** Open (or raise) the app-wide Keyboard Shortcuts window. */
+export function openShortcutsWindow(): void {
+  void invoke("open_shortcuts_window").catch((err) =>
+    console.error("could not open the Keyboard Shortcuts window", err),
+  );
 }

@@ -168,7 +168,7 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
             onInput={(event) => setQuery(event.currentTarget.value)}
           />
         </div>
-        <ScrollArea class="graph-palette-scroll">
+        <ScrollArea class="graph-palette-scroll" resetKey={query()}>
           <For each={groups()}>
             {(group) => (
               <div class="graph-palette-group">
@@ -202,7 +202,7 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
                               addNode(props.graph, def);
                             }}
                           >
-                            <Icon name="plus" /> {def.label}
+                            {def.label}
                           </button>
                         </Tooltip>
                       </Show>

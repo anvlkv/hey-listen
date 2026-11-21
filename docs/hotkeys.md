@@ -7,7 +7,7 @@ every binding **explorable and configurable**.
 ## Principles
 
 - **One registry, no side channels.** A command is declared once and the dispatcher, the
-  command palette, the shortcuts dialog, tooltips and `aria-keyshortcuts` all read the same
+  command palette, the shortcuts window, tooltips and `aria-keyshortcuts` all read the same
   definition. A new action registers a command instead of attaching an ad-hoc listener.
 - **Do not break typing or focused controls.** A bare key never fires in a text field,
   select, contenteditable or while a button owns Space/Enter. Modifier chords such as
@@ -43,7 +43,7 @@ interface CommandDef {
 
 A command's **binding** is not on `CommandDef` — it lives in `DEFAULT_BINDINGS`
 (`defaults.ts`), merged with the user's overrides by the store (`store.ts`), so the
-dispatcher, the palette and the shortcuts dialog all read one resolved value.
+dispatcher, the palette and the shortcuts window all read one resolved value.
 
 The registry is a flat list (`state/keybindings/registry.ts`). Commands do not import
 components directly; they call store/action functions (`openTool`, transport, annotations, …) so
@@ -72,7 +72,7 @@ an empty/non-key binding. A stored value of `null` means **intentionally unbound
 - `event.repeat` is ignored unless the command declares `allowRepeat` (seek, zoom, nudge).
 - `event.defaultPrevented` stops dispatch.
 - Prefer the most specific scope over `global`; if two commands in the same scope match,
-  the first in registry order wins and the conflict is reported by the dialog (it should
+  the first in registry order wins and the conflict is reported by the shortcuts window (it should
   never be saveable in the first place).
 - Fire with `preventDefault()`; do not stop propagation, so library widgets can still see
   the event when they are meant to.
@@ -84,7 +84,12 @@ an empty/non-key binding. A stored value of `null` means **intentionally unbound
 | text input, textarea, select, contenteditable | blocked | blocked (except explicit opt-in) | allowed |
 | focused button / link / `role=button` | blocked (Space/Enter belong to the control) | allowed | allowed |
 | timeline canvas / graph canvas / body | allowed | allowed | allowed |
-| open dialog | only dialog-scope / `Escape` | only dialog-scope | — |
+| open **modal dialog** (palette, About) | only dialog-scope / `Escape` | only dialog-scope | — |
+| the **Keyboard Shortcuts** window | its recorder owns the keys: `Escape` cancels a recording, then closes the window | — | — |
+
+The Keyboard Shortcuts window is a separate app-wide window (label `shortcuts`), not a
+modal: the project window stays usable and the dispatcher is unaffected while it is
+focused.
 
 The Timeline canvas **is focusable** (M23; D-14 added the keyboard set and the ARIA live
 region); clicking it puts the transport keys in their natural context. Until M24.B's
@@ -180,19 +185,26 @@ field keeps native text undo. See [`undo-redo.md`](undo-redo.md).
   `Enter` runs, `Escape` closes, `Tab` accepts the highlighted completion.
 - Each row shows its binding chip (`⌘K`), so the palette doubles as a discovery surface.
 - Running a command closes the palette unless the command opts out (e.g. "keep open").
+  The *Keyboard Shortcuts* command opens the app-wide [shortcuts
+  window](#keyboard-shortcuts-window) (the palette itself stays a modal dialog).
 
-## Keyboard Shortcuts dialog
+## Keyboard Shortcuts window
 
 - Opened from `?`, Help → **Keyboard Shortcuts…**, and the palette's *Keyboard
-  Shortcuts* command. A modal Kobalte dialog, like About.
+  Shortcuts* command. An app-wide Tauri window labeled `shortcuts` (its own app window,
+  like the log preview, but not parented to a project), **not** a modal: opening it leaves
+  the project window usable. It is not
+  aliased to a project and is not tracked in `WindowRegistry`, so it survives a project
+  load. Its list uses the shared `ScrollArea`, so the bar sits in its own gutter.
 - **Search** filters by command title/category; groups are collapsible; each row shows the
   title, description, scope, the **default** binding and the **current** one (with a
   *modified* marker).
-- **Record** per row: click *Edit*, then press a combination. The dialog listens in
+- **Record** per row: click *Edit*, then press a combination. The window listens in
   capture phase, shows *Press keys…*, and validates:
   - modifier-only / unmodified reserved keys are rejected with a reason;
   - a conflict shows *Already used by “X”* before saving (including native accelerators);
-  - `Backspace`/`Delete` unbinds, `Escape` cancels, *Reset* restores the default.
+  - `Backspace`/`Delete` unbinds, `Escape` cancels the **recording** (then closes the
+    window), *Reset* restores the default.
 - **Reset all** restores every default; a **Native menu** section is read-only.
 - Changes save immediately (app-level), update the dispatcher and palette chips live, and
   announce the change in an `aria-live` region.
@@ -230,8 +242,12 @@ field keeps native text undo. See [`undo-redo.md`](undo-redo.md).
 | `src/state/keybindings/dispatcher.ts` | the single `keydown` listener and its guards |
 | `src/state/keybindings/palette.ts` | fuzzy ranking over commands/tools/tabs (pure) |
 | `src/components/CommandPalette.tsx` | the palette dialog |
-| `src/components/ShortcutsDialog.tsx` | the explorer/rebinding UI |
+| `src/ShortcutsApp.tsx` | the `shortcuts` window root (renders `ShortcutsWindow`) |
+| `src/components/ShortcutsWindow.tsx` | the explorer / rebinding UI (inside the `shortcuts` window) |
+| `src/lib/windowRole.ts` | `isShortcutsWindow` (window label `shortcuts`) |
 | `src/components/Tooltip.tsx` | optional `shortcut` chip |
+| `src-tauri/src/commands/window.rs` | `open_shortcuts_window_for` / `open_shortcuts_window` |
+| `src-tauri/capabilities/default.json` | capability window list includes `shortcuts` |
 | `src-tauri/src/menu.rs`, `src/state/menu.ts` | Help → Keyboard Shortcuts (`shortcuts` action) |
 
 ## Testing
@@ -241,10 +257,12 @@ field keeps native text undo. See [`undo-redo.md`](undo-redo.md).
   detection, load/save/migration (`null`, unknown ids, bad JSON), palette ranking.
 - **E2E** (`q4-keyboard`, named to sort **before** `t-close-main`): `Space` toggles the
   transport; arrows seek; `N` adds an annotation at the playhead; `Mod+K` opens the palette
-  and runs a command; `?` opens the explorer; rebinding makes the old key inert and the new
+  and runs a command; `?` opens the shortcuts window; rebinding makes the old key inert and the new
   one work; a conflicting binding is rejected; typing in the annotation editor and the analyzer
   search never triggers a command; bindings survive a reload; a focused button keeps
-  Space/Enter.
+  Space/Enter. The spec switches into the `shortcuts` window with
+  `browser.tauri.switchWindow` before addressing its rows, then switches back — the test
+  ids are unchanged (`shortcuts.*`).
 - **Selectors:** `palette.dialog`, `palette.input`, `palette.item.<id>`,
   `shortcuts.dialog`, `shortcuts.search`, `shortcuts.row.<id>`,
   `shortcuts.record.<id>`, `shortcuts.resetAll`.

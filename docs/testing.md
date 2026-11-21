@@ -528,7 +528,7 @@ with `Mod+K` opening the palette and `?` the shortcut explorer. Rebindings are a
 | Q4.2 | Arrows seek | `ArrowRight` nudges the playhead and the live region announces `Playhead at …` | Scenario |
 | Q4.3 | `N` annotates | `N` drops an annotation at the playhead | Scenario |
 | Q4.4 | Palette runs a tool | `Mod+K` opens the palette; typing `spectrum` and Enter opens the tab and closes the palette | Scenario |
-| Q4.5 | Shortcut explorer | `?` opens the Keyboard Shortcuts dialog | Scenario |
+| Q4.5 | Shortcut explorer | `?` opens the Keyboard Shortcuts window (the spec switches into the `shortcuts` window with `browser.tauri.switchWindow`) | Scenario |
 | Q4.6 | Rebind | Recording `P` for Play/Pause makes `P` toggle and `Space` inert; the bindings are reset after | Scenario |
 | Q4.7 | Conflict rejected | Recording a chord already bound (Space for Loop) reports `Already used by …` and does not save | Scenario |
 | Q4.8 | Text field guard | `N` at the analyzer search input does not annotate, while the same key at the body does | Scenario |

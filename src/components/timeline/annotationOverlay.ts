@@ -2,6 +2,7 @@ import { annotationMarkerLabel, annotationSpan } from "../../lib/annotation";
 import { annotationsSorted, selectedAnnotationId } from "../../state/annotations";
 import { annotationsPanelOpen } from "../../state/settings";
 import { chartTheme } from "../../state/themes";
+import { PLOT_PAD } from "./constants";
 import { formatTime } from "./format";
 import { ANNOTATION_STRIP_H } from "../annotations/strip";
 import { drawLane, type LaneHandleDrag, type LaneSelection } from "../annotations/lane";
@@ -36,6 +37,8 @@ export interface TimelineAnnotationLayer {
   waveH: number;
   width: number;
   t2x: (timeSecs: number) => number;
+  /** Width of the channel rail on the left (`0` for a mono source). */
+  railW: number;
   /** Whether a source is open (the empty lane's hint only shows then). */
   hasSource: boolean;
   /** The span being dragged out for a new annotation. */
@@ -56,11 +59,14 @@ export function drawTimelineAnnotations(
   const theme = chartTheme();
   const stripTop = waveTop + waveH - ANNOTATION_STRIP_H;
   const geom = { xFor: t2x, top: stripTop, height: ANNOTATION_STRIP_H, left: 0, right: width };
+  // The hint starts right of the channel rail, so it never sits under it.
+  const hintLeft = PLOT_PAD + layer.railW;
   drawLane(ctx, geom, {
     background: theme.ruler,
     color: theme.annotation,
     hintColor: theme.axis,
     hint: layer.hasSource && list.length === 0 ? "Drag to add an annotation" : null,
+    hintLeft,
     selection: layer.selection,
   });
   if (list.length === 0 && !layer.selection) return;

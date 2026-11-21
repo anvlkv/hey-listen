@@ -49,12 +49,23 @@
   border-color: var(--border-accent);
 }
 
+/* The command list is a `ScrollArea` (no native bar, so the native-scrollbar rule
+   does not apply). The dialog's flex column sizes it; the list itself is laid out in
+   the scroll content. */
 .palette-list {
+  margin-top: 8px;
+}
+
+.palette-list .scroll-area-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The `aria-controls` / listbox target inside the scroll content. */
+.palette-listbox {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin-top: 8px;
-  overflow-y: auto;
 }
 
 .palette-section-title {
@@ -123,27 +134,22 @@
   border-radius: 3px;
 }
 
-/* --- Keyboard Shortcuts dialog (M24.B) ---------------------------------- */
+/* --- Keyboard Shortcuts window (M24.B) ---------------------------------- */
 
 .shortcuts-dialog {
-  position: fixed;
-  z-index: 3001;
-  top: 7vh;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  flex: 1;
   flex-direction: column;
-  width: min(720px, calc(100vw - 48px));
-  max-height: min(86vh, 780px);
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   padding: 16px 18px;
   background: var(--panel);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  box-shadow: 0 18px 50px var(--shadow-strong);
 }
 
 .shortcuts-head {
   display: flex;
+  flex: none;
   align-items: flex-start;
   gap: 12px;
 }
@@ -167,21 +173,28 @@
 }
 
 .shortcuts-search {
+  flex: none;
   margin-top: 12px;
 }
 
 .shortcuts-notice {
+  flex: none;
   margin: 8px 0 0;
   font-size: 0.75rem;
   color: var(--warn);
 }
 
 .shortcuts-list {
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+}
+
+.shortcuts-list .scroll-area-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 10px;
-  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .shortcuts-group-title {

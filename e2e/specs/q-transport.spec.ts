@@ -63,6 +63,14 @@ function windowSeconds(text: string): [number, number] {
 
 /** Set the transport speed with a keyboard gesture on the slider (its thumb moves focus). */
 async function pressSpeedKey(key: string): Promise<void> {
+  // The slider lives in the speed popover, so open its trigger when it is not mounted.
+  if ((await count(".timeline-speed .gain-thumb")) === 0) {
+    await (await $('[data-testid="timeline.speed.trigger"]')).click();
+    await waitFor(
+      async () => (await count(".timeline-speed .gain-thumb")) === 1,
+      "the speed popover never opened",
+    );
+  }
   // Kobalte's range input is hidden; its thumb is the focusable control (as in A3).
   await (await $(".timeline-speed .gain-thumb")).click();
   await browser.keys(key);

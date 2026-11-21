@@ -1,6 +1,7 @@
-import { For, Show, createMemo } from "solid-js";
+import { For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import type { TooltipProps } from "@dschz/solid-uplot/plugins";
 import { rgba } from "color2k";
+import { placeFloating } from "../../lib/floatingCard";
 import {
   formatRow,
   frameProfile,
@@ -49,8 +50,9 @@ function strongest(profile: number[], count: number): { row: number; value: numb
  * the result's own unit, and (for a rate tool) the band × modulation-rate grid.
  *
  * It is inert (`pointer-events: none`), so it can never take a hover or a drag from the
- * chart behind it, and it is flipped/anchored from the plot's edges like a tooltip —
- * `right`/`bottom` keep it inside the chart without measuring it.
+ * chart behind it, and it is **fixed-positioned** in the window: anchored at the cursor's
+ * viewport point, then measured and placed by [`placeFloating`](../../lib/floatingCard.ts),
+ * so a tall card near a chart's bottom edge stays on screen instead of being cut off.
  *
  * Everything is DOM rather than canvas, and every colour comes from the one
  * [`HeatmapScale`](./heatmapScale.ts) the in-plot lane was built with, so the card and
@@ -75,25 +77,46 @@ export default function DrilldownCard(props: {
   const rate = createMemo(() => props.rate ?? null);
   const rateRamp = createMemo(() => (rate() ? rateScale(rate()!) : null));
 
-  /** Anchored to the cursor, flipped at the plot's edges without measuring the card. */
+  const [card, setCard] = createSignal<HTMLDivElement>();
+  /** The card's measured box, so placement knows its own height before flipping. */
+  const [size, setSize] = createSignal({ width: 0, height: 0 });
+
+  onMount(() => {
+    const initialCard = card();
+    if (!initialCard) return;
+    const measure = () =>
+      setSize({ width: initialCard.offsetWidth, height: initialCard.offsetHeight });
+    measure();
+    const Observer = initialCard.ownerDocument.defaultView?.ResizeObserver;
+    if (!Observer) return;
+    const observer = new Observer(measure);
+    observer.observe(initialCard);
+    onCleanup(() => observer.disconnect());
+  });
+
+  /**
+   * Fixed in the card's own window: the cursor's viewport point is the plot's rect plus
+   * its bbox plus the plot-relative cursor, and the card flips/clamps against the window
+   * so it can never be pushed off screen.
+   */
   const position = () => {
-    const root = props.u.root;
-    const b = props.u.bbox;
-    const { left, top } = props.cursor;
-    const flipX = b.left + left > root.clientWidth * 0.62;
-    const flipY = top > b.height * 0.55;
-    return {
-      ...(flipX
-        ? { right: `${root.clientWidth - (b.left + left) + 14}px` }
-        : { left: `${b.left + left + 14}px` }),
-      ...(flipY
-        ? { bottom: `${root.clientHeight - (b.top + top) + 12}px` }
-        : { top: `${b.top + top + 12}px` }),
+    const rect = props.u.root.getBoundingClientRect();
+    const box = props.u.bbox;
+    const anchor = {
+      left: rect.left + box.left + props.cursor.left,
+      top: rect.top + box.top + props.cursor.top,
     };
+    const view = card()?.ownerDocument.defaultView ?? props.u.root.ownerDocument.defaultView;
+    const viewport = {
+      width: view?.innerWidth ?? rect.right,
+      height: view?.innerHeight ?? rect.bottom,
+    };
+    const placed = placeFloating(anchor, size(), viewport);
+    return { left: `${placed.left}px`, top: `${placed.top}px` };
   };
 
   return (
-    <div class="drilldown-card" style={position()} data-testid="drilldown.card">
+    <div ref={setCard} class="drilldown-card" style={position()} data-testid="drilldown.card">
       <div class="drilldown-card-head">
         <span class="drilldown-card-time">t {time().toFixed(3)} s</span>
       </div>

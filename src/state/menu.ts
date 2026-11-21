@@ -19,7 +19,6 @@ import {
   saveProjectAs,
 } from "./project";
 import { flushProjectPush } from "./project/push";
-import { openShortcutsDialog } from "./keybindings/dialogs";
 
 /**
  * Native menu + OS file-open wiring (M6).
@@ -151,10 +150,6 @@ export async function initMenu() {
           // Help → Install Command Line Tool… opens the dialog, which reads the real
           // install state and offers Install / Update / Repair / Uninstall.
           setCliToolOpen(true);
-          break;
-        case "shortcuts":
-          // Help → Keyboard Shortcuts… opens the in-app shortcut sheet.
-          openShortcutsDialog();
           break;
         case "checkForUpdates":
           // Help → Check for Updates… opens the About dialog (its Updates section shows

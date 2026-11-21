@@ -94,7 +94,7 @@ export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
  */
 
 /** Default rail width, in px. */
-export const ANNOTATIONS_DEFAULT_WIDTH = 280;
+export const ANNOTATIONS_DEFAULT_WIDTH = 300;
 /** Narrowest rail width, in px (mirrors the Sidebar's clamp). */
 export const ANNOTATIONS_MIN_WIDTH = 160;
 /** Widest rail width, in px. */

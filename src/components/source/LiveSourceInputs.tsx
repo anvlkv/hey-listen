@@ -47,10 +47,7 @@ export default function LiveSourceInputs(props: { compact?: boolean }) {
     <>
       <Show when={choice() === "mic" || choice() === "system"}>
         <div class="src-field">
-          <span class="src-label icon-label">
-            <Icon name="headphones" />
-            Device
-          </span>
+          <span class="src-label">Device</span>
           <Combobox
             options={deviceOptions()}
             value={deviceId()}
@@ -64,10 +61,7 @@ export default function LiveSourceInputs(props: { compact?: boolean }) {
 
       <Show when={choice() === "process"}>
         <div class={props.compact ? "src-field" : "src-stack"}>
-          <span class="src-label icon-label">
-            <Icon name="desktop" />
-            Application
-          </span>
+          <span class="src-label">Application</span>
           <Combobox
             options={processOptions()}
             value={targetPid() == null ? null : String(targetPid())}

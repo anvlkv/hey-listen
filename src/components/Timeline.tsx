@@ -7,6 +7,7 @@ import {
   onMount,
   Show,
   untrack,
+  type JSX,
 } from "solid-js";
 import { transportFollow } from "../audio/transportFollow";
 import { transportPosition } from "../audio/preview";
@@ -284,6 +285,25 @@ export default function Timeline() {
     }),
   );
 
+  /**
+   * The hover hint chip: kept 10px clear of the pointer, flipped left past 60% of the
+   * width and above past 60% of the height so it never runs off the region, and capped
+   * to the room on that side so its wrapping text stays inside.
+   */
+  const hintStyle = (hint: { x: number; y: number }): JSX.CSSProperties => {
+    const w = cssW();
+    const h = cssH();
+    const flipLeft = hint.x > w * 0.6;
+    const flipUp = hint.y > h * 0.6;
+    const room = flipLeft ? hint.x - 20 : w - hint.x - 20;
+    const style: JSX.CSSProperties = { "max-width": `${Math.max(80, Math.min(320, room))}px` };
+    if (flipLeft) style.right = `${Math.max(10, w - hint.x + 10)}px`;
+    else style.left = `${hint.x + 10}px`;
+    if (flipUp) style.bottom = `${Math.max(10, h - hint.y + 10)}px`;
+    else style.top = `${hint.y + 10}px`;
+    return style;
+  };
+
   return (
     <section class="app-timeline" data-testid="region.timeline">
       <TimelineToolbar
@@ -340,7 +360,7 @@ export default function Timeline() {
             <div
               class="timeline-annotation-hint"
               data-testid="timeline.annotation.hint"
-              style={{ left: `${hint().x + 10}px`, top: `${hint().y + 10}px` }}
+              style={hintStyle(hint())}
             >
               {hint().text}
             </div>

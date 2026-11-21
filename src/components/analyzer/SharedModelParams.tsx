@@ -1,5 +1,6 @@
 import { NumberField } from "@kobalte/core/number-field";
 import { Show } from "solid-js";
+import Hint from "../Hint";
 import { createNumberDrag } from "../../lib/dragNumber";
 import { analyzerById } from "../../state/analyzer/lookup";
 import {
@@ -34,14 +35,12 @@ export default function SharedModelParams() {
         <Show when={pitch()}>
           <ModelField option="minF0Hz" label="Min f0" testid="shared.pitch.min" />
           <ModelField option="maxF0Hz" label="Max f0" testid="shared.pitch.max" />
-          <div class="params-note">The f0 search band for every pitch tool.</div>
+          <Hint>f0 search band for pitch tools.</Hint>
         </Show>
 
         <Show when={calibration()}>
           <ModelField option="calibrationDbSpl" label="Calibration" testid="shared.calibration" />
-          <div class="params-note">
-            0 dB SPL means uncalibrated; absolute sones/phons/aspers/vacils need a value.
-          </div>
+          <Hint>0 dB SPL = uncalibrated; absolute units need a value.</Hint>
         </Show>
       </div>
     </Show>

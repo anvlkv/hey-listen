@@ -1,4 +1,25 @@
-import { Show, createSignal, onCleanup, onMount, type JSX } from "solid-js";
+import { Show, createEffect, createSignal, on, onCleanup, onMount, type JSX } from "solid-js";
+import { clampScrollTop } from "../lib/scroll";
+
+/**
+ * Imperative handle for a [`ScrollArea`], handed to `apiRef`.
+ *
+ * Everything is clamped to the scrollable range, so a caller cannot scroll past either
+ * end — including after the content shrinks under it.
+ */
+export type ScrollAreaApi = {
+  /** Scroll to the top of the content. */
+  scrollToTop(): void;
+  /** Scroll to `top` px (clamped). */
+  scrollTo(top: number): void;
+  /** Scroll the smallest amount that reveals `el` entirely. */
+  ensureVisible(el: HTMLElement): void;
+};
+
+/** Vertical inset (px) of the thumb's track inside the bar; mirrors `layout.css`. */
+const BAR_INSET = 2;
+
+const MIN_THUMB = 32;
 
 /**
  * A scroll container with a **custom scrollbar**.
@@ -9,8 +30,18 @@ import { Show, createSignal, onCleanup, onMount, type JSX } from "solid-js";
  * bar) and the content is translated by `scrollTop`. Wheel / trackpad / keyboard
  * scrolling is translated into the same signal, and the draggable thumb drives it
  * too — consistent on every platform.
+ *
+ * The bar is a **flex sibling** of the viewport (`layout.css`), never an overlay, so
+ * it can never cover the content. `resetKey` scrolls back to the top whenever it
+ * changes (a search query), and `apiRef` exposes the scroll actions to the owner.
  */
-export default function ScrollArea(props: { class?: string; children: JSX.Element }) {
+export default function ScrollArea(props: {
+  class?: string;
+  /** Scroll to the top whenever this value changes (e.g. a filtered list's query). */
+  resetKey?: unknown;
+  apiRef?: (api: ScrollAreaApi) => void;
+  children: JSX.Element;
+}) {
   let viewport!: HTMLDivElement;
   let content!: HTMLDivElement;
   let bar!: HTMLDivElement;
@@ -19,37 +50,73 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
   const [overflowing, setOverflowing] = createSignal(false);
   const [active, setActive] = createSignal(false);
 
-  const MIN_THUMB = 32;
-
   const scrollable = () => Math.max(0, content?.scrollHeight - viewport?.clientHeight);
 
-  function metrics() {
+  /** The thumb's track height: the bar's box minus its vertical inset. */
+  const trackHeight = () => Math.max(0, bar.clientHeight - BAR_INSET * 2);
+
+  function thumbFor(top: number) {
     const view = viewport.clientHeight;
     const contentHeight = content.scrollHeight;
-    const track = bar.clientHeight;
-    const height = Math.max(MIN_THUMB, Math.min(track, (view / contentHeight) * track));
+    const track = trackHeight();
+    const height =
+      contentHeight > 0
+        ? Math.max(MIN_THUMB, Math.min(track, (view / contentHeight) * track))
+        : track;
     const maxTop = track - height;
     const space = contentHeight - view;
-    const top = space > 0 ? (Math.min(scrollTop(), space) / space) * maxTop : 0;
-    return { height, top };
+    const offset = space > 0 ? (Math.min(top, space) / space) * maxTop : 0;
+    return { height, top: offset };
+  }
+
+  /** Move the content to `top`, clamped, and re-place the thumb. */
+  function applyScroll(top: number) {
+    setScrollTop(clampScrollTop(top, content.scrollHeight, viewport.clientHeight));
+    setThumb(thumbFor(scrollTop()));
   }
 
   function update() {
-    if (scrollable() <= 1 || bar.clientHeight <= 0) {
+    if (!viewport || !content) return;
+    const max = scrollable();
+    // The content shrank (a filtered list): never stay scrolled past the new end.
+    if (scrollTop() > max) setScrollTop(max);
+    if (max <= 1 || trackHeight() <= 0) {
       setOverflowing(false);
       return;
     }
     setOverflowing(true);
-    const m = metrics();
-    setThumb({ height: m.height, top: m.top });
+    setThumb(thumbFor(scrollTop()));
   }
 
   function scrollBy(delta: number) {
-    const next = Math.max(0, Math.min(scrollable(), scrollTop() + delta));
-    setScrollTop(next);
-    const m = metrics();
-    setThumb({ height: m.height, top: m.top });
+    applyScroll(scrollTop() + delta);
   }
+
+  function ensureVisible(el: HTMLElement) {
+    if (!viewport || !content) return;
+    // The content is translated, so measure the element against the content's own box
+    // (both rects carry the same transform, which cancels out).
+    const top = el.getBoundingClientRect().top - content.getBoundingClientRect().top;
+    const view = viewport.clientHeight;
+    const current = scrollTop();
+    if (top < current) applyScroll(top);
+    else if (top + el.offsetHeight > current + view) applyScroll(top + el.offsetHeight - view);
+  }
+
+  const api: ScrollAreaApi = {
+    scrollToTop: () => applyScroll(0),
+    scrollTo: applyScroll,
+    ensureVisible,
+  };
+
+  /** Reset to the top when the owner's key changes (not on the initial mount). */
+  createEffect(
+    on(
+      () => props.resetKey,
+      () => applyScroll(0),
+      { defer: true },
+    ),
+  );
 
   function onWheel(event: WheelEvent) {
     // Delta can be 0 for horizontal trackpads; ignore those.
@@ -70,9 +137,10 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
 
   function onThumbMove(event: PointerEvent) {
     if (!drag) return;
-    const m = metrics();
-    if (m.top < 0 || bar.clientHeight - m.height <= 0) return;
-    const ratio = scrollable() / (bar.clientHeight - m.height);
+    const track = trackHeight();
+    const m = thumbFor(scrollTop());
+    if (track - m.height <= 0) return;
+    const ratio = scrollable() / (track - m.height);
     scrollBy((event.clientY - drag.y) * ratio - (scrollTop() - drag.start));
   }
 
@@ -91,6 +159,7 @@ export default function ScrollArea(props: { class?: string; children: JSX.Elemen
     const mutation = new MutationObserver(() => update());
     mutation.observe(content, { childList: true, subtree: true });
     update();
+    props.apiRef?.(api);
     onCleanup(() => {
       observer.disconnect();
       mutation.disconnect();

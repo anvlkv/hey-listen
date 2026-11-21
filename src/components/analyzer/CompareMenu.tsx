@@ -1,5 +1,6 @@
 import { createSignal, For, Show, untrack } from "solid-js";
 import type { SavedComparisonInfo } from "../../bindings/SavedComparisonInfo";
+import Hint from "../Hint";
 import Popover from "../Popover";
 import { analyzerById, type AnalyzerId } from "../../state/analyzer";
 import type { CompareTargetDto } from "../../state/compare/types";
@@ -40,7 +41,7 @@ export default function CompareMenu(props: { id: AnalyzerId }) {
     <Popover
       label="Compare"
       title="Open a new comparison"
-      icon="arrows-left-right-to-line"
+      icon="code-compare"
       panelClass="pop-panel-compare"
       testid={`analyzer.compare.${props.id}`}
       onOpen={() => void load()}
@@ -48,11 +49,7 @@ export default function CompareMenu(props: { id: AnalyzerId }) {
       <div class="compare-menu-title">Compare {analyzerById(tool).title} with…</div>
       <Show
         when={!ready() || targets().length > 0 || saved().length > 0}
-        fallback={
-          <p class="params-annotation">
-            Open another project window (File → New Window) to compare, or save a comparison first.
-          </p>
-        }
+        fallback={<Hint>Open another project window to compare.</Hint>}
       >
         <div class="compare-menu-list">
           <For each={targets()}>
@@ -88,9 +85,7 @@ export default function CompareMenu(props: { id: AnalyzerId }) {
           </For>
         </div>
       </Show>
-      <p class="params-annotation">
-        Each side keeps its own source, filter, window and channel — the comparison is read-only.
-      </p>
+      <Hint>Each side keeps its own settings; the comparison is read-only.</Hint>
     </Popover>
   );
 }

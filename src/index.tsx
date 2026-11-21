@@ -9,8 +9,9 @@ import { initLogMirror } from "./lib/log";
 import App from "./App";
 import LogApp from "./LogApp";
 import PopoutApp from "./PopoutApp";
+import ShortcutsApp from "./ShortcutsApp";
 import type { CompareViewDto } from "./state/compare/types";
-import { isProjectWindow } from "./lib/windowRole";
+import { isProjectWindow, isShortcutsWindow } from "./lib/windowRole";
 
 /**
  * How long the popout query may take before the project window is rendered instead.
@@ -52,10 +53,17 @@ async function start(): Promise<void> {
     return;
   }
 
-  // A project window renders immediately; a popout view (tool, annotation, comparison
-  // or the log preview, all non-project labels) asks which view it is.
-  const target = isProjectWindow ? null : await popoutTarget();
   try {
+    // The Keyboard Shortcuts window is app-wide and needs no project state, so it renders
+    // before (and without) the popout query.
+    if (isShortcutsWindow) {
+      render(() => <ShortcutsApp />, root);
+      return;
+    }
+
+    // A project window renders immediately; a popout view (tool, annotation, comparison
+    // or the log preview, all non-project labels) asks which view it is.
+    const target = isProjectWindow ? null : await popoutTarget();
     render(() => {
       if (!target) return <App />;
       if (target.kind === "log") return <LogApp />;

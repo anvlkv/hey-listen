@@ -7,7 +7,6 @@ import CommandPalette from "./components/CommandPalette";
 import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
 import AnnotationsPanel from "./components/AnnotationsPanel";
 import Sidebar from "./components/Sidebar";
-import ShortcutsDialog from "./components/ShortcutsDialog";
 import SourcePanel from "./components/SourcePanel";
 import Splitter from "./components/Splitter";
 import Timeline from "./components/Timeline";
@@ -34,14 +33,14 @@ import { refreshThemes } from "./state/themes";
 import { initUiState } from "./state/uiState";
 
 /** Bottom row (Source + Timeline): default height and drag limits, in px. */
-const BOTTOM_DEFAULT = 220;
-const BOTTOM_MIN = 140;
-const TOP_MIN = 180;
+const BOTTOM_DEFAULT = 280;
+const BOTTOM_MIN = 180;
+const TOP_MIN = 200;
 /** Fixed height for the compact "Add audio" strip (no timeline yet). */
-const BOTTOM_EMPTY = 96;
+const BOTTOM_EMPTY = 104;
 
 /** Sidebar column: default width and drag limits, in px. */
-const SIDEBAR_DEFAULT = 240;
+const SIDEBAR_DEFAULT = 260;
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 520;
 
@@ -227,7 +226,6 @@ export default function App() {
       <AboutDialog open={aboutOpen()} onOpenChange={setAboutOpen} />
       <CliToolDialog open={cliToolOpen()} onOpenChange={setCliToolOpen} />
       <CommandPalette />
-      <ShortcutsDialog />
       <ComparePicker />
       <CompareNotice />
     </div>

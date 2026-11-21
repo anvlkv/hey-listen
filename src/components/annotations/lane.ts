@@ -221,6 +221,8 @@ export function drawLane(
     /** The hint text colour (muted). */
     hintColor: string;
     hint: string | null;
+    /** Left edge for the hint chip (right of the channel rail), so it never sits under it. */
+    hintLeft?: number;
     selection: LaneSelection;
   },
 ) {
@@ -245,15 +247,48 @@ export function drawLane(
     ctx.fillRect(Math.min(x0, x1), geom.top + 1, Math.max(1, Math.abs(x1 - x0)), geom.height - 2);
     ctx.globalAlpha = 1;
   } else if (opts.hint) {
-    ctx.fillStyle = opts.hintColor;
-    ctx.globalAlpha = 0.75;
-    ctx.font = "11px Inter, sans-serif";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    ctx.fillText(opts.hint, geom.left + 8, geom.top + geom.height / 2);
-    ctx.globalAlpha = 1;
+    drawHintChip(ctx, opts.hint, opts.hintLeft ?? geom.left + 8, geom, opts);
   }
   ctx.restore();
+}
+
+/**
+ * The empty-lane hint: text on a small padded, rounded chip, so it reads over whatever the
+ * lane's background is and never looks like a mark.
+ */
+function drawHintChip(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  left: number,
+  geom: LaneGeom,
+  opts: { color: string; hintColor: string },
+): void {
+  ctx.font = "11px Inter, sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  const padX = 6;
+  const chipH = Math.max(8, Math.min(16, geom.height - 2));
+  const room = Math.max(0, geom.right - left);
+  const width = Math.min(ctx.measureText(text).width + padX * 2, room);
+  if (width <= 0) return;
+  const top = geom.top + (geom.height - chipH) / 2;
+  const radius = chipH / 2;
+
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = opts.color;
+  ctx.beginPath();
+  ctx.moveTo(left + radius, top);
+  ctx.arcTo(left + width, top, left + width, top + chipH, radius);
+  ctx.arcTo(left + width, top + chipH, left, top + chipH, radius);
+  ctx.arcTo(left, top + chipH, left, top, radius);
+  ctx.arcTo(left, top, left + width, top, radius);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = opts.hintColor;
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(text, left + padX, geom.top + geom.height / 2);
+  ctx.globalAlpha = 1;
 }
 
 /**

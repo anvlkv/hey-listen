@@ -35,7 +35,7 @@ import { fitAll, zoomIn, zoomOut, zoomToWindow } from "../timelineView";
 import { announcePlayhead } from "../timelineAnnounce";
 import { nextWindow, previousWindow } from "../windowHistory";
 import { cycleWorkbenchTab, openTool, openTools } from "../workbench";
-import { openCommandPalette, openShortcutsDialog } from "./dialogs";
+import { openCommandPalette, openShortcutsWindow } from "./dialogs";
 import type { CommandDef, CommandId } from "./types";
 
 /**
@@ -220,7 +220,7 @@ export const COMMANDS: CommandDef[] = [
     ...navigate("navigate.commandPalette", "Command palette", () => openCommandPalette()),
     allowInInput: true,
   },
-  navigate("navigate.keyboardShortcuts", "Keyboard shortcuts", () => openShortcutsDialog()),
+  navigate("navigate.keyboardShortcuts", "Keyboard shortcuts", () => openShortcutsWindow()),
   {
     ...navigate("navigate.nextRegion", "Select next annotation", () => selectNextAnnotation()),
     when: () => annotations().length > 0,

@@ -292,6 +292,7 @@ pub fn run() {
             commands::window::close_popouts,
             commands::window::open_annotation_window,
             commands::window::open_log_window,
+            commands::window::open_shortcuts_window,
             commands::window::popout_tool,
             commands::window::popout_annotation,
             commands::window::popout_log,

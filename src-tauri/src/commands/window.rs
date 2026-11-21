@@ -242,7 +242,7 @@ pub(crate) fn open_log_window_for<R: tauri::Runtime>(
     if let Some(existing) = registry.log_popout() {
         if let Some(popout) = app.get_webview_window(&existing) {
             raise(&popout);
-            return Ok(existing);
+            return Ok(existing.to_owned());
         }
         registry.remove(&existing);
     }
@@ -267,6 +267,36 @@ pub(crate) fn open_log_window_for<R: tauri::Runtime>(
 #[tauri::command]
 pub async fn open_log_window(window: tauri::WebviewWindow) -> Result<String, String> {
     open_log_window_for(window.app_handle(), window.label())
+}
+
+/// Open (or raise) the app-wide **Keyboard Shortcuts** window.
+///
+/// A singleton like the log preview, but it is not a project *view*: it shows the
+/// app-level keybinding configuration, so it is neither aliased to a project nor tracked
+/// by [`crate::state::WindowRegistry`], and it survives a project load. An existing window
+/// is raised rather than duplicated.
+pub(crate) fn open_shortcuts_window_for<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Result<(), String> {
+    if let Some(existing) = app.get_webview_window("shortcuts") {
+        raise(&existing);
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(app, "shortcuts", WebviewUrl::App("index.html".into()))
+        .title("Keyboard Shortcuts — Hey Listen")
+        .inner_size(760.0, 720.0)
+        .min_inner_size(520.0, 420.0)
+        .build()
+        .map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+/// Open (or raise) the Keyboard Shortcuts window (Help → Keyboard Shortcuts… calls
+/// [`open_shortcuts_window_for`] directly: it needs no webview).
+#[tauri::command]
+pub async fn open_shortcuts_window(app: AppHandle) -> Result<(), String> {
+    open_shortcuts_window_for(&app)
 }
 
 /// Whether the calling window shows the log preview.

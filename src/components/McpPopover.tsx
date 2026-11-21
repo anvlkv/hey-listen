@@ -1,6 +1,7 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import { Switch } from "@kobalte/core/switch";
 import Button from "./Button";
+import Hint from "./Hint";
 import Icon from "./Icon";
 import Popover from "./Popover";
 import Tooltip from "./Tooltip";
@@ -184,11 +185,10 @@ export default function McpPopover() {
           <Icon name={copied() ? "check" : "copy"} />
           {copied() ? "Copied" : "Copy"}
         </Button>
-        <p class="params-note">
-          Add this to your MCP client's settings file. The app entry needs Hey Listen running (it
-          drives the live project); the <code>heylisten-mcp</code> entry works standalone (headless
-          when no app is running).
-        </p>
+        <Hint>
+          Add this to your MCP client's settings: the app entry needs Hey Listen running,{" "}
+          <code>heylisten-mcp</code> works standalone.
+        </Hint>
       </div>
     </Popover>
   );

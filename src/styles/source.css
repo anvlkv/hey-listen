@@ -1,7 +1,7 @@
 /* Fixed region — not a tab, not draggable/closable. */
 .app-source {
-  width: 240px;
-  flex: 0 0 240px;
+  width: 260px;
+  flex: 0 0 260px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -150,6 +150,23 @@
 .src-actions .src-button {
   width: auto;
   flex: 1;
+}
+
+/* Icon-only source buttons (open file, record / pause / stop) keep a compact, square
+   hit target instead of stretching across the panel. */
+.src-button.icon-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  padding: 0;
+}
+
+.src-controls > .src-button.icon-btn {
+  align-self: flex-start;
+}
+
+/* The destructive Stop sits last in its row, pushed away from the transport controls. */
+.src-actions .src-stop {
+  margin-left: auto;
 }
 
 .src-record {

@@ -1,7 +1,6 @@
-import { Dialog } from "@kobalte/core/dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { DEFAULT_BINDINGS } from "../state/keybindings/defaults";
-import { setShortcutsOpen, shortcutsOpen } from "../state/keybindings/dialogs";
 import {
   findConflict,
   formatBinding,
@@ -11,23 +10,28 @@ import {
 import { COMMANDS } from "../state/keybindings/registry";
 import { getBinding, isModified, resetAllBindings, setBinding } from "../state/keybindings/store";
 import type { CommandDef, CommandId } from "../state/keybindings/types";
+import ScrollArea from "./ScrollArea";
 
 /**
- * The **Keyboard Shortcuts** dialog ([`hotkeys.md`](../../../docs/hotkeys.md) →
+ * The **Keyboard Shortcuts** window ([`hotkeys.md`](../../../docs/hotkeys.md) →
  * "Keyboard Shortcuts dialog"): every command grouped by category, with its default and
  * current binding, plus the native menu's fixed accelerators.
+ *
+ * It renders in its own app-wide Tauri window (see [`ShortcutsApp`](../ShortcutsApp.tsx)),
+ * not a modal: opening it leaves the project window usable. The list scrolls inside the
+ * shared [`ScrollArea`], whose bar sits in its own gutter.
  *
  * *Edit* records the next chord: Escape cancels, a bare Backspace/Delete unbinds, a
  * chord already claimed by another command in an overlapping scope is refused, and
  * anything else is normalized and saved. The recorder listens in the **capture** phase
- * so no other handler (the dispatcher, the search field, the dialog's own Escape) sees
- * the keys while it is armed.
+ * so no other handler (the search field, the window's own Escape) sees the keys while it
+ * is armed. Otherwise Escape closes the window.
  */
 
 /** `Mod` is ⌘ on macOS and Ctrl elsewhere. */
 const PLATFORM: Platform = /Mac|iPhone|iPad/.test(navigator.platform) ? "mac" : "other";
 
-/** The dialog's group order. */
+/** The window's group order. */
 const CATEGORY_ORDER: CommandDef["category"][] = [
   "Transport",
   "Timeline",
@@ -82,17 +86,10 @@ function display(binding: string | null): string {
   return binding ? formatBinding(binding, PLATFORM) : "—";
 }
 
-export default function ShortcutsDialog() {
+export default function ShortcutsWindow() {
   const [search, setSearch] = createSignal("");
   const [recording, setRecording] = createSignal<CommandId | null>(null);
   const [notice, setNotice] = createSignal<string | null>(null);
-
-  createEffect(() => {
-    if (!shortcutsOpen()) return;
-    setSearch("");
-    setNotice(null);
-    setRecording(null);
-  });
 
   const groups = createMemo(() => {
     const matches = (text: string) => {
@@ -184,126 +181,128 @@ export default function ShortcutsDialog() {
     onCleanup(() => window.removeEventListener("keydown", onKeyDown, true));
   });
 
-  function close(open: boolean) {
-    setShortcutsOpen(open);
-    if (!open) setRecording(null);
-  }
+  // Escape closes the window, except while recording, where the recorder owns it.
+  createEffect(() => {
+    if (recording()) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      void getCurrentWindow().close();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", onKeyDown));
+  });
 
   return (
-    <Dialog open={shortcutsOpen()} onOpenChange={close}>
-      <Dialog.Portal>
-        <Dialog.Overlay class="about-overlay" />
-        <Dialog.Content class="shortcuts-dialog" data-testid="shortcuts.dialog">
-          <header class="shortcuts-head">
-            <div class="shortcuts-identity">
-              <Dialog.Title class="shortcuts-title">Keyboard Shortcuts</Dialog.Title>
-              <Dialog.Description class="shortcuts-hint">
-                Choose <em>Edit</em> to record a new chord. Escape cancels, Backspace unbinds.
-              </Dialog.Description>
-            </div>
-            <button
-              type="button"
-              class="about-link-button"
-              data-testid="shortcuts.resetAll"
-              onClick={() => {
-                resetAllBindings();
-                setRecording(null);
-                setNotice("All shortcuts were reset to their defaults.");
-              }}
-            >
-              Reset all
-            </button>
-          </header>
+    <section class="shortcuts-dialog" data-testid="shortcuts.dialog">
+      <header class="shortcuts-head">
+        <div class="shortcuts-identity">
+          <h2 class="shortcuts-title">Keyboard Shortcuts</h2>
+          <p class="shortcuts-hint">
+            Choose <em>Edit</em> to record a new chord. Escape cancels, Backspace unbinds.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="about-link-button"
+          data-testid="shortcuts.resetAll"
+          onClick={() => {
+            resetAllBindings();
+            setRecording(null);
+            setNotice("All shortcuts were reset to their defaults.");
+          }}
+        >
+          Reset all
+        </button>
+      </header>
 
-          <input
-            class="palette-input shortcuts-search"
-            data-testid="shortcuts.search"
-            type="search"
-            placeholder="Search shortcuts…"
-            value={search()}
-            onInput={(event) => setSearch(event.currentTarget.value)}
-          />
+      <input
+        class="palette-input shortcuts-search"
+        data-testid="shortcuts.search"
+        type="search"
+        placeholder="Search shortcuts…"
+        value={search()}
+        onInput={(event) => setSearch(event.currentTarget.value)}
+      />
 
-          <Show when={notice()}>
-            {(message) => (
-              <p class="shortcuts-notice" data-testid="shortcuts.notice">
-                {message()}
-              </p>
-            )}
-          </Show>
+      <Show when={notice()}>
+        {(message) => (
+          <p class="shortcuts-notice" data-testid="shortcuts.notice">
+            {message()}
+          </p>
+        )}
+      </Show>
 
-          <div class="shortcuts-list">
-            <For each={groups()}>
-              {(group) => (
-                <section class="shortcuts-group">
-                  <h3 class="shortcuts-group-title">{group.title}</h3>
-                  <For each={group.commands}>
-                    {(command) => {
-                      const current = () => getBinding(command.id);
-                      const initial = DEFAULT_BINDINGS[command.id];
-                      const isRecording = () => recording() === command.id;
-                      return (
-                        <div class="shortcuts-row" data-testid={`shortcuts.row.${command.id}`}>
-                          <span class="shortcuts-row-main">
-                            <span class="shortcuts-row-title">{command.title}</span>
-                            <span class="shortcuts-row-scope">{command.scope}</span>
-                          </span>
-                          <span class="shortcuts-chips">
-                            <kbd class="shortcuts-chip" title="Default">
-                              {display(initial)}
-                            </kbd>
-                            <kbd
-                              class="shortcuts-chip shortcuts-chip-current"
-                              title="Current"
-                              classList={{ "shortcuts-chip-changed": isModified(command.id) }}
-                            >
-                              {display(current())}
-                            </kbd>
-                            <Show when={isModified(command.id)}>
-                              <span class="shortcuts-modified">modified</span>
-                            </Show>
-                          </span>
-                          <button
-                            type="button"
-                            class="about-link-button shortcuts-record"
-                            data-testid={`shortcuts.record.${command.id}`}
-                            classList={{ "shortcuts-record-active": isRecording() }}
-                            onClick={() => {
-                              setRecording(command.id);
-                              setNotice(null);
-                            }}
-                          >
-                            {isRecording() ? "Press keys…" : "Edit"}
-                          </button>
-                        </div>
-                      );
-                    }}
-                  </For>
-                </section>
-              )}
-            </For>
-
-            <Show when={nativeRows().length > 0}>
-              <section class="shortcuts-group">
-                <h3 class="shortcuts-group-title">Native menu</h3>
-                <For each={nativeRows()}>
-                  {(entry) => (
-                    <div class="shortcuts-row shortcuts-row-native">
+      <ScrollArea class="shortcuts-list" resetKey={search()}>
+        <For each={groups()}>
+          {(group) => (
+            <section class="shortcuts-group">
+              <h3 class="shortcuts-group-title">{group.title}</h3>
+              <For each={group.commands}>
+                {(command) => {
+                  const current = () => getBinding(command.id);
+                  const initial = DEFAULT_BINDINGS[command.id];
+                  const isRecording = () => recording() === command.id;
+                  return (
+                    <div class="shortcuts-row" data-testid={`shortcuts.row.${command.id}`}>
                       <span class="shortcuts-row-main">
-                        <span class="shortcuts-row-title">{entry.label}</span>
-                        <span class="shortcuts-row-scope">fixed by the system menu</span>
+                        <span class="shortcuts-row-title">{command.title}</span>
+                        <span class="shortcuts-row-scope">{command.scope}</span>
                       </span>
                       <span class="shortcuts-chips">
-                        <kbd class="shortcuts-chip">{display(entry.binding)}</kbd>
+                        <kbd class="shortcuts-chip" title="Default">
+                          {display(initial)}
+                        </kbd>
+                        <kbd
+                          class="shortcuts-chip shortcuts-chip-current"
+                          title="Current"
+                          classList={{ "shortcuts-chip-changed": isModified(command.id) }}
+                        >
+                          {display(current())}
+                        </kbd>
+                        <Show when={isModified(command.id)}>
+                          <span class="shortcuts-modified">modified</span>
+                        </Show>
                       </span>
+                      <button
+                        type="button"
+                        class="about-link-button shortcuts-record"
+                        data-testid={`shortcuts.record.${command.id}`}
+                        classList={{ "shortcuts-record-active": isRecording() }}
+                        onClick={() => {
+                          setRecording(command.id);
+                          setNotice(null);
+                        }}
+                      >
+                        {isRecording() ? "Press keys…" : "Edit"}
+                      </button>
                     </div>
-                  )}
-                </For>
-              </section>
-            </Show>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog>
+                  );
+                }}
+              </For>
+            </section>
+          )}
+        </For>
+
+        <Show when={nativeRows().length > 0}>
+          <section class="shortcuts-group">
+            <h3 class="shortcuts-group-title">Native menu</h3>
+            <For each={nativeRows()}>
+              {(entry) => (
+                <div class="shortcuts-row shortcuts-row-native">
+                  <span class="shortcuts-row-main">
+                    <span class="shortcuts-row-title">{entry.label}</span>
+                    <span class="shortcuts-row-scope">fixed by the system menu</span>
+                  </span>
+                  <span class="shortcuts-chips">
+                    <kbd class="shortcuts-chip">{display(entry.binding)}</kbd>
+                  </span>
+                </div>
+              )}
+            </For>
+          </section>
+        </Show>
+      </ScrollArea>
+    </section>
   );
 }

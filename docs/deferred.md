@@ -76,7 +76,7 @@ graph TD
 ```
 
 M22 and M24.B are delivered: the synth Live in-place source and the command registry
-(dispatcher, palette, shortcuts dialog, canvas-local keys) shipped. The remaining synth
+(dispatcher, palette, shortcuts window, canvas-local keys) shipped. The remaining synth
 extras are D-34; the remaining hotkey extras are D-25 above.
 
 ## Adding or closing an item

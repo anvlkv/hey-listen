@@ -177,6 +177,13 @@ window move handle and of a chart's drag/zoom area. The lane is also where they 
   creates a **range** annotation over it (a bare click does nothing). Hovering a handle shows a
   hint (heading + tool + values line); clicking an annotation's handle **selects** it (it never
   reframes — ADR-19).
+- **Empty-lane hint** — with a source open and no annotations yet, the Timeline draws **Drag
+  to add an annotation** on a padded, rounded chip just **right of the channel rail** (drawn
+  at `PLOT_PAD + railW` in `components/timeline/annotationOverlay.ts`, so it never sits under
+  the rail). The pointer **hover hint** (the annotation's heading · tool · time · values, plus
+  the drag action) is positioned `fixed` and measured: it flips left / above and clamps into
+  the viewport (`lib/floatingCard.ts` → `placeFloating`), so near the timeline edges it
+  wraps rather than runs off screen.
 - **Timeline** — the lane runs along the bottom of the waveform, and holds the
   **Timeline annotations** (those with no chart). It also mirrors the **hovered chart's
   cursor** as a dashed rule, so the moment a chart is pointing at is visible against the
