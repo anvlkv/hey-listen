@@ -20,8 +20,8 @@ the `.heyl` project file association is registered by the bundle.
 2. Commit, then tag: `git tag vX.Y.Z`.
 3. Push the tag: `git push origin vX.Y.Z`.
 4. `.github/workflows/release.yml` builds the platform matrix;
-   `tauri-apps/tauri-action` creates a **draft** GitHub Release with the bundles.
-5. Review the draft, then publish it.
+   `tauri-apps/tauri-action` creates and **publishes** the GitHub Release with the
+   bundles as soon as the matrix finishes — there is no draft to review first.
 
 A manual `workflow_dispatch` run takes the tag as an input and republishes.
 
@@ -31,7 +31,7 @@ A manual `workflow_dispatch` run takes the tag as an input and republishes.
 | --- | --- | --- |
 | `ci.yml` | push to `main`, PRs | **code changes only** (docs-only skips the build/test jobs): frontend `typecheck` / `build` / maid, Rust fmt + clippy + tests on the 3-OS matrix, and the E2E suite |
 | `pages.yml` | push to `main`, manual | **always** (no paths filter): regenerates the doc subpages + stamps the version, then deploys `site/` to GitHub Pages |
-| `release.yml` | tags `v*`, manual | bundles the platform matrix and opens a GitHub Release |
+| `release.yml` | tags `v*`, manual | bundles the platform matrix and publishes a GitHub Release |
 
 ## Artifacts
 
