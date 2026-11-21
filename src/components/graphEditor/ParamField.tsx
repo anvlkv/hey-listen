@@ -4,8 +4,8 @@ import type { ParamDef } from "../../lib/graph";
 
 /**
  * One numeric node parameter: label, value and unit, adjusted by typing or by
- * dragging up/down (see `createNumberDrag`). Shared by the inline node card and the
- * node inspector (D-16), so both wires stay identical.
+ * dragging up/down (see `createNumberDrag`). Shared by every node card, so the wires
+ * stay identical.
  */
 export default function ParamField(props: {
   param: ParamDef;

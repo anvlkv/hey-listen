@@ -21,6 +21,7 @@ import { initMcp } from "./state/mcp";
 import { initDispatcher } from "./state/keybindings/dispatcher";
 import { initProjectHistory } from "./state/project/push";
 import { initDirty } from "./state/project/unsaved";
+import { initSynthLive } from "./state/synthLive";
 import {
   annotationsPanelOpen,
   annotationsPanelWidth,
@@ -64,6 +65,7 @@ export default function App() {
   let main!: HTMLElement;
   let disposeDragDrop: (() => void) | undefined;
   let disposeDispatcher: (() => void) | undefined;
+  let disposeSynthLive: (() => void) | undefined;
 
   const clamp = (height: number) => {
     const max = Math.max(BOTTOM_MIN, (main?.clientHeight ?? 0) - TOP_MIN);
@@ -119,6 +121,7 @@ export default function App() {
     void refreshThemes();
     disposeDragDrop = initDragDrop();
     disposeDispatcher = initDispatcher();
+    disposeSynthLive = initSynthLive();
     window.addEventListener("resize", handleResize);
   });
   onCleanup(() => {
@@ -126,6 +129,7 @@ export default function App() {
     disposeCapture();
     disposeDragDrop?.();
     disposeDispatcher?.();
+    disposeSynthLive?.();
   });
 
   return (

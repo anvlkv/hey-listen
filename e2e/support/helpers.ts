@@ -32,6 +32,7 @@ export { dragTimelineHandle, dragTimelineWindow } from "./timeline.ts";
 export {
   openTool,
   activateToolSection,
+  showAnalyzerSidebar,
   activateTab,
   closeTool,
   closeAllTabs,

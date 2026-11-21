@@ -652,14 +652,24 @@ so the spec leaves one project window open instead of tearing that one down too.
 | --- | --- | --- | --- |
 | T1 | Close main | With two projects each holding a popout, closing `main` destroys main's popout, keeps the other project **and its popout** alive (which still renders a chart), and the app stays up | Scenario |
 
-### Planned coverage (M22–M24)
+### Q2. Synth workflow (M22)
+
+Live and the palette drag run against the real core. The spec sorts **before**
+`t-close-main`, which must stay the last suite file (closing `main` cannot be undone).
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| Q2.1 | Live in place | `update_synth_source` runs and the analysis window, timeline view and annotations are unchanged | Scenario |
+| Q2.2 | Failed live render | The previous source/window stay; the rejection reports in `graph.error` | Scenario |
+| Q2.3 | Palette drag | The ghost and drop preview appear, a connector shows the splice badge, and the drop lands where previewed | Scenario |
+
+### Planned coverage (M23–M24)
 
 Scheduled with their milestones. The spec names sort **before** `t-close-main`, which must
 stay the last suite file (closing `main` cannot be undone).
 
 | Milestone | Spec | Asserts |
 | --- | --- | --- |
-| M22 | `q2-synth-live` | Audition calls `preview_synth` (not `preview_region`) and stops on tab close; Live updates the source without resetting the window, view or annotations; a failed live render keeps the last good audio; a palette drag shows the ghost, the drop preview and the splice badge, and drops where previewed. |
 | M23 | `q3-timeline-ergonomics` | Annotation **Analyze** and chart **Reframe** zoom the Timeline view and focus it; Space pauses/resumes and the playhead persists while paused/stopped; a ruler click seeks; loop-off stops at the end; a **left-drag** selects and frames a window (middle-drag pans); the move bar shows the window duration; a multichannel source draws one lane per channel at a fixed height and the rail radio/downmix toggle switch the analysed channel; a lane selection paints full-height rules; a burst of tiny vertical wheel events zooms proportionally (with or without `Ctrl`/`⌘`), a horizontal or `Shift` gesture pans by the accumulated delta, not once per event, and a horizontal gesture never zooms. The hover readout, context menu, snapping, window fields/history and accessibility are already covered by **G2**. |
 
 > Unit coverage for these milestones: `dropTarget` and the live-render scheduler, frame

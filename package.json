@@ -40,6 +40,7 @@
     "node": ">=22.19.0"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.1.3",
     "@dschz/solid-flow": "^0.2.6",
     "@dschz/solid-uplot": "^0.5.2",
     "@kobalte/core": "^0.13.14",

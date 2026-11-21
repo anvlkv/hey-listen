@@ -16,7 +16,7 @@ the owning milestone/doc records the delivery.
 | --- | --- |
 | `now` | Deliverable today: no decision, milestone, or platform work in the way. |
 | `decision` | Waiting on an architecture decision (an ADR amendment or a new ADR). |
-| `milestone` | Waiting on a planned milestone (M13, M22, M24.B). |
+| `milestone` | Waiting on a planned milestone (M13). |
 | `platform` | Waiting on work nobody has scheduled (AudioUnit-free device enumeration). |
 | `backlog` | Kept, no target. Not refused; simply unscheduled. |
 | `cancelled` | Closed as a non-goal. Reviving it needs a new ADR (see [ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line)). |
@@ -24,7 +24,7 @@ the owning milestone/doc records the delivery.
 ## Ledger
 
 > **Phase 1 (`now`) is empty.** Every standalone item shipped: D-15 (reference-fragment
-> strip), D-16 (node inspector + presets), D-18 (per-note modulation) and D-21 (analysis
+> strip), D-16 (node parameter editing + reset), D-18 (per-note modulation) and D-21 (analysis
 > progress + mid-run cancellation) are delivered. Everything still listed below is gated
 > on a decision, a milestone or platform work.
 
@@ -38,8 +38,7 @@ the owning milestone/doc records the delivery.
 
 | ID | Item | Depends on | Plan |
 | --- | --- | --- | --- |
-| D-24 | Click-free smoothing across a net rebuild | M22 | ADR-21 defers a phase-continuous rebuild; `follow` smoothing only glides *within* a compiled net. |
-| — | Templates, live synth (whole milestones) | M13, M22 | Tracked in the roadmap and their own docs; not restated here. |
+| — | Templates (whole milestone) | M13 | Tracked in the roadmap and its own doc; not restated here. |
 
 ### Phase 4 — platform-gated (`platform`)
 
@@ -51,6 +50,7 @@ the owning milestone/doc records the delivery.
 
 | ID | Item | Why it is not scheduled |
 | --- | --- | --- |
+| D-24 | Click-free smoothing across a net rebuild | M22's Live path patches one node's parameters in place; a structural edit that rebuilds the net still steps. A phase-continuous or cross-rebuild net is unscheduled (ADR-21). |
 | D-25 | Hotkey extras: chords, modifier-only bindings, per-project bindings, native menu accelerators, keymap import/export, preset keymaps, mouse gestures | The command registry shipped in M24.B; these are the extras it unblocks, none of which are in M24.B's first delivery. |
 | D-27 | Second loudness model (Zwicker / ISO 532-1, time-varying, Sottek) | M27 committed to one stationary model; the scales are structured for a second. Large, no blocker. |
 | D-28 | Binaural ITD/ILD + a spaciousness model | The stereo analyzer is a point read by design (ADR-25); a width model is new DSP. |
@@ -59,7 +59,7 @@ the owning milestone/doc records the delivery.
 | D-31 | Per-tool `outputSchema` | The result is an internally tagged union (ADR-2) and the protocol version is client-negotiated; needs a hand-written schema mirror. |
 | D-32 | A structured-event contract for long runs | Needs a design; today progress is polled/streamed ad hoc. |
 | D-33 | Fully stereo preview/analysis chain | M8.A delivered graph-level stereo inside a mono I/O net; a channel selection per analyzer is the delivered model. Independent stereo analysis is a new contract (and pairs with D-28). |
-| D-34 | Synth extras: per-node solo/audition, parameter automation, MIDI, live *input* graphs | Outside M22's scope by decision (ADR-21 covers audition and in-place source only); each is a separate design, not a follow-up patch. |
+| D-34 | Synth extras: per-node solo/audition, parameter automation, MIDI, live *input* graphs | Outside M22's scope by decision (ADR-21 covers the in-place Live source only); each is a separate design, not a follow-up patch. |
 
 ## Cancelled
 
@@ -71,13 +71,13 @@ in [ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line); reviving one needs 
 ```mermaid
 graph TD
     ADR[New ADR + container bump] --> P2[Phase 2: fragment audio]
-    M22[M22 live synth] --> P3[Milestone: rebuild smoothing]
+    M13[M13 templates] --> P3[Milestone: templates]
     PLAT[AudioUnit-free enumeration] --> P4[Platform: CLI devices]
 ```
 
-M24.B is delivered: the command registry, dispatcher, command palette and shortcuts dialog
-shipped, and the canvas-local keyboard set (arrows, `Home`, `End`, `PageUp`/`PageDown`) moved
-into the registry. The remaining hotkey extras are D-25 above.
+M22 and M24.B are delivered: the synth Live in-place source and the command registry
+(dispatcher, palette, shortcuts dialog, canvas-local keys) shipped. The remaining synth
+extras are D-34; the remaining hotkey extras are D-25 above.
 
 ## Adding or closing an item
 

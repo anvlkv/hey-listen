@@ -30,7 +30,7 @@ recorded here — see [`deferred.md`](deferred.md).
 | 18 — Annotations are project content | accepted · delivered (M14) | amended by ADR-19 |
 | 19 — An annotation is selected, not refocused | accepted · delivered (M14 follow-up) | amends ADR-18 |
 | 20 — Annotations and detected notes are distinct terms | accepted · delivered (M14) | — |
-| 21 — Live synth: audition + in-place rewrite | proposed · planned (M22) | — |
+| 21 — Live synth: edits rewrite the source in place | accepted · delivered (M22) | — |
 | 22 — The playhead is transport state | accepted · delivered (M23) | — |
 | 23 — One command registry drives keyboard/palette/UI | proposed · planned (M24.B) | — |
 | 24 — Comparison is a transient, read-only view | accepted · implemented (M25, M25.A) | amended by ADR-26, ADR-27, ADR-34 |
@@ -615,32 +615,33 @@ only ever an **annotation**, and a detected segment is only ever a **note**.
 
 **Status: delivered (M18).**
 
-## ADR-21 — Live synth: audition is a core loop; edits rewrite the source in place
+## ADR-21 — Live synth: a settled edit rewrites the source in place
 
 **Context:** the synth graph is only heard after **Render**, which renders the whole
 graph, streams it to the frontend and **replaces the source** (resetting the timeline and
 its analysis window). Building a graph means render → confirm → lose the window → repeat.
-The want is to hear the graph while editing it and to let the analysis follow the edits.
+The want is to let the analysis follow the edits.
 
-**Decision:** split the two jobs.
+**Decision:** one editing mode, **Live**.
 
-- **Audition** (`preview_synth`) renders a short loop in the core and plays it through the
-  window's existing `Playback`. It never touches the source, so it is safe while any file
-  is open, and it is fast enough to re-render on a trailing debounce.
-- **Live source** (`update_synth_source` / `live_synth`) renders the requested length and
-  overwrites the **synth source in place**: the window, view, annotations and analyzer tabs
-  stay put, and the analysis re-runs against the new PCM. The first write to a non-synth
-  source confirms the replacement (the one-source rule still holds); later writes do not.
-- Both facets render once per settle when they are used together. **Render once** remains
-  the long-form/one-shot path and is what headless MCP and the CLI use.
+- **Live source** (`update_synth_source`) renders the requested length and overwrites the
+  **synth source in place**: the window, view, annotations and analyzer tabs stay put, and
+  the analysis re-runs against the new PCM. The first write to a non-synth source confirms
+  the replacement (the one-source rule still holds); later writes do not.
+- The compiled net is reused across settles: a parameter-only edit patches the affected
+  node (`Net::crossfade`), while a structural edit rebuilds. The render is
+  sample-by-sample, so the analysis trail does not depend on the block schedule.
+- **Render once** remains the long-form/one-shot path and is what headless MCP and the CLI
+  use. Playback is the Timeline's transport — the synth tab has no second play control.
 
 **Consequence:** the timeline/analysis is live while composing, at the cost of a render per
 settled edit (capped at 10 s for Live; longer graphs use Render once). Undo/redo still works
 through the graph snapshots and re-renders as a consequence; the source PCM is not itself a
-history entry. A truly phase-continuous rebuild and a persistent net are deferred. See
+history entry. A truly phase-continuous rebuild is deferred. See
 [`graph-editor.md`](graph-editor.md) and [`source-model.md`](source-model.md).
 
-**Status: proposed (M22).**
+**Status: delivered (M22).** A first adoption is the only one that defines a new timeline,
+and in-place writes do not reset the undo history.
 
 ## ADR-22 — The playhead is transport state, not a preview side effect
 

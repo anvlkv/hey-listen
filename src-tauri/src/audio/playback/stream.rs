@@ -206,7 +206,7 @@ fn next_sample(state: &mut PlayState) -> f32 {
             return 0.0;
         }
     }
-    let value = state.pcm[state.pos] * state.gain;
+    let new = state.pcm[state.pos];
     state.pos += 1;
-    value
+    new * state.gain
 }

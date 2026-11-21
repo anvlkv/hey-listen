@@ -19,7 +19,7 @@ export const CONTROL: NodeKindDef[] = [
     inputs: 0,
     outputs: 1,
     params: [
-      { key: "freq", label: "Rate", default: 1, min: 0.05, max: 20, step: 0.05, unit: "Hz" },
+      { key: "freq", label: "Rate", default: 1, min: 0.001, max: 100, step: 0.05, unit: "Hz" },
       { key: "amp", label: "Amount", default: 1, min: -2, max: 2, step: 0.01 },
       { key: "offset", label: "Offset", default: 0, min: -1, max: 1, step: 0.01 },
     ],

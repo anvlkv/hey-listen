@@ -1,8 +1,7 @@
 import { createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import { Panel } from "@dschz/solid-flow";
-import { nodeKind, paletteFor, type GraphKind, type NodeKindDef } from "../../lib/graph";
+import { paletteFor, type GraphKind, type NodeKindDef } from "../../lib/graph";
 import { addNode } from "../../state/graph";
-import { resolvedTheme } from "../../state/themes";
 import Icon from "../Icon";
 import ScrollArea from "../ScrollArea";
 import Tooltip from "../Tooltip";
@@ -10,35 +9,13 @@ import Tooltip from "../Tooltip";
 /** How far (px) the pointer must move before a palette press becomes a drag. */
 const DRAG_THRESHOLD = 4;
 
-/** Inline styling for the palette search box, matched to the active theme. */
-const SEARCH_STYLE_DARK: JSX.CSSProperties = {
-  width: "100%",
-  "box-sizing": "border-box",
-  height: "24px",
-  padding: "0 8px 0 26px",
-  font: "inherit",
-  "font-size": "11px",
-  color: "#e6e6e6",
-  background: "#1f1f1f",
-  border: "1px solid #3c3c3c",
-  "border-radius": "4px",
-};
-
-const SEARCH_STYLE_LIGHT: JSX.CSSProperties = {
-  ...SEARCH_STYLE_DARK,
-  color: "#1f2328",
-  background: "#ffffff",
-  border: "1px solid #d8dce2",
-};
-
-/** The palette search-box inline theme for the active [`resolvedTheme`] (reactive). */
-const searchStyle = () => (resolvedTheme() === "light" ? SEARCH_STYLE_LIGHT : SEARCH_STYLE_DARK);
-
 /** Props for [`GraphPalette`]; `canAdd` is shared with the editor's drop handler. */
 type GraphPaletteProps = {
   graph: GraphKind;
   canAdd: (def: NodeKindDef) => boolean;
   onDrop: (def: NodeKindDef, clientX: number, clientY: number) => void;
+  /** The pointer moved during a palette drag, so the editor can show where it lands. */
+  onDragMove: (def: NodeKindDef, clientX: number, clientY: number) => void;
   onDraggingChange: (kind: string | null) => void;
 };
 
@@ -58,10 +35,22 @@ type GraphPaletteProps = {
 export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
   const [query, setQuery] = createSignal("");
   const [collapsed, setCollapsed] = createSignal(false);
+  /** A palette press/drag is active; node tooltips are forced shut while it is. */
+  const [dragging, setDragging] = createSignal(false);
   /** The in-progress palette drag (pointer-based), or `null` when idle. */
-  let paletteDrag: { kind: string; startX: number; startY: number; moved: boolean } | null = null;
+  let paletteDrag: {
+    def: NodeKindDef;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null = null;
   /** Set after a drag so the originating palette button's `click` is ignored. */
   let suppressClick = false;
+  /**
+   * The element holding the pointer capture. Without it a release outside the webview
+   * never reaches the window listeners and the drag (and its ghost) stays live.
+   */
+  let captured: { element: Element; pointerId: number } | null = null;
 
   /** The palette, filtered by the search box (matches label or kind name). */
   const groups = () => {
@@ -82,7 +71,15 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
   function onPalettePointerDown(def: NodeKindDef, event: PointerEvent) {
     if (event.button !== 0) return;
     suppressClick = false;
-    paletteDrag = { kind: def.kind, startX: event.clientX, startY: event.clientY, moved: false };
+    setDragging(true);
+    paletteDrag = { def, startX: event.clientX, startY: event.clientY, moved: false };
+    // Capture the pointer so a release outside the palette (or the window) still ends
+    // the drag instead of leaving it live.
+    const element = event.currentTarget;
+    if (element instanceof Element) {
+      element.setPointerCapture(event.pointerId);
+      captured = { element, pointerId: event.pointerId };
+    }
     // Capture phase: solid-flow's pane also listens for pointer events, and a capture
     // listener on `window` runs first regardless of what the canvas does with them.
     window.addEventListener("pointermove", onPalettePointerMove, true);
@@ -97,15 +94,25 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
       if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < DRAG_THRESHOLD)
         return;
       drag.moved = true;
-      props.onDraggingChange(drag.kind);
+      props.onDraggingChange(drag.def.kind);
     }
+    props.onDragMove(drag.def, event.clientX, event.clientY);
     event.preventDefault();
   }
 
   function stopPaletteDrag() {
+    setDragging(false);
     window.removeEventListener("pointermove", onPalettePointerMove, true);
     window.removeEventListener("pointerup", onPalettePointerUp, true);
     window.removeEventListener("pointercancel", onPalettePointerCancel, true);
+    if (captured) {
+      try {
+        captured.element.releasePointerCapture(captured.pointerId);
+      } catch {
+        // Already released (the pointer was cancelled): nothing to hand back.
+      }
+      captured = null;
+    }
   }
 
   function onPalettePointerUp(event: PointerEvent) {
@@ -115,9 +122,7 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
     props.onDraggingChange(null);
     if (!drag || !drag.moved) return; // a click — the button's `onClick` adds it
     suppressClick = true;
-    const def = nodeKind(drag.kind);
-    if (!def) return;
-    props.onDrop(def, event.clientX, event.clientY);
+    props.onDrop(drag.def, event.clientX, event.clientY);
   }
 
   function onPalettePointerCancel() {
@@ -161,7 +166,6 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
             aria-label="Search nodes"
             value={query()}
             onInput={(event) => setQuery(event.currentTarget.value)}
-            style={searchStyle()}
           />
         </div>
         <ScrollArea class="graph-palette-scroll">
@@ -174,6 +178,8 @@ export default function GraphPalette(props: GraphPaletteProps): JSX.Element {
                     {(def) => (
                       <Show when={props.canAdd(def)}>
                         <Tooltip
+                          disabled={dragging()}
+                          placement="right"
                           label={
                             def.hint
                               ? `${def.label} — ${def.hint}. Click to add, or drag onto the canvas.`

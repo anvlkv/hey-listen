@@ -41,7 +41,7 @@ src-tauri/src/
 │   ├── source.rs    # enumerate devices/processes, open/close sources ✅ (pick_audio_file, clear/begin/end capture source, load_shared_source)
 │   ├── decode.rs    # open file, decode range / stream          ✅ (probe_file, stream_file)
 │   ├── capture.rs   # start/stop/gain/pause recording           ✅
-│   ├── graph.rs     # filter/synth graph commands               ✅ (set_filter_graph, render_synth)
+│   ├── graph.rs     # filter/synth graph commands               ✅ (set_filter_graph, render_synth, update_synth_source)
 │   ├── playback.rs  # preview playback (cpal)                   ✅
 │   ├── analysis.rs  # run analysis over a window                ✅ (run_analysis)
 │   ├── project.rs   # save/load binary project file               ✅ (M6: save/load_project, pick_project_*_path)
@@ -168,12 +168,12 @@ milestone annotations record the details.
 | --- | --- | --- |
 | Source | `list_devices`, `list_processes` | flexaudio `devices()` / `processes()` |
 | Source | `pick_audio_file` | native open dialog → path (file I/O stays in Rust) |
-| Source | `open_source`, `close_source` | **planned** unification of the source kinds; the implemented paths are `stream_file`, `render_synth`, and the capture commands |
+| Source | `open_source`, `close_source` | **planned** unification of the source kinds; the implemented paths are `stream_file`, the synth commands, and the capture commands |
 | Source | `load_shared_source` | the shared source's shape (rate/channels/frames/duration) — a popout renders a tool without the PCM ✅ |
 | Capture | `start_capture`, `stop_capture`, `set_capture_gain`, `pause_capture`, `resume_capture` | flexaudio `Stream` |
 | Decode | `probe_file` | symphonia metadata (codec, channels, rate, duration) |
 | Decode | `stream_file` | `Channel` of PCM chunks for the timeline |
-| Synth | `render_synth` | build a fundsp graph, render to PCM ✅ |
+| Synth | `render_synth`, `update_synth_source` | build a fundsp graph and render to PCM ✅. M22/ADR-21: `update_synth_source` overwrites the synth source **in place** (the window, view and annotations stay); `render_synth` is the one-shot/headless render. A compiled net is reused across settles, so a parameter-only edit patches one node. |
 | Filter | `set_filter_graph` | install the project filter graph (applied before preview/analysis) ✅ |
 | Filter | `render_filtered` | conditioned (channel-selected, filtered) mono PCM for the Timeline overlay ✅ |
 | Playback | `preview_region`, `stop_preview`, `pause_preview`, `resume_preview`, `seek_preview`, `set_output_gain`, `output_level`, `preview_position`, `list_output_devices` | cpal output; PCM stays in the core (ADR-9, M3) ✅. The transport is a pause/resume/seek state machine (M23): `preview_region` takes a **varispeed** `speed` and an `offset` to resume at the playhead, and `preview_position` keeps returning the last position when paused/stopped. Speed is preview only — analysis is always 1×. |

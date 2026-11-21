@@ -42,8 +42,9 @@ export function createNumberDrag(options: NumberDragOptions): NumberDrag {
   const [dragging, setDragging] = createSignal(false);
   const sensitivity = options.sensitivity ?? 4;
   const fine = options.fine ?? 0.1;
-  let start: { y: number; value: number } | null = null;
+  let start: { y: number; value: number; pointerId: number } | null = null;
   let moved = false;
+  let captured = false;
 
   const clamp = (value: number) => {
     let next = value;
@@ -52,36 +53,51 @@ export function createNumberDrag(options: NumberDragOptions): NumberDrag {
     return next;
   };
 
+  function release(element: HTMLElement, pointerId: number) {
+    if (captured && element.hasPointerCapture(pointerId)) {
+      element.releasePointerCapture(pointerId);
+    }
+    captured = false;
+  }
+
   function onPointerDown(event: PointerEvent) {
     if (event.button !== 0) return;
-    start = { y: event.clientY, value: options.value() };
+    // The native number stepper lives in the input's right gutter. A press there must
+    // step the value — capturing the pointer would swallow the click and turn a later
+    // mouse move into an accidental drag.
+    const el = event.currentTarget as HTMLElement;
+    if (event.offsetX >= el.clientWidth - 18) return;
+    start = { y: event.clientY, value: options.value(), pointerId: event.pointerId };
     moved = false;
-    // Capture so the drag keeps following the pointer outside the input. A plain
-    // click still focuses/types: we only preventDefault once the drag begins.
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    // Capture only once the drag really begins (see `onPointerMove`), so a plain click
+    // keeps the input's own behaviour: focus, caret and spinner.
+    captured = false;
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (!start) return;
-    const dy = start.y - event.clientY; // dragging up = increase
+    const drag = start;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const dy = drag.y - event.clientY; // dragging up = increase
     if (!moved) {
       if (Math.abs(dy) < 3) return; // below the threshold it's a click
       moved = true;
       setDragging(true);
+      // Now that this is a drag, keep following the pointer outside the input.
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      captured = true;
     }
     event.preventDefault();
     const increment = options.step * (event.shiftKey ? fine : 1);
-    const value = start.value + Math.round(dy / sensitivity) * increment;
+    const value = drag.value + Math.round(dy / sensitivity) * increment;
     options.onInput(clamp(value));
   }
 
   function onPointerUp(event: PointerEvent) {
-    start = null;
+    release(event.currentTarget as HTMLElement, event.pointerId);
     if (moved) event.preventDefault();
+    start = null;
     moved = false;
     setDragging(false);
-    const el = event.currentTarget as HTMLElement;
-    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
   }
 
   return {

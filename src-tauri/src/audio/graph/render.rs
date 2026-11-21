@@ -1,7 +1,7 @@
 //! PCM entry points built on [`build`]: apply a filter graph to a mono buffer, or
 //! render a synth graph to a mono buffer.
 
-use fundsp::prelude64::AudioUnit;
+use fundsp::prelude64::{AudioUnit, Net};
 
 use super::{build, GraphError, GraphSpec};
 
@@ -27,12 +27,24 @@ pub fn render_mono(
     seconds: f64,
     sample_rate: u32,
 ) -> Result<Vec<f32>, GraphError> {
-    let frames = (seconds.max(0.0) * f64::from(sample_rate)).round() as usize;
     let mut net = build(spec, 0, sample_rate)?;
     net.reset();
+    Ok(render_samples(&mut net, frames(seconds, sample_rate)))
+}
+
+/// The number of frames `seconds` covers at `sample_rate`.
+pub(super) fn frames(seconds: f64, sample_rate: u32) -> usize {
+    (seconds.max(0.0) * f64::from(sample_rate)).round() as usize
+}
+
+/// Walk the net one sample at a time.
+///
+/// A synth **source** render is sample-exact by construction: what the analysis sees does
+/// not depend on the block schedule, so the samples stay comparable across app versions.
+pub(super) fn render_samples(net: &mut Net, frames: usize) -> Vec<f32> {
     let mut output = Vec::with_capacity(frames);
     for _ in 0..frames {
         output.push(net.get_mono());
     }
-    Ok(output)
+    output
 }

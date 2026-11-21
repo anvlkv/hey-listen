@@ -56,11 +56,14 @@ export async function toggleFilter(): Promise<void> {
 async function setPaletteSearch(value: string): Promise<void> {
   await browser.execute((val: string) => {
     const input = document.querySelector('[aria-label="Search nodes"]') as HTMLInputElement | null;
-    if (!input) throw new Error("the palette search box is missing");
+    if (!input) return; // the palette is gone (a closed tab or a failed test)
     input.value = val;
     input.dispatchEvent(new Event("input", { bubbles: true }));
   }, value);
 }
+
+/** Page-side key holding the element a palette drag started on. */
+const DRAG_HANDLE = "__e2e_palette_drag__";
 
 /** Live check for a palette button whose text contains `text`. */
 async function paletteHasButton(text: string): Promise<boolean> {
@@ -103,21 +106,16 @@ export async function paletteHasNode(search: string, buttonText: string): Promis
 }
 
 /**
- * Drag a palette node onto the canvas at a **client** point. The editor drives the
- * drag with **pointer** events (not HTML5 drag-and-drop — Tauri's native file-drop
- * handler consumes those), so — as `pointerDrag` does — the suite dispatches
- * `pointerdown`/`pointermove`/`pointerup`; the editor reads the drop point from
- * `clientX`/`clientY` and runs its real handlers.
+ * Start a palette drag (pointer events, not HTML5 drag-and-drop — Tauri's native
+ * file-drop handler consumes those). Leaves the drag held so a spec can inspect the
+ * ghost/drop preview, then [`paletteDragTo`], [`paletteDragRelease`] or
+ * [`paletteDragCancel`] finishes it.
  */
-export async function dragPaletteNode(
-  search: string,
-  buttonText: string,
-  target: { x: number; y: number },
-): Promise<void> {
+export async function beginPaletteDrag(search: string, buttonText: string): Promise<void> {
   await setPaletteSearch(search);
   await waitForPaletteButton(buttonText);
   await browser.execute(
-    (sel: string, text: string, x: number, y: number) => {
+    (sel: string, text: string, key: string) => {
       const button = Array.from(document.querySelectorAll(sel)).find((b) =>
         (b.textContent ?? "").includes(text),
       ) as HTMLElement | null;
@@ -125,9 +123,37 @@ export async function dragPaletteNode(
       const rect = button.getBoundingClientRect();
       const startX = rect.left + rect.width / 2;
       const startY = rect.top + rect.height / 2;
-      const fire = (type: string, cx: number, cy: number, buttons: number) =>
-        button.dispatchEvent(
-          new PointerEvent(type, {
+      (globalThis as unknown as Record<string, unknown>)[key] = { button, startX, startY };
+      button.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clientX: startX,
+          clientY: startY,
+          pointerId: 1,
+          pointerType: "mouse",
+          isPrimary: true,
+          buttons: 1,
+        }),
+      );
+    },
+    SEL.graphPaletteBtn,
+    buttonText,
+    DRAG_HANDLE,
+  );
+}
+
+/** Move the held palette drag to a client point (past the drag threshold on the way). */
+export async function paletteDragTo(x: number, y: number): Promise<void> {
+  await browser.execute(
+    (key: string, tx: number, ty: number) => {
+      const drag = (globalThis as unknown as Record<string, unknown>)[key] as
+        { button: HTMLElement; startX: number; startY: number } | undefined;
+      if (!drag) throw new Error("no palette drag is in progress");
+      const fire = (cx: number, cy: number) =>
+        drag.button.dispatchEvent(
+          new PointerEvent("pointermove", {
             bubbles: true,
             cancelable: true,
             composed: true,
@@ -136,20 +162,70 @@ export async function dragPaletteNode(
             pointerId: 1,
             pointerType: "mouse",
             isPrimary: true,
-            buttons,
+            buttons: 1,
           }),
         );
-      fire("pointerdown", startX, startY, 1);
-      fire("pointermove", startX + 2, startY + 2, 1); // past the drag threshold
-      fire("pointermove", x, y, 1);
-      fire("pointerup", x, y, 0);
+      fire(drag.startX + 8, drag.startY + 8); // past the drag threshold
+      fire(tx, ty);
     },
-    SEL.graphPaletteBtn,
-    buttonText,
-    target.x,
-    target.y,
+    DRAG_HANDLE,
+    x,
+    y,
+  );
+}
+
+/** Release the held palette drag at a client point (the real drop uses this point). */
+export async function paletteDragRelease(x: number, y: number): Promise<void> {
+  await browser.execute(
+    (key: string, tx: number, ty: number) => {
+      const drag = (globalThis as unknown as Record<string, unknown>)[key] as
+        { button: HTMLElement } | undefined;
+      if (!drag) throw new Error("no palette drag is in progress");
+      delete (globalThis as unknown as Record<string, unknown>)[key];
+      drag.button.dispatchEvent(
+        new PointerEvent("pointerup", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clientX: tx,
+          clientY: ty,
+          pointerId: 1,
+          pointerType: "mouse",
+          isPrimary: true,
+          buttons: 0,
+        }),
+      );
+    },
+    DRAG_HANDLE,
+    x,
+    y,
   );
   await setPaletteSearch("");
+}
+
+/** Cancel the held palette drag (Escape/pointercancel semantics), if one is in progress. */
+export async function paletteDragCancel(): Promise<void> {
+  await browser.execute((key: string) => {
+    const drag = (globalThis as unknown as Record<string, unknown>)[key] as
+      { button: HTMLElement } | undefined;
+    if (!drag) return;
+    delete (globalThis as unknown as Record<string, unknown>)[key];
+    drag.button.dispatchEvent(
+      new PointerEvent("pointercancel", { bubbles: true, composed: true, pointerId: 1 }),
+    );
+  }, DRAG_HANDLE);
+  await setPaletteSearch("");
+}
+
+/** Drag a palette node onto the canvas at a **client** point (start → move → release). */
+export async function dragPaletteNode(
+  search: string,
+  buttonText: string,
+  target: { x: number; y: number },
+): Promise<void> {
+  await beginPaletteDrag(search, buttonText);
+  await paletteDragTo(target.x, target.y);
+  await paletteDragRelease(target.x, target.y);
 }
 
 /** Reset the filter graph to its `Input → Output` seed and wait for it to settle. */

@@ -4,7 +4,7 @@
  * The Workbench is the only tabbed region (managed by `dockview`); these helpers
  * open/focus/close a tool's tab and read the tab strip.
  */
-import { activityTab, sidebarTool, tab } from "./selectors.ts";
+import { activityTab, SEL, sidebarTool, tab } from "./selectors.ts";
 import { click, count, waitForSelector } from "./dom.ts";
 import { ANALYZER_TOOLS } from "./tools.ts";
 
@@ -29,6 +29,19 @@ export async function activateToolSection(id: string): Promise<void> {
   );
   if (showing === true) return;
   await click(activityTab(tabId));
+}
+
+/**
+ * Show the **analyzer** Sidebar so its search box exists.
+ *
+ * Opening a graph tool (`filter` / `synth`) leaves the activity bar on **Graphs**, whose
+ * sidebar has no search box; a collapsed rail has no sidebar at all. Clicking an
+ * analyzer section tab both re-opens the rail and selects a section that has the box.
+ */
+export async function showAnalyzerSidebar(): Promise<void> {
+  if ((await count(SEL.sidebarSearch)) > 0) return;
+  await click(activityTab("time"));
+  await waitForSelector(SEL.sidebarSearch, "the analyzer search box did not appear");
 }
 
 /** Open a tool from the Sidebar (switch to its tab, then click its card). */

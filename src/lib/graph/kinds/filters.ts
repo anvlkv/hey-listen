@@ -155,7 +155,7 @@ export const FILTERS: NodeKindDef[] = [
     outputs: 1,
     params: [
       freqParam(),
-      { key: "bandwidth", label: "BW", default: 110, min: 1, max: 5_000, step: 1, unit: "Hz" },
+      { key: "bandwidth", label: "BW", default: 110, min: 0.1, max: 20_000, step: 1, unit: "Hz" },
     ],
     hint: "Constant-gain band-pass resonator: rings at the center frequency over a bandwidth.",
   },
@@ -188,7 +188,7 @@ export const FILTERS: NodeKindDef[] = [
     inputs: 1,
     outputs: 1,
     params: [
-      { key: "delay", label: "Delay", default: 1, min: 0.1, max: 100, step: 0.1, unit: "smp" },
+      { key: "delay", label: "Delay", default: 1, min: 0, max: 1_000, step: 0.1, unit: "smp" },
     ],
     hint: "First-order all-pass whose phase shift is set by a delay in samples.",
   },
@@ -253,7 +253,9 @@ export const FILTERS: NodeKindDef[] = [
     category: "processor",
     inputs: 1,
     outputs: 1,
-    params: [{ key: "cutoff", label: "Cutoff", default: 5, min: 1, max: 100, step: 1, unit: "Hz" }],
+    params: [
+      { key: "cutoff", label: "Cutoff", default: 5, min: 0.01, max: 1_000, step: 1, unit: "Hz" },
+    ],
     hint: "Removes DC offset below the given cutoff with a one-pole high-pass.",
   },
   // Stereo: mono→stereo panning and 2-channel processing (join back before Output).

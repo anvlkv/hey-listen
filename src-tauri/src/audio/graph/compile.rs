@@ -20,7 +20,7 @@ use super::{is_input_kind, kind_arity, GraphError, GraphNode, GraphSpec};
 const CONTROL_SMOOTH: f32 = 0.01;
 
 /// Build the fundsp unit for one graph node.
-fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
+pub(super) fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
     let p = |index: usize, default: f32| {
         finite(node.params.get(index).copied().unwrap_or(default), default)
     };
@@ -244,10 +244,23 @@ fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
 /// a synth graph. The net always has exactly one (mono) output, fed by the `output`
 /// node.
 pub fn build(spec: &GraphSpec, global_inputs: usize, sample_rate: u32) -> Result<Net, GraphError> {
+    build_with_ids(spec, global_inputs, sample_rate).map(|(net, _)| net)
+}
+
+/// [`build`], also reporting each graph node's [`NodeId`].
+///
+/// A caller that keeps the net (`SynthSession`) patches one node with
+/// [`Net::crossfade`](fundsp::prelude64::Net::crossfade) when only that node's parameters
+/// changed, instead of recompiling the whole graph on every edit.
+pub(super) fn build_with_ids(
+    spec: &GraphSpec,
+    global_inputs: usize,
+    sample_rate: u32,
+) -> Result<(Net, HashMap<String, NodeId>), GraphError> {
     let mut net = Net::new(global_inputs, 1);
 
     // 1) Push every node.
-    let mut ids: HashMap<&str, NodeId> = HashMap::new();
+    let mut ids: HashMap<String, NodeId> = HashMap::new();
     let mut kinds: HashMap<&str, &str> = HashMap::new();
     let mut inputs: Vec<&str> = Vec::new();
     let mut outputs: Vec<&str> = Vec::new();
@@ -263,7 +276,7 @@ pub fn build(spec: &GraphSpec, global_inputs: usize, sample_rate: u32) -> Result
             outputs.push(node.id.as_str());
         }
         let node_id = net.push(make_unit(node)?);
-        ids.insert(node.id.as_str(), node_id);
+        ids.insert(node.id.clone(), node_id);
     }
 
     // 2) Validate the anchors.
@@ -324,5 +337,5 @@ pub fn build(spec: &GraphSpec, global_inputs: usize, sample_rate: u32) -> Result
         return Err(GraphError::Cycle);
     }
     net.allocate();
-    Ok(net)
+    Ok((net, ids))
 }

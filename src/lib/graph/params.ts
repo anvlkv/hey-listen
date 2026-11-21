@@ -6,14 +6,23 @@ export function freqParam(defaultValue = 1_000): ParamDef {
     key: "freq",
     label: "Freq",
     default: defaultValue,
-    min: 20,
+    // Near-DC is valid (a very slow LFO rate, a sub-audio oscillator): the old 20 Hz
+    // floor made most of the range unreachable. Zero is DC, which fundsp handles.
+    min: 0,
     max: 20_000,
     step: 1,
     unit: "Hz",
   };
 }
 
-export const Q_PARAM: ParamDef = { key: "q", label: "Q", default: 1, min: 0.1, max: 20, step: 0.1 };
+export const Q_PARAM: ParamDef = {
+  key: "q",
+  label: "Q",
+  default: 1,
+  min: 0.01,
+  max: 100,
+  step: 0.1,
+};
 
 /** Amplitude gain for shelf/bell filters (`1` is flat, `4` is +12 dB). */
 export function gainParam(defaultValue = 1): ParamDef {

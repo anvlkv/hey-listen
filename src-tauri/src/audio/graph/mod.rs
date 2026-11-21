@@ -28,16 +28,19 @@
 //!
 //! The implementation is split into focused submodules: [`types`] holds the data
 //! types and the node-kind arity table, [`units`] the custom `AudioUnit` implementations
-//! fundsp does not ship, [`compile`] the unit palette and the net builder, and
-//! [`render`] the PCM entry points.
+//! fundsp does not ship, [`compile`] the unit palette and the net builder, [`render`] the
+//! PCM entry points, and [`session`] the per-window net that a parameter-only edit
+//! patches instead of recompiling.
 
 mod compile;
 mod render;
+mod session;
 mod types;
 mod units;
 
 pub use compile::*;
 pub use render::*;
+pub use session::*;
 pub use types::*;
 
 #[cfg(test)]

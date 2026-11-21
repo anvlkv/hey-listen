@@ -49,6 +49,33 @@ export interface AudioSource {
   probe?: ProbeInfo;
   /** True while a live capture is still growing. */
   live?: boolean;
+  /**
+   * Where the audio came from when that matters for editing. `"synth"` marks a source
+   * rendered by the synth workflow, so later renders overwrite it in place without a
+   * confirmation (ADR-21 / M22).
+   */
+  origin?: "synth";
+}
+
+/**
+ * Sources whose audio the core already has loaded/silent, so the transport must not
+ * stop playback when they arrive.
+ *
+ * A synth **Live** write installs the PCM in the core and then hands the frontend the
+ * same render: stopping the transport here would silence audio the same command just
+ * installed. First adoptions mark the source too, after the workflow has stopped the
+ * transport itself.
+ */
+const transportKept = new WeakSet<AudioSource>();
+
+/** Whether this exact source object must leave the transport alone. */
+export function keepsTransport(current: AudioSource | null): boolean {
+  return current != null && transportKept.has(current);
+}
+
+/** Mark an in-place replacement as already installed by the caller (see above). */
+export function markKeepsTransport(current: AudioSource): void {
+  transportKept.add(current);
 }
 
 export type SourceStatus = "empty" | "probing" | "decoding" | "capturing" | "ready" | "error";
@@ -110,11 +137,14 @@ export function finalizeSource(opts: {
   sampleRate: number;
   channels: number;
   probe?: ProbeInfo;
+  origin?: "synth";
+  /** Keep the transport as it is (the caller already stopped it or left it playing). */
+  keepsTransport?: boolean;
 }) {
   const channels = Math.max(1, opts.channels);
   const frames = Math.floor(opts.samples.length / channels);
   const duration = opts.sampleRate > 0 ? frames / opts.sampleRate : 0;
-  setSource({
+  const next: AudioSource = {
     name: opts.name,
     detail: opts.detail,
     samples: opts.samples,
@@ -123,7 +153,10 @@ export function finalizeSource(opts: {
     channels,
     duration,
     probe: opts.probe,
-  });
+    origin: opts.origin,
+  };
+  if (opts.keepsTransport) transportKept.add(next);
+  setSource(next);
   resetTimeline(duration);
   // A replaced source replaces the whole timeline, so drop the analyzer zoom and start a
   // fresh undo history (`state/project/push.ts`).

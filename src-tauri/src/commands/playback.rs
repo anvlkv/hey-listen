@@ -54,10 +54,17 @@ pub async fn preview_region(
 ) -> Result<(), PlaybackError> {
     let speed = clamp_speed(speed);
     let offset = offset.unwrap_or(0.0).max(0.0);
-    let (region, rate, channels, filter, device_rate) = {
-        let state = window_state(&window);
-        let device_rate = state.audio.playback.ensure_started(device)?;
+    let state = window_state(&window);
+    // `ensure_started` waits for the playback worker to report the live stream's rate, so
+    // it blocks; an async command must not block a runtime worker with it.
+    let device_state = state.clone();
+    let device_rate = tauri::async_runtime::spawn_blocking(move || {
+        device_state.audio.playback.ensure_started(device)
+    })
+    .await
+    .map_err(|err| PlaybackError::Control(err.to_string()))??;
 
+    let (region, rate, channels, filter) = {
         let guard = state
             .audio
             .source
@@ -81,7 +88,7 @@ pub async fn preview_region(
             .unwrap_or_else(|poison| poison.into_inner())
             .clone();
 
-        (region, source_rate, channels, filter, device_rate)
+        (region, source_rate, channels, filter)
     };
 
     // The buffer is always *drained* at the device rate, so the speed is baked in by

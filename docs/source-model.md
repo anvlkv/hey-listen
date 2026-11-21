@@ -18,7 +18,7 @@ Replacing an existing source is **confirmed first**, and unsaved work is tracked
 | **Input: System loopback** | flexaudio `SourceKind::SystemLoopback` | grows while recording |
 | **Input: Process loopback** | flexaudio `SourceKind::ProcessLoopback` + `target_pid` | grows while recording |
 | **Input: Mix** | flexaudio `SourceKind::Mix` (mic + system) | grows while recording |
-| **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source; **Live** re-renders it in place (M22, planned) |
+| **Synth** | fundsp graph (built in the **Synth graph** Workbench tab) | rendered to PCM in Rust; becomes the timeline source; **Live** re-renders it in place so the analysis follows edits (M22) |
 
 The project descriptor stores the kind as **our** `SourceKind` enum (`file` / `mic` /
 `system` / `process` / `mix` / `synth`), and the live picker uses `CaptureKind`
@@ -119,8 +119,11 @@ For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:
 - Annotation ranges and live lane selections draw **full-height vertical rules** at their
   edges in addition to the lane handles. See [`roadmap.md`](roadmap.md) → M23.
 
-For the synth's planned live mode (audition loop + in-place source rewrite) see
-[`roadmap.md`](roadmap.md) → M22 and ADR-21.
+For the synth's live mode (in-place source rewrite) see
+[`roadmap.md`](roadmap.md) → M22 and ADR-21. A synth source carries `origin: "synth"`,
+so later renders overwrite it in place without confirming; the analysis window, view,
+annotations and open analyzer tabs stay where they were, and the undo history is not
+reset (only a first adoption defines a new timeline).
 
 ## OS permissions (macOS)
 

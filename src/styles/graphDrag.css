@@ -1,0 +1,67 @@
+/* --- Palette drag affordance (M22) -------------------------------------- */
+
+/* The translucent outline where the node will land (canvas-local coordinates). */
+.graph-drop-preview {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* The connector the node would splice into. */
+.graph-splice-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.graph-splice-overlay path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The node ghost that follows the pointer (portaled to <body>, never clipped). */
+.graph-drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  pointer-events: none;
+  font-size: 0.6875rem;
+  color: var(--fg);
+  background: var(--overlay-94);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+}
+
+.graph-drag-ghost-invalid {
+  opacity: 0.6;
+  color: var(--fg-muted);
+  border-style: dashed;
+}
+
+.graph-drag-hint {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.625rem;
+  color: var(--accent-soft-fg);
+  background: var(--primary-bg);
+}
+
+.graph-drag-ghost-invalid .graph-drag-hint {
+  color: var(--warn);
+  background: transparent;
+  border: 1px solid var(--warn);
+}

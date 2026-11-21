@@ -393,3 +393,7 @@
 .chart-tooltip-value {
   font-variant-numeric: tabular-nums;
 }
+
+.analyzer-title {
+  font-weight: 600;
+}

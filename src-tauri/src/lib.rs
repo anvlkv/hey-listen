@@ -231,6 +231,7 @@ pub fn run() {
             commands::capture::set_capture_gain,
             commands::graph::set_filter_graph,
             commands::graph::render_synth,
+            commands::graph::update_synth_source,
             commands::graph::render_filtered,
             commands::playback::list_output_devices,
             commands::playback::preview_region,

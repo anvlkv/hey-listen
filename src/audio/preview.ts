@@ -4,7 +4,7 @@ import { channel, channelArg } from "../state/analysis";
 import { analyzerBus } from "../state/chartSync";
 import { filterRevision } from "../state/graph";
 import { outputDeviceId } from "../state/output";
-import { source } from "../state/source";
+import { keepsTransport, source } from "../state/source";
 import { windowEnd, windowStart } from "../state/timeline";
 import { createWindowFollow } from "./previewFollow";
 import { createPositionTracker } from "./previewPosition";
@@ -27,7 +27,8 @@ import { previewSpeed, setPreviewSpeed } from "./transportSpeed";
  *
  * **Speed** is varispeed only (pitch shifts; analysis is always 1×): the value lives in
  * `transportSpeed.ts`, the slider scale in `lib/previewSpeed.ts`. The owner is always
- * `"source"` for now; M22's synth audition adds the second owner on the same stream.
+ * `"source"`: a synth **Live** write replaces the loaded audio in place, so the
+ * transport reloads when the source store changes instead of being reset.
  */
 
 const [status, setStatus] = createSignal<TransportStatus>("idle");
@@ -205,8 +206,11 @@ export function resume() {
   void invoke("resume_preview").catch(() => {});
 }
 
-/** Silence the transport, keeping the playhead where it is. */
-export function stop() {
+/**
+ * Silence the transport, keeping the playhead where it is. The returned promise resolves
+ * once the core has stopped, so a caller can load new audio afterwards.
+ */
+export function stop(): Promise<void> {
   const at = status() === "playing" ? tracker.interpolate() : position();
   issueToken++;
   follow.cancel();
@@ -215,7 +219,7 @@ export function stop() {
   setStatus("idle");
   tracker.reanchor(at);
   paint(at);
-  void invoke("stop_preview").catch(() => {});
+  return invoke<void>("stop_preview").catch(() => {});
 }
 
 /** Move the playhead to `secs` (source seconds), clamped into the region or the source. */
@@ -345,5 +349,16 @@ createRoot(() => {
     ),
   );
   createEffect(on([windowStart, windowEnd], clampIntoWindow, { defer: true }));
-  createEffect(on(source, resetTransport, { defer: true }));
+  // A synth **Live** write arrives with the core already holding the new audio: reload a
+  // playing region instead of stopping it (M22).
+  createEffect(
+    on(
+      source,
+      (current) => {
+        if (keepsTransport(current)) refreshPreview();
+        else resetTransport();
+      },
+      { defer: true },
+    ),
+  );
 });

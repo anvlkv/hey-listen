@@ -125,6 +125,8 @@ export const SEL = {
   graphCanvas: '[data-testid="graph.canvas"]',
   graphRender: '[data-testid="graph.render"]',
   graphClear: '[data-testid="graph.clear"]',
+  // Autolayout (both editors): dagre, left to right.
+  graphLayout: '[data-testid="graph.layout"]',
   // Graph toolbar hint (node/link counts + applied/bypassed state).
   graphHint: '[data-testid="graph.hint"]',
   // Graph interaction hooks (C5–C8): a node (also carries `data-kind`), a port
@@ -132,6 +134,17 @@ export const SEL = {
   graphNode: '[data-testid="graph.node"]',
   graphPort: '[data-testid="graph.port"]',
   graphPaletteBtn: '[data-testid="graph.palette.btn"]',
+  // The palette drag affordance (M22): the ghost under the pointer, the landing outline,
+  // and the splice badge over a connector.
+  graphDragGhost: '[data-testid="graph.drag.ghost"]',
+  graphDropPreview: '[data-testid="graph.drop.preview"]',
+  graphDropSplice: '[data-testid="graph.drop.splice"]',
+  graphDropHint: '[data-testid="graph.drop.hint"]',
+
+  // Synth Live (M22).
+  synthLength: '[data-testid="synth.length"]',
+  synthLive: '[data-testid="synth.live"]',
+  synthLiveCap: '[data-testid="synth.live.cap"]',
 
   // Analyzer shell.
   analyzerError: '[data-testid="analyzer.error"]',

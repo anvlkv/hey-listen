@@ -9,7 +9,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use crate::audio::graph::GraphSpec;
+use crate::audio::graph::{GraphSpec, SynthSession};
 use crate::audio::playback::Playback;
 
 /// The bounded undo/redo stacks over [`ProjectSnapshot`] (no `tauri` types, so the
@@ -63,6 +63,9 @@ pub struct AudioState {
     pub revision: Arc<AtomicU64>,
     /// The newest accepted source-replacement request (see [`SourceRequest`]).
     source_gate: Mutex<SourceGate>,
+    /// The window's compiled synth net. Kept between renders so a parameter-only edit
+    /// patches one node instead of recompiling the graph (M22).
+    pub synth: Mutex<SynthSession>,
     pub playback: Playback,
 }
 
@@ -98,6 +101,7 @@ impl AudioState {
             filter: Arc::new(Mutex::new(None)),
             revision: Arc::new(AtomicU64::new(0)),
             source_gate: Mutex::new(SourceGate::default()),
+            synth: Mutex::new(SynthSession::new()),
             playback: Playback::new(),
         }
     }
@@ -303,6 +307,50 @@ mod tests {
             audio.snapshot_source().is_some(),
             "the recording buffer stays"
         );
+    }
+
+    /// A live synth write installs a new request's PCM over the synth source in place: the
+    /// source is replaced without a clear, so the frontend can keep its window/view
+    /// (ADR-21). The source request gate still makes an older render lose to a newer one.
+    #[test]
+    fn a_live_source_write_replaces_the_pcm_in_place() {
+        let audio = AudioState::new();
+        let first = audio.claim_source_request(1).expect("first write");
+        assert!(audio.install_source(first, Some(pcm(1.0))));
+
+        let second = audio.claim_source_request(2).expect("second write");
+        assert!(audio.install_source(second, Some(pcm(2.0))));
+        let source = audio.snapshot_source().expect("source installed");
+        assert_eq!(source.samples, vec![2.0; 4]);
+    }
+
+    /// A failed synth render never reaches `install_source`, so the last good audio stays
+    /// loaded (the frontend reports the error inline instead of showing *Source failed*).
+    #[test]
+    fn a_failed_render_keeps_the_previous_source() {
+        let audio = AudioState::new();
+        let good = audio.claim_source_request(1).expect("good render");
+        assert!(audio.install_source(good, Some(pcm(0.5))));
+
+        let bad = crate::audio::graph::GraphSpec {
+            nodes: vec![
+                crate::audio::graph::GraphNode {
+                    id: "x".into(),
+                    kind: "not-a-node".into(),
+                    params: Vec::new(),
+                },
+                crate::audio::graph::GraphNode {
+                    id: "out".into(),
+                    kind: "output".into(),
+                    params: Vec::new(),
+                },
+            ],
+            edges: Vec::new(),
+        };
+        assert!(crate::audio::graph::render_mono(&bad, 0.1, 8_000).is_err());
+
+        let source = audio.snapshot_source().expect("source installed");
+        assert_eq!(source.samples, vec![0.5; 4]);
     }
 
     /// `save_project` snapshots the PCM and writes it after releasing the lock, so capture

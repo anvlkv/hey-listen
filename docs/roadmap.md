@@ -1263,37 +1263,28 @@ short vs long gap; CLI `--windows` parsing and a per-window run; docs/skill cove
 **Non-goals:** no new DSP and no renames of existing result fields. M12/M13 exports and
 templates still come later.
 
-## M22 — Synth workflow: live audition + in-place source (planned)
+## M22 — Synth workflow: in-place Live source ✅
 
-Make the synth graph feel like an instrument: hear it while building it, let the
-analysis follow every edit, and show where a palette node will land.
+Make the synth graph feel like an instrument: the analysis follows every settled edit,
+and the palette shows where a dragged node will land. Playback is the Timeline's
+transport; the synth tab adds no second play control.
 
-### Live audition
+**Delivered.** Core: `update_synth_source` (Live, in place) and the compiled-net
+`SynthSession` (a parameter-only edit patches the node instead of recompiling);
+`render_synth` stays the one-shot/headless path. Frontend: `state/synthLive.ts`
+(trailing debounce, latest-wins, Live cap, first-adoption confirmation), `synthSeconds`
+in `state/synth.ts`, and the shared palette ghost/drop/splice preview
+(`lib/graphDrop.ts`, `graphEditor/DragPreview.tsx`). Unit coverage:
+`src/tests/{graphDrop,synthPlan}.test.ts`; E2E: `q2-synth-live.spec.ts`.
+The source keeps `origin: "synth"`, so later renders overwrite it silently; in-place
+writes leave the undo history alone (only a first adoption bumps `sourceRevision`).
 
-- **New core command `preview_synth`.** Compile the `GraphSpec`, render a short mono
-  loop (default 2 s, max 8 s) on the blocking pool, resample it to the device rate, and
-  load it into the window's existing cpal `Playback` with `loop = true`. It **does not
-  touch the project source**, so auditioning cannot clobber a file.
-- **Audition toggle** in the synth tab (speaker). Starting stops a source preview (both
-  share the window's one output stream); stopping calls `stop_preview`. Closing the tab,
-  replacing the source, or starting a source preview stops it.
-- **Debounced, latest-wins.** Node/edge/param/Length changes re-render after ~160 ms of
-  quiet (a few updates per second during a drag, not one per pointermove). A render in
-  flight shows *auditioning…*; a stale render is discarded; a failed render keeps the last
-  good loop and reports inline (like Render).
-- **Loop hygiene.** Apply a 5 ms fade at the buffer edges and a ~10 ms equal-power
-  crossfade when reloading, resuming at the current position modulo the loop length, so
-  a knob turn does not click or restart the groove every time. A truly phase-continuous
-  rebuild (keeping oscillator state across a net change) is deferred.
-- **Not the project transport.** Audition time is synth time, not source time, so it
-  does **not** publish the shared playhead. When it also writes the source (below), the
-  normal transport can audition the updated source instead.
+### Live in-place source (the "overwrite the segment under analysis")
 
-### Continuous in-place source (the "overwrite the segment under analysis")
-
-- **New core command `update_synth_source`** (or a `render_synth` mode): render the
-  requested `Length`, install the PCM as the project source, stream it to the frontend,
-  and **do not reset the timeline**.
+- **Core command `update_synth_source`**: render the requested `Length`, install the PCM
+  as the project source, stream it to the frontend, and **do not reset the timeline**.
+  The render walks the compiled net one sample at a time, so the analysis trail does not
+  depend on the block schedule.
 - **Live toggle** in the synth tab. While on, every settled graph/Length change overwrites
   the synth source **in place**, so the analysis window, timeline zoom, annotations and
   open analyzer tabs stay exactly where the user put them while the audio under them is
@@ -1309,16 +1300,16 @@ analysis follow every edit, and show where a palette node will land.
   window and view exactly; shrinking clamps them and the annotations (reusing the annotation
   clamping); growing preserves them. Update the local PCM, peaks and a `sourceRevision`
   signal so the waveform and the debounced analyzer auto-run follow.
-- **One render per settle.** When both facets are on, a single command
-  (`live_synth(spec, length, auditionSecs, writeSource, audition, onChunk)`) renders
-  once, installs the source, loads the audition loop and streams the PCM only when the
-  source was written. Keep `preview_synth` for audition-only.
+- **Debounced, latest-wins.** Node/edge/param/Length changes re-render after ~160 ms of
+  quiet (a few updates per second during a drag, not one per pointermove). A stale render
+  is discarded; a failed render keeps the last good source and reports inline (like
+  Render).
 - **Guard rail.** Live is capped at `LIVE_MAX_SECONDS = 10` for responsiveness; longer
   renders use Render once. A failed live render keeps the last good source (no red
   *Source failed* state).
-- **Defaults.** Both toggles start **off** (opening the tab never makes sound
-  unexpectedly); the choices are remembered app-level, like the annotations rail. The
-  first render/adoption can turn Live on for the user.
+- **Default off.** Opening the tab never makes sound unexpectedly; the choice is
+  remembered app-level, like the annotations rail. The first render/adoption can turn Live
+  on for the user.
 
 ### Palette drag affordance (filter *and* synth)
 
@@ -1334,22 +1325,21 @@ analysis follow every edit, and show where a palette node will land.
   the real drop use the same result, so what is shown is what happens. Escape and
   `pointercancel` cancel the drag. Both editors get it from the shared `GraphEditor`.
 
-> **Decision:** live preview and live source are facets of one editing mode: audition is
-> a core loop (fast feedback, no source change), and write-through overwrites the synth
-> source in place (analysis follows). See ADR-21.
+> **Decision:** a settled edit overwrites the synth source in place, so the analysis
+> follows while playback stays the Timeline's transport. See ADR-21.
 
-**Files:** `src-tauri/src/commands/graph.rs`, `src-tauri/src/audio/playback/{mod,stream}.rs`,
-`src/state/synth.ts`, `src/state/source.ts`, `src/audio/preview.ts`,
+**Files:** `src-tauri/src/commands/graph.rs`,
+`src-tauri/src/audio/graph/{session,render,compile}.rs`,
+`src/state/{synth,synthLive,source}.ts`, `src/lib/{graphDrop,synthPlan}.ts`,
 `src/components/SynthGraphTab.tsx`,
-`src/components/graphEditor/{GraphPalette.tsx,placement.ts}`,
+`src/components/graphEditor/{GraphPalette.tsx,placement.ts,DragPreview.tsx}`,
 `src/components/GraphEditor.tsx`, `src/styles/graph.css`.
 
-**Tests.** Rust: render + in-place source, crossfade/loop edges, failed render keeps the
-source. Unit: `dropTarget` (place/splice/invalid), live scheduler (latest-wins, cap,
-confirmation) with fake timers. E2E (`q2-synth-live`): audition calls `preview_synth` and
-not `preview_region`, Live updates the source without resetting the window/view/annotations, a
-failed live render keeps the old audio, palette drag shows the ghost/splice badge and
-drops where previewed.
+**Tests.** Rust: render + in-place source, a parameter patch reuses the net, a failed
+render keeps the source. Unit: `dropTarget` (place/splice/invalid), live scheduler
+(latest-wins, cap, confirmation) with fake timers. E2E (`q2-synth-live`): Live updates
+the source without resetting the window/view/annotations, a failed live render keeps the
+old audio, palette drag shows the ghost/splice badge and drops where previewed.
 
 **Deferred:** phase-continuous rebuilds are [D-24](deferred.md); per-node solo/audition,
 parameter automation, MIDI and live *input* graphs are [D-34](deferred.md). Both are
@@ -1744,13 +1734,13 @@ seek, `N` annotates, `Mod+K` opens and runs a palette command, `?` opens the dia
 rebinding a command makes the old key inert and the new one work, a conflict is rejected,
 typing in an annotation/search field never triggers a shortcut, and bindings survive a reload.
 
-> **Order:** M22 is independent; M23 generalizes the transport M22's audition uses; M24.B
+> **Order:** M22 is independent; M23 generalizes the transport that preview playback uses; M24.B
 > builds on M23's transport and window commands and on M24.A's registry seam. Recommended
 > order: **M22 → M23 → M24.A → M24.B**.
 
 > **Confirmed in review:** live writes overwrite the synth-owned source in place (never a
 > splice into a file); ADR-19 selection semantics stay, so only **Analyze** frames and
-> focuses; `Live`/`Audition` start off and are remembered app-level; the M24.B default table
+> focuses; `Live` starts off and is remembered app-level; the M24.B default table
 > is a starting point, with **`Space` confirmed as play/pause**.
 
 ## M25 — Cross-project comparison ✅

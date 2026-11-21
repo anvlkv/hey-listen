@@ -66,6 +66,21 @@
   background: var(--control-hover);
 }
 
+/* The Live switch (Kobalte): the shared toolbar switch with the graph's own label. */
+.graph-live-switch .toolbar-switch-control[data-checked] .toolbar-switch-thumb {
+  transform: translateX(12px);
+}
+
+.graph-live-state {
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  color: var(--fg-dim);
+}
+
+.graph-live-switch[data-checked] .graph-live-state {
+  color: var(--fg-accent);
+}
+
 .graph-btn:disabled {
   opacity: 0.5;
   cursor: default;
@@ -87,46 +102,59 @@
   min-height: 0;
 }
 
+/* The node context menu (right-click): reset the node's parameters to its kind's defaults. */
+.graph-node-menu {
+  position: absolute;
+  z-index: 10;
+  min-width: 132px;
+  padding: 4px;
+  background: var(--overlay-94);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.graph-node-menu-item {
+  width: 100%;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.6875rem;
+  text-align: left;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-node-menu-item:hover {
+  background: var(--control-hover);
+}
+
 /* Highlight while a palette node is being dragged over the canvas. */
 .graph-canvas-dragging {
   outline: 1px dashed var(--accent);
   outline-offset: -3px;
 }
 
+/*
+ * solid-flow renders the wide connector hit-band (`.solid-flow__edge-interaction`)
+ * with `stroke: none`, which `pointer-events: visibleStroke` ignores — so only the
+ * 1.5 px visible line could be clicked. `stroke` hit-testing does not care about the
+ * paint, so the whole ~20 px band selects the edge.
+ */
+.graph-canvas .solid-flow__edge {
+  pointer-events: stroke;
+}
+
+.graph-canvas .solid-flow__edge.inactive {
+  pointer-events: none;
+}
+
 .graph-body {
   display: flex;
   flex: 1;
   min-height: 0;
-}
-
-.graph-inspector {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 0 0 236px;
-  padding: 10px;
-  overflow-y: auto;
-  background: var(--panel);
-  border-left: 1px solid var(--border);
-}
-
-.graph-inspector-params,
-.graph-inspector-presets,
-.graph-inspector-param {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.graph-inspector-param-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.625rem;
-  color: var(--fg-disabled);
-}
-
-.graph-inspector-input {
-  width: 100%;
 }
 
 .graph-warn {
@@ -185,22 +213,35 @@
 }
 
 .graph-palette-search-wrap {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  margin-bottom: 8px;
+  padding: 0 8px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
 }
 
 .graph-palette-search-icon {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  flex: none;
   font-size: 0.6875rem;
   color: var(--fg-disabled);
   pointer-events: none;
 }
 
 .graph-palette-search {
-  flex: none;
-  margin-bottom: 8px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  outline: none;
 }
 
 .graph-palette-title {
@@ -331,69 +372,4 @@
   width: 18px;
   font-size: 0.625rem;
   color: var(--fg-disabled);
-}
-
-.workbench-watermark {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 100%;
-  color: var(--fg-muted);
-  font-size: 0.8125rem;
-}
-
-/* A popped-out tab is a single, tab-less chart: hide dockview's tab strip in the
-   popout window so only the tool's content is shown. */
-.dv-groupview-popout .dv-tabs-and-actions-container {
-  display: none;
-}
-
-/* Dockview's default tabs are roomy for document-style labels (its theme root sets a
-   fixed 35px strip). Workbench tools are compact instruments, so keep their chrome
-   narrow while letting the existing UI scale enlarge spacing and targets together.
-
-   The height variable is defined on the dockview **theme root** — a descendant of
-   `.app-workbench` — so an inherited `.app-workbench` value loses to it. Override the
-   variable where it is defined, and set the strip height directly as a second guard
-   (0,2,0 beats dockview's 0,1,0 rule even though its chunk loads later). */
-.app-workbench .dockview-theme-dark,
-.app-workbench .dockview-theme-light {
-  --dv-tabs-and-actions-container-height: var(--tab-strip-height);
-}
-
-.app-workbench .dv-tabs-and-actions-container {
-  height: var(--tab-strip-height);
-}
-
-.app-workbench .dv-tab {
-  min-width: calc(64px * var(--ui-scale, 1));
-  padding-inline: var(--tab-inline-padding) !important;
-}
-
-.app-workbench .dv-tab .dv-default-tab-content {
-  gap: var(--tab-label-gap);
-}
-
-/* dockview.css is a separate chunk loaded after this file, so these overrides
-   need !important to beat dockview's own scrollbar rules. Tabs still scroll via
-   wheel/drag and overflow into the tab menu. */
-.dv-tabs-container,
-.dv-tabs-overflow-container {
-  scrollbar-width: none !important;
-}
-.dv-tabs-container::-webkit-scrollbar,
-.dv-tabs-overflow-container::-webkit-scrollbar {
-  display: none !important;
-}
-
-/* The dockview group content view defaults to `overflow: auto`; our panel content
-   fills and clips itself, so force it to clip instead of drawing scrollbars. */
-.dv-view {
-  overflow: hidden !important;
-}
-
-.analyzer-title {
-  font-weight: 600;
 }

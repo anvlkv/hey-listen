@@ -19,7 +19,8 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 ## Shape sound — available
 
 - **Filter before measuring.** Wire a filter graph, bypass or enable it, hear the result in preview, and compare the processed waveform with the original. The active filter feeds every analyzer. [Graph editor](graph-editor.md) · [Analysis tools](analysis-tools.md)
-- **Build graphs visually.** Search the node palette, place nodes by click or drag, insert them on a connection, wire labeled ports, adjust parameters inline or in the docked inspector (with per-parameter reset and session-scoped presets per node kind), zoom, and use the minimap. The palette covers generators, routing, math, filters, dynamics, modulation, reverb, and control; the exact node inventory lives in [Graph editor](graph-editor.md). [Graph editor](graph-editor.md)
+- **Build graphs visually.** Search the node palette, place nodes by click or drag, insert them on a connection, wire labeled ports, adjust parameters inline, and reset a node from its context menu. Zoom and use the minimap; the palette covers generators, routing, math, filters, dynamics, modulation, reverb, and control, and the exact node inventory lives in [Graph editor](graph-editor.md). [Graph editor](graph-editor.md)
+- **Hear the analysis follow the graph.** Turn **Live** on and each settled graph or Length edit overwrites the synth source in place, so the window, annotations and open charts keep their positions. Drag a palette node to see a ghost and its landing (or splice) preview. Playback is the Timeline's transport. [Graph editor](graph-editor.md) · [Roadmap M22](roadmap.md#m22--synth-workflow-in-place-live-source-)
 
 ## Analyze what changed — available
 
@@ -60,7 +61,6 @@ A user-facing map of Hey Listen, including work that has not shipped. **Availabl
 ### Planned
 
 - **Reusable analysis templates (M13).** Save a source-independent setup of settings, tools, graphs, and optionally layout; apply it to another recording with a window policy that adapts to its duration. Planned entry points include app UI, MCP, and CLI. [Templates](templates.md)
-- **Live synth workflow (M22).** Audition graph edits without replacing the source, or opt into a live synth-owned source that updates in place so existing windows, annotations, and charts keep their positions. Show a node ghost and landing/connection preview when dragging from the palette. [Roadmap M22](roadmap.md#m22--synth-workflow-live-audition--in-place-source-planned)
 - **Keyboard-first control (M24.B).** Reach transport, window, annotation, graph, and tab actions by configurable shortcuts; find commands and tools in a palette, and discover or rebind keys in a shortcuts dialog. [Hotkeys](hotkeys.md)
 
 ### Proposed or drafted

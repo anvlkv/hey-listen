@@ -1,5 +1,5 @@
 import { Tooltip as KTooltip } from "@kobalte/core/tooltip";
-import { createSignal, onMount, Show, type JSX } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show, type JSX } from "solid-js";
 import { useAnchorLifetime } from "../lib/anchorLifetime";
 import { createPopupMount } from "../lib/popupMount";
 
@@ -32,21 +32,47 @@ export default function Tooltip(props: {
   class?: string;
   /** Extra class on the popup itself (e.g. a wider, formatted hint). */
   contentClass?: string;
+  /**
+   * Force the popup shut (e.g. while a palette drag is in progress) without unmounting
+   * the trigger. The open state is still ours, so re-enabling it leaves the tooltip's
+   * normal hover/focus behaviour intact.
+   */
+  disabled?: boolean;
   children: JSX.Element;
 }) {
   const portal = createPopupMount();
   const [open, setOpen] = createSignal(false);
+  const shown = () => open() && !props.disabled;
+  // Forcing the popup shut when `disabled` flips on must also clear our own state, so
+  // re-enabling it does not pop the tooltip back up without a hover.
+  createEffect(() => {
+    if (props.disabled) setOpen(false);
+  });
+  // A scroll (wheel or scrollbar) moves the trigger away from the popup's anchored
+  // position; close it instead of leaving the hint floating over the content the user
+  // is trying to reach.
+  createEffect(() => {
+    if (!shown()) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("wheel", close, { capture: true, passive: true });
+    onCleanup(() => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("wheel", close, true);
+    });
+  });
   onMount(portal.refresh);
-  useAnchorLifetime({ anchor: portal.anchor, open, onClose: () => setOpen(false) });
+  useAnchorLifetime({ anchor: portal.anchor, open: shown, onClose: () => setOpen(false) });
 
   return (
     <KTooltip
-      open={open()}
+      open={shown()}
       placement={props.placement ?? "bottom"}
       gutter={6}
       openDelay={400}
       closeDelay={0}
       onOpenChange={(isOpen) => {
+        if (isOpen && props.disabled) return;
         setOpen(isOpen);
         if (isOpen) portal.refresh();
       }}

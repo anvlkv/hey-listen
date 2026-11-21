@@ -134,6 +134,9 @@ async function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
       frames,
       duration,
       samples,
+      // A saved synth project keeps its origin, so re-rendering it later is silent
+      // (ADR-21) instead of asking to replace a file.
+      origin: snapshot.source?.kind === "synth" ? "synth" : undefined,
       probe:
         snapshot.source?.kind === "file" && snapshot.source.path
           ? fileProbe(snapshot.source.path, loaded)

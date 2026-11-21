@@ -18,6 +18,7 @@ import {
   openFixture,
   pressChord,
   restoreMocks,
+  showAnalyzerSidebar,
   textOf,
   waitFor,
   waitForApp,
@@ -145,6 +146,9 @@ describe("Q4. Keyboard control (M24.B)", () => {
   it("Q4.8 — typing in the analyzer search never triggers a shortcut", async () => {
     await newEmptyProject();
     await openFixture("sine440");
+    // An earlier case may have left the rail on Graphs (opening a graph tool does), so
+    // restore an analyzer section first — the search box only exists there.
+    await showAnalyzerSidebar();
     // Dispatch the annotation chord at the search input: the text-field guard must keep it.
     await pressChord("N", SEL.sidebarSearch);
     await browser.pause(200);

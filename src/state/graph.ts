@@ -1,5 +1,5 @@
 import { invoke } from "../lib/ipc";
-import { createEffect, createRoot, createSignal, on } from "solid-js";
+import { batch, createEffect, createRoot, createSignal, on } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
 import type { Edge, Node } from "@dschz/solid-flow";
 import {
@@ -172,9 +172,30 @@ export function updateParam(graph: GraphKind, id: string, key: string, value: nu
   graphFor(graph).setNodes((node) => node.id === id, "data", "params", key, value);
 }
 
+/** Reset every parameter of one node to its kind's default (the node context menu). */
+export function resetNode(graph: GraphKind, id: string) {
+  const node = graphFor(graph).nodes.find((current) => current.id === id);
+  const def = node ? nodeKind(node.data.kind) : undefined;
+  if (!node || !def) return;
+  for (const param of def.params) updateParam(graph, id, param.key, param.default);
+}
+
 /** Persist a node's position (mirrored from the flow on drag stop). */
 export function setNodesPosition(graph: GraphKind, id: string, position: { x: number; y: number }) {
   graphFor(graph).setNodes((node) => node.id === id, "position", position);
+}
+
+/** Apply a batch of computed positions (the autolayout action). */
+export function setNodesPositions(
+  graph: GraphKind,
+  positions: Record<string, { x: number; y: number }>,
+) {
+  const handle = graphFor(graph);
+  batch(() => {
+    for (const [id, position] of Object.entries(positions)) {
+      handle.setNodes((node) => node.id === id, "position", position);
+    }
+  });
 }
 
 /** Replace a graph with its seed (the toolbar's Clear action). */
@@ -216,11 +237,6 @@ function bumpNextId(items: { id: string }[]) {
     const match = /-(\d+)$/.exec(item.id);
     if (match) nextId = Math.max(nextId, Number(match[1]) + 1);
   }
-}
-
-/** Whether the graph already contains a node of `kind` (anchors are unique). */
-export function hasKind(graph: GraphKind, kind: string): boolean {
-  return graphFor(graph).nodes.some((node) => node.data.kind === kind);
 }
 
 /** The kinds of a fresh graph's nodes (see [`seed`]). */

@@ -1,0 +1,62 @@
+/* Workbench chrome: the empty watermark and the dockview overrides. */
+
+.workbench-watermark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* A popped-out tab is a single, tab-less chart: hide dockview's tab strip in the
+   popout window so only the tool's content is shown. */
+.dv-groupview-popout .dv-tabs-and-actions-container {
+  display: none;
+}
+
+/* Dockview's default tabs are roomy for document-style labels (its theme root sets a
+   fixed 35px strip). Workbench tools are compact instruments, so keep their chrome
+   narrow while letting the existing UI scale enlarge spacing and targets together.
+
+   The height variable is defined on the dockview **theme root** — a descendant of
+   `.app-workbench` — so an inherited `.app-workbench` value loses to it. Override the
+   variable where it is defined, and set the strip height directly as a second guard
+   (0,2,0 beats dockview's 0,1,0 rule even though its chunk loads later). */
+.app-workbench .dockview-theme-dark,
+.app-workbench .dockview-theme-light {
+  --dv-tabs-and-actions-container-height: var(--tab-strip-height);
+}
+
+.app-workbench .dv-tabs-and-actions-container {
+  height: var(--tab-strip-height);
+}
+
+.app-workbench .dv-tab {
+  min-width: calc(64px * var(--ui-scale, 1));
+  padding-inline: var(--tab-inline-padding) !important;
+}
+
+.app-workbench .dv-tab .dv-default-tab-content {
+  gap: var(--tab-label-gap);
+}
+
+/* dockview.css is a separate chunk loaded after this file, so these overrides
+   need !important to beat dockview's own scrollbar rules. Tabs still scroll via
+   wheel/drag and overflow into the tab menu. */
+.dv-tabs-container,
+.dv-tabs-overflow-container {
+  scrollbar-width: none !important;
+}
+.dv-tabs-container::-webkit-scrollbar,
+.dv-tabs-overflow-container::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* The dockview group content view defaults to `overflow: auto`; our panel content
+   fills and clips itself, so force it to clip instead of drawing scrollbars. */
+.dv-view {
+  overflow: hidden !important;
+}

@@ -4,6 +4,20 @@ The filter and synth graphs are built with `solid-flow` in two **Workbench tabs*
 (see ADR-10). The frontend owns *editing*; the Rust core owns the *net* — a
 `GraphSpec` (JSON) is compiled to a fundsp `Net` in `src-tauri/src/audio/graph/`.
 
+## Canvas gestures
+
+- **Select** — click a node or a connector. Dragging on empty canvas draws a selection
+  box over nodes *and* connectors; shift-click extends a selection. Panning is the
+  middle/right mouse button, so a left drag never turns into a pan instead of a box.
+  A connector's hit band is ~20 px wide, so it is selectable without pixel-hunting.
+- **Connect** — drag from a source port to a target port; an occupied input or a cycle
+  is refused with a warning.
+- **Insert** — dropping a node (from the palette or an existing node) onto a connector
+  splices it in (see *Drop to insert*).
+- **Layout** — the toolbar's **Layout** button lays every node out left to right with
+  `@dagrejs/dagre` (measured node boxes, 24 px separation, 72 px ranks) and then fits
+  the canvas to the result.
+
 ## The model mirrors fundsp `Net`
 
 Compilation is a literal **push + connect**:
@@ -86,13 +100,18 @@ smoothing across a net *rebuild* is out of scope.)
 - The **synth graph** is rendered to PCM by `render_synth` (48 kHz mono) and becomes
   the project source.
 
-### Live synth (planned, M22)
+### Live synth (M22)
 
-- **Audition** renders a short loop in the core (`preview_synth`) and plays it through the
-  window's output stream while the graph is edited — the source is untouched.
-- **Live** re-renders the synth **source in place** on each settled edit, preserving the
-  analysis window, timeline zoom, annotations and open analyzer tabs, so the waveform and
-  analysis follow the graph. **Render once** stays for long/one-shot renders.
+- **Live** re-renders the synth **source in place** on each settled edit
+  (`update_synth_source`, capped at 10 s), preserving the analysis window, timeline zoom,
+  annotations, history and open analyzer tabs, so the waveform and analysis follow the
+  graph. Playback is the Timeline's transport; the synth tab adds no second play control.
+  **Render once** stays for long/one-shot renders, and shares the in-place path when the
+  source is already the synth.
+- The scheduler debounces ~160 ms and is latest-wins. A failed render keeps the last good
+  source and reports inline.
+- A compiled net is reused across settles, so a parameter-only edit patches the affected
+  node instead of recompiling the graph; a structural edit rebuilds.
 - See [`roadmap.md`](roadmap.md) → M22 and ADR-21.
 
 ## Palette UX
@@ -105,11 +124,12 @@ smoothing across a net *rebuild* is out of scope.)
   **pointer events**, not HTML5 drag-and-drop: Tauri's native file-drop handler
   consumes every drag over the WebView on macOS (so an HTML5 `drop` never fires) and
   shows its file-drop overlay mid-drag — see `src/state/dragdrop.ts`.
-- **Planned (M22)** — the drag shows a **ghost** of the node under the pointer, a
+- **Drag preview** (M22) — the drag shows a **ghost** of the node under the pointer, a
   translucent **drop preview** at the landing position, and a **splice preview**
   (highlighted connector + *Insert into link* badge) when it would split an edge.
-  Outside the canvas or when the drop is invalid it reads as not-allowed. See
-  [`roadmap.md`](roadmap.md) → M22.
+  Outside the canvas or when the drop is invalid it reads as not-allowed. The preview and
+  the real drop both resolve through `lib/graphDrop.ts` → `dropTarget`, so what is shown
+  is what happens.
 - **Anchors are undeletable** — `input` / `output` cannot be deleted
   (`deletable: false`, and the editor's `onDelete` skips them). They seed at the
   left / right edges but are **freely draggable**.
@@ -145,22 +165,18 @@ output 0 are free and no cycle would result; otherwise the drop just places the 
 Edge proximity is a distance test against the sampled bezier path (the same control
 points solid-flow draws), with a ~26-unit threshold (`lib/graphEdges.ts`).
 
-## Node inspector and presets
+## Node parameters
 
-Selecting exactly one non-anchor node opens a docked inspector beside the canvas: the
-kind's label and hint, one row per parameter with its value, unit and declared range, and
-`Reset` per parameter plus `Reset all`. Editing there writes through `updateParam`, so the
-inline node card and the compiled graph follow immediately. Nothing, or more than one
-node, selected → no inspector and the canvas keeps its full width; an `input` / `output`
-anchor is never inspectable.
+Every node card shows its own numeric parameters inline, so a value is edited where it
+is read (drag-to-adjust or type; see `graphEditor/ParamField.tsx`). Right-clicking a node
+opens a one-item context menu with **Reset node**, which restores every parameter of that
+node to its kind's default. There is no separate inspector panel, so the canvas always
+keeps its full width; anchors (`input` / `output`) have no parameters and no menu.
 
-**Presets are session-scoped.** The inspector saves the selected node's current values
-under a name, keyed by node **kind**, and applies a preset to any node of that kind
-(clamped to each parameter's range). Filter and synth editors share the store. Presets
-live in memory only: the project file carries none, so reopening the app starts empty.
-
-The parameter field is one component (`graphEditor/ParamField.tsx`) shared by the inline
-card and the inspector, so drag-to-adjust and typing behave identically in both.
+The parameter field is shared by every node card, so drag-to-adjust and typing behave
+identically everywhere. A parameter's numeric input also keeps the platform's spinner
+buttons working: a press in the spinner's gutter steps the value instead of starting the
+drag gesture.
 
 ## Deferred
 
@@ -190,6 +206,7 @@ are delivered (D-17); the remaining families below are still out.
 ## Planned
 
 - **Click-free smoothing across net rebuilds** — the current `follow` smoothing
-  glides control signals *within* a compiled net, but a filter edit still rebuilds
-  and steps; cross-rebuild (crossfade) smoothing is a future item ([D-24](deferred.md),
-  after M22).
+  glides control signals *within* a compiled net, but a structural edit still rebuilds
+  and steps; cross-rebuild (crossfade) smoothing is a future item
+  ([D-24](deferred.md)). M22's Live path patches a single node's parameters, not a
+  filter/net rebuild.
