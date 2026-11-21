@@ -1,15 +1,17 @@
 import { Dialog } from "@kobalte/core/dialog";
+import { createResource } from "solid-js";
 import Icon from "./Icon";
 import AboutUpdates from "./AboutUpdates";
 import { invoke } from "../lib/ipc";
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from "../lib/appInfo";
 import { FONT_AWESOME } from "../lib/attributions";
+import type { BuildInfo } from "../bindings/BuildInfo";
 
 /**
- * The **About** dialog: app identity plus the required Font Awesome attribution,
- * linking to `ACKNOWLEDGEMENTS.md` for the full dependency contributor list. Opened
- * from the Toolbar's `circle-question` button and from the native Help → About menu
- * item.
+ * The **About** dialog: app identity, the running build's identity (app version, `.heyl`
+ * format version, commit/profile/target) and the required Font Awesome attribution,
+ * linking to `ACKNOWLEDGEMENTS.md` for the full dependency contributor list. Opened from
+ * the native **Help → About** menu item.
  *
  * It is a modal Kobalte `Dialog` (ADR-8) rendered by `App`, so it exists in project
  * windows only. License URLs are opened in the system browser by the core
@@ -23,6 +25,25 @@ export default function AboutDialog(props: {
     void invoke("open_external_url", { url }).catch((err) =>
       console.error("could not open the link", err),
     );
+  };
+
+  // Fetched when the dialog opens (the running core knows the format version and the
+  // build identity embedded at compile time).
+  const [build] = createResource(
+    () => props.open,
+    async (open) => (open ? invoke<BuildInfo>("build_info") : null),
+  );
+  const pending = () => (build.error ? "unavailable" : "…");
+  const appVersion = () => `v${build()?.version ?? APP_VERSION}`;
+  const formatVersion = () => (build() ? `v${build()!.formatVersion}` : pending());
+  const commit = () => {
+    const info = build();
+    if (!info) return pending();
+    return info.commitDirty ? `${info.commit} (dirty)` : info.commit;
+  };
+  const buildLabel = () => {
+    const info = build();
+    return info ? `${info.profile} · ${info.target}` : pending();
   };
 
   return (
@@ -47,6 +68,22 @@ export default function AboutDialog(props: {
             Capture, filter, and analyze audio — from files, live inputs, and synthesis. Built on
             Tauri, SolidJS, and Rust DSP.
           </Dialog.Description>
+
+          <section class="about-section" data-testid="about.build">
+            <h3 class="about-heading">Build</h3>
+            <dl class="about-meta">
+              <dt>App</dt>
+              <dd data-testid="about.version">{appVersion()}</dd>
+              <dt>Project format</dt>
+              <dd data-testid="about.formatVersion">{formatVersion()}</dd>
+              <dt>Commit</dt>
+              <dd class="about-meta-value" data-testid="about.commit">
+                {commit()}
+              </dd>
+              <dt>Build</dt>
+              <dd class="about-meta-value">{buildLabel()}</dd>
+            </dl>
+          </section>
 
           <section class="about-section">
             <h3 class="about-heading">Updates</h3>

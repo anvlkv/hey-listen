@@ -316,6 +316,7 @@ pub fn run() {
             commands::log::read_log_tail,
             commands::log::open_log_dir,
             commands::app::open_external_url,
+            commands::app::build_info,
             commands::app::e2e_enabled,
             commands::cli_install::cli_tool_status,
             commands::cli_install::cli_tool_install,

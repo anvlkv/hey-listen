@@ -81,6 +81,37 @@
   margin-top: 16px;
 }
 
+/* Build identity: a compact two-column register, never a wall of sentences. */
+.about-meta {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  padding: 7px 9px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+}
+
+.about-meta dt {
+  color: var(--fg-muted);
+}
+
+.about-meta dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--fg-body);
+}
+
+.about-meta-value {
+  overflow-wrap: anywhere;
+  user-select: text;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+}
+
 .about-heading {
   margin: 0 0 6px;
   font-size: 0.6875rem;
