@@ -30,7 +30,7 @@ Turn the server on in the Toolbar **MCP** popover; its **Copy** button gives the
 
 | Group | Tools | Headless? |
 | --- | --- | --- |
-| Observe | `get_state`, `list_analyzers`, `get_analyzer` | yes |
+| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_nodes`, `get_node` | yes |
 | Source | `open_audio_file`, `close_source`, `render_synth`, `list_input_devices`, `list_output_devices`, `list_processes` | yes |
 | Analyze | `run_analysis`, `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `set_filter_graph` | yes |
 | Tabs | `open_tool`, `close_tool` | yes — headless they maintain `SETUP.openTools`, which `save_project` writes (no layout: `open_tool.position` is ignored) |
@@ -38,7 +38,7 @@ Turn the server on in the Toolbar **MCP** popover; its **Copy** button gives the
 | Project window | `open_project_window` | app-only (opens/raises a window at a `.heyl`, returns its label) |
 | Compare | `compare_analysis`, `list_projects` | `compare_analysis` yes (project **path** headless, live label bridged, or `saved: true`) |
 | Export (data) | `export_analysis`, `export_all` | yes (`export_all` headless takes an explicit `tools` list) |
-| Graphs | `get_graph`, `set_synth_graph` | app-only |
+| Graphs | `get_graph`, `set_synth_graph` | `get_graph` yes (reads back as DOT); `set_synth_graph` app-only (editor layout) |
 | Preview/capture | `preview`, `stop_preview`, `set_output_gain`, `start_capture`, `stop_capture` | app-only |
 | Annotations | `list_annotations`, `get_annotation`, `create_annotation`, `update_annotation`, `delete_annotation`, `set_selected_annotation` | app-only (but `save_project` writes the `annotations` you pass headless) |
 | Export (chart) | `export_chart` | app-only (needs the rendered canvas) |
@@ -56,6 +56,22 @@ Templates (M13) are planned, not yet exposed.
   / `axis` / `summaryOnly` shape the sides and delta like `run_analysis`. B is read-only.
 - The last successful comparison is stored in the owner; `save_project` writes it to
   `COMPARE` and the app reopens it as a compare tab.
+
+## Filter & synth graphs
+
+Author the filter and synth graphs through the one node catalog and the `GraphSpec`/DOT
+form — see [`graphs.md`](graphs.md) for the model, the node map and sound design.
+
+- `list_nodes` / `get_node { kind }` — the catalog; `get_node` returns a ready-to-paste DOT
+  skeleton (ports, params, defaults). **Never guess a port or a key.**
+- `get_graph { graph: filter|synth }` — read the current graph back as DOT.
+- `set_filter_graph { graph, enabled: true }` — install the filter (runs upstream of preview
+  and every analyzer); `graph` is DOT text, a `graphFile` path, or a `GraphSpec` object, and
+  `null` / `enabled: false` clears it.
+- `render_synth { graph, seconds }` — render a synth graph to 48 kHz mono and **adopt it as
+  the source**; `graph` is the same DOT/path/`GraphSpec` forms (headless) or the editor graph
+  (bridged).
+- `set_synth_graph { graph }` — app-only: set the synth editor's layout.
 
 ## Projects, tabs, comparisons from a script
 

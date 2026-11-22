@@ -11,6 +11,7 @@ hey-listen <COMMAND>
 Commands:
   analyzers [ID] [--json]   catalog, or one analyzer's options + summary keys
   analyze                   open audio file(s) or .heyl project(s) and run analyzers over them
+  nodes [KIND] [--json]     list the filter/synth node catalog, or explain one kind (DOT skeleton)
   synth                     render a synth graph, then (optionally) analyze it
   annotations               list or edit annotations in a project file (.heyl)
   compare A.heyl B.heyl     diff one analyzer across two saved projects (--save writes it)
@@ -35,7 +36,7 @@ a project's saved setup; the saved window is used when `--start`/`--end` are abs
 | `--windows <FILE>` | Many windows in one process: one `start,end[,tool…]` per line (`#` comments). Not with `--start`/`--end`. |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable): `fftSize`, `hop` (fraction of `fftSize`), `windowFn`, `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
 | `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable). `-o mfcc.nMfcc=13`; bare `-o K=V` scopes to the sole `--tool`. **Run `analyzers <ID>` for exact keys/defaults/ranges.** |
-| `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
+| `--filter <FILE\|DOT>` | Apply a filter graph (DOT file/string; legacy JSON accepted) before analysis. |
 | `--summary` / `--full` | Summary only / raw arrays (default compact). Mutually exclusive. |
 | `--pretty` | Pretty-print a single result. |
 | `--fail-fast` | Stop at the first failure (default: run the whole batch). |
@@ -43,6 +44,56 @@ a project's saved setup; the saved window is used when `--start`/`--end` are abs
 
 **Scale:** many **files** → batch CLI. Many **windows in one file** → `--windows FILE` or
 one headless MCP session.
+
+## `nodes [KIND]`
+
+List the filter/synth node catalog, or explain one kind. Mirrors MCP `list_nodes` /
+`get_node` — the graph-authoring catalog; see [`graphs.md`](graphs.md) for the model and
+sound design.
+
+| Option | Meaning |
+| --- | --- |
+| `KIND` (positional) | One node kind to explain (default: list the catalog). |
+| `--json` | Emit the catalog (or one kind) as JSON instead of a table. |
+
+- No `KIND`: a table of every kind — `kind`, `category`, `inputs→outputs` (port counts),
+  `label`.
+- With `KIND`: that kind's detail — label/category, hint, input/output **port names**, each
+  param (`key`, `label`, `default`, `min…max`, `step`, `unit`), and a **ready-to-paste DOT
+  skeleton** with every param at its default. Use it instead of guessing a port or a key.
+
+```bash
+hey-listen-cli nodes                  # every kind
+hey-listen-cli nodes lowpass          # one kind + DOT skeleton
+hey-listen-cli nodes --json | jq -r '.[].kind'
+```
+
+## `synth <GRAPH>`
+
+Render a synth graph to 48 kHz mono, adopt it as the source, then (optionally) analyze it —
+the CLI face of the headless `render_synth` → analyze sequence.
+
+| Option | Meaning |
+| --- | --- |
+| `GRAPH` (positional) | The synth graph: a `.dot`/`.gv` file, DOT text, or a legacy JSON `GraphSpec`. |
+| `--seconds <SEC>` | Rendered length (default 5). |
+| `-t` / `--all` / `--start` / `--end` | Same as `analyze` (run analyzers over the rendered source). |
+| `-p` / `-o` / `--filter` | Same as `analyze` (params, per-tool options, a filter graph). |
+| `--summary` / `--full` / `--pretty` / `--format` / `--csv` / `--out` | Same as `analyze`. |
+
+With **no `-t` and no `--all`**, `synth` reports the rendered source summary instead of
+analyzing it. With tools, each line is the same `{ tool, window, params, options, summary,
+result }` envelope `analyze` prints (the `file` is the rendered source).
+
+```bash
+# Render a pad and read its loudness:
+hey-listen-cli synth 'digraph { node[shape=record]; s[kind="sine", freq=220]; o[kind="output"]; s -> o; }' \
+    -t loudnessIntegrated
+
+# Discover the node catalog, then author from a skeleton:
+hey-listen-cli nodes pluck
+hey-listen-cli synth pluck.dot -t noteMetrics --seconds 3
+```
 
 ## `compare <A.heyl> <B.heyl>`
 
@@ -74,12 +125,12 @@ Build a project file with no window — the CLI face of the headless
 
 | Option | Meaning |
 | --- | --- |
-| `--source <AUDIO>` / `--synth <GRAPH.json>` | The source (exactly one). `--seconds` sets a synth's length (default 5). |
+| `--source <AUDIO>` / `--synth <GRAPH>` | The source (exactly one). `--seconds` sets a synth's length (default 5). |
 | `--name <NAME>` | Display name (default: the output file stem). |
 | `--open-tool <ID>` | Analyzer tab to restore (repeatable). |
 | `--annotations <FILE.json>` | A JSON array of annotation objects (`title`, `body`, `timeSecs`, optional `range`/`tool`). |
 | `--start` / `--end` | Analysis window (default 0 … full duration). |
-| `-p` / `-o` / `--filter` | Shared params, per-tool options (`-o mfcc.nMfcc=13`), a filter `GraphSpec` saved into the project. |
+| `-p` / `-o` / `--filter` | Shared params, per-tool options (`-o mfcc.nMfcc=13`), a filter graph (DOT file/string; legacy JSON accepted) saved into the project. |
 | `--reference` | Keep only the file `SOURCE` path (no embedded audio). |
 
 One JSON line: `{ path, name, embedded, annotations, openTools }`; parent folders created.
