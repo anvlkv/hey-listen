@@ -62,15 +62,19 @@ export interface DropTarget {
   edge: DropHandle["edges"][number] | null;
 }
 
-/** Whether `def` may still be added (the `input`/`output` anchors are unique). */
+/** Whether `def` may still be added. Only `input` is unique (and only in a filter graph). */
 export function kindAvailable(
   graph: GraphScope,
   nodes: DropHandle["nodes"],
   kind: string,
 ): boolean {
-  if (graph === "synth" && kind === "input") return false;
-  if (kind !== "input" && kind !== "output") return true;
-  return !nodes.some((node) => node.data.kind === kind);
+  if (kind !== "input") {
+    // A graph may declare several output channels — one `output` node per channel, each
+    // with its own `Ch`. Filter graphs are analysed one channel at a time; a synth
+    // render becomes a multi-channel source.
+    return true;
+  }
+  return graph !== "synth" && !nodes.some((node) => node.data.kind === "input");
 }
 
 /** The flow-coordinate centre of a handle, or null if the node isn't measured yet. */

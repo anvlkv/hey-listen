@@ -34,11 +34,19 @@ export interface ChannelOption {
   label: string;
 }
 
-/** Selector options for a source: downmix first, then one entry per channel. */
-export function channelOptions(channels: number): ChannelOption[] {
+/** Selector options for the analysis channel.
+ *
+ * `channels` is the source's channel count; `filterOutputs` is how many channels the
+ * filter graph declares. The picker offers the union, because one pick is applied to
+ * both: it mixes the source down to that channel and then selects that **output** of
+ * the filter graph (so a 2-channel source can still reach output 4).
+ */
+export function channelOptions(channels: number, filterOutputs = 1): ChannelOption[] {
+  const count = Math.max(1, channels, filterOutputs);
   const options: ChannelOption[] = [{ value: "mix", label: "Downmix (mono)" }];
-  for (let i = 0; i < channels; i++) {
-    const label = channels === 2 ? (i === 0 ? "Left" : "Right") : `Channel ${i + 1}`;
+  for (let i = 0; i < count; i++) {
+    // Only name the sides when the pair really is a stereo source and outputs.
+    const label = count === 2 ? (i === 0 ? "Left" : "Right") : `Channel ${i + 1}`;
     options.push({ value: i, label });
   }
   return options;

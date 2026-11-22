@@ -248,12 +248,13 @@ impl HeadlessSession {
             .unwrap_or(5.0)
             .clamp(0.01, 600.0);
         let rate = 48_000u32;
-        let pcm = graph::render_mono(&spec, seconds, rate).map_err(|err| err.to_string())?;
+        let (pcm, channels) =
+            graph::render_pcm(&spec, seconds, rate).map_err(|err| err.to_string())?;
 
         self.state.audio.set_source(Some(SourceData {
             samples: pcm,
             sample_rate: rate,
-            channels: 1,
+            channels: channels as u16,
         }));
         self.synth = Some(spec);
         self.source_path = None;

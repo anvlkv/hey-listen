@@ -1,0 +1,22 @@
+// M41 fixture: one input split into three bands, each wired to its own `Output`
+// channel (0, 1, 2). Import it into the filter editor; the tab then offers an
+// "Analyse" selector, and `set_shared_params { channel: n }` analyses one band.
+digraph {
+    node [shape=record];
+
+    in   [kind="input"];
+    low  [kind="lowpass", freq=300, q=0.9];
+    band [kind="bandpass", freq=1200, q=3];
+    high [kind="highpass", freq=4000, q=0.8];
+
+    lows  [kind="output", channel=0];
+    mids  [kind="output", channel=1];
+    highs [kind="output", channel=2];
+
+    in -> low;
+    low -> lows;
+    in -> band;
+    band -> mids;
+    in -> high;
+    high -> highs;
+}

@@ -10,6 +10,52 @@ use super::compile::{build_scoped, CONTROL_SMOOTH};
 use super::units::impulse_response;
 use super::{GraphError, GraphNode};
 
+/// Read wavetable rows from a text file: **one row per line**, `amp,phase` (a lone
+/// amplitude means phase 0), separated by commas, semicolons or whitespace. A header line
+/// is skipped because non-numeric tokens are ignored. The result is row-major — two
+/// numbers per row — which is exactly the shape a `wave_synth` node stores.
+pub fn parse_wavetable(text: &str) -> Vec<f32> {
+    let mut rows = Vec::new();
+    for line in text.lines() {
+        let values: Vec<f32> = line
+            .split(|ch: char| ch.is_whitespace() || ch == ',' || ch == ';')
+            .filter_map(|token| token.trim().parse::<f32>().ok())
+            .filter(|value| value.is_finite())
+            .collect();
+        let Some(amp) = values.first() else {
+            continue;
+        };
+        let phase = values.get(1).copied().unwrap_or(0.0);
+        rows.push(amp.clamp(0.0, 1.0));
+        rows.push(phase.clamp(0.0, 1.0));
+    }
+    rows
+}
+
+/// The amplitude and phase of each partial from a `wave_synth` node's table tail.
+///
+/// The node's params are `freq` followed by `amp, phase` rows, any number of them. A node
+/// with no rows of its own (a hand-written DOT statement) falls back to the catalog's
+/// default table, so it still sounds.
+fn harmonic_rows(node: &GraphNode) -> (Vec<f64>, Vec<f64>) {
+    let def = super::node_def("wave_synth");
+    let named = def.map_or(1, |def| def.params.len());
+    let tail = node.params.get(named..).unwrap_or(&[]);
+    let rows: &[f32] = if tail.is_empty() {
+        def.and_then(|def| def.table)
+            .map_or(&[], |table| table.default_rows)
+    } else {
+        tail
+    };
+    let mut amps = Vec::new();
+    let mut phases = Vec::new();
+    for pair in rows.chunks(2) {
+        amps.push(pair[0].clamp(0.0, 1.0) as f64);
+        phases.push(pair.get(1).copied().unwrap_or(0.0).clamp(0.0, 1.0) as f64);
+    }
+    (amps, phases)
+}
+
 /// Build one of M40's node kinds, or `None` when `kind` belongs to the main palette.
 pub(super) fn make_unit(
     node: &GraphNode,
@@ -50,6 +96,28 @@ pub(super) fn make_unit(
         "ramp" => Box::new(ramp_hz(p(0, 2.0))),
         "rossler" => Box::new(rossler()),
         "lorenz" => Box::new(lorenz()),
+        // A user-defined wavetable: the params past `freq` are `amp, phase` rows, any
+        // number of them (fundsp takes an amplitude and a phase per partial). fundsp
+        // normalizes the table, so the numbers set the timbre, not the level.
+        "wave_synth" => {
+            let (amps, phases) = harmonic_rows(node);
+            let table = Wavetable::new(
+                20.0,
+                20_000.0,
+                4.0,
+                &|i: u32| phases.get(i as usize).copied().unwrap_or(0.0),
+                &|_pitch: f64, i: u32| {
+                    // Partial 0 is DC; partial n is row `n - 1`.
+                    if i == 0 {
+                        0.0
+                    } else {
+                        amps.get(i as usize - 1).copied().unwrap_or(0.0)
+                    }
+                },
+            );
+            let table = std::sync::Arc::new(table);
+            Box::new(dc(p(0, 440.0).max(1.0)) >> An(WaveSynth::<U1>::new(table)))
+        }
         "tanh" => Box::new(shape(Tanh(p(0, 1.0).max(0.01)))),
         "atan" => Box::new(shape(Atan(p(0, 1.0).max(0.01)))),
         "softsign" => Box::new(shape(Softsign(p(0, 1.0).max(0.01)))),

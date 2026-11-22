@@ -7,8 +7,13 @@
  * `pointer*` events (not HTML5 drag-and-drop — Tauri's native file-drop handler
  * consumes those), matching what the editor's real handlers expect.
  */
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { SEL, graphNode } from "./selectors.ts";
 import { click, count, waitFor } from "./dom.ts";
+import { mockReturn } from "./ipc.ts";
+import { CLI_BINARY } from "./fixtures.ts";
+import type { ToolResult } from "./mcp.ts";
 
 /**
  * The Timeline Filter switch (`SEL.toolbarFilter` — a Kobalte `Switch.Input`). It is
@@ -309,4 +314,40 @@ export async function filterHint(): Promise<string> {
     (sel: string) => document.querySelector(sel)?.textContent ?? "",
     SEL.graphHint,
   )) as string;
+}
+
+// --- DOT interchange (M39): import, export, the CLI and the hint helper -----------
+
+/** Import a graph into the active editor (the file dialog is stubbed to `source`). */
+export async function importGraph(source: string): Promise<void> {
+  await mockReturn("pick_graph_file", source);
+  await click(SEL.graphImport);
+}
+
+/** Export the active editor's graph (the save dialog is stubbed to `destination`). */
+export async function exportGraph(destination: string): Promise<string> {
+  await mockReturn("pick_save_path", destination);
+  await click(SEL.graphExport);
+  await waitFor(() => Promise.resolve(existsSync(destination)), "the DOT export was never written");
+  return readFileSync(destination, "utf8");
+}
+
+/** Run the CLI sidecar; a missing build is a clear failure, not a cryptic ENOENT. */
+export function runCli(args: string[]): string {
+  if (!existsSync(CLI_BINARY)) {
+    throw new Error(`the CLI sidecar is missing at ${CLI_BINARY} — run \`npm run tauri build\``);
+  }
+  return execFileSync(CLI_BINARY, args, { encoding: "utf8", maxBuffer: 8 << 20 });
+}
+
+/** Fail with the tool's own message when an MCP call reports an error. */
+export function expectToolOk(result: ToolResult): void {
+  if (result.isError) {
+    throw new Error(`the MCP tool failed: ${result.content?.[0]?.text ?? "(no message)"}`);
+  }
+}
+
+/** Wait until the active graph editor reports `text` in its toolbar hint. */
+export async function waitForHint(text: string, failure: string): Promise<void> {
+  await waitFor(async () => (await filterHint()).includes(text), failure);
 }

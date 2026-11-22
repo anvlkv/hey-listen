@@ -100,7 +100,7 @@ pub async fn preview_region(
     let mono = tauri::async_runtime::spawn_blocking(move || {
         let mono = pcm::mixdown(&region, channels, channel);
         let mono = match filter {
-            Some(spec) => match graph::apply_mono(&spec, &mono, rate) {
+            Some(spec) => match graph::apply_channel(&spec, &mono, rate, channel) {
                 Ok(filtered) => filtered,
                 Err(err) => {
                     // Should not happen: the graph is validated when installed.

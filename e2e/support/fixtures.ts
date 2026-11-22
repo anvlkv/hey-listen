@@ -56,6 +56,21 @@ export const SUBSYSTEM_FIXTURES = {
 } as const;
 
 /**
+ * The **multi-channel output** fixture (M41): one input split into three bands, each
+ * wired to its own `output` node with a distinct `channel` (0, 1, 2). Importing it makes
+ * the filter tab offer its "Analyse" selector, and the analysis `channel` param selects
+ * one band.
+ */
+export const BAND_FIXTURE = path.resolve(HERE, "..", "fixtures", "tri-band.dot");
+
+/**
+ * A **wavetable** fixture: six `amp,phase` rows (not a saw, and not the default sixteen),
+ * imported into a `wave_synth` node's Wavetable tab. One row per line is the whole
+ * format, so the same file the user writes in a spreadsheet round-trips.
+ */
+export const WAVETABLE_FIXTURE = path.resolve(HERE, "..", "fixtures", "wavetable-odd.csv");
+
+/**
  * The console binary the DOT spec drives. `tauri build` stages it through
  * `beforeBuildCommand` (`npm run sidecar`), so a suite run always has it; override with
  * `HEYLISTEN_CLI` to point at another profile.

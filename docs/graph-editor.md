@@ -23,7 +23,8 @@ The filter and synth graphs are built with `solid-flow` in two **Workbench tabs*
 
 Compilation is a literal **push + connect**:
 
-1. `Net::new(inputs, 1)` — one mono output, and one global input for filter graphs.
+1. `Net::new(inputs, channels)` — one global input for filter graphs, and one net
+   output per declared channel (see *Output channels*).
 2. `net.push(unit)` for every node.
 3. `net.connect(src, src_port, dst, dst_port)` for every edge — **each input takes
    exactly one source**.
@@ -32,6 +33,33 @@ Compilation is a literal **push + connect**:
 There is **no implicit summing**: only what is wired to `Output` is the graph's
 result. (The previous "sum every terminal node" behaviour was removed — it silently
 mixed in dangling/unwired paths.)
+
+## Output channels
+
+`output` nodes each carry a **`Ch`** parameter, so a graph can produce more than one
+channel — e.g. one input split into bands, each band wired to its own `Output`:
+
+```
+input [kind="input", label="in"]
+low  [kind="lowpass", freq=400]
+high [kind="highpass", freq=400]
+out0 [kind="output", channel=0]
+out1 [kind="output", channel=1]
+in:out -> low -> out0:in
+in:out -> high -> out1:in
+```
+
+- Channels are 0-based and **unique**; a duplicate is `DuplicateOutput` and one outside
+  `0…15` is `OutputChannel`. A channel nobody claims is silent.
+- **The analysis `channel` pick selects the output channel.** One picker serves both
+  halves of conditioning: it mixes the source down to that channel (out of range falls
+  back to the downmix) and then keeps that output of the filter graph — so a 2-channel
+  source can still reach output 3. "Downmix" averages every output.
+- A **synth** graph renders every output channel into the source: the render becomes an
+  **interleaved** `SourceData` with that channel count (so the Timeline shows one lane per
+  channel and the analysis `channel` picks a source channel as usual).
+- The Filter graph tab shows an **Analyse** selector once the graph declares more than
+  one channel; the Timeline's channel rail is the picker for everything else.
 
 ## Node palette
 
@@ -52,13 +80,21 @@ inputs are control signals. `compressor`/`gate` are built from fundsp's primitiv
 (level follower + gain map) because fundsp ships neither. Filter graphs seed as
 `Input → Output`; synth graphs seed as `Sine → Output`.
 
-**Stereo nodes.** The compiled net's global I/O is still mono (filter: 1 in / 1
-out; synth: 0 in / 1 out), but nodes may be **stereo internally** (`1→2`, `2→2`,
-`2→1`) — wire `Input → split → stereo FX → join → Output` and the graph still
-resolves to one channel. Because the net's output is mono, `join` (or wiring a
-single channel) back before `Output`; a floating stereo channel is simply not
-heard. `reverb2_stereo` and `reverb3_stereo` take their loop filter as a positional
-cutoff (`lowpole_hz`) and `panner`'s pan is a control input (its second port).
+**Stereo nodes.** The net's global input is mono (filter: 1 in; synth: 0 in), but nodes
+may be **stereo internally** (`1→2`, `2→2`, `2→1`) — wire `Input → split → stereo FX →
+join → Output` and the graph still resolves to one channel. `reverb2_stereo` and
+`reverb3_stereo` take their loop filter as a positional cutoff (`lowpole_hz`) and
+`panner`'s pan is a control input (its second port).
+
+**Wavetable nodes.** A kind may declare a **variadic table** (`NodeDef.table`,
+`NodeTable`): rows appended after its named params, in row order. `wave_synth` is the
+first — `freq` then `amp, phase` per partial, **any number of rows** — because fundsp's
+`Wavetable::new` takes an amplitude and a phase per partial and no fixed count. Three
+consequences, all one place each: the core reads the tail of `GraphNode.params`; DOT
+packs the rows into one attribute (`harmonics="1,0,0.35,0.25"`), so the row count is
+free; and the editor stores them on the node (`data.table`) and edits them in the node's
+**Wavetable tab** (`wavetable:<parent>/<node>`), which also imports and exports one
+`amp,phase` row per line. The node card shows the cycle the rows add up to.
 
 **Math nodes.** `add`/`subtract`/`multiply`/`divide`/`min`/`max` are 2-in/1-out
 signal arithmetic (A op B) — `multiply` doubles as a VCA/ring-mod when one input is
@@ -75,7 +111,9 @@ smoothing across a net *rebuild* is out of scope.)
 
 ## Rules (enforced in the UI *and* the core)
 
-- **Exactly one `input`** (filter graphs) and **exactly one `output`**.
+- **Exactly one `input`** (filter graphs). **One `output` per channel**: a filter graph
+  may declare several (channels 0-based, unique and in range), a synth renders them as a
+  multi-channel source.
 - **One source per input** — a second edge into an occupied input is rejected
   (`GraphError::InputConflict`); the UI blocks it and warns.
 - **No cycles** (`GraphError::Cycle`), no self-links.

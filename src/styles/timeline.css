@@ -59,11 +59,9 @@
   color: var(--fg-body);
 }
 
-/* Text-only switch label: the words carry the meaning, so it takes no icon. */
+/* Text-only switch label: the words carry the meaning, so it takes no icon. The
+   label/state gap is shared with the graph's Live switch (`shared.css`). */
 .timeline-filter .toolbar-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-size: 0.75rem;
   color: var(--fg-body);
 }

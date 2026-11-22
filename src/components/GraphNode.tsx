@@ -1,12 +1,13 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
 import { graphThumbnail } from "../lib/graph/thumbnail";
 import { nodeKind, portLabel } from "../lib/graph";
-import { updateParam, type GraphNodeData } from "../state/graph";
+import { renameNode, updateParam, type GraphNodeData } from "../state/graph";
 import { systemScope } from "../state/subsystems";
-import { openSystem } from "../state/workbench";
+import { openSystem, refreshSystemTitle } from "../state/workbench";
 import ParamField from "./graphEditor/ParamField";
 import SnoopTrace from "./graphEditor/SnoopTrace";
+import WavetableCard from "./graphEditor/WavetableCard";
 
 /** Vertical position of handle `index` of `count`, spread down the node side. */
 function handleTop(index: number, count: number): string {
@@ -35,8 +36,31 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
   const outputs = () => def()?.outputPorts.length ?? 1;
   const isAnchor = () => props.data.kind === "input" || props.data.kind === "output";
   const isSystem = () => def()?.subsystem === true;
+  /** A kind with a variadic table (`wave_synth`) draws its cycle and a way into its tab. */
+  const hasTable = () => def()?.table != null;
   const thumb = createMemo(() => graphThumbnail(props.data.subgraph));
   const systemNodes = () => props.data.subgraph?.nodes.length ?? 0;
+  /** A subsystem's user name wins over the kind's label. */
+  const title = () => props.data.name || def()?.label || props.data.kind;
+
+  // Double-click a subsystem's title to rename it. Names live in the editor store
+  // (like node positions), not in the DOT interchange.
+  const [editing, setEditing] = createSignal(false);
+  const [draft, setDraft] = createSignal("");
+
+  function startRename(event: MouseEvent) {
+    if (!isSystem()) return;
+    event.stopPropagation();
+    setDraft(title());
+    setEditing(true);
+  }
+
+  function commitRename() {
+    if (!editing()) return;
+    setEditing(false);
+    renameNode(props.data.graph, props.id, draft());
+    refreshSystemTitle(systemScope(props.data.graph, props.id));
+  }
 
   return (
     <div
@@ -70,9 +94,38 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
         )}
       </For>
 
-      <div class="graph-node-title" title={def()?.hint}>
-        {def()?.label ?? props.data.kind}
-      </div>
+      <Show
+        when={editing()}
+        fallback={
+          <div
+            class="graph-node-title"
+            classList={{ "graph-node-title-renamable": isSystem() }}
+            title={isSystem() ? "Double-click to rename this subsystem" : def()?.hint}
+            onDblClick={startRename}
+          >
+            {title()}
+          </div>
+        }
+      >
+        <input
+          class="graph-node-title-input nodrag"
+          data-testid="graph.subsystem.name"
+          value={draft()}
+          // `autofocus` only applies to markup present at parse time, so focus the
+          // freshly inserted field ourselves and preselect the old name.
+          ref={(node) => queueMicrotask(() => node.select())}
+          onPointerDown={(event) => event.stopPropagation()}
+          onInput={(event) => setDraft(event.currentTarget.value)}
+          onBlur={commitRename}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commitRename();
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              setEditing(false);
+            }
+          }}
+        />
+      </Show>
 
       <Show when={!isAnchor() && (def()?.params.length ?? 0) > 0}>
         <div class="graph-node-params">
@@ -86,6 +139,15 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
             )}
           </For>
         </div>
+      </Show>
+
+      <Show when={hasTable()}>
+        <WavetableCard
+          scope={props.data.graph}
+          node={props.id}
+          kind={props.data.kind}
+          rows={props.data.table}
+        />
       </Show>
 
       <Show when={isSystem()}>

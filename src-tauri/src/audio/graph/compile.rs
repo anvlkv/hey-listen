@@ -9,7 +9,11 @@ use std::collections::{HashMap, HashSet};
 use fundsp::prelude64::*;
 
 use super::units::{finite, DynamicsUnit, GainLaw, MathOp, MathUnit, SumUnit, UnaryOp, UnaryUnit};
-use super::{is_input_kind, is_subsystem, kind_arity, GraphError, GraphNode, GraphSpec};
+use super::{
+    is_input_kind, is_subsystem, kind_arity, output_channels, GraphError, GraphNode, GraphSpec,
+};
+
+use super::outputs::output_channel;
 
 /// Halfway response time (seconds) of the one-pole smoother applied to a node's
 /// **control-rate** inputs, so live knob moves glide instead of stepping.
@@ -293,7 +297,9 @@ pub(super) fn build_with_ids(
     sample_rate: u32,
     scope: &str,
 ) -> Result<(Net, HashMap<String, NodeId>), GraphError> {
-    let mut net = Net::new(global_inputs, 1);
+    // One `Net` output per distinct `output`-node channel (see `output_channels`).
+    let net_outputs = output_channels(spec)?;
+    let mut net = Net::new(global_inputs, net_outputs);
     // A rebuild replaces every snoop in this scope; drop the stale frontends first.
     super::snoop::clear_scope(scope);
 
@@ -301,7 +307,7 @@ pub(super) fn build_with_ids(
     let mut ids: HashMap<String, NodeId> = HashMap::new();
     let mut kinds: HashMap<&str, &str> = HashMap::new();
     let mut inputs: Vec<&str> = Vec::new();
-    let mut outputs: Vec<&str> = Vec::new();
+    let mut outputs: Vec<(usize, &str)> = Vec::new();
     for node in &spec.nodes {
         let kind = node.kind.as_str();
         if kind_arity(kind).is_none() {
@@ -311,7 +317,7 @@ pub(super) fn build_with_ids(
         if is_input_kind(kind) {
             inputs.push(node.id.as_str());
         } else if kind == "output" {
-            outputs.push(node.id.as_str());
+            outputs.push((output_channel(node), node.id.as_str()));
         }
         let node_id = net.push(make_unit(node, scope, sample_rate)?);
         ids.insert(node.id.clone(), node_id);
@@ -327,10 +333,8 @@ pub(super) fn build_with_ids(
     } else if let Some(id) = inputs.first() {
         return Err(GraphError::InputInSynth((*id).to_string()));
     }
-    match outputs.len() {
-        0 => return Err(GraphError::NoOutput),
-        1 => {}
-        _ => return Err(GraphError::DuplicateAnchor("output".to_string())),
+    if outputs.is_empty() {
+        return Err(GraphError::NoOutput);
     }
 
     // 3) Connect the edges (each input takes exactly one source).
@@ -367,8 +371,11 @@ pub(super) fn build_with_ids(
         let input_id = ids[inputs[0]];
         net.set_source(input_id, 0, Source::Global(0));
     }
-    let output_id = ids[outputs[0]];
-    net.set_output_source(0, Source::Local(output_id, 0));
+    // Each `output` node feeds the channel its `Ch` param names; an unwired channel
+    // (no output node claims it) stays silent.
+    for (channel, id) in outputs {
+        net.set_output_source(channel, Source::Local(ids[id], 0));
+    }
 
     net.set_sample_rate(sample_rate as f64);
     if net.error().is_some() {

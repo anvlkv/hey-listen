@@ -36,6 +36,38 @@ fn every_kind_round_trips_through_dot() {
 }
 
 #[test]
+fn a_wavetable_round_trips_as_one_packed_attribute() {
+    // Any number of `amp, phase` rows: the node stores them after `freq`, and DOT carries
+    // them in one attribute (so the row count is free).
+    let rows: Vec<f32> = (1..=5)
+        .flat_map(|n| [1.0 / n as f32, 0.125 * n as f32])
+        .collect();
+    let mut params = vec![330.0];
+    params.extend(&rows);
+    let spec = GraphSpec {
+        nodes: vec![GraphNode {
+            id: "wt".to_string(),
+            kind: "wave_synth".to_string(),
+            params: params.clone(),
+            subgraph: None,
+        }],
+        edges: Vec::new(),
+    };
+    let text = dot::emit(&spec).expect("emit");
+    assert!(text.contains("harmonics=\"1,0.125,0.5,0.25"), "{text}");
+
+    let parsed = dot::parse(&text).expect("parse");
+    assert_eq!(parsed.nodes[0].params, params);
+
+    // A row count that is not a multiple of the columns is rejected.
+    let broken = text.replace("harmonics=\"", "harmonics=\"0.1,");
+    assert!(matches!(
+        dot::parse(&broken),
+        Err(GraphError::BadParamValue(_))
+    ));
+}
+
+#[test]
 fn a_multi_port_graph_round_trips() {
     let spec = GraphSpec {
         nodes: vec![

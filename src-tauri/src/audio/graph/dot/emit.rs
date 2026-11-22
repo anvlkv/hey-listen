@@ -2,7 +2,7 @@
 //! included. The parser lives in [`super::parse`].
 
 use super::super::nodes::{self, NodeDef, PortSide};
-use super::super::{GraphError, GraphSpec};
+use super::super::{GraphError, GraphNode, GraphSpec};
 
 /// Emit a graph spec as DOT. `GraphSpec → DOT → GraphSpec` is identity.
 pub fn emit(spec: &GraphSpec) -> Result<String, GraphError> {
@@ -29,6 +29,7 @@ fn emit_statements(spec: &GraphSpec, indent: &str, out: &mut String) -> Result<(
                 )
             })
             .collect();
+        let table = table_rows(node, def);
         let system = node
             .subgraph
             .as_ref()
@@ -37,6 +38,7 @@ fn emit_statements(spec: &GraphSpec, indent: &str, out: &mut String) -> Result<(
         out.push_str(&node_statement_full(
             &node.id,
             &params,
+            &table,
             Some(def),
             system.as_deref(),
         ));
@@ -73,14 +75,33 @@ fn emit_statements(spec: &GraphSpec, indent: &str, out: &mut String) -> Result<(
 }
 
 /// One node statement, used both by [`emit`] and by `get_node`'s DOT skeleton.
-pub fn node_statement(id: &str, params: &[(String, f32)], def: Option<&NodeDef>) -> String {
-    node_statement_full(id, params, def, None)
+pub fn node_statement(
+    id: &str,
+    params: &[(String, f32)],
+    table: &[f32],
+    def: Option<&NodeDef>,
+) -> String {
+    node_statement_full(id, params, table, def, None)
+}
+
+/// The rows of a node's variadic table (the params past its named ones), cut to whole
+/// rows and the catalog's row cap.
+fn table_rows(node: &GraphNode, def: &NodeDef) -> Vec<f32> {
+    let Some(table) = def.table else {
+        return Vec::new();
+    };
+    let width = table.columns.len().max(1);
+    let mut rows: Vec<f32> = node.params.iter().skip(def.params.len()).copied().collect();
+    let whole = rows.len().min(table.max_rows * width) / width * width;
+    rows.truncate(whole);
+    rows
 }
 
 /// A node statement, optionally naming the node's subsystem block.
 fn node_statement_full(
     id: &str,
     params: &[(String, f32)],
+    table: &[f32],
     def: Option<&NodeDef>,
     system: Option<&str>,
 ) -> String {
@@ -88,6 +109,11 @@ fn node_statement_full(
     let mut attrs = vec![format!("kind=\"{kind}\"")];
     for (key, value) in params {
         attrs.push(format!("{key}={}", number(*value)));
+    }
+    // A variadic table travels as **one** packed attribute, so the row count is free.
+    if let (Some(table_def), false) = (def.and_then(|def| def.table), table.is_empty()) {
+        let rows: Vec<String> = table.iter().map(|value| number(*value)).collect();
+        attrs.push(format!("{}=\"{}\"", table_def.key, rows.join(",")));
     }
     if let Some(system) = system {
         attrs.push(format!("system=\"{}\"", escape(system)));

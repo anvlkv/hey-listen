@@ -8,6 +8,7 @@ import {
   type GraphSpec,
   type NodeKindDef,
 } from "../lib/graph";
+import { defaultRows } from "../lib/graph/wavetable";
 import { isAnchorKind } from "./graphKinds";
 
 /**
@@ -24,8 +25,12 @@ export type GraphNodeData = {
   params: Record<string, number>;
   /** The scope that holds this node (`filter`, `synth`, or `system:…`). */
   graph: GraphScope;
+  /** A subsystem's user-visible name (e.g. `Feedback 2`); empty for other kinds. */
+  name?: string;
   /** A subsystem node's nested graph (the compiled/stored form). */
   subgraph?: GraphSpec | null;
+  /** A variadic table's rows, row-major (see `lib/graph/wavetable.ts`). */
+  table?: number[];
 } & Record<string, unknown>;
 
 export type GraphNode = Node<GraphNodeData, "graph">;
@@ -83,8 +88,17 @@ function makeNode(kind: string, scope: GraphScope, x: number, y: number): GraphN
       kind,
       params: def ? defaultParams(def) : {},
       graph: scope,
-      // A subsystem starts valid: its tab opens on a minimal inner graph.
-      ...(def?.subsystem ? { subgraph: emptySystemSpec(kind === "resample") } : {}),
+      // A subsystem starts valid: its tab opens on a minimal inner graph, and it takes
+      // the next free default name (`Feedback 1`, `Feedback 2`, …) so the Sidebar and
+      // its tab can tell two of them apart before anyone renames them.
+      ...(def?.subsystem
+        ? {
+            subgraph: emptySystemSpec(kind === "resample"),
+            name: defaultName(scope, def),
+          }
+        : {}),
+      // A kind with a variadic table (a wavetable) starts on its catalog rows.
+      ...(def?.table ? { table: defaultRows(kind) } : {}),
     },
   };
   if (isAnchorKind(kind)) {
@@ -93,6 +107,26 @@ function makeNode(kind: string, scope: GraphScope, x: number, y: number): GraphN
     node.deletable = false;
   }
   return node;
+}
+
+/** The next default name for a subsystem of `def` within `scope`: label + counter. */
+function defaultName(scope: GraphScope, def: NodeKindDef): string {
+  const existing = hasGraph(scope)
+    ? graphFor(scope).nodes.filter((node) => node.data.kind === def.kind).length
+    : 0;
+  return `${def.label} ${existing + 1}`;
+}
+
+/** Give nameless subsystem nodes (an imported DOT / MCP graph) their default names. */
+export function fillSystemNames(nodes: readonly GraphNode[]): GraphNode[] {
+  const seen = new Map<string, number>();
+  return nodes.map((node) => {
+    const def = nodeKind(node.data.kind);
+    if (!def?.subsystem || node.data.name) return node;
+    const count = (seen.get(node.data.kind) ?? 0) + 1;
+    seen.set(node.data.kind, count);
+    return { ...node, data: { ...node.data, name: `${def.label} ${count}` } };
+  });
 }
 
 /** The seed nested graph of a new subsystem: `Input → Output`, or a sine generator
@@ -186,6 +220,16 @@ export function spliceEdge(scope: GraphScope, edge: GraphEdge, nodeId: string): 
   ]);
 }
 
+/** Replace one node's variadic table rows (row-major). */
+export function setTableRows(scope: GraphScope, id: string, rows: number[]) {
+  graphFor(scope).setNodes((node) => node.id === id, "data", "table", rows);
+}
+
+/** Rename a subsystem node (an empty name falls back to the kind's label). */
+export function renameNode(scope: GraphScope, id: string, name: string) {
+  graphFor(scope).setNodes((node) => node.id === id, "data", "name", name.trim());
+}
+
 /** Update one parameter of a node in place. */
 export function updateParam(scope: GraphScope, id: string, key: string, value: number) {
   graphFor(scope).setNodes((node) => node.id === id, "data", "params", key, value);
@@ -265,12 +309,14 @@ export function loadSpec(scope: GraphScope, spec: GraphSpec) {
   const handle = graphFor(scope);
   handle.setEdges(edges);
   handle.setNodes(
-    nodes.map((node) => ({
-      ...node,
-      type: "graph" as const,
-      data: { ...node.data, graph: scope },
-      ...(isAnchorKind(node.data.kind) ? { deletable: false } : {}),
-    })),
+    fillSystemNames(
+      nodes.map((node) => ({
+        ...node,
+        type: "graph" as const,
+        data: { ...node.data, graph: scope },
+        ...(isAnchorKind(node.data.kind) ? { deletable: false } : {}),
+      })),
+    ),
   );
   bumpNextId([...nodes, ...edges]);
 }

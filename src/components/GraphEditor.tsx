@@ -7,7 +7,6 @@ import { bezierPoints } from "../lib/graphEdges";
 import {
   clearGraphWarning,
   graphFor,
-  isAnchorKind,
   resetNode,
   setNodesPosition,
   setNodesPositions,
@@ -16,7 +15,7 @@ import {
   type GraphEdge,
 } from "../state/graph";
 import { dropSystemsUnder } from "../state/subsystems";
-import { closeSystemsUnder } from "../state/workbench";
+import { closeSystemsUnder, closeWavetablesUnder } from "../state/workbench";
 import { resolvedTheme, themeFlow } from "../state/themes";
 import Button from "./Button";
 import GraphNode from "./GraphNode";
@@ -66,6 +65,22 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
 
   const handle = () => graphFor(props.graph);
 
+  // One `output` must remain, but a filter graph may declare several channels. Keep the
+  // `deletable` flags truthful so only the last exit is protected (a surplus output can
+  // be removed again, and an `input` never can).
+  createEffect(() => {
+    const nodes = handle().nodes;
+    const outputs = nodes.filter((node) => node.data.kind === "output");
+    const surplus = outputs.length > 1;
+    for (const node of outputs) {
+      if (surplus && node.deletable === false) {
+        handle().setNodes((current) => current.id === node.id, "deletable", true);
+      } else if (!surplus && node.deletable !== false) {
+        handle().setNodes((current) => current.id === node.id, "deletable", false);
+      }
+    }
+  });
+
   /** Canvas-local path of a connector, for the splice preview highlight. */
   function connectorPath(edge: GraphEdge, rect: DOMRect, api: FlowApi): string | null {
     const from = handleCentre(api, edge.source, "source", edge.sourceHandle);
@@ -108,7 +123,8 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
     const point = api.screenToFlowPosition({ x: state.x, y: state.y });
     const target = dropTarget(props.graph, handle(), api, state.def, point);
     if (!target) {
-      // `dropTarget` refuses only an unavailable kind: a second anchor, or a synth input.
+      // `dropTarget` refuses only an unavailable kind: a second `input`, or an `input`
+      // in a synth graph.
       return {
         label,
         ghost,
@@ -116,7 +132,7 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
         hint:
           state.def.kind === "input" && props.graph === "synth"
             ? "Synths have no Input node"
-            : "Only one Input and Output",
+            : "One Input per graph",
         position: null,
         splice: false,
         splicePath: null,
@@ -251,14 +267,14 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
             onEdgeClick={() => setMenu(null)}
             onDelete={({ nodes, edges }) => {
               // Mirror deletions (idempotent — the library may already have done it).
-              // Input/Output anchors are undeletable (`deletable: false`); skip them
-              // anyway so a stray event can never remove an anchor.
+              // Undeletable nodes (`deletable: false`) are the `input` and a graph's last
+              // `output`; skip them anyway so a stray event can never remove one.
               if (edges.length) {
                 const ids = new Set(edges.map((edge) => edge.id));
                 handle().setEdges((current) => current.filter((edge) => !ids.has(edge.id)));
               }
               if (nodes.length) {
-                const deletable = nodes.filter((node) => !isAnchorKind(node.data.kind));
+                const deletable = nodes.filter((node) => node.deletable !== false);
                 const ids = new Set(deletable.map((node) => node.id));
                 handle().setNodes((current) => current.filter((node) => !ids.has(node.id)));
                 // A deleted subsystem node takes its nested graph (and the tabs under
@@ -266,6 +282,7 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
                 // project snapshot as any other graph edit.
                 dropSystemsUnder(props.graph, ids);
                 closeSystemsUnder(props.graph, ids);
+                closeWavetablesUnder(props.graph, ids);
                 const open = menu();
                 if (open && ids.has(open.id)) setMenu(null);
               }

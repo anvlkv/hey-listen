@@ -134,6 +134,16 @@ export const SEL = {
   graphSubsystemThumbnail: '[data-testid="graph.subsystem.thumbnail"]',
   graphSubsystemOpen: '[data-testid="graph.subsystem.open"]',
   graphSubsystemTitle: '[data-testid="graph.subsystem.title"]',
+  // A multi-channel filter graph's "Analyse" channel selector (M41).
+  graphChannel: '[data-testid="graph.channel"]',
+  // A table node's cycle preview on its card, and the way into its Wavetable tab.
+  graphWavetable: '[data-testid="graph.wavetable"]',
+  graphWavetableOpen: '[data-testid="graph.wavetable.open"]',
+  graphWavetableTitle: '[data-testid="graph.wavetable.title"]',
+  graphWavetableRow: '[data-testid="graph.wavetable.row"]',
+  graphWavetableImport: '[data-testid="graph.wavetable.import"]',
+  graphWavetableExport: '[data-testid="graph.wavetable.export"]',
+  graphWavetableAdd: '[data-testid="graph.wavetable.add"]',
   // A `snoop` node's live envelope.
   graphSnoop: '[data-testid="graph.snoop"]',
   // Autolayout (both editors): dagre, left to right.

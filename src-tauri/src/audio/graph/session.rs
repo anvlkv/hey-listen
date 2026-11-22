@@ -13,7 +13,7 @@ use std::fmt::Write;
 use fundsp::prelude64::{AudioUnit, Fade, Net, NodeId};
 
 use super::compile::{build_with_ids, make_unit};
-use super::render::{frames, render_samples};
+use super::render::{frames, render_frames};
 use super::{GraphError, GraphSpec};
 
 /// A window's synth net: the compiled graph plus what it was compiled from.
@@ -34,17 +34,18 @@ impl SynthSession {
         Self::default()
     }
 
-    /// Render `seconds` of `spec`, reusing the compiled net when its topology held.
+    /// Render `seconds` of `spec` as **interleaved** PCM plus its channel count,
+    /// reusing the compiled net when its topology held.
     pub fn render(
         &mut self,
         spec: &GraphSpec,
         seconds: f64,
         sample_rate: u32,
-    ) -> Result<Vec<f32>, GraphError> {
+    ) -> Result<(Vec<f32>, usize), GraphError> {
         self.sync(spec, sample_rate)?;
         let net = self.net.as_mut().expect("sync installed a net");
         net.reset();
-        Ok(render_samples(net, frames(seconds, sample_rate)))
+        Ok(render_frames(net, frames(seconds, sample_rate)))
     }
 
     /// Rebuild on a structural (or sample-rate) change; otherwise patch the nodes whose
@@ -229,10 +230,10 @@ mod tests {
         // The outer node's own params do not change, so only the nested key can notice
         // the edit — without it the stale unit would keep the old gain.
         let mut session = SynthSession::new();
-        let quiet = session
+        let (quiet, _) = session
             .render(&nested_gain(0.2), 0.01, 48_000)
             .expect("quiet");
-        let loud = session
+        let (loud, _) = session
             .render(&nested_gain(0.9), 0.01, 48_000)
             .expect("loud");
         let peak = |samples: &[f32]| samples.iter().fold(0.0f32, |max, s| max.max(s.abs()));
@@ -247,13 +248,14 @@ mod tests {
     #[test]
     fn a_parameter_edit_reuses_the_net() {
         let mut session = SynthSession::new();
-        let low = session
+        let (low, _) = session
             .render(&sine(220.0), 0.05, 48_000)
             .expect("first render");
-        let high = session
+        let (high, channels) = session
             .render(&sine(440.0), 0.05, 48_000)
             .expect("patched render");
 
+        assert_eq!(channels, 1);
         assert_eq!(high.len(), 2_400);
         assert!(high.iter().all(|sample| sample.is_finite()));
         let (before, after) = (crossings(&low), crossings(&high));
@@ -298,7 +300,7 @@ mod tests {
                 },
             ],
         };
-        let out = session
+        let (out, _) = session
             .render(&mixed, 0.01, 48_000)
             .expect("rebuilt render");
         assert_eq!(out.len(), 480);

@@ -1,7 +1,7 @@
 import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
+import { channel } from "./analysis";
 import { pcmStream } from "../lib/pcmStream";
-import { channel, channelArg, channelFor } from "./analysis";
 import { filterActive, filterRevision } from "./graph";
 import { source } from "./source";
 import type { StreamSummary } from "../bindings/StreamSummary";
@@ -35,12 +35,13 @@ async function fetchFiltered() {
   }
   const current = ++token;
 
-  // Mirror the Timeline: downmix passes `null`, otherwise the clamped channel.
-  const pick = channelFor(s.channels);
+  // Mirror the analysis pick exactly. An output-channel pick can exceed the source's
+  // channel count: the core averages the mixdown, then keeps that filter output.
+  const pick = channel();
   const stream = pcmStream();
   try {
     await invoke<StreamSummary>("render_filtered", {
-      channel: channelArg(pick),
+      channel: typeof pick === "number" ? pick : null,
       onChunk: stream.channel,
     });
     await stream.done;

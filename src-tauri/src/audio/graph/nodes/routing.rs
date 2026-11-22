@@ -1,6 +1,6 @@
 //! Routing and graph anchors: `input` / `output`, `mix`, `split`, `join`.
 
-use super::{def, filter_node, NodeDef};
+use super::{def, filter_node, param, NodeDef};
 
 pub(super) const ROUTING: &[NodeDef] = &[
     filter_node!(
@@ -18,8 +18,8 @@ pub(super) const ROUTING: &[NodeDef] = &[
         Io,
         ["in"],
         [],
-        [],
-        "Where the graph's mono result is read."
+        [param("channel", "Ch", 0.0, 0.0, 15.0, 1.0, None)],
+        "Reads one of the graph's output channels. Add another Output for another channel."
     ),
     def!(
         "mix",

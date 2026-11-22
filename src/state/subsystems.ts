@@ -13,6 +13,7 @@ import {
 } from "../lib/graph";
 import {
   bumpNextId,
+  fillSystemNames,
   forgetGraph,
   graphFor,
   graphScopes,
@@ -53,11 +54,12 @@ const DISPOSERS = new Map<string, () => void>();
 type NodeLike = {
   id: string;
   kind?: string;
-  data?: { kind: string; subgraph?: GraphSpec | null };
+  data?: { kind: string; name?: string; subgraph?: GraphSpec | null };
   subgraph?: GraphSpec | null;
 };
 
 const kindOf = (node: NodeLike) => node.data?.kind ?? node.kind ?? "";
+const nameOf = (node: NodeLike) => node.data?.name ?? "";
 const subgraphOf = (node: NodeLike) => node.data?.subgraph ?? node.subgraph ?? null;
 
 /** Every subsystem in the project, in graph order (nested ones included). */
@@ -79,7 +81,8 @@ function walk(parent: GraphScope, nodes: readonly NodeLike[], out: SubsystemRef[
       parent,
       node: node.id,
       kind,
-      label: nodeKind(kind)?.label ?? kind,
+      // A user name wins; otherwise the kind's label (and then the raw kind).
+      label: nameOf(node) || nodeKind(kind)?.label || kind,
     });
     const nested = subgraphOf(node);
     if (nested) walk(scope, nested.nodes as NodeLike[], out);
@@ -117,12 +120,14 @@ export function ensureSystem(scope: SubsystemScope): GraphHandle {
     ...(node.data.kind === "input" || node.data.kind === "output" ? { deletable: false } : {}),
     data: { ...node.data, graph: scope },
   })) as GraphNode[];
+  // Nested subsystems loaded from a saved spec get their default names too.
+  const named = fillSystemNames(nodes);
   const edges = (stored?.edges ?? []) as GraphEdge[];
-  const [storeNodes, setNodes] = createStore<GraphNode[]>(nodes);
+  const [storeNodes, setNodes] = createStore<GraphNode[]>(named);
   const [storeEdges, setEdges] = createStore<GraphEdge[]>(edges);
   const handle: GraphHandle = { nodes: storeNodes, edges: storeEdges, setNodes, setEdges };
   registerGraph(scope, handle);
-  bumpNextId([...nodes, ...edges]);
+  bumpNextId([...named, ...edges]);
   mirrorToOwner(scope, handle);
   return handle;
 }

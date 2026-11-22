@@ -26,12 +26,13 @@ const SOURCE_MAX_SECONDS: f64 = 600.0;
 ///
 /// Compiling and rendering are CPU-bound, so they never run on the async runtime, and a
 /// parameter-only edit patches the net in place instead of recompiling it (`SynthSession`).
-async fn render_mono(
+/// Returns interleaved PCM and its channel count (a graph may declare several channels).
+async fn render_pcm(
     state: &Arc<WindowState>,
     spec: GraphSpec,
     seconds: f64,
     rate: u32,
-) -> Result<Vec<f32>, GraphError> {
+) -> Result<(Vec<f32>, usize), GraphError> {
     let state = state.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut synth = state
@@ -58,17 +59,20 @@ fn install_rendered(
     state: &WindowState,
     request: SourceRequest,
     pcm: Vec<f32>,
+    channels: u16,
     rate: u32,
     on_chunk: &Channel<InvokeResponseBody>,
 ) -> Result<StreamSummary, GraphError> {
+    let channels = channels.max(1);
+    // The buffer is interleaved, so the frame count is its length over the channel count.
+    let frames = (pcm.len() / usize::from(channels)) as u64;
     stream_pcm(&pcm, on_chunk)?;
-    let frames = pcm.len() as u64;
     let installed = state.audio.install_source(
         request,
         Some(SourceData {
             samples: pcm,
             sample_rate: rate,
-            channels: 1,
+            channels,
         }),
     );
     if !installed {
@@ -76,7 +80,7 @@ fn install_rendered(
     }
     Ok(StreamSummary {
         sample_rate: rate,
-        channels: 1,
+        channels,
         frames,
     })
 }
@@ -96,8 +100,8 @@ async fn render_source(
     let Some(request) = state.audio.claim_source_request(request_id) else {
         return Err(GraphError::Superseded);
     };
-    let pcm = render_mono(&state, spec, seconds, rate).await?;
-    install_rendered(&state, request, pcm, rate, on_chunk)
+    let (pcm, channels) = render_pcm(&state, spec, seconds, rate).await?;
+    install_rendered(&state, request, pcm, channels as u16, rate, on_chunk)
 }
 
 /// Install (or clear) the project's filter graph. Validated as a filter (one
@@ -287,4 +291,44 @@ pub async fn pick_graph_file(app: tauri::AppHandle) -> Option<String> {
         .blocking_pick_file()
         .and_then(|file| file.into_path().ok())
         .map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Pick a text file of wavetable rows to import (the dialog only; the reader is
+/// [`wavetable_read_file`], so a test can stub the dialog and still exercise parsing).
+#[tauri::command]
+pub async fn pick_wavetable_file(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    app.dialog()
+        .file()
+        .set_title("Load wavetable rows")
+        .add_filter("Wavetable rows", &["txt", "csv", "tsv"])
+        .blocking_pick_file()
+        .and_then(|file| file.into_path().ok())
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Read wavetable rows from a text file: one `amp,phase` row per line (a lone amplitude
+/// means phase 0). Returns the rows row-major, ready to store on the node.
+#[tauri::command]
+pub fn wavetable_read_file(path: String) -> Result<Vec<f32>, GraphError> {
+    let text = std::fs::read_to_string(&path)
+        .map_err(|err| GraphError::Io(format!("cannot read {path}: {err}")))?;
+    let rows = graph::parse_wavetable(&text);
+    if rows.is_empty() {
+        return Err(GraphError::Io(format!(
+            "{path} holds no wavetable rows (expected numbers, one row per line)"
+        )));
+    }
+    Ok(rows)
+}
+
+/// Write wavetable rows to a text file: one `amp,phase` row per line.
+#[tauri::command]
+pub fn wavetable_write_file(rows: Vec<f32>, path: String) -> Result<(), GraphError> {
+    let mut text = String::from("amp,phase\n");
+    for pair in rows.chunks(2) {
+        let phase = pair.get(1).copied().unwrap_or(0.0);
+        text.push_str(&format!("{},{}\n", pair[0], phase));
+    }
+    std::fs::write(&path, text).map_err(|err| GraphError::Io(format!("cannot write {path}: {err}")))
 }

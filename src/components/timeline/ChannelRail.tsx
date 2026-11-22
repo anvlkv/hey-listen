@@ -1,5 +1,6 @@
 import { createEffect, For, on } from "solid-js";
 import { channel, channelOptions, setChannel } from "../../state/analysis";
+import { filterOutputs } from "../../state/graph";
 import { source } from "../../state/source";
 import { RAIL_W, RULER_H } from "./constants";
 
@@ -14,12 +15,12 @@ import { RAIL_W, RULER_H } from "./constants";
 export default function ChannelRail() {
   const channels = () => Math.max(1, source()?.channels ?? 1);
   /** One option per channel (`channelOptions` leads with the downmix entry). */
-  const picks = () => channelOptions(channels()).slice(1);
+  const picks = () => channelOptions(channels(), filterOutputs()).slice(1);
 
-  // Fall back to the mix when a new source has fewer channels than the pick.
+  // Fall back to the mix when neither the source nor the filter graph has this channel.
   createEffect(
     on(
-      channels,
+      () => Math.max(channels(), filterOutputs()),
       (count) => {
         const pick = channel();
         if (typeof pick === "number" && pick >= count) setChannel("mix");

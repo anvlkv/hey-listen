@@ -312,8 +312,10 @@ pub fn condition_with(
     cancel.check()?;
     let mono = pcm::mixdown(region, channels, channel);
     cancel.check()?;
+    // The same pick selects the filter graph's **output** channel: a graph with several
+    // `output` nodes is analysed one channel at a time (see `graph::apply_channel`).
     let mono = match filter {
-        Some(spec) => graph::apply_mono(spec, &mono, rate)
+        Some(spec) => graph::apply_channel(spec, &mono, rate, channel)
             .map_err(|err| AnalysisError::Filter(err.to_string()))?,
         None => mono,
     };

@@ -16,6 +16,9 @@ import {
   systemsUnder,
   type SubsystemScope,
 } from "./subsystems";
+import { parseWavetableScope, wavetableScope, type WavetableScope } from "./wavetables";
+import { graphFor, hasGraph } from "./graphHandles";
+import { nodeKind } from "../lib/graph";
 
 /**
  * Workbench tab registry.
@@ -79,10 +82,12 @@ export const [layoutRevision, setLayoutRevision] = createSignal(0);
  */
 export const [openCompareIds, setOpenCompareIds] = createSignal<string[]>([]);
 
-/** The focused Workbench tool id, or `null` when nothing (or a compare/subsystem view) is focused. */
+/** The focused Workbench tool id, or `null` when nothing (or a compare/subsystem/wavetable view) is focused. */
 export function focusedTool(): ToolId | null {
   const id = dockApi()?.activePanel?.id;
-  return id && !isCompareId(id) && !isSystemPanel(id) ? (id as ToolId) : null;
+  return id && !isCompareId(id) && !isSystemPanel(id) && !isWavetablePanel(id)
+    ? (id as ToolId)
+    : null;
 }
 
 /** The focused **analyzer** tab, or `null` (a graph tab, or nothing focused). */
@@ -226,7 +231,10 @@ export async function popoutTool(id: ToolId) {
 export function syncOpenTools(api: DockviewApi) {
   setOpenTools(
     api.panels
-      .filter((panel) => !isCompareId(panel.id) && !isSystemPanel(panel.id))
+      .filter(
+        (panel) =>
+          !isCompareId(panel.id) && !isSystemPanel(panel.id) && !isWavetablePanel(panel.id),
+      )
       .map((panel) => panel.id as ToolId),
   );
   setOpenCompareIds(api.panels.filter((panel) => isCompareId(panel.id)).map((panel) => panel.id));
@@ -250,10 +258,15 @@ export function openSystem(scope: SubsystemScope): void {
   addToMainGrid(api, scope, systemTitle(scope));
 }
 
-/** A subsystem tab's title: its kind, or a plain fallback when the node is gone. */
+/** A subsystem tab's title: its user name (or kind), or a plain fallback when gone. */
 function systemTitle(scope: SubsystemScope): string {
   const system = subsystems().find((item) => item.scope === scope);
   return system ? `Subsystem · ${system.label}` : "Subsystem";
+}
+
+/** Keep an open subsystem tab's title in step with a renamed node. */
+export function refreshSystemTitle(scope: SubsystemScope): void {
+  dockApi()?.getPanel(scope)?.api.setTitle(systemTitle(scope));
 }
 
 /** Close the subsystem tabs of `nodes` just deleted from `parent`. */
@@ -261,6 +274,42 @@ export function closeSystemsUnder(parent: GraphScope, nodes: Iterable<string>): 
   const api = dockApi();
   for (const node of nodes) {
     api?.getPanel(systemScope(parent, node))?.api.close();
+  }
+}
+
+/** Whether a panel id is a wavetable tab (`wavetable:<parent>/<node>`). */
+export function isWavetablePanel(id: string): boolean {
+  return parseWavetableScope(id) != null;
+}
+
+/** Open (or focus) a wavetable node's rows in their own tab. */
+export function openWavetable(scope: WavetableScope): void {
+  const api = dockApi();
+  if (!api) return;
+  const existing = api.getPanel(scope);
+  if (existing) {
+    existing.api.setActive();
+    return;
+  }
+  addToMainGrid(api, scope, wavetableTitle(scope));
+}
+
+/** A wavetable tab's title: the node kind and its frequency (`Wave synth · 440 Hz`). */
+function wavetableTitle(scope: WavetableScope): string {
+  const ref = parseWavetableScope(scope);
+  if (!ref || !hasGraph(ref.parent)) return "Wavetable";
+  const node = graphFor(ref.parent).nodes.find((current) => current.id === ref.node);
+  if (!node) return "Wavetable";
+  const label = nodeKind(node.data.kind)?.label ?? node.data.kind;
+  const freq = node.data.params.freq;
+  return freq ? `${label} · ${Math.round(freq)} Hz` : label;
+}
+
+/** Close the wavetable tabs of `nodes` just deleted from `parent`. */
+export function closeWavetablesUnder(parent: GraphScope, nodes: Iterable<string>): void {
+  const api = dockApi();
+  for (const node of nodes) {
+    api?.getPanel(wavetableScope(parent, node))?.api.close();
   }
 }
 

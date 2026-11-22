@@ -19,15 +19,27 @@
  * real, so the tests read the exported bytes from disk. Sorts before `t-close-main`,
  * which must stay the last suite file.
  */
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import { SEL, graphNode } from "../support/selectors.ts";
-import { CLI_BINARY, FIXTURES, GRAPH_FIXTURES, SUBSYSTEM_FIXTURES } from "../support/fixtures.ts";
-import { openMcp, type ToolResult } from "../support/mcp.ts";
-import { filterHint } from "../support/graph.ts";
+import {
+  FIXTURES,
+  GRAPH_FIXTURES,
+  SUBSYSTEM_FIXTURES,
+  BAND_FIXTURE,
+  WAVETABLE_FIXTURE,
+} from "../support/fixtures.ts";
+import { openMcp } from "../support/mcp.ts";
+import {
+  expectToolOk,
+  exportGraph,
+  filterHint,
+  importGraph,
+  runCli,
+  waitForHint,
+} from "../support/graph.ts";
 import { quietSynthLive } from "../support/synth.ts";
 import {
   activateTab,
@@ -45,40 +57,6 @@ import {
   waitForApp,
   waitForSourceLoaded,
 } from "../support/helpers.ts";
-
-/** Fail with the tool's own message when an MCP call reports an error. */
-function expectToolOk(result: ToolResult): void {
-  if (result.isError) {
-    throw new Error(`the MCP tool failed: ${result.content?.[0]?.text ?? "(no message)"}`);
-  }
-}
-
-/** Wait until the active graph editor reports `text` in its toolbar hint. */
-async function waitForHint(text: string, failure: string): Promise<void> {
-  await waitFor(async () => (await filterHint()).includes(text), failure);
-}
-
-/** Import a graph into the active editor (the picker is stubbed to `source`). */
-async function importGraph(source: string): Promise<void> {
-  await mockReturn("pick_graph_file", source);
-  await click(SEL.graphImport);
-}
-
-/** Export the active editor's graph (the save dialog is stubbed to `destination`). */
-async function exportGraph(destination: string): Promise<string> {
-  await mockReturn("pick_save_path", destination);
-  await click(SEL.graphExport);
-  await waitFor(() => Promise.resolve(existsSync(destination)), "the DOT export was never written");
-  return readFileSync(destination, "utf8");
-}
-
-/** Run the CLI sidecar; a missing build is a clear failure, not a cryptic ENOENT. */
-function runCli(args: string[]): string {
-  if (!existsSync(CLI_BINARY)) {
-    throw new Error(`the CLI sidecar is missing at ${CLI_BINARY} — run \`npm run tauri build\``);
-  }
-  return execFileSync(CLI_BINARY, args, { encoding: "utf8", maxBuffer: 8 << 20 });
-}
 
 describe("S4. Graph DOT interchange (M39)", () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "heylisten-dot-"));
@@ -313,5 +291,94 @@ describe("S4. Graph DOT interchange (M39)", () => {
     ) as { source: { channels: number; frames: number } };
     expect(rendered.source.channels).toBe(1);
     expect(rendered.source.frames).toBe(24_000);
+  });
+
+  it("V6 — a multi-output graph is analysed one channel at a time", async () => {
+    await openTool("filter");
+    await importGraph(BAND_FIXTURE);
+    await waitForHint("7 nodes", "the three-band filter never imported");
+    expect(await count(graphNode("output"))).toBe(3);
+    await browser.pause(600);
+    expect(await count(SEL.graphError)).toBe(0);
+
+    // Several declared channels make the tab offer its Analyse selector.
+    await waitFor(
+      async () => (await count(SEL.graphChannel)) > 0,
+      "the filter tab offered no Analyse selector for a 3-channel graph",
+    );
+
+    // Each Output's `Ch` survives the export.
+    const exported = path.join(dir, "tri-band.export.dot");
+    const text = await exportGraph(exported);
+    expect(text).toContain('kind="output", channel=2');
+
+    // The same file conditions a real tone, and each channel is its own band.
+    const rms = (channel: number): number => {
+      const out = JSON.parse(
+        runCli([
+          "analyze",
+          FIXTURES.sine440,
+          "-t",
+          "waveform",
+          "--filter",
+          BAND_FIXTURE,
+          "-p",
+          `channel=${channel}`,
+          "--summary",
+        ]),
+      ) as { summary: { items: { key: string; value: number }[] } };
+      return out.summary.items.find((item) => item.key === "rmsDb")?.value ?? 0;
+    };
+    expect(rms(2)).toBeLessThan(rms(0) - 20);
+  });
+
+  it("V7 — a table node edits, imports and exports its rows in its own tab", async () => {
+    await openTool("synth");
+    await quietSynthLive();
+
+    // A `wave_synth` node with no table of its own starts on the catalog's default rows.
+    const source = path.join(dir, "wave-table.dot");
+    writeFileSync(
+      source,
+      'digraph {\n  node [shape=record];\n  wt [kind="wave_synth", freq=220];\n  out [kind="output"];\n  wt -> out;\n}\n',
+    );
+    await importGraph(source);
+    await waitForHint("2 nodes", "the wavetable patch never imported");
+    expect(await count(SEL.graphWavetable)).toBe(1);
+    expect(await count(SEL.graphError)).toBe(0);
+
+    // The card's preview opens the rows in their own tab (16 rows: the saw seed).
+    await click(SEL.graphWavetableOpen);
+    await waitFor(
+      async () => (await count(SEL.graphWavetableRow)) === 16,
+      "the wavetable tab did not show the default 16 partials",
+    );
+    expect(await count(SEL.graphWavetableTitle)).toBe(1);
+
+    // Import replaces the table with the fixture's six rows (the dialog is stubbed, the
+    // reader runs for real).
+    await mockReturn("pick_wavetable_file", WAVETABLE_FIXTURE);
+    await click(SEL.graphWavetableImport);
+    await waitFor(
+      async () => (await count(SEL.graphWavetableRow)) === 6,
+      "the six-row wavetable fixture was not imported",
+    );
+
+    // Export writes the same shape back: a header, then one `amp,phase` row per line.
+    const exported = path.join(dir, "wavetable.export.csv");
+    await mockReturn("pick_save_path", exported);
+    await click(SEL.graphWavetableExport);
+    await waitFor(() => Promise.resolve(existsSync(exported)), "the CSV export was never written");
+    const lines = readFileSync(exported, "utf8").trim().split("\n");
+    expect(lines.length).toBe(7);
+    expect(lines[0]).toBe("amp,phase");
+    expect(lines[5]).toBe("0.45,0.125");
+
+    // Adding a row is an edit to the node, so the table grows to seven.
+    await click(SEL.graphWavetableAdd);
+    await waitFor(
+      async () => (await count(SEL.graphWavetableRow)) === 7,
+      "the wavetable tab did not add a partial",
+    );
   });
 });

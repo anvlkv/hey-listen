@@ -29,6 +29,12 @@ pub struct SharedParams {
     pub randomized_overlap: bool,
     pub window_fn: WindowKind,
     /// 0-based channel index, or `None` for a downmix of all channels.
+    ///
+    /// The same pick applies twice when a filter graph is active: it mixes the source
+    /// down to that channel (out of range falls back to the downmix) and then selects
+    /// that **output** channel of the filter graph — so a graph with several `output`
+    /// nodes is analysed one channel at a time, and a source with fewer channels still
+    /// reaches outputs beyond its own count.
     #[serde(default)]
     pub channel: Option<usize>,
     /// Optional analysis sample rate (resample before analysis).

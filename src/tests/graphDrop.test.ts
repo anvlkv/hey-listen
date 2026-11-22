@@ -61,10 +61,12 @@ it("does not promise a splice for a generator (no input)", () => {
   expect(target!.edge).toBeNull();
 });
 
-it("rejects a second anchor, and an input in a synth graph", () => {
+it("rejects a second input, and an input in a synth graph", () => {
   expect(kindAvailable("filter", nodes, "input")).toBe(false);
   expect(kindAvailable("synth", nodes, "input")).toBe(false);
-  expect(kindAvailable("filter", nodes, "output")).toBe(false);
+  // One `output` per channel: a filter graph is analysed per channel and a synth render
+  // becomes a multi-channel source, so outputs are always addable in both graphs.
+  expect(kindAvailable("filter", nodes, "output")).toBe(true);
   expect(kindAvailable("synth", [{ data: { kind: "sine" } }], "output")).toBe(true);
 
   expect(

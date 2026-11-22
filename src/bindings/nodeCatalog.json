@@ -11,7 +11,8 @@
     "filterOnly": true,
     "synthOnly": false,
     "hint": "Where the mono signal enters the filter graph.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "output",
@@ -21,11 +22,22 @@
       "in"
     ],
     "outputPorts": [],
-    "params": [],
+    "params": [
+      {
+        "key": "channel",
+        "label": "Ch",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 15.0,
+        "step": 1.0,
+        "unit": null
+      }
+    ],
     "filterOnly": false,
     "synthOnly": false,
-    "hint": "Where the graph's mono result is read.",
-    "subsystem": false
+    "hint": "Reads one of the graph's output channels. Add another Output for another channel.",
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "mix",
@@ -42,7 +54,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Sums two signals into one.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "split",
@@ -59,7 +72,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Copies a mono signal into two identical channels.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "join",
@@ -76,7 +90,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Averages two channels back into one — use after stereo processing.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "add",
@@ -93,7 +108,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Adds two signals (A + B).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "subtract",
@@ -110,7 +126,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Subtracts B from A (A − B).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "multiply",
@@ -127,7 +144,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Multiplies two signals (A × B) — ring-mod, or a VCA with a control input.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "divide",
@@ -144,7 +162,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Divides A by B (A ÷ B).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "min",
@@ -161,7 +180,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "The lower of two signals, sample by sample.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "max",
@@ -178,7 +198,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "The higher of two signals, sample by sample.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "abs",
@@ -194,7 +215,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Rectifies the signal (|A|).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "invert",
@@ -210,7 +232,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Flips the signal's polarity (−A).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "gain",
@@ -236,7 +259,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Scales the signal's amplitude.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "fir3",
@@ -262,7 +286,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A short three-tap FIR smoothing filter; the parameter is its gain at Nyquist.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "convolve",
@@ -297,7 +322,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Convolution reverb: convolves the signal with a synthetic decaying-noise impulse response.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowpass",
@@ -332,7 +358,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Attenuates frequencies above the cutoff.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "highpass",
@@ -367,7 +394,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Attenuates frequencies below the cutoff.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "bandpass",
@@ -402,7 +430,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Passes a band around the center frequency, attenuating both sides.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "notch",
@@ -437,7 +466,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Cuts a narrow band around the center frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "peak",
@@ -472,7 +502,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Boosts or cuts a band around the center frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "allpass",
@@ -507,7 +538,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Shifts phase around the center frequency without changing the level.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "bell",
@@ -551,7 +583,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Peaking bell EQ: boosts or cuts around the center frequency by a gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowshelf",
@@ -595,7 +628,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Boosts or cuts all frequencies below the cutoff by a fixed gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "highshelf",
@@ -639,7 +673,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Boosts or cuts all frequencies above the cutoff by a fixed gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "moog",
@@ -674,7 +709,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resonant analogue-style low-pass (Moog ladder) with a steep roll-off.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "butterpass",
@@ -700,7 +736,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Second-order Butterworth low-pass — a maximally flat passband.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowpole",
@@ -726,7 +763,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Gentle one-pole low-pass (6 dB/octave).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "highpole",
@@ -752,7 +790,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Gentle one-pole high-pass (6 dB/octave).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowrez",
@@ -787,7 +826,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resonant two-pole low-pass with a synthetic, 'acid' character.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "bandrez",
@@ -822,7 +862,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resonant two-pole band-pass.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "resonator",
@@ -857,7 +898,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Constant-gain band-pass resonator: rings at the center frequency over a bandwidth.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "morph",
@@ -901,7 +943,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Morphing filter: -1 low-pass, 0 peaking, +1 high-pass.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "pinkpass",
@@ -917,7 +960,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Tilts the spectrum to a -3 dB/octave (pink) response.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "allpole_delay",
@@ -943,7 +987,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "First-order all-pass whose phase shift is set by a delay in samples (must be positive).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "biquad",
@@ -1005,7 +1050,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A general second-order filter defined by explicit coefficients.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "dcblock",
@@ -1021,7 +1067,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Removes DC offset (very low frequencies).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "delay",
@@ -1047,7 +1094,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Delays the signal by a fixed time.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "clip_to",
@@ -1082,7 +1130,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Clamps the signal between a minimum and a maximum level.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "declick",
@@ -1108,7 +1157,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Fades the signal in over the given time, avoiding a click at the start.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "dcblock_hz",
@@ -1134,7 +1184,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Removes DC offset below the given cutoff with a one-pole high-pass.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "pan",
@@ -1161,7 +1212,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Places a mono signal in the stereo field (-1 left, +1 right).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "panner",
@@ -1179,7 +1231,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Widens a mono signal using a control input for position — inputs: signal, pan (-1..1).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "rotate",
@@ -1216,7 +1269,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Rotates the stereo image by an angle, with an overall gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowpass_cv",
@@ -1234,7 +1288,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Low-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "highpass_cv",
@@ -1252,7 +1307,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "High-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "bandpass_cv",
@@ -1270,7 +1326,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Band-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "notch_cv",
@@ -1288,7 +1345,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Notch driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "peak_cv",
@@ -1306,7 +1364,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Peaking filter driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "allpass_cv",
@@ -1324,7 +1383,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "All-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "bell_cv",
@@ -1343,7 +1403,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Bell EQ driven by control signals — inputs: audio, cutoff, Q, gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowshelf_cv",
@@ -1362,7 +1423,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Low shelf driven by control signals — inputs: audio, cutoff, Q, gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "highshelf_cv",
@@ -1381,7 +1443,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "High shelf driven by control signals — inputs: audio, cutoff, Q, gain.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "moog_cv",
@@ -1399,7 +1462,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Moog ladder low-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowrez_cv",
@@ -1417,7 +1481,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resonant low-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "bandrez_cv",
@@ -1435,7 +1500,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resonant band-pass driven by control signals — inputs: audio, cutoff, Q.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "resonator_cv",
@@ -1453,7 +1519,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resonator driven by control signals — inputs: audio, center, bandwidth.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "morph_cv",
@@ -1472,7 +1539,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Morphing filter driven by control signals — inputs: audio, cutoff, Q, morph.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "butterpass_cv",
@@ -1489,7 +1557,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Butterworth low-pass with a control-driven cutoff — inputs: audio, cutoff.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lowpole_cv",
@@ -1506,7 +1575,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "One-pole low-pass with a control-driven cutoff — inputs: audio, cutoff.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "highpole_cv",
@@ -1523,7 +1593,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "One-pole high-pass with a control-driven cutoff — inputs: audio, cutoff.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "allpole_cv",
@@ -1540,7 +1611,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "All-pass with a control-driven delay — inputs: audio, delay (samples).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "tanh",
@@ -1566,7 +1638,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Soft-clips the signal with a hyperbolic tangent.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "atan",
@@ -1592,7 +1665,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Soft-clips the signal with an arctangent curve.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "softsign",
@@ -1618,7 +1692,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Soft-clips the signal with x / (1 + |x|).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "crush",
@@ -1644,7 +1719,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Quantizes the signal to a number of discrete levels.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "soft_crush",
@@ -1670,7 +1746,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Quantizes the signal to discrete levels with a softened step.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "limiter",
@@ -1705,7 +1782,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Prevents the signal from exceeding full scale (look-ahead limiter).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "limiter_stereo",
@@ -1742,7 +1820,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Stereo look-ahead limiter — holds both channels within full scale.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "compressor",
@@ -1795,7 +1874,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Reduces dynamic range: quietens peaks that rise above the threshold.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "gate",
@@ -1839,7 +1919,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Mutes the signal when it falls below a threshold (downward expander).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "chorus",
@@ -1883,7 +1964,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Thickens the signal with several short, modulated delay copies.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "flanger",
@@ -1936,7 +2018,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A short, swept delay creating a whooshing comb-filter (jet) effect.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "phaser",
@@ -1971,7 +2054,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A swept all-pass cascade creating a notchy phase (swoosh) effect.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "schroeder",
@@ -2006,7 +2090,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "An all-pass diffusion element (Schroeder all-pass); stack several to build a reverb.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "schroeder_cv",
@@ -2033,7 +2118,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Schroeder all-pass with a control-driven coefficient — inputs: audio, coefficient.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "reverb_stereo",
@@ -2079,7 +2165,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Stereo room reverb (32-channel FDN) — inputs: left, right; outputs: left, right.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "reverb2_stereo",
@@ -2143,7 +2230,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "High-quality stereo reverb with a damped feedback loop — inputs: left, right.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "reverb3_stereo",
@@ -2189,7 +2277,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "All-pass-loop stereo reverb — inputs: left, right; outputs: left, right.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "reverb4_stereo",
@@ -2226,7 +2315,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Stereo reverb with a slow fade-in envelope — inputs: left, right.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "dc",
@@ -2250,7 +2340,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A constant value (DC) — used to set control inputs; frequency and time inputs read it in their own units.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "sine_lfo",
@@ -2292,7 +2383,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A slow sine oscillator for modulating parameters.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "follow",
@@ -2318,7 +2410,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Follows the signal with a one-pole smoother, gliding sudden jumps.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "afollow",
@@ -2353,7 +2446,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Follows the signal with separate rise (attack) and fall (release) times.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "hold",
@@ -2380,7 +2474,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Sample-and-hold the signal; input 1 = trigger signal (hold rate in Hz).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "tap",
@@ -2416,7 +2511,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Variable delay; input 1 = delay signal in seconds (clamped to min..max).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "tap_linear",
@@ -2452,7 +2548,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Like Tap delay, with linear interpolation — smooth pitch when the time moves.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "snoop",
@@ -2478,7 +2575,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Passes the signal through and shows the latest samples on the node (fundsp `snoop`).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "sine",
@@ -2502,7 +2600,78 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A pure sine oscillator at the given frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
+  },
+  {
+    "kind": "wave_synth",
+    "label": "Wave synth",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 10.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A user-defined wavetable oscillator. Its table lists one amplitude and phase per partial (any number of rows); edit it in the node's Wavetable tab.",
+    "subsystem": false,
+    "table": {
+      "key": "harmonics",
+      "label": "Harmonics",
+      "columns": [
+        "Amp",
+        "Phase"
+      ],
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "maxRows": 256,
+      "defaultRows": [
+        1.0,
+        0.0,
+        0.5,
+        0.0,
+        0.333,
+        0.0,
+        0.25,
+        0.0,
+        0.2,
+        0.0,
+        0.167,
+        0.0,
+        0.143,
+        0.0,
+        0.125,
+        0.0,
+        0.111,
+        0.0,
+        0.1,
+        0.0,
+        0.091,
+        0.0,
+        0.083,
+        0.0,
+        0.077,
+        0.0,
+        0.071,
+        0.0,
+        0.067,
+        0.0,
+        0.063,
+        0.0
+      ]
+    }
   },
   {
     "kind": "saw",
@@ -2526,7 +2695,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A band-limited sawtooth oscillator at the given frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "square",
@@ -2550,7 +2720,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A band-limited square oscillator at the given frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "triangle",
@@ -2574,7 +2745,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A triangle oscillator at the given frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "ramp",
@@ -2598,7 +2770,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A rising 0→1 ramp (phasor) that restarts on each cycle.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "rossler",
@@ -2612,7 +2785,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A chaotic Rössler attractor — a slowly wandering, unstable tone.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "lorenz",
@@ -2626,7 +2800,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A chaotic Lorenz attractor — an evolving, turbulent signal.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "organ",
@@ -2650,7 +2825,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "An additive organ-like tone at the given frequency.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "hammond",
@@ -2674,7 +2850,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A tone with the drawbar-like harmonics of a Hammond organ.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "soft_saw",
@@ -2698,7 +2875,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A sawtooth wave with reduced high-frequency harshness.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "pulse",
@@ -2731,7 +2909,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A rectangular pulse wave with an adjustable width.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "poly_saw",
@@ -2755,7 +2934,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A band-limited (PolyBLEP) sawtooth wave.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "poly_square",
@@ -2779,7 +2959,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A band-limited (PolyBLEP) square wave.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "poly_pulse",
@@ -2812,7 +2993,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A band-limited (PolyBLEP) pulse wave with an adjustable width.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "dsf_saw",
@@ -2845,7 +3027,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "Additive sawtooth from a discrete summation formula; roughness sets brightness.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "dsf_square",
@@ -2878,7 +3061,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "Additive square wave from a discrete summation formula; roughness sets brightness.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "pluck",
@@ -2920,7 +3104,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A plucked-string (Karplus–Strong) tone that decays over time.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "white",
@@ -2934,7 +3119,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "Full-bandwidth white noise.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "pink",
@@ -2948,7 +3134,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "Pink noise (-3 dB/octave).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "brown",
@@ -2962,7 +3149,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "Brown (red) noise (-6 dB/octave).",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "mls",
@@ -2976,7 +3164,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A deterministic pseudo-random ±1 maximum-length sequence.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "zero",
@@ -2990,7 +3179,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "Outputs silence — a constant zero to drive an otherwise unused input.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "impulse",
@@ -3004,7 +3194,8 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A single full-scale sample at time zero, silent afterwards.",
-    "subsystem": false
+    "subsystem": false,
+    "table": null
   },
   {
     "kind": "subgraph",
@@ -3020,7 +3211,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "A nested graph in one node — open its tab to build a reusable chain.",
-    "subsystem": true
+    "subsystem": true,
+    "table": null
   },
   {
     "kind": "feedback",
@@ -3036,7 +3228,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Feeds a nested graph's output back into its input (fundsp `feedback`).",
-    "subsystem": true
+    "subsystem": true,
+    "table": null
   },
   {
     "kind": "oversample",
@@ -3052,7 +3245,8 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Runs a nested graph with extra internal oversampling to reduce aliasing.",
-    "subsystem": true
+    "subsystem": true,
+    "table": null
   },
   {
     "kind": "resample",
@@ -3068,6 +3262,7 @@
     "filterOnly": false,
     "synthOnly": false,
     "hint": "Resamples a nested generator; input 0 is the speed (1 = the original rate).",
-    "subsystem": true
+    "subsystem": true,
+    "table": null
   }
 ]

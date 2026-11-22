@@ -1,6 +1,41 @@
 //! Sound generators (synth graphs only).
 
-use super::{def, freq, param, pitch, synth_node, width, NodeDef};
+use super::{def, freq, param, pitch, synth_node, width, NodeDef, NodeTable};
+
+/// The rows a fresh `wave_synth` starts from: partials 1…16 at amplitude `1/n` (a saw)
+/// and no phase offset. Any number of rows is valid — this is just the seed.
+static WAVE_ROWS: &[f32] = &[
+    1.0, 0.0, 0.5, 0.0, 0.333, 0.0, 0.25, 0.0, 0.2, 0.0, 0.167, 0.0, 0.143, 0.0, 0.125, 0.0, 0.111,
+    0.0, 0.1, 0.0, 0.091, 0.0, 0.083, 0.0, 0.077, 0.0, 0.071, 0.0, 0.067, 0.0, 0.063, 0.0,
+];
+
+/// The wavetable a `wave_synth` carries: one `Amp`/`Phase` pair per partial.
+static WAVE_TABLE: NodeTable = NodeTable {
+    key: "harmonics",
+    label: "Harmonics",
+    columns: &["Amp", "Phase"],
+    min: 0.0,
+    max: 1.0,
+    step: 0.01,
+    max_rows: 256,
+    default_rows: WAVE_ROWS,
+};
+
+/// The `wave_synth` catalog entry: a frequency param plus the variadic table above.
+const WAVE_SYNTH: NodeDef = {
+    let mut def = synth_node!(
+        "wave_synth",
+        "Wave synth",
+        Generator,
+        [],
+        ["out"],
+        [pitch(440.0)],
+        "A user-defined wavetable oscillator. Its table lists one amplitude and phase per \
+         partial (any number of rows); edit it in the node's Wavetable tab."
+    );
+    def.table = Some(&WAVE_TABLE);
+    def
+};
 
 pub(super) const GENERATORS: &[NodeDef] = &[
     synth_node!(
@@ -12,6 +47,7 @@ pub(super) const GENERATORS: &[NodeDef] = &[
         [freq(440.0)],
         "A pure sine oscillator at the given frequency."
     ),
+    WAVE_SYNTH,
     synth_node!(
         "saw",
         "Saw",

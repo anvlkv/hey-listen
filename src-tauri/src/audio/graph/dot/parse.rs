@@ -22,6 +22,7 @@ pub(super) fn parse_node(
     let def = nodes::node(&kind).ok_or_else(|| GraphError::UnknownKind(kind.clone()))?;
 
     let mut values: HashMap<&str, f32> = HashMap::new();
+    let mut rows: Vec<f32> = Vec::new();
     let mut system: Option<String> = None;
     for (key, raw) in &attrs {
         if *key == "kind" {
@@ -34,6 +35,13 @@ pub(super) fn parse_node(
         if *key == "system" {
             system = Some(unquote(raw));
             continue;
+        }
+        // A variadic table arrives as one packed attribute (`harmonics="1,0,…"`).
+        if let Some(table) = def.table {
+            if *key == table.key {
+                rows = parse_table(&id, def, table, raw)?;
+                continue;
+            }
         }
         let param = def
             .params
@@ -66,11 +74,54 @@ pub(super) fn parse_node(
                 .params
                 .iter()
                 .map(|param| values.get(param.key).copied().unwrap_or(param.default))
+                .chain(rows)
                 .collect(),
             subgraph: None,
         },
         system,
     ))
+}
+
+/// Split a packed table attribute into whole rows, validating the range and the width.
+fn parse_table(
+    node: &str,
+    def: &NodeDef,
+    table: &nodes::NodeTable,
+    raw: &str,
+) -> Result<Vec<f32>, GraphError> {
+    let width = table.columns.len().max(1);
+    let text = unquote(raw);
+    let mut rows: Vec<f32> = Vec::new();
+    for token in text
+        .split(',')
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+    {
+        let value: f32 = token
+            .parse()
+            .map_err(|_| GraphError::BadParamValue(format!("{node}: {}", table.key)))?;
+        if !value.is_finite() || value < table.min || value > table.max {
+            return Err(GraphError::ParamOutOfRange(format!(
+                "{node}: {}={token} (allowed {}..{})",
+                table.key, table.min, table.max
+            )));
+        }
+        rows.push(value);
+    }
+    if !rows.len().is_multiple_of(width) {
+        return Err(GraphError::BadParamValue(format!(
+            "{node}: {} needs {} values per row",
+            table.key, width
+        )));
+    }
+    if rows.len() / width > table.max_rows {
+        return Err(GraphError::BadParamValue(format!(
+            "{node}: {} may hold at most {} rows",
+            table.key, table.max_rows
+        )));
+    }
+    let _ = def;
+    Ok(rows)
 }
 
 /// A record label lists exactly the catalog's ports, in order.

@@ -160,7 +160,10 @@ struct SharedParams {
     window_fn: WindowKind,       // Hann / Hamming / Blackman / rectangular
 
     // signal conditioning
-    channel: Option<usize>,      // None = downmix (mono); Some(n) = 0-based channel
+    // None = downmix (mono); Some(n) = 0-based channel. One pick, applied twice: it
+    // mixes the source down to n (out of range → downmix) and then keeps that output
+    // channel of the filter graph (a graph may declare several `output` nodes).
+    channel: Option<usize>,
     resample_to: Option<u32>,    // optional analysis sample rate
 
     // spectral range

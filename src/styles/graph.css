@@ -337,6 +337,29 @@
   font-weight: 600;
 }
 
+/* A subsystem title opens its rename field on double-click. */
+.graph-node-title-renamable {
+  cursor: text;
+  border-radius: 3px;
+}
+
+.graph-node-title-renamable:hover {
+  background: var(--control-hover);
+}
+
+.graph-node-title-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 2px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--panel-3);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  outline: none;
+}
+
 .graph-node-params {
   display: flex;
   flex-direction: column;

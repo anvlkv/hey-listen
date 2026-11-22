@@ -15,31 +15,46 @@ node is for* plus the non-obvious facts, not a restatement of the catalog.
 | | Filter graph | Synth graph |
 | --- | --- | --- |
 | Global input | **1** (mono) — the `input` node | **0** — sound generators |
-| Global output | **1** (mono) — the `output` node | **1** (mono) — the `output` node |
-| Where it runs | Upstream of **preview and every analyzer** (after channel select → mono) | Rendered to **48 kHz mono PCM** by `render_synth` → becomes the source |
+| Global output | **1…16 channels** — one `output` node per channel | **1…16 channels** — one `output` node per channel |
+| Where it runs | Upstream of **preview and every analyzer** (after channel select → mono) | Rendered to **48 kHz PCM** by `render_synth` → becomes the source |
 | Installed by | `set_filter_graph` | `render_synth` / Live |
 
-Both compile to a **mono net** (`Net::new(inputs, 1)`). There is **no implicit summing** —
-only what is wired into `output` is heard. `GraphSpec`/DOT/subsystems/snoop are identical
-across the two; the only difference is the anchors and whether generators are offered.
+Both compile to a fundsp `Net`. There is **no implicit summing** — only what is wired
+into an `output` is heard. `GraphSpec`/DOT/subsystems/snoop are identical across the two;
+the only difference is the anchors and whether generators are offered.
 
-### The mono-net constraint (read this)
+### Output channels
 
-The net's global I/O is **mono** even though nodes may be **stereo internally** (`split`
-1→2, `pan` 1→2, `panner`/`rotate`/`limiter_stereo`/`reverb*_stereo` 2→2, `join` 2→1). Wire
-`input → split → (stereo FX) → join → output`; a floating stereo channel is simply not
-heard, and `join` **averages** back to mono. **You cannot output true stereo from Hey
-Listen — design for mono.**
+An `output` node has a **`Ch`** parameter, so either graph can produce several channels —
+split into bands and wire each one to its own `Output`. Channels are 0-based and unique; a
+channel nobody claims is silent.
+
+- **Filter graph.** The analysis `channel` param selects the output channel. The same pick
+  is applied twice: it mixes the source down to that channel (out of range → downmix) and
+  then keeps that output, so a 2-channel source can still reach output 3. `channel: null`
+  ("Downmix") averages every output. This is the way to analyse a band on its own.
+- **Synth graph.** The render keeps every channel: the source becomes **interleaved
+  multi-channel PCM**, the Timeline shows one lane per channel, and the analysis `channel`
+  picks a source channel as usual. `render_mono` (headless analysis helpers) averages.
+
+### Stereo nodes
+
+The global **input** is mono even though nodes may be **stereo internally** (`split`
+1→2, `pan` 1→2, `panner`/`rotate`/`limiter_stereo`/`reverb*_stereo` 2→2, `join` 2→1).
+Wire `input → split → (stereo FX) → join → output`; a floating stereo channel is simply
+not heard, and `join` **averages**. To keep both halves, give them their own `output`
+nodes (channels 0 and 1) instead of `join`ing.
 
 ### Anchors
 
 - `input` (filter only, 0→1) — the graph's entry, fed from the global input. Exactly one.
-- `output` (1→0) — the graph's exit. Exactly one, in **both** graphs.
+- `output` (1→0) — one channel of the graph's result, with its own `Ch`. One or more, in
+  either graph.
 - A fresh filter seeds as `input → output` (identity); a synth seeds as `sine → output`.
 
 ### Rules (enforced in UI and core)
 
-- Exactly one `input` (filter) and exactly one `output` (both).
+- Exactly one `input` (filter). One `output` per channel; channels are unique and in range.
 - **One source per input** — a second edge into an occupied input is rejected
   (`InputConflict`).
 - No cycles, no self-links. Unknown kinds/ports/params are errors.
@@ -66,9 +81,10 @@ take cut-off/Q/gain from extra inputs fed by `dc`/`sine_lfo` (input 0 is always 
 
 ### IO / routing (`Io`, `Mixer`)
 
-`input` (filter only), `output`, `mix` (sum A+B, 2→1), `split` (1→2 copy), `join` (2→1
-average). `mix` is the routing twin of the math `add` — for two inputs they are equivalent;
-prefer `mix` to *route* and `add` to *arithmetic*.
+`input` (filter only), `output` (one per output channel; its `Ch` param picks which),
+`mix` (sum A+B, 2→1), `split` (1→2 copy), `join` (2→1 average). `mix` is the routing twin
+of the math `add` — for two inputs they are equivalent; prefer `mix` to *route* and `add`
+to *arithmetic*.
 
 ### Math (`Math`, 2→1 binary / 1→1 unary)
 
@@ -82,8 +98,25 @@ is the general "scale by a constant".
 `sine`, `saw`, `square`, `triangle`, `ramp` (0→1 phasor), `rossler`/`lorenz` (chaotic),
 `organ`/`hammond` (additive), `soft_saw`, `pulse` (freq + width 0..1), `poly_saw` /
 `poly_square` / `poly_pulse` (band-limited), `dsf_saw` / `dsf_square` (freq + roughness
-0..1), `pluck` (Karplus–Strong: freq + **decay in 1/s** + damping 0..1), `white` / `pink` /
-`brown` / `mls` (noise), `zero` (silence, drives an unused input), `impulse` (one sample).
+0..1), `pluck` (Karplus–Strong: freq + **decay in 1/s** + damping 0..1), `wave_synth`
+(a **wavetable** oscillator — see below), `white` / `pink` / `brown` / `mls` (noise),
+`zero` (silence, drives an unused input), `impulse` (one sample).
+
+> **`wave_synth` is a table of rows, not a fixed set of harmonics.** Its `params` are
+> `freq` followed by `amp, phase` pairs — one row per partial, **as many rows as you
+> want** (up to the catalog's `table.maxRows`). In DOT the rows are one packed
+> attribute: `amp,phase` per row, comma-separated:
+>
+> ```dot
+> osc [kind="wave_synth", freq=220, harmonics="1,0,0.35,0.25,0.6,0"];
+> ```
+>
+> Row `n` is partial `n + 1`; `1/n` amplitudes with zero phase is a saw, a single
+> `1,0` row is a sine. fundsp normalizes the table, so the numbers set the timbre, not
+> the level. Omit `harmonics=` and the node starts from the catalog's 16-row saw seed.
+> In the app the rows are edited in the node's **Wavetable tab** (import/export a
+> `amp,phase`-per-line text file); `get_node { kind: "wave_synth" }` reports the `table`
+> shape (`key`, `columns`, `maxRows`, `defaultRows`).
 
 > **Oscillators have a fixed `freq` — there is no audio-rate or envelope pitch CV.** To get
 > a decaying pitched tone use `pluck` (built-in decay + damping); `ramp` is the only
@@ -197,7 +230,10 @@ fundsp combinators that wrap an **inner graph** — `subgraph` (reusable chain),
 (fundsp `feedback`), `oversample` (anti-alias), `resample` (inner generator; input 0 = speed).
 The node owns a nested `GraphSpec` (`subgraph`), edited in its own tab; the inner graph has
 its own mono `input`→`output` (a `resample` inner graph takes **no input** — it is
-generator-seeded). In DOT a subsystem node names its block and nests a real `subgraph`:
+generator-seeded). Each subsystem carries a **name** (`Feedback 1`, `Feedback 2`, …) that
+the user can rename in the editor; the name is editor state, like node positions, so it is
+**not** part of DOT or the `GraphSpec`. Refer to a subsystem in DOT by its node `id`.
+In DOT a subsystem node names its block and nests a real `subgraph`:
 
 ```dot
 digraph {
@@ -232,9 +268,9 @@ anywhere you want to *see* the level — cheap, and it catches clipping (envelop
 5. **Percussion/drones.** `white`/`pink` → `lowpass`/`bandpass` for a hat or rumble;
    continuous oscillators + slow tremolo + reverb for a pad/drone.
 6. **Hygiene, in order.** `declick` first (fade-in), `dcblock` per channel (remove DC), `gain`
-   for headroom, `limiter` **last** (never clip). Watch gain when layering — the net is mono
-   and sums, so keep each layer ≤ ~0.5 and a final `limiter` to catch peaks. Use `snoop` to
-   confirm you're not pinning at ±1.
+   for headroom, `limiter` **last** (never clip). Watch gain when layering — a channel sums
+   everything wired into it, so keep each layer ≤ ~0.5 and a final `limiter` to catch
+   peaks. Use `snoop` to confirm you're not pinning at ±1.
 
 ## Workflow
 
@@ -244,8 +280,9 @@ anywhere you want to *see* the level — cheap, and it catches clipping (envelop
 3. Build the spec as DOT or JSON, then install it:
    - **filter** → `set_filter_graph { graph, enabled: true }` (runs upstream of preview +
      analysis; the Filter switch bypasses it).
-   - **synth** → `render_synth { graph, seconds }` (renders 48 kHz mono and **adopts it as
-     the source**), or set the editor graph with `set_synth_graph` (app-only).
+   - **synth** → `render_synth { graph, seconds }` (renders 48 kHz PCM — **one source
+     channel per `output`** — and **adopts it as the source**), or set the editor graph
+     with `set_synth_graph` (app-only).
 4. `get_graph { graph }` to read it back as DOT and confirm it compiled.
 5. `run_analysis` / `preview` to hear/measure the result; iterate on params.
 6. Mutating tools are read-modify-write — call **sequentially**.
@@ -263,8 +300,9 @@ anywhere you want to *see* the level — cheap, and it catches clipping (envelop
    `damping` in 0..1.
 5. **`allpole_delay` takes samples, not seconds**; `resonator`'s second param is a bandwidth
    in **Hz**; reverb `room` is in **metres**.
-6. **Mono net** — stereo is internal only; `join` averages. A "stereo" reverb must be
-   wrapped `split … join`, and the output is still mono.
+6. **Stereo is explicit** — the global input is mono, so a stereo chain needs
+   `split … join` (which averages), and to keep both halves give each its own `output`
+   (channels 0 and 1) instead of `join`ing.
 7. **Fixed-frequency oscillators** — no pitch CV, so no audio-rate FM or pitch vibrato.
    Modulate amplitude or filter cutoff instead.
 8. **`render_synth` replaces the source** (the whole timeline). The Live path

@@ -383,4 +383,3 @@ fn a_filter_graph_is_checked_when_it_is_mapped() {
         .contains("filter graph"));
     let _ = std::fs::remove_file(&path);
 }
-

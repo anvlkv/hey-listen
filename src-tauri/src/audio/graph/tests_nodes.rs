@@ -75,7 +75,7 @@ fn assert_audible(spec: &GraphSpec, kind: &str, frames: usize) {
 fn render_snoop(spec: &GraphSpec, scope: &str) {
     let mut net = build_scoped(spec, 0, 48_000, scope).expect("build");
     net.reset();
-    let out = super::render::render_samples(&mut net, 4_800);
+    let (out, _) = super::render::render_frames(&mut net, 4_800);
     assert!(out.iter().all(|sample| sample.is_finite()));
 }
 
@@ -91,9 +91,43 @@ fn new_kinds_report_their_arities() {
         ("afollow", (1, 1)),
         ("hold", (2, 1)),
         ("tap", (2, 1)),
+        ("wave_synth", (0, 1)),
     ] {
         assert_eq!(kind_arity(kind), Some(arity), "{kind}");
     }
+}
+
+#[test]
+fn wavetable_rows_parse_one_row_per_line() {
+    // `amp,phase` per line; a lone amplitude means phase 0. A header line and stray
+    // tokens are ignored, and values are clamped to 0..1.
+    let rows = parse_wavetable("amp,phase\n1,0\n0.5 0.25\n0.25\n  \ninvalid\n2,0,0.7");
+    assert_eq!(rows, vec![1.0, 0.0, 0.5, 0.25, 0.25, 0.0, 1.0, 0.0]);
+    assert!(parse_wavetable("").is_empty());
+}
+
+#[test]
+fn wave_synth_renders_the_rows_it_is_given() {
+    // Params are `freq` then `amp, phase` rows — **any** number of them.
+    let spec = |rows: Vec<f32>| {
+        let mut params = vec![220.0];
+        params.extend(rows);
+        GraphSpec {
+            nodes: vec![
+                node("osc", "wave_synth", &params),
+                node("out", "output", &[]),
+            ],
+            edges: vec![edge("osc", "out")],
+        }
+    };
+
+    // One partial is a sine; a node with no rows at all falls back to the catalog's saw.
+    assert_audible(&spec(vec![1.0, 0.0]), "wave_synth", 4_800);
+    assert_audible(&spec(Vec::new()), "wave_synth", 4_800);
+
+    // Sixteen partials at 1/n is a saw; the row count is not capped at 16.
+    let saw: Vec<f32> = (1..=24).flat_map(|n| [1.0 / n as f32, 0.0]).collect();
+    assert_audible(&spec(saw), "wave_synth", 4_800);
 }
 
 #[test]

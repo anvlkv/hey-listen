@@ -1,4 +1,5 @@
 import { nodeKind } from "./palette";
+import { rowsOf } from "./wavetable";
 import type {
   GraphSpec,
   SpecInputEdge,
@@ -24,6 +25,9 @@ export function toSpec(
       const params = def
         ? def.params.map((param) => node.data.params[param.key] ?? param.default)
         : [];
+      // A kind with a variadic table appends its rows after the named params — the flat
+      // `Vec<f32>` the core reads and DOT packs into one attribute.
+      if (def?.table) params.push(...rowsOf(def.kind, node.data.table));
       // A subsystem node carries its nested graph; every other kind writes `null`.
       return {
         id: node.id,
@@ -65,6 +69,7 @@ export function fromSpec(spec: GraphSpec): {
         kind: node.kind,
         params,
         ...(node.subgraph ? { subgraph: node.subgraph } : {}),
+        ...(def?.table ? { table: node.params.slice(def.params.length) } : {}),
       },
     };
   });

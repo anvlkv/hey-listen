@@ -1,12 +1,22 @@
 import { Show } from "solid-js";
 import GraphEditor from "./GraphEditor";
+import SelectField from "./SelectField";
+import Tooltip from "./Tooltip";
 import {
   ClearGraphButton,
   GraphError,
   GraphFileButtons,
   GraphNotices,
 } from "./graphEditor/GraphTabChrome";
-import { FILTER_GRAPH, filterActive, filterApplying, filterError } from "../state/graph";
+import { channel, channelOptions, setChannel } from "../state/analysis";
+import {
+  FILTER_GRAPH,
+  filterActive,
+  filterApplying,
+  filterError,
+  filterOutputs,
+} from "../state/graph";
+import { source } from "../state/source";
 
 /**
  * Filter graph tab: builds the fundsp net applied to the signal **before** preview
@@ -16,6 +26,8 @@ import { FILTER_GRAPH, filterActive, filterApplying, filterError } from "../stat
 export default function FilterGraphTab() {
   const nodes = () => FILTER_GRAPH.nodes.length;
   const links = () => FILTER_GRAPH.edges.length;
+  const outputs = () => filterOutputs();
+  const channelPicks = () => channelOptions(source()?.channels ?? 1, outputs());
 
   return (
     <GraphEditor graph="filter">
@@ -25,6 +37,20 @@ export default function FilterGraphTab() {
         {filterActive() ? "applied before preview & analysis" : "bypassed"}
       </span>
       <GraphNotices graph="filter" silent="Output is not connected — the graph is silent" />
+      <Show when={outputs() > 1}>
+        <Tooltip label="A graph with several Output nodes is analysed one channel at a time">
+          <label class="graph-field" data-testid="graph.channel">
+            <span>Analyse</span>
+            <SelectField
+              class="graph-channel-select"
+              ariaLabel="Analysis channel"
+              options={channelPicks()}
+              value={channel()}
+              onChange={(pick) => setChannel(pick)}
+            />
+          </label>
+        </Tooltip>
+      </Show>
       <Show when={filterApplying()}>
         <span class="graph-status">applying…</span>
       </Show>

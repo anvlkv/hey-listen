@@ -22,7 +22,6 @@ import {
  */
 
 export * from "./graphHandles";
-export { isAnchorKind } from "./graphKinds";
 
 const filterSeed = seed("filter");
 const [filterNodes, setFilterNodes] = createStore<GraphNode[]>(filterSeed.nodes);
@@ -83,13 +82,29 @@ export function filterComposed(): boolean {
   return FILTER_GRAPH.nodes.some((node) => !isAnchorKind(node.data.kind));
 }
 
-/** Whether the single `output` node's input is wired (else the graph is silent). */
+/** Whether at least one `output` node's input is wired (else the graph is silent). */
 export function outputConnected(scope: GraphScope): boolean {
   const handle = graphFor(scope);
   return handle.edges.some((edge) => {
     const target = handle.nodes.find((node) => node.id === edge.target);
     return !!target && target.data.kind === "output" && Number(edge.targetHandle ?? 0) === 0;
   });
+}
+
+/**
+ * How many output channels the filter graph declares: one per `output` node's `Ch`
+ * parameter (each node reads one channel), at least 1. The chosen analysis channel can
+ * exceed the source's channel count — that is how a graph splits one signal into several
+ * branches and is analysed one branch at a time.
+ */
+export function filterOutputs(): number {
+  let high = 0;
+  for (const node of FILTER_GRAPH.nodes) {
+    if (node.data.kind !== "output") continue;
+    const channel = Math.round(node.data.params.channel ?? 0);
+    high = Math.max(high, channel);
+  }
+  return high + 1;
 }
 
 // --- validation warnings -------------------------------------------------

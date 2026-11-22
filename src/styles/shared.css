@@ -151,6 +151,15 @@
   border-color: var(--border-accent);
 }
 
+/* A switch label that also spells its state beside the name ("Filter on", "Live off").
+   The state word needs its own gap, or the pair reads as one word. */
+.timeline-filter .toolbar-label,
+.graph-live-switch .toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* The compact single-row chart legend (M36): one shared mark vocabulary for every
    analyzer chart, drawn along the bottom edge of the plot. `--legend-color` carries the
    mark's chart-theme role. See `components/analyzer/chartLegend.tsx`. */
