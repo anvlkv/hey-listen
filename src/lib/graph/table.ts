@@ -3,12 +3,15 @@ import type { NodeKindDef } from "./types";
 
 /**
  * The variadic table a node kind may carry (see Rust `NodeTable`): a `wave_synth`'s
- * harmonic rows, `amp` and `phase` per partial — as many rows as the user wants.
+ * harmonic rows, or a `sequence`'s note rows — as many rows as the user wants.
  *
  * Rows live on the editor node (`data.table`, row-major) and are appended after the
  * kind's named params when the graph crosses IPC, so `GraphNode.params` stays the flat
- * `Vec<f32>` the core reads.
+ * `Vec<f32>` the core reads. Each column brings its own range (`NodeColumn`).
  */
+
+/** How a table's rows are drawn: a waveform cycle, or a piano roll of notes. */
+export type TableRole = "wave" | "notes";
 
 /** A kind's table definition, or `null` when it has none. */
 export function tableDef(kind: string | undefined): NodeKindDef["table"] {
@@ -16,9 +19,19 @@ export function tableDef(kind: string | undefined): NodeKindDef["table"] {
   return def?.table ?? null;
 }
 
+/** The role a kind's rows play, which picks the figure drawn for them. */
+export function tableRole(kind: string | undefined): TableRole {
+  return tableDef(kind)?.key === "notes" ? "notes" : "wave";
+}
+
 /** The number of values per row (the column count). */
 export function rowWidth(kind: string | undefined): number {
   return Math.max(1, tableDef(kind)?.columns.length ?? 1);
+}
+
+/** One column's label and range, or `undefined` past the last column. */
+export function columnAt(kind: string | undefined, index: number) {
+  return tableDef(kind)?.columns[index];
 }
 
 /** The rows a node starts from when it is created (row-major, a copy). */
@@ -68,6 +81,56 @@ export function cyclePath(
       return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(" ");
+}
+
+/** One note bar of a piano roll, in a `width × height` box. */
+export interface RollBar {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** 0..1, drawn as the bar's fill opacity. */
+  velocity: number;
+}
+
+/**
+ * A piano roll of a `sequence` table: `start, dur, midi note, velocity` per row.
+ * Time runs left to right across the rows' full span; pitch bottom to top.
+ */
+export function pianoRoll(
+  rows: readonly number[],
+  width: number,
+  boxWidth = 120,
+  boxHeight = 36,
+): RollBar[] {
+  const stride = Math.max(1, width);
+  const notes: { start: number; duration: number; pitch: number; velocity: number }[] = [];
+  for (let index = 0; index + 3 < rows.length; index += stride) {
+    notes.push({
+      start: rows[index] ?? 0,
+      duration: rows[index + 1] ?? 0,
+      pitch: rows[index + 2] ?? 0,
+      velocity: rows[index + 3] ?? 0,
+    });
+  }
+  if (notes.length === 0) return [];
+  const end = Math.max(...notes.map((note) => note.start + note.duration), 0.001);
+  const low = Math.min(...notes.map((note) => note.pitch)) - 1;
+  const high = Math.max(...notes.map((note) => note.pitch)) + 1;
+  const span = Math.max(high - low, 2);
+  const height = Math.max(boxHeight / span - 1, 2);
+  return notes.map((note) => {
+    const x = (Math.max(note.start, 0) / end) * boxWidth;
+    const barWidth = Math.max((note.duration / end) * boxWidth, 1.5);
+    const y = boxHeight - ((note.pitch - low) / span) * boxHeight - height;
+    return {
+      x,
+      y: Math.min(Math.max(y, 0), boxHeight - height),
+      width: Math.min(barWidth, boxWidth - x),
+      height,
+      velocity: Math.min(Math.max(note.velocity, 0.15), 1),
+    };
+  });
 }
 
 /** A node's table rows: its own, or the kind's defaults when it has none yet. */

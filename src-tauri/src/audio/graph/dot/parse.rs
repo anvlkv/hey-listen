@@ -39,7 +39,7 @@ pub(super) fn parse_node(
         // A variadic table arrives as one packed attribute (`harmonics="1,0,…"`).
         if let Some(table) = def.table {
             if *key == table.key {
-                rows = parse_table(&id, def, table, raw)?;
+                rows = parse_table(&id, table, raw)?;
                 continue;
             }
         }
@@ -82,13 +82,9 @@ pub(super) fn parse_node(
     ))
 }
 
-/// Split a packed table attribute into whole rows, validating the range and the width.
-fn parse_table(
-    node: &str,
-    def: &NodeDef,
-    table: &nodes::NodeTable,
-    raw: &str,
-) -> Result<Vec<f32>, GraphError> {
+/// Split a packed table attribute into whole rows, validating each value against its
+/// **own column's** range and the table's row cap.
+fn parse_table(node: &str, table: &nodes::NodeTable, raw: &str) -> Result<Vec<f32>, GraphError> {
     let width = table.columns.len().max(1);
     let text = unquote(raw);
     let mut rows: Vec<f32> = Vec::new();
@@ -100,12 +96,6 @@ fn parse_table(
         let value: f32 = token
             .parse()
             .map_err(|_| GraphError::BadParamValue(format!("{node}: {}", table.key)))?;
-        if !value.is_finite() || value < table.min || value > table.max {
-            return Err(GraphError::ParamOutOfRange(format!(
-                "{node}: {}={token} (allowed {}..{})",
-                table.key, table.min, table.max
-            )));
-        }
         rows.push(value);
     }
     if !rows.len().is_multiple_of(width) {
@@ -120,7 +110,20 @@ fn parse_table(
             table.key, table.max_rows
         )));
     }
-    let _ = def;
+    for (index, value) in rows.iter().enumerate() {
+        let column = &table.columns[index % width];
+        if !value.is_finite() || *value < column.min || *value > column.max {
+            return Err(GraphError::ParamOutOfRange(format!(
+                "{node}: {} row {} {}={} (allowed {}..{})",
+                table.key,
+                index / width + 1,
+                column.label,
+                value,
+                column.min,
+                column.max
+            )));
+        }
+    }
     Ok(rows)
 }
 

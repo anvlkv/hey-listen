@@ -40,7 +40,7 @@ export interface SpecInputNode {
     kind: string;
     params: Record<string, number>;
     subgraph?: GraphSpec | null;
-    /** A variadic table's rows, row-major (see `lib/graph/wavetable.ts`). */
+    /** A variadic table's rows, row-major (see `lib/graph/table.ts`). */
     table?: number[];
   };
 }

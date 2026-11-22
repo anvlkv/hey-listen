@@ -16,9 +16,10 @@ import {
   systemsUnder,
   type SubsystemScope,
 } from "./subsystems";
-import { parseWavetableScope, wavetableScope, type WavetableScope } from "./wavetables";
+import { parseTableScope, tableScope, type TableScope } from "./tables";
 import { graphFor, hasGraph } from "./graphHandles";
 import { nodeKind } from "../lib/graph";
+import { rowCount, rowsOf } from "../lib/graph/table";
 
 /**
  * Workbench tab registry.
@@ -82,12 +83,10 @@ export const [layoutRevision, setLayoutRevision] = createSignal(0);
  */
 export const [openCompareIds, setOpenCompareIds] = createSignal<string[]>([]);
 
-/** The focused Workbench tool id, or `null` when nothing (or a compare/subsystem/wavetable view) is focused. */
+/** The focused Workbench tool id, or `null` when nothing (or a compare/subsystem/table view) is focused. */
 export function focusedTool(): ToolId | null {
   const id = dockApi()?.activePanel?.id;
-  return id && !isCompareId(id) && !isSystemPanel(id) && !isWavetablePanel(id)
-    ? (id as ToolId)
-    : null;
+  return id && !isCompareId(id) && !isSystemPanel(id) && !isTablePanel(id) ? (id as ToolId) : null;
 }
 
 /** The focused **analyzer** tab, or `null` (a graph tab, or nothing focused). */
@@ -232,8 +231,7 @@ export function syncOpenTools(api: DockviewApi) {
   setOpenTools(
     api.panels
       .filter(
-        (panel) =>
-          !isCompareId(panel.id) && !isSystemPanel(panel.id) && !isWavetablePanel(panel.id),
+        (panel) => !isCompareId(panel.id) && !isSystemPanel(panel.id) && !isTablePanel(panel.id),
       )
       .map((panel) => panel.id as ToolId),
   );
@@ -277,13 +275,13 @@ export function closeSystemsUnder(parent: GraphScope, nodes: Iterable<string>): 
   }
 }
 
-/** Whether a panel id is a wavetable tab (`wavetable:<parent>/<node>`). */
-export function isWavetablePanel(id: string): boolean {
-  return parseWavetableScope(id) != null;
+/** Whether a panel id is a table tab (`table:<parent>/<node>`). */
+export function isTablePanel(id: string): boolean {
+  return parseTableScope(id) != null;
 }
 
-/** Open (or focus) a wavetable node's rows in their own tab. */
-export function openWavetable(scope: WavetableScope): void {
+/** Open (or focus) a table node's rows in their own tab. */
+export function openTable(scope: TableScope): void {
   const api = dockApi();
   if (!api) return;
   const existing = api.getPanel(scope);
@@ -291,25 +289,25 @@ export function openWavetable(scope: WavetableScope): void {
     existing.api.setActive();
     return;
   }
-  addToMainGrid(api, scope, wavetableTitle(scope));
+  addToMainGrid(api, scope, tableTitle(scope));
 }
 
-/** A wavetable tab's title: the node kind and its frequency (`Wave synth · 440 Hz`). */
-function wavetableTitle(scope: WavetableScope): string {
-  const ref = parseWavetableScope(scope);
-  if (!ref || !hasGraph(ref.parent)) return "Wavetable";
+/** A table tab's title: the node kind and its row count (`Sequence · 6 rows`). */
+function tableTitle(scope: TableScope): string {
+  const ref = parseTableScope(scope);
+  if (!ref || !hasGraph(ref.parent)) return "Table";
   const node = graphFor(ref.parent).nodes.find((current) => current.id === ref.node);
-  if (!node) return "Wavetable";
+  if (!node) return "Table";
   const label = nodeKind(node.data.kind)?.label ?? node.data.kind;
-  const freq = node.data.params.freq;
-  return freq ? `${label} · ${Math.round(freq)} Hz` : label;
+  const rows = rowCount(node.data.kind, rowsOf(node.data.kind, node.data.table));
+  return `${label} · ${rows} row${rows === 1 ? "" : "s"}`;
 }
 
-/** Close the wavetable tabs of `nodes` just deleted from `parent`. */
-export function closeWavetablesUnder(parent: GraphScope, nodes: Iterable<string>): void {
+/** Close the table tabs of `nodes` just deleted from `parent`. */
+export function closeTablesUnder(parent: GraphScope, nodes: Iterable<string>): void {
   const api = dockApi();
   for (const node of nodes) {
-    api?.getPanel(wavetableScope(parent, node))?.api.close();
+    api?.getPanel(tableScope(parent, node))?.api.close();
   }
 }
 

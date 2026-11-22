@@ -1,6 +1,6 @@
 //! Sound generators (synth graphs only).
 
-use super::{def, freq, param, pitch, synth_node, width, NodeDef, NodeTable};
+use super::{def, freq, param, pitch, synth_node, width, NodeColumn, NodeDef, NodeTable};
 
 /// The rows a fresh `wave_synth` starts from: partials 1…16 at amplitude `1/n` (a saw)
 /// and no phase offset. Any number of rows is valid — this is just the seed.
@@ -13,10 +13,20 @@ static WAVE_ROWS: &[f32] = &[
 static WAVE_TABLE: NodeTable = NodeTable {
     key: "harmonics",
     label: "Harmonics",
-    columns: &["Amp", "Phase"],
-    min: 0.0,
-    max: 1.0,
-    step: 0.01,
+    columns: &[
+        NodeColumn {
+            label: "Amp",
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+        },
+        NodeColumn {
+            label: "Phase",
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+        },
+    ],
     max_rows: 256,
     default_rows: WAVE_ROWS,
 };
@@ -74,6 +84,46 @@ pub(super) const GENERATORS: &[NodeDef] = &[
         ["out"],
         [freq(440.0)],
         "A triangle oscillator at the given frequency."
+    ),
+    // The `(cv)` twins take the frequency as a **signal** on input 0 instead of a knob,
+    // so a pitch can come from another node (a `sequence` voice, a `sine_lfo`, …).
+    // Their parameterless form is fundsp's `sine()` / `saw()` / … (the `_hz` variants
+    // above bake the frequency in).
+    synth_node!(
+        "sine_cv",
+        "Sine (cv)",
+        Generator,
+        ["freq"],
+        ["out"],
+        [],
+        "A sine whose frequency comes from input 0 instead of a knob."
+    ),
+    synth_node!(
+        "saw_cv",
+        "Saw (cv)",
+        Generator,
+        ["freq"],
+        ["out"],
+        [],
+        "A band-limited sawtooth whose frequency comes from input 0."
+    ),
+    synth_node!(
+        "square_cv",
+        "Square (cv)",
+        Generator,
+        ["freq"],
+        ["out"],
+        [],
+        "A band-limited square whose frequency comes from input 0."
+    ),
+    synth_node!(
+        "triangle_cv",
+        "Triangle (cv)",
+        Generator,
+        ["freq"],
+        ["out"],
+        [],
+        "A triangle whose frequency comes from input 0."
     ),
     synth_node!(
         "ramp",

@@ -90,6 +90,8 @@ pub enum GraphError {
     InputInSynth(String),
     #[error("the '{0}' node kind needs a subsystem graph")]
     MissingSubsystem(String),
+    #[error("the '{0}' node kind has no editable table")]
+    NoTable(String),
     #[error("'{0}' is not a subsystem node in this graph")]
     UnknownSubsystem(String),
     #[error("the '{0}' node kind does not take a subsystem graph")]

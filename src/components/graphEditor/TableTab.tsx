@@ -4,29 +4,21 @@ import Icon from "../Icon";
 import Tooltip from "../Tooltip";
 import { invoke } from "../../lib/ipc";
 import { nodeKind } from "../../lib/graph";
-import {
-  cyclePath,
-  defaultRows,
-  rowCount,
-  rowWidth,
-  rowsOf,
-  tableDef,
-} from "../../lib/graph/wavetable";
+import { columnAt, defaultRows, rowCount, rowWidth, rowsOf, tableDef } from "../../lib/graph/table";
 import { graphFor, hasGraph, setTableRows, warnGraph } from "../../state/graph";
-import { parseWavetableScope, type WavetableScope } from "../../state/wavetables";
-
-const FALLBACK_COLUMNS = ["Amp", "Phase"];
+import { parseTableScope, type TableScope } from "../../state/tables";
+import TableFigure from "./TableFigure";
 
 /**
- * A table node's editor tab (`wave_synth`): its partials as rows, one `Amp` and one
- * `Phase` each — as many rows as you like, up to the catalog's cap.
+ * A table node's editor tab: its rows as cells, one column per value the kind declares
+ * (`NodeColumn`: label, range, step) — as many rows as you like, up to the catalog's cap.
  *
  * The rows are the node's own data (`data.table`, row-major), so an edit here is an
  * edit to the graph: the debounced push, the project file and DOT all see it. Import and
- * export read and write one row per line (`amp,phase`) — the same numbers as here.
+ * export read and write one row per line, with a header naming the columns.
  */
-export default function WavetableTab(props: { scope: WavetableScope }) {
-  const ref = () => parseWavetableScope(props.scope);
+export default function TableTab(props: { scope: TableScope }) {
+  const ref = () => parseTableScope(props.scope);
   const node = createMemo(() => {
     const target = ref();
     if (!target || !hasGraph(target.parent)) return undefined;
@@ -34,7 +26,8 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
   });
   const kind = () => node()?.data.kind ?? "";
   const def = () => tableDef(kind());
-  const columns = () => def()?.columns ?? FALLBACK_COLUMNS;
+  const columns = () => def()?.columns ?? [];
+  const labels = () => columns().map((column) => column.label);
   const width = () => rowWidth(kind());
   const rows = () => rowsOf(kind(), node()?.data.table);
   const count = () => rowCount(kind(), rows());
@@ -46,9 +39,16 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
     if (target) setTableRows(target.parent, target.node, next);
   }
 
+  /** A value inside the range its column declares. */
+  function bounded(index: number, value: number): number {
+    const column = columnAt(kind(), index % width());
+    if (!column) return value;
+    return Math.min(Math.max(value, column.min), column.max);
+  }
+
   function setCell(index: number, value: number) {
     const next = [...rows()];
-    next[index] = value;
+    next[index] = bounded(index, value);
     setRows(next);
   }
 
@@ -65,12 +65,12 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
 
   async function importRows() {
     try {
-      const file = await invoke<string | null>("pick_wavetable_file");
+      const file = await invoke<string | null>("pick_table_file");
       if (!file) return;
-      const values = await invoke<number[]>("wavetable_read_file", { path: file });
+      const values = await invoke<number[]>("read_table_file", { kind: kind(), path: file });
       if (values.length === 0) return;
       const limit = maxRows() > 0 ? maxRows() * width() : values.length;
-      setRows(values.slice(0, limit));
+      setRows(values.slice(0, limit).map((value, index) => bounded(index, value)));
     } catch (err) {
       warnGraph(String(err));
     }
@@ -80,38 +80,38 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
     try {
       const path = await invoke<string | null>("pick_save_path", {
         kind: "csv",
-        defaultName: "wavetable.csv",
+        defaultName: def()?.key === "notes" ? "notes.csv" : "wavetable.csv",
       });
       if (!path) return;
-      await invoke("wavetable_write_file", { rows: rows(), path });
+      await invoke("write_table_file", { kind: kind(), rows: rows(), path });
     } catch (err) {
       warnGraph(String(err));
     }
   }
 
   return (
-    <div class="wavetable-tab">
+    <div class="table-tab">
       <div class="graph-toolbar">
-        <span class="graph-toolbar-title" data-testid="graph.wavetable.title">
-          {node() ? `${nodeKind(kind())?.label ?? kind()} table` : "Wavetable"}
+        <span class="graph-toolbar-title" data-testid="graph.table.title">
+          {node() ? `${nodeKind(kind())?.label ?? kind()} ${def()?.label ?? "table"}` : "Table"}
         </span>
-        <span class="graph-toolbar-hint" data-testid="graph.wavetable.hint">
-          {count()} partial{count() === 1 ? "" : "s"} · one {columns().join(" + ")} row each
+        <span class="graph-toolbar-hint" data-testid="graph.table.hint">
+          {count()} row{count() === 1 ? "" : "s"} · one {labels().join(" + ")} row each
         </span>
-        <Tooltip label="Load rows from a text file (one `amp,phase` row per line)">
+        <Tooltip label={`Load rows from a text file (one ${labels().join(",")} line per row)`}>
           <Button
             class="graph-btn icon-btn"
-            data-testid="graph.wavetable.import"
+            data-testid="graph.table.import"
             aria-label="Import rows"
             onClick={() => void importRows()}
           >
             <Icon name="file-import" />
           </Button>
         </Tooltip>
-        <Tooltip label="Save these rows as a text file (one `amp,phase` line per row)">
+        <Tooltip label={`Save these rows as a text file (one ${labels().join(",")} line per row)`}>
           <Button
             class="graph-btn icon-btn"
-            data-testid="graph.wavetable.export"
+            data-testid="graph.table.export"
             aria-label="Export rows"
             onClick={() => void exportRows()}
           >
@@ -121,7 +121,7 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
         <Tooltip label="Reset the table to the catalog's default rows">
           <Button
             class="graph-btn icon-btn"
-            data-testid="graph.wavetable.reset"
+            data-testid="graph.table.reset"
             aria-label="Reset table"
             onClick={() => setRows(defaultRows(kind()))}
           >
@@ -133,47 +133,46 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
       <Show
         when={node()}
         fallback={
-          <div class="wavetable-empty" data-testid="graph.wavetable.missing">
+          <div class="table-empty" data-testid="graph.table.missing">
             This table's node is gone.
           </div>
         }
       >
-        <div class="wavetable-body">
-          <div class="wavetable-figure">
-            <svg
-              class="wavetable-cycle"
-              data-testid="graph.wavetable.cycle"
-              viewBox="0 0 120 60"
-              preserveAspectRatio="none"
-              role="img"
-              aria-label="Wavetable cycle"
-            >
-              <line class="graph-snoop-axis" x1="0" y1="30" x2="120" y2="30" />
-              <path class="graph-wavetable-path" d={cyclePath(rows(), width(), 120, 60)} />
-            </svg>
-            <span class="wavetable-caption">one cycle, normalized</span>
+        <div class="table-body">
+          <div class="table-figure">
+            <TableFigure
+              kind={kind()}
+              rows={rows()}
+              width={220}
+              height={110}
+              testId="graph.table.figure"
+              label="Table figure"
+            />
+            <span class="table-caption">
+              {def()?.key === "notes" ? "time → pitch ↑" : "one cycle, normalized"}
+            </span>
           </div>
 
-          <div class="wavetable-rows">
-            <div class="wavetable-row wavetable-head">
-              <span class="wavetable-index">#</span>
-              <For each={columns()}>{(name) => <span class="wavetable-col">{name}</span>}</For>
-              <span class="wavetable-col" />
+          <div class="table-rows">
+            <div class="table-row table-head">
+              <span class="table-index">#</span>
+              <For each={labels()}>{(name) => <span class="table-col">{name}</span>}</For>
+              <span class="table-col" />
             </div>
             <For each={Array.from({ length: count() })}>
               {(_, index) => (
-                <div class="wavetable-row" data-testid="graph.wavetable.row">
-                  <span class="wavetable-index">{index() + 1}</span>
+                <div class="table-row" data-testid="graph.table.row">
+                  <span class="table-index">{index() + 1}</span>
                   <For each={Array.from({ length: width() })}>
                     {(_, column) => (
                       <input
-                        class="wavetable-cell"
+                        class="table-cell"
                         type="number"
-                        min={def()?.min ?? 0}
-                        max={def()?.max ?? 1}
-                        step={def()?.step ?? 0.01}
-                        aria-label={`Partial ${index() + 1} ${columns()[column()] ?? ""}`}
-                        data-testid="graph.wavetable.cell"
+                        min={columnAt(kind(), column())?.min ?? 0}
+                        max={columnAt(kind(), column())?.max ?? 1}
+                        step={columnAt(kind(), column())?.step ?? 0.01}
+                        aria-label={`Row ${index() + 1} ${labels()[column()] ?? ""}`}
+                        data-testid="graph.table.cell"
                         value={rows()[index() * width() + column()] ?? 0}
                         onChange={(event) =>
                           setCell(index() * width() + column(), Number(event.currentTarget.value))
@@ -181,11 +180,11 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
                       />
                     )}
                   </For>
-                  <Tooltip label={`Remove partial ${index() + 1}`}>
+                  <Tooltip label={`Remove row ${index() + 1}`}>
                     <Button
-                      class="graph-btn icon-btn wavetable-remove"
-                      data-testid="graph.wavetable.remove"
-                      aria-label={`Remove partial ${index() + 1}`}
+                      class="graph-btn icon-btn table-remove"
+                      data-testid="graph.table.remove"
+                      aria-label={`Remove row ${index() + 1}`}
                       onClick={() => removeRow(index())}
                     >
                       <Icon name="trash" />
@@ -194,14 +193,14 @@ export default function WavetableTab(props: { scope: WavetableScope }) {
                 </div>
               )}
             </For>
-            <div class="wavetable-actions">
+            <div class="table-actions">
               <Button
                 class="graph-btn"
-                data-testid="graph.wavetable.add"
+                data-testid="graph.table.add"
                 disabled={maxRows() > 0 && count() >= maxRows()}
                 onClick={addRow}
               >
-                Add partial
+                Add row
               </Button>
             </div>
           </div>

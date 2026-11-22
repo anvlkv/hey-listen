@@ -121,6 +121,12 @@ pub(super) fn make_unit(
         "saw" => Box::new(saw_hz(p(0, 440.0))),
         "square" => Box::new(square_hz(p(0, 440.0))),
         "triangle" => Box::new(triangle_hz(p(0, 440.0))),
+        // Frequency-from-a-signal twins (see `generators.rs`): the note's pitch arrives
+        // on input 0, smoothed so a step does not click.
+        "sine_cv" => Box::new(smooth() >> sine()),
+        "saw_cv" => Box::new(smooth() >> saw()),
+        "square_cv" => Box::new(smooth() >> square()),
+        "triangle_cv" => Box::new(smooth() >> triangle()),
 
         // --- Filter families with fixed parameters (`*_hz` constructors) ---
         "allpass" => Box::new(allpass_hz(p(0, 1_000.0), p(1, 1.0))),

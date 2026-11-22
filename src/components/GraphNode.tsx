@@ -7,7 +7,7 @@ import { systemScope } from "../state/subsystems";
 import { openSystem, refreshSystemTitle } from "../state/workbench";
 import ParamField from "./graphEditor/ParamField";
 import SnoopTrace from "./graphEditor/SnoopTrace";
-import WavetableCard from "./graphEditor/WavetableCard";
+import TableCard from "./graphEditor/TableCard";
 
 /** Vertical position of handle `index` of `count`, spread down the node side. */
 function handleTop(index: number, count: number): string {
@@ -142,7 +142,7 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
       </Show>
 
       <Show when={hasTable()}>
-        <WavetableCard
+        <TableCard
           scope={props.data.graph}
           node={props.id}
           kind={props.data.kind}

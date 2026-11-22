@@ -150,6 +150,13 @@ M40 adds two **subsystem** fixtures: `focus-chain.dot` (a filter whose `colour` 
 hides a notch → bell → shelf chain) and `aurora-pad.dot` (a synth whose `oversample`
 drive and `feedback` echo are nested, with a `snoop` tap). S4 V5 drives both.
 
+M41 adds the **multi-channel** and **table** fixtures: `tri-band.dot` (one input split
+into three bands, each wired to its own `output` channel), `wavetable-odd.csv` (six
+`amp,phase` rows), and the `sequence` pair — `melody.dot` (an eight-note phrase played
+through a `saw_cv` voice) with `melody.csv` (seven rows, in the table tab's import
+format). V6 drives `tri-band.dot` in `s4-graph-dot.spec.ts`; V7 and V8 drive the tables
+in `s4-graph-tables.spec.ts`.
+
 ## Selectors
 
 Tests select by stable `data-testid` plus the existing ARIA labels (the search box
@@ -671,6 +678,9 @@ dialogs are stubbed; the file commands, MCP socket and CLI process are real. Sor
 | V3 | MCP catalog + DOT | `list_nodes` and `get_node` report the catalog and a DOT skeleton; `set_filter_graph` accepts a `graphFile`, `get_graph` returns its DOT, and `render_synth` renders an inline DOT string | Scenario |
 | V4 | CLI DOT paths | `nodes KIND --json` returns the skeleton, `synth <dot> --seconds` renders the pad, and `analyze --filter <dot>` keeps the 440 Hz peak | Scenario |
 | V5 | Subsystems + snoop | The filter editor imports `focus-chain.dot` (5 nodes), shows a subgraph node with its preview and a snoop; **Open** on the node opens the nested tab (5 nodes, `nested in filter`); the Sidebar lists it; the filter's export writes `system="colour.system"` + a nested `subgraph` block; MCP installs the same file and reads the nesting back; the CLI renders `aurora-pad.dot` (`oversample` + `feedback`) to 24 000 frames | Scenario |
+| V6 | Multi-channel output | The filter editor imports `tri-band.dot` (7 nodes, three `output` nodes), the **Analyse** channel selector appears, the export keeps `kind="output", channel=2`, and the CLI's per-channel RMS puts band 2 at least 20 dB under band 0 | Scenario |
+| V7 | Table tab (wavetable) | A `wave_synth` imported with no `harmonics` starts on the 16-row saw seed; opening the card's figure shows 16 rows; importing `wavetable-odd.csv` replaces them with 6; exporting writes the `amp,phase` header and the imported values; **Add row** grows the table to 7 | Scenario |
+| V8 | Sequence melody | The synth editor imports `melody.dot` (a `sequence` + `output`), its table tab shows 8 notes, `melody.csv` replaces them with 7, the export writes the `start,dur,note,vel` header, the DOT export keeps `notes="…"`, `system="seq.system"` and the nested `saw_cv` voice, and a 3 s MCP render analysed by `noteMetrics` reports 8 notes with **at least three distinct pitches** — a melody, not a tone | Scenario |
 
 ### T. Closing the main window (M7 multi-window)
 

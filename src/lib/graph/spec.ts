@@ -1,5 +1,5 @@
 import { nodeKind } from "./palette";
-import { rowsOf } from "./wavetable";
+import { rowsOf } from "./table";
 import type {
   GraphSpec,
   SpecInputEdge,
@@ -48,8 +48,8 @@ export function toSpec(
 /**
  * Restore editor nodes/edges from a spec — the reverse of [`toSpec`], used when a
  * DOT file or an MCP `GraphSpec` replaces a graph. Node **positions** are not part
- * of the interchange, so imported nodes land on a simple grid and the editor's
- * **Layout** button re-derives the real one.
+ * of the interchange, so this puts them on a simple grid; the caller
+ * ([`loadSpec`](../state/graphHandles.ts)) lays the graph out before it shows.
  */
 export function fromSpec(spec: GraphSpec): {
   nodes: SpecOutputNode[];

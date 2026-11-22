@@ -86,15 +86,23 @@ join → Output` and the graph still resolves to one channel. `reverb2_stereo` a
 `reverb3_stereo` take their loop filter as a positional cutoff (`lowpole_hz`) and
 `panner`'s pan is a control input (its second port).
 
-**Wavetable nodes.** A kind may declare a **variadic table** (`NodeDef.table`,
-`NodeTable`): rows appended after its named params, in row order. `wave_synth` is the
-first — `freq` then `amp, phase` per partial, **any number of rows** — because fundsp's
-`Wavetable::new` takes an amplitude and a phase per partial and no fixed count. Three
-consequences, all one place each: the core reads the tail of `GraphNode.params`; DOT
-packs the rows into one attribute (`harmonics="1,0,0.35,0.25"`), so the row count is
-free; and the editor stores them on the node (`data.table`) and edits them in the node's
-**Wavetable tab** (`wavetable:<parent>/<node>`), which also imports and exports one
-`amp,phase` row per line. The node card shows the cycle the rows add up to.
+**Variadic tables.** A kind may declare a **variadic table** (`NodeDef.table`,
+`NodeTable`): rows appended after its named params, in row order, with each column
+carrying its own range (`NodeColumn`). Two kinds use one — `wave_synth` (`freq`, then
+`amp, phase` per partial) and `sequence` (`loop`, then `start, dur, note, vel` per note) —
+because fundsp takes both as a *list*: `Wavetable::new`'s partial count and a note list
+have no fixed length. One mechanism, one place each: the core reads the tail of
+`GraphNode.params`; DOT packs the rows into **one** attribute (`harmonics="1,0,0.35,0.25"`,
+`notes="0,0.28,64,0.85,…"`), so the row count is free; and the editor stores them on the
+node (`data.table`) and edits them in the node's **table tab**
+(`table:<parent>/<node>`), which also imports and exports one row per line under a header
+of the column labels. The node card draws what the rows add up to: a **waveform cycle**
+for partials, a **piano roll** for notes.
+
+**Pitch as a signal.** The `(cv)` oscillators — `sine_cv`, `saw_cv`, `square_cv`,
+`triangle_cv` — take their **frequency on input 0** instead of a `freq` knob (fundsp's
+`Sine`/`Saw`/… rather than the `_hz` constructors). They exist for graphs whose pitch is
+a signal, chiefly a `sequence` voice.
 
 **Math nodes.** `add`/`subtract`/`multiply`/`divide`/`min`/`max` are 2-in/1-out
 signal arithmetic (A op B) — `multiply` doubles as a VCA/ring-mod when one input is
@@ -179,14 +187,15 @@ digraph {
   the header keyword is looked for past them.
 - **Shareable artifact:** each graph tab's toolbar **imports** a `.dot` file and
   **exports** the current graph (`graph_read_file` / `graph_write_dot`). Positions are a
-  GUI-only concern: imported nodes land on a grid and **Layout** re-derives the real one.
+  GUI-only concern: an imported graph is **laid out once** on arrival (dagre, using the
+  nominal node box), and **Layout** re-runs it against the measured sizes after edits.
 
 ### Nested subsystems (M40)
 
 Some fundsp nodes are **combinators over an inner node** (`subgraph`, `feedback`,
-`oversample`, `resample`). They are `subsystem` kinds: the node owns a nested
-`GraphSpec` (`GraphNode.subgraph`), edited in its **own Workbench tab** instead of on the
-parent canvas.
+`oversample`, `resample`), and `sequence` plays its note table through one. They are
+`subsystem` kinds: the node owns a nested `GraphSpec` (`GraphNode.subgraph`), edited in
+its **own Workbench tab** instead of on the parent canvas.
 
 - **Opening** — a subsystem node's card shows a mini block-diagram preview and an
   **Open** button (`graph.subsystem.open`); the Sidebar's **Graphs** tab also lists every
@@ -199,7 +208,8 @@ parent canvas.
   deletion (and a project undo) restores both, because it rides the normal project
   snapshot.
 - **Anchors** — a subsystem's inner graph has its own mono `input` → `output` (a
-  generator-style `sine` seed for `resample`, whose inner graph takes no input).
+  generator-style `sine` seed for `resample`, whose inner graph takes no input, and
+  `input → saw (cv) → output` for a `sequence` voice).
 - **DOT** — a subsystem node names its block (`system="fb.system"`) and the block is a
   real nested `subgraph`:
 
@@ -212,6 +222,33 @@ parent canvas.
           out  [kind="output"];
           in -> echo; echo -> out;
       }
+  }
+  ```
+
+### Sequence (M41)
+
+`sequence` is a `subsystem` whose inner graph is the **voice** and whose note table is
+the variadic table above (`start, dur, midi note, velocity` per row).
+
+- **Retuning** — each note builds its own copy of the voice net and feeds it the note's
+  frequency on **input 0**, which is what the `(cv)` oscillators are for. Notes therefore
+  overlap (polyphony), and each voice's own `lfo`/envelope clock runs note-relative
+  because a `Sequencer` ticks only its active events.
+- **Loop** — `0` plays the table once; a positive value restarts it at that period. In
+  fundsp the node is a `Sequencer` (an `AudioUnit`, so playback needs no
+  frontend/backend split); the loop period is the one thing wrapped, because fundsp
+  0.23's `ReplayMode` has no loop variant.
+- **Placement** — a generator: no inputs, one output, synth graphs only.
+- **DOT** — the table is one packed attribute and the voice a nested block:
+
+  ```dot
+  seq [kind="sequence", loop=0, notes="0,0.28,64,0.85,0.3,0.28,64,0.8",
+       system="seq.system"];
+  subgraph "seq.system" {
+      in  [kind="input"];
+      osc [kind="saw_cv"];
+      out [kind="output"];
+      in -> osc; osc -> out;
   }
   ```
 

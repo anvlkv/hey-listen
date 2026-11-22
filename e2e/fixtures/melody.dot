@@ -1,0 +1,24 @@
+// A `sequence` patch (M41): a saw voice played through an eight-note phrase.
+//
+// The node is a subsystem, so its note table and its voice graph travel together:
+// `notes` is the table (`start, dur, midi, vel` per row) and the nested `subgraph`
+// is the voice. The voice takes the note's **frequency** on input 0 — `saw_cv` is the
+// `(cv)` twin of `saw`, whose frequency comes from a signal rather than a knob — so one
+// graph plays a melody instead of a tone. `loop=0` plays the table once.
+digraph {
+    node [shape=record];
+
+    seq [kind="sequence", loop=0, notes="0,0.22,64,0.85,0.3,0.22,64,0.8,0.6,0.22,65,0.82,0.9,0.22,67,0.88,1.2,0.22,67,0.85,1.5,0.22,65,0.8,1.8,0.22,64,0.84,2.1,0.22,63,0.9", system="seq.system"];
+    out [kind="output"];
+    seq -> out;
+
+    subgraph "seq.system" {
+        in   [kind="input"];
+        osc  [kind="saw_cv"];
+        tone [kind="lowpass", freq=2400, q=0.9];
+        voice [kind="output"];
+        in -> osc;
+        osc -> tone;
+        tone -> voice;
+    }
+}

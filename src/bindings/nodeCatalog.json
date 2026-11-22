@@ -2630,12 +2630,19 @@
       "key": "harmonics",
       "label": "Harmonics",
       "columns": [
-        "Amp",
-        "Phase"
+        {
+          "label": "Amp",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.01
+        },
+        {
+          "label": "Phase",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.01
+        }
       ],
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01,
       "maxRows": 256,
       "defaultRows": [
         1.0,
@@ -2745,6 +2752,74 @@
     "filterOnly": false,
     "synthOnly": true,
     "hint": "A triangle oscillator at the given frequency.",
+    "subsystem": false,
+    "table": null
+  },
+  {
+    "kind": "sine_cv",
+    "label": "Sine (cv)",
+    "category": "generator",
+    "inputPorts": [
+      "freq"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A sine whose frequency comes from input 0 instead of a knob.",
+    "subsystem": false,
+    "table": null
+  },
+  {
+    "kind": "saw_cv",
+    "label": "Saw (cv)",
+    "category": "generator",
+    "inputPorts": [
+      "freq"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited sawtooth whose frequency comes from input 0.",
+    "subsystem": false,
+    "table": null
+  },
+  {
+    "kind": "square_cv",
+    "label": "Square (cv)",
+    "category": "generator",
+    "inputPorts": [
+      "freq"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited square whose frequency comes from input 0.",
+    "subsystem": false,
+    "table": null
+  },
+  {
+    "kind": "triangle_cv",
+    "label": "Triangle (cv)",
+    "category": "generator",
+    "inputPorts": [
+      "freq"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A triangle whose frequency comes from input 0.",
     "subsystem": false,
     "table": null
   },
@@ -3264,5 +3339,86 @@
     "hint": "Resamples a nested generator; input 0 is the speed (1 = the original rate).",
     "subsystem": true,
     "table": null
+  },
+  {
+    "kind": "sequence",
+    "label": "Sequence",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "loop",
+        "label": "Loop",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 60.0,
+        "step": 0.25,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Plays its note rows through the nested voice graph. The voice takes one frequency input; Loop 0 plays once, otherwise the pattern repeats.",
+    "subsystem": true,
+    "table": {
+      "key": "notes",
+      "label": "Notes",
+      "columns": [
+        {
+          "label": "Start",
+          "min": 0.0,
+          "max": 64.0,
+          "step": 0.01
+        },
+        {
+          "label": "Dur",
+          "min": 0.02,
+          "max": 16.0,
+          "step": 0.01
+        },
+        {
+          "label": "Note",
+          "min": 0.0,
+          "max": 127.0,
+          "step": 1.0
+        },
+        {
+          "label": "Vel",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.01
+        }
+      ],
+      "maxRows": 256,
+      "defaultRows": [
+        0.0,
+        0.22,
+        69.0,
+        0.85,
+        0.25,
+        0.22,
+        72.0,
+        0.8,
+        0.5,
+        0.22,
+        76.0,
+        0.78,
+        0.75,
+        0.45,
+        74.0,
+        0.82,
+        1.25,
+        0.22,
+        72.0,
+        0.75,
+        1.5,
+        0.7,
+        69.0,
+        0.8
+      ]
+    }
   }
 ]

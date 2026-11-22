@@ -132,6 +132,40 @@ fn every_kind_is_unique_and_consistent() {
                 param.key
             );
         }
+
+        if let Some(table) = def.table {
+            let width = table.columns.len();
+            assert!(width > 0, "{}: table with no columns", def.kind);
+            assert!(
+                table.default_rows.len().is_multiple_of(width),
+                "{}: default rows are not whole rows",
+                def.kind
+            );
+            assert!(
+                table.default_rows.len() / width <= table.max_rows,
+                "{}: default rows exceed max_rows",
+                def.kind
+            );
+            for (index, value) in table.default_rows.iter().enumerate() {
+                let column = &table.columns[index % width];
+                assert!(
+                    *value >= column.min && *value <= column.max,
+                    "{}: default {} outside {}..{}",
+                    def.kind,
+                    value,
+                    column.min,
+                    column.max
+                );
+            }
+            for column in table.columns {
+                assert!(
+                    column.min < column.max && column.step > 0.0,
+                    "{}: {} column has an empty range or a non-positive step",
+                    def.kind,
+                    column.label
+                );
+            }
+        }
     }
     assert!(!all().is_empty());
 }

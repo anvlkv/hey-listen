@@ -7,9 +7,11 @@ import { closeWindowsMatching } from "./windows.ts";
  * after each case, and removal of the temporary windows a case may have opened.
  *
  * Call inside a `describe` (it registers the hooks there). `temporaryWindow` is the
- * label pattern a case may open — popouts in `j-project`, annotation windows in `n-annotations`.
+ * label pattern a case may open — popouts in `j-project`, annotation windows in
+ * `n-annotations` — and defaults to a pattern that matches nothing, for specs that open
+ * no windows of their own.
  */
-export function projectSessionHooks(temporaryWindow: RegExp): void {
+export function projectSessionHooks(temporaryWindow: RegExp = /^$/): void {
   before(async () => {
     await waitForApp();
     await closeAllTabs();

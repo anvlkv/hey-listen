@@ -8,11 +8,11 @@ import CompareTab from "./compare/CompareTab";
 import FilterGraphTab from "./FilterGraphTab";
 import SynthGraphTab from "./SynthGraphTab";
 import SubsystemTab from "./graphEditor/SubsystemTab";
-import WavetableTab from "./graphEditor/WavetableTab";
+import TableTab from "./graphEditor/TableTab";
 import type { AnalyzerId } from "../state/analyzer";
 import { parseComparePanel } from "../state/compare/id";
 import { parseSystemScope, type SubsystemScope } from "../state/subsystems";
-import { parseWavetableScope, type WavetableScope } from "../state/wavetables";
+import { parseTableScope, type TableScope } from "../state/tables";
 import {
   compareOffset,
   openCompareSaved,
@@ -47,8 +47,8 @@ export default function ToolContent(props: { id: ToolId | string }) {
       <Match when={parseSystemScope(props.id)}>
         <SubsystemTab scope={props.id as SubsystemScope} />
       </Match>
-      <Match when={parseWavetableScope(props.id)}>
-        <WavetableTab scope={props.id as WavetableScope} />
+      <Match when={parseTableScope(props.id)}>
+        <TableTab scope={props.id as TableScope} />
       </Match>
       <Match when={compare()}>
         {(ref) => (

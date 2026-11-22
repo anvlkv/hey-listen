@@ -136,14 +136,14 @@ export const SEL = {
   graphSubsystemTitle: '[data-testid="graph.subsystem.title"]',
   // A multi-channel filter graph's "Analyse" channel selector (M41).
   graphChannel: '[data-testid="graph.channel"]',
-  // A table node's cycle preview on its card, and the way into its Wavetable tab.
-  graphWavetable: '[data-testid="graph.wavetable"]',
-  graphWavetableOpen: '[data-testid="graph.wavetable.open"]',
-  graphWavetableTitle: '[data-testid="graph.wavetable.title"]',
-  graphWavetableRow: '[data-testid="graph.wavetable.row"]',
-  graphWavetableImport: '[data-testid="graph.wavetable.import"]',
-  graphWavetableExport: '[data-testid="graph.wavetable.export"]',
-  graphWavetableAdd: '[data-testid="graph.wavetable.add"]',
+  // A table node's figure on its card, and the way into its table tab.
+  graphTable: '[data-testid="graph.table"]',
+  graphTableOpen: '[data-testid="graph.table.open"]',
+  graphTableTitle: '[data-testid="graph.table.title"]',
+  graphTableRow: '[data-testid="graph.table.row"]',
+  graphTableImport: '[data-testid="graph.table.import"]',
+  graphTableExport: '[data-testid="graph.table.export"]',
+  graphTableAdd: '[data-testid="graph.table.add"]',
   // A `snoop` node's live envelope.
   graphSnoop: '[data-testid="graph.snoop"]',
   // Autolayout (both editors): dagre, left to right.

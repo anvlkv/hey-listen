@@ -3061,3 +3061,61 @@ the nesting, and the CLI renders the `oversample`/`feedback` synth fixture.
 > **Validation:** `cargo test` (graph + migration), `npm run typecheck`, `npm run build`,
 > `npm run typecheck:e2e`, `npm run maid`; the S4 spec (V1–V5) is run by the user, as the
 > release build is required.
+
+## M41 — Multi-channel outputs and variadic tables ✅
+
+Two gaps the graph editor still had: a graph could only ever produce one mono channel,
+and fundsp takes a few things as *lists* (a wavetable's partials, a note sequence) that
+the flat parameter model could not express.
+
+### Output channels
+
+Every `output` node carries a `Ch` parameter. A graph with `output` nodes on channels
+`0..n` compiles to `Net::new(inputs, n + 1)`; each `output` feeds `set_output_source(ch, …)`,
+and a channel nobody claims stays silent. This holds for **both** graphs:
+
+- A **filter** graph is applied channel by channel: the analysis `channel` picks one
+  output channel (`apply_channel`), and the filter tab offers an **Analyse** selector when
+  the graph declares more than one.
+- A **synth** render keeps every channel as an interleaved source buffer, so the timeline,
+  the analyzers and the `channel` param work on a multichannel render unchanged.
+
+Two `output` nodes on the same channel are an error (`DuplicateOutput`), not a silent
+overwrite.
+
+### Variadic tables
+
+`NodeDef.table` declares a **row-major table** appended after a kind's named params:
+
+- `NodeTable` holds the DOT attribute key, the row cap and the seed rows; each
+  **`NodeColumn`** carries its own `min`/`max`/`step`, because a note's start (seconds),
+  pitch (0–127) and velocity (0–1) do not share a range.
+- DOT packs a table into **one** attribute (`harmonics="…"`, `notes="…"`), so the row
+  count is free; the parser validates whole rows, each column's range and the cap.
+- The editor stores the rows on the node (`data.table`) and edits them in the node's
+  **table tab** (`table:<parent>/<node>`), which imports and exports one row per line under
+  a header of the column labels. `read_table_file` / `write_table_file` take the node
+  **kind**, so the catalog stays the one source of the row shape.
+- The card and the tab draw the rows: a **cycle** for a wavetable's partials, a **piano
+  roll** for a sequence's notes.
+
+### `sequence`
+
+A `subsystem` kind that plays its note table through the inner graph (the *voice*). Each
+note builds its own voice net and feeds it the note's frequency on **input 0**, so notes
+overlap polyphonically and each voice's envelopes run note-relative. fundsp's `Sequencer`
+is an `AudioUnit`, so playback needs no frontend/backend split; `Loop` is a small wrapper
+around it, because fundsp 0.23's `ReplayMode` has no loop variant.
+
+The `(cv)` oscillators — `sine_cv`, `saw_cv`, `square_cv`, `triangle_cv` — close the gap
+this exposed: they take their frequency on input 0 (fundsp's `Sine`/`Saw`/… rather than the
+`_hz` constructors), so a pitch can arrive as a signal.
+
+**Files:** `src-tauri/src/audio/graph/{outputs.rs,render.rs,compile.rs,sequence.rs,
+extras.rs,nodes/{mod.rs,generators.rs,subsystems.rs},dot/parse.rs}`,
+`src-tauri/src/commands/graph.rs`, `src/bindings/*` (generated),
+`src/lib/graph/{table.ts,spec.ts}`, `src/state/{tables.ts,workbench.ts,graphHandles.ts}`,
+`src/components/graphEditor/{TableCard.tsx,TableFigure.tsx,TableTab.tsx}`,
+`e2e/fixtures/{wavetable-odd.csv,melody.dot,melody.csv}`,
+`e2e/specs/{s4-graph-dot.spec.ts,s4-graph-tables.spec.ts}`,
+`docs/{graph-editor.md,testing.md}`.

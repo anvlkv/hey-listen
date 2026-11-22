@@ -19,18 +19,12 @@
  * real, so the tests read the exported bytes from disk. Sorts before `t-close-main`,
  * which must stay the last suite file.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import { SEL, graphNode } from "../support/selectors.ts";
-import {
-  FIXTURES,
-  GRAPH_FIXTURES,
-  SUBSYSTEM_FIXTURES,
-  BAND_FIXTURE,
-  WAVETABLE_FIXTURE,
-} from "../support/fixtures.ts";
+import { FIXTURES, GRAPH_FIXTURES, SUBSYSTEM_FIXTURES, BAND_FIXTURE } from "../support/fixtures.ts";
 import { openMcp } from "../support/mcp.ts";
 import {
   expectToolOk,
@@ -46,34 +40,19 @@ import {
   activateToolSection,
   canvasHasInk,
   click,
-  closeAllTabs,
   count,
-  mockReturn,
   openFixture,
   openTool,
-  restoreMocks,
   timelineReadoutText,
   waitFor,
-  waitForApp,
   waitForSourceLoaded,
 } from "../support/helpers.ts";
+import { projectSessionHooks } from "../support/session.ts";
 
 describe("S4. Graph DOT interchange (M39)", () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "heylisten-dot-"));
-
-  before(async () => {
-    await waitForApp();
-    await closeAllTabs();
-    // Replacing the source / discarding unsaved work asks the core to confirm.
-    await mockReturn("confirm", true);
-  });
-
-  afterEach(async () => {
-    await restoreMocks();
-    // Re-stub the core's prompt: a render the spec did not ask for (a synth tab whose
-    // Live preference is still on) must never open a native dialog and block the run.
-    await mockReturn("confirm", true);
-  });
+  // A fresh app with no tabs and the core `confirm` prompt stubbed.
+  projectSessionHooks();
 
   after(() => {
     rmSync(dir, { recursive: true, force: true });
@@ -330,55 +309,5 @@ describe("S4. Graph DOT interchange (M39)", () => {
       return out.summary.items.find((item) => item.key === "rmsDb")?.value ?? 0;
     };
     expect(rms(2)).toBeLessThan(rms(0) - 20);
-  });
-
-  it("V7 — a table node edits, imports and exports its rows in its own tab", async () => {
-    await openTool("synth");
-    await quietSynthLive();
-
-    // A `wave_synth` node with no table of its own starts on the catalog's default rows.
-    const source = path.join(dir, "wave-table.dot");
-    writeFileSync(
-      source,
-      'digraph {\n  node [shape=record];\n  wt [kind="wave_synth", freq=220];\n  out [kind="output"];\n  wt -> out;\n}\n',
-    );
-    await importGraph(source);
-    await waitForHint("2 nodes", "the wavetable patch never imported");
-    expect(await count(SEL.graphWavetable)).toBe(1);
-    expect(await count(SEL.graphError)).toBe(0);
-
-    // The card's preview opens the rows in their own tab (16 rows: the saw seed).
-    await click(SEL.graphWavetableOpen);
-    await waitFor(
-      async () => (await count(SEL.graphWavetableRow)) === 16,
-      "the wavetable tab did not show the default 16 partials",
-    );
-    expect(await count(SEL.graphWavetableTitle)).toBe(1);
-
-    // Import replaces the table with the fixture's six rows (the dialog is stubbed, the
-    // reader runs for real).
-    await mockReturn("pick_wavetable_file", WAVETABLE_FIXTURE);
-    await click(SEL.graphWavetableImport);
-    await waitFor(
-      async () => (await count(SEL.graphWavetableRow)) === 6,
-      "the six-row wavetable fixture was not imported",
-    );
-
-    // Export writes the same shape back: a header, then one `amp,phase` row per line.
-    const exported = path.join(dir, "wavetable.export.csv");
-    await mockReturn("pick_save_path", exported);
-    await click(SEL.graphWavetableExport);
-    await waitFor(() => Promise.resolve(existsSync(exported)), "the CSV export was never written");
-    const lines = readFileSync(exported, "utf8").trim().split("\n");
-    expect(lines.length).toBe(7);
-    expect(lines[0]).toBe("amp,phase");
-    expect(lines[5]).toBe("0.45,0.125");
-
-    // Adding a row is an edit to the node, so the table grows to seven.
-    await click(SEL.graphWavetableAdd);
-    await waitFor(
-      async () => (await count(SEL.graphWavetableRow)) === 7,
-      "the wavetable tab did not add a partial",
-    );
   });
 });

@@ -35,6 +35,7 @@ mod extras;
 mod nodes;
 mod outputs;
 mod render;
+mod sequence;
 mod session;
 mod snoop;
 mod types;
@@ -42,10 +43,10 @@ mod units;
 
 pub use compile::*;
 pub use dot::{emit, looks_like_dot, parse, parse_file, parse_input, parse_text};
-pub use extras::parse_wavetable;
+pub use extras::parse_table_text;
 pub use nodes::{
     all as all_nodes, default_params, detail_json, dot_skeleton, is_subsystem, kind_arity,
-    list_json, node as node_def, NodeCategory, NodeDef, NodeParam, NodeTable, PortSide,
+    list_json, node as node_def, NodeCategory, NodeColumn, NodeDef, NodeParam, NodeTable, PortSide,
 };
 pub use outputs::output_channels;
 pub use render::*;
@@ -61,3 +62,5 @@ mod tests_dot;
 mod tests_nodes;
 #[cfg(test)]
 mod tests_output;
+#[cfg(test)]
+mod tests_tables;

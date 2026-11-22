@@ -98,12 +98,55 @@ fn new_kinds_report_their_arities() {
 }
 
 #[test]
-fn wavetable_rows_parse_one_row_per_line() {
-    // `amp,phase` per line; a lone amplitude means phase 0. A header line and stray
-    // tokens are ignored, and values are clamped to 0..1.
-    let rows = parse_wavetable("amp,phase\n1,0\n0.5 0.25\n0.25\n  \ninvalid\n2,0,0.7");
-    assert_eq!(rows, vec![1.0, 0.0, 0.5, 0.25, 0.25, 0.0, 1.0, 0.0]);
-    assert!(parse_wavetable("").is_empty());
+fn table_rows_parse_one_row_per_line() {
+    // Two values per row; a short line is padded with 0 and extra values are dropped.
+    // A header line and stray tokens are ignored. Bounds are per column, not here.
+    let rows = parse_table_text("amp,phase\n1,0\n0.5 0.25\n0.25\n  \ninvalid\n2,0,0.7", 2);
+    assert_eq!(rows, vec![1.0, 0.0, 0.5, 0.25, 0.25, 0.0, 2.0, 0.0]);
+    assert!(parse_table_text("", 2).is_empty());
+    // A four-column table reads one note per line.
+    let notes = parse_table_text("start,dur,note,vel\n0,0.5,69,0.8\n1,0.25,72\n", 4);
+    assert_eq!(notes, vec![0.0, 0.5, 69.0, 0.8, 1.0, 0.25, 72.0, 0.0]);
+}
+
+#[test]
+fn sequence_plays_its_notes_and_loops() {
+    // The voice is a plain 1-in/1-out graph: the note's frequency drives the oscillator.
+    let voice = || GraphSpec {
+        nodes: vec![
+            node("in", "input", &[]),
+            node("osc", "saw_cv", &[]),
+            node("out", "output", &[]),
+        ],
+        edges: vec![edge("in", "osc"), edge("osc", "out")],
+    };
+    let spec = |params: Vec<f32>| {
+        let mut sequence = system("seq", "sequence", voice());
+        sequence.params = params;
+        GraphSpec {
+            nodes: vec![sequence, node("out", "output", &[])],
+            edges: vec![edge("seq", "out")],
+        }
+    };
+    let rms = |samples: &[f32], from: f64, to: f64| -> f32 {
+        let start = (from * 48_000.0) as usize;
+        let end = ((to * 48_000.0) as usize).min(samples.len());
+        let slice = &samples[start..end];
+        (slice.iter().map(|s| s * s).sum::<f32>() / slice.len() as f32).sqrt()
+    };
+
+    // The catalog's rows are a 2.2 s arpeggio; `loop = 0` plays it once and stops.
+    let once = render_mono(&spec(vec![0.0]), 3.0, 48_000).expect("sequence");
+    assert!(once.iter().all(|s| s.is_finite()), "sequence: non-finite");
+    assert!(rms(&once, 0.0, 0.5) > 0.01, "the first note is silent");
+    assert!(
+        rms(&once, 2.5, 3.0) < 1e-3,
+        "a one-shot sequence kept sounding"
+    );
+
+    // A loop past the pattern replays it from the top.
+    let looped = render_mono(&spec(vec![2.5]), 3.0, 48_000).expect("sequence loop");
+    assert!(rms(&looped, 2.6, 3.0) > 0.01, "the loop did not replay");
 }
 
 #[test]

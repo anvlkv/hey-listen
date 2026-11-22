@@ -93,14 +93,19 @@ to *arithmetic*.
 There is no dedicated gain-for-signal node beyond `gain` (see filters); `multiply` by `dc`
 is the general "scale by a constant".
 
-### Generators (`Generator`, synth only — fixed `freq`, no pitch CV)
+### Generators (`Generator`, synth only — `freq` as a knob, or as input 0)
 
 `sine`, `saw`, `square`, `triangle`, `ramp` (0→1 phasor), `rossler`/`lorenz` (chaotic),
 `organ`/`hammond` (additive), `soft_saw`, `pulse` (freq + width 0..1), `poly_saw` /
 `poly_square` / `poly_pulse` (band-limited), `dsf_saw` / `dsf_square` (freq + roughness
 0..1), `pluck` (Karplus–Strong: freq + **decay in 1/s** + damping 0..1), `wave_synth`
-(a **wavetable** oscillator — see below), `white` / `pink` / `brown` / `mls` (noise),
-`zero` (silence, drives an unused input), `impulse` (one sample).
+(a **wavetable** oscillator — see below), `sequence` (a **note list** played through a
+voice graph — see below), `white` / `pink` / `brown` / `mls` (noise), `zero` (silence,
+drives an unused input), `impulse` (one sample).
+
+The four basic shapes also have `(cv)` twins — `sine_cv`, `saw_cv`, `square_cv`,
+`triangle_cv` — which take the **frequency on input 0** instead of a `freq` param. Use
+them where the pitch is a signal; the most common case is a `sequence` voice.
 
 > **`wave_synth` is a table of rows, not a fixed set of harmonics.** Its `params` are
 > `freq` followed by `amp, phase` pairs — one row per partial, **as many rows as you
@@ -114,14 +119,15 @@ is the general "scale by a constant".
 > Row `n` is partial `n + 1`; `1/n` amplitudes with zero phase is a saw, a single
 > `1,0` row is a sine. fundsp normalizes the table, so the numbers set the timbre, not
 > the level. Omit `harmonics=` and the node starts from the catalog's 16-row saw seed.
-> In the app the rows are edited in the node's **Wavetable tab** (import/export a
-> `amp,phase`-per-line text file); `get_node { kind: "wave_synth" }` reports the `table`
-> shape (`key`, `columns`, `maxRows`, `defaultRows`).
+> In the app the rows are edited in the node's **table tab** (import/export one
+> `amp,phase` line per row); `get_node { kind: "wave_synth" }` reports the `table` shape
+> (`key`, `columns` — each a `label`/`min`/`max`/`step` — `maxRows`, `defaultRows`).
 
-> **Oscillators have a fixed `freq` — there is no audio-rate or envelope pitch CV.** To get
-> a decaying pitched tone use `pluck` (built-in decay + damping); `ramp` is the only
-> freely-usable phase/rate signal. Modulate **amplitude** (→ `multiply`) or **filter
-> cutoff** (→ `*_cv`), not oscillator pitch.
+> **Pitch is a knob, or a signal.** `sine`/`saw`/… take `freq` as a param; the `(cv)`
+> twins (`sine_cv`, `saw_cv`, `square_cv`, `triangle_cv`) take it on input 0. So a
+> decaying pitched tone is `pluck` (built-in decay + damping), and a *tuned* voice driven
+> by a control signal is `sine_cv`/`saw_cv` inside a `sequence`. Modulate **amplitude**
+> (→ `multiply`) or **filter cutoff** (→ `*_cv`) for the rest.
 
 ### Filters (`Processor`, fixed params)
 
@@ -227,10 +233,12 @@ digraph {
 ## Subsystems
 
 fundsp combinators that wrap an **inner graph** — `subgraph` (reusable chain), `feedback`
-(fundsp `feedback`), `oversample` (anti-alias), `resample` (inner generator; input 0 = speed).
+(fundsp `feedback`), `oversample` (anti-alias), `resample` (inner generator; input 0 = speed),
+and `sequence` (a note list played through its inner graph as a voice).
 The node owns a nested `GraphSpec` (`subgraph`), edited in its own tab; the inner graph has
 its own mono `input`→`output` (a `resample` inner graph takes **no input** — it is
-generator-seeded). Each subsystem carries a **name** (`Feedback 1`, `Feedback 2`, …) that
+generator-seeded; a `sequence` voice is pitched by the note's frequency on input 0). Each
+subsystem carries a **name** (`Feedback 1`, `Feedback 2`, …) that
 the user can rename in the editor; the name is editor state, like node positions, so it is
 **not** part of DOT or the `GraphSpec`. Refer to a subsystem in DOT by its node `id`.
 In DOT a subsystem node names its block and nests a real `subgraph`:
@@ -246,6 +254,37 @@ digraph {
     }
 }
 ```
+
+## Sequence — a note list played through a voice
+
+`sequence` is how you write a **melody** rather than a drone. It is a `subsystem`: its
+`params` are `loop` (seconds — `0` plays once, otherwise it restarts at that period)
+followed by `start, dur, note, vel` rows (MIDI note number; velocity 0..1), as many rows as
+you want. Its inner graph is the **voice**, and it receives the note's frequency on input
+0 — so it normally starts with a `(cv)` oscillator.
+
+```dot
+digraph {
+    node [shape=record];
+    seq [kind="sequence", loop=0,
+         notes="0,0.28,64,0.85,0.3,0.28,64,0.8,0.6,0.28,65,0.82,0.9,0.28,67,0.88",
+         system="seq.system"];
+    out [kind="output"];
+    seq -> out;
+    subgraph "seq.system" {
+        in    [kind="input"];
+        osc   [kind="saw_cv"];
+        tone  [kind="lowpass", freq=2400, q=0.9];
+        voice [kind="output"];
+        in -> osc; osc -> tone; tone -> voice;
+    }
+}
+```
+
+Notes overlap where their spans do (polyphony), and each voice's own `lfo`/envelope
+restarts with its note. Run `noteMetrics`/`pitch` on the render: several **different**
+pitches means it worked; one pitch means the voice is ignoring input 0 (a `_hz`
+oscillator instead of a `(cv)` one).
 
 ## Snoop
 

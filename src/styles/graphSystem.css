@@ -83,15 +83,15 @@
   opacity: 0.7;
 }
 
-/* The `wave_synth` card: the cycle its harmonic numbers add up to, plus the grid. */
-.graph-wavetable {
+/* A table node's card body: its figure (wavetable cycle or sequence piano roll). */
+.graph-table {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 6px;
 }
 
-.graph-wavetable-cycle {
+.graph-table-figure {
   width: 100%;
   height: 36px;
   background: var(--panel-2);
@@ -99,15 +99,21 @@
   border-radius: 4px;
 }
 
-.graph-wavetable-path {
+.graph-table-path {
   fill: none;
   stroke: var(--accent-soft-fg);
   stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
 }
 
-/* The Wavetable tab: the cycle beside its rows (`wave_synth`). */
-.wavetable-tab {
+/* One note of a sequence piano roll; its opacity is the note's velocity. */
+.graph-table-bar {
+  fill: var(--accent-soft-fg);
+  stroke: none;
+}
+
+/* The table tab: the figure beside its rows. */
+.table-tab {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -115,7 +121,7 @@
   overflow: hidden;
 }
 
-.wavetable-body {
+.table-body {
   display: flex;
   flex: 1;
   min-height: 0;
@@ -124,7 +130,7 @@
   overflow: hidden;
 }
 
-.wavetable-figure {
+.table-figure {
   display: flex;
   flex: none;
   flex-direction: column;
@@ -132,20 +138,17 @@
   width: 220px;
 }
 
-.wavetable-cycle {
+.table-figure .graph-table-figure {
   width: 220px;
   height: 110px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
 }
 
-.wavetable-caption {
+.table-caption {
   font-size: 0.6875rem;
   color: var(--fg-dim);
 }
 
-.wavetable-rows {
+.table-rows {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -155,13 +158,13 @@
   padding-right: 4px;
 }
 
-.wavetable-row {
+.table-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.wavetable-head {
+.table-head {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -172,7 +175,7 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
-.wavetable-index {
+.table-index {
   flex: none;
   width: 28px;
   font-size: 0.6875rem;
@@ -181,14 +184,14 @@
   text-align: right;
 }
 
-.wavetable-col {
+.table-col {
   flex: 1;
   min-width: 0;
   font-size: 0.6875rem;
   color: var(--fg-dim);
 }
 
-.wavetable-cell {
+.table-cell {
   flex: 1;
   min-width: 0;
   height: 22px;
@@ -201,17 +204,17 @@
   border-radius: 4px;
 }
 
-.wavetable-remove {
+.table-remove {
   flex: none;
   opacity: 0.6;
 }
 
-.wavetable-actions {
+.table-actions {
   display: flex;
   padding: 4px 0 8px;
 }
 
-.wavetable-empty {
+.table-empty {
   padding: 16px;
   font-size: 0.75rem;
   color: var(--fg-muted);

@@ -293,42 +293,60 @@ pub async fn pick_graph_file(app: tauri::AppHandle) -> Option<String> {
         .map(|path| path.to_string_lossy().into_owned())
 }
 
-/// Pick a text file of wavetable rows to import (the dialog only; the reader is
-/// [`wavetable_read_file`], so a test can stub the dialog and still exercise parsing).
+/// Pick a text file of table rows to import (the dialog only; the reader is
+/// [`read_table_file`], so a test can stub the dialog and still exercise parsing).
 #[tauri::command]
-pub async fn pick_wavetable_file(app: tauri::AppHandle) -> Option<String> {
+pub async fn pick_table_file(app: tauri::AppHandle) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;
     app.dialog()
         .file()
-        .set_title("Load wavetable rows")
-        .add_filter("Wavetable rows", &["txt", "csv", "tsv"])
+        .set_title("Load table rows")
+        .add_filter("Table rows", &["txt", "csv", "tsv"])
         .blocking_pick_file()
         .and_then(|file| file.into_path().ok())
         .map(|path| path.to_string_lossy().into_owned())
 }
 
-/// Read wavetable rows from a text file: one `amp,phase` row per line (a lone amplitude
-/// means phase 0). Returns the rows row-major, ready to store on the node.
+/// The catalog's variadic table for `kind`, or an error when the kind has none.
+fn table_def(kind: &str) -> Result<&'static graph::NodeTable, GraphError> {
+    graph::node_def(kind)
+        .and_then(|def| def.table)
+        .ok_or_else(|| GraphError::NoTable(kind.to_string()))
+}
+
+/// Read table rows from a text file: one row per line, as many values as the kind's
+/// table has columns. Returns the rows row-major, ready to store on the node.
 #[tauri::command]
-pub fn wavetable_read_file(path: String) -> Result<Vec<f32>, GraphError> {
+pub fn read_table_file(kind: String, path: String) -> Result<Vec<f32>, GraphError> {
+    let table = table_def(&kind)?;
     let text = std::fs::read_to_string(&path)
         .map_err(|err| GraphError::Io(format!("cannot read {path}: {err}")))?;
-    let rows = graph::parse_wavetable(&text);
+    let rows = graph::parse_table_text(&text, table.columns.len());
     if rows.is_empty() {
         return Err(GraphError::Io(format!(
-            "{path} holds no wavetable rows (expected numbers, one row per line)"
+            "{path} holds no table rows (expected numbers, one row per line)"
         )));
     }
     Ok(rows)
 }
 
-/// Write wavetable rows to a text file: one `amp,phase` row per line.
+/// Write table rows to a text file: a header of the catalog's column labels, then one
+/// row per line.
 #[tauri::command]
-pub fn wavetable_write_file(rows: Vec<f32>, path: String) -> Result<(), GraphError> {
-    let mut text = String::from("amp,phase\n");
-    for pair in rows.chunks(2) {
-        let phase = pair.get(1).copied().unwrap_or(0.0);
-        text.push_str(&format!("{},{}\n", pair[0], phase));
+pub fn write_table_file(kind: String, rows: Vec<f32>, path: String) -> Result<(), GraphError> {
+    let table = table_def(&kind)?;
+    let width = table.columns.len().max(1);
+    let header: Vec<String> = table
+        .columns
+        .iter()
+        .map(|column| column.label.to_lowercase())
+        .collect();
+    let mut text = header.join(",");
+    text.push('\n');
+    for row in rows.chunks(width) {
+        let values: Vec<String> = row.iter().map(|value| value.to_string()).collect();
+        text.push_str(&values.join(","));
+        text.push('\n');
     }
     std::fs::write(&path, text).map_err(|err| GraphError::Io(format!("cannot write {path}: {err}")))
 }

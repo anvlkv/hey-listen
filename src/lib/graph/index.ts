@@ -10,7 +10,7 @@
  * `src/bindings/nodeCatalog.json` by `cargo test` — see `docs/graph-editor.md`.
  */
 export type { GraphKind, GraphScope, GraphSpec, NodeKindDef, ParamDef } from "./types";
-export { parseSystemScope, systemScope, type SubsystemScope } from "./scope";
+export { parseScoped, parseSystemScope, systemScope, type SubsystemScope } from "./scope";
 export {
   defaultParams,
   isSubsystemKind,

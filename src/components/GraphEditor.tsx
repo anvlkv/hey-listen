@@ -15,7 +15,7 @@ import {
   type GraphEdge,
 } from "../state/graph";
 import { dropSystemsUnder } from "../state/subsystems";
-import { closeSystemsUnder, closeWavetablesUnder } from "../state/workbench";
+import { closeSystemsUnder, closeTablesUnder } from "../state/workbench";
 import { resolvedTheme, themeFlow } from "../state/themes";
 import Button from "./Button";
 import GraphNode from "./GraphNode";
@@ -282,7 +282,7 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
                 // project snapshot as any other graph edit.
                 dropSystemsUnder(props.graph, ids);
                 closeSystemsUnder(props.graph, ids);
-                closeWavetablesUnder(props.graph, ids);
+                closeTablesUnder(props.graph, ids);
                 const open = menu();
                 if (open && ids.has(open.id)) setMenu(null);
               }

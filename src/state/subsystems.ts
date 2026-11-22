@@ -113,7 +113,7 @@ export function ensureSystem(scope: SubsystemScope): GraphHandle {
   if (!ref) throw new Error(`not a subsystem scope: ${scope}`);
   const spec = ownerNode(scope)?.data.subgraph ?? null;
   const stored = spec ? fromSpec(spec) : null;
-  const base = stored ?? seed(scope);
+  const base = stored ?? seed(scope, ownerNode(scope)?.data.kind);
   const nodes = base.nodes.map((node) => ({
     ...node,
     type: "graph" as const,

@@ -8,7 +8,9 @@ import {
   type GraphSpec,
   type NodeKindDef,
 } from "../lib/graph";
-import { defaultRows } from "../lib/graph/wavetable";
+import { defaultRows } from "../lib/graph/table";
+import { DROP_NODE_HEIGHT, DROP_NODE_WIDTH } from "../lib/graphDrop";
+import { layoutGraph } from "../lib/graphLayout";
 import { isAnchorKind } from "./graphKinds";
 
 /**
@@ -29,7 +31,7 @@ export type GraphNodeData = {
   name?: string;
   /** A subsystem node's nested graph (the compiled/stored form). */
   subgraph?: GraphSpec | null;
-  /** A variadic table's rows, row-major (see `lib/graph/wavetable.ts`). */
+  /** A variadic table's rows, row-major (see `lib/graph/table.ts`). */
   table?: number[];
 } & Record<string, unknown>;
 
@@ -93,11 +95,12 @@ function makeNode(kind: string, scope: GraphScope, x: number, y: number): GraphN
       // its tab can tell two of them apart before anyone renames them.
       ...(def?.subsystem
         ? {
-            subgraph: emptySystemSpec(kind === "resample"),
+            subgraph: emptySystemSpec(kind),
             name: defaultName(scope, def),
           }
         : {}),
-      // A kind with a variadic table (a wavetable) starts on its catalog rows.
+      // A kind with a variadic table (wavetable partials, sequence notes) starts on its
+      // catalog rows.
       ...(def?.table ? { table: defaultRows(kind) } : {}),
     },
   };
@@ -129,21 +132,36 @@ export function fillSystemNames(nodes: readonly GraphNode[]): GraphNode[] {
   });
 }
 
-/** The seed nested graph of a new subsystem: `Input → Output`, or a sine generator
- *  for `resample` (whose inner graph takes no input). */
-function emptySystemSpec(generator: boolean): GraphSpec {
-  const nodes = generator
-    ? [
-        { id: "osc", kind: "sine", params: [440], subgraph: null },
-        { id: "out", kind: "output", params: [], subgraph: null },
-      ]
-    : [
-        { id: "in", kind: "input", params: [], subgraph: null },
-        { id: "out", kind: "output", params: [], subgraph: null },
-      ];
+/** The seed nested graph of a new subsystem, as a stored `GraphSpec`.
+ *
+ *  A plain subsystem is `input → output` (identity). A `resample` inner graph is a
+ *  generator (no input); a `sequence` voice is pitched by the note's frequency arriving
+ *  on input 0, so it needs a `(cv)` oscillator to sound. */
+function emptySystemSpec(kind: string): GraphSpec {
+  const nodes =
+    kind === "sequence"
+      ? [
+          { id: "in", kind: "input", params: [], subgraph: null },
+          { id: "osc", kind: "saw_cv", params: [], subgraph: null },
+          { id: "out", kind: "output", params: [], subgraph: null },
+        ]
+      : kind === "resample"
+        ? [
+            { id: "osc", kind: "sine", params: [440], subgraph: null },
+            { id: "out", kind: "output", params: [], subgraph: null },
+          ]
+        : [
+            { id: "in", kind: "input", params: [], subgraph: null },
+            { id: "out", kind: "output", params: [], subgraph: null },
+          ];
   return {
     nodes,
-    edges: [{ from: nodes[0].id, fromPort: 0, to: "out", toPort: 0 }],
+    edges: nodes.slice(1).map((to, index) => ({
+      from: nodes[index].id,
+      fromPort: 0,
+      to: to.id,
+      toPort: 0,
+    })),
   };
 }
 
@@ -158,14 +176,24 @@ function link(source: string, target: string, targetPort = 0): GraphEdge {
 }
 
 /**
- * A fresh graph: a filter (or a subsystem) is `Input → Output` (identity); a synth is
- * `Sine → Output`.
+ * A fresh graph: a filter (or a plain subsystem) is `Input → Output` (identity); a
+ * synth — and a `resample` inner graph, which takes no input — is `Sine → Output`; a
+ * `sequence` voice is `Input → Saw (cv) → Output`.
  */
-export function seed(scope: GraphScope): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  if (scope === "synth") {
+export function seed(scope: GraphScope, kind?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (scope === "synth" || kind === "resample") {
     const osc = makeNode("sine", scope, ANCHOR_LEFT_X, ANCHOR_Y);
     const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y);
     return { nodes: [osc, output], edges: [link(osc.id, output.id)] };
+  }
+  if (kind === "sequence") {
+    const input = makeNode("input", scope, ANCHOR_LEFT_X, ANCHOR_Y);
+    const osc = makeNode("saw_cv", scope, (ANCHOR_LEFT_X + ANCHOR_RIGHT_X) / 2, ANCHOR_Y);
+    const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y);
+    return {
+      nodes: [input, osc, output],
+      edges: [link(input.id, osc.id), link(osc.id, output.id)],
+    };
   }
   const input = makeNode("input", scope, ANCHOR_LEFT_X, ANCHOR_Y);
   const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y);
@@ -302,16 +330,33 @@ export function loadGraph(scope: GraphScope, state: Partial<GraphLayout> | undef
 
 /**
  * Replace a graph from a `GraphSpec` (an imported DOT file or an MCP graph).
- * Positions are not part of the interchange; the nodes land on a grid.
+ *
+ * Positions are not part of the interchange, so the graph is **laid out once** here —
+ * an imported graph opens readable instead of on an import grid. The layout uses the
+ * nominal node box (`graphDrop`), since nothing has been measured yet; the toolbar's
+ * **Layout** re-runs it against the measured sizes after edits.
  */
 export function loadSpec(scope: GraphScope, spec: GraphSpec) {
   const { nodes, edges } = fromSpec(spec);
+  const positions = layoutGraph(
+    nodes.map((node) => ({
+      id: node.id,
+      width: DROP_NODE_WIDTH,
+      height: DROP_NODE_HEIGHT,
+    })),
+    // dagre rejects a self-edge; the compiler rejects it as a cycle anyway, but the
+    // layout must not throw before the user can see why.
+    edges
+      .filter((edge) => edge.source !== edge.target)
+      .map((edge) => ({ source: edge.source, target: edge.target })),
+  );
   const handle = graphFor(scope);
   handle.setEdges(edges);
   handle.setNodes(
     fillSystemNames(
       nodes.map((node) => ({
         ...node,
+        position: positions[node.id] ?? node.position,
         type: "graph" as const,
         data: { ...node.data, graph: scope },
         ...(isAnchorKind(node.data.kind) ? { deletable: false } : {}),

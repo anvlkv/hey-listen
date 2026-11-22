@@ -1,5 +1,5 @@
 //! The palette arms added by M40: subsystems, the extra generators and shapers,
-//! convolution, the linear tap and the `snoop` tap.
+//! convolution, the linear tap, the `snoop` tap and the `sequence` player.
 //!
 //! Split out of [`super::compile`] so each file stays inside the source-size budget;
 //! `make_unit` asks this module first and falls through to the rest of the palette.
@@ -10,46 +10,35 @@ use super::compile::{build_scoped, CONTROL_SMOOTH};
 use super::units::impulse_response;
 use super::{GraphError, GraphNode};
 
-/// Read wavetable rows from a text file: **one row per line**, `amp,phase` (a lone
-/// amplitude means phase 0), separated by commas, semicolons or whitespace. A header line
-/// is skipped because non-numeric tokens are ignored. The result is row-major — two
-/// numbers per row — which is exactly the shape a `wave_synth` node stores.
-pub fn parse_wavetable(text: &str) -> Vec<f32> {
+/// Read table rows from a text file: **one row per line**, `columns` values per row,
+/// separated by commas, semicolons or whitespace. A header line is skipped because
+/// non-numeric tokens are ignored; a short line is padded with 0 and extra values are
+/// dropped, so every line contributes exactly one whole row. The caller clamps each
+/// column to its own [`NodeColumn`](super::NodeColumn) range.
+pub fn parse_table_text(text: &str, columns: usize) -> Vec<f32> {
+    let width = std::cmp::max(columns, 1);
     let mut rows = Vec::new();
     for line in text.lines() {
-        let values: Vec<f32> = line
+        let mut values = line
             .split(|ch: char| ch.is_whitespace() || ch == ',' || ch == ';')
             .filter_map(|token| token.trim().parse::<f32>().ok())
-            .filter(|value| value.is_finite())
-            .collect();
-        let Some(amp) = values.first() else {
+            .filter(|value| value.is_finite());
+        let Some(first) = values.next() else {
             continue;
         };
-        let phase = values.get(1).copied().unwrap_or(0.0);
-        rows.push(amp.clamp(0.0, 1.0));
-        rows.push(phase.clamp(0.0, 1.0));
+        rows.push(first);
+        for _ in 1..width {
+            rows.push(values.next().unwrap_or(0.0));
+        }
     }
     rows
 }
 
 /// The amplitude and phase of each partial from a `wave_synth` node's table tail.
-///
-/// The node's params are `freq` followed by `amp, phase` rows, any number of them. A node
-/// with no rows of its own (a hand-written DOT statement) falls back to the catalog's
-/// default table, so it still sounds.
 fn harmonic_rows(node: &GraphNode) -> (Vec<f64>, Vec<f64>) {
-    let def = super::node_def("wave_synth");
-    let named = def.map_or(1, |def| def.params.len());
-    let tail = node.params.get(named..).unwrap_or(&[]);
-    let rows: &[f32] = if tail.is_empty() {
-        def.and_then(|def| def.table)
-            .map_or(&[], |table| table.default_rows)
-    } else {
-        tail
-    };
     let mut amps = Vec::new();
     let mut phases = Vec::new();
-    for pair in rows.chunks(2) {
+    for pair in super::nodes::table_rows(node, "wave_synth").chunks(2) {
         amps.push(pair[0].clamp(0.0, 1.0) as f64);
         phases.push(pair.get(1).copied().unwrap_or(0.0).clamp(0.0, 1.0) as f64);
     }
@@ -89,6 +78,15 @@ pub(super) fn make_unit(
                     "oversample" => Box::new(oversample(wrapped)),
                     _ => Box::new(wrapped),
                 }
+            }
+        }
+
+        // --- Sequence: the note table played through one voice graph per note ---
+        "sequence" => {
+            let looped = p(0, 0.0).max(0.0);
+            match super::sequence::make_unit(node, looped, scope, sample_rate) {
+                Ok(unit) => unit,
+                Err(err) => return Some(Err(err)),
             }
         }
 

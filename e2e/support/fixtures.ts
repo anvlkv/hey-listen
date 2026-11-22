@@ -65,10 +65,20 @@ export const BAND_FIXTURE = path.resolve(HERE, "..", "fixtures", "tri-band.dot")
 
 /**
  * A **wavetable** fixture: six `amp,phase` rows (not a saw, and not the default sixteen),
- * imported into a `wave_synth` node's Wavetable tab. One row per line is the whole
- * format, so the same file the user writes in a spreadsheet round-trips.
+ * imported into a `wave_synth` node's table tab. One row per line is the whole format, so
+ * the same file the user writes in a spreadsheet round-trips.
  */
 export const WAVETABLE_FIXTURE = path.resolve(HERE, "..", "fixtures", "wavetable-odd.csv");
+
+/**
+ * A **sequence** fixture: a `sequence` node playing eight notes through a `saw_cv` voice,
+ * so one graph is a melody rather than a tone. Its table travels with the node in nested
+ * DOT (`notes="start,dur,note,vel,…"`).
+ */
+export const MELODY_FIXTURE = path.resolve(HERE, "..", "fixtures", "melody.dot");
+
+/** The same notes in the table tab's import format (seven rows, and not the default six). */
+export const MELODY_ROWS = path.resolve(HERE, "..", "fixtures", "melody.csv");
 
 /**
  * The console binary the DOT spec drives. `tauri build` stages it through
