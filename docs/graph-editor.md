@@ -136,7 +136,9 @@ digraph {
   catalog; `get_node` returns a ready-to-paste DOT skeleton.
 - **Boundaries:** `get_graph` reads a graph back as DOT; `set_filter_graph` and
   `render_synth` accept a DOT string or `graphFile`, and the CLI `synth <GRAPH>` /
-  `--filter` accept DOT text, a `.dot`/`.gv` file or a legacy JSON file.
+  `--filter` accept DOT text, a `.dot`/`.gv` file or a legacy JSON file. A DOT string
+  may open with comments (`//`, `/* … */`, `#` lines), as the committed fixtures do —
+  the header keyword is looked for past them.
 - **Shareable artifact:** each graph tab's toolbar **imports** a `.dot` file and
   **exports** the current graph (`graph_read_file` / `graph_write_dot`). Positions are a
   GUI-only concern: imported nodes land on a grid and **Layout** re-derives the real one.

@@ -36,17 +36,10 @@ import {
 } from "../support/graph.ts";
 import { closeWindowPopover, setInputValue } from "../support/timelinePrecision.ts";
 import { pressChord } from "../support/keys.ts";
+import { quietSynthLive } from "../support/synth.ts";
 
 // Q2.2 forces a rejected live render; the IPC façade logs exactly that line.
 expectLogErrors("update_synth_source failed: synth rejected by test");
-
-/** Whether the Live switch is on (Kobalte marks its hidden input `data-checked`). */
-async function liveOn(): Promise<boolean> {
-  return (await browser.execute((sel: string) => {
-    const input = document.querySelector(sel);
-    return !!input && input.hasAttribute("data-checked");
-  }, SEL.synthLive)) as boolean;
-}
 
 /** The Timeline scrollbar thumb's client box, or null when the whole source fits. */
 async function thumbBox(): Promise<{ left: number; width: number } | null> {
@@ -58,12 +51,6 @@ async function thumbBox(): Promise<{ left: number; width: number } | null> {
   }, SEL.timelineScrollThumb)) as { left: number; width: number } | null;
 }
 
-/** Leave Live off, so a failed case does not re-render into a later one. */
-async function quietSynthTab(): Promise<void> {
-  if ((await count(SEL.synthLive)) === 0) return;
-  if (await liveOn()) await click(SEL.synthLive);
-}
-
 describe("Q2. Synth workflow", () => {
   before(async () => {
     await waitForApp();
@@ -72,13 +59,15 @@ describe("Q2. Synth workflow", () => {
   afterEach(async () => {
     await restoreMocks();
     await paletteDragCancel();
-    await quietSynthTab();
+    await quietSynthLive();
   });
 
   it("Q2.1 — Live overwrites the source without resetting the window, view or annotations", async () => {
     await openFixture("sine440");
     await openTool("synth");
     await waitFor(async () => (await count(SEL.graphRender)) > 0, "the synth tab did not open");
+    // Live is persisted chrome: start from off so the click below turns it *on*.
+    await quietSynthLive();
 
     // Make the synth the source once, so Live takes the in-place path (no adoption reset).
     await click(SEL.graphRender);
@@ -147,6 +136,8 @@ describe("Q2. Synth workflow", () => {
   it("Q2.2 — a failed live render keeps the last good audio", async () => {
     await openTool("synth");
     await waitFor(async () => (await count(SEL.synthLive)) > 0, "the synth tab did not open");
+    // As above: off, so the click turns Live on and the rejection is this case's.
+    await quietSynthLive();
     const before = await timelineReadoutText();
     const sourceBefore = (await browser.execute(
       () => document.querySelector(".timeline-position")?.textContent?.trim() ?? "",

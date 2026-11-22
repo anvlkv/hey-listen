@@ -152,7 +152,27 @@ pub fn parse_text(text: &str) -> Result<GraphSpec, GraphError> {
 }
 
 /// Whether `text` looks like a DOT graph rather than a path.
+///
+/// DOT allows comments ahead of the header — `// …` and `/* … */` anywhere, and `#`
+/// lines at the start of a file — so a document that opens with a comment still
+/// begins with `graph` / `digraph` / `strict` once they are skipped.
 pub fn looks_like_dot(text: &str) -> bool {
-    let text = text.trim_start();
-    text.starts_with("digraph") || text.starts_with("strict digraph") || text.starts_with("graph")
+    let mut rest = text;
+    loop {
+        rest = rest.trim_start();
+        if let Some(after) = rest.strip_prefix("//") {
+            rest = after.split_once('\n').map_or("", |(_, tail)| tail);
+        } else if let Some(after) = rest.strip_prefix("/*") {
+            match after.split_once("*/") {
+                Some((_, tail)) => rest = tail,
+                None => return false,
+            }
+        } else if rest.starts_with('#') {
+            rest = rest.split_once('\n').map_or("", |(_, tail)| tail);
+        } else {
+            break;
+        }
+    }
+    let keyword: String = rest.chars().take_while(|c| c.is_alphanumeric()).collect();
+    matches!(keyword.as_str(), "digraph" | "graph" | "strict")
 }

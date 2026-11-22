@@ -589,9 +589,10 @@ own popout.
 > WebDriver context with it — for the embedded provider the service calls
 > `browser.switchToWindow(label)` and the label *is* the handle — so the existing DOM helpers
 > keep working in the window switched to. But a window is listed **before** its webview has
-> booted, so a switch to a just-created window is followed by `waitForShell()`. And a fresh
-> webview has the test seam but **no installed IPC override**, so each newly entered window
-> installs its dialog mocks first (`e2e/support/ipc.ts`).
+> booted, so a switch to a just-created window is followed by `waitForShell()`, whose budget
+> covers the first commands to a fresh webview stalling for the WebDriver command timeout.
+> And a fresh webview has the test seam but **no installed IPC override**, so each newly
+> entered window installs its dialog mocks first (`e2e/support/ipc.ts`).
 >
 > **Closing the window the session is sitting in** leaves the service pinned to a dead window
 > label, and every `tauri.execute` (including `listWindows()`) then rejects until the session
@@ -686,6 +687,11 @@ so the spec leaves one project window open instead of tearing that one down too.
 
 Live and the palette drag run against the real core. The spec sorts **before**
 `t-close-main`, which must stay the last suite file (closing `main` cannot be undone).
+
+Live is **persisted app chrome**, so a run inherits whatever an earlier spec or the
+developer's own session left behind. Every case turns it off first
+(`e2e/support/synth.ts` → `quietSynthLive`), and so does the DOT spec before it renders the
+synth graph: otherwise the click that starts Live turns it *off*.
 
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |

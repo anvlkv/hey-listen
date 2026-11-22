@@ -24,11 +24,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SEL, activityTab, graphNode, tab } from "../support/selectors.ts";
+import { SEL, graphNode } from "../support/selectors.ts";
 import { CLI_BINARY, FIXTURES, GRAPH_FIXTURES, SUBSYSTEM_FIXTURES } from "../support/fixtures.ts";
-import { openMcp } from "../support/mcp.ts";
+import { openMcp, type ToolResult } from "../support/mcp.ts";
 import { filterHint } from "../support/graph.ts";
+import { quietSynthLive } from "../support/synth.ts";
 import {
+  activateTab,
+  activateToolSection,
   canvasHasInk,
   click,
   closeAllTabs,
@@ -42,6 +45,13 @@ import {
   waitForApp,
   waitForSourceLoaded,
 } from "../support/helpers.ts";
+
+/** Fail with the tool's own message when an MCP call reports an error. */
+function expectToolOk(result: ToolResult): void {
+  if (result.isError) {
+    throw new Error(`the MCP tool failed: ${result.content?.[0]?.text ?? "(no message)"}`);
+  }
+}
 
 /** Wait until the active graph editor reports `text` in its toolbar hint. */
 async function waitForHint(text: string, failure: string): Promise<void> {
@@ -82,6 +92,9 @@ describe("S4. Graph DOT interchange (M39)", () => {
 
   afterEach(async () => {
     await restoreMocks();
+    // Re-stub the core's prompt: a render the spec did not ask for (a synth tab whose
+    // Live preference is still on) must never open a native dialog and block the run.
+    await mockReturn("confirm", true);
   });
 
   after(() => {
@@ -129,6 +142,9 @@ describe("S4. Graph DOT interchange (M39)", () => {
 
   it("V2 — the synth editor renders an imported DOT patch and exports it", async () => {
     await openTool("synth");
+    // Live is persisted app chrome: an earlier spec (or the developer's own session) can
+    // leave it on, and then every settled graph edit re-renders the source.
+    await quietSynthLive();
     await importGraph(GRAPH_FIXTURES.synth);
     await waitForHint("14 nodes", "the imported pad never reached the synth editor");
     expect(await count(graphNode("poly_saw"))).toBe(2);
@@ -176,7 +192,7 @@ describe("S4. Graph DOT interchange (M39)", () => {
         graphFile: GRAPH_FIXTURES.filter,
         enabled: true,
       });
-      expect(applied.isError).toBe(false);
+      expectToolOk(applied);
       const filter = (await client.tool(23, "get_graph", { graph: "filter" }))
         .structuredContent as { dot: string };
       expect(filter.dot).toContain('kind="reverb_stereo"');
@@ -187,7 +203,7 @@ describe("S4. Graph DOT interchange (M39)", () => {
         graph: readFileSync(GRAPH_FIXTURES.synth, "utf8"),
         seconds: 0.5,
       });
-      expect(rendered.isError).toBe(false);
+      expectToolOk(rendered);
       const source = rendered.structuredContent as { channels: number; duration: number };
       expect(source.channels).toBe(1);
       expect(source.duration).toBeCloseTo(0.5, 1);
@@ -257,15 +273,16 @@ describe("S4. Graph DOT interchange (M39)", () => {
     expect(await filterHint()).toContain("nested in filter");
     expect(await count(graphNode("bell"))).toBe(1);
 
-    // It is listed on the Sidebar's Graphs tab too.
-    await click(activityTab("graph"));
+    // It is listed on the Sidebar's Graphs tab too. Selecting the tab whose cards are
+    // already showing would *collapse* the rail, so go through the helper that does not.
+    await activateToolSection("filter");
     await waitFor(
       async () => (await count(SEL.sidebarSubsystem)) >= 1,
       "the sidebar does not list the subsystem",
     );
 
     // Back on the filter graph, the export carries the nesting.
-    await click(tab("filter"));
+    await activateTab("filter");
     const exported = path.join(dir, "focus-chain.export.dot");
     const text = await exportGraph(exported);
     expect(text).toContain('system="colour.system"');
@@ -280,7 +297,7 @@ describe("S4. Graph DOT interchange (M39)", () => {
         graphFile: SUBSYSTEM_FIXTURES.filter,
         enabled: true,
       });
-      expect(applied.isError).toBe(false);
+      expectToolOk(applied);
       const filter = (await client.tool(31, "get_graph", { graph: "filter" }))
         .structuredContent as {
         dot: string;

@@ -212,6 +212,20 @@ fn files_and_legacy_json_are_accepted() {
 }
 
 #[test]
+fn a_document_that_opens_with_comments_is_still_dot() {
+    // The committed `.dot` fixtures carry a `//` header block, so an inline DOT string
+    // (the MCP `graph` argument) must be recognised as DOT, not as a file path.
+    assert!(dot::looks_like_dot(
+        "// a header comment\n// more\ndigraph { a [kind=\"sine\"]; }"
+    ));
+    assert!(dot::looks_like_dot("/* block */\nstrict digraph {}"));
+    assert!(dot::looks_like_dot("# preprocessor line\ngraph {}"));
+    assert!(dot::looks_like_dot("digraph{a[kind=\"sine\"]}"));
+    assert!(!dot::looks_like_dot("/tmp/some/path.dot"));
+    assert!(!dot::looks_like_dot("// only a comment"));
+}
+
+#[test]
 fn every_node_skeleton_parses() {
     for def in nodes::all() {
         let skeleton = nodes::dot_skeleton(def);

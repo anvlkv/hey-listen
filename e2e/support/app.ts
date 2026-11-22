@@ -37,8 +37,12 @@ async function waitForWindow(
  *
  * Needed after switching to a window that was just created: `switchWindow` succeeds as
  * soon as the label exists, which is *before* the new webview has mounted anything.
+ *
+ * A **second project window** boots a fresh webview, and on macOS the first commands
+ * addressed to it stall for the WebDriver command timeout (30 s) before answering — so
+ * the budget here is longer than a settled window needs. See `dom.ts` → `withRetry`.
  */
-export async function waitForShell(timeout = 20_000): Promise<void> {
+export async function waitForShell(timeout = 45_000): Promise<void> {
   await waitForWindow(
     async () => (await count(SEL.workbench)) > 0 || (await count(SEL.popout)) > 0,
     "the window never rendered a shell (neither the app nor a popout)",
