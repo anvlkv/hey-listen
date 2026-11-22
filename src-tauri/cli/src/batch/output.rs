@@ -8,7 +8,7 @@ use serde_json::Value;
 ///
 /// The write goes through the run's [`Output`] wrapper, which remembers the first I/O
 /// failure so the process can exit non-zero (audit P2 #12).
-pub(super) fn emit(out: &mut impl Write, value: &Value, pretty: bool) {
+pub(super) fn emit(out: &mut (impl Write + ?Sized), value: &Value, pretty: bool) {
     let text = if pretty {
         serde_json::to_string_pretty(value)
     } else {

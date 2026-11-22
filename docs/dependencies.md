@@ -16,6 +16,7 @@
 | `flexaudio` | 0.8 | capture (mic/system/process/mix) | see crates.io |
 | `symphonia` | 0.6 (`all`) | file decode / demux | MPL-2.0 |
 | `fundsp` | 0.23 | filtering + synthesis nets | see crates.io |
+| `petgraph` / `dot-parser` | 0.8 (`dot_parser`) / 0.5 | DOT parse/emit boundary for the filter/synth graphs (M39, ADR-36) | MIT / Apache-2.0 |
 | `cpal` | 0.16 | preview playback (output) | Apache-2.0 |
 | `objc2` / `objc2-foundation` | 0.6 / 0.3 (macOS only) | `NSProcessInfo` activity assertion — opts the process out of App Nap (`src-tauri/src/app_activity.rs`); already in the tree via Tauri | MIT |
 | `oxiaudio` | 0.2 (`serde`) | analysis | Apache-2.0 |

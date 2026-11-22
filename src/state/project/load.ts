@@ -18,6 +18,7 @@ import {
   type SourceChoice,
 } from "../capture";
 import { loadGraph, setFilterEnabled } from "../graph";
+import { resetSystems } from "../workbench";
 import { restoreSavedComparisons } from "../compare/views";
 import { replaceAnnotations } from "../annotations";
 import {
@@ -110,6 +111,10 @@ async function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   const layout = snapshot.layout as unknown as LayoutDto | null;
 
   // 1. Graph editors first, so mounted graph tabs show the restored graphs.
+  //    A restored graph replaces its subsystems too (their tabs close and re-open
+  //    from the restored layout below).
+  resetSystems("filter");
+  resetSystems("synth");
   loadGraph("filter", layout?.graphs?.filter);
   loadGraph("synth", layout?.graphs?.synth);
 

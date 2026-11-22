@@ -1,7 +1,7 @@
 import "@dschz/solid-flow/styles";
 import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js";
 import { Background, Controls, MiniMap, SolidFlow, type NodeTypes } from "@dschz/solid-flow";
-import { nodeKind, type GraphKind, type NodeKindDef } from "../lib/graph";
+import { nodeKind, type GraphScope, type NodeKindDef } from "../lib/graph";
 import { layoutGraph } from "../lib/graphLayout";
 import { bezierPoints } from "../lib/graphEdges";
 import {
@@ -15,6 +15,8 @@ import {
   warnGraph,
   type GraphEdge,
 } from "../state/graph";
+import { dropSystemsUnder } from "../state/subsystems";
+import { closeSystemsUnder } from "../state/workbench";
 import { resolvedTheme, themeFlow } from "../state/themes";
 import Button from "./Button";
 import GraphNode from "./GraphNode";
@@ -48,7 +50,7 @@ const flowStyle = () => themeFlow() as JSX.CSSProperties;
  * tabs. The graph's node/edge stores live in `state/graph.ts`, so switching or
  * closing the tab does not lose the graph.
  */
-export default function GraphEditor(props: { graph: GraphKind; children?: JSX.Element }) {
+export default function GraphEditor(props: { graph: GraphScope; children?: JSX.Element }) {
   // The flow instance, captured via `FlowBridge` on mount (user gestures only fire
   // after that), so nothing reactive is lost by keeping it in a plain variable.
   let flow: FlowApi | undefined;
@@ -256,10 +258,14 @@ export default function GraphEditor(props: { graph: GraphKind; children?: JSX.El
                 handle().setEdges((current) => current.filter((edge) => !ids.has(edge.id)));
               }
               if (nodes.length) {
-                const ids = new Set(
-                  nodes.filter((node) => !isAnchorKind(node.data.kind)).map((node) => node.id),
-                );
+                const deletable = nodes.filter((node) => !isAnchorKind(node.data.kind));
+                const ids = new Set(deletable.map((node) => node.id));
                 handle().setNodes((current) => current.filter((node) => !ids.has(node.id)));
+                // A deleted subsystem node takes its nested graph (and the tabs under
+                // it) with it. Undo restores both, because this goes through the same
+                // project snapshot as any other graph edit.
+                dropSystemsUnder(props.graph, ids);
+                closeSystemsUnder(props.graph, ids);
                 const open = menu();
                 if (open && ids.has(open.id)) setMenu(null);
               }

@@ -60,6 +60,41 @@ pub(super) fn finite(value: f32, fallback: f32) -> f32 {
     }
 }
 
+/// A synthetic, deterministic reverb impulse response for the `convolve` node.
+///
+/// Decaying, one-pole-filtered noise (`tone` opens the filter) normalized to unit
+/// energy, so convolution keeps the signal's level instead of blowing up. The seed is
+/// fixed, so a graph renders the same audio on every run and platform.
+pub(super) fn impulse_response(time: f32, tone: f32, sample_rate: u32) -> Wave {
+    let rate = f64::from(std::cmp::Ord::max(sample_rate, 8_000));
+    let seconds = time.clamp(0.05, 4.0);
+    let length = std::cmp::Ord::max((f64::from(seconds) * rate) as usize, 1);
+    let coefficient = 0.02 + 0.63 * tone.clamp(0.0, 1.0);
+    let mut state: u32 = 0x9e37_79b9;
+    let mut filtered = 0.0f32;
+    let mut samples = Vec::with_capacity(length);
+    for index in 0..length {
+        // xorshift32: cheap, deterministic white noise.
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        let white = (state as f32 / u32::MAX as f32) * 2.0 - 1.0;
+        filtered += coefficient * (white - filtered);
+        // -60 dB at `seconds`, i.e. one time constant per decay of 6.9.
+        let t = index as f64 / rate;
+        let envelope = (-t * 6.9 / f64::from(seconds)).exp() as f32;
+        samples.push(filtered * envelope);
+    }
+    let energy: f32 = samples.iter().map(|sample| sample * sample).sum();
+    if energy > 0.0 {
+        let scale = 1.0 / energy.sqrt();
+        for sample in &mut samples {
+            *sample *= scale;
+        }
+    }
+    Wave::from_samples(rate, &samples)
+}
+
 /// A binary signal operator (2 in / 1 out) used by the **Math** nodes.
 #[derive(Clone, Copy)]
 pub(super) enum MathOp {

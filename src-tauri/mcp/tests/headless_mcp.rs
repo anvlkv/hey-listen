@@ -111,6 +111,12 @@ fn headless_server_drives_the_analysis_engine() {
         .unwrap()
         .contains("spectrum"));
 
+    // The node catalog is exposed the same way (`structuredContent.nodes`).
+    let nodes = client.call(30, "list_nodes", serde_json::json!({}));
+    assert!(nodes["structuredContent"]["nodes"]
+        .as_array()
+        .is_some_and(|nodes| nodes.iter().any(|node| node["kind"] == "lowpass_cv")));
+
     // open_audio_file decodes the WAV into the headless session.
     let opened = client.call(
         4,
@@ -139,9 +145,19 @@ fn headless_server_drives_the_analysis_engine() {
         "peak Hz out of range: {peak}"
     );
 
-    // A UI-only tool explains that it needs the app (the graph *editor* layout, not
+    // `get_graph` reads the current graph back as DOT (none installed yet).
+    let graph = client.call(6, "get_graph", serde_json::json!({ "graph": "filter" }));
+    assert_eq!(graph["isError"], false, "get_graph failed: {graph}");
+    assert_eq!(graph["structuredContent"]["graph"], "filter");
+    assert!(graph["structuredContent"]["dot"].is_null());
+
+    // A UI-only tool explains that it needs the app (the synth *editor* layout, not
     // `open_tool`, which headless records in the project's tab list).
-    let ui_only = client.call(6, "get_graph", serde_json::json!({ "graph": "filter" }));
+    let ui_only = client.call(
+        60,
+        "set_synth_graph",
+        serde_json::json!({ "graph": { "nodes": [], "edges": [] } }),
+    );
     assert_eq!(ui_only["isError"], true);
     assert!(ui_only["content"][0]["text"]
         .as_str()

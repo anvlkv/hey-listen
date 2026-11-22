@@ -56,7 +56,7 @@ it("splices a node with both ports into the connector under the pointer", () => 
 
 it("does not promise a splice for a generator (no input)", () => {
   const def = nodeKind("sine");
-  expect(def?.inputs).toBe(0);
+  expect(def?.inputPorts.length).toBe(0);
   const target = dropTarget("synth", handleWithEdge(), flow, def!, { x: 150, y: 0 });
   expect(target!.edge).toBeNull();
 });

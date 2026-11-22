@@ -89,6 +89,11 @@ strum.workspace = true
 flexaudio = "0.8"                                    # capture: mic / system / process / mix
 symphonia = { version = "0.6", features = ["all"] }  # decode audio files (demux + decode)
 fundsp = "0.23"                                      # audio nets: filtering and synthesis
+# DOT text for the filter/synth graphs (ADR-36, M39). `petgraph` is the parse/emit
+# boundary only — its `dot_parser` AST keeps the `node:port` reference that the
+# higher-level graph conversion drops; `dot-parser` is used directly for that AST.
+petgraph = { version = "0.8", features = ["dot_parser"] }
+dot-parser = "0.5"
 oxiaudio = { version = "0.2", features = ["serde"] } # analysis
 cpal = "0.16"                                        # preview playback (Output; must match flexaudio's cpal 0.16 to avoid a duplicate `alsa-sys` links conflict)
 tauri-plugin-process = "2.4.0"

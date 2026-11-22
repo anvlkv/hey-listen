@@ -1,0 +1,77 @@
+// M40 fixture: a synth using an oversampled subgraph, a feedback subsystem and a
+// snoop tap. Import it in the synth editor; the nested tabs build the timbre.
+digraph {
+    node [shape=record];
+
+    low  [kind="poly_saw", freq=110];
+    mid  [kind="poly_saw", freq=110.7];
+    high [kind="soft_saw", freq=220.4];
+    body [kind="mix", label="<A> A | <B> B | <out> out"];
+    lift [kind="mix", label="<A> A | <B> B | <out> out"];
+
+    drive [kind="oversample", system="drive.system"];
+    echo  [kind="feedback", system="echo.system"];
+    air   [kind="gain", gain=0.35];
+    sum   [kind="mix", label="<A> A | <B> B | <out> out"];
+    mod   [kind="chorus", separation=0.012, variation=0.004, rate=0.33];
+
+    split [kind="split", label="<in> in | <L> L | <R> R"];
+    hall  [kind="reverb_stereo", room=22, time=3.6, damping=0.62,
+           label="<L> L | <R> R | <L> L | <R> R"];
+    join  [kind="join", label="<L> L | <R> R | <out> out"];
+
+    probe [kind="snoop", capacity=1024];
+    glue  [kind="gain", gain=1.4];
+    limit [kind="limiter", attack=0.004, release=0.18];
+    out   [kind="output"];
+
+    low -> body:A;
+    mid -> body:B;
+    high -> lift:A;
+    body -> lift:B;
+    lift -> drive;
+    lift -> echo;
+    echo -> air;
+    drive -> sum:A;
+    air -> sum:B;
+    sum -> mod;
+    mod -> split;
+    split:L -> hall:L;
+    split:R -> hall:R;
+    hall:L -> join:L;
+    hall:R -> join:R;
+    join -> probe;
+    probe -> glue;
+    glue -> limit;
+    limit -> out;
+
+    subgraph "drive.system" {
+        node [shape=record];
+
+        in    [kind="input"];
+        push  [kind="tanh", threshold=2.6];
+        lp    [kind="moog", freq=1800, q=1.2];
+        trim  [kind="gain", gain=0.8];
+        out   [kind="output"];
+
+        in -> push;
+        push -> lp;
+        lp -> trim;
+        trim -> out;
+    }
+
+    subgraph "echo.system" {
+        node [shape=record];
+
+        in   [kind="input"];
+        dl   [kind="delay", time=0.11];
+        tone [kind="lowpass", freq=1400, q=0.9];
+        fb   [kind="gain", gain=0.5];
+        out  [kind="output"];
+
+        in -> dl;
+        dl -> tone;
+        tone -> fb;
+        fb -> out;
+    }
+}

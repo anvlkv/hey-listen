@@ -2,11 +2,11 @@
 
 use std::io::Write;
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use hey_listen_lib::mcp::dispatch::HeadlessSession;
 
-use super::output::emit;
+use super::catalog::{run_catalog, CatalogFormat, CatalogTools};
 
 /// List the catalog (`id  section  title`) or explain one analyzer's description,
 /// options, and summary keys. `--json` mirrors MCP's `list_analyzers`/`get_analyzer`.
@@ -16,44 +16,34 @@ pub(super) fn run_analyzers(
     json: bool,
     out: &mut impl Write,
 ) -> i32 {
-    let (tool, args) = match id {
-        Some(id) => ("get_analyzer", json!({ "id": id })),
-        None => ("list_analyzers", json!({})),
-    };
-    match session.dispatch(tool, args) {
-        Ok(Value::Array(items)) => {
-            if json {
-                emit(out, &Value::Array(items), false);
-            } else {
-                for item in items {
-                    let _ = writeln!(
-                        out,
-                        "{}\t{}\t{}",
-                        item["id"].as_str().unwrap_or(""),
-                        item["section"].as_str().unwrap_or(""),
-                        item["title"].as_str().unwrap_or(""),
-                    );
-                }
-            }
-            0
-        }
-        Ok(detail) => {
-            if json {
-                emit(out, &detail, false);
-            } else {
-                let _ = write_detail(out, &detail);
-            }
-            0
-        }
-        Err(message) => {
-            eprintln!("hey-listen: {message}");
-            1
-        }
-    }
+    run_catalog(
+        session,
+        CatalogTools {
+            list: "list_analyzers",
+            detail: "get_analyzer",
+            id_key: "id",
+        },
+        id,
+        json,
+        out,
+        CatalogFormat {
+            row,
+            detail: write_detail,
+        },
+    )
+}
+
+fn row(item: &Value) -> String {
+    format!(
+        "{}\t{}\t{}",
+        item["id"].as_str().unwrap_or(""),
+        item["section"].as_str().unwrap_or(""),
+        item["title"].as_str().unwrap_or(""),
+    )
 }
 
 /// The human-readable form of one analyzer's `get_analyzer` detail.
-fn write_detail(out: &mut impl Write, detail: &Value) -> std::io::Result<()> {
+fn write_detail(out: &mut dyn Write, detail: &Value) -> std::io::Result<()> {
     let text = |key: &str| detail[key].as_str().unwrap_or("");
     writeln!(
         out,

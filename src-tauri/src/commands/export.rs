@@ -213,6 +213,7 @@ pub async fn pick_save_path(app: AppHandle, kind: String, default_name: String) 
     let (title, filter, extensions) = match kind.as_str() {
         "csv" => ("Export CSV", "CSV", &["csv"][..]),
         "png" => ("Export chart image", "PNG image", &["png"][..]),
+        "dot" => ("Export graph", "Graphviz DOT", &["dot"][..]),
         "heyltemplate" => (
             "Export template",
             "Hey Listen template",

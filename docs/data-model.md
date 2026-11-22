@@ -13,7 +13,8 @@ Conceptual entities (serde-serializable where they cross IPC or persist).
   seconds) + zoom state.
 - **GraphSpec** — a fundsp editor graph (`nodes` + `edges`, with positional
   params), built in a Workbench graph tab (`filter` or `synth`) and compiled to a
-  fundsp `Net` in the Rust core. The project's **filter graph** and a synth
+  fundsp `Net` in the Rust core. Its canonical **text** form is DOT (M39); the stored
+  form stays `GraphSpec`. The project's **filter graph** and a synth
   source's graph are both `GraphSpec`s. It mirrors fundsp's `Net`: nodes are
   pushed, each input takes **exactly one** connection, and explicit `input`
   (filter graphs) / `output` anchor nodes bridge the graph to the net's global

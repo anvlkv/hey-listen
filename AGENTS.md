@@ -102,8 +102,8 @@ Load the matching skill (via the `skill` tool) before working in that area:
   - Tab chrome shared by the two graph editors →
     `components/graphEditor/GraphTabChrome.tsx`.
   - WebdriverIO spec hooks → `e2e/support/session.ts` (`projectSessionHooks`).
-  - Param tables in `src/lib/graph/kinds/*` → one small builder per row (see
-    `reverb.ts`).
+  - Param tables in `src-tauri/src/audio/graph/nodes/*` → one small builder per row (see
+    `reverb.rs`).
   - Cross-file CSS common rules → `src/styles/shared.css` (combined selectors).
   - A list, table or count restated in a second doc or code comment → the owning doc/enum,
     **linked or imported** from the other. The clone gate ignores `**/*.md`, so review docs

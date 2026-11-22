@@ -230,3 +230,61 @@ pub async fn render_filtered(
         frames: mono.len() as u64,
     })
 }
+
+// --- DOT interchange (M39, ADR-36) -----------------------------------------
+
+/// Emit a graph spec as DOT (the canonical text form).
+#[tauri::command]
+pub fn graph_dot(spec: GraphSpec) -> Result<String, GraphError> {
+    graph::emit(&spec)
+}
+
+/// Parse inline DOT (or a file path) into a spec. Used by the MCP bridge's
+/// `set_filter_graph` / `render_synth`.
+#[tauri::command]
+pub fn graph_from_dot(dot: String) -> Result<GraphSpec, GraphError> {
+    graph::parse_input(&dot)
+}
+
+/// Read a `.dot` / `.gv` file (or a legacy JSON graph) into a spec.
+#[tauri::command]
+pub fn graph_read_file(path: String) -> Result<GraphSpec, GraphError> {
+    graph::parse_input(&path)
+}
+
+/// Write a graph spec to a `.dot` file.
+#[tauri::command]
+pub fn graph_write_dot(spec: GraphSpec, path: String) -> Result<(), GraphError> {
+    let text = graph::emit(&spec)?;
+    std::fs::write(&path, text)
+        .map_err(|err| GraphError::Stream(format!("cannot write {path}: {err}")))
+}
+
+/// One node kind's catalog entry plus its DOT skeleton (`get_node`).
+#[tauri::command]
+pub fn graph_node_detail(kind: String) -> Result<serde_json::Value, GraphError> {
+    graph::detail_json(&kind).ok_or(GraphError::UnknownKind(kind))
+}
+
+/// The latest samples a `snoop` node saw (its compact on-node waveform).
+///
+/// `scope` is `filter`, `synth`, or a subsystem path (`filter/feedback-3`), the same
+/// scope the compiler registered the node under.
+#[tauri::command]
+pub fn graph_snoop(scope: String, node: String, points: Option<usize>) -> graph::SnoopView {
+    graph::snoop_read(&scope, &node, points.unwrap_or(96))
+}
+
+/// Pick a `.dot` / `.gv` graph file to import.
+#[tauri::command]
+pub async fn pick_graph_file(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    app.dialog()
+        .file()
+        .set_title("Import graph")
+        .add_filter("Graphviz DOT", &["dot", "gv"])
+        .add_filter("JSON graph (legacy)", &["json"])
+        .blocking_pick_file()
+        .and_then(|file| file.into_path().ok())
+        .map(|path| path.to_string_lossy().into_owned())
+}

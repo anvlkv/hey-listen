@@ -2,7 +2,8 @@
 
 The filter and synth graphs are built with `solid-flow` in two **Workbench tabs**
 (see ADR-10). The frontend owns *editing*; the Rust core owns the *net* — a
-`GraphSpec` (JSON) is compiled to a fundsp `Net` in `src-tauri/src/audio/graph/`.
+`GraphSpec` (the stored form) is compiled to a fundsp `Net` in
+`src-tauri/src/audio/graph/`. Its canonical text form is **DOT** (M39).
 
 ## Canvas gestures
 
@@ -32,20 +33,14 @@ There is **no implicit summing**: only what is wired to `Output` is the graph's
 result. (The previous "sum every terminal node" behaviour was removed — it silently
 mixed in dangling/unwired paths.)
 
-## Node palette (current)
+## Node palette
 
-| Group | Nodes |
-| --- | --- |
-| **Graph** | `input` (filter only), `output` |
-| **Generators** (synth) | `sine`, `saw`, `square`, `triangle`, `organ`, `hammond`, `soft_saw`, `pulse`, `poly_saw`, `poly_square`, `poly_pulse`, `dsf_saw`, `dsf_square`, `pluck`, `white`, `pink`, `brown`, `mls` |
-| **Routing** | `mix` (2→1 sum), `split` (1→2), `join` (2→1) |
-| **Math** | `add`, `subtract`, `multiply`, `divide`, `min`, `max` (2→1); `abs`, `invert` (1→1) |
-| **Filters** | `gain`, `lowpass`, `highpass`, `bandpass`, `notch`, `peak`, `allpass`, `bell`, `lowshelf`, `highshelf`, `moog`, `butterpass`, `lowpole`, `highpole`, `lowrez`, `bandrez`, `resonator`, `morph`, `pinkpass`, `allpole_delay`, `biquad`, `dcblock`, `delay`, `pan` (1→2), `panner` (2→2), `rotate` (2→2) |
-| **Filters (control)** | `lowpass_cv`, `highpass_cv`, `bandpass_cv`, `notch_cv`, `peak_cv`, `allpass_cv`, `bell_cv`, `lowshelf_cv`, `highshelf_cv`, `moog_cv`, `lowrez_cv`, `bandrez_cv`, `resonator_cv`, `morph_cv`, `butterpass_cv`, `lowpole_cv`, `highpole_cv`, `allpole_cv` |
-| **Dynamics** | `limiter`, `compressor`, `gate`, `limiter_stereo` (2→2) |
-| **Modulation** | `chorus`, `flanger`, `phaser` |
-| **Reverb** | `schroeder`, `schroeder_cv`, `reverb_stereo`, `reverb2_stereo`, `reverb3_stereo`, `reverb4_stereo` (all 2→2) |
-| **Control** | `dc`, `sine_lfo` |
+The palette is generated from the **one** Rust node catalog
+(`src-tauri/src/audio/graph/nodes/`) — `cargo test` writes
+`src/bindings/nodeCatalog.json`, which `lib/graph/palette.ts` imports. The catalog says
+each kind's arity, port names, parameter specs, category, hint, and whether it is
+filter-only (`input`) or synth-only (the generators); `kind_arity`, DOT, `list_nodes` and
+the editor palette all read that one table. Categories are `NodeCategory`.
 
 **Fixed-parameter nodes** read their cut-off/Q/gain from positional `params` (the
 `*_hz` constructors), so they have a single audio input. **Control-input variants**
@@ -114,6 +109,79 @@ smoothing across a net *rebuild* is out of scope.)
   node instead of recompiling the graph; a structural edit rebuilds.
 - See [`roadmap.md`](roadmap.md) → M22 and ADR-21.
 
+## DOT interchange (M39)
+
+The compilable graph has a canonical **text** form: Graphviz DOT (ADR-36). A node is a
+statement with `kind` and **keyed** params; a node with more than one input or output is a
+**record** whose `label` names each port, so an edge writes `src:out -> dst:cut`:
+
+```dot
+digraph {
+    node [shape=record];
+    in  [kind="input"];
+    lp  [kind="lowpass", freq=1000, q=1.0];
+    out [kind="output"];
+    in:out -> lp:in;
+    lp:out -> out:in;
+}
+```
+
+- Params resolve against the catalog: an unknown key, a value outside `min..max`, an
+  unknown port, or a missing port on a multi-port node is an error; omitted keys take
+  the default. `GraphSpec → DOT → GraphSpec` is identity.
+- Parsing goes through `petgraph`'s `dot_parser` **AST** layer (the only layer where
+  `node:port` survives). `GraphSpec` stays the stored form: the project file and
+  `postcard` are unchanged and petgraph's `serde-1` is not used.
+- **Discovery:** MCP `list_nodes` / `get_node` and the CLI `nodes [KIND]` report the same
+  catalog; `get_node` returns a ready-to-paste DOT skeleton.
+- **Boundaries:** `get_graph` reads a graph back as DOT; `set_filter_graph` and
+  `render_synth` accept a DOT string or `graphFile`, and the CLI `synth <GRAPH>` /
+  `--filter` accept DOT text, a `.dot`/`.gv` file or a legacy JSON file.
+- **Shareable artifact:** each graph tab's toolbar **imports** a `.dot` file and
+  **exports** the current graph (`graph_read_file` / `graph_write_dot`). Positions are a
+  GUI-only concern: imported nodes land on a grid and **Layout** re-derives the real one.
+
+### Nested subsystems (M40)
+
+Some fundsp nodes are **combinators over an inner node** (`subgraph`, `feedback`,
+`oversample`, `resample`). They are `subsystem` kinds: the node owns a nested
+`GraphSpec` (`GraphNode.subgraph`), edited in its **own Workbench tab** instead of on the
+parent canvas.
+
+- **Opening** — a subsystem node's card shows a mini block-diagram preview and an
+  **Open** button (`graph.subsystem.open`); the Sidebar's **Graphs** tab also lists every
+  subsystem, nested ones included. A tab is `system:<parent>/<node>` (a nested one extends
+  the path), so it never collides with the filter/synth tabs or another subsystem.
+- **Editing** — the tab is the same `GraphEditor`, bound to the subsystem's store; the
+  nested graph is mirrored back into the owning node on every edit, so the project file,
+  DOT export, MCP and the core always see one `GraphSpec`.
+- **Deleting** — deleting the node closes its tab and drops the stores beneath it; the
+  deletion (and a project undo) restores both, because it rides the normal project
+  snapshot.
+- **Anchors** — a subsystem's inner graph has its own mono `input` → `output` (a
+  generator-style `sine` seed for `resample`, whose inner graph takes no input).
+- **DOT** — a subsystem node names its block (`system="fb.system"`) and the block is a
+  real nested `subgraph`:
+
+  ```dot
+  digraph {
+      fb [kind="feedback", system="fb.system"];
+      subgraph "fb.system" {
+          in   [kind="input"];
+          echo [kind="delay", time=0.11];
+          out  [kind="output"];
+          in -> echo; echo -> out;
+      }
+  }
+  ```
+
+### Snoop
+
+`snoop` is a pass-through with a **live envelope** on its node card: the compiler hands
+fundsp's `SnoopBackend` frontend to a registry keyed by `scope/node`, and the node polls
+`graph_snoop` while mounted. A filter's tap updates while preview/analysis runs a render;
+a synth's after **Render** / **Live**. Nothing is polled while no snoop node is visible.
+
 ## Palette UX
 
 - **Search** — a search box at the top of the palette filters the nodes by label or
@@ -143,10 +211,10 @@ Every node shows a **tiny label** beside each input/output handle, so a port's r
 is readable at a glance. Multi-port nodes get semantic labels — `mix`/`add` are
 *A*/*B*, `split`/`join` and the stereo nodes are *L*/*R*, the `*_cv` filters are
 *audio*/*cut*/*Q* (plus *gain*/*morph*), `resonator_cv` is *center*/*bw*, and
-`panner` is *audio*/*pan*. Single-port sides fall back to *in*/*out* and unnamed
-multi-port sides to *in1*/*in2*/*out1*/*out2*. The labels live in a per-kind map
-(`lib/graph/ports.ts` → `PORT_LABELS` + `portLabel`), render outside the handle, and are
-`pointer-events: none` so they never interfere with wiring.
+`panner` is *audio*/*pan*. Single-port sides are *in*/*out* and a multi-port side with no
+semantic name falls back to *in1*/*in2*/*out1*/*out2*. The names are the catalog's own
+`inputPorts` / `outputPorts` (the same ones DOT writes), render outside the handle, and
+are `pointer-events: none` so they never interfere with wiring.
 
 ## Canvas
 
@@ -178,30 +246,40 @@ identically everywhere. A parameter's numeric input also keeps the platform's sp
 buttons working: a press in the spinner's gutter steps the value instead of starting the
 drag gesture.
 
+A parameter's `min..max` is **fundsp's own domain** where fundsp documents one (`fir3`'s
+Nyquist gain is `0..1`, a bell/shelf gain is a positive amplitude, `allpole_delay` is a
+positive delay in samples, a reverb room is 10–30 m, a morph is `-1..1`); where fundsp
+bounds nothing, the range is a generous musical bound rather than a DSP limit — the `dc`
+constant reaches ±20 000 so it can drive a frequency, Q or gain control input. The catalog
+`nodes/*.rs` is the only place a range is written. `nodes/tests.rs` renders every kind once
+at each parameter's `min` and `max`, so a range the compiler cannot actually take (a zero
+gain through `sqrt`, a zero all-pass delay, a zero oscillator pitch) fails the suite
+instead of the audio.
+
 ## Deferred
 
 Also see [`deferred.md`](deferred.md): click-free rebuild smoothing is **D-24**. The extra
-shaping, delay-as-signal and envelope/gate nodes
-are delivered (D-17); the remaining families below are still out.
+shaping, delay-as-signal and envelope/gate nodes are delivered (D-17), and M40 completed
+the **fundsp coverage** pass below.
 
 - **`Sequencer`** — it schedules timed `AudioUnit` events (`push`, fades, replay
   mode), which the positional-params node model cannot express; deferred to a future
   event/sequence editor.
 - **Expander** — fundsp provides none (as with the compressor/gate it ships nothing);
   the `gate` node is the practical downward expander.
-- **Remaining fundsp nodes (D-17 delivered a first group).** The palette covers the
-  filter families (and their `*_cv` variants), generators, dynamics, modulation, reverbs,
-  **math**, panning, and now **extra shaping** (`clip_to`, `declick`, `dcblock_hz`),
-  **delay-as-signal** (`tap`) and **envelope/gate** (`follow`, `afollow`, `hold`) plus the
-  `zero`/`impulse` generators. Still not offered, and why: structural combinators
-  (`bus`/`branch`/`thru`, `feedback`, `fdn`) that need multi-channel/multi-input arity the
-  mono-port model can't express; `adsr_live`, which needs an explicit gate edge; the
-  remaining shaping (`shape`, `ramp`, `rossler`/`lorenz`, `fir`/`fir3`, `mls_bits`,
-  `oversample`); the dirty/feedback biquads (`dlowpass`/`flowpass`/`dbell`/`fbell`/…); and
-  the introspection/plumbing helpers (`monitor`/`meter`, `snoop`, `timer`, `shared`/`var`,
-  `convolve`, `resynth`, `playwave`, `resample`). These can still be added incrementally
-  as focused nodes (each is a `make_unit` arm plus a palette entry and its arity in
-  `kind_arity`).
+- **Still not offered, and why (M40).** `adsr_live` needs an explicit gate edge (the
+  `sine_lfo` + `follow` pair covers the common case); `mls_bits` adds only a seed length
+  (`mls` covers it); the dirty/feedback biquads (`dlowpass`/`flowpass`/`dbell`/`fbell`/…)
+  duplicate `moog`/`allpass` with a waveshaper in the loop; `playwave`/`wave_synth`/
+  `phase_synth` need a sample/wavetable payload, which the numeric-params model cannot
+  carry; `resynth` and `resample_fir` are analysis-rate tools, not real-time voices;
+  `timer`/`shared`/`var` are host-thread state rather than DSP; `monitor`/`meter` are
+  superseded by `snoop`; `ring` is a real-time queue, not a node; and fundsp's structural
+  plumbing (`Pipe`, `Stack`, `Binop`, `MultiPass`, `An`, `SettingListener`, …) is the net
+  itself. `bus`/`branch`/`thru`/`fdn` remain expressible as a `subgraph`.
+- **M40 delivered** (the previously missing families): `ramp`, `rossler`, `lorenz`,
+  `tanh`/`atan`/`softsign`/`crush`/`soft_crush`, `fir3`, `convolve`, `tap_linear`,
+  `snoop`, and the `subgraph`/`feedback`/`oversample`/`resample` subsystems.
 
 ## Planned
 

@@ -1,0 +1,3073 @@
+[
+  {
+    "kind": "input",
+    "label": "Input",
+    "category": "io",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": true,
+    "synthOnly": false,
+    "hint": "Where the mono signal enters the filter graph.",
+    "subsystem": false
+  },
+  {
+    "kind": "output",
+    "label": "Output",
+    "category": "io",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Where the graph's mono result is read.",
+    "subsystem": false
+  },
+  {
+    "kind": "mix",
+    "label": "Mix",
+    "category": "mixer",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Sums two signals into one.",
+    "subsystem": false
+  },
+  {
+    "kind": "split",
+    "label": "Split",
+    "category": "mixer",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Copies a mono signal into two identical channels.",
+    "subsystem": false
+  },
+  {
+    "kind": "join",
+    "label": "Join",
+    "category": "mixer",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Averages two channels back into one — use after stereo processing.",
+    "subsystem": false
+  },
+  {
+    "kind": "add",
+    "label": "Add",
+    "category": "math",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Adds two signals (A + B).",
+    "subsystem": false
+  },
+  {
+    "kind": "subtract",
+    "label": "Subtract",
+    "category": "math",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Subtracts B from A (A − B).",
+    "subsystem": false
+  },
+  {
+    "kind": "multiply",
+    "label": "Multiply",
+    "category": "math",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Multiplies two signals (A × B) — ring-mod, or a VCA with a control input.",
+    "subsystem": false
+  },
+  {
+    "kind": "divide",
+    "label": "Divide",
+    "category": "math",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Divides A by B (A ÷ B).",
+    "subsystem": false
+  },
+  {
+    "kind": "min",
+    "label": "Minimum",
+    "category": "math",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "The lower of two signals, sample by sample.",
+    "subsystem": false
+  },
+  {
+    "kind": "max",
+    "label": "Maximum",
+    "category": "math",
+    "inputPorts": [
+      "A",
+      "B"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "The higher of two signals, sample by sample.",
+    "subsystem": false
+  },
+  {
+    "kind": "abs",
+    "label": "Absolute",
+    "category": "math",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Rectifies the signal (|A|).",
+    "subsystem": false
+  },
+  {
+    "kind": "invert",
+    "label": "Invert",
+    "category": "math",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Flips the signal's polarity (−A).",
+    "subsystem": false
+  },
+  {
+    "kind": "gain",
+    "label": "Gain",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "gain",
+        "label": "Gain",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 16.0,
+        "step": 0.05,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Scales the signal's amplitude.",
+    "subsystem": false
+  },
+  {
+    "kind": "fir3",
+    "label": "FIR (3-tap)",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "gain",
+        "label": "Nyquist",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A short three-tap FIR smoothing filter; the parameter is its gain at Nyquist.",
+    "subsystem": false
+  },
+  {
+    "kind": "convolve",
+    "label": "Convolution",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 1.2,
+        "min": 0.01,
+        "max": 4.0,
+        "step": 0.1,
+        "unit": "s"
+      },
+      {
+        "key": "tone",
+        "label": "Tone",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Convolution reverb: convolves the signal with a synthetic decaying-noise impulse response.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowpass",
+    "label": "Low-pass",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Attenuates frequencies above the cutoff.",
+    "subsystem": false
+  },
+  {
+    "kind": "highpass",
+    "label": "High-pass",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Attenuates frequencies below the cutoff.",
+    "subsystem": false
+  },
+  {
+    "kind": "bandpass",
+    "label": "Band-pass",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Passes a band around the center frequency, attenuating both sides.",
+    "subsystem": false
+  },
+  {
+    "kind": "notch",
+    "label": "Notch",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Cuts a narrow band around the center frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "peak",
+    "label": "Peak",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Boosts or cuts a band around the center frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "allpass",
+    "label": "All-pass",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Shifts phase around the center frequency without changing the level.",
+    "subsystem": false
+  },
+  {
+    "kind": "bell",
+    "label": "Bell",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      },
+      {
+        "key": "gain",
+        "label": "Gain",
+        "default": 1.0,
+        "min": 0.001,
+        "max": 16.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Peaking bell EQ: boosts or cuts around the center frequency by a gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowshelf",
+    "label": "Low shelf",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      },
+      {
+        "key": "gain",
+        "label": "Gain",
+        "default": 0.5,
+        "min": 0.001,
+        "max": 16.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Boosts or cuts all frequencies below the cutoff by a fixed gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "highshelf",
+    "label": "High shelf",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      },
+      {
+        "key": "gain",
+        "label": "Gain",
+        "default": 0.5,
+        "min": 0.001,
+        "max": 16.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Boosts or cuts all frequencies above the cutoff by a fixed gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "moog",
+    "label": "Moog",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resonant analogue-style low-pass (Moog ladder) with a steep roll-off.",
+    "subsystem": false
+  },
+  {
+    "kind": "butterpass",
+    "label": "Butterworth",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Second-order Butterworth low-pass — a maximally flat passband.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowpole",
+    "label": "Low-pole",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Gentle one-pole low-pass (6 dB/octave).",
+    "subsystem": false
+  },
+  {
+    "kind": "highpole",
+    "label": "High-pole",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Gentle one-pole high-pass (6 dB/octave).",
+    "subsystem": false
+  },
+  {
+    "kind": "lowrez",
+    "label": "Low-rez",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resonant two-pole low-pass with a synthetic, 'acid' character.",
+    "subsystem": false
+  },
+  {
+    "kind": "bandrez",
+    "label": "Band-rez",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resonant two-pole band-pass.",
+    "subsystem": false
+  },
+  {
+    "kind": "resonator",
+    "label": "Resonator",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "bandwidth",
+        "label": "BW",
+        "default": 110.0,
+        "min": 0.1,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Constant-gain band-pass resonator: rings at the center frequency over a bandwidth.",
+    "subsystem": false
+  },
+  {
+    "kind": "morph",
+    "label": "Morph",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 1000.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "q",
+        "label": "Q",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      },
+      {
+        "key": "morph",
+        "label": "Morph",
+        "default": 0.0,
+        "min": -1.0,
+        "max": 1.0,
+        "step": 0.05,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Morphing filter: -1 low-pass, 0 peaking, +1 high-pass.",
+    "subsystem": false
+  },
+  {
+    "kind": "pinkpass",
+    "label": "Pink tilt",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Tilts the spectrum to a -3 dB/octave (pink) response.",
+    "subsystem": false
+  },
+  {
+    "kind": "allpole_delay",
+    "label": "All-pass (delay)",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "delay",
+        "label": "Delay",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 1000.0,
+        "step": 0.1,
+        "unit": "smp"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "First-order all-pass whose phase shift is set by a delay in samples (must be positive).",
+    "subsystem": false
+  },
+  {
+    "kind": "biquad",
+    "label": "Biquad",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "a1",
+        "label": "a1",
+        "default": 0.0,
+        "min": -2.0,
+        "max": 2.0,
+        "step": 0.001,
+        "unit": null
+      },
+      {
+        "key": "a2",
+        "label": "a2",
+        "default": 0.0,
+        "min": -2.0,
+        "max": 2.0,
+        "step": 0.001,
+        "unit": null
+      },
+      {
+        "key": "b0",
+        "label": "b0",
+        "default": 1.0,
+        "min": -16.0,
+        "max": 16.0,
+        "step": 0.001,
+        "unit": null
+      },
+      {
+        "key": "b1",
+        "label": "b1",
+        "default": 0.0,
+        "min": -16.0,
+        "max": 16.0,
+        "step": 0.001,
+        "unit": null
+      },
+      {
+        "key": "b2",
+        "label": "b2",
+        "default": 0.0,
+        "min": -16.0,
+        "max": 16.0,
+        "step": 0.001,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A general second-order filter defined by explicit coefficients.",
+    "subsystem": false
+  },
+  {
+    "kind": "dcblock",
+    "label": "DC block",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Removes DC offset (very low frequencies).",
+    "subsystem": false
+  },
+  {
+    "kind": "delay",
+    "label": "Delay",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 0.25,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.01,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Delays the signal by a fixed time.",
+    "subsystem": false
+  },
+  {
+    "kind": "clip_to",
+    "label": "Clip",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "min",
+        "label": "Min",
+        "default": -1.0,
+        "min": -4.0,
+        "max": 4.0,
+        "step": 0.01,
+        "unit": null
+      },
+      {
+        "key": "max",
+        "label": "Max",
+        "default": 1.0,
+        "min": -4.0,
+        "max": 4.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Clamps the signal between a minimum and a maximum level.",
+    "subsystem": false
+  },
+  {
+    "kind": "declick",
+    "label": "Declick",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 0.01,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Fades the signal in over the given time, avoiding a click at the start.",
+    "subsystem": false
+  },
+  {
+    "kind": "dcblock_hz",
+    "label": "DC block (Hz)",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "cutoff",
+        "label": "Cutoff",
+        "default": 5.0,
+        "min": 0.0,
+        "max": 1000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Removes DC offset below the given cutoff with a one-pole high-pass.",
+    "subsystem": false
+  },
+  {
+    "kind": "pan",
+    "label": "Pan",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "pan",
+        "label": "Pan",
+        "default": 0.0,
+        "min": -1.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Places a mono signal in the stereo field (-1 left, +1 right).",
+    "subsystem": false
+  },
+  {
+    "kind": "panner",
+    "label": "Panner (cv)",
+    "category": "processor",
+    "inputPorts": [
+      "audio",
+      "pan"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Widens a mono signal using a control input for position — inputs: signal, pan (-1..1).",
+    "subsystem": false
+  },
+  {
+    "kind": "rotate",
+    "label": "Stereo rotate",
+    "category": "processor",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "angle",
+        "label": "Angle",
+        "default": 0.0,
+        "min": -3.1415927,
+        "max": 3.1415927,
+        "step": 0.01,
+        "unit": "rad"
+      },
+      {
+        "key": "gain",
+        "label": "Gain",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 4.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Rotates the stereo image by an angle, with an overall gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowpass_cv",
+    "label": "Low-pass (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Low-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "highpass_cv",
+    "label": "High-pass (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "High-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "bandpass_cv",
+    "label": "Band-pass (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Band-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "notch_cv",
+    "label": "Notch (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Notch driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "peak_cv",
+    "label": "Peak (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Peaking filter driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "allpass_cv",
+    "label": "All-pass (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "All-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "bell_cv",
+    "label": "Bell (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q",
+      "gain"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Bell EQ driven by control signals — inputs: audio, cutoff, Q, gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowshelf_cv",
+    "label": "Low shelf (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q",
+      "gain"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Low shelf driven by control signals — inputs: audio, cutoff, Q, gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "highshelf_cv",
+    "label": "High shelf (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q",
+      "gain"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "High shelf driven by control signals — inputs: audio, cutoff, Q, gain.",
+    "subsystem": false
+  },
+  {
+    "kind": "moog_cv",
+    "label": "Moog (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Moog ladder low-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowrez_cv",
+    "label": "Low-rez (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resonant low-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "bandrez_cv",
+    "label": "Band-rez (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resonant band-pass driven by control signals — inputs: audio, cutoff, Q.",
+    "subsystem": false
+  },
+  {
+    "kind": "resonator_cv",
+    "label": "Resonator (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "center",
+      "bw"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resonator driven by control signals — inputs: audio, center, bandwidth.",
+    "subsystem": false
+  },
+  {
+    "kind": "morph_cv",
+    "label": "Morph (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut",
+      "Q",
+      "morph"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Morphing filter driven by control signals — inputs: audio, cutoff, Q, morph.",
+    "subsystem": false
+  },
+  {
+    "kind": "butterpass_cv",
+    "label": "Butterworth (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Butterworth low-pass with a control-driven cutoff — inputs: audio, cutoff.",
+    "subsystem": false
+  },
+  {
+    "kind": "lowpole_cv",
+    "label": "Low-pole (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "One-pole low-pass with a control-driven cutoff — inputs: audio, cutoff.",
+    "subsystem": false
+  },
+  {
+    "kind": "highpole_cv",
+    "label": "High-pole (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "cut"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "One-pole high-pass with a control-driven cutoff — inputs: audio, cutoff.",
+    "subsystem": false
+  },
+  {
+    "kind": "allpole_cv",
+    "label": "All-pass (cv)",
+    "category": "filtercv",
+    "inputPorts": [
+      "audio",
+      "delay"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "All-pass with a control-driven delay — inputs: audio, delay (samples).",
+    "subsystem": false
+  },
+  {
+    "kind": "tanh",
+    "label": "Tanh drive",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "threshold",
+        "label": "Drive",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Soft-clips the signal with a hyperbolic tangent.",
+    "subsystem": false
+  },
+  {
+    "kind": "atan",
+    "label": "Atan drive",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "threshold",
+        "label": "Drive",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Soft-clips the signal with an arctangent curve.",
+    "subsystem": false
+  },
+  {
+    "kind": "softsign",
+    "label": "Softsign drive",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "threshold",
+        "label": "Drive",
+        "default": 1.0,
+        "min": 0.01,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Soft-clips the signal with x / (1 + |x|).",
+    "subsystem": false
+  },
+  {
+    "kind": "crush",
+    "label": "Bit crush",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "levels",
+        "label": "Levels",
+        "default": 8.0,
+        "min": 1.0,
+        "max": 1024.0,
+        "step": 1.0,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Quantizes the signal to a number of discrete levels.",
+    "subsystem": false
+  },
+  {
+    "kind": "soft_crush",
+    "label": "Soft crush",
+    "category": "processor",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "levels",
+        "label": "Levels",
+        "default": 8.0,
+        "min": 1.0,
+        "max": 1024.0,
+        "step": 1.0,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Quantizes the signal to discrete levels with a softened step.",
+    "subsystem": false
+  },
+  {
+    "kind": "limiter",
+    "label": "Limiter",
+    "category": "dynamics",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "attack",
+        "label": "Attack",
+        "default": 0.005,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "release",
+        "label": "Release",
+        "default": 0.1,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.01,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Prevents the signal from exceeding full scale (look-ahead limiter).",
+    "subsystem": false
+  },
+  {
+    "kind": "limiter_stereo",
+    "label": "Limiter (stereo)",
+    "category": "dynamics",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "attack",
+        "label": "Attack",
+        "default": 0.005,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "release",
+        "label": "Release",
+        "default": 0.1,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.01,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Stereo look-ahead limiter — holds both channels within full scale.",
+    "subsystem": false
+  },
+  {
+    "kind": "compressor",
+    "label": "Compressor",
+    "category": "dynamics",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "threshold",
+        "label": "Thresh",
+        "default": -18.0,
+        "min": -60.0,
+        "max": 0.0,
+        "step": 0.5,
+        "unit": "dB"
+      },
+      {
+        "key": "ratio",
+        "label": "Ratio",
+        "default": 4.0,
+        "min": 1.0,
+        "max": 100.0,
+        "step": 0.1,
+        "unit": null
+      },
+      {
+        "key": "attack",
+        "label": "Attack",
+        "default": 0.01,
+        "min": 0.0005,
+        "max": 0.5,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "release",
+        "label": "Release",
+        "default": 0.1,
+        "min": 0.001,
+        "max": 10.0,
+        "step": 0.01,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Reduces dynamic range: quietens peaks that rise above the threshold.",
+    "subsystem": false
+  },
+  {
+    "kind": "gate",
+    "label": "Noise gate",
+    "category": "dynamics",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "threshold",
+        "label": "Thresh",
+        "default": -40.0,
+        "min": -80.0,
+        "max": 0.0,
+        "step": 0.5,
+        "unit": "dB"
+      },
+      {
+        "key": "attack",
+        "label": "Attack",
+        "default": 0.002,
+        "min": 0.0005,
+        "max": 0.1,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "release",
+        "label": "Release",
+        "default": 0.05,
+        "min": 0.001,
+        "max": 10.0,
+        "step": 0.01,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Mutes the signal when it falls below a threshold (downward expander).",
+    "subsystem": false
+  },
+  {
+    "kind": "chorus",
+    "label": "Chorus",
+    "category": "modulation",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "separation",
+        "label": "Spread",
+        "default": 0.015,
+        "min": 0.001,
+        "max": 0.1,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "variation",
+        "label": "Depth",
+        "default": 0.005,
+        "min": 0.0005,
+        "max": 0.05,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "rate",
+        "label": "Rate",
+        "default": 0.5,
+        "min": 0.001,
+        "max": 100.0,
+        "step": 0.05,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Thickens the signal with several short, modulated delay copies.",
+    "subsystem": false
+  },
+  {
+    "kind": "flanger",
+    "label": "Flanger",
+    "category": "modulation",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "feedback",
+        "label": "Feedback",
+        "default": 0.5,
+        "min": -0.95,
+        "max": 0.95,
+        "step": 0.05,
+        "unit": null
+      },
+      {
+        "key": "min_delay",
+        "label": "Min",
+        "default": 0.005,
+        "min": 0.0,
+        "max": 0.1,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "max_delay",
+        "label": "Max",
+        "default": 0.01,
+        "min": 0.0,
+        "max": 0.1,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "rate",
+        "label": "Rate",
+        "default": 0.1,
+        "min": 0.001,
+        "max": 100.0,
+        "step": 0.02,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A short, swept delay creating a whooshing comb-filter (jet) effect.",
+    "subsystem": false
+  },
+  {
+    "kind": "phaser",
+    "label": "Phaser",
+    "category": "modulation",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "feedback",
+        "label": "Feedback",
+        "default": 0.5,
+        "min": -0.95,
+        "max": 0.95,
+        "step": 0.05,
+        "unit": null
+      },
+      {
+        "key": "rate",
+        "label": "Rate",
+        "default": 0.1,
+        "min": 0.001,
+        "max": 100.0,
+        "step": 0.02,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A swept all-pass cascade creating a notchy phase (swoosh) effect.",
+    "subsystem": false
+  },
+  {
+    "kind": "schroeder",
+    "label": "Schroeder",
+    "category": "reverb",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "coefficient",
+        "label": "Coef",
+        "default": 0.5,
+        "min": -0.95,
+        "max": 0.95,
+        "step": 0.05,
+        "unit": null
+      },
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 0.01,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "An all-pass diffusion element (Schroeder all-pass); stack several to build a reverb.",
+    "subsystem": false
+  },
+  {
+    "kind": "schroeder_cv",
+    "label": "Schroeder (cv)",
+    "category": "reverb",
+    "inputPorts": [
+      "audio",
+      "coef"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 0.01,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Schroeder all-pass with a control-driven coefficient — inputs: audio, coefficient.",
+    "subsystem": false
+  },
+  {
+    "kind": "reverb_stereo",
+    "label": "Reverb",
+    "category": "reverb",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "room",
+        "label": "Room",
+        "default": 10.0,
+        "min": 10.0,
+        "max": 30.0,
+        "step": 0.5,
+        "unit": "m"
+      },
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 2.0,
+        "min": 0.01,
+        "max": 20.0,
+        "step": 0.1,
+        "unit": "s"
+      },
+      {
+        "key": "damping",
+        "label": "Damping",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Stereo room reverb (32-channel FDN) — inputs: left, right; outputs: left, right.",
+    "subsystem": false
+  },
+  {
+    "kind": "reverb2_stereo",
+    "label": "Reverb 2 (hq)",
+    "category": "reverb",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "room",
+        "label": "Room",
+        "default": 10.0,
+        "min": 10.0,
+        "max": 30.0,
+        "step": 0.5,
+        "unit": "m"
+      },
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 2.0,
+        "min": 0.01,
+        "max": 20.0,
+        "step": 0.1,
+        "unit": "s"
+      },
+      {
+        "key": "diffusion",
+        "label": "Diffusion",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      },
+      {
+        "key": "mod_speed",
+        "label": "Mod",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.01,
+        "unit": null
+      },
+      {
+        "key": "loop_filter",
+        "label": "Loop filter",
+        "default": 8000.0,
+        "min": 100.0,
+        "max": 20000.0,
+        "step": 100.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "High-quality stereo reverb with a damped feedback loop — inputs: left, right.",
+    "subsystem": false
+  },
+  {
+    "kind": "reverb3_stereo",
+    "label": "Reverb 3",
+    "category": "reverb",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 2.0,
+        "min": 0.01,
+        "max": 20.0,
+        "step": 0.1,
+        "unit": "s"
+      },
+      {
+        "key": "diffusion",
+        "label": "Diffusion",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      },
+      {
+        "key": "loop_filter",
+        "label": "Loop filter",
+        "default": 8000.0,
+        "min": 100.0,
+        "max": 20000.0,
+        "step": 100.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "All-pass-loop stereo reverb — inputs: left, right; outputs: left, right.",
+    "subsystem": false
+  },
+  {
+    "kind": "reverb4_stereo",
+    "label": "Reverb 4 (fade)",
+    "category": "reverb",
+    "inputPorts": [
+      "L",
+      "R"
+    ],
+    "outputPorts": [
+      "L",
+      "R"
+    ],
+    "params": [
+      {
+        "key": "room",
+        "label": "Room",
+        "default": 15.0,
+        "min": 15.0,
+        "max": 30.0,
+        "step": 0.5,
+        "unit": "m"
+      },
+      {
+        "key": "time",
+        "label": "Time",
+        "default": 2.0,
+        "min": 0.01,
+        "max": 20.0,
+        "step": 0.1,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Stereo reverb with a slow fade-in envelope — inputs: left, right.",
+    "subsystem": false
+  },
+  {
+    "kind": "dc",
+    "label": "Constant",
+    "category": "control",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "value",
+        "label": "Value",
+        "default": 1.0,
+        "min": -20000.0,
+        "max": 20000.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A constant value (DC) — used to set control inputs; frequency and time inputs read it in their own units.",
+    "subsystem": false
+  },
+  {
+    "kind": "sine_lfo",
+    "label": "Sine LFO",
+    "category": "control",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Rate",
+        "default": 1.0,
+        "min": 0.001,
+        "max": 100.0,
+        "step": 0.05,
+        "unit": "Hz"
+      },
+      {
+        "key": "amp",
+        "label": "Amount",
+        "default": 1.0,
+        "min": -2.0,
+        "max": 2.0,
+        "step": 0.01,
+        "unit": null
+      },
+      {
+        "key": "offset",
+        "label": "Offset",
+        "default": 0.0,
+        "min": -1.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A slow sine oscillator for modulating parameters.",
+    "subsystem": false
+  },
+  {
+    "kind": "follow",
+    "label": "Follow",
+    "category": "control",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "time",
+        "label": "Response",
+        "default": 0.05,
+        "min": 0.001,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Follows the signal with a one-pole smoother, gliding sudden jumps.",
+    "subsystem": false
+  },
+  {
+    "kind": "afollow",
+    "label": "Follow (attack/release)",
+    "category": "control",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "attack",
+        "label": "Attack",
+        "default": 0.01,
+        "min": 0.001,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "release",
+        "label": "Release",
+        "default": 0.1,
+        "min": 0.001,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Follows the signal with separate rise (attack) and fall (release) times.",
+    "subsystem": false
+  },
+  {
+    "kind": "hold",
+    "label": "Hold",
+    "category": "control",
+    "inputPorts": [
+      "audio",
+      "trigger"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "variability",
+        "label": "Variability",
+        "default": 0.1,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Sample-and-hold the signal; input 1 = trigger signal (hold rate in Hz).",
+    "subsystem": false
+  },
+  {
+    "kind": "tap",
+    "label": "Tap delay (cv)",
+    "category": "control",
+    "inputPorts": [
+      "audio",
+      "time"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "min",
+        "label": "Min",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "max",
+        "label": "Max",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Variable delay; input 1 = delay signal in seconds (clamped to min..max).",
+    "subsystem": false
+  },
+  {
+    "kind": "tap_linear",
+    "label": "Tap delay (linear, cv)",
+    "category": "control",
+    "inputPorts": [
+      "audio",
+      "time"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "min",
+        "label": "Min",
+        "default": 0.0,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      },
+      {
+        "key": "max",
+        "label": "Max",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 10.0,
+        "step": 0.001,
+        "unit": "s"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Like Tap delay, with linear interpolation — smooth pitch when the time moves.",
+    "subsystem": false
+  },
+  {
+    "kind": "snoop",
+    "label": "Snoop",
+    "category": "control",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "capacity",
+        "label": "Samples",
+        "default": 512.0,
+        "min": 16.0,
+        "max": 8192.0,
+        "step": 16.0,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Passes the signal through and shows the latest samples on the node (fundsp `snoop`).",
+    "subsystem": false
+  },
+  {
+    "kind": "sine",
+    "label": "Sine",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A pure sine oscillator at the given frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "saw",
+    "label": "Saw",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited sawtooth oscillator at the given frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "square",
+    "label": "Square",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited square oscillator at the given frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "triangle",
+    "label": "Triangle",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A triangle oscillator at the given frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "ramp",
+    "label": "Ramp",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 2.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A rising 0→1 ramp (phasor) that restarts on each cycle.",
+    "subsystem": false
+  },
+  {
+    "kind": "rossler",
+    "label": "Rössler",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A chaotic Rössler attractor — a slowly wandering, unstable tone.",
+    "subsystem": false
+  },
+  {
+    "kind": "lorenz",
+    "label": "Lorenz",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A chaotic Lorenz attractor — an evolving, turbulent signal.",
+    "subsystem": false
+  },
+  {
+    "kind": "organ",
+    "label": "Organ",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "An additive organ-like tone at the given frequency.",
+    "subsystem": false
+  },
+  {
+    "kind": "hammond",
+    "label": "Hammond",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A tone with the drawbar-like harmonics of a Hammond organ.",
+    "subsystem": false
+  },
+  {
+    "kind": "soft_saw",
+    "label": "Soft saw",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A sawtooth wave with reduced high-frequency harshness.",
+    "subsystem": false
+  },
+  {
+    "kind": "pulse",
+    "label": "Pulse",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "width",
+        "label": "Width",
+        "default": 0.5,
+        "min": 0.01,
+        "max": 0.99,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A rectangular pulse wave with an adjustable width.",
+    "subsystem": false
+  },
+  {
+    "kind": "poly_saw",
+    "label": "Poly saw",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited (PolyBLEP) sawtooth wave.",
+    "subsystem": false
+  },
+  {
+    "kind": "poly_square",
+    "label": "Poly square",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited (PolyBLEP) square wave.",
+    "subsystem": false
+  },
+  {
+    "kind": "poly_pulse",
+    "label": "Poly pulse",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 0.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "width",
+        "label": "Width",
+        "default": 0.5,
+        "min": 0.01,
+        "max": 0.99,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A band-limited (PolyBLEP) pulse wave with an adjustable width.",
+    "subsystem": false
+  },
+  {
+    "kind": "dsf_saw",
+    "label": "DSF saw",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 10.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "roughness",
+        "label": "Rough",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Additive sawtooth from a discrete summation formula; roughness sets brightness.",
+    "subsystem": false
+  },
+  {
+    "kind": "dsf_square",
+    "label": "DSF square",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 10.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "roughness",
+        "label": "Rough",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Additive square wave from a discrete summation formula; roughness sets brightness.",
+    "subsystem": false
+  },
+  {
+    "kind": "pluck",
+    "label": "Pluck",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [
+      {
+        "key": "freq",
+        "label": "Freq",
+        "default": 440.0,
+        "min": 10.0,
+        "max": 20000.0,
+        "step": 1.0,
+        "unit": "Hz"
+      },
+      {
+        "key": "decay",
+        "label": "Decay",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 8.0,
+        "step": 0.05,
+        "unit": "1/s"
+      },
+      {
+        "key": "damping",
+        "label": "Damping",
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": null
+      }
+    ],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A plucked-string (Karplus–Strong) tone that decays over time.",
+    "subsystem": false
+  },
+  {
+    "kind": "white",
+    "label": "White noise",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Full-bandwidth white noise.",
+    "subsystem": false
+  },
+  {
+    "kind": "pink",
+    "label": "Pink noise",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Pink noise (-3 dB/octave).",
+    "subsystem": false
+  },
+  {
+    "kind": "brown",
+    "label": "Brown noise",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Brown (red) noise (-6 dB/octave).",
+    "subsystem": false
+  },
+  {
+    "kind": "mls",
+    "label": "MLS",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A deterministic pseudo-random ±1 maximum-length sequence.",
+    "subsystem": false
+  },
+  {
+    "kind": "zero",
+    "label": "Zero",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "Outputs silence — a constant zero to drive an otherwise unused input.",
+    "subsystem": false
+  },
+  {
+    "kind": "impulse",
+    "label": "Impulse",
+    "category": "generator",
+    "inputPorts": [],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": true,
+    "hint": "A single full-scale sample at time zero, silent afterwards.",
+    "subsystem": false
+  },
+  {
+    "kind": "subgraph",
+    "label": "Subgraph",
+    "category": "subsystem",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "A nested graph in one node — open its tab to build a reusable chain.",
+    "subsystem": true
+  },
+  {
+    "kind": "feedback",
+    "label": "Feedback",
+    "category": "subsystem",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Feeds a nested graph's output back into its input (fundsp `feedback`).",
+    "subsystem": true
+  },
+  {
+    "kind": "oversample",
+    "label": "Oversample",
+    "category": "subsystem",
+    "inputPorts": [
+      "in"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Runs a nested graph with extra internal oversampling to reduce aliasing.",
+    "subsystem": true
+  },
+  {
+    "kind": "resample",
+    "label": "Resample",
+    "category": "subsystem",
+    "inputPorts": [
+      "speed"
+    ],
+    "outputPorts": [
+      "out"
+    ],
+    "params": [],
+    "filterOnly": false,
+    "synthOnly": false,
+    "hint": "Resamples a nested generator; input 0 is the speed (1 = the original rate).",
+    "subsystem": true
+  }
+]

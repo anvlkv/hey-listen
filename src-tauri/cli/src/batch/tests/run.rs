@@ -358,3 +358,30 @@ fn frame_rms_patch() -> Vec<OptionPatch> {
         },
     ]
 }
+
+#[test]
+fn run_lists_nodes_and_explains_one() {
+    use super::super::nodes::run_nodes;
+
+    let mut session = HeadlessSession::default();
+    let mut json_out = Vec::new();
+    assert_eq!(run_nodes(&mut session, None, true, &mut json_out), 0);
+    let catalog: Value = serde_json::from_slice(&json_out).unwrap();
+    assert!(catalog
+        .as_array()
+        .is_some_and(|nodes| nodes.iter().any(|node| node["kind"] == "lowpass_cv")));
+
+    let mut table = Vec::new();
+    assert_eq!(run_nodes(&mut session, None, false, &mut table), 0);
+    let text = String::from_utf8(table).unwrap();
+    assert!(text.contains("lowpass_cv\tfiltercv"), "{text}");
+
+    let mut detail = Vec::new();
+    assert_eq!(
+        run_nodes(&mut session, Some("lowpass_cv"), false, &mut detail),
+        0
+    );
+    let text = String::from_utf8(detail).unwrap();
+    assert!(text.contains("Inputs:  audio, cut, Q"), "{text}");
+    assert!(text.contains("label=\"<audio> audio"), "{text}");
+}

@@ -62,7 +62,10 @@ pub(super) fn tools() -> Vec<Value> {
             "get_graph",
             "Get graph",
             ToolClass::OBSERVE,
-            "Read a graph editor's state (`filter` or `synth`) as editor nodes + edges.",
+            "Read a graph editor (`filter` or `synth`) back as **DOT** — the canonical text \
+             form — plus, in the app, the editor layout. `GraphSpec → DOT → GraphSpec` is \
+             identity, so edit the text and send it back with `set_filter_graph` / \
+             `render_synth`.",
             json!({
                 "type": "object",
                 "properties": {
@@ -76,17 +79,48 @@ pub(super) fn tools() -> Vec<Value> {
             }),
         ),
         tool(
+            "list_nodes",
+            "List nodes",
+            ToolClass::OBSERVE,
+            "List the filter/synth node catalog: kind, label, category, port names, param \
+             specs (key/default/min/max/step/unit) and hint. One Rust table feeds this, the \
+             DOT parser and the editor palette, so a port or key you see here is the one DOT \
+             accepts.",
+            json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false,
+            }),
+        ),
+        tool(
+            "get_node",
+            "Get node",
+            ToolClass::OBSERVE,
+            "Explain one node kind from `list_nodes`, with a **ready-to-paste DOT skeleton**: \
+             the record label naming each port and every parameter at its default.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "kind": { "type": "string", "description": "A node kind from list_nodes." },
+                },
+                "required": ["kind"],
+                "additionalProperties": false,
+            }),
+        ),
+        tool(
             "set_filter_graph",
             "Set filter graph",
             ToolClass::SETTINGS,
             "Replace the filter graph and/or toggle whether it is applied. The graph runs \
-             upstream of preview and every analyzer. In headless mode pass `graph` as a \
-             `{ nodes, edges }` spec directly (there is no filter editor); a null or empty \
-             graph clears it.",
+             upstream of preview and every analyzer. Send `graph` as a **DOT string** (the \
+             canonical form; `get_graph` reads the current one back as DOT), or `graphFile` \
+             for a `.dot` / `.gv` path. A legacy JSON `GraphSpec` object is still accepted. \
+             `enabled: false`, a null/empty graph clears the filter.",
             json!({
                 "type": "object",
                 "properties": {
-                    "graph": { "type": ["object", "null"], "description": "{ nodes, edges } editor layout, or (headless) a GraphSpec taken directly; null/empty clears the filter." },
+                    "graph": { "type": ["string", "object", "null"], "description": "DOT text (canonical), a legacy JSON GraphSpec, or null/empty to clear." },
+                    "graphFile": { "type": "string", "description": "Path to a .dot / .gv (or legacy .json) graph file." },
                     "enabled": { "type": "boolean", "description": "Whether the filter is applied to preview/analysis." },
                 },
                 "additionalProperties": false,

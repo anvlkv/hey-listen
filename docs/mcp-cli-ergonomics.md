@@ -173,7 +173,7 @@ Add a `title` and `annotations` to every catalog entry. The `tool()` helper gain
 
 | Class | Examples | `readOnlyHint` | `destructiveHint` | `idempotentHint` | `openWorldHint` |
 | --- | --- | --- | --- | --- | --- |
-| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_annotations`, `get_annotation`, `list_projects`, `compare_analysis`, `list_themes`, `get_theme`, `get_graph` | true | false | true | false |
+| Observe | `get_state`, `list_analyzers`, `get_analyzer`, `list_nodes`, `get_node`, `list_annotations`, `get_annotation`, `list_projects`, `compare_analysis`, `list_themes`, `get_theme`, `get_graph` | true | false | true | false |
 | Analysis compute | `run_analysis` | false | false | true | false |
 | Analysis settings | `set_analysis_window`, `set_view`, `set_shared_params`, `set_tool_options`, `open_tool`, `close_tool`, `set_filter_graph`, `set_synth_graph`, `set_output_gain`, `set_selected_annotation` | false | false | true | false |
 | Preview | `preview` / `stop_preview` | false | false | `preview` false, `stop_preview` true | false |
@@ -247,11 +247,15 @@ list-style tools so "all tools" is not just an analyzer claim:
 - `get_state` keeps its bounded project/analysis summary; option defaults are small
   numbers, not free-form data.
 - Array-valued list tools also answer `structuredContent` (the 2025-06-18 revision
-  requires an object): `list_analyzers` → `{ analyzers }`, the device enumerations →
-  `{ devices }`, `list_processes` → `{ processes }`. The text form is unchanged, so the
-  CLI and older clients keep parsing it.
+  requires an object): `list_analyzers` → `{ analyzers }`, `list_nodes` → `{ nodes }`, the
+  device enumerations → `{ devices }`, `list_processes` → `{ processes }`. The text form is
+  unchanged, so the CLI and older clients keep parsing it.
 - `get_graph`, `get_theme`, and `get_annotation` remain explicit full-object reads; they are
   the "detail" calls for their list counterparts.
+- **Graphs are DOT** (M39): `get_graph` returns the current graph as DOT, and
+  `set_filter_graph` / `render_synth` accept DOT text, a `graphFile` path, or a legacy JSON
+  `GraphSpec`. `list_nodes` reports the one node catalog; `get_node` adds a ready-to-paste
+  DOT skeleton, so an agent never guesses a port or a param key.
 
 ## Consistency and tests
 

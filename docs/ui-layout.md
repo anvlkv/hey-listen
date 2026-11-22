@@ -4,7 +4,8 @@
 
 **Timeline, Sidebar, Activity bar, Workbench, Source, and Annotations are fixed
 regions — not tabs.** The only tabs in the app are **Workbench tabs**: the **graph
-editors** (filter / synth) and, from M4, the **analyzer tabs**.
+editors** (filter / synth, plus a node's **subsystem** graphs) and, from M4, the
+**analyzer tabs**.
 
 ```
 ┌──────────┬──────────┬───────────────────────────┬─────────┐
@@ -259,7 +260,8 @@ None of these are closable, draggable, or tabbed.
   `--space-chart-wide`), keeping plots dense at 100% and comfortable at larger scales.
   The **Tabs (N)** menu below still shows each tab's full title.
 - Managed by `dockview` (mounted **only** in the Workbench region).
-- Two kinds: the **graph editors** (`filter`, `synth` — see ADR-10) and the
+- Two kinds: the **graph editors** (`filter`, `synth`, and each subsystem's nested graph
+  — see ADR-10 and ADR-38) and the
   **analyzer tabs** (M4+).
 - **No duplicate tabs** — a tool/editor can be open at most once. A **compare view**
   (M25) is a second tab per tool (`compare:<tool>`): right-click an analyzer tab →
@@ -361,7 +363,8 @@ None of these are closable, draggable, or tabbed.
 The vertical **Activity bar** (far left, fixed 44 px width) is a VSCode-style tab
 switcher: one icon per analyzer section (`ANALYZER_SECTIONS` in
 `src/state/analyzer/defs.ts`) plus a **Graphs** tab for the two graph editors (`filter`,
-`synth`). Selecting a tab gives the **Sidebar** that tab's cards; selecting the tab whose
+`synth`) and, below them, every **subsystem** the project holds (ADR-38). Selecting a tab
+gives the **Sidebar** that tab's cards; selecting the tab whose
 cards are already showing **collapses** the rail and its splitter, handing the width to the
 Workbench (any click on the bar brings it back — the rail is never unreachable). The graph
 entries open their Workbench tabs directly. The Activity bar is a fixed region — not a

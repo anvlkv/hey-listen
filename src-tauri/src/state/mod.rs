@@ -338,11 +338,13 @@ mod tests {
                     id: "x".into(),
                     kind: "not-a-node".into(),
                     params: Vec::new(),
+                    subgraph: None,
                 },
                 crate::audio::graph::GraphNode {
                     id: "out".into(),
                     kind: "output".into(),
                     params: Vec::new(),
+                    subgraph: None,
                 },
             ],
             edges: Vec::new(),

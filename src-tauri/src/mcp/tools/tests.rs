@@ -53,6 +53,8 @@ fn observe_tools_are_read_only_and_replacing_tools_are_destructive() {
         "get_state",
         "list_analyzers",
         "get_analyzer",
+        "list_nodes",
+        "get_node",
         "get_annotation",
     ] {
         assert_eq!(find(name)["annotations"]["readOnlyHint"], true, "{name}");

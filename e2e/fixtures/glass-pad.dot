@@ -1,0 +1,40 @@
+// glass-pad — the synth fixture for the DOT import/export specs.
+//
+// A soft A5 power-chord pad: three slightly detuned saws summed into a moog
+// ladder, then chorus and a stereo hall. The declick node gives the pad a 60 ms
+// attack, so rendering it sounds like a chord swelling in rather than a click.
+// It exercises generators, two-input mixers, a record-labelled stereo bridge and
+// every edge port a synth graph can use.
+digraph {
+    node [shape=record];
+    root    [kind="poly_saw", freq=110];
+    fifth   [kind="poly_saw", freq=164.8];
+    octave  [kind="soft_saw", freq=220.4];
+    blendA  [kind="mix", label="<A> A | <B> B | <out> out"];
+    blendB  [kind="mix", label="<A> A | <B> B | <out> out"];
+    body    [kind="moog", freq=820, q=1.4];
+    fade    [kind="declick", time=0.06];
+    tape    [kind="chorus", separation=0.021, variation=0.0045, rate=0.35];
+    width   [kind="split", label="<in> in | <L> L | <R> R"];
+    hall    [kind="reverb_stereo", label="<L> L | <R> R | <L> L | <R> R"];
+    fold    [kind="join", label="<L> L | <R> R | <out> out"];
+    trim    [kind="gain", gain=0.42];
+    ceiling [kind="limiter", attack=0.003, release=0.2];
+    out     [kind="output"];
+
+    root -> blendA:A;
+    fifth -> blendA:B;
+    blendA -> blendB:A;
+    octave -> blendB:B;
+    blendB -> body;
+    body -> fade;
+    fade -> tape;
+    tape -> width;
+    width:L -> hall:L;
+    width:R -> hall:R;
+    hall:L -> fold:L;
+    hall:R -> fold:R;
+    fold -> trim;
+    trim -> ceiling;
+    ceiling -> out;
+}

@@ -28,6 +28,7 @@ fn node(id: &str, kind: &str, params: &[f32]) -> GraphNode {
         id: id.to_string(),
         kind: kind.to_string(),
         params: params.to_vec(),
+        subgraph: None,
     }
 }
 

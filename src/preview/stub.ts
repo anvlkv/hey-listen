@@ -53,6 +53,9 @@ function reply(
     }
     case "get_ui_state":
       return { values: {}, revision: 0 };
+    case "graph_snoop":
+      // A `snoop` node's on-node envelope: nothing has run in the preview shell.
+      return { capacity: 0, total: 0, samples: [] };
     case "list_themes":
       return [];
     case "compare_targets":

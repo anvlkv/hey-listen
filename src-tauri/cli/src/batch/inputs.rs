@@ -95,9 +95,10 @@ fn validate_param(key: &str, value: &Value) -> Result<(), String> {
     }
 }
 
-pub(super) fn read_graph(path: &str) -> Result<GraphSpec, String> {
-    let text = std::fs::read_to_string(path).map_err(|err| format!("cannot read {path}: {err}"))?;
-    serde_json::from_str::<GraphSpec>(&text).map_err(|err| format!("invalid graph {path}: {err}"))
+/// Read a graph from a `.dot` / `.gv` file, a legacy `.json` file, or an inline DOT
+/// string. DOT is the canonical text form (M39); JSON is accepted during migration.
+pub(super) fn read_graph(input: &str) -> Result<GraphSpec, String> {
+    graph::parse_input(input).map_err(|err| format!("invalid graph {input}: {err}"))
 }
 
 /// Read a `--windows` list: one `start,end[,tool…]` per line, `#` comments allowed.

@@ -16,6 +16,7 @@
 @import "./styles/timeline.css";
 @import "./styles/sidebar.css";
 @import "./styles/graph.css";
+@import "./styles/graphSystem.css";
 @import "./styles/graphDrag.css";
 @import "./styles/workbench.css";
 @import "./styles/analyzer.css";

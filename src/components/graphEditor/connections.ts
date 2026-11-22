@@ -1,8 +1,8 @@
-import { handlePort, type GraphKind } from "../../lib/graph";
+import { handlePort, type GraphScope } from "../../lib/graph";
 import { clearGraphWarning, graphFor } from "../../state/graph";
 
 /** Whether `to` is reachable from `from` following existing edges. */
-export function reaches(graph: GraphKind, from: string, to: string): boolean {
+export function reaches(graph: GraphScope, from: string, to: string): boolean {
   const stack = [from];
   const seen = new Set<string>();
   while (stack.length) {
@@ -24,7 +24,7 @@ export function reaches(graph: GraphKind, from: string, to: string): boolean {
  * no cycles.
  */
 export function connectionProblem(
-  graph: GraphKind,
+  graph: GraphScope,
   source: string,
   target: string,
   targetHandle?: string | null,
@@ -41,7 +41,7 @@ export function connectionProblem(
 
 /** Add a new edge to our store unless the library already mirrored it (idempotent). */
 export function onConnected(
-  graph: GraphKind,
+  graph: GraphScope,
   id: string,
   source: string,
   target: string,

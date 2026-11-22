@@ -1,4 +1,4 @@
-import { handlePort, type GraphKind, type NodeKindDef } from "../../lib/graph";
+import { handlePort, type GraphScope, type NodeKindDef } from "../../lib/graph";
 import { dropTarget, kindAvailable, type DropFlow, type DropTarget } from "../../lib/graphDrop";
 import {
   addNodeAt,
@@ -18,7 +18,7 @@ export {
 } from "../../lib/graphDrop";
 
 /** Whether `def` may still be added to the editor's graph (anchors are unique). */
-export function canAddKind(graph: GraphKind, def: NodeKindDef): boolean {
+export function canAddKind(graph: GraphScope, def: NodeKindDef): boolean {
   return kindAvailable(graph, graphFor(graph).nodes, def.kind);
 }
 
@@ -28,13 +28,13 @@ export function canAddKind(graph: GraphKind, def: NodeKindDef): boolean {
  * must not create a cycle.
  */
 export function canSplice(
-  graph: GraphKind,
+  graph: GraphScope,
   handle: GraphHandle,
   def: NodeKindDef,
   nodeId: string,
   edge: GraphEdge,
 ): boolean {
-  if (def.inputs < 1 || def.outputs < 1) return false;
+  if (def.inputPorts.length < 1 || def.outputPorts.length < 1) return false;
   if (edge.source === nodeId || edge.target === nodeId) return false;
   const edges = handle.edges;
   const inletFree = !edges.some((e) => e.target === nodeId && handlePort(e.targetHandle) === 0);
@@ -47,7 +47,7 @@ export function canSplice(
 
 /** Add `def` centred on `point`, splicing it into the nearest connector if any. */
 export function placeNode(
-  graph: GraphKind,
+  graph: GraphScope,
   flow: DropFlow | undefined,
   def: NodeKindDef,
   point: { x: number; y: number },

@@ -38,7 +38,7 @@ use serde_json::{json, Value};
 
 use crate::audio::analysis::{SharedParams, ToolOptions};
 use crate::audio::analyzers::{self, AnalyzerId};
-use crate::audio::graph::GraphSpec;
+use crate::audio::graph::{self, GraphSpec};
 use crate::project::{SourceKind, StoredResult};
 use crate::state::WindowState;
 
@@ -118,6 +118,15 @@ impl HeadlessSession {
                 Ok(json!({ "source": null }))
             }
             "render_synth" => self.render_synth(&args),
+            "get_graph" => self.get_graph(&args),
+            "list_nodes" => Ok(graph::list_json()),
+            "get_node" => {
+                let kind = args
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .ok_or("`kind` is required")?;
+                graph::detail_json(kind).ok_or_else(|| format!("unknown node kind: {kind}"))
+            }
             "save_project" => self.save_project(&args),
             "open_project" => self.open_project(&args),
             "new_project" => self.new_project(),

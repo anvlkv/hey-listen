@@ -24,6 +24,7 @@ mod analyze;
 mod analyzers;
 mod annotations;
 mod args;
+mod catalog;
 mod clap_args;
 mod compare;
 mod compare_save;
@@ -31,6 +32,7 @@ mod export;
 mod export_args;
 mod inputs;
 mod migrate;
+mod nodes;
 mod output;
 mod project;
 mod synth;
@@ -54,6 +56,7 @@ use analyzers::run_analyzers;
 use annotations::run_annotations;
 use compare::run_compare;
 use migrate::run_migrate;
+use nodes::run_nodes;
 use output::Output;
 use project::run_project_save;
 use synth::run_synth;
@@ -101,6 +104,7 @@ fn run_request(request: &Request, out: &mut impl Write) -> i32 {
 
     let code = match &request.command {
         Command::Analyzers { id, json } => run_analyzers(&mut session, id.as_deref(), *json, out),
+        Command::Nodes { id, json } => run_nodes(&mut session, id.as_deref(), *json, out),
         Command::Analyze => run_analyze(&mut session, request, out),
         Command::Annotations {
             path,

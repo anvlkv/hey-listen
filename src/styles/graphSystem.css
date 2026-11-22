@@ -1,0 +1,64 @@
+/*
+ * Subsystem nodes (M40): the mini block-diagram preview on the parent node and its
+ * "Open" action, plus a `snoop` node's live envelope. Split from `graph.css` to stay
+ * inside the per-file size budget.
+ */
+
+.graph-node-system {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.graph-node-thumb {
+  width: 100%;
+  height: 36px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.graph-thumb-link {
+  stroke: var(--border-accent);
+  stroke-width: 0.8;
+}
+
+.graph-thumb-node {
+  fill: var(--accent-soft-fg);
+}
+
+.graph-node-open {
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 0.625rem;
+  color: var(--fg);
+  text-align: left;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-node-open:hover {
+  background: var(--control-hover);
+}
+
+.graph-snoop {
+  width: 100%;
+  height: 22px;
+  margin-top: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.graph-snoop-axis {
+  stroke: var(--border);
+  stroke-width: 0.6;
+}
+
+.graph-snoop-fill {
+  fill: var(--accent-soft-fg);
+  opacity: 0.7;
+}

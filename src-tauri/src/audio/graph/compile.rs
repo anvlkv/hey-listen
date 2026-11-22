@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 use fundsp::prelude64::*;
 
 use super::units::{finite, DynamicsUnit, GainLaw, MathOp, MathUnit, SumUnit, UnaryOp, UnaryUnit};
-use super::{is_input_kind, kind_arity, GraphError, GraphNode, GraphSpec};
+use super::{is_input_kind, is_subsystem, kind_arity, GraphError, GraphNode, GraphSpec};
 
 /// Halfway response time (seconds) of the one-pole smoother applied to a node's
 /// **control-rate** inputs, so live knob moves glide instead of stepping.
@@ -17,15 +17,30 @@ use super::{is_input_kind, kind_arity, GraphError, GraphNode, GraphSpec};
 /// Limitation: this smooths control signals *within* one compiled net. A full net
 /// rebuild (e.g. `set_filter_graph` after an edit) still applies the new params as a
 /// step — click-free smoothing across rebuilds is out of scope for this item.
-const CONTROL_SMOOTH: f32 = 0.01;
+pub(super) const CONTROL_SMOOTH: f32 = 0.01;
 
 /// Build the fundsp unit for one graph node.
-pub(super) fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphError> {
+///
+/// `scope` names the graph being compiled (`filter`, `synth`, or a subsystem path
+/// `system:filter/<node>`) so a `snoop` node can publish its samples to the right
+/// editor.
+pub(super) fn make_unit(
+    node: &GraphNode,
+    scope: &str,
+    sample_rate: u32,
+) -> Result<Box<dyn AudioUnit>, GraphError> {
     let p = |index: usize, default: f32| {
         finite(node.params.get(index).copied().unwrap_or(default), default)
     };
     // One-pole parameter smoother for control inputs (a fresh node per use).
     let smooth = || follow(CONTROL_SMOOTH);
+    if node.subgraph.is_some() && !is_subsystem(&node.kind) {
+        return Err(GraphError::UnexpectedSubsystem(node.id.clone()));
+    }
+    // M40's palette entries (subsystems, shapers, convolution, snoop, …).
+    if let Some(unit) = super::extras::make_unit(node, &p, scope, sample_rate) {
+        return unit;
+    }
     let unit: Box<dyn AudioUnit> = match node.kind.as_str() {
         // Anchors are pass-throughs bridged to the net's global input/output.
         "input" | "output" => Box::new(pass()),
@@ -105,9 +120,11 @@ pub(super) fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphErr
 
         // --- Filter families with fixed parameters (`*_hz` constructors) ---
         "allpass" => Box::new(allpass_hz(p(0, 1_000.0), p(1, 1.0))),
-        "bell" => Box::new(bell_hz(p(0, 1_000.0), p(1, 1.0), p(2, 1.0))),
-        "lowshelf" => Box::new(lowshelf_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.5))),
-        "highshelf" => Box::new(highshelf_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.5))),
+        // The gain of a bell / shelf goes through `sqrt` in fundsp, so it must stay
+        // strictly positive (a stored 0 from an older build would yield NaN).
+        "bell" => Box::new(bell_hz(p(0, 1_000.0), p(1, 1.0), p(2, 1.0).max(0.001))),
+        "lowshelf" => Box::new(lowshelf_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.5).max(0.001))),
+        "highshelf" => Box::new(highshelf_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.5).max(0.001))),
         "lowpole" => Box::new(lowpole_hz(p(0, 1_000.0))),
         "highpole" => Box::new(highpole_hz(p(0, 1_000.0))),
         "lowrez" => Box::new(lowrez_hz(p(0, 1_000.0), p(1, 1.0))),
@@ -115,7 +132,8 @@ pub(super) fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphErr
         "resonator" => Box::new(resonator_hz(p(0, 1_000.0), p(1, 110.0))),
         "morph" => Box::new(morph_hz(p(0, 1_000.0), p(1, 1.0), p(2, 0.0))),
         "pinkpass" => Box::new(pinkpass()),
-        "allpole_delay" => Box::new(allpole_delay(p(0, 1.0))),
+        // fundsp asserts a positive delay in samples for the all-pass.
+        "allpole_delay" => Box::new(allpole_delay(p(0, 1.0).max(0.01))),
         "biquad" => Box::new(biquad(
             p(0, 0.0),
             p(1, 0.0),
@@ -213,23 +231,23 @@ pub(super) fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphErr
         // --- Extra shaping, delay-as-signal and envelope/gate ---
         "zero" => Box::new(zero()),
         "impulse" => Box::new(impulse::<U1>()),
-        // The bounds are clamped to the palette's -1..1 and kept ordered, because
-        // `clip_to` clamps to whatever it is given.
+        // The bounds are clamped to the palette's -4..4 and kept ordered, because
+        // `clip_to` clamps to whatever it is given (and panics when min > max).
         "clip_to" => {
-            let min = p(0, -1.0).clamp(-1.0, 1.0);
-            let max = p(1, 1.0).clamp(-1.0, 1.0).max(min);
+            let min = p(0, -1.0).clamp(-4.0, 4.0);
+            let max = p(1, 1.0).clamp(-4.0, 4.0).max(min);
             Box::new(clip_to(min, max))
         }
         "declick" => Box::new(declick_s(p(0, 0.01).max(0.0))),
-        "dcblock_hz" => Box::new(dcblock_hz(p(0, 5.0).max(1.0))),
+        "dcblock_hz" => Box::new(dcblock_hz(p(0, 5.0).max(0.0))),
         "follow" => Box::new(follow(p(0, 0.05).max(0.0))),
         "afollow" => Box::new(afollow(p(0, 0.01).max(0.0), p(1, 0.1).max(0.0))),
         // `hold` and `tap` take their control on input 1; the variabilities and
         // delays are clamped to the ranges the palette offers.
         "hold" => Box::new(hold(p(0, 0.1).clamp(0.0, 1.0))),
         "tap" => {
-            let min_delay = p(0, 0.0).clamp(0.0, 5.0);
-            let max_delay = p(1, 1.0).clamp(0.0, 5.0).max(min_delay);
+            let min_delay = p(0, 0.0).clamp(0.0, 10.0);
+            let max_delay = p(1, 1.0).clamp(0.0, 10.0).max(min_delay);
             Box::new(tap(min_delay, max_delay))
         }
 
@@ -242,12 +260,29 @@ pub(super) fn make_unit(node: &GraphNode) -> Result<Box<dyn AudioUnit>, GraphErr
 ///
 /// `global_inputs` is 1 for a filter graph (the `input` node receives it) and 0 for
 /// a synth graph. The net always has exactly one (mono) output, fed by the `output`
-/// node.
+/// node. The scope is derived from `global_inputs`, which is what the two editors and
+/// analysis use; [`build_scoped`] is the explicit form for subsystems.
 pub fn build(spec: &GraphSpec, global_inputs: usize, sample_rate: u32) -> Result<Net, GraphError> {
-    build_with_ids(spec, global_inputs, sample_rate).map(|(net, _)| net)
+    let scope = if global_inputs == 1 {
+        "filter"
+    } else {
+        "synth"
+    };
+    build_scoped(spec, global_inputs, sample_rate, scope)
 }
 
-/// [`build`], also reporting each graph node's [`NodeId`].
+/// [`build`] with an explicit snoop/registration scope (`filter`, `synth`, or a
+/// subsystem path such as `filter/feedback-3`).
+pub fn build_scoped(
+    spec: &GraphSpec,
+    global_inputs: usize,
+    sample_rate: u32,
+    scope: &str,
+) -> Result<Net, GraphError> {
+    build_with_ids(spec, global_inputs, sample_rate, scope).map(|(net, _)| net)
+}
+
+/// [`build_scoped`], also reporting each graph node's [`NodeId`].
 ///
 /// A caller that keeps the net (`SynthSession`) patches one node with
 /// [`Net::crossfade`](fundsp::prelude64::Net::crossfade) when only that node's parameters
@@ -256,8 +291,11 @@ pub(super) fn build_with_ids(
     spec: &GraphSpec,
     global_inputs: usize,
     sample_rate: u32,
+    scope: &str,
 ) -> Result<(Net, HashMap<String, NodeId>), GraphError> {
     let mut net = Net::new(global_inputs, 1);
+    // A rebuild replaces every snoop in this scope; drop the stale frontends first.
+    super::snoop::clear_scope(scope);
 
     // 1) Push every node.
     let mut ids: HashMap<String, NodeId> = HashMap::new();
@@ -275,7 +313,7 @@ pub(super) fn build_with_ids(
         } else if kind == "output" {
             outputs.push(node.id.as_str());
         }
-        let node_id = net.push(make_unit(node)?);
+        let node_id = net.push(make_unit(node, scope, sample_rate)?);
         ids.insert(node.id.clone(), node_id);
     }
 

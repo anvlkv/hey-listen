@@ -7,7 +7,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::audio::analysis;
-use crate::audio::analyzers::{self, AnalyzerId};
+use crate::audio::analyzers::{self, AnalyzerId, ToolId};
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
 use crate::state::SourceData;
@@ -99,11 +99,8 @@ impl HeadlessSession {
     /// or an empty graph clears it.
     pub(super) fn set_filter_graph(&mut self, args: &Value) -> Result<Value, String> {
         let enabled = args.get("enabled").and_then(Value::as_bool).unwrap_or(true);
-        let graph = args.get("graph").cloned().filter(|value| !value.is_null());
-        let spec = match graph {
-            Some(value) if enabled => {
-                let spec: GraphSpec = serde_json::from_value(value)
-                    .map_err(|err| format!("invalid filter graph: {err}"))?;
+        let spec = match graph_arg(args)? {
+            Some(spec) if enabled => {
                 if spec.is_empty() {
                     None
                 } else {
@@ -120,6 +117,34 @@ impl HeadlessSession {
         // (the GUI keys on a filter fingerprint instead).
         self.results.clear();
         Ok(json!({ "filter": { "enabled": applied } }))
+    }
+
+    /// The current graph as DOT (`filter` or `synth`). Headless has no editor layout,
+    /// so this is the stored `GraphSpec` emitted as text.
+    pub(super) fn get_graph(&self, args: &Value) -> Result<Value, String> {
+        let graph = args
+            .get("graph")
+            .and_then(Value::as_str)
+            .ok_or("`graph` is required")?
+            .parse::<ToolId>()
+            .map_err(|_| "`graph` must be `filter` or `synth`".to_string())?;
+        let spec = match graph {
+            ToolId::Filter => self
+                .state
+                .audio
+                .filter
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .clone(),
+            ToolId::Synth => self.synth.clone(),
+            other => return Err(format!("`{other}` is not a graph editor")),
+        };
+        let dot = spec
+            .as_ref()
+            .map(graph::emit)
+            .transpose()
+            .map_err(|err| err.to_string())?;
+        Ok(json!({ "graph": graph, "dot": dot, "spec": spec }))
     }
 
     pub(super) fn source_summary(&self) -> Value {
@@ -207,20 +232,15 @@ impl HeadlessSession {
     }
 
     pub(super) fn render_synth(&mut self, args: &Value) -> Result<Value, String> {
-        // The synth *editor* is UI-only, so headless `render_synth` takes the graph
-        // directly (a `GraphSpec`: `{ nodes: [{ id, kind, params }], edges: [...] }`).
-        let graph_value = args
-            .get("graph")
-            .cloned()
-            .filter(|value| !value.is_null())
-            .or_else(|| {
-                self.synth
-                    .as_ref()
-                    .and_then(|spec| serde_json::to_value(spec).ok())
-            })
-            .ok_or("`render_synth` needs a `graph` in headless mode (there is no synth editor)")?;
-        let spec: GraphSpec = serde_json::from_value(graph_value)
-            .map_err(|err| format!("invalid synth graph: {err}"))?;
+        // The synth *editor* is UI-only, so headless `render_synth` takes the graph as
+        // DOT text, a file path, or a legacy JSON `GraphSpec`; without one it re-renders
+        // the last graph.
+        let spec = match graph_arg(args)? {
+            Some(spec) => spec,
+            None => self.synth.clone().ok_or(
+                "`render_synth` needs a `graph` in headless mode (there is no synth editor)",
+            )?,
+        };
 
         let seconds = args
             .get("seconds")
@@ -311,5 +331,24 @@ impl HeadlessSession {
             envelope["result"] = value;
         }
         Ok(envelope)
+    }
+}
+
+/// The graph an agent sent: a `graphFile` path, an inline DOT string, or a legacy JSON
+/// `GraphSpec`. `None` when neither key is present.
+fn graph_arg(args: &Value) -> Result<Option<GraphSpec>, String> {
+    if let Some(path) = args.get("graphFile").and_then(Value::as_str) {
+        return graph::parse_file(path)
+            .map(Some)
+            .map_err(|err| format!("invalid graph file {path}: {err}"));
+    }
+    match args.get("graph") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(text)) => graph::parse_input(text)
+            .map(Some)
+            .map_err(|err| format!("invalid graph: {err}")),
+        Some(value) => serde_json::from_value(value.clone())
+            .map(Some)
+            .map_err(|err| format!("invalid graph: {err}")),
     }
 }

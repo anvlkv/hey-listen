@@ -2882,7 +2882,7 @@ the view-kind table it belongs to.
 > re-run for this change: no spec asserts the removed panels, and the affected surfaces
 > are preview-checked.
 
-## M39 — DOT notation for filter/synth graphs (planned)
+## M39 — DOT notation for filter/synth graphs ✅
 
 Make the filter and synth graphs editable as **text** — Graphviz DOT — instead of
 hand-written JSON, for an agent and for the user. A graph is read from a DOT string or a
@@ -2901,8 +2901,8 @@ edge names the port it touches.
   digraph {
     node [shape=record];
     in  [kind="input"];
-    lp  [kind="lowpass_cv", cutoff=1000, q=1.0,
-         label="<audio> audio | <cut> cut | <Q> q | <out> out"];
+    lp  [kind="lowpass_cv",
+         label="<audio> audio | <cut> cut | <Q> Q | <out> out"];
     out [kind="output"];
     in:out -> lp:audio;
     lp:out -> out:in;
@@ -2951,12 +2951,12 @@ edge names the port it touches.
 > **keyed**; the node catalog is a single Rust source of truth exported by ts-rs. See
 > [`decisions.md`](decisions.md) → ADR-36.
 
-**Files:** `src-tauri/src/audio/graph/{dot.rs,nodes.rs}`,
-`src-tauri/src/mcp/tools/workbench.rs`, `src-tauri/src/mcp/dispatch/session.rs`,
+**Files:** `src-tauri/src/audio/graph/{dot/*,nodes/*,mod.rs,types.rs}`,
+`src-tauri/src/mcp/tools/{workbench.rs,source.rs}`, `src-tauri/src/mcp/dispatch/{session.rs,mod.rs}`,
 `src-tauri/cli/src/batch/{inputs.rs,args.rs,clap_args.rs,nodes.rs}`,
-`src/lib/graph/{kinds/*,ports.ts,palette.ts,spec.ts}` (collapse into a binding import),
-`src-tauri/Cargo.toml` (add `petgraph` with `dot_parser`), `docs/source-model.md`,
-`docs/mcp-cli-ergonomics.md`.
+`src/lib/graph/{index.ts,palette.ts,spec.ts,types.ts}` + `src/bindings/nodeCatalog.json`,
+`src-tauri/Cargo.toml` (add `petgraph` with `dot_parser` + `dot-parser`),
+`docs/graph-editor.md`, `docs/cli.md`, `docs/mcp-cli-ergonomics.md`.
 
 **Tests.** Rust: `GraphSpec → DOT → GraphSpec` round-trip for every node kind (including
 all multi-port kinds), keyed-param resolution and errors, port-reference resolution,
@@ -2967,3 +2967,97 @@ file-path loading, and parity with the existing JSON path. MCP/CLI: `list_nodes`
 
 **Not part of this milestone:** DOT is a text interchange, not a replacement for the
 solid-flow editor; graph layout authoring and a DOT diff/merge view are out of scope.
+
+### Delivered
+
+- **One node catalog.** `src-tauri/src/audio/graph/nodes/` is the single table (arity,
+  port names, param specs, category, hint, filter/synth-only). `kind_arity` reads it, the
+  DOT parser resolves keys and ports against it, and `cargo test` writes
+  `src/bindings/nodeCatalog.json` (plus `NodeDef`/`NodeParam`/`NodeCategory` via ts-rs), so
+  the editor palette and `portLabel` derive from the same table. The frontend `kinds/*`,
+  `ports.ts` and `params.ts` are gone.
+- **DOT in and out.** `audio/graph/dot/` parses with `dot-parser`'s AST (the only layer
+  where `node:port` survives) and emits `digraph` text. Params are keyed, omitted keys take
+  the catalog default, and unknown keys, out-of-range values, unknown ports, missing ports
+  and bad record labels are `GraphError`s. `GraphSpec → DOT → GraphSpec` is identity and
+  pinned for every kind.
+- **Boundaries.** MCP `get_graph` returns DOT, and `set_filter_graph` / `render_synth`
+  accept a DOT string or `graphFile` (legacy JSON still works). The CLI `synth <GRAPH>`,
+  `--filter` and `project --synth/--filter` read DOT, a `.dot`/`.gv` file or a legacy JSON
+  file; `analyzers` gained its catalog twin **`nodes [KIND] [--json]`**, and MCP gained
+  **`list_nodes` / `get_node`** (the latter with a ready-to-paste DOT skeleton).
+- **Shareable artifact.** Each graph tab's toolbar imports a `.dot`/`.gv` file and exports
+  the current graph to `.dot` (`graph_read_file` / `graph_write_dot`); imported nodes land
+  on a grid and **Layout** re-derives the real one. Node positions stay outside DOT, and
+  the project file keeps `GraphSpec` (petgraph's `serde-1` is not enabled).
+
+> **Validation:** `cargo test` (graph round-trip for every kind, keyed-param and port
+> errors, catalog/`make_unit` agreement, MCP DOT + catalog tests, CLI `nodes` and DOT
+> input), `npm run typecheck`, `npm run build`, `npm run maid`, and the **S4** E2E spec
+> (`e2e/specs/s4-graph-dot.spec.ts`): both editors import/export/round-trip the two
+> committed DOT fixtures, MCP lists the catalog and round-trips DOT, and the CLI `nodes` /
+> `synth` / `--filter` consume them.
+
+## M40 — Complete fundsp coverage, subsystems and snoop ✅
+
+Close the gap between the node catalog and fundsp's composable node set, and give the
+nodes that wrap an **inner graph** a home: a nested graph edited in its own tab.
+
+### Coverage
+
+Every fundsp node family that fits the mono/stereo, numeric-params model now has a
+kind. The catalog (`src-tauri/src/audio/graph/nodes/`) is the owner of that list; what
+changed here is the M40 group it gained, and the families that cannot be a flat node are
+either a **subsystem** (`subgraph`, `feedback`, `oversample`, `resample`) or
+intentionally out (see [`graph-editor.md`](graph-editor.md) → Deferred).
+
+### Subsystems
+
+A `subsystem` kind owns a nested `GraphSpec` (`GraphNode.subgraph`):
+
+- The node card shows a mini block-diagram **preview** and an **Open** action; the
+  Sidebar lists every subsystem (nested ones included).
+- The tab is `system:<parent>/<node>` and hosts the same `GraphEditor`; edits are mirrored
+  back into the owning node, so the project, DOT, MCP and the core see one spec.
+- Deleting the node closes and drops its stores (undoable with the project).
+- DOT writes the inner graph as a nested `subgraph "<id>.system" { … }` block, named by
+  the node's `system` attribute; `GraphSpec → DOT → GraphSpec` stays identity.
+- The project format bumps to **7**: `SOURCE`'s synth graph gains the trailing
+  `subgraph` field, migrated by `project/migrate/v6.rs`.
+
+### Snoop
+
+`snoop` passes the signal through and draws a **compact live envelope** on its node
+(`graph_snoop`, polled only while visible). It works under both editors and inside a
+subsystem (the registry keys on `scope/node`).
+
+### Parameter ranges
+
+A parameter's `min..max` follows fundsp's own domain where fundsp documents one (`fir3`'s
+Nyquist gain, a strictly positive bell/shelf gain, a positive `allpole_delay`, a 10–30 m
+reverb room, a `-1..1` morph); where fundsp bounds nothing, the range is a generous
+musical bound rather than a DSP limit — `dc` reaches ±20 000 so it can drive a frequency,
+Q or gain control input. `nodes/tests.rs` renders every kind at each parameter's `min` and
+`max`, so a range the compiler cannot take fails the suite instead of the audio.
+
+**Files:** `src-tauri/src/audio/graph/{compile.rs,extras.rs,snoop.rs,units.rs,
+ dot/*,nodes/*,tests*.rs}`, `src-tauri/src/project/migrate/v6.rs`, `src/bindings/*`
+ (generated), `src/lib/graph/{scope.ts,thumbnail.ts,spec.ts,palette.ts}`,
+ `src/state/{graph.ts,graphHandles.ts,graphKinds.ts,subsystems.ts,workbench.ts}`,
+ `src/components/{GraphNode.tsx,Sidebar.tsx,Workbench.tsx,ToolContent.tsx}`,
+ `src/components/graphEditor/{SubsystemTab.tsx,SnoopTrace.tsx}`,
+ `e2e/fixtures/{focus-chain.dot,aurora-pad.dot}`, `e2e/specs/s4-graph-dot.spec.ts`,
+ `docs/{graph-editor.md,project-file-format.md,testing.md}`.
+
+**Tests.** Rust: every catalog kind compiles (subsystems with a seeded inner graph) and
+stays finite at every parameter's `min`/`max`;
+new generators/shaper/filters render sound; nested DOT round-trips and rejects an
+unmatched `system` block; `snoop` publishes its signal; the `v6 → v7` migration keeps
+`SOURCE`. Frontend: `toSpec`/`fromSpec` keep a nested spec, scopes parse, the preview
+lays out in depth columns. E2E **S4 V5**: the filter editor imports a subsystem graph,
+opens its tab from the node, finds it in the Sidebar, exports nested DOT, MCP round-trips
+the nesting, and the CLI renders the `oversample`/`feedback` synth fixture.
+
+> **Validation:** `cargo test` (graph + migration), `npm run typecheck`, `npm run build`,
+> `npm run typecheck:e2e`, `npm run maid`; the S4 spec (V1–V5) is run by the user, as the
+> release build is required.

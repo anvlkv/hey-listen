@@ -140,6 +140,16 @@ stereo capture, saved setup and layout, empty `RESULTS`). H4 opens a **copy** of
 saving the migrated project rewrites the file; `src-tauri/tests/project_migration.rs`
 loads the same bytes in Rust.
 
+Two more files are committed because they are **authored graph source**, not generated
+data: `e2e/fixtures/tone-stack.dot` (a warm mono → stereo → mono filter chain) and
+`e2e/fixtures/glass-pad.dot` (a detuned saw pad). S4 imports, exports, renders and
+filters with that one pair across the two editors, MCP and the CLI; the native file
+dialogs are stubbed, but the DOT files themselves are read and written for real.
+
+M40 adds two **subsystem** fixtures: `focus-chain.dot` (a filter whose `colour` node
+hides a notch → bell → shelf chain) and `aurora-pad.dot` (a synth whose `oversample`
+drive and `feedback` echo are nested, with a `snoop` tap). S4 V5 drives both.
+
 ## Selectors
 
 Tests select by stable `data-testid` plus the existing ARIA labels (the search box
@@ -149,11 +159,15 @@ Convention: `data-testid="region.toolbar|sidebar|workbench|timeline|source|botto
 (regions), `toolbar.filter` (the Filter switch in the **Timeline** toolbar),
 `toolbar.error`, `toolbar.preview.error` (a preview that could not start),
 `sidebar.search`,
-`sidebar.tool.<id>`, `tab.<id>` (stamped on the dockview tab), `analyzer.<id>`,
+`sidebar.tool.<id>`, `tab.<id>` (stamped on the dockview tab), `sidebar.subsystem` (a
+subsystem row under the Graphs tab), `analyzer.<id>`,
 `analyzer.error`, `analyzer.params.<id>` / `analyzer.about.<id>`, `graph.error`,
 `graph.warning` (the persistent **Output is not connected** banner),
 `graph.connection.warning` (the transient rejected-connection banner), `graph.render`,
-`graph.clear`, `graph.hint` (the node/link toolbar hint), `graph.node` (a node, also
+`graph.clear`, `graph.import` / `graph.export` (the DOT artifact buttons),
+`graph.subsystem.thumbnail` / `graph.subsystem.open` / `graph.subsystem.title` (a
+subsystem node's preview, its tab opener, and the nested tab's title), `graph.snoop` (a
+snoop node's live envelope), `graph.hint` (the node/link toolbar hint), `graph.node` (a node, also
 carrying `data-kind`) / `graphNode(kind)`, `graph.port` (a port label),
 `graph.palette.btn` (a palette button), `source.openFile`, `source.kind`,
 `source.error`, `timeline.canvas`, `timeline.replace`, `toolbar.about` (the About
@@ -640,6 +654,22 @@ files back from disk. Sorts before `t-close-main` (which must stay last).
 | # | Test | Asserts | Kind |
 | --- | --- | --- | --- |
 | U1 | Export CSV + PNG | A spectrum's CSV has the expected header and rows, its `.meta.json` sidecar is the envelope without `result`, and the chart PNG is written with a valid signature | Scenario |
+
+### S4. Graph DOT interchange (M39)
+
+The DOT form (ADR-36) is driven at **every** boundary it crosses, with the committed
+graph fixtures from `e2e/fixtures/` — a non-trivial chain each, carrying record-labelled
+ports and a stereo bridge rather than one node (V5 adds the nested-subsystem pair). The
+dialogs are stubbed; the file commands, MCP socket and CLI process are real. Sorts before
+`t-close-main`.
+
+| # | Test | Asserts | Kind |
+| --- | --- | --- | --- |
+| V1 | Filter DOT in/out | The filter editor imports `tone-stack.dot` (10 nodes, 11 links, no `graph.error`), exports it and writes keyed params, the record labels and `width:L -> hall:L`, then a fresh import of the exported bytes restores the same graph | Scenario |
+| V2 | Synth DOT in/render/out | The synth editor imports `glass-pad.dot` (14 nodes), renders it to the timeline, and exports a DOT file containing the oscillators, the declick and the mixer ports | Scenario |
+| V3 | MCP catalog + DOT | `list_nodes` and `get_node` report the catalog and a DOT skeleton; `set_filter_graph` accepts a `graphFile`, `get_graph` returns its DOT, and `render_synth` renders an inline DOT string | Scenario |
+| V4 | CLI DOT paths | `nodes KIND --json` returns the skeleton, `synth <dot> --seconds` renders the pad, and `analyze --filter <dot>` keeps the 440 Hz peak | Scenario |
+| V5 | Subsystems + snoop | The filter editor imports `focus-chain.dot` (5 nodes), shows a subgraph node with its preview and a snoop; **Open** on the node opens the nested tab (5 nodes, `nested in filter`); the Sidebar lists it; the filter's export writes `system="colour.system"` + a nested `subgraph` block; MCP installs the same file and reads the nesting back; the CLI renders `aurora-pad.dot` (`oversample` + `feedback`) to 24 000 frames | Scenario |
 
 ### T. Closing the main window (M7 multi-window)
 

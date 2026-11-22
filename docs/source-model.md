@@ -27,6 +27,11 @@ The project descriptor stores the kind as **our** `SourceKind` enum (`file` / `m
 (`SystemLoopback` / `ProcessLoopback`); our enum deliberately shortens them to
 `system` / `process` on the wire.
 
+The **synth graph** behind a synth source — and the project's **filter graph** — has a
+canonical **DOT** text form that can be imported/exported independently of the project
+file; the stored form stays `GraphSpec` (ADR-36, [`graph-editor.md`](graph-editor.md) →
+DOT interchange).
+
 ## Recordable inputs
 
 For `Mic` / `SystemLoopback` / `ProcessLoopback` / `Mix`:

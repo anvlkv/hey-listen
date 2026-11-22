@@ -170,7 +170,7 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `get_analyzer` | One analyzer's metadata — `about` copy, option metadata (key/label/default/min/max/step/unit/help), **family** / **decimatable**, and summary keys. **(M21, M21.A)** |
 | `open_audio_file` | Open a file source (`path`, `replace`). |
 | `close_source` | Drop the source. |
-| `render_synth` | Render the synth graph to a source (`seconds`, `replace`). |
+| `render_synth` | Render the synth graph to a source (`seconds`, `replace`). `graph` is DOT text (canonical), a `graphFile` path, or a legacy JSON `GraphSpec`; headless without one re-renders the last graph. **(M39)** |
 | `run_analysis` | Run an analyzer over the analysis window; optional `start`/`end`/`params`/`options` (canonical camelCase keys; snake_case aliases accepted; unknown keys fail); `display: false` computes without opening a tab; `transient` applies the overrides for one call only; `includeData` returns full arrays (default: compacted), `maxPoints` thins series/matrices (never event lists), and `axis: "compact"` spells a `times` array as `{ start, hop, length, end }` (plus `firstHop`/`lastHop` for a differing edge frame). **(M21, M21.A)** `summaryOnly` returns just the summary; the compact/full envelope always carries `summary`. |
 | `compare_analysis` | Compare **the same tool** on two project sides: `with` names the live reference window (app) or the reference **project file** (headless, M25.D), `target` the owner (default: focused, app); `bOffset` (seconds) is the fine-tune offset (M25.B); `saved: true` uses the owner's saved snapshot instead of `with` (M25.C). Returns `{ tool, a, b, comparability, diff }`; each side carries its window/params/options/summary/result, `comparability.alignment` reports the relative extents/common span, and `diff` is omitted when the grids differ or the shifted windows do not meet. `includeData` / `maxPoints` / `axis` / `summaryOnly` mirror `run_analysis`; `display` (default true) opens the compare view. The last successful comparison is stored in the owner, so `save_project` writes it. **(M25, M25.B, M25.C, M25.D)** See [`comparison.md`](comparison.md). |
 | `set_analysis_window` | Set the region every analyzer runs over. |
@@ -178,9 +178,10 @@ to a **core-native headless** server instead (see *Headless CLI* below).
 | `set_shared_params` | Patch the shared analysis params. |
 | `set_tool_options` | Patch one analyzer's own options. Keys are canonical camelCase (`nMels`, `yinThreshold`, `minF0Hz`); snake_case aliases are accepted; an unknown key or non-numeric value fails. See `list_analyzers` for each tool's keys/defaults. **(M16)** |
 | `open_tool` / `close_tool` | Open / close a Workbench tab (analyzer id, `filter`, or `synth`). `open_tool` takes an optional **`position: { referenceGroup, direction }`** (`within` = a tab, the default; `left` / `right` / `above` / `below` split that group) so an agent can lay analyzers out side by side; `referenceGroup` is a group id from `get_state.workbench.groups` **or** a tool id open in that group, and an unknown one fails rather than falling back. Headless there is no webview, so the tab joins/leaves the project's `SETUP.openTools` restore list (reported by `get_state.openTools`, written by `save_project`, opened by the app on load) and `position` is ignored — no `LAYOUT` is written. **(M25.D)** |
-| `get_graph` | Read a graph editor's `{ nodes, edges }`. |
-| `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). In headless mode takes a `GraphSpec` directly. |
-| `set_synth_graph` | Replace the synth graph. |
+| `list_nodes` / `get_node` | The filter/synth **node catalog** (kind/label/category/ports/param specs/hint), and one kind with a ready-to-paste **DOT skeleton**. One Rust table feeds these, DOT and the editor palette. **(M39)** |
+| `get_graph` | Read a graph (`filter` / `synth`) back as **DOT** (the canonical text form); the app also returns its editor layout. **(M39)** |
+| `set_filter_graph` | Replace the filter graph and/or toggle it (`enabled`). `graph` is DOT text, a `graphFile` path, or a legacy JSON `GraphSpec`. **(M39)** |
+| `set_synth_graph` | Replace the synth editor's layout (app-only). |
 | `preview` / `stop_preview` | Preview playback. |
 | `set_output_gain` | Preview output gain. |
 | `list_output_devices` / `list_input_devices` / `list_processes` | Enumerate devices / processes. |
@@ -339,17 +340,18 @@ Three additions on top of the delivered server (see `docs/roadmap.md` → M9):
    - `--headless` forces the headless mode (skips the probe).
    - The headless subset is the **engine-backed compute surface**: `get_state`,
      `list_analyzers`, `get_analyzer`, `open_audio_file`, `close_source`,
-     `render_synth` (with an explicit `graph`), `set_filter_graph` (with an explicit
-     `GraphSpec`), `run_analysis`, `compare_analysis` (against a project file, M25.D),
+     `render_synth` (with an explicit `graph`: DOT / `graphFile`), `set_filter_graph`
+     (DOT / `graphFile` / a legacy `GraphSpec`), `get_graph` (returns DOT), `list_nodes` /
+     `get_node`, `run_analysis`, `compare_analysis` (against a project file, M25.D),
      `set_analysis_window`, `set_view`,
      `set_shared_params`, `set_tool_options`, the `list_*` enumerations, and
      `save_project` / `open_project` / `new_project` (source + setup + annotations + openTools;
      no Workbench layout) — plus the **data** halves of the export tools
      (`export_analysis`, `export_all`; `export_chart` needs the canvas).
      UI-only tools — the Workbench **layout** (`open_tool.position`; the tab itself is
-     recorded headless), the editor-layout graphs (`get_graph` /
-     `set_synth_graph`), and live preview/capture (real device I/O with no UI to
-     configure it) — answer "requires the app".
+     recorded headless), the synth **editor layout** (`set_synth_graph`), and live
+     preview/capture (real device I/O with no UI to configure it) — answer "requires the
+     app".
    - One shared engine path: the GUI command and the headless dispatcher both call
      `analysis::run_window` (the slice + condition + run logic that used to live in
      `commands/analysis.rs`), and the other engines (`audio::decode`, `audio::graph`,
@@ -453,12 +455,14 @@ analyzer. See [`mcp-cli-ergonomics.md`](mcp-cli-ergonomics.md).
   *A relaunch owns the port* above), leaving exactly one owner.
 - **Headless is the compute + project subset.** `heylisten-mcp --headless` runs
   analyzers over files, enumerates devices, installs a compute filter
-  (`set_filter_graph` with a `GraphSpec`), compares against a project file
+  (`set_filter_graph` with DOT text, `graphFile`, or a legacy `GraphSpec`), reads a graph
+  back as DOT (`get_graph`), discovers the node catalog (`list_nodes` / `get_node`),
+  compares against a project file
   (`compare_analysis`), and saves/opens projects (source + setup + annotations + the
   `openTools` restore list; there is no Workbench layout). `open_tool` / `close_tool`
   maintain that restore list, and `get_state` reports `openTools` and the project's
   `savedComparisons`. It cannot edit the
-  editor-layout graphs (`get_graph` / `set_synth_graph`) or drive live preview/capture —
+  synth **editor layout** (`set_synth_graph`) or drive live preview/capture —
   those need the app. The headless orchestration is a second (thin) dispatcher that must
   stay in step with the GUI handlers for the tools it covers. For scripting without an
   MCP client at all, use the batch CLI instead — [`cli.md`](cli.md)

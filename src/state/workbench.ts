@@ -6,6 +6,16 @@ import { ANALYZERS } from "./analyzer/defs";
 import { isAnalyzerId } from "./analyzer/lookup";
 import type { AnalyzerId } from "./analyzer/types";
 import { isCompareId } from "./compare/id";
+import type { GraphScope } from "../lib/graph";
+import {
+  dropSystem,
+  ensureSystem,
+  parseSystemScope,
+  subsystems,
+  systemScope,
+  systemsUnder,
+  type SubsystemScope,
+} from "./subsystems";
 
 /**
  * Workbench tab registry.
@@ -69,10 +79,10 @@ export const [layoutRevision, setLayoutRevision] = createSignal(0);
  */
 export const [openCompareIds, setOpenCompareIds] = createSignal<string[]>([]);
 
-/** The focused Workbench tool id, or `null` when nothing (or a compare view) is focused. */
+/** The focused Workbench tool id, or `null` when nothing (or a compare/subsystem view) is focused. */
 export function focusedTool(): ToolId | null {
   const id = dockApi()?.activePanel?.id;
-  return id && !isCompareId(id) ? (id as ToolId) : null;
+  return id && !isCompareId(id) && !isSystemPanel(id) ? (id as ToolId) : null;
 }
 
 /** The focused **analyzer** tab, or `null` (a graph tab, or nothing focused). */
@@ -132,7 +142,7 @@ export async function openTool(id: ToolId, position?: ToolPosition) {
 }
 
 /** Add a tool to the main window's grid — never into a popped-out group. */
-function addToMainGrid(api: DockviewApi, id: ToolId, title: string, position?: ToolPosition) {
+function addToMainGrid(api: DockviewApi, id: string, title: string, position?: ToolPosition) {
   const reference = position?.referenceGroup
     ? requireGroup(api, position.referenceGroup)
     : mainGridGroup(api);
@@ -183,9 +193,15 @@ export function workbenchGroups() {
   if (!api) return [];
   return api.groups.map((group) => ({
     id: group.id,
-    tools: group.panels.map((panel) => panel.id).filter((id) => !isCompareId(id)),
+    tools: group.panels
+      .map((panel) => panel.id)
+      .filter((id) => !isCompareId(id) && !isSystemPanel(id)),
     activeTool:
-      group.activePanel && !isCompareId(group.activePanel.id) ? group.activePanel.id : null,
+      group.activePanel &&
+      !isCompareId(group.activePanel.id) &&
+      !isSystemPanel(group.activePanel.id)
+        ? group.activePanel.id
+        : null,
   }));
 }
 
@@ -209,9 +225,56 @@ export async function popoutTool(id: ToolId) {
 /** The open Workbench tab ids, in dockview order: tools and (separately) compare views. */
 export function syncOpenTools(api: DockviewApi) {
   setOpenTools(
-    api.panels.filter((panel) => !isCompareId(panel.id)).map((panel) => panel.id as ToolId),
+    api.panels
+      .filter((panel) => !isCompareId(panel.id) && !isSystemPanel(panel.id))
+      .map((panel) => panel.id as ToolId),
   );
   setOpenCompareIds(api.panels.filter((panel) => isCompareId(panel.id)).map((panel) => panel.id));
+}
+
+/** Whether a panel id is a subsystem tab (`system:<parent>/<node>`). */
+export function isSystemPanel(id: string): boolean {
+  return parseSystemScope(id) != null;
+}
+
+/** Open (or focus) a subsystem's tab, creating its store from the owning node. */
+export function openSystem(scope: SubsystemScope): void {
+  ensureSystem(scope);
+  const api = dockApi();
+  if (!api) return;
+  const existing = api.getPanel(scope);
+  if (existing) {
+    existing.api.setActive();
+    return;
+  }
+  addToMainGrid(api, scope, systemTitle(scope));
+}
+
+/** A subsystem tab's title: its kind, or a plain fallback when the node is gone. */
+function systemTitle(scope: SubsystemScope): string {
+  const system = subsystems().find((item) => item.scope === scope);
+  return system ? `Subsystem · ${system.label}` : "Subsystem";
+}
+
+/** Close the subsystem tabs of `nodes` just deleted from `parent`. */
+export function closeSystemsUnder(parent: GraphScope, nodes: Iterable<string>): void {
+  const api = dockApi();
+  for (const node of nodes) {
+    api?.getPanel(systemScope(parent, node))?.api.close();
+  }
+}
+
+/**
+ * Replace a parent graph's subsystems: close every open nested tab and drop its store,
+ * so a tab left mounted can never edit an orphan. Callers then `loadGraph`/`loadSpec`
+ * (a project restore re-opens the saved tabs from the layout).
+ */
+export function resetSystems(parent: GraphScope): void {
+  const api = dockApi();
+  for (const scope of systemsUnder(parent)) {
+    api?.getPanel(scope)?.api.close();
+    dropSystem(scope);
+  }
 }
 
 /**

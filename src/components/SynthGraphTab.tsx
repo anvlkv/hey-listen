@@ -3,7 +3,12 @@ import { Switch } from "@kobalte/core/switch";
 import Button from "./Button";
 import GraphEditor from "./GraphEditor";
 import Tooltip from "./Tooltip";
-import { ClearGraphButton, GraphError, GraphNotices } from "./graphEditor/GraphTabChrome";
+import {
+  ClearGraphButton,
+  GraphError,
+  GraphFileButtons,
+  GraphNotices,
+} from "./graphEditor/GraphTabChrome";
 import { createNumberDrag } from "../lib/dragNumber";
 import { SYNTH_GRAPH } from "../state/graph";
 import {
@@ -97,6 +102,7 @@ export default function SynthGraphTab() {
         {rendering() ? "Rendering…" : "Render"}
       </Button>
       <GraphError message={synthError} />
+      <GraphFileButtons graph="synth" />
       <ClearGraphButton graph="synth" />
     </GraphEditor>
   );

@@ -1,0 +1,31 @@
+// M40 fixture: a subgraph (nested chain) in a filter graph, with a snoop tap.
+// Import it in the filter editor, open the subsystem's tab, and export it back.
+digraph {
+    node [shape=record];
+
+    in    [kind="input"];
+    hp    [kind="highpass", freq=90, q=0.7];
+    colour [kind="subgraph", system="colour.system"];
+    probe [kind="snoop", capacity=512];
+    out   [kind="output"];
+
+    in -> hp;
+    hp -> colour;
+    colour -> probe;
+    probe -> out;
+
+    subgraph "colour.system" {
+        node [shape=record];
+
+        in    [kind="input"];
+        notch [kind="notch", freq=430, q=2.4];
+        bell  [kind="bell", freq=2600, q=1.1, gain=1.25];
+        air   [kind="highshelf", freq=7800, q=0.8, gain=1.15];
+        out   [kind="output"];
+
+        in -> notch;
+        notch -> bell;
+        bell -> air;
+        air -> out;
+    }
+}

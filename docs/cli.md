@@ -96,9 +96,10 @@ hey-listen-cli <COMMAND>
 Commands:
   analyzers [ID] [--json]   List the analyzer catalog, or explain one analyzer
   analyze  <FILE>...        Open audio file(s) or saved .heyl project(s) and run analyzers
+  nodes    [KIND] [--json]  List the filter/synth node catalog, or explain one kind
   compare  <A.heyl> <B.heyl> Diff one analyzer across two project files
   project  <OUT.heyl>       Build a .heyl project (source + setup + tabs), no window
-  synth    <GRAPH.json>     Render a synth graph and (optionally) analyze the result
+  synth    <GRAPH>          Render a synth graph and (optionally) analyze the result
   annotations <FILE.heyl>   List or edit the annotations in a project file
   migrate  <FILE.heyl>...   Upgrade project files to the current format version
 
@@ -130,7 +131,7 @@ loading, so they win over a project's saved setup.
 | `--windows <FILE>` | Run a **list of windows** in one process: one `start,end[,tool,tool…]` per line, `#` comments allowed. A line without tools uses `-t` / `--all`. Mutually exclusive with `--start`/`--end`. **(M21.B)** |
 | `-p, --param <K=V>` | Patch a **shared** param (repeatable), using the same keys MCP's `set_shared_params` takes: `fftSize`, `hop`, `windowFn` (`hann`/`hamming`/`blackman`/`rectangular`), `channel`, `resampleTo`, `freqMinHz`, `freqMaxHz`, `randomizedOverlap`. |
 | `-o, --option [TOOL.]K=V` | Patch a **per-tool** option (repeatable), using the same keys MCP's `set_tool_options` takes (`nMels`, `nMfcc`, `nBands`, `rolloffPercent`, `yinThreshold`, `minF0Hz`/`maxF0Hz`, `barLength`, `windowMs`, `frameMs`/`hopMs`, `gateDb`/`gateFloorDb`, `hysteresisDb`, `minNoteMs`/`minGapMs`, `syllableGapMs`, `fMinHz`/`fMaxHz`). Canonical camelCase is preferred; snake_case aliases (`min_f0_hz`, `n_mels`, …) are accepted and canonicalized. An unknown key fails. **Name the tool** when several are run (`-o mfcc.nMfcc=13`); a bare `-o K=V` is scoped to the sole `--tool`. The tool must be named with several tools because neither parser reports the interleaved order of `-t` and `-o` flags. Run `analyzers <ID>` to print a tool's keys, defaults, ranges, and help. |
-| `--filter <FILE>` | Apply a filter `GraphSpec` (JSON) before analysis. |
+| `--filter <FILE|DOT>` | Apply a filter graph before analysis. DOT text (or a `.dot`/`.gv` file) is the canonical form; a legacy JSON `GraphSpec` is accepted. **(M39)** |
 | `--full` | Include the raw result arrays (default: compacted — see below). The `summary` is present in both modes. |
 | `--summary` | Emit the summary only (`{ file, window, params, options, summary }`), without result arrays. Mutually exclusive with `--full`. **(M21)** |
 | `--pretty` | Pretty-print a single result instead of one JSON line per result. |
@@ -216,6 +217,13 @@ JSONL; the saved path is reported on stderr.
 | `ID` | Optional analyzer id. With it, print the description, about copy, option metadata (defaults / ranges / help), and summary keys. **(M21)** |
 | `--json` | Emit the analyzer catalog (or the one analyzer) as JSON, matching MCP's `list_analyzers` / `get_analyzer`. Otherwise a plain table. |
 
+### `nodes [KIND]`
+
+The catalog twin of `analyzers` (M39): with no id, list every filter/synth node kind
+(`kind`, `category`, `inputs→outputs`, label); with `KIND`, explain one — its ports, parameter
+specs, and a ready-to-paste **DOT skeleton**. `--json` mirrors MCP's `list_nodes` /
+`get_node`, so an agent never has to guess a port or a param key.
+
 ### `annotations <FILE.heyl>` (M14; editing since M25.D)
 
 List, get, add, update or delete the **annotations** stored in a project file, without a window
@@ -267,12 +275,12 @@ and Workbench tabs. Nothing is analyzed unless you run `analyze` / `compare` sep
 | Option | Meaning |
 | --- | --- |
 | `--source <AUDIO>` | Decode this file as the project source (mutually exclusive with `--synth`). |
-| `--synth <GRAPH.json>` | Render a synth graph as the source; `--seconds` sets its length (default 5). |
+| `--synth <GRAPH>` | Render a synth graph (DOT text/file or legacy JSON) as the source; `--seconds` sets its length (default 5). |
 | `--name <NAME>` | Project display name (default: the output file stem). |
 | `--open-tool <ID>` | Analyzer tab to restore when the project opens (repeatable). |
 | `--annotations <FILE.json>` | Annotations to write: a JSON array of annotation objects (`title`, `body`, `timeSecs`, optional `range` / `tool`), the same shape MCP's `save_project` takes. |
 | `--start` / `--end` | Analysis window (default `0` … full duration). |
-| `-p` / `-o` / `--filter` | Shared params, per-tool options, and a filter `GraphSpec` saved into the project. Name the tool in `-o` (`-o mfcc.nMfcc=13`). |
+| `-p` / `-o` / `--filter` | Shared params, per-tool options, and a filter graph (DOT or legacy JSON) saved into the project. Name the tool in `-o` (`-o mfcc.nMfcc=13`). |
 | `--reference` | Write a reference project (no embedded audio) for a file source. |
 | `--pretty` | Pretty-print the one saved-project record. |
 
@@ -286,7 +294,7 @@ hey-listen-cli project call.heyl --source call.wav --open-tool noteMetrics \
   --open-tool spectrogram --annotations annotations.json --start 1.2 --end 3.4
 
 # A project from a synth graph:
-hey-listen-cli project demo.heyl --synth demo.json --seconds 2.5 --open-tool spectrum
+hey-listen-cli project demo.heyl --synth demo.dot --seconds 2.5 --open-tool spectrum
 
 # A reference project (keeps the SOURCE path, embeds no audio):
 hey-listen-cli project call-ref.heyl --source call.wav --reference
@@ -332,20 +340,20 @@ hey-listen-cli migrate projects/*.heyl
 hey-listen-cli migrate projects/*.heyl --embed --no-backup
 ```
 
-### `synth <GRAPH.json>`
+### `synth <GRAPH>`
 
 Render a synth graph to PCM (mono, `48 kHz`, `--seconds` default `5`), then behave
 exactly like `analyze` on the rendered source. With no `-t` (and no `--all`), it prints
-the rendered source's summary as one line — `{"file": <GRAPH.json>, "source": { "sampleRate", "channels", "frames", "duration", … }}`.
+the rendered source's summary as one line — `{"file": <GRAPH>, "source": { "sampleRate", "channels", "frames", "duration", … }}`.
 
 | Option | Meaning |
 | --- | --- |
 | `--seconds <SEC>` | Rendered length (default `5`). |
 | *(analyze options)* | `-t` / `-p` / `-o` / `--filter` / `--full` / `--summary` / `--pretty` / `--fail-fast` as above. |
 
-The graph is the same `{ "nodes": [...], "edges": [...] }` `GraphSpec` the headless
-MCP `render_synth` takes — there is no graph *editor* here, so the graph is always
-given as a file.
+The graph is the canonical **DOT** text, a `.dot`/`.gv` file, or a legacy JSON
+`GraphSpec` (M39) — there is no graph *editor* here. Run `nodes` to discover kinds, ports
+and params, and `nodes KIND` for a ready-to-paste DOT skeleton.
 
 ## Output
 
@@ -469,7 +477,7 @@ hey-listen-cli analyze *.wav -t levels --summary | jq -c '{file, summary}'
 hey-listen-cli annotations mix.heyl --json --full | jq -c '{time: .timeSecs, tool, values: .values.text}'
 
 # Filter, then analyze, over a whole folder:
-hey-listen-cli analyze ./takes/*.wav -t levels --filter lp.json | jq -c '{file, peak:.result.peakDb}'
+hey-listen-cli analyze ./takes/*.wav -t levels --filter lp.dot | jq -c '{file, peak:.result.peakDb}'
 ```
 
 ## Scope and non-goals

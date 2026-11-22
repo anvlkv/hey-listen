@@ -25,6 +25,7 @@ use hey_listen_lib::export::ExportFormat;
 pub enum BatchCommand {
     Analyzers,
     Analyze,
+    Nodes,
     Synth,
     Annotations,
     Compare,
@@ -45,9 +46,11 @@ pub enum OutputTarget {
 pub enum Command {
     /// `analyzers [ID] [--json]` — list the catalog, or explain one analyzer.
     Analyzers { id: Option<String>, json: bool },
+    /// `nodes [KIND] [--json]` — list the filter/synth node catalog, or explain one kind.
+    Nodes { id: Option<String>, json: bool },
     /// `analyze <FILE>...` — decode each file and run the tools over a window.
     Analyze,
-    /// `synth <GRAPH.json> [--seconds SEC]` — render a synth graph, then analyze it.
+    /// `synth <GRAPH.dot|GRAPH.json> [--seconds SEC]` — render a synth graph, then analyze it.
     Synth {
         graph: GraphSpec,
         seconds: f64,

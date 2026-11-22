@@ -36,16 +36,23 @@ pub(super) fn tools() -> Vec<Value> {
             "Render synth",
             ToolClass::REPLACE,
             "Render the Synth graph to audio and adopt it as the source. Pass `replace: true` \
-             to skip the confirmation the UI would show. In headless mode pass `graph` \
-             (there is no synth editor).",
+             to skip the confirmation the UI would show. Send `graph` as a **DOT string** \
+             (the canonical form; `get_graph` reads the current one back as DOT) or `graphFile` \
+             for a `.dot` / `.gv` path; a legacy JSON `GraphSpec` is still accepted. In the \
+             app, a supplied graph replaces the synth editor's graph first; headless without \
+             one re-renders the last graph.",
             json!({
                 "type": "object",
                 "properties": {
                     "seconds": { "type": "number", "description": "Length to render (default 5)." },
                     "replace": { "type": "boolean" },
                     "graph": {
-                        "type": "object",
-                        "description": "Headless only: the synth graph to render, as a `{ nodes, edges }` spec (nodes carry `kind` + positional `params`). Ignored by the app, which renders its synth editor graph.",
+                        "type": ["string", "object"],
+                        "description": "DOT text (canonical) or a legacy JSON `{ nodes, edges }` GraphSpec.",
+                    },
+                    "graphFile": {
+                        "type": "string",
+                        "description": "Path to a .dot / .gv (or legacy .json) synth graph.",
                     },
                 },
                 "additionalProperties": false,

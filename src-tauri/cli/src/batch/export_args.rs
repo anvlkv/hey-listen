@@ -60,6 +60,7 @@ pub(super) fn validate(request: &Request) -> Result<(), String> {
             }
         }
         Command::Analyzers { .. }
+        | Command::Nodes { .. }
         | Command::Annotations { .. }
         | Command::Compare { .. }
         | Command::Migrate { .. }

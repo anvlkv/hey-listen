@@ -1,0 +1,31 @@
+// tone-stack — the filter fixture for the DOT import/export specs.
+//
+// A warm, wide tone stack: lift the lows, scoop the mud, add air, then thicken
+// with chorus and a stereo hall. It deliberately exercises the parts of the
+// format that a one-node graph cannot: keyed parameters, record-labelled ports
+// (`split` / `reverb_stereo` / `join`) and the mono -> stereo -> mono bridge.
+digraph {
+    node [shape=record];
+    in      [kind="input"];
+    warmth  [kind="lowshelf", freq=280, q=0.7, gain=1.45];
+    mud     [kind="notch", freq=430, q=2.2];
+    air     [kind="bell", freq=2600, q=1.2, gain=1.35];
+    tape    [kind="chorus", separation=0.017, variation=0.0035, rate=0.55];
+    width   [kind="split", label="<in> in | <L> L | <R> R"];
+    hall    [kind="reverb_stereo", label="<L> L | <R> R | <L> L | <R> R"];
+    fold    [kind="join", label="<L> L | <R> R | <out> out"];
+    ceiling [kind="limiter", attack=0.004, release=0.18];
+    out     [kind="output"];
+
+    in -> warmth;
+    warmth -> mud;
+    mud -> air;
+    air -> tape;
+    tape -> width;
+    width:L -> hall:L;
+    width:R -> hall:R;
+    hall:L -> fold:L;
+    hall:R -> fold:R;
+    fold -> ceiling;
+    ceiling -> out;
+}

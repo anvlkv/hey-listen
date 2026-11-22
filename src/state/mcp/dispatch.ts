@@ -30,9 +30,13 @@ import {
   flushFilterGraph,
   graphLayout,
   loadGraph,
+  loadSpec,
   setFilterEnabled,
   type GraphLayout,
 } from "../graph";
+import { resetSystems } from "../workbench";
+import { NODE_KINDS, toSpec } from "../../lib/graph";
+import { graphSpecArg } from "./graphArgs";
 import {
   createAnnotation,
   deleteAnnotation,
@@ -118,9 +122,12 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "close_source":
       closeSource();
       return { source: null };
-    case "render_synth":
+    case "render_synth": {
+      const spec = await graphSpecArg(args);
+      if (spec) loadSpec("synth", spec);
       await renderSynth(optionalNum(args, "seconds") ?? 5, !optionalBool(args, "replace"));
       return sourceSummary();
+    }
 
     // --- analysis -----------------------------------------------------------
     case "run_analysis":
@@ -185,22 +192,31 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     }
 
     // --- graphs -------------------------------------------------------------
-    case "get_graph":
-      return { graph: str(args, "graph"), layout: deepClone(graphLayout(graphKind(args))) };
+    case "list_nodes":
+      return NODE_KINDS;
+    case "get_node":
+      return invoke<Record<string, unknown>>("graph_node_detail", {
+        kind: str(args, "kind"),
+      });
+    case "get_graph": {
+      const graph = graphKind(args);
+      const layout = deepClone(graphLayout(graph));
+      const dot = await invoke<string>("graph_dot", { spec: toSpec(layout.nodes, layout.edges) });
+      return { graph, layout, dot };
+    }
     case "set_filter_graph": {
-      if ("graph" in args) {
-        const graph = args.graph;
-        if (graph === null) loadGraph("filter", undefined);
-        else loadGraph("filter", asArgs(graph) as Partial<GraphLayout>);
-      }
+      const spec = await graphSpecArg(args);
+      resetSystems("filter");
+      if (spec?.nodes.length) loadSpec("filter", spec);
+      else if ("graph" in args) loadGraph("filter", undefined);
       if ("enabled" in args) setFilterEnabled(bool(args, "enabled"));
       await flushFilterGraph();
       return { enabled: filterEnabled(), error: filterError() };
     }
     case "set_synth_graph":
+      resetSystems("synth");
       loadGraph("synth", asArgs(args.graph) as Partial<GraphLayout>);
       return { layout: deepClone(graphLayout("synth")) };
-
     // --- playback -----------------------------------------------------------
     case "preview": {
       const startArg = optionalNum(args, "start");

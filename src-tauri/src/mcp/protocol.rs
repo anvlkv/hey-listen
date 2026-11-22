@@ -199,6 +199,7 @@ fn call_result(tool: &str, value: Value, is_error: bool) -> Value {
 fn structured_array_key(tool: &str) -> Option<&'static str> {
     match tool {
         "list_analyzers" => Some("analyzers"),
+        "list_nodes" => Some("nodes"),
         "list_output_devices" | "list_input_devices" => Some("devices"),
         "list_processes" => Some("processes"),
         _ => None,

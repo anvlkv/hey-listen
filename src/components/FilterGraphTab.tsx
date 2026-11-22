@@ -1,6 +1,11 @@
 import { Show } from "solid-js";
 import GraphEditor from "./GraphEditor";
-import { ClearGraphButton, GraphError, GraphNotices } from "./graphEditor/GraphTabChrome";
+import {
+  ClearGraphButton,
+  GraphError,
+  GraphFileButtons,
+  GraphNotices,
+} from "./graphEditor/GraphTabChrome";
 import { FILTER_GRAPH, filterActive, filterApplying, filterError } from "../state/graph";
 
 /**
@@ -24,6 +29,7 @@ export default function FilterGraphTab() {
         <span class="graph-status">applying…</span>
       </Show>
       <GraphError message={filterError} />
+      <GraphFileButtons graph="filter" />
       <ClearGraphButton graph="filter" />
     </GraphEditor>
   );

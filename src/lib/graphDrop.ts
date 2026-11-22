@@ -1,4 +1,4 @@
-import type { GraphKind, NodeKindDef } from "./graph";
+import type { GraphScope, NodeKindDef } from "./graph";
 import { bezierPoints, distanceToPolyline, type Point } from "./graphEdges";
 
 /**
@@ -63,7 +63,11 @@ export interface DropTarget {
 }
 
 /** Whether `def` may still be added (the `input`/`output` anchors are unique). */
-export function kindAvailable(graph: GraphKind, nodes: DropHandle["nodes"], kind: string): boolean {
+export function kindAvailable(
+  graph: GraphScope,
+  nodes: DropHandle["nodes"],
+  kind: string,
+): boolean {
   if (graph === "synth" && kind === "input") return false;
   if (kind !== "input" && kind !== "output") return true;
   return !nodes.some((node) => node.data.kind === kind);
@@ -120,7 +124,7 @@ export function edgeNear(
  * "it has both an input and an output".
  */
 export function dropTarget(
-  graph: GraphKind,
+  graph: GraphScope,
   handle: DropHandle,
   flow: DropFlow | undefined,
   def: NodeKindDef,
@@ -128,7 +132,7 @@ export function dropTarget(
 ): DropTarget | null {
   if (!kindAvailable(graph, handle.nodes, def.kind)) return null;
   const near = edgeNear(handle, flow, point);
-  const splicable = def.inputs >= 1 && def.outputs >= 1;
+  const splicable = def.inputPorts.length >= 1 && def.outputPorts.length >= 1;
   return {
     position: { x: point.x - NODE_HALF_WIDTH, y: point.y - NODE_HALF_HEIGHT },
     edge: near && splicable ? near : null,

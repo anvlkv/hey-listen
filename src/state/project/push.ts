@@ -7,6 +7,7 @@ import { applySharedParams, sharedParams } from "../analysis";
 import { loadToolOptions, toolOptions } from "../analyzer";
 import { annotations, replaceAnnotations } from "../annotations";
 import { filterEnabled, graphLayout, loadGraph, setFilterEnabled } from "../graph";
+import { resetSystems } from "../workbench";
 import { source, sourceRevision } from "../source";
 import {
   setView,
@@ -99,7 +100,10 @@ function applyRestore(snapshot: ProjectSnapshot) {
   holdPush();
   // `LAYOUT` is the frontend-owned save shape (`./types`).
   const layout = snapshot.layout as unknown as LayoutDto | null;
-  // Graphs first, so a mounted graph tab shows the restored graph.
+  // Graphs first, so a mounted graph tab shows the restored graph. A restored graph
+  // replaces its subsystems too (their tabs close and re-open with the layout).
+  resetSystems("filter");
+  resetSystems("synth");
   loadGraph("filter", layout?.graphs?.filter);
   loadGraph("synth", layout?.graphs?.synth);
   setFilterEnabled(snapshot.setup.filterEnabled);

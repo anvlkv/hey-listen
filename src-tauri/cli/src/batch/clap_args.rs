@@ -37,6 +37,8 @@ enum Batch {
     Analyzers(AnalyzersArgs),
     /// Run analyzer(s) over audio file(s) or saved project(s) (.heyl)
     Analyze(AnalyzeArgs),
+    /// List the filter/synth node catalog, or explain one kind (with a DOT skeleton)
+    Nodes(AnalyzersArgs),
     /// Render a synth graph and (optionally) analyze the result
     Synth(SynthArgs),
     /// List, get, add, update or delete the annotations in a project file (.heyl)
@@ -130,8 +132,8 @@ struct AnalyzeArgs {
     windows: Option<String>,
     #[command(flatten)]
     patches: PatchArgs,
-    /// Apply a filter GraphSpec (JSON file) before analysis
-    #[arg(long, value_name = "FILE")]
+    /// Apply a filter graph (DOT file/string; legacy JSON accepted) before analysis
+    #[arg(long, value_name = "FILE|DOT")]
     filter: Option<String>,
     #[command(flatten)]
     report: ReportArgs,
@@ -141,8 +143,8 @@ struct AnalyzeArgs {
 
 #[derive(Args)]
 struct SynthArgs {
-    /// Synth GraphSpec (JSON file) to render
-    #[arg(value_name = "GRAPH.json")]
+    /// Synth graph (DOT file/string; legacy JSON accepted) to render
+    #[arg(value_name = "GRAPH")]
     graph: Option<String>,
     /// Rendered length in seconds (default 5)
     #[arg(long, value_name = "SEC")]
@@ -157,8 +159,8 @@ struct SynthArgs {
     end: Option<String>,
     #[command(flatten)]
     patches: PatchArgs,
-    /// Apply a filter GraphSpec (JSON file) before analysis
-    #[arg(long, value_name = "FILE")]
+    /// Apply a filter graph (DOT file/string; legacy JSON accepted) before analysis
+    #[arg(long, value_name = "FILE|DOT")]
     filter: Option<String>,
     #[command(flatten)]
     report: ReportArgs,
@@ -254,8 +256,8 @@ struct ProjectArgs {
     /// Audio file to decode as the project source
     #[arg(long, value_name = "AUDIO")]
     source: Option<String>,
-    /// Synth GraphSpec (JSON file) to render as the source (instead of --source)
-    #[arg(long, value_name = "GRAPH.json")]
+    /// Synth graph (DOT file/string; legacy JSON accepted) to render as the source
+    #[arg(long, value_name = "GRAPH")]
     synth: Option<String>,
     /// Rendered length for --synth (default 5)
     #[arg(long, value_name = "SEC")]
@@ -280,8 +282,8 @@ struct ProjectArgs {
     end: Option<String>,
     #[command(flatten)]
     patches: PatchArgs,
-    /// Save this filter GraphSpec (JSON file) into the project
-    #[arg(long, value_name = "FILE")]
+    /// Save this filter graph (DOT file/string; legacy JSON accepted) into the project
+    #[arg(long, value_name = "FILE|DOT")]
     filter: Option<String>,
     /// Pretty-print the saved-project record
     #[arg(long)]

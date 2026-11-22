@@ -15,6 +15,7 @@ import {
   setOpenTools,
   syncOpenTools,
   popoutTool,
+  isSystemPanel,
   type ToolId,
 } from "../state/workbench";
 import { chooseCompareReference } from "../state/compare/picker";
@@ -90,7 +91,7 @@ export default function Workbench() {
             { label: "Close tab", action: () => closeCompare(compare.tool, compare.id) },
           ];
         }
-        if (id === "filter" || id === "synth") {
+        if (id === "filter" || id === "synth" || isSystemPanel(id)) {
           return [{ label: "Close tab", action: () => panel.api.close() }];
         }
         const tool = isAnalyzerId(id) ? id : null;

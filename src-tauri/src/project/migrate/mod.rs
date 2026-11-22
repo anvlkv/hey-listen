@@ -38,6 +38,7 @@ mod v2;
 mod v3;
 mod v4;
 mod v5;
+mod v6;
 
 /// Convert a frozen `SavedComparisonVn` into today's [`SavedComparison`].
 ///
@@ -167,7 +168,8 @@ pub(crate) struct Step {
 /// step here. `v1` is the `COMPARE` snapshot layout change (`referencePath`); `v2` gives
 /// a snapshot its pair id and pinned owner side; `v3` appends `gate` / `bandLabels` to the
 /// stored comparison result; `v4` appends the annotation `summary`; `v5` drops the
-/// analysis output that nests the changed `ModulationResult` (D-18).
+/// analysis output that nests the changed `ModulationResult` (D-18); `v6` adds the
+/// optional nested `subgraph` to the source graph's nodes (M40).
 const STEPS: &[Step] = &[
     Step {
         from: 1,
@@ -188,6 +190,10 @@ const STEPS: &[Step] = &[
     Step {
         from: 5,
         apply: v5::from_v5_to_v6,
+    },
+    Step {
+        from: 6,
+        apply: v6::from_v6_to_v7,
     },
 ];
 

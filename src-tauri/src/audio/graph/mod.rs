@@ -18,32 +18,41 @@
 //! - `input` (filter graphs only) is the graph's entry point; `output` is its exit.
 //!   Both are the *only* graph-level anchors — there is no implicit summing, so what
 //!   is wired to `output` is exactly what the graph produces.
-//! - `mix` sums two inputs into one (add more `mix` nodes to combine more sources).
-//! - `split`/`join` bridge the mono pipeline to stereo (1->2 / 2->1); `pan`, `panner`,
-//!   `rotate`, the stereo reverbs and `limiter_stereo` are 1->2 or 2->2 nodes. The net
-//!   itself stays mono, so such nodes must `join` back to mono before `output`.
-//! - Every other node is a 1-in/1-out processor, a 0-in/1-out generator, or a
-//!   control-input filter/node whose extra inputs are cutoff/Q/gain signals (their
-//!   arities match [`kind_arity`]).
+//! - [`nodes`] is the single node catalog: arity, port names, parameter specs,
+//!   category and hint. The compiler, the editor palette and the DOT interchange
+//!   all read it, so `kind_arity` is just the catalog's port count.
+//! - [`dot`] is the canonical text form (`GraphSpec → DOT → GraphSpec` is identity).
 //!
 //! The implementation is split into focused submodules: [`types`] holds the data
-//! types and the node-kind arity table, [`units`] the custom `AudioUnit` implementations
-//! fundsp does not ship, [`compile`] the unit palette and the net builder, [`render`] the
-//! PCM entry points, and [`session`] the per-window net that a parameter-only edit
-//! patches instead of recompiling.
+//! types, [`nodes`] the catalog, [`units`] the custom `AudioUnit` implementations
+//! fundsp does not ship, [`compile`] the unit palette and the net builder, [`dot`]
+//! the text interchange, [`render`] the PCM entry points, and [`session`] the
+//! per-window net that a parameter-only edit patches instead of recompiling.
 
 mod compile;
+mod dot;
+mod extras;
+mod nodes;
 mod render;
 mod session;
+mod snoop;
 mod types;
 mod units;
 
 pub use compile::*;
+pub use dot::{emit, looks_like_dot, parse, parse_file, parse_input, parse_text};
+pub use nodes::{
+    all as all_nodes, default_params, detail_json, dot_skeleton, is_subsystem, kind_arity,
+    list_json, node as node_def, NodeCategory, NodeDef, NodeParam, PortSide,
+};
 pub use render::*;
 pub use session::*;
+pub use snoop::{read as snoop_read, SnoopView};
 pub use types::*;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_dot;
 #[cfg(test)]
 mod tests_nodes;

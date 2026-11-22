@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -31,6 +32,45 @@ export const FIXTURES = {
  * (H4) opens a copy of it, because saving the migrated project rewrites the file.
  */
 export const LEGACY_PROJECT = path.resolve(HERE, "..", "fixtures", "v1.heyl");
+
+/**
+ * The **committed** DOT graphs (M39). They are authored fixtures, not one-node stubs:
+ * a warm mono→stereo→mono filter chain and a detuned saw pad. The DOT spec imports,
+ * exports and renders them, and the CLI/MCP checks drive the same files, so the format
+ * is pinned at every boundary from one pair of sources.
+ */
+export const GRAPH_FIXTURES = {
+  filter: path.resolve(HERE, "..", "fixtures", "tone-stack.dot"),
+  synth: path.resolve(HERE, "..", "fixtures", "glass-pad.dot"),
+} as const;
+
+/**
+ * The **subsystem** fixtures (M40): authored graphs that exercise a nested system, the
+ * `oversample` / `feedback` combinators and a `snoop` tap. `focus-chain.dot` is a
+ * filter graph whose `colour` node hides a four-stage tone chain; `aurora-pad.dot` is
+ * a synth with an oversampled drive and a feedback echo, both nested.
+ */
+export const SUBSYSTEM_FIXTURES = {
+  filter: path.resolve(HERE, "..", "fixtures", "focus-chain.dot"),
+  synth: path.resolve(HERE, "..", "fixtures", "aurora-pad.dot"),
+} as const;
+
+/**
+ * The console binary the DOT spec drives. `tauri build` stages it through
+ * `beforeBuildCommand` (`npm run sidecar`), so a suite run always has it; override with
+ * `HEYLISTEN_CLI` to point at another profile.
+ */
+export const CLI_BINARY =
+  process.env.HEYLISTEN_CLI ??
+  path.join(
+    HERE,
+    "..",
+    "..",
+    "src-tauri",
+    "target",
+    "release",
+    process.platform === "win32" ? "hey-listen-cli.exe" : "hey-listen-cli",
+  );
 
 const SAMPLE_RATE = 48_000;
 /** −12 dBFS as a linear amplitude. */

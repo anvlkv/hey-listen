@@ -52,7 +52,7 @@ impl SynthSession {
     fn sync(&mut self, spec: &GraphSpec, sample_rate: u32) -> Result<(), GraphError> {
         let structure = structure_key(spec);
         if self.net.is_none() || self.structure != structure || self.sample_rate != sample_rate {
-            let (net, ids) = build_with_ids(spec, 0, sample_rate)?;
+            let (net, ids) = build_with_ids(spec, 0, sample_rate, "synth")?;
             self.net = Some(net);
             self.ids = ids;
             self.params = spec
@@ -74,7 +74,12 @@ impl SynthSession {
                 continue;
             };
             if let Some(net) = self.net.as_mut() {
-                net.crossfade(id, Fade::Smooth, 0.0, make_unit(node)?);
+                net.crossfade(
+                    id,
+                    Fade::Smooth,
+                    0.0,
+                    make_unit(node, "synth", self.sample_rate)?,
+                );
                 patched = true;
             }
             self.params.insert(node.id.clone(), node.params.clone());
@@ -91,13 +96,20 @@ impl SynthSession {
 }
 
 /// What makes a rebuild necessary: the nodes' ids and kinds, and every edge. The
-/// parameters are deliberately absent — those are patched.
+/// top-level parameters are deliberately absent — those are patched. A **subsystem**
+/// is opaque to that patch (its unit is compiled as a whole), so its nested spec,
+/// including nested parameters, joins the key: any edit inside one rebuilds.
 fn structure_key(spec: &GraphSpec) -> String {
     let mut key = String::new();
     for node in &spec.nodes {
         key.push_str(&node.id);
         key.push(':');
         key.push_str(&node.kind);
+        if let Some(subgraph) = &node.subgraph {
+            key.push('{');
+            nested_key(&mut key, subgraph);
+            key.push('}');
+        }
         key.push('|');
     }
     key.push_str("=>");
@@ -111,6 +123,26 @@ fn structure_key(spec: &GraphSpec) -> String {
     key
 }
 
+/// The full (parameters included) key of a nested graph, recursively.
+fn nested_key(key: &mut String, spec: &GraphSpec) {
+    for node in &spec.nodes {
+        let _ = write!(key, "{}:{}:{:?}|", node.id, node.kind, node.params);
+        if let Some(subgraph) = &node.subgraph {
+            key.push('{');
+            nested_key(key, subgraph);
+            key.push('}');
+        }
+    }
+    key.push_str("=>");
+    for edge in &spec.edges {
+        let _ = write!(
+            key,
+            "{}:{}>{}:{}|",
+            edge.from, edge.from_port, edge.to, edge.to_port
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{structure_key, SynthSession};
@@ -121,6 +153,7 @@ mod tests {
             id: id.into(),
             kind: kind.into(),
             params: params.to_vec(),
+            subgraph: None,
         }
     }
 
@@ -142,6 +175,73 @@ mod tests {
             .windows(2)
             .filter(|pair| (pair[0] < 0.0) != (pair[1] < 0.0))
             .count()
+    }
+
+    /// `sine → subgraph(in → gain(g) → out) → output`.
+    fn nested_gain(gain: f32) -> GraphSpec {
+        let mut system = node("sys", "subgraph", &[]);
+        system.subgraph = Some(Box::new(GraphSpec {
+            nodes: vec![
+                node("in", "input", &[]),
+                node("g", "gain", &[gain]),
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                GraphEdge {
+                    from: "in".into(),
+                    from_port: 0,
+                    to: "g".into(),
+                    to_port: 0,
+                },
+                GraphEdge {
+                    from: "g".into(),
+                    from_port: 0,
+                    to: "out".into(),
+                    to_port: 0,
+                },
+            ],
+        }));
+        GraphSpec {
+            nodes: vec![
+                node("osc", "sine", &[220.0]),
+                system,
+                node("out", "output", &[]),
+            ],
+            edges: vec![
+                GraphEdge {
+                    from: "osc".into(),
+                    from_port: 0,
+                    to: "sys".into(),
+                    to_port: 0,
+                },
+                GraphEdge {
+                    from: "sys".into(),
+                    from_port: 0,
+                    to: "out".into(),
+                    to_port: 0,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn a_nested_parameter_edit_rebuilds_the_net() {
+        // The outer node's own params do not change, so only the nested key can notice
+        // the edit — without it the stale unit would keep the old gain.
+        let mut session = SynthSession::new();
+        let quiet = session
+            .render(&nested_gain(0.2), 0.01, 48_000)
+            .expect("quiet");
+        let loud = session
+            .render(&nested_gain(0.9), 0.01, 48_000)
+            .expect("loud");
+        let peak = |samples: &[f32]| samples.iter().fold(0.0f32, |max, s| max.max(s.abs()));
+        assert!(
+            peak(&loud) > peak(&quiet) * 2.0,
+            "the nested gain was not rebuilt: {} → {}",
+            peak(&quiet),
+            peak(&loud)
+        );
     }
 
     #[test]

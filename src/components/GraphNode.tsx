@@ -1,8 +1,12 @@
-import { For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
+import { graphThumbnail } from "../lib/graph/thumbnail";
 import { nodeKind, portLabel } from "../lib/graph";
 import { updateParam, type GraphNodeData } from "../state/graph";
+import { systemScope } from "../state/subsystems";
+import { openSystem } from "../state/workbench";
 import ParamField from "./graphEditor/ParamField";
+import SnoopTrace from "./graphEditor/SnoopTrace";
 
 /** Vertical position of handle `index` of `count`, spread down the node side. */
 function handleTop(index: number, count: number): string {
@@ -16,9 +20,12 @@ function handleTop(index: number, count: number): string {
  */
 export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
   const def = () => nodeKind(props.data.kind);
-  const inputs = () => def()?.inputs ?? 1;
-  const outputs = () => def()?.outputs ?? 1;
+  const inputs = () => def()?.inputPorts.length ?? 1;
+  const outputs = () => def()?.outputPorts.length ?? 1;
   const isAnchor = () => props.data.kind === "input" || props.data.kind === "output";
+  const isSystem = () => def()?.subsystem === true;
+  const thumb = createMemo(() => graphThumbnail(props.data.subgraph));
+  const systemNodes = () => props.data.subgraph?.nodes.length ?? 0;
 
   return (
     <div
@@ -42,7 +49,7 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
               data-testid="graph.port"
               style={{ top: handleTop(index(), inputs()) }}
             >
-              {portLabel(props.data.kind, "in", index(), inputs())}
+              {portLabel(props.data.kind, "in", index())}
             </span>
           </>
         )}
@@ -66,6 +73,50 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
         </div>
       </Show>
 
+      <Show when={isSystem()}>
+        <div class="graph-node-system">
+          <svg
+            class="graph-node-thumb"
+            data-testid="graph.subsystem.thumbnail"
+            viewBox={`0 0 ${thumb().width} ${thumb().height}`}
+            role="img"
+            aria-label="Subsystem preview"
+          >
+            <For each={thumb().links}>
+              {(link) => (
+                <line
+                  class="graph-thumb-link"
+                  x1={link.x1}
+                  y1={link.y1}
+                  x2={link.x2}
+                  y2={link.y2}
+                />
+              )}
+            </For>
+            <For each={thumb().nodes}>
+              {(node) => <circle class="graph-thumb-node" cx={node.x} cy={node.y} r="1.8" />}
+            </For>
+          </svg>
+          <button
+            type="button"
+            class="graph-node-open nodrag"
+            data-testid="graph.subsystem.open"
+            title="Open this subsystem in its own tab"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              openSystem(systemScope(props.data.graph, props.id));
+            }}
+          >
+            {systemNodes()} node{systemNodes() === 1 ? "" : "s"} · Open
+          </button>
+        </div>
+      </Show>
+
+      <Show when={props.data.kind === "snoop"}>
+        <SnoopTrace scope={props.data.graph} node={props.id} />
+      </Show>
+
       <For each={Array.from({ length: outputs() })}>
         {(_, index) => (
           <>
@@ -80,7 +131,7 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
               data-testid="graph.port"
               style={{ top: handleTop(index(), outputs()) }}
             >
-              {portLabel(props.data.kind, "out", index(), outputs())}
+              {portLabel(props.data.kind, "out", index())}
             </span>
           </>
         )}

@@ -25,6 +25,8 @@ export const SEL = {
   // Sidebar.
   sidebarSearch: '[data-testid="sidebar.search"]',
   sidebarEmpty: '[data-testid="sidebar.empty"]',
+  // A subsystem row under the Graphs activity tab (M40).
+  sidebarSubsystem: '[data-testid="sidebar.subsystem"]',
 
   // Toolbar.
   projectName: '[data-testid="toolbar.project.name"]',
@@ -125,6 +127,15 @@ export const SEL = {
   graphCanvas: '[data-testid="graph.canvas"]',
   graphRender: '[data-testid="graph.render"]',
   graphClear: '[data-testid="graph.clear"]',
+  // DOT interchange (M39): import a .dot graph / export this editor's graph.
+  graphImport: '[data-testid="graph.import"]',
+  graphExport: '[data-testid="graph.export"]',
+  // Subsystems (M40): the parent node's preview, its "open" action, and the tab title.
+  graphSubsystemThumbnail: '[data-testid="graph.subsystem.thumbnail"]',
+  graphSubsystemOpen: '[data-testid="graph.subsystem.open"]',
+  graphSubsystemTitle: '[data-testid="graph.subsystem.title"]',
+  // A `snoop` node's live envelope.
+  graphSnoop: '[data-testid="graph.snoop"]',
   // Autolayout (both editors): dagre, left to right.
   graphLayout: '[data-testid="graph.layout"]',
   // Graph toolbar hint (node/link counts + applied/bypassed state).

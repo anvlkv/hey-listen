@@ -1,243 +1,51 @@
 import { invoke } from "../lib/ipc";
-import { batch, createEffect, createRoot, createSignal, on } from "solid-js";
-import { createStore, type SetStoreFunction } from "solid-js/store";
-import type { Edge, Node } from "@dschz/solid-flow";
+import { createEffect, createRoot, createSignal, on } from "solid-js";
+import { createStore } from "solid-js/store";
+import { nodeKind, toSpec, type GraphKind, type GraphScope, type GraphSpec } from "../lib/graph";
+import { isAnchorKind } from "./graphKinds";
 import {
-  defaultParams,
-  handlePort,
-  nodeKind,
-  toSpec,
-  type GraphKind,
-  type NodeKindDef,
-} from "../lib/graph";
+  graphFor,
+  registerGraph,
+  seed,
+  type GraphEdge,
+  type GraphHandle,
+  type GraphNode,
+} from "./graphHandles";
 
 /**
- * Graph store (module scope, so a graph survives its Workbench tab being closed
- * and reopened — dockview unmounts hidden panel content).
+ * The filter and synth graphs: their stores live in [`graphHandles`](./graphHandles.ts)
+ * — the registry every graph **scope** shares with subsystems — and this module owns
+ * the filter graph's push to the Rust core plus the project-level summaries.
  *
- * The filter graph is pushed to the Rust core (debounced) so preview playback
- * applies it; the synth graph is sent to the core only when rendered.
+ * The filter graph is pushed to the core (debounced) so preview playback applies it;
+ * the synth graph is sent to the core only when rendered.
  */
 
-export type GraphNodeData = {
-  kind: string;
-  params: Record<string, number>;
-  graph: GraphKind;
-} & Record<string, unknown>;
-
-export type GraphNode = Node<GraphNodeData, "graph">;
-export type GraphEdge = Edge;
-
-export interface GraphHandle {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  setNodes: SetStoreFunction<GraphNode[]>;
-  setEdges: SetStoreFunction<GraphEdge[]>;
-}
-
-let nextId = 1;
-
-/** Default x positions for freshly-seeded Input / Output anchors. */
-export const ANCHOR_LEFT_X = 40;
-export const ANCHOR_RIGHT_X = 760;
-const ANCHOR_Y = 150;
-
-/** Whether a kind is a graph anchor (Input / Output): undeletable and pinned. */
-export function isAnchorKind(kind: string): boolean {
-  return kind === "input" || kind === "output";
-}
-
-function makeNode(kind: string, graph: GraphKind, x: number, y: number): GraphNode {
-  const def = nodeKind(kind);
-  const node: GraphNode = {
-    id: `${kind}-${nextId++}`,
-    type: "graph",
-    position: { x, y },
-    data: { kind, params: def ? defaultParams(def) : {}, graph },
-  };
-  if (isAnchorKind(kind)) {
-    // Anchors cannot be deleted (there must always be one input/output), but they
-    // stay draggable so the user can place them freely.
-    node.deletable = false;
-  }
-  return node;
-}
-
-function link(source: string, target: string, targetPort = 0): GraphEdge {
-  return {
-    id: `edge-${nextId++}`,
-    source,
-    target,
-    sourceHandle: "0",
-    targetHandle: String(targetPort),
-  };
-}
-
-/**
- * A fresh graph: a filter is `Input → Output` (identity); a synth is
- * `Sine → Output`.
- */
-function seed(graph: GraphKind): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  if (graph === "filter") {
-    const input = makeNode("input", graph, ANCHOR_LEFT_X, ANCHOR_Y);
-    const output = makeNode("output", graph, ANCHOR_RIGHT_X, ANCHOR_Y);
-    return { nodes: [input, output], edges: [link(input.id, output.id)] };
-  }
-  const osc = makeNode("sine", graph, ANCHOR_LEFT_X, ANCHOR_Y);
-  const output = makeNode("output", graph, ANCHOR_RIGHT_X, ANCHOR_Y);
-  return { nodes: [osc, output], edges: [link(osc.id, output.id)] };
-}
-
-/** Ensure an anchor stays undeletable (its position is the user's to drag). */
-function guardAnchor(node: GraphNode): GraphNode {
-  if (!isAnchorKind(node.data.kind)) return node;
-  return { ...node, deletable: false };
-}
+export * from "./graphHandles";
+export { isAnchorKind } from "./graphKinds";
 
 const filterSeed = seed("filter");
 const [filterNodes, setFilterNodes] = createStore<GraphNode[]>(filterSeed.nodes);
 const [filterEdges, setFilterEdges] = createStore<GraphEdge[]>(filterSeed.edges);
-const synthSeed = seed("synth");
-const [synthNodes, setSynthNodes] = createStore<GraphNode[]>(synthSeed.nodes);
-const [synthEdges, setSynthEdges] = createStore<GraphEdge[]>(synthSeed.edges);
-
-export const FILTER_GRAPH: GraphHandle = {
+registerGraph("filter", {
   nodes: filterNodes,
   edges: filterEdges,
   setNodes: setFilterNodes,
   setEdges: setFilterEdges,
-};
+});
 
-export const SYNTH_GRAPH: GraphHandle = {
+const synthSeed = seed("synth");
+const [synthNodes, setSynthNodes] = createStore<GraphNode[]>(synthSeed.nodes);
+const [synthEdges, setSynthEdges] = createStore<GraphEdge[]>(synthSeed.edges);
+registerGraph("synth", {
   nodes: synthNodes,
   edges: synthEdges,
   setNodes: setSynthNodes,
   setEdges: setSynthEdges,
-};
+});
 
-export function graphFor(graph: GraphKind): GraphHandle {
-  return graph === "filter" ? FILTER_GRAPH : SYNTH_GRAPH;
-}
-
-/** Append a new node of `def`, staggered so nodes do not stack. */
-export function addNode(graph: GraphKind, def: NodeKindDef) {
-  const handle = graphFor(graph);
-  const count = handle.nodes.length;
-  const node = makeNode(def.kind, graph, 60 + (count % 4) * 200, 60 + Math.floor(count / 4) * 160);
-  handle.setNodes((nodes) => [...nodes, node]);
-}
-
-/**
- * Append a new node of `def` at a specific flow position (top-left), used when a
- * palette node is dropped onto the canvas. Returns the created node.
- */
-export function addNodeAt(
-  graph: GraphKind,
-  def: NodeKindDef,
-  position: { x: number; y: number },
-): GraphNode {
-  const node = makeNode(def.kind, graph, position.x, position.y);
-  graphFor(graph).setNodes((nodes) => [...nodes, node]);
-  return node;
-}
-
-/**
- * Split `edge` around `nodeId`: remove `source → target` and wire
- * `source → node` (input 0) + `node → target` (output 0), keeping the original
- * ports. The caller is responsible for confirming the node fits (has an input and
- * an output, both free) and that no cycle results.
- */
-export function spliceEdge(graph: GraphKind, edge: GraphEdge, nodeId: string): void {
-  graphFor(graph).setEdges((edges) => [
-    ...edges.filter((current) => current.id !== edge.id),
-    {
-      id: `edge-${nextId++}`,
-      source: edge.source,
-      sourceHandle: edge.sourceHandle ?? "0",
-      target: nodeId,
-      targetHandle: "0",
-    },
-    {
-      id: `edge-${nextId++}`,
-      source: nodeId,
-      sourceHandle: "0",
-      target: edge.target,
-      targetHandle: edge.targetHandle ?? "0",
-    },
-  ]);
-}
-
-/** Update one parameter of a node in place. */
-export function updateParam(graph: GraphKind, id: string, key: string, value: number) {
-  graphFor(graph).setNodes((node) => node.id === id, "data", "params", key, value);
-}
-
-/** Reset every parameter of one node to its kind's default (the node context menu). */
-export function resetNode(graph: GraphKind, id: string) {
-  const node = graphFor(graph).nodes.find((current) => current.id === id);
-  const def = node ? nodeKind(node.data.kind) : undefined;
-  if (!node || !def) return;
-  for (const param of def.params) updateParam(graph, id, param.key, param.default);
-}
-
-/** Persist a node's position (mirrored from the flow on drag stop). */
-export function setNodesPosition(graph: GraphKind, id: string, position: { x: number; y: number }) {
-  graphFor(graph).setNodes((node) => node.id === id, "position", position);
-}
-
-/** Apply a batch of computed positions (the autolayout action). */
-export function setNodesPositions(
-  graph: GraphKind,
-  positions: Record<string, { x: number; y: number }>,
-) {
-  const handle = graphFor(graph);
-  batch(() => {
-    for (const [id, position] of Object.entries(positions)) {
-      handle.setNodes((node) => node.id === id, "position", position);
-    }
-  });
-}
-
-/** Replace a graph with its seed (the toolbar's Clear action). */
-export function resetGraph(graph: GraphKind) {
-  const handle = graphFor(graph);
-  const { nodes, edges } = seed(graph);
-  handle.setEdges(edges);
-  handle.setNodes(nodes);
-}
-
-/** A graph's persisted editor state (nodes + edges, including positions). */
-export interface GraphLayout {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-}
-
-/** Snapshot a graph's editor state for the project file. */
-export function graphLayout(graph: GraphKind): GraphLayout {
-  const handle = graphFor(graph);
-  return { nodes: handle.nodes, edges: handle.edges };
-}
-
-/** Restore a graph's editor state from a saved project. */
-export function loadGraph(graph: GraphKind, state: Partial<GraphLayout> | undefined) {
-  if (!state?.nodes?.length) {
-    // No saved editor state (or an empty graph): fall back to the seed.
-    resetGraph(graph);
-    return;
-  }
-  const handle = graphFor(graph);
-  handle.setEdges(state.edges ?? []);
-  handle.setNodes(state.nodes.map(guardAnchor));
-  bumpNextId([...state.nodes, ...(state.edges ?? [])]);
-}
-
-/** Keep generated ids from colliding with restored ones (`kind-3`, `edge-7`, …). */
-function bumpNextId(items: { id: string }[]) {
-  for (const item of items) {
-    const match = /-(\d+)$/.exec(item.id);
-    if (match) nextId = Math.max(nextId, Number(match[1]) + 1);
-  }
-}
+export const FILTER_GRAPH: GraphHandle = graphFor("filter");
+export const SYNTH_GRAPH: GraphHandle = graphFor("synth");
 
 /** The kinds of a fresh graph's nodes (see [`seed`]). */
 function seedKinds(graph: GraphKind): string[] {
@@ -276,11 +84,11 @@ export function filterComposed(): boolean {
 }
 
 /** Whether the single `output` node's input is wired (else the graph is silent). */
-export function outputConnected(graph: GraphKind): boolean {
-  const handle = graphFor(graph);
+export function outputConnected(scope: GraphScope): boolean {
+  const handle = graphFor(scope);
   return handle.edges.some((edge) => {
     const target = handle.nodes.find((node) => node.id === edge.target);
-    return !!target && target.data.kind === "output" && handlePort(edge.targetHandle) === 0;
+    return !!target && target.data.kind === "output" && Number(edge.targetHandle ?? 0) === 0;
   });
 }
 
@@ -326,11 +134,15 @@ export const [filterRevision, setFilterRevision] = createSignal(0);
 const DEBOUNCE_MS = 250;
 let pushTimer: number | undefined;
 
+/** The filter graph as a spec (nested subsystems included). */
+export function filterSpec(): GraphSpec {
+  return toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges);
+}
+
 async function pushFilterGraph() {
   setFilterApplying(true);
-  const spec = toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges);
   // The identity seed is not a filter, so it is pushed as a bypass (null).
-  const payload = filterActive() ? spec : null;
+  const payload = filterActive() ? filterSpec() : null;
   try {
     await invoke("set_filter_graph", { spec: payload });
     setFilterError(null);
@@ -362,7 +174,7 @@ export async function flushFilterGraph(): Promise<void> {
 createRoot(() => {
   createEffect(
     on(
-      () => [filterEnabled(), JSON.stringify(toSpec(FILTER_GRAPH.nodes, FILTER_GRAPH.edges))],
+      () => [filterEnabled(), JSON.stringify(filterSpec())],
       () => scheduleFilterPush(),
     ),
   );

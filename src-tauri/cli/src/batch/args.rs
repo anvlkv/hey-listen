@@ -38,9 +38,15 @@ pub fn build_request(name: &str, matches: &dyn ArgSource) -> Result<Request, Str
             request.files = strings(matches, "file");
             request.command = Command::Analyze;
         }
+        BatchCommand::Nodes => {
+            request.command = Command::Nodes {
+                id: string(matches, "id"),
+                json: flag(matches, "json"),
+            };
+        }
         BatchCommand::Synth => {
             let path = string(matches, "graph")
-                .ok_or("synth needs a graph file: `hey-listen synth <GRAPH.json>`")?;
+                .ok_or("synth needs a graph: `hey-listen synth <GRAPH.dot>`")?;
             let graph = read_synth_graph(&path)?;
             let seconds = match string(matches, "seconds") {
                 Some(text) => text
@@ -164,6 +170,7 @@ fn common(matches: &dyn ArgSource) -> Result<Request, String> {
 fn validate(request: &Request) -> Result<(), String> {
     match &request.command {
         Command::Analyzers { .. } => {}
+        Command::Nodes { .. } => {}
         Command::Analyze => {
             if request.files.is_empty() {
                 return Err(
@@ -232,13 +239,11 @@ fn validate(request: &Request) -> Result<(), String> {
             ..
         } => match (source, synth) {
             (Some(_), Some(_)) => {
-                return Err(
-                    "use either `--source <AUDIO>` or `--synth <GRAPH.json>`, not both".into(),
-                )
+                return Err("use either `--source <AUDIO>` or `--synth <GRAPH>`, not both".into())
             }
             (None, None) => {
                 return Err(
-                    "project needs a source: `--source <AUDIO>` or `--synth <GRAPH.json>`".into(),
+                    "project needs a source: `--source <AUDIO>` or `--synth <GRAPH>`".into(),
                 )
             }
             (_, Some((_, seconds))) => {
@@ -278,6 +283,7 @@ pub(super) fn result_count(request: &Request) -> usize {
     let unknown = request.unknown_tools.len();
     match &request.command {
         Command::Analyzers { .. } => 0,
+        Command::Nodes { .. } => 0,
         Command::Analyze => request.files.len() * (window_result_count(request) + unknown),
         // `synth` emits one source-summary record when no tool was given.
         Command::Synth { .. } => (tool_count(request) + unknown).max(1),

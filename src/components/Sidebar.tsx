@@ -5,7 +5,8 @@ import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
 import { GRAPH_ICONS, VIEW_ICONS, type IconName } from "../lib/icons";
 import { markdownSummary } from "../lib/markdown";
-import { openTool, openTools, toolById, type ToolDef } from "../state/workbench";
+import { openTool, openSystem, openTools, toolById, type ToolDef } from "../state/workbench";
+import { subsystems } from "../state/subsystems";
 import {
   ANALYZER_SECTIONS,
   analyzersInSection,
@@ -54,6 +55,14 @@ const graphTools = (): SidebarTool[] =>
     const tool = toolById(id);
     return { ...tool, hint: tool.description, icon: GRAPH_ICONS[id] };
   });
+
+/** A readable parent for a subsystem row (`filter`, `synth`, or the parent's kind). */
+function parentLabel(parent: string): string {
+  if (parent === "filter") return "the filter graph";
+  if (parent === "synth") return "the synth graph";
+  const node = parent.slice(parent.lastIndexOf("/") + 1);
+  return node || "another subsystem";
+}
 
 export default function Sidebar(props: { style?: JSX.CSSProperties }) {
   const matches = (def: AnalyzerDef) => matchesQuery(def, analyzerQuery());
@@ -127,6 +136,26 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
           }
         >
           <Tools tools={graphTools()} />
+          <Show when={subsystems().length > 0}>
+            <div class="sidebar-subtitle">Subsystems</div>
+            <div class="sidebar-tools">
+              <For each={subsystems()}>
+                {(system) => (
+                  <button
+                    type="button"
+                    class="sidebar-tool"
+                    data-testid="sidebar.subsystem"
+                    data-scope={system.scope}
+                    onClick={() => openSystem(system.scope)}
+                  >
+                    <span class="sidebar-tool-name">{system.label}</span>
+                    <span class="sidebar-tool-desc">nested in {parentLabel(system.parent)}</span>
+                    <Icon name={GRAPH_ICONS.filter} class="sidebar-tool-icon" />
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
         </Show>
       </ScrollArea>
     </aside>

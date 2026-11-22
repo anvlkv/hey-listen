@@ -19,6 +19,7 @@ mod migrate;
 mod options;
 mod output;
 mod parse;
+mod parse_nodes;
 mod parse_project;
 mod project;
 mod run;
@@ -57,11 +58,13 @@ pub(super) fn sine_graph() -> GraphSpec {
                 id: "osc".into(),
                 kind: "sine".into(),
                 params: vec![440.0],
+                subgraph: None,
             },
             GraphNode {
                 id: "out".into(),
                 kind: "output".into(),
                 params: Vec::new(),
+                subgraph: None,
             },
         ],
         edges: vec![GraphEdge {
@@ -88,16 +91,19 @@ pub(super) fn gain_filter(gain: f32) -> GraphSpec {
                 id: "in".into(),
                 kind: "input".into(),
                 params: Vec::new(),
+                subgraph: None,
             },
             GraphNode {
                 id: "g".into(),
                 kind: "gain".into(),
                 params: vec![gain],
+                subgraph: None,
             },
             GraphNode {
                 id: "out".into(),
                 kind: "output".into(),
                 params: Vec::new(),
+                subgraph: None,
             },
         ],
         edges: vec![

@@ -14,7 +14,7 @@ streaming for very large audio.
 
 ```
 +0      magic                4 bytes   "HEYL"
-+4      version              4 bytes   u32 LE, currently 1
++4      version              4 bytes   u32 LE, currently 7
 +8      flags                4 bytes   u32 LE (endianness/features)
 +12     section_count        4 bytes   u32 LE
 +16     section_index        N * 24    offset (u64) + length (u64) + id (u8) + reserved
@@ -199,6 +199,7 @@ steps are derived from it (see [Migrations](#migrations)).
 | 4 | The stored comparison result gains two trailing optional fields: `gate` on a `CalibratedSeriesResult` (postcard tuple 11 → 12) and `bandLabels` on a `MatrixResult` (17 → 18). The result is **nested** inside a snapshot, so the trailing-field tolerance cannot read the older arity; the `v3 → v4` step in `project/migrate/v3.rs` decodes version 3's frozen 17 / 11 shape and re-encodes today's. | M36 follow-up |
 | 5 | `AnnotationValues` gains the trailing `summary` items (D-19). The snapshot is nested inside an `Annotation` inside a `Vec`, so a missing field cannot be defaulted in place; the `v4 → v5` step in `project/migrate/v4.rs` decodes version 4's frozen shape and re-encodes it with an empty item list. | D-19 |
 | 6 | `ModulationResult` gains the trailing per-note `notes` list (D-18). It is nested inside `StoredAnalysisResult` inside a `SavedComparison`, so the `v5 → v6` step in `project/migrate/v5.rs` decodes `COMPARE` with a frozen result enum (every variant unchanged except `Modulation`) and re-encodes today's shape with an empty list. `RESULTS` stays a cache and is dropped by `run_with` as for any pre-`VERSION` file. | D-18 |
+| 7 | `GraphNode` gains the trailing optional `subgraph` (a subsystem's nested graph, M40). It is nested inside `SOURCE`'s synth `GraphSpec`, so the `v6 → v7` step in `project/migrate/v6.rs` decodes `SOURCE` with a frozen `SourceDescriptor`/`GraphSpec`/`GraphNode` and re-encodes it with `subgraph: None`. `LAYOUT` is JSON (self-describing) and needs no rewrite. | M40 |
 
 **Not a bump.** Adding a section id, a `LAYOUT` JSON key, or a key in the flexible
 `SETUP.tool_options` / `tool id → key → number` map is forward/backward compatible and
@@ -224,13 +225,17 @@ contract.
   every payload only after the chain reaches `VERSION`, so each step knows exactly two
   adjacent versions. `DATA` is never copied or rewritten to migrate. The frozen `vN` types
   are release snapshots and are never edited after the fact.
-  The chain today has three steps: `v1 → v2` (`project/migrate/v1.rs`) rewrites the saved
+  The chain today has six steps: `v1 → v2` (`project/migrate/v1.rs`) rewrites the saved
   comparisons from version 1's two snapshot layouts into the one version 2 writes,
   `v2 → v3` (`project/migrate/v2.rs`) **converts** each version-2 snapshot into the
   version-3 shape (pair id + pinned owner side, result-only) and passes every other
-  section through, and `v3 → v4` (`project/migrate/v3.rs`) re-encodes each snapshot's
-  stored result from the pre-`gate` / pre-`bandLabels` shape into today's — see
-  [`roadmap.md`](roadmap.md) → M23, Phase 3, and the version history above.
+  section through, `v3 → v4` (`project/migrate/v3.rs`) re-encodes each snapshot's
+  stored result from the pre-`gate` / pre-`bandLabels` shape into today's, `v4 → v5`
+  (`project/migrate/v4.rs`) appends the annotation `summary`, `v5 → v6`
+  (`project/migrate/v5.rs`) re-encodes the comparison whose `ModulationResult` gained
+  `notes`, and `v6 → v7` (`project/migrate/v6.rs`) adds `subgraph: None` to every node
+  of the `SOURCE` graph — see [`roadmap.md`](roadmap.md) → M23, Phase 3, and the
+  version history above.
 - **Stored results keep a codec-level tolerance.** The `postcard` mirror of an analysis
   result reads a missing **trailing** optional field as its default
   (`results/stored/decode.rs`), which is how a `RESULTS` entry written before the X3 / M36

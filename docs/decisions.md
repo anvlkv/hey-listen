@@ -45,7 +45,7 @@ recorded here — see [`deferred.md`](deferred.md).
 | 33 — One log file, previewed in a popout | accepted · delivered | — |
 | 34 — Saved comparisons are pairs of result snapshots | accepted · delivered (M23 Phase 3) | amends ADR-24, ADR-26; supersedes ADR-27 |
 | 35 — Non-goals for the 1.x line | accepted | closes deferred items (see `deferred.md`) |
-| 36 — DOT notation for filter/synth graphs; `GraphSpec` stays the stored form | accepted · planned (M39) | — |
+| 36 — DOT notation for filter/synth graphs; `GraphSpec` stays the stored form | accepted · delivered (M39) | — |
 | 37 — Undo/redo is a core-owned, revision-based project operation | proposed · planned (M24.A) | extends ADR-11 |
 
 ## ADR-1 — dockview for the Workbench
@@ -1273,7 +1273,7 @@ graph out of a project and reuse it elsewhere.
   and the user. A multi-port node is a **record** whose `label` names each port
   (`<audio>`, `<cut>`, `<out>`, …); an edge writes `src:out -> dst:cut`. `id` is a unique
   handle; `kind` and **keyed** params are explicit attributes
-  (`[kind="lowpass_cv", cutoff=1000, q=1.0]`), resolved against the node catalog — unknown
+  (`[kind="lowpass", freq=1000, q=1.0]`), resolved against the node catalog — unknown
   keys and out-of-range values are errors, omitted keys take the default, and port names
   are the catalog's own (the same ones the editor shows).
 - **`petgraph` is the DOT parse/emit boundary only.** DOT is parsed with `petgraph`
@@ -1302,7 +1302,7 @@ the editor's node positions are deliberately outside the interchange, so an impo
 lands its nodes at default positions and the editor re-derives the layout. See
 [`roadmap.md`](roadmap.md) → M39 and [`source-model.md`](source-model.md).
 
-**Status: planned (M39).**
+**Status: delivered (M39).**
 
 ## ADR-37 — Undo/redo is a core-owned, revision-based project operation
 
@@ -1341,3 +1341,30 @@ within a key is deferred until a single key's value is large enough to justify i
 state through `state/project/push.ts` and applies restores under a mute flag. The three
 frontend readers (`history.ts`, `snapshot.ts`, `dirty.ts`) are deleted — save, load and
 dirty all read the core snapshot. See [`undo-redo.md`](undo-redo.md).
+
+## ADR-38 — A subsystem is a nested `GraphSpec` on its owning node
+
+**Context:** fundsp expresses several node families as combinators over an **inner** node
+(`subgraph`, `feedback`, `oversample`, `resample`). The mono/stereo, positional-params
+node model has nowhere to put that inner graph, and a flat catalog therefore cannot cover
+fundsp. The alternatives were to leave those families out, to inline them as ad-hoc
+params, or to add a second graph container beside `GraphSpec`.
+
+**Decision:** a subsystem **is a node**: the catalog marks its kind `subsystem`, and
+`GraphNode.subgraph` carries the nested `GraphSpec` as one more field of the node. That
+keeps **one** stored graph shape (ADR-36) — the compiler recurses into `subgraph`, DOT
+writes a nested `subgraph` block, and MCP/CLI see the same nesting with no new surface.
+The editor addresses each nested graph by a **scope** string, `system:<parent>/<node>`
+(nesting extends the path), allocated by the same handle registry as `filter`/`synth`;
+that one spelling is also the snoop registry key, so the tab and the audio tap agree.
+The inner graph keeps its own `input → output` anchors (a generator seed for `resample`,
+whose inner graph takes no input).
+
+**Consequence:** the project format bumps to **7** (a trailing `Option` field inside
+`SOURCE`'s synth graph, migrated by `project/migrate/v6.rs`; `LAYOUT` is JSON and needs
+no step). A subsystem's tab is project content for undo/redo (ADR-37): deleting the node
+removes the tab and the nested store. The node card shows a structural preview (a depth-
+laid block diagram) rather than audio, which keeps rendering out of the canvas. See
+[`graph-editor.md`](graph-editor.md) → "Nested subsystems".
+
+**Status: delivered (M40).**

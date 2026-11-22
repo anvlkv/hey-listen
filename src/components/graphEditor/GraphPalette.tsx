@@ -1,6 +1,6 @@
 import { createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import { Panel } from "@dschz/solid-flow";
-import { paletteFor, type GraphKind, type NodeKindDef } from "../../lib/graph";
+import { paletteFor, type GraphScope, type NodeKindDef } from "../../lib/graph";
 import { addNode } from "../../state/graph";
 import Icon from "../Icon";
 import ScrollArea from "../ScrollArea";
@@ -11,7 +11,7 @@ const DRAG_THRESHOLD = 4;
 
 /** Props for [`GraphPalette`]; `canAdd` is shared with the editor's drop handler. */
 type GraphPaletteProps = {
-  graph: GraphKind;
+  graph: GraphScope;
   canAdd: (def: NodeKindDef) => boolean;
   onDrop: (def: NodeKindDef, clientX: number, clientY: number) => void;
   /** The pointer moved during a palette drag, so the editor can show where it lands. */

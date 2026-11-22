@@ -9,6 +9,7 @@ use super::HeadlessSession;
 mod analysis;
 mod cache;
 mod compare;
+mod dot;
 mod export;
 mod modulation;
 mod project;
@@ -20,7 +21,6 @@ mod validation;
 fn ui_only_tools_require_the_app() {
     let mut session = HeadlessSession::default();
     for tool in [
-        "get_graph",
         "set_synth_graph",
         "preview",
         "open_project_window",
@@ -39,12 +39,9 @@ fn ui_only_tools_require_the_app() {
     }
 }
 
-#[test]
-fn set_filter_graph_installs_and_clears_a_filter() {
-    let mut session = HeadlessSession::default();
-
-    // A filter with a global input compiles and is reported as enabled.
-    let gain = json!({
+/// A filter graph: `input -> gain(0.5) -> output`.
+fn gain_filter_value() -> Value {
+    json!({
         "nodes": [
             { "id": "in", "kind": "input", "params": [] },
             { "id": "g", "kind": "gain", "params": [0.5] },
@@ -54,7 +51,15 @@ fn set_filter_graph_installs_and_clears_a_filter() {
             { "from": "in", "from_port": 0, "to": "g", "to_port": 0 },
             { "from": "g", "from_port": 0, "to": "out", "to_port": 0 },
         ],
-    });
+    })
+}
+
+#[test]
+fn set_filter_graph_installs_and_clears_a_filter() {
+    let mut session = HeadlessSession::default();
+
+    // A filter with a global input compiles and is reported as enabled.
+    let gain = gain_filter_value();
     let installed = session
         .dispatch(
             "set_filter_graph",
