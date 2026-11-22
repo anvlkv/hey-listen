@@ -54,6 +54,15 @@ Templates (M13) are planned, not yet exposed.
   headless), or `saved: true` for the owner's stored snapshot.
 - `bOffset` (seconds) shifts the reference on the relative axis; `includeData` / `maxPoints`
   / `axis` / `summaryOnly` shape the sides and delta like `run_analysis`. B is read-only.
+- **B must be a different project.** A `with` that resolves to the owner's own window/file is
+  refused (`… is this project`) rather than returning a perfect match. To compare against the
+  owner's own stored baseline, use `saved: true` — that is the only valid self-pair.
+- `bOffset` shifts by a **constant** only; there is no time-tolerant matching. A sustained pad
+  vs a phrase has no meaningful frame pairing — compare per-band profiles (mean chroma /
+  centroid over each window) instead of frame-paired matrices.
+- `includeData: true` on a matrix/spectrogram family returns every frame × band cell (thousands
+  of values). Prefer `summaryOnly` or `maxPoints`, and check `comparability` (`mismatches`,
+  `filtersDiffer`) before trusting the delta.
 - The last successful comparison is stored in the owner; `save_project` writes it to
   `COMPARE` and the app reopens it as a compare tab.
 
@@ -63,7 +72,8 @@ Author the filter and synth graphs through the one node catalog and the `GraphSp
 form — see [`graphs.md`](graphs.md) for the model, the node map and sound design.
 
 - `list_nodes` / `get_node { kind }` — the catalog; `get_node` returns a ready-to-paste DOT
-  skeleton (ports, params, defaults). **Never guess a port or a key.**
+  skeleton plus `recordPorts` / `labelTemplate` (the exact multi-port `label=`). **Never
+  guess a port, key, or record label.**
 - `get_graph { graph: filter|synth }` — read the current graph back as DOT.
 - `set_filter_graph { graph, enabled: true }` — install the filter (runs upstream of preview
   and every analyzer); `graph` is DOT text, a `graphFile` path, or a `GraphSpec` object, and
@@ -157,6 +167,13 @@ can't tell when one pass ended.
 - **Mutating tools** (`open_tool` / `close_tool` / `set_*` / `create_annotation`)
   read-modify-write shared state. Call them **sequentially**, not in parallel — updates race
   and the last writer wins.
+- **Analysis has no absolute time.** Every result is relative to the **current** source: when
+  a synth render or `open_audio_file` replaces the source, an instant that was 56 s is now the
+  new source's 0 s. There is no cross-source timeline — don't compare a synth's 0 s against
+  the old loop's 56 s.
+- **`save_project` bridge vs headless.** `annotations`, `openTools` and `embedSource` are
+  **headless-only**; in the app they error (the live project is saved as-is). Pass only
+  `path`/`name` when bridging.
 - **`server shut down`** → the bridge died (it does not auto-reconnect). Re-enable the
   `hey-listen` context server in the client. The port may be **ephemeral** (differs from the
   default `47100`); the bridge discovers it automatically.

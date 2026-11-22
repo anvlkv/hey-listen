@@ -8,9 +8,14 @@ import type { GraphSpec } from "./types";
  * output` reads left to right. Positions are absolute within `width × height`.
  */
 
-interface ThumbnailNode {
+interface ThumbnailPoint {
   x: number;
   y: number;
+}
+
+interface ThumbnailNode extends ThumbnailPoint {
+  /** The node's kind, so the preview can colour it by role (anchor / source / processor). */
+  kind: string;
 }
 
 interface ThumbnailLink {
@@ -32,8 +37,8 @@ const DOT_R = 2;
 
 export function graphThumbnail(
   spec: GraphSpec | null | undefined,
-  width = 96,
-  height = 40,
+  width = 120,
+  height = 44,
 ): GraphThumbnail {
   const nodes = (spec?.nodes ?? []).slice(0, 24);
   const edges = spec?.edges ?? [];
@@ -60,7 +65,7 @@ export function graphThumbnail(
   }
   const maxColumn = Math.max(...columns.keys());
 
-  const position = new Map<string, ThumbnailNode>();
+  const position = new Map<string, ThumbnailPoint>();
   for (const [column, ids] of columns) {
     const x =
       maxColumn === 0 ? width / 2 : PAD + (column / maxColumn) * (width - PAD * 2 - DOT_R * 2);
@@ -82,7 +87,10 @@ export function graphThumbnail(
   return {
     width,
     height,
-    nodes: nodes.map((node) => position.get(node.id) as ThumbnailNode),
+    nodes: nodes.map((node) => ({
+      ...(position.get(node.id) as ThumbnailPoint),
+      kind: node.kind,
+    })),
     links,
   };
 }

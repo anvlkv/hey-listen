@@ -43,6 +43,17 @@ pub(crate) fn series_from_vec(values: Vec<f32>, hop: usize, sample_rate: u32) ->
     build_series(times, values, hop, sample_rate)
 }
 
+/// A value within this many Hz of the f0 search range's edge counts as pinned to a rail.
+const RAIL_TOLERANCE_HZ: f32 = 0.5;
+
+/// Whether `value` sits on the low or high edge of the search range — the detector's way
+/// of saying "no period found in range". A track full of these has a median that is just
+/// the range boundary, not a pitch.
+fn on_rail(value: f32, (min, max): (f32, f32)) -> bool {
+    (max > 0.0 && value >= max - RAIL_TOLERANCE_HZ)
+        || (min > 0.0 && value <= min + RAIL_TOLERANCE_HZ)
+}
+
 /// Wrap a pitch track: unvoiced frames become gaps, times come from the tracker,
 /// plus the voiced-frame summary so a nearly-empty track is visible at a glance.
 /// `range` is the f0 search window the detector actually used, in Hz.
@@ -72,10 +83,14 @@ pub(crate) fn pitch_series(
     let mut min = f32::INFINITY;
     let mut max = f32::NEG_INFINITY;
     let mut voiced_frames = 0usize;
+    let mut railed_frames = 0usize;
     for value in values.iter().flatten() {
         min = min.min(*value);
         max = max.max(*value);
         voiced_frames += 1;
+        if on_rail(*value, range) {
+            railed_frames += 1;
+        }
     }
     let frames_count = values.len();
     PitchResult {
@@ -96,7 +111,11 @@ pub(crate) fn pitch_series(
         } else {
             voiced_frames as f32 / frames_count as f32
         },
-        f0_reliable: voiced_frames >= MIN_RELIABLE_VOICED_FRAMES,
+        // Enough voiced frames is not enough when the detector pins them to an edge:
+        // a median there is the search boundary, not a pitch, so mark it unreliable and
+        // let the summary omit it (a purely non-periodic track used to read as reliable).
+        f0_reliable: voiced_frames >= MIN_RELIABLE_VOICED_FRAMES
+            && railed_frames * 2 < voiced_frames,
         confidence,
         // Only pYIN reports candidates; its dispatcher fills these in.
         candidates: None,

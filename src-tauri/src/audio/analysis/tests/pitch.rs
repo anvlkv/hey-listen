@@ -308,6 +308,28 @@ fn f0_reliability_needs_enough_voiced_frames() {
     }
 }
 
+/// A detector that finds no period pins frames to the search edge; a track that is at
+/// least half pinned has no median worth reporting, so it must not read as reliable.
+#[test]
+fn a_track_pinned_to_the_search_edge_is_not_reliable() {
+    use oxiaudio::dsp::PitchFrame;
+
+    let track: Vec<PitchFrame> = (0..16)
+        .map(|index| PitchFrame {
+            time_seconds: index as f64 * 0.01,
+            frequency_hz: 1_200.0,
+            confidence: 1.0,
+            is_voiced: true,
+        })
+        .collect();
+    let result = super::super::support::pitch_series(track, 480, RATE, (60.0, 1_200.0));
+    assert_eq!(result.voiced_frames, 16);
+    assert!(
+        !result.f0_reliable,
+        "a track pinned to the f0 search edge is not reliable"
+    );
+}
+
 /// The pYIN payload: the candidate grid is `frames × bins`, every probability is in
 /// `[0, 1]`, and there is one row per returned frame — the evidence the f0 track was
 /// chosen from.

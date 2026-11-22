@@ -53,8 +53,10 @@ nodes [KIND]              # CLI equivalent (table, or --json; <KIND> = one kind'
 ```
 
 `get_node`'s skeleton shows the exact `kind=` and keyed params at their defaults, so you can
-author DOT by copy-and-tweak instead of remembering arities. `get_graph { graph: filter|synth }`
-reads the current graph back as DOT.
+author DOT by copy-and-tweak instead of remembering arities. It also reports `recordPorts`
+(the port names in the exact order a record `label=` must use — **inputs then outputs**) and
+`labelTemplate` (the ready-to-paste `label=` value, or `null` for a single-port kind).
+`get_graph { graph: filter|synth }` reads the current graph back as DOT.
 
 ## Node map
 
@@ -180,7 +182,10 @@ digraph {
 ```
 
 - Params resolve against the catalog: unknown key / out-of-range value / unknown port /
-  missing port on a multi-port node are **errors**; omitted keys take defaults.
+  missing port on a multi-port node are **errors**; omitted keys take defaults. A node with
+  more than one input **or** output is a record and **must** carry the label — take it from
+  `get_node`'s `labelTemplate` (`recordPorts` order: inputs then outputs; stereo FX list their
+  inputs then their outputs, e.g. `reverb_stereo` → `<L> L | <R> R | <L> L | <R> R`).
 - A DOT string may open with `//`, `/* … */` or `#` comment lines — the header keyword is
   looked for past them.
 - `get_graph` reads a graph back as DOT; `get_node` returns a DOT skeleton. `set_filter_graph`

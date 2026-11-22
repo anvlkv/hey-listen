@@ -93,14 +93,8 @@ fn node_statement_full(
         attrs.push(format!("system=\"{}\"", escape(system)));
     }
     if let Some(def) = def {
-        if def.input_ports.len() > 1 || def.output_ports.len() > 1 {
-            let ports: Vec<String> = def
-                .input_ports
-                .iter()
-                .chain(def.output_ports.iter())
-                .map(|port| format!("<{port}> {port}"))
-                .collect();
-            attrs.push(format!("label=\"{}\"", ports.join(" | ")));
+        if let Some(label) = nodes::record_label(def) {
+            attrs.push(format!("label=\"{label}\""));
         }
     }
     format!("{} [{}];", dot_id(id), attrs.join(", "))

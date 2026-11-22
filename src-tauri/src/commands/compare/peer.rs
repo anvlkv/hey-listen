@@ -35,6 +35,7 @@ pub fn compare_peer_setup(
     reference: String,
     tool: AnalyzerId,
 ) -> Result<PeerSetup, String> {
+    reject_self_comparison(window.app_handle(), window.label(), &reference)?;
     let state = peer_state(window.app_handle(), &reference)?;
     let ui = state.ui_snapshot();
     let window = UiWindow::read(&ui, &state).span();
@@ -151,6 +152,28 @@ pub fn compare_targets(window: WebviewWindow) -> Vec<CompareTarget> {
             }
         })
         .collect()
+}
+
+/// Reject a live comparison whose reference resolves to the caller's own project — a
+/// self-comparison always reports a perfect match, which is never what the caller wants.
+pub(super) fn reject_self_comparison(
+    app: &AppHandle,
+    owner: &str,
+    reference: &str,
+) -> Result<(), String> {
+    let registry = app.state::<WindowRegistry>();
+    if registry.root_label(reference) == registry.root_label(owner) {
+        return Err(self_comparison_error(reference));
+    }
+    Ok(())
+}
+
+/// The error text for a comparison that resolves its reference to the owner itself.
+pub(super) fn self_comparison_error(reference: &str) -> String {
+    format!(
+        "the reference project '{reference}' is this project — compare against a \
+         different project"
+    )
 }
 
 /// The live project state for `reference`, following a popout alias to its project.

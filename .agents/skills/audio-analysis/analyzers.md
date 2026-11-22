@@ -23,8 +23,10 @@ Result **families** (how `result` is shaped): `scalar`, `series`, `spectrum`,
 - **Gating.** `frameRms`, `spectralCentroid`, `spectralRolloff`, `spectralFlatness`,
   `zeroCrossingRate`, `harmonicRatio` take `gateDb` (0 = off; dB below window peak) and
   `gateFloorDb` (absolute dBFS floor). Gated frames → `null`.
-- **Reliability.** Trust a pitch median only when `voicedFrames ≥ 8` (`f0Reliable: 1`); an
-  FM rate only when `fmReliable: 1`.
+- **Reliability.** Trust a pitch median only when `voicedFrames ≥ 8` (`f0Reliable: 1`). It is
+  also `f0Reliable: 0` when at least half the voiced frames sit on the `minF0Hz`/`maxF0Hz`
+  search edge — the detector found no period in range, so the median is the boundary, not a
+  pitch. Trust an FM rate only when `fmReliable: 1`.
 - **`harmonicRatio` is max autocorrelation, not HNR in dB** — use `spectralFlatness` for
   noisiness.
 - **Perception family** needs `calibrationDbSpl` (0 = uncalibrated → ~0). Custom
@@ -69,6 +71,12 @@ Mel-frequency cepstral coefficients. Options: `nMels` 64, `nMfcc` 13.
 Energy per pitch class (12) over time, normalized (sum ≈ 1) — a band is a proportion;
 average frames for a pitch-class/key profile. **Bands are numeric indices 0–11, not letter
 names.**
+
+> **Normalized only — pure tones make difference tones.** A band is a proportion, not an
+> absolute level, so a loud fundamental and a quiet partial can rank similarly. Overlapping
+> sines also put energy at `|f1 − f2|`, which can make the peak band a *difference tone* (e.g.
+> C ranking above D on an audibly D-major pad). Cross-check `spectrum`/`levels` for absolute
+> anchors; analyse the fundamental region only when the source is a pure-tone synth.
 
 ### spectralCentroid — `series`
 Spectral centre of mass (brightness). Options: `gateDb` 0, `gateFloorDb` −120. Physical,
@@ -121,6 +129,10 @@ Probabilistic YIN (Viterbi-smoothed). Options: `minF0Hz` 50, `maxF0Hz` 2000.
 
 ### pitchAutocorr — `series`
 Autocorrelation fundamental track. Options: `minF0Hz` 60, `maxF0Hz` 1200.
+
+> On a non-periodic source (a chord, a drone) autocorr pins at `maxF0Hz` — it then reports
+> `f0Reliable: 0` and no median rather than a confident `1200 Hz`. Widen the range or
+> cross-check YIN/pYIN; the same edge-pin rule applies to every pitch tool.
 
 ### noteMetrics — `notes`
 Gated events: spans, gaps, level, f0, voice quality. Options: `frameMs` 10, `hopMs` 5,

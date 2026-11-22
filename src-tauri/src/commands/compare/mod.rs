@@ -24,7 +24,7 @@ pub mod peer;
 pub mod popout;
 pub mod reference;
 
-use peer::{peer_state, project_name, project_path};
+use peer::{peer_state, project_name, project_path, self_comparison_error};
 
 /// The comparison a caller selected: `id` names one saved pair, falling back to the newest
 /// one for the tool when it is absent or has no snapshot yet. Several comparisons may
@@ -131,6 +131,11 @@ pub async fn run_comparison(
                 .ok_or_else(|| "`reference` is required for a live comparison".to_string())?;
             let b_setup = b.ok_or_else(|| "`b` (the reference setup) is required".to_string())?;
             let b_state = peer_state(&app, &reference)?;
+            // The live reference resolved to the same project state as A: a
+            // self-comparison reports a perfect match, so refuse it (M25).
+            if std::sync::Arc::ptr_eq(&a_state, &b_state) {
+                return Err(self_comparison_error(&reference));
+            }
             let b_project = project_name(&b_state);
             let b_path = project_path(&b_state);
             let b_filter = compare::filter_fingerprint(&b_state);

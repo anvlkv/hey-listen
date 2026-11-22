@@ -10,8 +10,8 @@ interface SnoopView {
 
 const POINTS = 48;
 const POLL_MS = 250;
-const WIDTH = 84;
-const HEIGHT = 22;
+const WIDTH = 120;
+const HEIGHT = 44;
 
 /**
  * A `snoop` node's compact waveform: the latest samples fundsp's `SnoopBackend`
@@ -68,6 +68,7 @@ export default function SnoopTrace(props: { scope: string; node: string }) {
       class="graph-snoop"
       data-testid="graph.snoop"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      preserveAspectRatio="none"
       role="img"
       aria-label="Snooped waveform"
     >

@@ -13,6 +13,17 @@ function handleTop(index: number, count: number): string {
   return `${((index + 1) / (count + 1)) * 100}%`;
 }
 
+/** The mini-map's node box, in the thumbnail's SVG units. */
+const THUMB_BOX_W = 12;
+const THUMB_BOX_H = 7;
+
+/** The preview's coarse role for a kind: anchor, source, or processor. */
+function thumbRole(kind: string): "anchor" | "source" | "process" {
+  if (kind === "input" || kind === "output") return "anchor";
+  const category = nodeKind(kind)?.category;
+  return category === "generator" || category === "control" ? "source" : "process";
+}
+
 /**
  * A fundsp graph node: a title, its inline numeric parameters, one connection handle
  * per declared port, and a **tiny label** beside each handle. Input handle ids are
@@ -30,7 +41,11 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
   return (
     <div
       class="graph-node"
-      classList={{ "graph-node-selected": props.selected, "graph-node-anchor": isAnchor() }}
+      classList={{
+        "graph-node-selected": props.selected,
+        "graph-node-anchor": isAnchor(),
+        "graph-node-compact": isSystem() || props.data.kind === "snoop",
+      }}
       data-testid="graph.node"
       data-kind={props.data.kind}
       data-node-id={props.id}
@@ -79,6 +94,7 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
             class="graph-node-thumb"
             data-testid="graph.subsystem.thumbnail"
             viewBox={`0 0 ${thumb().width} ${thumb().height}`}
+            preserveAspectRatio="none"
             role="img"
             aria-label="Subsystem preview"
           >
@@ -94,7 +110,20 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
               )}
             </For>
             <For each={thumb().nodes}>
-              {(node) => <circle class="graph-thumb-node" cx={node.x} cy={node.y} r="1.8" />}
+              {(node) => (
+                <rect
+                  class="graph-thumb-node"
+                  classList={{
+                    "graph-thumb-anchor": thumbRole(node.kind) === "anchor",
+                    "graph-thumb-source": thumbRole(node.kind) === "source",
+                  }}
+                  x={node.x - THUMB_BOX_W / 2}
+                  y={node.y - THUMB_BOX_H / 2}
+                  width={THUMB_BOX_W}
+                  height={THUMB_BOX_H}
+                  rx="1.5"
+                />
+              )}
             </For>
           </svg>
           <button

@@ -301,13 +301,50 @@ pub fn list_json() -> serde_json::Value {
     serde_json::to_value(all()).unwrap_or(serde_json::Value::Null)
 }
 
-/// One kind's detail as `get_node` reports it: the catalog entry plus the DOT
-/// skeleton.
+/// The record-label port order for a multi-port kind: **inputs then outputs**, the order
+/// the DOT parser expects in `label="<a> a | …"`. `None` for a single-port kind (which
+/// emits no label).
+pub fn record_ports(def: &NodeDef) -> Option<Vec<&'static str>> {
+    (def.input_ports.len() > 1 || def.output_ports.len() > 1).then(|| {
+        def.input_ports
+            .iter()
+            .chain(def.output_ports.iter())
+            .copied()
+            .collect()
+    })
+}
+
+/// The exact `label=` value a multi-port kind's DOT record needs, or `None` when it has
+/// at most one port. Sharing this with [`super::dot`] keeps the skeleton and the emitter
+/// from disagreeing.
+pub fn record_label(def: &NodeDef) -> Option<String> {
+    record_ports(def).map(|ports| {
+        ports
+            .iter()
+            .map(|port| format!("<{port}> {port}"))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    })
+}
+
+/// One kind's detail as `get_node` reports it: the catalog entry, the record-label
+/// contract (`recordPorts` / `labelTemplate`) and the DOT skeleton.
 pub fn detail_json(kind: &str) -> Option<serde_json::Value> {
     let def = node(kind)?;
-    serde_json::to_value(def)
-        .ok()
-        .map(|value| serde_json::json!({ "node": value, "dot": dot_skeleton(def) }))
+    let mut node = serde_json::to_value(def).ok()?;
+    if let serde_json::Value::Object(map) = &mut node {
+        // A caller authoring an edge by hand needs the record ports, not just the two
+        // per-side lists — the label combines them in input-then-output order.
+        map.insert(
+            "recordPorts".into(),
+            serde_json::to_value(record_ports(def).unwrap_or_default()).ok()?,
+        );
+        map.insert(
+            "labelTemplate".into(),
+            serde_json::to_value(record_label(def)).ok()?,
+        );
+    }
+    Some(serde_json::json!({ "node": node, "dot": dot_skeleton(def) }))
 }
 
 #[cfg(test)]

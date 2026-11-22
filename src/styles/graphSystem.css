@@ -4,6 +4,13 @@
  * inside the per-file size budget.
  */
 
+/* A subsystem / snoop node: less width, more vertical room for its summary. */
+.graph-node.graph-node-compact {
+  width: 120px;
+  min-width: 0;
+  padding: 7px 9px;
+}
+
 .graph-node-system {
   display: flex;
   flex-direction: column;
@@ -13,7 +20,7 @@
 
 .graph-node-thumb {
   width: 100%;
-  height: 36px;
+  height: 44px;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -21,11 +28,24 @@
 
 .graph-thumb-link {
   stroke: var(--border-accent);
-  stroke-width: 0.8;
+  stroke-width: 0.7;
 }
 
+/* The mini-map reads as a block diagram: muted processors, brighter sources,
+   solid anchors. */
 .graph-thumb-node {
+  fill: var(--fg-dim);
+  opacity: 0.55;
+}
+
+.graph-thumb-source {
   fill: var(--accent-soft-fg);
+  opacity: 0.9;
+}
+
+.graph-thumb-anchor {
+  fill: var(--accent);
+  opacity: 1;
 }
 
 .graph-node-open {
@@ -46,7 +66,7 @@
 
 .graph-snoop {
   width: 100%;
-  height: 22px;
+  height: 44px;
   margin-top: 6px;
   background: var(--panel-2);
   border: 1px solid var(--border);

@@ -28,6 +28,15 @@ fn the_node_catalog_is_discoverable() {
         .dispatch("get_node", json!({ "kind": "lowpass_cv" }))
         .unwrap();
     assert_eq!(detail["node"]["kind"], "lowpass_cv");
+    // The record-label contract: the exact port order a hand-authored `label=` must use.
+    assert_eq!(
+        detail["node"]["recordPorts"],
+        json!(["audio", "cut", "Q", "out"])
+    );
+    assert_eq!(
+        detail["node"]["labelTemplate"],
+        "<audio> audio | <cut> cut | <Q> Q | <out> out"
+    );
     let dot = detail["dot"].as_str().expect("a DOT skeleton");
     assert!(dot.contains("kind=\"lowpass_cv\""));
     assert!(dot.contains("label=\"<audio> audio | <cut> cut | <Q> Q | <out> out\""));

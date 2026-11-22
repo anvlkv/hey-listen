@@ -110,6 +110,33 @@ fn compare_requires_a_reference_or_a_snapshot() {
 }
 
 #[test]
+fn a_reference_that_is_this_project_is_rejected() {
+    let mut session = HeadlessSession::default();
+    session
+        .dispatch(
+            "render_synth",
+            json!({ "graph": sine_graph_value(), "seconds": 0.1 }),
+        )
+        .unwrap();
+    let path = temp_path("self-compare.heyl");
+    session
+        .dispatch("save_project", json!({ "path": path.to_string_lossy() }))
+        .unwrap();
+
+    // `with` is the very file this session saved: a self-comparison would report a
+    // perfect match, so it is refused instead of silently returning correlation 1.
+    let err = session
+        .dispatch(
+            "compare_analysis",
+            json!({ "tool": "spectrum", "with": path.to_string_lossy() }),
+        )
+        .unwrap_err();
+    assert!(err.contains("is this project"), "{err}");
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
 fn compare_reports_an_unreadable_reference() {
     let mut session = HeadlessSession::default();
     session

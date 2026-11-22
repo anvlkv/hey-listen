@@ -120,6 +120,14 @@ impl HeadlessSession {
                 Ok(comparison_value(&comparison, &output, &snapshot))
             }
             Reference::Live(path) => {
+                // A reference that is this session's own project file is a
+                // self-comparison: it would report a perfect match.
+                if self.project_path.as_deref() == Some(path.as_str()) {
+                    return Err(format!(
+                        "the reference project '{path}' is this project — compare against a \
+                         different project"
+                    ));
+                }
                 let b_offset = b_offset.unwrap_or(0.0);
                 let side = load_side(&path, None)?;
                 let comparison = compare::compare(

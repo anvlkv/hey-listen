@@ -165,6 +165,19 @@ export function initSynthLive(): () => void {
       ),
     );
 
+    // A render error belongs to the graph that produced it: opening the synth tab or
+    // changing its graph makes the message stale, so clear it rather than show a failure
+    // against a graph the tab no longer holds (a spec or the user may have left one).
+    createEffect(
+      on(
+        [openTools, () => graphSignature()],
+        () => {
+          if (openTools().includes("synth")) setSynthError(null);
+        },
+        { defer: true },
+      ),
+    );
+
     return dispose;
   });
 }
