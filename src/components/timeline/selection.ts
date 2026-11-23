@@ -25,9 +25,11 @@ export function minWindowFor(sampleRate: number | undefined): number {
 }
 
 /**
- * The channel lane under a pointer y, or `null` for a mono source (which has no lanes).
+ * The channel lane under a pointer y, or `null` when the timeline draws a single lane.
  * A drag that starts in a lane analyses that channel: `SharedParams.channel` is one pick
- * (a channel or `"mix"`), so true multi-channel selection is out of scope.
+ * (a channel or `"mix"`), so true multi-channel selection is out of scope. `channels` is
+ * the number of **shown** lanes — the filter graph's output channels when it declares
+ * several, otherwise the source's channels (see `Timeline.tsx`).
  */
 export function channelLaneAt(
   y: number,

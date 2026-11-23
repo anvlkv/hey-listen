@@ -47,6 +47,19 @@ fn a_filter_graph_outputs_one_channel_per_output_node() {
 }
 
 #[test]
+fn a_filter_graph_renders_every_output_channel_interleaved() {
+    let spec = two_output_spec();
+    let (pcm, channels) = apply_channels(&spec, &[1.0f32; 64], 48_000).expect("apply");
+    assert_eq!(channels, 2);
+    assert_eq!(pcm.len(), 128);
+    // Channel 0 is the pass-through, channel 1 the gain-0.5 branch, frame by frame.
+    for frame in pcm.chunks(2) {
+        assert!((frame[0] - 1.0).abs() < 1e-6, "channel 0 = {}", frame[0]);
+        assert!((frame[1] - 0.5).abs() < 1e-6, "channel 1 = {}", frame[1]);
+    }
+}
+
+#[test]
 fn an_output_channel_must_be_unique_and_in_range() {
     let mut duplicate = two_output_spec();
     duplicate.nodes[3].params = vec![0.0];

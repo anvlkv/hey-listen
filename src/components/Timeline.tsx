@@ -14,7 +14,7 @@ import { transportPosition } from "../audio/preview";
 import { computePeaks, type Peaks } from "../lib/waveform";
 import { onDevicePixelRatioChange } from "../lib/devicePixelRatio";
 import { stopFollowing } from "../state/capture";
-import { filteredSamples } from "../state/filtered";
+import { filteredPcm } from "../state/filtered";
 import { filterActive } from "../state/graph";
 import {
   createAnnotation,
@@ -28,6 +28,11 @@ import { clampViewRange } from "../state/timelineView";
 import { createTimelineAccessibility } from "./timeline/accessibility";
 import { PLOT_PAD, RAIL_W } from "./timeline/constants";
 import ChannelRail from "./timeline/ChannelRail";
+import {
+  createFilteredLanes,
+  createFilteredOverlay,
+  laneChannels as laneChannelsFor,
+} from "./timeline/filteredLanes";
 import TimelineContextMenu from "./timeline/TimelineContextMenu";
 import { drawTimeline, type TimelineDrawDeps } from "./timeline/draw";
 import { niceStep } from "./timeline/format";
@@ -71,8 +76,10 @@ export default function Timeline() {
 
   const duration = () => source()?.duration ?? 0;
   const span = () => Math.max(1e-9, viewEnd() - viewStart());
-  /** Width of the channel rail: only a 2+ channel source has one. */
-  const railW = () => ((source()?.channels ?? 1) > 1 ? RAIL_W : 0);
+  /** Lanes shown: the filter graph's outputs when several, else the source channels. */
+  const laneChannels = () => laneChannelsFor(source()?.channels ?? 1);
+  /** Width of the channel rail: only a 2+ lane view has one. */
+  const railW = () => (laneChannels() > 1 ? RAIL_W : 0);
   const plotW = () => Math.max(1, cssW() - PLOT_PAD * 2 - railW());
   /** Left edge of the plotted time axis (right of the rail). */
   const plotLeft = () => PLOT_PAD + railW();
@@ -95,12 +102,11 @@ export default function Timeline() {
     return lanes;
   });
 
-  /** Envelope of the filtered mono overlay (source rate; see `state/filtered.ts`). */
-  const filteredPeaks = createMemo<Peaks | null>(() => {
-    const f = filteredSamples();
-    if (!f || f.length === 0) return null;
-    return computePeaks(f, f.length, 1, "mix");
-  });
+  /** Envelope of a single-output filter, drawn as an overlay over the raw lanes. */
+  const filteredOverlay = createFilteredOverlay();
+
+  /** One envelope per filter output channel, for a multi-output graph's lanes. */
+  const filteredLanes = createFilteredLanes();
 
   const t2x = (t: number) => plotLeft() + ((t - viewStart()) / span()) * plotW();
   const x2t = (x: number) => viewStart() + ((x - plotLeft()) / plotW()) * span();
@@ -166,6 +172,7 @@ export default function Timeline() {
     canvas: () => canvas,
     active,
     duration,
+    laneChannels,
     t2x,
     x2t,
     span,
@@ -189,8 +196,9 @@ export default function Timeline() {
   const drawDeps: TimelineDrawDeps = {
     cssW,
     cssH,
+    filteredLanes,
+    filteredOverlay,
     channelPeaks,
-    filteredPeaks,
     railW,
     playSec: preview.playSec,
     playSecPlaying: () => preview.status() === "playing",
@@ -252,7 +260,7 @@ export default function Timeline() {
     windowEnd();
     preview.playSec();
     preview.status();
-    filteredSamples();
+    filteredPcm();
     filterActive();
     annotationsSorted();
     selectedAnnotationId();
@@ -343,7 +351,7 @@ export default function Timeline() {
           onPointerLeave={interaction.onPointerLeave}
         />
         <Show when={railW() > 0}>
-          <ChannelRail />
+          <ChannelRail channels={laneChannels()} />
         </Show>
         <Show when={!active()}>
           <div class="timeline-overlay">

@@ -173,9 +173,11 @@ pub async fn update_synth_source(
 }
 
 /// Stream the **whole** source conditioned exactly like preview/analysis
-/// (channel mixdown → active filter) as mono PCM at the source sample rate, so the
-/// Timeline can overlay the filtered signal on the raw waveform. Does not resample
-/// (so frames align 1:1 with the raw waveform) and does not mutate the source.
+/// (channel mixdown → active filter) as interleaved PCM at the source sample rate, so
+/// the Timeline can draw the filtered signal. Every filter output channel is rendered
+/// (the summary's `channels` says how many), so a graph that splits the input into
+/// several branches shows one lane per branch. Does not resample (so frames align 1:1
+/// with the raw waveform) and does not mutate the source.
 #[tauri::command]
 pub async fn render_filtered(
     window: WebviewWindow,
@@ -211,27 +213,26 @@ pub async fn render_filtered(
         )
     };
 
-    let mono = tauri::async_runtime::spawn_blocking(move || {
-        crate::audio::analysis::condition(
-            &samples,
-            channels,
-            sample_rate,
-            filter.as_ref(),
-            channel,
-            None,
-        )
-        .map(|(mono, _rate)| mono)
+    let (pcm, outputs) = tauri::async_runtime::spawn_blocking(move || {
+        // The filter net's global input is mono: mix the selected source channel (or all
+        // of them) down first, then render every output channel the graph declares.
+        let mono = crate::audio::pcm::mixdown(&samples, usize::from(channels), channel);
+        match filter.as_ref() {
+            Some(spec) => graph::apply_channels(spec, &mono, sample_rate),
+            None => Ok((mono, 1)),
+        }
         .map_err(|err| GraphError::Stream(err.to_string()))
     })
     .await
     .map_err(|err| GraphError::Stream(err.to_string()))??;
 
-    stream_pcm(&mono, &on_chunk)?;
+    stream_pcm(&pcm, &on_chunk)?;
 
+    let outputs = outputs.max(1);
     Ok(StreamSummary {
         sample_rate,
-        channels: 1,
-        frames: mono.len() as u64,
+        channels: outputs as u16,
+        frames: (pcm.len() / outputs) as u64,
     })
 }
 

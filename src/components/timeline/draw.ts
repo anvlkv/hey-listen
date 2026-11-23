@@ -1,12 +1,12 @@
-import { columnExtent, type Peaks } from "../../lib/waveform";
+import { type Peaks } from "../../lib/waveform";
 import { channel } from "../../state/analysis";
 import { analyzerBus, readBusMessage } from "../../state/chartSync";
-import { filteredSamples } from "../../state/filtered";
 import { filterActive } from "../../state/graph";
 import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
 import { HANDLE_TAB_W, LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
+import { drawFilteredLanes, drawFilteredOverlay } from "./filteredWaveform";
 import { formatRulerTime, formatTime, niceStep } from "./format";
 import { drawWaveformLanes } from "./waveformLanes";
 import { drawTimelineAnnotations } from "./annotationOverlay";
@@ -14,13 +14,6 @@ import { drawHover } from "./hover";
 import { timelineColors, type TimelineColors } from "./colors";
 import type { LaneHandleDrag, LaneSelection } from "../annotations/lane";
 import type { WindowSpan } from "./selection";
-
-/**
- * The filtered overlay's opacity: 85% opaque, so the filtered envelope **blends with**
- * the raw waveform underneath (a tint on the signal, not a replacement for it) while
- * still reading clearly at a glance.
- */
-const FILTERED_OVERLAY_ALPHA = 0.85;
 
 /**
  * Canvas painting for the Timeline. `drawTimeline` is the entry point (called by
@@ -32,7 +25,10 @@ const FILTERED_OVERLAY_ALPHA = 0.85;
 export interface TimelineDrawDeps {
   cssW: () => number;
   cssH: () => number;
-  filteredPeaks: () => Peaks | null;
+  /** One envelope per filter output channel, in channel order (`[]` when inactive). */
+  filteredLanes: () => Peaks[];
+  /** Envelope of a **single-output** filter, drawn as an overlay over the raw lanes. */
+  filteredOverlay: () => Peaks | null;
   /** One envelope per source channel, in channel order (see `lib/waveform.ts`). */
   channelPeaks: () => Peaks[];
   /** Width of the channel rail on the left (`0` for a mono source). */
@@ -93,54 +89,39 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     ctx.fillRect(ws, waveTop, we - ws, waveH);
   }
 
-  // Waveform: one lane per source channel, right of the channel rail.
+  // Waveform: the filtered graph's output lanes when it declares several channels,
+  // otherwise one lane per source channel with the filtered output as a tint. A graph
+  // can split its input into more branches than the source has channels, so the lanes
+  // follow the **outputs** whenever there are several of them.
   if (s && s.frames > 0) {
-    const left = PLOT_PAD + deps.railW();
-    const right = w - PLOT_PAD;
-    drawWaveformLanes(
-      ctx,
-      {
-        top: waveTop,
-        height: waveH,
-        left,
-        right,
-        samples: s.samples,
-        frames: s.frames,
-        channels: s.channels,
-        sampleRate: s.sampleRate,
-        peaks: deps.channelPeaks(),
-      },
-      {
-        wave: t.series,
-        dimmed: colors.laneDim,
-        midline: t.midline,
-        active: channel(),
-      },
-      deps.x2t,
-    );
-
-    // Filtered overlay: the same envelope, drawn over the lanes in a warm colour so
-    // the filter's effect is visible. Mono, at the source rate, across the whole area.
-    const fp = deps.filteredPeaks();
-    const fsamp = filteredSamples();
-    if (filterActive() && fp && fsamp && fsamp.length > 0) {
-      const mid = waveTop + waveH / 2;
-      const half = (waveH / 2) * 0.94;
-      ctx.globalAlpha = FILTERED_OVERLAY_ALPHA;
-      ctx.strokeStyle = t.filtered;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = left; x < right; x++) {
-        const f0 = deps.x2t(x) * s.sampleRate;
-        const f1 = deps.x2t(x + 1) * s.sampleRate;
-        const [flo, fhi] = columnExtent(fp, fsamp, fsamp.length, 1, f0, f1, "mix");
-        const fyHi = mid - fhi * half;
-        const fyLo = mid - flo * half;
-        ctx.moveTo(x + 0.5, Math.min(fyHi, fyLo));
-        ctx.lineTo(x + 0.5, Math.max(fyHi, fyLo) + 0.5);
-      }
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+    const area = {
+      top: waveTop,
+      height: waveH,
+      left: PLOT_PAD + deps.railW(),
+      right: w - PLOT_PAD,
+      sampleRate: s.sampleRate,
+    };
+    const filteredStyle = { wave: t.filtered, dimmed: colors.laneDim, midline: t.midline };
+    const lanes = filterActive() ? deps.filteredLanes() : [];
+    if (!drawFilteredLanes(ctx, area, filteredStyle, lanes, deps.x2t)) {
+      drawWaveformLanes(
+        ctx,
+        {
+          ...area,
+          samples: s.samples,
+          frames: s.frames,
+          channels: s.channels,
+          peaks: deps.channelPeaks(),
+        },
+        {
+          wave: t.series,
+          dimmed: colors.laneDim,
+          midline: t.midline,
+          active: channel(),
+        },
+        deps.x2t,
+      );
+      drawFilteredOverlay(ctx, area, deps.filteredOverlay(), t.filtered, deps.x2t);
     }
   }
 

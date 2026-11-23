@@ -21,6 +21,27 @@ pub fn apply_mono(
     apply_channel(spec, input, sample_rate, None)
 }
 
+/// Apply a filter graph to mono PCM and keep **every** output channel, interleaved.
+///
+/// This is what the Timeline draws when the graph declares more than one output: one
+/// lane per output channel, so every branch of the graph is visible at once.
+pub fn apply_channels(
+    spec: &GraphSpec,
+    input: &[f32],
+    sample_rate: u32,
+) -> Result<(Vec<f32>, usize), GraphError> {
+    let mut net = build(spec, 1, sample_rate)?;
+    net.reset();
+    let outputs = net.outputs().max(1);
+    let mut frame = vec![0.0f32; outputs];
+    let mut output = Vec::with_capacity(input.len() * outputs);
+    for &sample in input {
+        net.tick(&[sample], &mut frame);
+        output.extend_from_slice(&frame);
+    }
+    Ok((output, outputs))
+}
+
 /// Apply a filter graph to mono PCM and keep **one** of its output channels.
 ///
 /// `pick` is a 0-based output-channel index; `None` (the "downmix" pick) or an index the

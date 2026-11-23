@@ -3078,7 +3078,10 @@ and a channel nobody claims stays silent. This holds for **both** graphs:
   output channel (`apply_channel`), and the filter tab offers an **Analyse** selector when
   the graph declares more than one.
 - A **synth** render keeps every channel as an interleaved source buffer, so the timeline,
-  the analyzers and the `channel` param work on a multichannel render unchanged.
+  the analyzers and the `channel` param work on a multichannel render unchanged. The
+  Timeline likewise draws **one lane per filter output channel**, so a filter graph that
+  splits the input into several branches is visible and selectable against the whole
+  recording, not just channel by channel.
 
 Two `output` nodes on the same channel are an error (`DuplicateOutput`), not a silent
 overwrite.

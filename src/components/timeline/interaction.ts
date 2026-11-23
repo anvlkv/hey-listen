@@ -44,6 +44,11 @@ export interface TimelineInteractionDeps {
   canvas: () => HTMLCanvasElement;
   active: () => boolean;
   duration: () => number;
+  /**
+   * How many selectable waveform lanes are shown: one per filter output channel when
+   * several are drawn, otherwise one per source channel (see `Timeline.tsx`).
+   */
+  laneChannels: () => number;
   t2x: (t: number) => number;
   x2t: (x: number) => number;
   span: () => number;
@@ -123,12 +128,11 @@ export function createTimelineInteraction(deps: TimelineInteractionDeps): Timeli
 
   const minWindow = () => minWindowFor(source()?.sampleRate);
 
-  /** The channel lane under a pointer y (a 2+ channel source draws one lane per channel). */
+  /** The selectable channel lane under a pointer y (see `laneChannels`). */
   function laneUnder(y: number): number | null {
-    const s = source();
-    if (!s) return null;
+    if (!source()) return null;
     const rect = deps.canvas().getBoundingClientRect();
-    return channelLaneAt(y, RULER_H, rect.height - RULER_H, s.channels);
+    return channelLaneAt(y, RULER_H, rect.height - RULER_H, deps.laneChannels());
   }
 
   /** Apply the drag's selection (both ends snapped, direction kept), and report it. */

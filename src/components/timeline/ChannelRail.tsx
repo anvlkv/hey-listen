@@ -1,26 +1,24 @@
 import { createEffect, For, on } from "solid-js";
 import { channel, channelOptions, setChannel } from "../../state/analysis";
-import { filterOutputs } from "../../state/graph";
-import { source } from "../../state/source";
 import { RAIL_W, RULER_H } from "./constants";
 
 /**
  * The Timeline's **channel rail** (M23): the analysis channel picked next to the
  * waveform — one radio per channel lane plus a **Downmix** toggle. It writes the shared
  * analysis param (`state/analysis.ts`), so the waveform, the preview and every analyzer
- * agree (ADR-6). Rendered only for a 2+ channel source (see `Timeline.tsx`), and it
- * replaces the old toolbar `ChannelSelect`. See `docs/roadmap.md` → M23 → "Parallel
- * channel lanes".
+ * agree (ADR-6). Rendered for a 2+ lane view (`Timeline.tsx` decides the count: the
+ * source's channels, or the filter graph's output channels when it declares several),
+ * and it replaces the old toolbar `ChannelSelect`. See `docs/roadmap.md` → M23 →
+ * "Parallel channel lanes".
  */
-export default function ChannelRail() {
-  const channels = () => Math.max(1, source()?.channels ?? 1);
-  /** One option per channel (`channelOptions` leads with the downmix entry). */
-  const picks = () => channelOptions(channels(), filterOutputs()).slice(1);
+export default function ChannelRail(props: { channels: number }) {
+  /** One option per lane (`channelOptions` leads with the downmix entry). */
+  const picks = () => channelOptions(props.channels).slice(1);
 
-  // Fall back to the mix when neither the source nor the filter graph has this channel.
+  // Fall back to the mix when the shown lanes no longer include the pick.
   createEffect(
     on(
-      () => Math.max(channels(), filterOutputs()),
+      () => props.channels,
       (count) => {
         const pick = channel();
         if (typeof pick === "number" && pick >= count) setChannel("mix");

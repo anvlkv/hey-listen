@@ -55,6 +55,10 @@ in:out -> high -> out1:in
   halves of conditioning: it mixes the source down to that channel (out of range falls
   back to the downmix) and then keeps that output of the filter graph — so a 2-channel
   source can still reach output 3. "Downmix" averages every output.
+- **The Timeline draws every output channel.** A graph with several outputs paints one
+  lane per output (using the same lane/picker model as a multichannel source), so each
+  branch is visible and clickable; a single output stays an overlay tint over the raw
+  waveform.
 - A **synth** graph renders every output channel into the source: the render becomes an
   **interleaved** `SourceData` with that channel count (so the Timeline shows one lane per
   channel and the analysis `channel` picks a source channel as usual).
