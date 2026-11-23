@@ -3,7 +3,7 @@
 //! The core stores installed themes as bytes; the frontend owns the `ThemeFile`
 //! shape and validation (see `src/lib/themeFile.ts`). Native file pickers for
 //! import/export run here (like the project pickers), so the frontend only receives
-//! paths. See `docs/theming.md`.
+//! paths.
 
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;

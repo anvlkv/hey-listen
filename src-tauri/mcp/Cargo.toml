@@ -2,14 +2,14 @@
 name = "heylisten-mcp"
 # Tracks the app crate's version: the binary is built from the same release tree and serves
 # the same engine, so there is one release channel, not two (ADR-30). Version, edition and
-# license come from the workspace (`docs/packaging.md` → Release process).
+# license come from the workspace.
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Hey Listen MCP stdio entry — serve the analysis engine to an MCP client."
 # Every tool it serves lives in the app crate's lib; this package is only the console
 # entry, kept out of the app package's bin targets so the installers do not ship a client
-# binary the GUI never spawns (`docs/packaging.md`).
+# binary the GUI never spawns.
 publish = false
 
 [dependencies]

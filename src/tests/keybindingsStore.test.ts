@@ -21,7 +21,6 @@ import {
  * Unit checks for the binding persistence model and the reactive store
  * (`src/state/keybindings/model.ts`, `store.ts`). The store must import safely without a
  * DOM, so this suite runs it in the node environment with no `localStorage`.
- * See `docs/hotkeys.md` → "Persistence".
  */
 
 it("pins the storage key and schema version", () => {

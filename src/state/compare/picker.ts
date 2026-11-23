@@ -21,7 +21,7 @@ import {
  * display name, source shape and analysis window; a project with no source is listed
  * but disabled. A saved comparison is offered per pair (`Saved: <name>`), even with one
  * project open. Picking a reference opens a **new** compare tab, unless the picker was
- * opened from an existing comparison (a retarget). See `docs/comparison.md` → "Entry
+ * opened from an existing comparison (a retarget).
  * points".
  */
 
@@ -77,7 +77,7 @@ export function closeComparePicker() {
  *
  * With an `id` the picker retargets that open comparison; without one it opens a **new**
  * tab. This is the one entry point behind the tab menu, the native Analysis menu and the
- * analyzer toolbar. See `docs/comparison.md`.
+ * analyzer toolbar.
  */
 export async function chooseCompareReference(tool: AnalyzerId, id: string | null = null) {
   const [targets, saved] = await Promise.all([refreshCompareTargets(), refreshCompareSaved(tool)]);

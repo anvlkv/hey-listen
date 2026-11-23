@@ -8,7 +8,7 @@
  *
  * The heavy checks (knip, jscpd, clippy) are deliberately *not* here — they are
  * repo-scoped and slower, so they run in the pre-push hook and in CI via
- * `npm run maid`. See `docs/code-hygiene.md`.
+ * `npm run maid`.
  */
 export default {
   // Formatting: prettier owns whitespace, and lint-staged restages what it fixes.

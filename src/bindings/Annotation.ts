@@ -9,7 +9,7 @@ import type { AnnotationValues } from "./AnnotationValues";
  * An annotation anchors to an audio **time** (a point, or an optional `range` span) and,
  * optionally, to an **analyzer tool id** (absent = a Timeline annotation). Its `body` is
  * markdown; the optional `values` is a **frozen** snapshot of the chart's readout at
- * that time. See `docs/annotations.md`.
+ * that time.
  */
 export type Annotation = { 
 /**

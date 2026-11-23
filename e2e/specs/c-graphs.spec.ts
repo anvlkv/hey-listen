@@ -1,5 +1,5 @@
 /**
- * C. Graph editors (M8) — matrix rows C1–C4 (`docs/testing.md`).
+ * C. Graph editors (M8) — matrix rows C1–C4.
  *
  * The filter and synth graphs share one `solid-flow` editor (`GraphEditor`) and a
  * module-scope store (`src/state/graph.ts`), so a graph — and the project's single

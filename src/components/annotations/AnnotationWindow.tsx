@@ -15,7 +15,7 @@ import { annotationTimeText } from "../../lib/annotation";
  * arrives through the shared `uiState` sync — the window waits for it before mounting
  * (see `PopoutApp`), not through a dedicated command. The draft is an edit buffer seeded
  * once from the body; **Done** or ⌘/Ctrl+Enter commits it (re-snapshotting the chart
- * values), Escape closes without saving. See `docs/annotations.md`.
+ * values), Escape closes without saving.
  */
 export default function AnnotationWindow(props: { annotationId: string }): JSX.Element {
   const annotation = () => annotationById(props.annotationId);

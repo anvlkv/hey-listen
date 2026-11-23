@@ -1,5 +1,5 @@
 /**
- * I. Errors & warnings — matrix rows I1–I7 (`docs/testing.md`).
+ * I. Errors & warnings — matrix rows I1–I7.
  *
  * One case per UI surface: force the condition, assert the message appears in the
  * right place, and assert the app stays usable. I2–I4 and I6 force the failure by
@@ -81,7 +81,7 @@ async function changeFftSize(analyzerId: string): Promise<void> {
 
 /**
  * Best-effort: select the edge into `output` and delete it — the trigger for the
- * persistent "Output is not connected" banner (`docs/testing.md` → I5). Selecting an
+ * persistent "Output is not connected" banner. Selecting an
  * SVG edge through the system WebView is fragile, so the callers treat a miss as a
  * documented no-op (mirrors `c-graphs.spec.ts`).
  */
@@ -243,7 +243,7 @@ describe("I. Errors & warnings", () => {
 
     if (!shown) {
       // The SVG edge cannot always be selected/deleted through the system WebView
-      // (see `docs/testing.md` → I5 and `e2e/specs/c-graphs.spec.ts`). Record the
+      // (see `e2e/specs/c-graphs.spec.ts`). Record the
       // weakened row rather than assert a state the driver cannot reach.
       console.warn(
         "I5 (weakened): the output edge could not be deleted via WebDriver; " +

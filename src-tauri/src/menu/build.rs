@@ -95,7 +95,6 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     // so without them a text field (e.g. the annotation editor) cannot copy or paste
     // at all — the WebView never sees the shortcut. Undo/redo are deliberately absent:
     // they are keybinding-registry commands, so a text field keeps native text undo
-    // (`docs/undo-redo.md`).
     let cut = PredefinedMenuItem::cut(app, None)?;
     let copy = PredefinedMenuItem::copy(app, None)?;
     let paste = PredefinedMenuItem::paste(app, None)?;

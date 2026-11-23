@@ -12,7 +12,6 @@ import { sectionMatchCounts } from "../state/sidebarSearch";
  * tab's cards; selecting the tab that is already showing them **collapses** the rail,
  * handing its width to the Workbench. A small dot marks a section that holds **search
  * matches** while the rail shows another one (the search box lives only in the rail).
- * See `docs/ui-layout.md`.
  */
 export default function ActivityBar() {
   /**

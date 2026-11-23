@@ -129,7 +129,7 @@ fn handshake(mut stream: TcpStream) -> std::io::Result<TcpStream> {
         Err(err) => Err(err),
     };
     // The pump reads blocking, without a deadline: the session lives as long as the
-    // client holds it (see `docs/mcp.md`).
+    // client holds it.
     stream.set_read_timeout(None)?;
     outcome.map(|()| stream)
 }

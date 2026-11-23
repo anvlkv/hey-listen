@@ -19,11 +19,11 @@ import { currentCompareOpen, currentDescriptor, currentResults, defaultFileName 
 import { refreshDirty } from "./unsaved";
 
 /**
- * Save the project file (see [`project-file-format.md`](../../../docs/project-file-format.md)):
+ * Save the project file:
  * the core writes the project content it already holds — the same snapshot undo/redo
  * records — plus `META` and `DATA`. The request carries only what is **not** project
  * content: the creation time, the embedding choice, the result cache and the open
- * comparisons (`docs/undo-redo.md` → "Phase 2").
+ * comparisons.
  *
  * `embedSource` defaults to the project's own state: a project loaded as a **reference**
  * stays one, so re-saving it does not silently embed the whole recording.

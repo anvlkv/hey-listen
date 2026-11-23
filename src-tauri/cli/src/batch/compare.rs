@@ -1,5 +1,5 @@
 //! `compare <A.heyl> <B.heyl> -t TOOL` — diff the same analyzer across two project
-//! files. See `docs/comparison.md` → "CLI".
+//! files.
 //!
 //! Each side's **saved setup** (window, shared params, tool options) and its compiled
 //! `LAYOUT.filterSpec` condition the signal exactly as the app would, so a CLI diff

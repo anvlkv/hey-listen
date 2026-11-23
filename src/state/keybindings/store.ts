@@ -5,7 +5,7 @@ import { normalizeBinding } from "./parse";
 import type { CommandId } from "./types";
 
 /**
- * The reactive binding store ([`hotkeys.md`](../../../docs/hotkeys.md) → "Persistence").
+ * The reactive binding store.
  * It merges the stored overrides over [`DEFAULT_BINDINGS`](./defaults.ts) once at module
  * load and persists only the overrides. This is the one module in the keybinding core
  * allowed to touch `localStorage`/`window`, and every access is guarded so importing the

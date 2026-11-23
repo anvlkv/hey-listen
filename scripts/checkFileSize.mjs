@@ -5,7 +5,7 @@
  * A source file may not grow past `CEILING` lines. The files that are already
  * over it are pinned in `scripts/maid-baseline/fileSizes.json` at their current
  * length, so this check fails on *growth* and on any *new* over-long file — while
- * the existing backlog is split up over time (see `docs/code-hygiene.md`).
+ * the existing backlog is split up over time.
  *
  *   node scripts/checkFileSize.mjs             # check (used by CI + pre-push)
  *   node scripts/checkFileSize.mjs --init      # one-time: snapshot the backlog
@@ -161,7 +161,7 @@ function main() {
     );
     for (const failure of failures) console.error(`  ${failure}`);
     console.error(
-      "\n  Split the file into focused modules (see docs/code-hygiene.md) — the ceiling is not\n" +
+      "\n Split the file into focused modules — the ceiling is not\n" +
         "  negotiable, which is why the budget can only ratchet down.",
     );
     console.error("");

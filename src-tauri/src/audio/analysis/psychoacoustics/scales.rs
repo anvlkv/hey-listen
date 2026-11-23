@@ -1,6 +1,6 @@
 //! Bark and ERB auditory frequency scales, both directions (M26).
 //!
-//! Equations from [`docs/psychoacoustics-references.md`] → "Auditory frequency
+//! Equations from [] → "Auditory frequency
 //! scales". Bark and ERB are **not interchangeable**: Bark is the Zwicker / MPEG
 //! axis, ERB the Moore–Glasberg one.
 

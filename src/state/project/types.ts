@@ -6,8 +6,7 @@ import type { SourceDescriptor } from "../../bindings/SourceDescriptor";
 import type { GraphLayout } from "../graph";
 
 /**
- * The project file's section DTOs (see
- * [`project-file-format.md`](../../../docs/project-file-format.md)).
+ * The project file's section DTOs.
  *
  * The `SOURCE`/`SETUP` shapes and the save request / load response come from the Rust
  * types (generated via ts-rs; see `src/bindings/`); only `LAYOUT` is frontend-owned (it is

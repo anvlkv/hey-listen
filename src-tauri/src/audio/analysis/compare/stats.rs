@@ -2,7 +2,7 @@
 //!
 //! A comparison reports **stats** by default and raw arrays only on request, so the
 //! numbers here are the answer an agent (or the view's readouts) reads without the
-//! arrays. See `docs/comparison.md` → "The delta".
+//! arrays.
 
 use serde::Serialize;
 

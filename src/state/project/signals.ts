@@ -33,14 +33,14 @@ export const [projectError, setProjectError] = createSignal<string | null>(null)
 export const [createdMs, setCreatedMs] = createSignal<number | null>(null);
 /**
  * The format version a loaded project was migrated from, or `null` when the file was
- * current (`docs/project-file-format.md` → Migrations). The core forces the project dirty
+ * current. The core forces the project dirty
  * until a save writes the current version, so the notice and the dirty marker agree; this
  * signal is the notice's display.
  */
 export const [upgradedFrom, setUpgradedFrom] = createSignal<number | null>(null);
 /**
  * Whether the project is a **reference** project: it references its source file instead of
- * embedding the audio (`docs/project-file-format.md` → Reference projects). A re-save
+ * embedding the audio. A re-save
  * keeps it that way, so a small project does not silently grow into a full copy.
  */
 export const [referenceProject, setReferenceProject] = createSignal(false);

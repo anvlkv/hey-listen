@@ -1,6 +1,5 @@
 //! Input types for the analysis engine: the window function, the shared params,
-//! the per-tool options, and the engine error. See `docs/data-model.md` and
-//! `docs/analysis-tools.md`.
+//! the per-tool options, and the engine error. See and
 
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +12,7 @@ pub use window::WindowKind;
 pub use wire::canonical_option_key;
 
 /// Shared analysis params, synced across tools in the frontend (ADR-6) and sent
-/// with every `run_analysis` call. See `docs/data-model.md` → `SharedParams`.
+/// with every `run_analysis` call.
 ///
 /// Also `Serialize`/`Default` so the project file can persist the analysis setup.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ts_rs::TS)]

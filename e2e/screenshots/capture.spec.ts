@@ -31,10 +31,9 @@
  *     maximized, and a page never wants a 3k-wide PNG).
  */
 
-import { execFileSync } from "node:child_process";
-import { rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { capWidth as capWidthTo, captureElement, hoverAt } from "../support/capture.ts";
 import { analyzerPanel, SEL } from "../support/selectors.ts";
 import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
 import {
@@ -62,7 +61,7 @@ const ASSETS_DIR = path.resolve(
   "assets",
 );
 
-/** The project the shots are taken from (see `docs/testing.md` → Marketing screenshots). */
+/** The project the shots are taken from. */
 const PROJECT = "/Users/anvlkv/Downloads/blue capped ifrit.heyl";
 
 /** The heading of the annotation selected for the shots — the call-phrase **range** annotation. */
@@ -88,92 +87,17 @@ async function mcp(tool: string, args: Record<string, unknown>): Promise<void> {
   await emitEvent("mcp:request", { id: mcpId++, tool, arguments: args });
 }
 
-/**
- * Emulate a mouse position over a chart so its crosshair (and hover tooltip /
- * readouts) render in the screenshot.
- *
- * uPlot's cursor and the spectrogram's `onPointerMove` both read `clientX` /
- * `clientY`, so a synthetic `pointermove` + `mousemove` at the element's own rect is
- * enough to place the crosshair — no trusted pointer required (the same technique the
- * suite's `pointerDrag` helper already relies on). `fx`/`fy` are fractional offsets
- * into the element's box (default centre).
- */
-async function hoverAt(selector: string, fx = 0.5, fy = 0.5): Promise<void> {
-  await browser.execute(
-    (sel: string, fx: number, fy: number) => {
-      const els = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
-      if (els.length === 0) throw new Error(`hoverAt: no element for ${sel}`);
-      // Position from the first match; uPlot's over canvas shares the plot box.
-      const rect = els[0].getBoundingClientRect();
-      const clientX = rect.left + rect.width * fx;
-      const clientY = rect.top + rect.height * fy;
-      const init = { bubbles: true, cancelable: true, clientX, clientY, view: window };
-      for (const el of els) {
-        el.dispatchEvent(
-          new PointerEvent("pointermove", {
-            ...init,
-            pointerId: 1,
-            pointerType: "mouse",
-            isPrimary: true,
-          }),
-        );
-        el.dispatchEvent(new MouseEvent("mousemove", init));
-      }
-    },
-    selector,
-    fx,
-    fy,
-  );
-  // Let the reactive redraw paint the crosshair before the next capture.
-  await browser.pause(200);
-}
+/** The PNG a marketing label is written to. */
+const shotFile = (label: string) => path.join(ASSETS_DIR, `${label}.png`);
 
 /** Cap an asset's width (no upscaling) so a maximized window cannot bloat the page. */
 function capWidth(label: string, maxWidth: number): void {
-  const file = path.join(ASSETS_DIR, `${label}.png`);
-  try {
-    execFileSync("magick", [file, "-resize", `${maxWidth}x>`, file]);
-  } catch (err) {
-    console.warn(`magick resize for "${label}" failed; keeping the full-size PNG:`, err);
-  }
+  capWidthTo(shotFile(label), maxWidth);
 }
 
-/**
- * Capture the viewport and crop it to `selector`'s bounding box (CSS px ×
- * `devicePixelRatio`) with ImageMagick. The embedded driver's element screenshot
- * returns the whole viewport, so this is how "clipped to element" is done.
- */
+/** Capture the viewport, crop it to `selector`'s bounding box, and write it as `label`. */
 async function cropElement(label: string, selector: string): Promise<void> {
-  const box = (await browser.execute((sel: string) => {
-    const el = document.querySelector(sel);
-    if (!el) throw new Error(`cropElement: no element for ${sel}`);
-    const r = el.getBoundingClientRect();
-    return {
-      left: r.left,
-      top: r.top,
-      width: r.width,
-      height: r.height,
-      dpr: window.devicePixelRatio || 1,
-    };
-  }, selector)) as { left: number; top: number; width: number; height: number; dpr: number };
-
-  const file = path.join(ASSETS_DIR, `${label}.png`);
-  const full = path.join(ASSETS_DIR, `.${label}.full.png`);
-  await browser.saveScreenshot(full);
-
-  const w = Math.round(box.width * box.dpr);
-  const h = Math.round(box.height * box.dpr);
-  const x = Math.round(box.left * box.dpr);
-  const y = Math.round(box.top * box.dpr);
-  try {
-    execFileSync("magick", [full, "-crop", `${w}x${h}+${x}+${y}`, "+repage", file]);
-    capWidth(label, ASSET_WIDTH);
-  } catch (err) {
-    console.warn(`magick crop for "${label}" failed; keeping the full viewport shot:`, err);
-    await browser.saveScreenshot(file);
-  } finally {
-    rmSync(full, { force: true });
-  }
+  await captureElement(selector, shotFile(label), ASSET_WIDTH);
 }
 
 /** Save an analyzer panel, cropped, once its chart has ink and a crosshair placed. */

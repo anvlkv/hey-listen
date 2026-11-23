@@ -3,7 +3,7 @@
  *
  * One `it` per `ANALYZER_TOOLS` entry: open the tab, wait for a non-empty result,
  * open the params + about popovers, re-select the sidebar entry to prove there is no
- * duplicate tab, then close. See `docs/testing.md` → "D. Analyzer tools".
+ * duplicate tab, then close. Analyzer tools".
  *
  * The suite drives **one** app instance for the whole run, so the source is loaded
  * once in `before` (`chirp_noise` gives every spectral / rhythm tool a real,

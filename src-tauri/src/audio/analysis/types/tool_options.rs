@@ -1,5 +1,5 @@
 //! Per-tool options and their accessors, split out of [`super`] to stay inside the
-//! source-size budget. See `docs/analysis-tools.md`.
+//! source-size budget.
 
 use serde::Serialize;
 
@@ -14,7 +14,7 @@ use super::super::{
 };
 
 /// Per-tool options (not shared across tools). Absent fields fall back to the tool
-/// defaults; see `docs/analysis-tools.md`.
+/// defaults.
 ///
 /// Keys are canonical **camelCase**; snake_case aliases are accepted when reading a
 /// request (the IPC, headless, and CLI boundaries), and unknown keys are rejected rather

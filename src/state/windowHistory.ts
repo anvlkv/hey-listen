@@ -7,7 +7,7 @@ import { reframeWindow, windowEnd, windowStart } from "./timeline";
  * windows behind the toolbar's Previous / Next window buttons.
  *
  * It is deliberately not the app's undo/redo (the core-owned project history, see
- * `docs/undo-redo.md`, which snapshots the whole editable project) and not the
+ *, which snapshots the whole editable project) and not the
  * per-session viewport (`viewStart` / `viewEnd`, the zoom/pan of the timeline):
  * navigating history only re-writes the **analysis window**, and restoring an entry
  * leaves every other store alone.

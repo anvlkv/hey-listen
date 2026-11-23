@@ -363,7 +363,7 @@ mod tests {
 
     /// The `initialize` guidance must describe the `maxPoints` contract that is actually
     /// delivered: series **and matrix** arrays are thinned, event/note lists never are
-    /// (audit P3; `docs/mcp.md`).
+    /// (audit P3).
     #[test]
     fn instructions_describe_the_max_points_contract() {
         let instructions = initialize_result(&json!({}))["instructions"]

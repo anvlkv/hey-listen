@@ -43,7 +43,6 @@ const LAYERS: [Layer, Layer, Layer] = [
  * Spectrum tool: the averaged FFT magnitude of the conditioned signal over the
  * window (STFT magnitudes averaged per bin), with optional per-bin min / max
  * layers showing how the magnitude spread across the window's frames. See
- * `docs/analysis-tools.md`.
  *
  * The chart is made **explanatory** (M36): the layers are named in a shared legend, the
  * min/max pair is shaded as one band, prominent peaks are labelled in Hz, and the

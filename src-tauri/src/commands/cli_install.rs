@@ -9,7 +9,7 @@
 //!
 //! The menu surface that installs / repairs / removes it is M33.D (ADR-31); this module
 //! exposes the logic, the [`cli_tool_status`] / [`cli_tool_install`] / [`cli_tool_uninstall`]
-//! commands it will call, and the startup refresh. See `docs/updater.md`.
+//! commands it will call, and the startup refresh.
 
 use std::fs;
 use std::path::{Path, PathBuf};

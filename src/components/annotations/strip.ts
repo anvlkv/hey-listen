@@ -7,6 +7,5 @@
  * area, so an annotation is both visible and easy to grab. The height lives here — one
  * constant shared by `components/timeline/` and `components/analyzer/annotationPlugins.ts`
  * — so the lane the user sees and the lane the pointer hit-tests are the same.
- * See `docs/annotations.md` → Surfacing.
  */
 export const ANNOTATION_STRIP_H = 12;

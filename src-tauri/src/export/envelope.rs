@@ -1,6 +1,6 @@
 //! The self-describing JSON export envelope (M12) and the render entry point.
 //!
-//! `docs/exports.md` defines the shape: `kind`, `formatVersion`, `tool`,
+//! defines the shape: `kind`, `formatVersion`, `tool`,
 //! `generatedAt`, `source`, `window`, `params`, `options`, and the typed `result`.
 //! `window` + `params` + `options` + `tool` are exactly what a template stores, so an
 //! exported file and a template fully describe a reproducible analysis.
@@ -19,7 +19,7 @@ pub const KIND: &str = "hey-listen.analysis";
 /// Bump when the envelope shape changes incompatibly.
 pub const FORMAT_VERSION: u32 = 1;
 
-/// Where an exported result came from (`docs/source-model.md`): enough to recognize
+/// Where an exported result came from: enough to recognize
 /// the audio later, including the path for a file source (provenance only).
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]

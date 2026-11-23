@@ -6,8 +6,8 @@ import { dirty, setDirty } from "./signals";
  * Unsaved work, as the core reports it (M24.A phase 3).
  *
  * The core owns the dirty flag: it compares the project snapshot this window pushes with
- * the last clean point and broadcasts `project-dirty` when the answer changes (see
- * `docs/undo-redo.md` → "Phase 3"). The flag drives the title `*` and the discard prompt;
+ * the last clean point and broadcasts `project-dirty` when the answer changes. The flag
+ * drives the title `*` and the discard prompt;
  * `isEmptyProject` asks the core whether there is anything worth protecting at all.
  */
 

@@ -160,8 +160,7 @@ fn the_step_table_covers_every_hop() {
     while from < VERSION {
         assert!(
             STEPS.iter().any(|step| step.from == from),
-            "no migration step from version {from} — add it to STEPS and record it in \
-             docs/project-file-format.md → Format version history"
+            "no migration step from version {from} — add it to STEPS"
         );
         from += 1;
     }

@@ -7,7 +7,6 @@
  * to its nearest time within a tolerance (`0.6 × hop`) — never by index. When the grid
  * differs the view does not overlay at all (two plots side by side), so this never
  * interpolates across different resolutions.
- * See `docs/comparison.md` → "The compare view".
  */
 
 /** One merged column set over a shared time axis. */

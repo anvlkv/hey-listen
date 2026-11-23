@@ -11,7 +11,7 @@ import { clampViewStart, thumbPercent } from "../lib/timelineScroll";
  *
  * Covers the pure contract the scrollbar relies on: a pan never pushes the view past
  * either end of the source, and the thumb always sits inside its track (so a deep zoom
- * cannot show a thumb hanging off the edge). See `docs/ui-layout.md`.
+ * cannot show a thumb hanging off the edge).
  */
 
 it("clamps a view start so the visible span stays inside the source", () => {

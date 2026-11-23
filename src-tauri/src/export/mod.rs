@@ -1,6 +1,6 @@
 //! Analysis exports (M12): the self-describing **provenance envelope** (JSON) and
 //! the **wide-matrix CSV** renderer, shared by the app, the MCP server, and the batch
-//! CLI so every surface writes byte-identical data. See `docs/exports.md`.
+//! CLI so every surface writes byte-identical data.
 //!
 //! The envelope wraps the typed [`AnalysisResult`] with everything needed to
 //! reproduce it (source, window, shared params, per-tool options), while CSV is data

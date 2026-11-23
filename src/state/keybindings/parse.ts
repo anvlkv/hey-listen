@@ -2,8 +2,8 @@ import type { CommandId, CommandScope } from "./types";
 
 /**
  * The pure binding helpers — parse, re-serialize, format for display, match a
- * `KeyboardEvent`, and detect a conflict ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Binding syntax"). Nothing here touches `window`, `localStorage` or the DOM, so the
+ * `KeyboardEvent`, and detect a conflict. Nothing here touches `window`, `localStorage`
+ * or the DOM, so the
  * node unit suite can exercise every rule.
  *
  * A binding is portable spelling: `Mod` is ⌘ on macOS and Ctrl elsewhere, `Alt` is

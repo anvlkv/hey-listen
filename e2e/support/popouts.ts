@@ -53,7 +53,7 @@ export async function rightClick(selector: string, last = false): Promise<void> 
  * app's parent↔popout alias lives in Rust and is not exposed to the suite.
  *
  * The caller still owns the tab-side assertion (`tab(id)` is gone from the Workbench) and
- * closing the window; see `docs/testing.md` → H2.
+ * closing the window.
  */
 export async function popOutTab(toolId: string): Promise<string> {
   const before = new Set(await windowLabels());

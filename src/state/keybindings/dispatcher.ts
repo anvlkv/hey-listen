@@ -5,8 +5,7 @@ import { resolveScope } from "./scope";
 import type { Binding, CommandDef, CommandScope } from "./types";
 
 /**
- * The one window-level `keydown` dispatcher ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Matching" / "Guards").
+ * The one window-level `keydown` dispatcher.
  *
  * It reads each command's binding from the store, resolves the current **scope**, and
  * prefers the most-specific scope over `global`. Its guards keep the keyboard safe: a

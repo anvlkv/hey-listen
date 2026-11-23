@@ -9,7 +9,7 @@
  * `afterTest`) says what the suite was waiting for; `afterTest` clears it afterwards.
  *
  * Deliberately **static**: WebKit throttles — and can pause — animations while the window
- * is occluded, which is the norm under CI (see `docs/testing.md` → Selectors). A pattern
+ * is occluded, which is the norm under CI. A pattern
  * that stops moving would read as settled, which is the one thing it must not say.
  *
  * Scope: the pattern is painted in the **window the session currently addresses**, because

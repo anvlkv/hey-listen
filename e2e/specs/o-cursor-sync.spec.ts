@@ -4,7 +4,7 @@
  * A second window is a *view* of the same project (ADR-11): the shared cursor and view
  * ride `uiState`. This checks both directions — hovering a chart in one window mirrors
  * onto the charts in the other — with a canvas heatmap in one window and a uPlot series
- * chart in the other, so both painter paths are exercised. See `docs/ui-layout.md`.
+ * chart in the other, so both painter paths are exercised.
  */
 import { analyzerPanel, tab } from "../support/selectors.ts";
 import {

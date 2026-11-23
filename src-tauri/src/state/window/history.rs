@@ -2,8 +2,7 @@
 //! the **core-owned trailing settle** that turns a settled gesture into one step.
 //!
 //! Split out of `state/window/mod.rs` to stay inside the source-size budget; it is the
-//! `tauri`-aware half of [`crate::state::history`] (which is the pure reducer). See
-//! [`undo-redo.md`](../../../../docs/undo-redo.md).
+//! `tauri`-aware half of [`crate::state::history`] (which is the pure reducer).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};

@@ -3,7 +3,7 @@ import { source } from "./source";
 import { setView, viewEnd, viewStart, windowEnd, windowStart } from "./timeline";
 
 /**
- * Store-level timeline zoom ([`hotkeys.md`](../../../docs/hotkeys.md) → "Timeline / view").
+ * Store-level timeline zoom.
  * The Timeline's wheel gesture stays local (it needs canvas geometry), but the toolbar
  * buttons and the `timeline.*` commands share these actions.
  */

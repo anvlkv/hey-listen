@@ -10,7 +10,7 @@
 //!
 //! The interface is [`clap_args`]: the `hey-listen-cli` console binary parses with
 //! `clap` derive and maps onto a [`Request`] here (ADR-29). The app binary keeps only
-//! `--mcp` / `--headless`; see `docs/cli.md`.
+//! `--mcp` / `--headless`.
 //!
 //! There is no second DSP path: every step below is a `dispatch` call onto the headless
 //! session, which reaches the same `analysis::run_window` / `audio::decode` /
@@ -86,7 +86,7 @@ fn run_request(request: &Request, out: &mut impl Write) -> i32 {
     let mut session = HeadlessSession::default();
 
     // An unknown `-t` id is reported as a result-line `error` and exits `1`, matching
-    // `docs/cli.md` (audit P3): every surface of the batch CLI reports per-result errors
+    // (audit P3): every surface of the batch CLI reports per-result errors
     // the same way. When no known tool remains there is nothing to run, so stop here
     // rather than decoding a file for no result.
     let unknown = report_unknown_tools(request, out);

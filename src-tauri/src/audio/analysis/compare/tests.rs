@@ -1,5 +1,5 @@
 //! Comparison unit tests: the grid signature, the per-family delta, event pairing,
-//! overlap/no-overlap, and shaping. See `docs/comparison.md` → "Tests".
+//! overlap/no-overlap, and shaping.
 
 use super::align::Span;
 use super::diff::ComparisonDiff;

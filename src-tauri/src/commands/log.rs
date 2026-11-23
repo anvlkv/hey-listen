@@ -2,7 +2,7 @@
 //!
 //! Thin adapters over [`crate::logging`] — the plugin owns the file, and this module
 //! only exposes it to the frontend (the Help menu's two actions are handled natively in
-//! [`crate::menu`], so they work without a webview). See `docs/logging.md`.
+//! [`crate::menu`], so they work without a webview).
 
 use tauri::AppHandle;
 

@@ -41,7 +41,7 @@ type ExpectedError = string | RegExp;
  *
  * - A live capture started from the Source panel is refused by the OS: the suite launches
  *   the app without a microphone permission grant (the capture happy path, B5, is a manual
- *   smoke — `docs/testing.md`).
+ * smoke.
  * - A desktop CI runner has **no audio output device**, so the first real `preview_region`
  *   (and the UI's `preview failed` report of it) is rejected. A spec that previews audio
  *   therefore records these two lines on any machine without an output device.

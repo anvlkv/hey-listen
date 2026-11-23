@@ -8,7 +8,7 @@
  * on the **matrix** tools (mel spectrogram, MFCC) — the tools where `valuesText` used to
  * throw and lose it.
  *
- * See `docs/annotations.md` and `decisions.md` → ADR-19.
+ * See ADR-19.
  */
 import { SEL, analyzerPanel } from "../support/selectors.ts";
 import {

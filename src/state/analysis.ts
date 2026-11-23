@@ -9,12 +9,12 @@ import type { WindowKind } from "../bindings/WindowKind";
  * every `run_analysis` call carries the same values. Per-tool params live in each
  * tool's own params popover, not here.
  *
- * See `docs/analysis-tools.md` → "Shared parameters" and `docs/data-model.md`.
+ *.md`.
  */
 
 /**
  * Which channel of the source to analyse: `"mix"` downmixes every channel to
- * mono, a number selects a 0-based channel. See `docs/data-model.md`.
+ * mono, a number selects a 0-based channel.
  */
 export const [channel, setChannel] = createSignal<ChannelPick>("mix");
 
@@ -157,7 +157,7 @@ export const [resampleTo, setResampleTo] = createSignal<number | null>(null);
 export const [freqMinHz, setFreqMinHz] = createSignal(0);
 export const [freqMaxHz, setFreqMaxHz] = createSignal(0);
 
-/** The shared params as they cross the IPC boundary (ts-rs binding, `docs/data-model.md`). */
+/** The shared params as they cross the IPC boundary (ts-rs binding). */
 export type SharedParamsDto = SharedParams;
 
 /** Snapshot the shared params for a `run_analysis` call. */

@@ -17,7 +17,6 @@ import {
  * shared params form. The fields come from the tool's registry entry, so a new tool
  * only declares its params — no bespoke form component.
  *
- * See `docs/analysis-tools.md` → "Per-tool params".
  */
 export default function ToolParamsForm(props: { id: AnalyzerId }) {
   const fields = () => analyzerById(props.id).params ?? [];

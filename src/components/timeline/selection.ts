@@ -3,7 +3,7 @@
  * drag selects, the channel lane it starts in, the time clamp the gestures share and the
  * start of a moved window. Used by the pointer interaction (`interaction.ts`), the snap
  * rules (`snapping.ts`), the context menu (D-11) and unit-tested on its own, so the clamp /
- * minimum-length / lane rules have one owner. See `docs/roadmap.md` → M23 → "Window
+ * minimum-length / lane rules have one owner.
  * readout, pan and select".
  */
 import { laneAtY } from "./waveformLanes";

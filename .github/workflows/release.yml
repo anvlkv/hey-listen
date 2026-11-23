@@ -30,7 +30,7 @@ jobs:
           # Ubuntu 24.04 for the Linux bundle: flexaudio's Linux backend pulls
           # pipewire-rs 0.10, whose `libspa`/`libspa-sys` are written against the
           # PipeWire **0.3.65+** headers (0.3.65 is the crate's baseline feature) —
-          # 22.04 ships 0.3.48, where `libspa` fails to compile. See `docs/packaging.md`.
+          # 22.04 ships 0.3.48, where `libspa` fails to compile.
           - os: ubuntu-24.04
             target: ""
             args: ""

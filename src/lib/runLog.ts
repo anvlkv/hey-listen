@@ -1,5 +1,5 @@
 /**
- * A run's lifecycle as one line each in the app log (see `docs/logging.md`).
+ * A run's lifecycle as one line each in the app log.
  *
  * [`startRun`] names the run when it starts, when it ends (always with its elapsed time),
  * and warns every [`HEARTBEAT_MS`] while it is still going — so a run that never returns is

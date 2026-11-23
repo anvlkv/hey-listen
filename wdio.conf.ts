@@ -16,7 +16,6 @@ import { E2E_LOG_DIR } from "./e2e/support/logs.ts";
  * The suite drives the **release** binary through the system WebView with
  * `@wdio/tauri-service` and the **embedded** driver (`tauri-plugin-wdio-webdriver`)
  * — no external driver, and the only macOS route that needs no API key. See
- * `docs/testing.md`.
  *
  * Build first: `npm run tauri build` (`appBinaryPath` → `src-tauri/target/release/`).
  */
@@ -131,7 +130,7 @@ export const config: Options.Testrunner & {
         // The app's own log (ADR-33) rides the `env` the service merges over `process.env`
         // when it spawns the binary: `HEYLISTEN_LOG_DIR` moves the file target into the
         // run's artifacts, and an explicit level keeps a developer's shell setting out of
-        // the run. See docs/testing.md → Artifacts.
+        // the run.
         env: {
           HEYLISTEN_LOG_DIR: E2E_LOG_DIR,
           HEYLISTEN_LOG_LEVEL: "info",
@@ -155,7 +154,6 @@ export const config: Options.Testrunner & {
     // `logHooks.ts` as a Mocha root hook plugin: every spec file starts with an empty app
     // log and fails when it ends with an error the spec did not declare. Root hooks are
     // the only shape that can fail a file — a WDIO `after` hook error is swallowed. See
-    // docs/testing.md → Artifacts.
     require: ["./e2e/support/logHooks.ts"],
     // Analysis can be slow on the longest fixture; a generous per-test ceiling.
     timeout: 120_000,

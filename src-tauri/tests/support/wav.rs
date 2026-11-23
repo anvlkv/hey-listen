@@ -3,7 +3,7 @@
 // The app-crate unit tests (`audio::decode`), the `hey-listen-cli` batch tests
 // (`src-tauri/cli/src/batch/tests/`) and the `heylisten-mcp` integration test
 // (`src-tauri/mcp/tests/`) all need the same file, so they `include!` this one source
-// instead of each carrying a copy (see `docs/code-hygiene.md` → "No new duplication").
+// instead of each carrying a copy.
 
 use std::path::Path;
 

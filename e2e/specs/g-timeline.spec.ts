@@ -1,5 +1,5 @@
 /**
- * G. Timeline (M8) — matrix rows G1–G5 (`docs/testing.md`).
+ * G. Timeline (M8) — matrix rows G1–G5.
  *
  * The waveform window (start/end handles + move bar) is drawn on the Timeline
  * canvas, not the DOM, so G1 addresses the end handle by its known canvas position

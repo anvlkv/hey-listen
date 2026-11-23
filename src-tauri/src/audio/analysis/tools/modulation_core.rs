@@ -7,7 +7,7 @@
 //! A single rate is not enough — a call can carry slow breathing and a fast trill at
 //! once — so both halves return a full spectrum over `modMinHz`–`modMaxHz`. The band is
 //! clamped to ~45% of the lower analysis rate, the envelope is band-limited to that grid
-//! before decimation, and the effective range is reported. See `docs/analysis-metrics.md` → M20.
+//! before decimation, and the effective range is reported.
 
 use super::super::support::frame_rms;
 use super::super::{

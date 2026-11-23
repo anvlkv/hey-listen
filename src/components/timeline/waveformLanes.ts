@@ -5,7 +5,7 @@ import { columnExtent, type Peaks } from "../../lib/waveform";
  * The Timeline's **parallel channel lanes** (M23): the waveform area split into one
  * min/max lane per source channel, stacked and centred, each reading its own envelope
  * from `lib/waveform.ts`. Pure canvas painting — no stores or DOM — so `draw.ts` stays
- * the orchestrator. See `docs/roadmap.md` → M23 → "Parallel channel lanes".
+ * the orchestrator.
  */
 
 /** Fraction of a lane's half-height the envelope may use. */

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
  * 440 Hz tone for the correctness spot-checks, a chirp + noise burst that gives
  * every spectral/rhythm tool a real, non-flat signal, a stereo tone for the
  * channel-select scenario, a corrupt file for the error path, and a known synth
- * graph for the synth source. See `docs/testing.md` → Fixtures.
+ * graph for the synth source.
  */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -142,7 +142,7 @@ function chirpNoise(): Float32Array {
   const f0 = 20;
   const f1 = 8000;
   const duration = frames / SAMPLE_RATE;
-  // Logarithmic sweep (matches the "chirp" in `docs/testing.md`).
+  // Logarithmic sweep (matches the "chirp" in ).
   const k = Math.log(f1 / f0);
   for (let i = 0; i < frames; i++) {
     const t = i / SAMPLE_RATE;

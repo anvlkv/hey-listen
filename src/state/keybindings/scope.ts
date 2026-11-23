@@ -2,8 +2,8 @@ import { focusedTool } from "../workbench";
 import type { CommandScope } from "./types";
 
 /**
- * Scope resolution for the dispatcher ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Matching"). Returns the **most-specific** region that currently owns focus, so a
+ * Scope resolution for the dispatcher. Returns the **most-specific** region that
+ * currently owns focus, so a
  * command declared for `annotations` / `graph` / `timeline` / `workbench` beats a
  * `global` command with the same chord.
  */

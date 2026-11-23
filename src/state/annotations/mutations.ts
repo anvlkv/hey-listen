@@ -61,7 +61,7 @@ export function createAnnotation(input: AnnotationInput): Annotation {
   if (input.select ?? true) {
     // Creating reveals the rail (if collapsed), opens the new annotation's editor and selects
     // it. It deliberately does **not** move the analysis window: adding an annotation
-    // must not reframe the analysis (see `docs/annotations.md` → Surfacing).
+    // must not reframe the analysis.
     setAnnotationsPanelOpen(true);
     setEditingAnnotationId(annotation.id);
     selectAnnotation(annotation.id);

@@ -4,7 +4,7 @@ import { rankPaletteItems, type PaletteItem } from "../state/keybindings/palette
 /**
  * Unit checks for the command palette's ranking (`src/state/keybindings/palette.ts`):
  * the empty query, filtering, the title-match tiers, secondary fields, and the stable
- * tie-break. See `docs/hotkeys.md` → "Command palette".
+ * tie-break.
  */
 
 /** A palette item with only the fields a test cares about. */

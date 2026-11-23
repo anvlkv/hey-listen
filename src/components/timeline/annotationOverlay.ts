@@ -30,7 +30,6 @@ import {
  * The geometry and the painters live in `components/annotations/rules.ts`, shared with the
  * analyzer charts. A **closed rail** draws the anchors dull (and never promotes one). The
  * rules are drawn before the window handles and the playhead, so those stay on top. See
- * `docs/annotations.md` → Surfacing.
  */
 export interface TimelineAnnotationLayer {
   waveTop: number;

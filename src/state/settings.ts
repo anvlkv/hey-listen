@@ -90,7 +90,7 @@ export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
  * The **Annotations panel** (M14) — a right rail, the mirror of the Sidebar. It is UI
  * chrome (not project content), so its open/closed state and width are persisted
  * app-level in `localStorage`, exactly like the font scale; the annotations themselves
- * are project data (`state/annotations/`). See `docs/annotations.md` → The Annotations panel.
+ * are project data (`state/annotations/`).
  */
 
 /** Default rail width, in px. */

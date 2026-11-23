@@ -14,7 +14,6 @@ import { analyzerById, type AnalyzerId } from "../../state/analyzer";
  *
  * The **shared** analysis params (ADR-6) are global and synced, so they live in the
  * app Toolbar's "Analysis params" popover, not here. See
- * `docs/analysis-tools.md` → "Shared parameters".
  *
  * Busy indication: while the **first** result is computing, the body's empty state is
  * hidden (`analyzer-first-load`) and a spinner is centred over it — the children stay

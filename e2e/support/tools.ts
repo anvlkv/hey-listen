@@ -3,7 +3,6 @@
  * iterates. The vocabularies are **imported**, never re-declared: the ids come from the
  * generated `AnalyzerId`, the views from the renderer's `AnalyzerView` union, and the
  * sections from the generated `Section` (`src/state/analyzer/types.ts` → `AnalyzerSection`).
- * `docs/testing.md` → "Analyzer tools — every tool" lists the same ids.
  *
  * Keep the ids in `AnalyzerId` order: every id must appear here, or a tool silently
  * escapes the "every tool" smoke test. All of this is type-only, so it is erased at run

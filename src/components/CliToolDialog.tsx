@@ -4,7 +4,7 @@ import type { CliToolStatus } from "../bindings/CliToolStatus";
 import Icon from "./Icon";
 import { invoke, errorMessage } from "../lib/ipc";
 
-/** The installed command's name, as `docs/updater.md` documents it. */
+/** The installed command's name, as documents it. */
 const CLI_NAME = "hey-listen-cli";
 
 /**
@@ -16,7 +16,7 @@ const CLI_NAME = "hey-listen-cli";
  * absent, **Update** when stale, **Repair** otherwise, plus **Uninstall** when
  * installed. Every action calls the core, which stages the copy before swapping it
  * in — so a failure leaves an existing install untouched and is reported as an
- * error here. See `docs/updater.md`.
+ * error here.
  */
 export default function CliToolDialog(props: {
   open: boolean;

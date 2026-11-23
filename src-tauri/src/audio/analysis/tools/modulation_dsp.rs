@@ -1,7 +1,7 @@
 //! Shared DSP for the AM/FM modulation tool (M20): envelope conversion and band-limiting,
 //! detrending, a bounded radix-2 FFT, the shared rate grid, ranked peak picking, and the
 //! voiced run the FM half analyses. The spectra are relative to their strongest bin, so no
-//! window-gain normalization is needed. See `docs/analysis-metrics.md` → M20.
+//! window-gain normalization is needed.
 
 use oxiaudio::dsp::PitchFrame;
 

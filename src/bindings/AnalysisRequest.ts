@@ -7,7 +7,6 @@ import type { ToolOptions } from "./ToolOptions";
 /**
  * One `run_analysis` request: the tool id, the analysis window (source seconds),
  * the shared params, any per-tool options, and how much of the result to return
- * (`docs/data-model.md`).
  */
 export type AnalysisRequest = { tool: AnalyzerId, start: number, end: number, params: SharedParams, options: ToolOptions, 
 /**

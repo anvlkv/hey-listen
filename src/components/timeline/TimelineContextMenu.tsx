@@ -20,7 +20,7 @@ import { setSnapEnabled, snapEnabled } from "./snapping";
  * a popped-out window mounts it in that document, and it closes with the canvas (see
  * `lib/anchorLifetime.ts`). The pointer time is recorded by our own capture-phase
  * `contextmenu` listener, which runs before Kobalte opens the menu on the same event. See
- * `docs/deferred.md` → D-11 and `docs/annotations.md`.
+ *.md`.
  */
 export default function TimelineContextMenu(props: {
   ref?: (el: HTMLDivElement) => void;

@@ -8,7 +8,6 @@ import type { CompareViewDto } from "./types";
  * tool popout, so it is never saved, restored or raised as an analyzer tab; the window
  * asks [`loadComparePopout`] what it shows and retargets through the core. Several
  * comparisons of one tool may be open, so the stable `id` identifies the pair.
- * See `docs/comparison.md` → "Popout".
  */
 
 /** The compare view this window shows, or `null` for any other window. */

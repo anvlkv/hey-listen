@@ -7,7 +7,6 @@
 //! parameters. They are a **published approximation, not a conformance claim** —
 //! the normative standard is not reproduced in full here.
 //!
-//! See `docs/psychoacoustics-references.md` → "Loudness".
 
 /// Table 1: frequencies (Hz).
 pub(super) const T1_FREQ: [f64; 39] = [

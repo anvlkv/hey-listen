@@ -6,12 +6,12 @@
 //! no log plugin** — so it boots a bare GUI-less host, writes stdout on Windows, and
 //! never aborts over a log path. The interface is parsed with `clap` derive
 //! (`src/batch/clap_args.rs`); the JSONL envelope is the same one the app binary printed,
-//! byte for byte. See `docs/cli.md` and ADR-29.
+//! byte for byte. See and ADR-29.
 //!
 //! It is its own crate (`src-tauri/cli/`, package `hey-listen-cli`) that links the app
 //! crate as a library: the app package therefore has no `hey-listen-cli` bin target, so
 //! the rpm/msi bundles cannot install it twice (it also ships as the `bundle.externalBin`
-//! sidecar — see `docs/packaging.md`). The app binary keeps only `--mcp` / `--headless`
+//! sidecar. The app binary keeps only `--mcp` / `--headless`
 //! and the `.heyl` open path.
 
 mod batch;

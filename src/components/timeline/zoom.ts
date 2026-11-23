@@ -16,7 +16,6 @@ import {
  *
  * A vertical wheel zooms around the pointer and a horizontal wheel or `Shift` + vertical
  * pans the time axis; there is no vertical waveform zoom. See `lib/wheelGesture.ts` and
- * `docs/roadmap.md` → M23 → "Wheel and trackpad stability".
  *
  * The three named actions delegate to `state/timelineView`, so the toolbar buttons and
  * the `timeline.*` commands share one implementation; only the wheel needs canvas

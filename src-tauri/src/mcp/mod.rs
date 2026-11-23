@@ -29,7 +29,6 @@
 //! agent always talks to the *running* project. With no app running at all, the bridge
 //! starts the GUI once and attaches to it ([`launch`]).
 //!
-//! See [`docs/mcp.md`](../../../docs/mcp.md).
 
 pub mod advertise;
 pub mod bridge;

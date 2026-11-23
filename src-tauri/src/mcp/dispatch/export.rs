@@ -167,7 +167,7 @@ impl HeadlessSession {
     }
 }
 
-/// `a.csv` → `a.meta.json` (the CSV sidecar, `docs/exports.md`).
+/// `a.csv` → `a.meta.json` (the CSV sidecar).
 fn sidecar_path(path: &Path) -> PathBuf {
     path.with_extension("meta.json")
 }

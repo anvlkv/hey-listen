@@ -6,7 +6,7 @@
 //! it is registered in its own map with its `(tool, reference)`. Keeping it out of the
 //! tool map is what makes it transient: `popout_tools_of` never returns it (so it is
 //! never saved or restored), `sync_popouts` never opens it, and `close_popouts` closes
-//! it with the project's other views. See `docs/comparison.md` → "Popout" and ADR-24.
+//! it with the project's other views.
 //!
 //! The registry also holds each project's **saved comparisons**: the last successful
 //! reference side of every pair (one compare tab = one pair, several per tool). Saving

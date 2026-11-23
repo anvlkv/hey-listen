@@ -45,31 +45,21 @@ thread with debounced auto-run.
 
 ## Documentation
 
-`docs/` is the source of truth for design; keep it in sync when decisions change.
-Start with the [architecture](docs/architecture.md) and
-[roadmap](docs/roadmap.md), then the doc for the area you're touching.
+`docs/` is organised into three areas — see [`docs/README.md`](docs/README.md):
 
-- [Architecture](docs/architecture.md) — processes, IPC boundary, module layout, threading
-- [UI layout](docs/ui-layout.md) — the fixed-region + Workbench-tabs rule
-- [Graph editor](docs/graph-editor.md) — the fundsp Net model and node palette
-- [Source model](docs/source-model.md) — audio sources and timeline behavior
-- [Data model](docs/data-model.md) — domain entities and relationships
-- [Project file format](docs/project-file-format.md) — binary layout and streaming
-- [Analysis tools](docs/analysis-tools.md) — oxiaudio inventory, tool/tab model, shared params
-- [MCP server](docs/mcp.md) — agent access, the stdio bridge, UI following
-- [Batch CLI](docs/cli.md) — `hey-listen-cli analyze`: bulk-analyze files from a shell, no window
-- [Agent skill — audio analysis](.agents/skills/audio-analysis/SKILL.md) — driving the engine via the MCP server or the batch CLI
-- [Dependencies & licenses](docs/dependencies.md)
-- [Packaging](docs/packaging.md) — release/CI process and the build matrix
-- [Testing](docs/testing.md) — E2E plan and test matrix
-- [Decisions (ADRs)](docs/decisions.md)
-- [Roadmap](docs/roadmap.md) — phased milestones and status
+- [`docs/manual/`](docs/manual/) — how to use the app, chapter by chapter.
+- [`docs/development/`](docs/development/) — compact, current notes; start with the
+  [roadmap](docs/development/_roadmap.md).
+- `docs/archive/` — frozen design history. Do not edit it; write the current answer
+  under `development/`.
+
+Also useful: [Agent skill — audio analysis](.agents/skills/audio-analysis/SKILL.md).
 
 ## Build and dependencies
 
 Requires Rust ≥ 1.90 and Node ≥ 22.19 (the E2E toolchain's `undici` uses
 `zlib.createZstdDecompress`, added in Node 22.19). Prefer the npm Tauri CLI over a
-`cargo`-installed one (they drift; see [`docs/dependencies.md`](docs/dependencies.md)).
+`cargo`-installed one (they drift).
 
 ```sh
 npm install
@@ -78,10 +68,7 @@ npm run tauri dev
 
 Other scripts: `npm run dev` (Vite only), `npm run build`, `npm run typecheck`.
 UI QA: `npm run lighthouse` runs a full-category baseline across every preview surface
-and laptop viewport, plus a `color-contrast` sweep across every built-in theme (see
-[`docs/testing.md`](docs/testing.md) → Lighthouse audit, the first
-[`docs/lighthouse-audit-1.md`](docs/lighthouse-audit-1.md) and the improvement pass
-[`docs/lighthouse-audit-2.md`](docs/lighthouse-audit-2.md)).
+and laptop viewport, plus a `color-contrast` sweep across every built-in theme.
 Run `cargo check` in `src-tauri/` for the Rust side — the first build is slow
 (many deps). Run `cargo test` after changing a boundary type: it regenerates the
 TypeScript bindings in `src/bindings/`.
@@ -95,7 +82,7 @@ for the graph editor, and [`@dschz/solid-uplot`](https://github.com/dsnchz/solid
 (capture), [`symphonia`](https://crates.io/crates/symphonia) (decode),
 [`fundsp`](https://crates.io/crates/fundsp) (filter/synth), and
 [`oxiaudio`](https://crates.io/crates/oxiaudio) (analysis). Full versions,
-rationale, and licenses are in [`docs/dependencies.md`](docs/dependencies.md).
+rationale, and licenses are in `src-tauri/Cargo.toml`.
 
 If `npm install` hits `EPERM` from a root-owned `~/.npm`, use a project-local
 cache: `npm_config_cache=/Users/anvlkv/Projects/hey-listen/.npm-cache npm install`.

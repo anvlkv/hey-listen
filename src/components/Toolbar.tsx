@@ -53,13 +53,12 @@ const PROJECT_LABEL: Record<string, string> = {
  * Holds app-level status and the current **project name** (the New / Open / Save
  * actions live in the native **File** menu — see `src-tauri/src/menu.rs`), plus the
  * preview output (gain + device), which drives the core (ADR-9). The filter bypass
- * toggle lives in the Timeline toolbar (see `docs/ui-layout.md`); the audio source
+ * toggle lives in the Timeline toolbar; the audio source
  * picker lives in the bottom-left Source region.
  *
  * The **shared analysis params** (ADR-6) live here too, in an "Analysis params"
  * popover: they are global and synced across every analyzer, so they belong in the
  * app chrome rather than in each tool's params popover. See
- * `docs/analysis-tools.md` → "Shared parameters".
  */
 export default function Toolbar() {
   onMount(() => {
@@ -194,7 +193,6 @@ export default function Toolbar() {
             // Not enumerated at launch: cpal's device listing creates a HAL AudioUnit
             // per device, which makes macOS ask for microphone/audio-capture access.
             // The list is only needed once the user picks a device. See
-            // `docs/source-model.md` → OS permissions.
             onOpen={() => void refreshOutputDevices()}
           />
         </div>

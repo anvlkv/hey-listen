@@ -8,7 +8,6 @@ import type { AnalyzerId } from "../analyzer/types";
  * `compare:<tool>:<id>`. The id — not the tool — is the key, because several distinct
  * comparisons (one per reference pair) can be open for one analyzer. It is never in the
  * Sidebar, never a project window, and never part of the saved layout.
- * See `docs/comparison.md`.
  */
 
 /** The compare panel id prefix. */

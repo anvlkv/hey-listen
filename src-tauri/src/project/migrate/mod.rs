@@ -1,4 +1,4 @@
-//! Project file migrations — see `docs/project-file-format.md` → Migrations and ADR-32.
+//! Project file migrations.
 //!
 //! A **bump** of [`VERSION`](super::VERSION) adds one [`Step`] to [`STEPS`]. A step reads
 //! the payloads of version `N` and rewrites the ones whose shape changed into version
@@ -17,8 +17,7 @@
 //!    `from_vN_to_vNp1(&mut Sections)` that decodes each changed section with its frozen
 //!    type, converts it to today's type and re-encodes it in place.
 //! 2. Add that function to [`STEPS`], bump [`VERSION`](super::VERSION) (and
-//!    [`MIN_READ_VERSION`](super::MIN_READ_VERSION) when the oldest readable version moves)
-//!    and record the change in `docs/project-file-format.md` → Format version history.
+//!    [`MIN_READ_VERSION`](super::MIN_READ_VERSION) when the oldest readable version moves).
 //! 3. Add a test that a fixture written in version `N` loads with everything but `RESULTS`
 //!    intact (see [`tests`]).
 //!
@@ -76,7 +75,7 @@ pub(super) use frozen_saved_comparison;
 mod tests;
 
 /// A section a load had to **drop**: analysis output that is recomputed on demand, never
-/// user data (`docs/project-file-format.md` → Migrations).
+/// user data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
 #[strum(serialize_all = "camelCase")]
 pub enum DroppedSection {

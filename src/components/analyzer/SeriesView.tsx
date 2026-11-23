@@ -79,7 +79,6 @@ const SAMPLING_NOTE: Record<NonNullable<SeriesViewConfig["sampling"]>, string> =
  * time. The y-axis label / formatter, the sampling model and the fill come from the
  * tool's registry entry, so every scalar-over-time tool shares this chart. Zoom and
  * cursor are synced with the other analyzer tabs on the `"time"` group. See
- * `docs/analysis-tools.md`.
  *
  * A **pitch** track is auditable (M36): its registry entry declares
  * `view.pitchDisplay`, so the per-frame confidence is drawn on its own right-hand

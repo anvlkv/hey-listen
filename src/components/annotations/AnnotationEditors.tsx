@@ -10,7 +10,7 @@ import { updateAnnotation } from "../../state/annotations";
  * It **replaces** the row's rendered body while it is open (see `AnnotationRow`), so the
  * annotation is never shown twice, and it commits **explicitly** — blur is not a save. The
  * annotation's heading is the first line of the body, so the textarea holds the whole
- * markdown and the row's title bar updates when the edit is saved. See `docs/annotations.md`
+ * markdown and the row's title bar updates when the edit is saved.
  * → Markdown.
  */
 export function AnnotationEditor(props: {

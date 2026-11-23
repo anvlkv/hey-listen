@@ -1,5 +1,5 @@
 /**
- * N. Annotations (M14) — `docs/annotations.md`.
+ * N. Annotations (M14).
  *
  * Drives the annotation layer end to end: add an annotation from the Annotations rail
  * (which captures the focused chart's frozen values), confirm the row + frozen values,

@@ -26,7 +26,7 @@ import type { LayoutDto } from "./types";
 
 /**
  * The project-state push: the frontend half of the core-owned undo/redo
- * ([`undo-redo.md`](../../../docs/undo-redo.md), ADR-37).
+ * (ADR-37).
  *
  * Every settled change to the project's content is pushed to the core, which owns the
  * snapshot and the undo/redo stacks. A restore comes back the other way: the
@@ -192,7 +192,7 @@ export function initProjectHistory(): void {
         pushProjectSnapshot();
       });
       // A replaced source replaces the whole timeline, so the history must not step
-      // across it (`docs/undo-redo.md` → "Capture").
+      // across it.
       createEffect(on(sourceRevision, () => void resetProjectHistory(), { defer: true }));
     }
   });

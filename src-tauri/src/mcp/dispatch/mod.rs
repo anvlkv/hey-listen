@@ -15,7 +15,6 @@
 //! `SETUP.openTools` restore list rather than a webview, and no `LAYOUT` is written.
 //! `set_filter_graph` is supported
 //! headless too, but takes a `GraphSpec` directly (there is no graph editor). See
-//! `docs/mcp.md`.
 //!
 //! The implementation is split into focused submodules: [`args`] applies the agent's
 //! patch objects, [`session`] holds the per-tool implementations, [`project`] the

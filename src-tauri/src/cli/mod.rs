@@ -13,7 +13,6 @@
 //! the `src-tauri/cli/` crate, which owns both their interface and their implementation
 //! and needs no Tauri app, no window and no log plugin. The app binary declares none of
 //! them, so `hey-listen analyze …` is simply an argument it does not accept. See
-//! `docs/cli.md`.
 //!
 //! A `.heyl` path passed on the command line (file association) is *not* a flag: the
 //! plugin's parser rejects unknown positionals, so [`parse`] treats a parse error as

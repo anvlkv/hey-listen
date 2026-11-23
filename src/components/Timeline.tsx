@@ -52,7 +52,7 @@ import TimelineScrollBar from "./timeline/ScrollBar";
  * - A plain left drag in the waveform body **selects** a new window (text-like); a ruler
  *   drag does too, while a ruler click seeks. The middle button pans. Dragging a
  *   `start`/`end` handle previews an excerpt at that edge
- *   and reframes on release (see `docs/source-model.md`).
+ * and reframes on release.
  * - Dragging the grab bar along the top of the window moves the whole window,
  *   keeping its width (no edge excerpt or reframe; a preview that is playing
  *   reloads onto the new window when the move settles).

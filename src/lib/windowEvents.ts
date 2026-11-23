@@ -13,8 +13,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
  *
  * Registering this window's label as the target restores the scoping the core intends:
  * an emit for another label no longer matches, while a **global** `app.emit` still reaches
- * every listener (an unfiltered emit matches any target). See `docs/architecture.md`
- * (ADR-11) and the R spec in `docs/testing.md`.
+ * every listener (an unfiltered emit matches any target).
+ * (ADR-11).
  */
 export function listenThisWindow<T>(
   event: string,

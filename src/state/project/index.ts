@@ -1,6 +1,5 @@
 /**
- * Project file store (M6): save/load the binary project (see
- * [`project-file-format.md`](../../docs/project-file-format.md)).
+ * Project file store (M6): save/load the binary project.
  *
  * The Rust core owns the `DATA` section (the source PCM, ADR-9) and fills in `META`;
  * the frontend supplies `SOURCE` (a descriptor), `SETUP` (shared params, per-tool

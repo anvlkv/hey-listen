@@ -52,7 +52,7 @@ const NOTE_AXIS_SIZE = 64;
  * the tooltip and the table carry it. Hovering a note outlines it, reports it to the
  * table, and the hover card shows the whole record. x is source seconds and joins the
  * `"time"` sync group; the bottom lane still belongs to the project's own annotations
- * (`annotationMarkers`). See `docs/analysis-tools.md` → Chart rendering.
+ * (`annotationMarkers`).
  */
 export default function NoteSegmentChart(props: {
   id: AnalyzerId;

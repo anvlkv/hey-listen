@@ -6,7 +6,7 @@ import type { ResultSummary } from "../../bindings/ResultSummary";
  * The comparison contract (M25) — the shapes `run_comparison`, `compare_peer_setup`
  * and `compare_live` exchange. The Rust types live in
  * `src-tauri/src/audio/analysis/compare/` and `commands/compare.rs`; these are their
- * JSON counterparts. See `docs/comparison.md`.
+ * JSON counterparts.
  */
 
 /** A `start..end` span in source seconds. */

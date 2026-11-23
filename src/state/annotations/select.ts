@@ -18,7 +18,7 @@ export function setSelectedAnnotation(id: string | null) {
  * Selecting **never** moves the analysis window — an annotation is an annotation *on* the
  * analysis, so neither creating one nor clicking one is a request to reframe. Moving
  * the window onto an annotation is the explicit [`analyzeAnnotation`] action (the row's **Analyze**
- * button). See `docs/annotations.md` → Surfacing.
+ * button).
  */
 export function selectAnnotation(id: string | null) {
   setSelectedAnnotationId(id);

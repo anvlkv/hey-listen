@@ -3,7 +3,7 @@
 Hey Listen has **two Workbench graph editors** — the **filter** graph and the **synth**
 graph — built from **one shared node catalog** and compiled to a fundsp `Net`. The stored
 form is a `GraphSpec`; its canonical text form is **DOT** (`GraphSpec → DOT → GraphSpec` is
-identity). See `docs/graph-editor.md` for the design; this file is the *driving* surface.
+identity). This file is the *driving* surface.
 
 `list_nodes` / `get_node` (MCP) and `nodes [KIND]` (CLI) are the **authoritative catalog** —
 exact ports, param keys/defaults/min/max/step/unit, and a ready-to-paste DOT skeleton. Use

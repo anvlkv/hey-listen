@@ -1,7 +1,7 @@
 /**
  * Attribution data for the About dialog.
  *
- * Kept in step with `docs/dependencies.md` (the full dependency rationale). Font
+ * Kept in step with (the full dependency rationale). Font
  * Awesome **requires** attribution (icons CC BY 4.0, fonts SIL OFL 1.1, code MIT), so
  * it is the one attribution the dialog spells out; the full contributor list lives in
  * `ACKNOWLEDGEMENTS.md`. Links are opened in the system browser by the core

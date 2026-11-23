@@ -2,7 +2,6 @@
 //!
 //! A filter graph may declare several channels — one `output` node per channel, each
 //! carrying a `Ch` parameter (fundsp `Net::new(inputs, channels)`, `set_output_source`).
-//! See `docs/graph-editor.md` → "Output channels".
 
 use super::{node_def, GraphError, GraphNode, GraphSpec};
 

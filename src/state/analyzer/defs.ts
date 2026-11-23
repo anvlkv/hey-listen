@@ -16,7 +16,7 @@ import { SPECTRAL_SERIES_ANALYZERS } from "./defs/spectralSeries";
 import { TIME_ANALYZERS } from "./defs/time";
 import type { AnalyzerDef, AnalyzerSection } from "./types";
 
-/** Grouping used by the Sidebar (mirrors `docs/analysis-tools.md`). */
+/** Grouping used by the Sidebar. */
 export const ANALYZER_SECTIONS: { id: AnalyzerSection; title: string }[] = [
   { id: "time", title: "Time domain" },
   { id: "spectral", title: "Spectral" },

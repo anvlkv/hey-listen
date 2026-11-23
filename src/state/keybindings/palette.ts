@@ -1,6 +1,6 @@
 /**
- * Command-palette ranking ([`hotkeys.md`](../../../docs/hotkeys.md) → "Command
- * palette"). Pure and node-safe: no `window`, no DOM, no store — the dialog supplies
+ * Command-palette ranking. Pure and node-safe: no `window`, no DOM, no store — the
+ * dialog supplies
  * the items, so the ranking rules can be unit-tested.
  *
  * Matching is deliberately simple: an item survives when the query appears in its

@@ -1,5 +1,5 @@
 /**
- * S3. Undo / redo (M24.A) — `docs/undo-redo.md` → "Testing".
+ * S3. Undo / redo (M24.A).
  *
  * Undo/redo is a core-owned project operation: the frontend pushes settled project
  * state, the core owns the snapshot and the stacks, and `Mod+Z` / `Shift+Mod+Z` are

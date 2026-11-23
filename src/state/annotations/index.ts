@@ -1,5 +1,5 @@
 /**
- * The annotations store (M14) — the project's annotation layer (see `docs/annotations.md`).
+ * The annotations store (M14) — the project's annotation layer.
  *
  * An annotation is plain **data** (project content): a markdown body anchored to a time
  * (+ optional range) and, optionally, to an analyzer tool id, carrying a **frozen**

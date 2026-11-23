@@ -14,11 +14,10 @@ save source + setup + results to a binary project file.
 
 ## Workflow
 
-1. **Read the plan first.** Start with `docs/roadmap.md` and the doc for the area
-   you're touching (`architecture.md`, `ui-layout.md`, `source-model.md`,
-   `data-model.md`, `project-file-format.md`, `analysis-tools.md`,
-   `analysis-metrics.md`, `mcp-cli-ergonomics.md`). `docs/` is the source of truth for
-   design; keep it in sync when decisions change.
+1. **Read the plan first.** Start with `docs/development/_roadmap.md` (the living,
+   compact milestone list) and the design note for the area you're touching under
+   `docs/development/`. Archived design history is in `docs/archive/`; keep new design
+   decisions in `docs/development/`.
 
 2. **Deliver one milestone at a time.** The roadmap is implemented incrementally.
    Do not jump ahead or build unplanned features. Treat each milestone as a
@@ -33,12 +32,12 @@ save source + setup + results to a binary project file.
 5. **Validate before claiming done:**
    - **Fresh checkout:** run `npm run sidecar` once before any `cargo` command. Tauri's
      build script resolves `bundle.externalBin` (`src-tauri/binaries/hey-listen-cli-<triple>`)
-     on every `cargo` invocation, not just `tauri build` — see `docs/packaging.md`.
+     on every `cargo` invocation, not just `tauri build`.
    - `npm run typecheck` and `npm run build` (frontend)
    - `cargo check` in `src-tauri/` (Rust; first build is slow — many deps)
    - `npm run maid` — the quality gate (prettier, eslint, the 400-line budget,
      duplication, dead code, Rust fmt + clippy). The git hooks run it for you: fast
-     checks on commit, the whole gate on push. See `docs/code-hygiene.md`.
+     checks on commit, the whole gate on push.
    - State exactly what you ran and saw.
    - Avoid excessive and unnecessary reruns of the validation steps.
 
@@ -50,8 +49,7 @@ save source + setup + results to a binary project file.
 
 7. **Iterating on the UI without the app.** `npm run dev`, then open
    `http://localhost:1420/preview.html` to render the real shell in a plain browser
-   (it stubs the Tauri internals) — handy for layout/CSS work and screenshots. See
-   `docs/testing.md` → "Rendering the UI without the app".
+   (it stubs the Tauri internals) — handy for layout/CSS work and screenshots.
 
 ## Skills
 
@@ -81,14 +79,13 @@ Load the matching skill (via the `skill` tool) before working in that area:
   whole timeline.
 - **Analysis runs off the main thread** — Rust async command + `spawn_blocking`,
   debounced auto-run, with an optional explicit **Run** button for expensive
-  tools. See `docs/architecture.md` → "Analysis execution model".
+  tools.
 - **No duplicate analyzer tabs**; shared params (FFT size, hop/overlap, window
   function, channel, frequency range) are synced across tools.
 - **Keep the maid green.** Source files stay **under 400 lines** — the budget in
   `scripts/maid-baseline/fileSizes.json` only ratchets down, so split a file instead
   of raising it. No new duplication, no dead code, both languages formatted.
   `src/bindings/**` is **generated** by `cargo test`: never hand-edit or format it.
-  See `docs/code-hygiene.md`.
 - **No copied blocks.** Before writing a second copy of a test hook, WAV/fixture
   writer, chart-image registration, uPlot plugin stack, `SaveProject` literal, or
   switch/toolbar CSS rule, extract it:
@@ -111,7 +108,7 @@ Load the matching skill (via the `skill` tool) before working in that area:
   The clone gate is a ratchet: fix the clone, then lower `threshold` in
   `.jscpd.json` in the same change.
 - **One list, one place.** A doc, a comment, a test table and a frontend matrix must
-  not each restate the same list. Pick the owner (`docs/analysis-tools.md`, the
+  not each restate the same list. Pick the owner (the
   `AnalyzerId` enum, `src/state/analyzer/types.ts`) and have the others **link or
   import** it — `e2e/support/tools.ts` imports `AnalyzerId` and `AnalyzerView`
   instead of spelling either union out. When two surfaces must agree, add a test that
@@ -233,10 +230,16 @@ never a bare number.
 ```
 src/          SolidJS frontend (UI, layout, charts, graph editor)
 src-tauri/    Rust core (commands, audio engines, project store)
-docs/         Planning docs (source of truth for design)
+docs/         Three areas — see `docs/README.md`
+  manual/       user-facing chapters (from the E2E behaviour) + captured element shots
+  development/  compact, current design notes; `_roadmap.md` is the living milestone list
+  archive/      frozen design history: architecture, ADRs, full roadmap, audits
 ```
+
+Do not edit `docs/archive/`; add the current answer under `docs/development/` instead.
 
 ## Milestones
 
-`docs/roadmap.md` tracks progress. Deliver strictly one
-milestone at a time; confirm current status from that file before starting.
+`docs/development/_roadmap.md` tracks progress. Deliver strictly one milestone at a time;
+confirm current status from that file before starting. The detailed history of each
+delivered milestone is in `docs/archive/`.

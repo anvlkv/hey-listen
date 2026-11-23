@@ -1,4 +1,4 @@
-//! Project file reader — see `docs/project-file-format.md`.
+//! Project file reader.
 //!
 //! The reader verifies the header and the trailing checksum, then uses the section
 //! index to read each payload. `DATA` is parsed via its own trailing chunk index,
@@ -33,7 +33,7 @@ pub struct LoadedProject {
     /// The embedded audio, if the file had a `DATA` section with samples.
     pub pcm: Option<SourceData>,
     /// Whether the file carried its audio (`DATA`) rather than referencing the source —
-    /// `false` is a **reference** project (see `docs/project-file-format.md`).
+    /// `false` is a **reference** project.
     pub embedded: bool,
     /// The container version the file was written with (see [`VERSION`]).
     pub format_version: u32,

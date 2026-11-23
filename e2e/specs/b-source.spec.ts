@@ -1,5 +1,5 @@
 /**
- * B. Source kinds (M8) — matrix rows B1–B4 (`docs/testing.md`).
+ * B. Source kinds (M8) — matrix rows B1–B4.
  *
  * One app window per project: a source loaded in one test persists to the next, so
  * opening another one replaces the whole timeline (the core confirms first). The
@@ -102,10 +102,10 @@ describe("B. Source kinds", () => {
   // B5 — Live capture (Manual): with an OS permission grant, record from a
   // mic/system source and verify the input meter is live, the timeline grows, and
   // pause/resume work. macOS only prompts for a bundled + signed app, so CI cannot
-  // drive it; see `docs/testing.md` → B5 and `docs/source-model.md` (OS permissions).
+  // drive it.md` (OS permissions).
   describe.skip("B5 — live capture (manual, not run in CI)", () => {
     it("records with a grant: live meter, growing timeline, pause/resume", async () => {
-      // Documented manual steps — see docs/testing.md row B5.
+      // Documented manual steps — see row B5.
     });
   });
 });

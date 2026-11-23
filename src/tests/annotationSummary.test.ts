@@ -10,7 +10,6 @@ import { annotationValuesFor } from "../state/annotations/valuesSnapshot";
  * canonical summary of the tool's live run and copies its items onto `AnnotationValues`.
  * A result adopted from the project cache carries no summary, so a snapshot taken then
  * has an empty `items` list — its one-line `text` subtitle is unaffected either way.
- * See `docs/annotations.md` → "The values snapshot".
  */
 
 const params: SharedParams = {

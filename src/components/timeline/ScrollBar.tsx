@@ -10,7 +10,7 @@ import { clampViewStart, thumbPercent } from "../../lib/timelineScroll";
  * The thumb only renders while the view is narrower than the source — zoomed out there is
  * nothing to scroll, and the track keeps its (fixed) height either way, so a zoom never
  * reflows the canvas. Drag the thumb to pan, click the track to jump, or focus it and use
- * the arrow keys. See `docs/ui-layout.md` → Timeline.
+ * the arrow keys.
  */
 export default function ScrollBar(props: {
   /** The visible span, in source seconds. */

@@ -4,7 +4,7 @@
 //! so the command layer can drive it from any thread over a small control channel
 //! (pause / resume / gain / stop). Chunks and stream events are handed to a `sink`
 //! callback. Keeping this module free of `tauri` types lets the command layer adapt
-//! it to the IPC boundary (see `docs/architecture.md`).
+//! it to the IPC boundary.
 //!
 //! The implementation is split into focused submodules: [`poll`] holds the poll
 //! thread (its control messages, the chunk/event loop, and the flexaudio event

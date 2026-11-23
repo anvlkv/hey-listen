@@ -16,7 +16,7 @@ pub const AUDIO_EXTENSIONS: &[&str] = &[
 /// Open a native file picker and return the chosen audio file's path, or `None`
 /// if the user cancelled.
 ///
-/// The Rust core owns file I/O (see `docs/architecture.md`), so the frontend
+/// The Rust core owns file I/O, so the frontend
 /// receives a path and lets the backend open/decode the file.
 #[tauri::command]
 pub async fn pick_audio_file(app: tauri::AppHandle) -> Option<String> {

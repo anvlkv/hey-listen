@@ -5,7 +5,6 @@
  * lane are drawn on the Timeline **canvas**, not the DOM, so they are addressed by
  * their known canvas position rather than a selector — which is why every suite that
  * moves the window shares this helper instead of copying the geometry. See
- * `docs/testing.md`.
  */
 import { SEL } from "./selectors.ts";
 

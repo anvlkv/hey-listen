@@ -3,7 +3,7 @@
 //! This is the **script surface** of the migration chain: it reads with `read_project` (the
 //! same loader the app uses, which migrates the payloads in memory through
 //! `project::migrate`) and writes with `write_project_atomic`, so bulk upgrades and an app
-//! save cannot diverge. See `docs/project-file-format.md` → Migrations and ADR-32.
+//! save cannot diverge.
 //!
 //! A file already at the current version is left **untouched** (no rewrite, no backup)
 //! unless `--embed` grows a reference project into a full copy. A rewritten file keeps a

@@ -1,5 +1,5 @@
 /**
- * Q4. Keyboard control (M24.B) — `docs/hotkeys.md` → "Testing".
+ * Q4. Keyboard control (M24.B).
  *
  * The command registry drives the transport, navigation and annotations from the
  * keyboard; `Mod+K` opens the palette, `?` opens the shortcut explorer, and bindings are

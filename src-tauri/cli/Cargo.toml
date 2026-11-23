@@ -2,13 +2,13 @@
 name = "hey-listen-cli"
 # Tracks the app crate's version: the installed CLI follows the app it was staged from
 # (ADR-30), so there is one release channel, not two. Version, edition and license come
-# from the workspace (`docs/packaging.md` → Release process).
+# from the workspace.
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Hey Listen batch CLI — run the analysis engine over files with no window."
 # An internal artifact, never published: it is staged as the app's
-# `bundle.externalBin` sidecar (`docs/packaging.md`).
+# `bundle.externalBin` sidecar.
 publish = false
 
 [dependencies]

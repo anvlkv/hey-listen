@@ -13,8 +13,8 @@ import type { CommandDef, CommandId } from "../state/keybindings/types";
 import ScrollArea from "./ScrollArea";
 
 /**
- * The **Keyboard Shortcuts** window ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Keyboard Shortcuts dialog"): every command grouped by category, with its default and
+ * The **Keyboard Shortcuts** window: every command grouped by category, with its
+ * default and
  * current binding, plus the native menu's fixed accelerators.
  *
  * It renders in its own app-wide Tauri window (see [`ShortcutsApp`](../ShortcutsApp.tsx)),

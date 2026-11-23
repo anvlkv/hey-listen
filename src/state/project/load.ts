@@ -50,8 +50,7 @@ import type { AnalysisWindowDto, LayoutDto, SourceDescriptorDto } from "./types"
 
 /**
  * Open a project file and restore every store + the Workbench tabs, so the analyzers
- * show the results the file cached and re-run only what it does not (see
- * [`project-file-format.md`](../../../docs/project-file-format.md)).
+ * show the results the file cached and re-run only what it does not.
  */
 
 function fileProbe(path: string, loaded: LoadedProjectDto): ProbeInfo {
@@ -255,7 +254,7 @@ export async function loadProject(path: string): Promise<boolean> {
     await stream.done;
     if (token !== currentSourceToken()) return false;
     // Restoring state is not an edit: the core keeps its dirty baseline open until the
-    // load has settled (`docs/undo-redo.md` → "Phase 3").
+    // load has settled.
     await invoke("begin_project_baseline");
     try {
       await applyProject(loaded, stream.samples());

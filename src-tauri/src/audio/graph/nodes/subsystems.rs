@@ -3,7 +3,7 @@
 //!
 //! Their `GraphNode.subgraph` is the nested spec, edited in its own Workbench tab and
 //! written as a nested DOT `subgraph`. `compile` builds the inner net and applies the
-//! combinator. See `docs/graph-editor.md` → "Subsystems".
+//! combinator.
 
 use super::{def, param, subsystem_node, NodeColumn, NodeDef, NodeTable};
 

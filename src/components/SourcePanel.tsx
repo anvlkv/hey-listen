@@ -31,7 +31,7 @@ import {
  * system, process, or mix — and (for live sources) holds the capture controls.
  *
  * When there is no source yet the whole bottom row is a compact, horizontal
- * "Add audio" strip (see `docs/ui-layout.md`); once a source exists (or while
+ * "Add audio" strip; once a source exists (or while
  * recording) the panel is the narrow left-hand column beside the timeline. Both
  * layouts show the *same* controls — the strip is a two-column grid (copy, then a
  * grid of controls with usable minimum widths).
@@ -66,7 +66,7 @@ export default function SourcePanel() {
   // *devices* are never listed here: `ensureSession` requests them after the
   // monitoring session opens, because macOS refuses to enumerate inputs until that
   // session has answered the microphone consent prompt — asking earlier would show
-  // an error while the prompt was still up. See `docs/source-model.md` → OS
+  // an error while the prompt was still up.
   // permissions.
 
   createEffect(() => {

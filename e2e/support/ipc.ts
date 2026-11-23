@@ -6,7 +6,6 @@
  * non-writable/non-configurable and the app goes through the bundled
  * `@tauri-apps/api` `invoke`. So the suite drives the app's own documented override
  * seam (`src/lib/ipc.ts`, `globalThis.__heylisten_test__`) instead. See
- * `docs/testing.md`.
  */
 
 /** Install a mock entry for a backend command (see [`setMock`]). */

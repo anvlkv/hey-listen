@@ -8,7 +8,7 @@ import { RAIL_W, RULER_H } from "./constants";
  * analysis param (`state/analysis.ts`), so the waveform, the preview and every analyzer
  * agree (ADR-6). Rendered for a 2+ lane view (`Timeline.tsx` decides the count: the
  * source's channels, or the filter graph's output channels when it declares several),
- * and it replaces the old toolbar `ChannelSelect`. See `docs/roadmap.md` → M23 →
+ * and it replaces the old toolbar `ChannelSelect`.
  * "Parallel channel lanes".
  */
 export default function ChannelRail(props: { channels: number }) {

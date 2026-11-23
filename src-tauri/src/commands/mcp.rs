@@ -2,7 +2,7 @@
 //!
 //! The MCP server forwards each `tools/call` to a project window's frontend
 //! (`mcp:request`); the window confirms receipt (`mcp_ack`) and then answers with the
-//! result or its error (`mcp_respond`). See [`crate::mcp`] and `docs/mcp.md`.
+//! result or its error (`mcp_respond`). See [`crate::mcp`] and.
 
 use serde_json::Value;
 use tauri::{AppHandle, Manager, WebviewWindow};

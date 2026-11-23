@@ -2,7 +2,7 @@
  * Stable `data-testid` selectors (M8).
  *
  * Tests select by these hooks plus the existing ARIA labels; the app adds a hook
- * only where a test needs one (`docs/testing.md` → Selectors). Keep this file and
+ * only where a test needs one. Keep this file and
  * the components in lock-step — every constant here must exist in the DOM.
  */
 

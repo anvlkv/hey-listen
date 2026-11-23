@@ -2,7 +2,7 @@
 //!
 //! Spawns the real binary, speaks newline-delimited MCP over its stdio, and drives
 //! the compute subset end to end: initialize → open an audio file → run an analyzer.
-//! This is the "no app, just the CLI" path described in `docs/mcp.md`.
+//! This is the "no app, just the CLI" path described in.
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};

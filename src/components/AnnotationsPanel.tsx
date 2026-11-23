@@ -22,7 +22,7 @@ import { AnnotationRow } from "./annotations/AnnotationRow";
  * rendered body below it). A row is a **title bar** (heading + the row actions), its
  * tool + time, the **current** values line (with the frozen snapshot struck through
  * when it differs), and the rendered body clamped to a height. Selecting the heading
- * selects the annotation. See `docs/annotations.md`.
+ * selects the annotation.
  *
  * **Adding** — `Add` drops a **point** annotation at the analysis window's start; a **range**
  * is drawn where the audio is, by dragging a span in the annotation lane of the Timeline or of

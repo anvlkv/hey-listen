@@ -2,7 +2,7 @@
 //!
 //! Every project window owns its own [`WindowState`]; [`WindowRegistry`] maps a window
 //! label onto it, following popout aliases so a popout is a **view** of its parent
-//! project rather than a project of its own (ADR-11). See `docs/decisions.md`.
+//! project rather than a project of its own (ADR-11).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -51,10 +51,10 @@ pub struct WindowState {
     /// reference side, kept in memory (written on save, restored on load).
     saved_compares: Mutex<Vec<SavedComparison>>,
     /// The project's undo/redo history: the authoritative snapshot, the bounded stacks
-    /// and the core-owned settle recorder (`docs/undo-redo.md`).
+    /// and the core-owned settle recorder.
     pub history: Arc<ProjectHistory>,
     /// The project's unsaved-work tracking: it compares the pushed snapshot with the last
-    /// clean point and broadcasts the flag (`docs/undo-redo.md` → "Phase 3").
+    /// clean point and broadcasts the flag.
     pub dirty: Arc<ProjectDirty>,
     /// In-flight analysis runs (`request_id` → cancel token), so `cancel_analysis` can
     /// stop a superseded run at its next check (D-21). Its lock is a leaf, never held

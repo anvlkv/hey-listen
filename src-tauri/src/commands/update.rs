@@ -7,7 +7,7 @@
 //! the user confirms in the About dialog, and the frontend relaunches with
 //! `@tauri-apps/plugin-process` afterwards.
 //!
-//! See `docs/updater.md` and ADR-30.
+//! See and ADR-30.
 
 use std::sync::Mutex;
 

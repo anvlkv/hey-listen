@@ -1,8 +1,8 @@
 import type { CommandId } from "./types";
 
 /**
- * The default binding table ([`hotkeys.md`](../../../docs/hotkeys.md) → "Default
- * bindings"). Portable spelling: `Mod` is ⌘ on macOS and Ctrl elsewhere, `Alt` is Option
+ * The default binding table. Portable spelling: `Mod` is ⌘ on macOS and Ctrl
+ * elsewhere, `Alt` is Option
  * on macOS. `null` means intentionally unbound.
  *
  * This is the fallback the store merges user overrides over; a stored value replaces the

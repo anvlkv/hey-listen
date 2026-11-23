@@ -1,7 +1,7 @@
 //! Analysis engine: thin wrappers over `oxiaudio` (ADR-5).
 //!
-//! Every analysis capability is exposed as a **tool** (see
-//! `docs/analysis-tools.md`) invoked through the single `run_analysis` command.
+//! Every analysis capability is exposed as a **tool** invoked through the single
+//! `run_analysis` command.
 //! This module owns the tool implementations and the shared signal conditioning;
 //! the command layer only adapts state/IPC. It has no `tauri` dependency so it can
 //! be unit-tested.
@@ -57,7 +57,7 @@ const MAX_STFT_CELLS: usize = 8_000_000;
 /// widens the envelope decimation so roughness / fluctuation stay bounded.
 const MAX_MODULATION_ENVELOPE: usize = 240_000;
 
-// Per-tool option defaults (see `docs/analysis-tools.md`).
+// Per-tool option defaults.
 const DEFAULT_N_MELS: usize = 64;
 const DEFAULT_N_MFCC: usize = 13;
 const DEFAULT_N_BANDS: usize = 6;

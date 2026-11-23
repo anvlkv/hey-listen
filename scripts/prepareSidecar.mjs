@@ -6,7 +6,7 @@
  * a member of the `src-tauri/` workspace. It is deliberately **not** a bin target of the
  * app package: the bundler would then install it twice (once as the cargo binary, once
  * as the sidecar), which fails the rpm build (`duplicate file entry`) and the WiX MSI
- * (`ICE30`). See `docs/packaging.md`.
+ * (`ICE30`).
  *
  * `bundle.externalBin` in `src-tauri/tauri.conf.json` names `binaries/hey-listen-cli`,
  * which Tauri resolves to `src-tauri/binaries/hey-listen-cli-<target-triple>` (plus

@@ -1,5 +1,5 @@
 //! Result types returned by the analysis tools, plus the tagged
-//! [`AnalysisResult`] union that crosses IPC (see `docs/data-model.md`).
+//! [`AnalysisResult`] union that crosses IPC.
 //!
 //! Every time a result carries is in **source seconds** (see
 //! [`AnalysisResult::rebase`]): the tools work on the sliced region alone, so their

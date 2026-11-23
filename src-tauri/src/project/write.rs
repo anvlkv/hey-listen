@@ -1,4 +1,4 @@
-//! Project file writer — see `docs/project-file-format.md`.
+//! Project file writer.
 //!
 //! Section offsets are computed up front (the `DATA` length is analytic), so the
 //! file is written in one forward pass while a CRC-32 is accumulated over every

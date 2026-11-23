@@ -1,12 +1,8 @@
 //! The project-state snapshot that undo/redo records.
 //!
 //! This is the **single** statement of what is undoable: the project file's sections
-//! minus `DATA` (the PCM) and `RESULTS` (a cache) — see
-//! [`project-file-format.md`](../../../docs/project-file-format.md) → "Sections" for the
-//! list, and [`undo-redo.md`](../../../docs/undo-redo.md) for the model it serves.
-//!
-//! The frontend pushes every field except `compare`, which the core fills from its
-//! in-memory saved comparisons ([`crate::state::WindowState`]) because the frontend never
+//! minus `DATA` (the PCM) and `RESULTS` (a cache). The frontend pushes every field except
+//! `compare`, which the core fills from its in-memory saved comparisons ([`crate::state::WindowState`]) because the frontend never
 //! holds a full [`SavedComparison`]. `canonical_json` lives here too, so the key-order
 //! normalisation the dedupe needs has one home (mirrors
 //! `src/state/project/dirty.ts`'s `canonical()`).

@@ -29,7 +29,7 @@ function clampToSource(time: number): number {
  * the time under the pointer, set the **timeline** analysis-window start or end, or
  * add an **annotation** at that time (M14). A vertical callout marks the exact time on
  * the chart; the menu closes on selection, an outside click, or `Escape`. See
- * `docs/ui-layout.md` and `docs/annotations.md`.
+ * and.
  */
 export default function ReframeMenu(props: {
   target: ReframeTarget | null;

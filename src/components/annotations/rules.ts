@@ -9,7 +9,7 @@
  *
  * A **point** annotation has one edge; a **range** has two. A handle drag adds the edge's
  * original position as a dashed **ghost** next to the moving one.
- * See `docs/annotations.md` → Surfacing and `docs/roadmap.md` → M23 → "Annotation vertical rules".
+ *.md` → M23 → "Annotation vertical rules".
  */
 
 /** Which edge of an annotation's span a handle moves. */

@@ -29,7 +29,7 @@ import type { AnalyzerId } from "../../state/analyzer";
  * The frequency-axis `spectrum` draws none (a time marker has no meaning on a frequency
  * axis). Annotations arrive on the shared [`analyzerBus`](../../state/chartSync.ts) (`annotations`),
  * published by the annotations store, so cross-window and store changes redraw in step. A
- * range annotation shows a handle on each edge. See `docs/annotations.md`.
+ * range annotation shows a handle on each edge.
  */
 
 /** Canvas geometry for the lane's markers. */

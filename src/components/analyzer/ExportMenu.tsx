@@ -20,7 +20,7 @@ function fileName(path: string): string {
 /**
  * The per-tab **Export** popover (M12): data as JSON / CSV, the chart as PNG, and a
  * CSV clipboard copy. Data exports re-run the tool at the current window/settings and
- * are rendered by the core (see `docs/exports.md`); the PNG captures the chart as it
+ * are rendered by the core; the PNG captures the chart as it
  * is drawn, so it matches the theme and zoom.
  *
  * The menu stays open and reports the written path, so a second export (the other

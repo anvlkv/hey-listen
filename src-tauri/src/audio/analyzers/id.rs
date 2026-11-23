@@ -47,7 +47,7 @@ macro_rules! workbench_ids {
         id_enum! {
             []
             []
-            /// The analyzer tool ids (every analyzer in `docs/analysis-tools.md`).
+            /// The analyzer tool ids.
             pub enum AnalyzerId {
                 $($variant),*
             }

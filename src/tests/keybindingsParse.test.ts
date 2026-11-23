@@ -11,7 +11,7 @@ import {
 /**
  * Unit checks for the pure binding helpers (`src/state/keybindings/parse.ts`): the
  * portable spelling, canonical normalization, platform display glyphs, event matching,
- * and conflict detection. See `docs/hotkeys.md` → "Binding syntax".
+ * and conflict detection.
  */
 
 interface KeyEventLike {

@@ -7,7 +7,6 @@
  * (`src/bindings/`) — only the `tool` discriminant that tags each analysis result is
  * declared here, so a Rust field change flows through automatically.
  *
- * See `docs/analysis-tools.md`.
  */
 import type { WaveformResult as WaveformPayload } from "../../bindings/WaveformResult";
 import type { SpectrumResult as SpectrumPayload } from "../../bindings/SpectrumResult";
@@ -258,7 +257,7 @@ export interface AnalyzerDef {
    * plain text).
    */
   about: string;
-  /** Search terms for the Sidebar search box (`docs/analysis-tools.md`). */
+  /** Search terms for the Sidebar search box. */
   keywords: string[];
   section: AnalyzerSection;
   view: AnalyzerView;

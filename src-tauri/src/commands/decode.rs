@@ -26,7 +26,7 @@ pub async fn probe_file(path: String) -> Result<ProbeInfo, DecodeError> {
 /// The decoded PCM is also retained by the core as the project source (ADR-9), so
 /// preview playback does not need it sent back from the frontend. The CPU-bound
 /// decode runs on the blocking pool so the async workers stay free for
-/// capture/decode, per `docs/architecture.md` → "Threading".
+/// capture/decode, per.
 ///
 /// `request_id` is the frontend's monotonic open token. The request is claimed before the
 /// decode starts and installed only if it is still the newest when it finishes, so an

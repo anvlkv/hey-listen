@@ -3,7 +3,7 @@
 use oxiaudio::dsp::spectral::WindowFn;
 use serde::{Deserialize, Serialize};
 
-/// A window function for frame-based tools (`docs/analysis-tools.md`).
+/// A window function for frame-based tools.
 #[derive(
     Debug,
     Clone,

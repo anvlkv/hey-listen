@@ -1,4 +1,4 @@
-//! Unit tests for multi-channel filter-graph output (`docs/graph-editor.md` →
+//! Unit tests for multi-channel filter-graph output
 //! "Output channels"). Split out of `tests.rs` to stay inside the source-size budget.
 
 use super::tests::{edge, edge_to, node};

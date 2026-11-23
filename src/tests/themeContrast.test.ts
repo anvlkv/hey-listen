@@ -18,7 +18,7 @@ import { contrast, parseRgb } from "./support/contrastColors";
  * The readable caption ramp (`--fg-muted` / `--fg-dim` / `--fg-faint`) must stay at
  * WCAG AA (≥ 4.5:1) on both of the surfaces those captions sit on. Each built-in theme
  * only overlays `ui` tokens, so it is merged over its base's values from `base.css` —
- * exactly what the picker applies at runtime. See `docs/theming.md`.
+ * exactly what the picker applies at runtime.
  */
 
 /** The repo root, two levels above `src/tests/`. */

@@ -1,4 +1,4 @@
-//! Live-capture commands (flexaudio) — see `docs/source-model.md`.
+//! Live-capture commands (flexaudio).
 //!
 //! Thin adapters over [`crate::audio::capture`]: they own the IPC boundary
 //! (argument/return types, `Channel`, `State`) but keep the audio work in the

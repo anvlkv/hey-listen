@@ -46,7 +46,7 @@ function dbAxisValues(_self: unknown, ticks: (number | null)[]): string[] {
  * Waveform tool: the min/max envelope of the **conditioned** signal over the
  * analysis window, with peak / RMS levels from oxiaudio. The per-tool **dB scale**
  * toggle collapses the envelope to a single |peak| curve in dBFS (0 dBFS at the
- * top) with a 0 dBFS reference line. See `docs/analysis-tools.md`.
+ * top) with a 0 dBFS reference line.
  */
 export default function WaveformTab() {
   const analysis = createAnalysis<WaveformResult>("waveform");

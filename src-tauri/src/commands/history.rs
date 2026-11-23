@@ -6,8 +6,6 @@
 //! changed `ui-state` keys ([`super::ui::broadcast_ui_patch`]) plus a dedicated
 //! [`PROJECT_RESTORE_EVENT`] carrying the whole snapshot for the parts that are not
 //! shared UI state (the graph editor specs and the dockview layout).
-//!
-//! See [`undo-redo.md`](../../../docs/undo-redo.md).
 
 use std::collections::HashMap;
 

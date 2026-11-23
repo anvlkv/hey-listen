@@ -10,7 +10,7 @@ import type { McpStatus } from "../bindings/McpStatus";
  * module is a thin view over the `get_mcp_status` / `set_mcp_config` commands (which
  * are the only writer), plus a `writeText` helper for the copyable config snippet.
  * The plugin store has no cross-instance sync, so keeping the core authoritative —
- * and the popover a view — avoids diverging copies. See `docs/mcp.md`.
+ * and the popover a view — avoids diverging copies.
  */
 
 /** The default port shown when nothing is configured (mirrors `mcp::DEFAULT_PORT`). */

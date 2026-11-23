@@ -8,7 +8,7 @@ import { setDevices, setProcesses, setSourcesError } from "./signals";
  * Deliberately **not** called at startup: enumeration walks the OS audio stack, and
  * on macOS it cannot even list inputs until microphone consent is decided. So the
  * capture session opens first (which raises the consent prompt), and `ensureSession`
- * requests the list once that session is running. See `docs/source-model.md` →
+ * requests the list once that session is running.
  * "OS permissions (macOS)".
  */
 export async function refreshDevices() {

@@ -15,7 +15,6 @@ import { axisToHz, type FrequencyScale } from "./frequencyScale";
  * and its zoom chrome, the "nothing to analyse yet" empty state, the time tooltip, the
  * right-click reframe handler, and the visible-range labels. Keeping them here means the
  * views stay consistent and a styling/behaviour change lands in one place. See
- * `docs/analysis-tools.md`.
  */
 
 /** uPlot axis styling for the active theme (read on each chart (re)mount). */

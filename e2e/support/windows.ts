@@ -5,7 +5,6 @@
  * popout windows a spec leaves behind.
  *
  * A spec file gets one app session, so a spec that pops a window out owns closing it —
- * see `docs/testing.md` → E2E testing.
  */
 import { waitFor } from "./dom.ts";
 import { invokeCore } from "./ipc.ts";

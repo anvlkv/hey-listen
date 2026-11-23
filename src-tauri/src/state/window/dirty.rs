@@ -14,8 +14,7 @@
 //! synchronous step — a streamed PCM, dockview re-serializing its layout after `fromJSON`,
 //! the layout's popout windows being created — so the restore itself says when it is done;
 //! only then does a quiet period (see `dirty/tick.rs` → `SETTLE_MS`) lock the baseline, so a
-//! freshly loaded project never comes up marked dirty. See
-//! [`undo-redo.md`](../../../../docs/undo-redo.md) → "Phase 3".
+//! freshly loaded project never comes up marked dirty.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};

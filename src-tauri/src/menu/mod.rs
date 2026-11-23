@@ -4,7 +4,7 @@
 //! `state/project/` reacts to the File actions and `state/menu.ts` routes the rest
 //! (Analysis, Help). View and Window use **predefined** items (fullscreen / minimize /
 //! maximize), so they work without a round-trip. Undo/redo are **not** menu items: they
-//! are commands in the frontend's keybinding registry (see `docs/undo-redo.md`), so a
+//! are commands in the frontend's keybinding registry, so a
 //! focused text field keeps native `Cmd+Z`. On macOS the first submenu is the application
 //! menu (About / Services / Hide / Quit); elsewhere About lives under Help.
 //!
@@ -14,7 +14,7 @@
 //! The submenus and their items live in [`build`] (a child module), so this module stays
 //! the event surface: the action ids, the recent list, and the routing.
 //!
-//! See `docs/ui-layout.md` and `docs/architecture.md`.
+//! See and.
 
 use tauri::menu::{IsMenuItem, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Runtime};

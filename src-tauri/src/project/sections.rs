@@ -1,7 +1,7 @@
 //! Typed payloads for the structured (non-`DATA`) project sections.
 //!
 //! `META`, `SOURCE`, `SETUP`, and `RESULTS` are `postcard`-encoded; `LAYOUT` is
-//! `serde_json` (see `docs/project-file-format.md`). The Rust structs are shared
+//! `serde_json`. The Rust structs are shared
 //! with the IPC boundary, so they also carry the frontend's (camelCase) key names.
 
 use std::collections::BTreeMap;
@@ -86,7 +86,7 @@ impl<'de> Deserialize<'de> for SourceKind {
     }
 }
 
-/// `SOURCE` section: the project's single audio source (`docs/source-model.md`).
+/// `SOURCE` section: the project's single audio source.
 ///
 /// The audio itself lives in `DATA`; the descriptor records *what* the source was,
 /// so the UI can restore its picker and (for files/synths) provenance is retained.
@@ -173,7 +173,7 @@ pub struct AnalysisWindow {
 /// An annotation anchors to an audio **time** (a point, or an optional `range` span) and,
 /// optionally, to an **analyzer tool id** (absent = a Timeline annotation). Its `body` is
 /// markdown; the optional `values` is a **frozen** snapshot of the chart's readout at
-/// that time. See `docs/annotations.md`.
+/// that time.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -203,7 +203,7 @@ pub struct Annotation {
     pub values: Option<AnnotationValues>,
 }
 
-/// The frozen chart readout an annotation carries as its subtitle (`docs/annotations.md`).
+/// The frozen chart readout an annotation carries as its subtitle.
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

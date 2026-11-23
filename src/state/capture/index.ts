@@ -1,7 +1,6 @@
 /**
  * Live-capture store (flexaudio sources): enumeration, configuration, the growing
  * PCM buffer, and the recording controls. One capture per project. See
- * `docs/source-model.md`.
  *
  * This module is the package's public surface — it re-exports the store's API, so
  * importers need no changes. The parts live in focused siblings: `types` (kinds,

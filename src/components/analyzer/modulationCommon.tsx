@@ -23,7 +23,7 @@ export function formatRate(hz: number): string {
  * The modulation-rate bands the perception model is most sensitive to (M36). These are
  * **reference regions**, not decision boundaries: the roughness and fluctuation filters
  * are tuned near 70 Hz and 4 Hz respectively, so a peak inside one is what those models
- * would respond to. `docs/analysis-tools.md` (roughness / fluctuation strength) owns the
+ * would respond to. (roughness / fluctuation strength) owns the
  * model description.
  */
 export const MOD_REFERENCE_REGIONS: { from: number; to: number; label: string }[] = [

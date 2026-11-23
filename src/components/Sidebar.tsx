@@ -24,7 +24,6 @@ import { analyzerQuery, setAnalyzerQuery } from "../state/sidebarSearch";
  * starts at the top, and it lives in [`sidebarSearch`](../state/sidebarSearch.ts)
  * so the Activity bar can mark the sections it matches while another one is showing.
  * Clicking an entry opens (or focuses) its Workbench tab.
- * See `docs/ui-layout.md` and `docs/analysis-tools.md`.
  *
  * Each analyzer row carries the tool's **chart-type** icon in its bottom-right corner
  * (`lib/icons.ts` → `VIEW_ICONS`); the graph rows carry their editor icons

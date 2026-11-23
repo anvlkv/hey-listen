@@ -16,7 +16,7 @@ import {
  *
  * Covers the parse/validate/normalise contract the rest of the theme feature relies
  * on: bad kind/version/base are rejected, unknown keys survive, `ui` keys gain their
- * `--`, and a parsed theme re-serialises to valid JSON. See `docs/theming.md`.
+ * `--`, and a parsed theme re-serialises to valid JSON.
  *
  * Lives in `src/tests/` so `tsc --noEmit` type-checks it with the code it exercises;
  * nothing in the app imports it, so it is not part of the bundle. Vitest supplies

@@ -16,7 +16,6 @@ function pct(db: number): number {
  * Peak / RMS level meters (M11.A) for the `levels` tool: a dBFS-scaled bar per
  * value with a peak-hold marker, so the crest factor reads at a glance. Pure DOM —
  * the levels tool is the one place a *meter*, not a chart, is what the tool is. See
- * `docs/analysis-tools.md`.
  */
 export default function LevelMeters(props: { result: LevelsResult }) {
   const rows = () => [

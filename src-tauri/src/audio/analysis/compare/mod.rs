@@ -10,7 +10,7 @@
 //! The module is `tauri`-free, so the whole contract is unit-tested: [`align`] decides
 //! comparability, [`diff`] computes the per-family delta, [`events`] pairs events, and
 //! [`stats`] holds the numbers a caller reads without the arrays.
-//! See `docs/comparison.md` and ADR-24.
+//! See and ADR-24.
 
 pub mod align;
 pub mod diff;

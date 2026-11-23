@@ -4,8 +4,8 @@
  * Annotation bodies are **raw markdown** (stored as-is); rendering is **sanitized** so a
  * pasted annotation cannot inject markup, scripts, or event handlers. `marked` renders
  * (GFM), then DOMPurify strips anything outside its HTML allow-list. The About copy
- * is trusted registry text, but rides the same pipeline. See `docs/annotations.md` →
- * Markdown and `docs/dependencies.md`.
+ * is trusted registry text, but rides the same pipeline.
+ * Markdown and.
  *
  * `marked` and `dompurify` are loaded with a **dynamic import** (and cached): they are
  * only needed once an annotation preview or an About panel is shown, so keeping them out of

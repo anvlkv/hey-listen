@@ -5,7 +5,7 @@ import { createMute, createPusher, type PushTimer } from "../state/project/pushQ
  * Unit checks for the project-state push's pure primitives
  * (`src/state/project/pushQueue.ts`): the leading/trailing coalescer that keeps a burst
  * of edits to one send, and the remote-apply mute flag that keeps a restore from being
- * pushed back as a new edit (`docs/undo-redo.md`).
+ * pushed back as a new edit.
  */
 
 /** A deterministic clock: `advance` runs whatever came due, oldest first. */

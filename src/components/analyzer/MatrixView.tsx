@@ -70,7 +70,7 @@ function clampView(next: View, result: MatrixResult): View {
  * the result — or the descriptor — carries the edges.
  *
  * Wheel zooms time, drag pans; the visible time range is synced across analyzer tabs on
- * the `"time"` group. See `docs/analysis-tools.md`.
+ * the `"time"` group.
  */
 export default function MatrixView(props: {
   id: AnalyzerId;

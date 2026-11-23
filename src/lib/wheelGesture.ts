@@ -14,7 +14,7 @@
  *   tail cannot change the gesture mid-burst.
  *
  * Dependency-free — the math is pure and unit-tested, and the stateful wrapper only uses
- * `requestAnimationFrame`. See `docs/roadmap.md` → M23 → "Wheel and trackpad stability".
+ * `requestAnimationFrame`.
  */
 
 /** The subset of a `WheelEvent` the gesture math reads. */

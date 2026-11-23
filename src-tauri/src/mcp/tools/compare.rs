@@ -2,7 +2,6 @@
 //!
 //! App-only: a comparison needs two live project windows. The CLI's `compare`
 //! subcommand is the windowless equivalent (two project files). See
-//! `docs/comparison.md` → "MCP".
 
 use serde_json::{json, Value};
 

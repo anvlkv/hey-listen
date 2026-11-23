@@ -11,7 +11,6 @@ const speedLabel = (speed: number) => `${Number(speed.toFixed(2))}×`;
  * current varispeed rate (the words carry the meaning, so it takes no icon) that opens the
  * log slider in a portaled popover. The rate is a transport control — it shifts pitch and
  * never affects analysis, which always reads the source at 1×. See
- * `docs/annotations.md` → "Preview playback and the shared playhead".
  */
 export default function TimelineSpeedPopover() {
   return (

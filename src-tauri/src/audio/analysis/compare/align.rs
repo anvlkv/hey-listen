@@ -7,7 +7,7 @@
 //! owner's; that is reported (`aligned == false`), never silently normalised. Either
 //! way the two windows are matched on a **relative** axis — each side starts at 0, the
 //! reference shifted by the fine-tune offset δ — and the delta covers the **common
-//! span** `[max(0, δ), min(durA, δ + durB)]`. See `docs/comparison.md` →
+//! span** `[max(0, δ), min(durA, δ + durB)]`.
 //! "Comparability" and ADR-26.
 
 use serde::{Deserialize, Serialize};

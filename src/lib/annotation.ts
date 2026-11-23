@@ -6,7 +6,7 @@ import type { AnnotationValues } from "../bindings/AnnotationValues";
  * Pure helpers for the annotation model (M14): clamping, labels, excerpts, and the
  * "is the frozen snapshot stale" comparison. Kept free of stores/Tauri so they can
  * be unit-tested with `npm run test:unit` (see `src/tests/annotations.test.ts`); the store
- * itself lives in `state/annotations/`. See `docs/annotations.md`.
+ * itself lives in `state/annotations/`.
  */
 
 /** Longest body excerpt used when an annotation has no title. */
@@ -148,7 +148,7 @@ export function annotationTimeText(annotation: Pick<Annotation, "timeSecs" | "ra
  * The frame of a uniformly-sampled window grid that contains `timeSecs`.
  *
  * A tool's frames are evenly spaced across the analysis window, and every time a
- * result carries is in **source seconds** (see `docs/analysis-tools.md`), so reading
+ * result carries is in **source seconds**, so reading
  * the frame at an annotation's time needs the window's origin — this is that lookup. Clamped
  * to the grid, so a time outside the window reads its nearest edge frame.
  */

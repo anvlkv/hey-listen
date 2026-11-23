@@ -22,7 +22,7 @@ import {
  * The project's **saved comparisons** are listed per pair too, so several of them stay
  * distinguishable. Picking one opens a new compare tab (or retargets the comparison the
  * picker was opened from). With one project open and no saved comparison the caller
- * shows a notice instead. See `docs/comparison.md`.
+ * shows a notice instead.
  */
 export default function ComparePicker() {
   const open = () => pickerTool() != null;

@@ -18,10 +18,10 @@ import type { AnalysisSetupDto, CompareOpenDto, LayoutDto, SourceDescriptorDto }
 
 /**
  * Read the current stores into the `SOURCE` / `SETUP` / `LAYOUT` shapes the core's
- * project snapshot carries (see [`project-file-format.md`](../../../docs/project-file-format.md)).
+ * project snapshot carries.
  *
  * The push assembles the snapshot from these (`./push`), so the same values feed undo/redo
- * and the save that writes them ([`undo-redo.md`](../../../docs/undo-redo.md)).
+ * and the save that writes them.
  */
 
 /** Fill a `SOURCE` descriptor's unused fields with null (the core defaults them too). */

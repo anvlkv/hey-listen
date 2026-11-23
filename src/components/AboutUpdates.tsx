@@ -8,7 +8,7 @@ import { checkForUpdates, installUpdate, restartToUpdate, updateState } from "..
  * Reached from the Help menu's *Check for Updates…* (which opens the dialog and starts a
  * check) and from the section's own button. A newer build is offered with its release
  * notes; **Download and install** is the only way it installs, and **Restart Now** runs
- * it. See `docs/updater.md`.
+ * it.
  */
 export default function AboutUpdates() {
   const state = updateState;

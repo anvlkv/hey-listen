@@ -2,7 +2,7 @@
  * Shared E2E helpers (M8) — the suite's public surface: app lifecycle, driving the
  * Workbench/Source, reading analyzer results, and the small set of IPC affordances
  * the suite needs (mocking a native dialog, forcing an error path, emitting a menu
- * action). See `docs/testing.md`.
+ * action).
  *
  * This module is a barrel: the implementations live in focused submodules
  * (`app`, `dom`, `tabs`, `analyzers`, `source`, `popups`, `ipc`) and are re-exported

@@ -11,7 +11,7 @@ import type { AnalyzerSection } from "../state/analyzer/types";
  *
  * Keep the set curated (only what the UI uses) so dead glyphs don't accumulate.
  * Font Awesome Free: fonts SIL OFL 1.1, icons CC BY 4.0, code MIT — see the About
- * dialog and `docs/dependencies.md`.
+ * dialog.
  */
 export const ICON_GLYPHS = {
   // --- Toolbar / chrome -------------------------------------------------------

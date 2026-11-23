@@ -14,7 +14,7 @@ import { hopOf } from "./align";
  *
  * Two result shapes reach this module — a generic `MatrixResult` (mel / MFCC / chroma /
  * contrast) and a `SpectrogramResult` — so the accessors hide the field differences
- * rather than forcing the view to branch everywhere. See `docs/comparison.md`.
+ * rather than forcing the view to branch everywhere.
  */
 
 /** A heatmap result, either generic matrix or spectrogram. */

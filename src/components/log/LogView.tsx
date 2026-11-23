@@ -12,7 +12,7 @@ import SelectTrigger, { type SelectOption } from "../SelectTrigger";
  * `log://log`: the stream is broadcast to every window and would have to be reconciled
  * with the history already on disk (a gap, and duplicates at the join), while one bounded
  * read per second is cheap — the file is capped before it rotates, and a rotation mid-poll
- * only means the next read is the new file's tail. See `docs/logging.md` → §5.
+ * only means the next read is the new file's tail.
  *
  * The list is read-only: a level floor, a text filter, Follow, Copy and Open Log Folder.
  */

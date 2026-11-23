@@ -1,6 +1,6 @@
 /**
- * The command-registry shapes ([`hotkeys.md`](../../../docs/hotkeys.md) → "Command
- * model"). M24.A shipped this seam with undo/redo as its first commands; M24.B fills the
+ * The command-registry shapes. M24.A shipped this seam with undo/redo as its first
+ * commands; M24.B fills the
  * registry (palette, shortcuts dialog, rebinding).
  */
 

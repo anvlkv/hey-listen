@@ -29,7 +29,7 @@ import { scheduleStampTabIds } from "../workbenchTabIds";
  * Mounted as a transient Workbench tab (`compare:<tool>`) or, in a compare popout,
  * as the whole window. It owns the debounced compute ([`createComparison`]) and the
  * ~20 Hz peer poll ([`createCompareLive`]), draws the family's chart, and never
- * changes the reference project. See `docs/comparison.md`.
+ * changes the reference project.
  */
 export default function CompareTab(props: {
   tool: AnalyzerId;

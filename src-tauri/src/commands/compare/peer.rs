@@ -2,7 +2,7 @@
 //!
 //! Peer reads never create state: a closed reference resolves to an error (the view
 //! shows **Reference project closed**), and every value comes from the peer's shared UI
-//! state or core `Playback`. See `docs/comparison.md`.
+//! state or core `Playback`.
 
 use std::sync::Arc;
 

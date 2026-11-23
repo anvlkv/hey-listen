@@ -1,5 +1,5 @@
 /**
- * H. Project file (M6) & multi-window (M7) — matrix rows H1–H4 (`docs/testing.md`).
+ * H. Project file (M6) & multi-window (M7) — matrix rows H1–H4.
  *
  * Native menus cannot be clicked by WebDriver, so File actions are driven through
  * the `app:menu` event the frontend listens for (`src/state/menu.ts`), with the
@@ -45,7 +45,7 @@ async function timelineReadout(): Promise<string> {
   )) as string;
 }
 
-/** The container's header version (`+4`, u32 LE) — see `docs/project-file-format.md`. */
+/** The container's header version (`+4`, u32 LE) . */
 function fileVersion(file: string): number {
   return readFileSync(file).readUInt32LE(4);
 }
@@ -108,7 +108,7 @@ describe("H. Project file & multi-window", () => {
     );
 
     // A load is not an edit: the project it restores is the clean point, so the title must
-    // come back without the unsaved marker (the core settles it — `docs/undo-redo.md`).
+    // come back without the unsaved marker (the core settles it.
     await waitFor(
       async () => !(await (await $(SEL.projectName)).getText()).includes("*"),
       "the loaded project came up dirty",
@@ -131,7 +131,7 @@ describe("H. Project file & multi-window", () => {
     );
 
     // The Toolbar reports the upgrade and the project stays dirty: the upgrade only
-    // becomes durable when it is saved (`docs/project-file-format.md` → Migrations).
+    // becomes durable when it is saved.
     const notice = await $(SEL.projectUpgraded);
     await notice.waitForExist();
     expect(await notice.getText()).toContain("upgraded from v1");

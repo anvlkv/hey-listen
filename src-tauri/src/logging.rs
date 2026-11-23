@@ -3,7 +3,7 @@
 //! `tauri-plugin-log` is the only writer. This module owns the plugin's configuration
 //! (`targets` / `level`), the log file's location (`log_dir` / `log_file` — the same
 //! answer the frontend's `log_path` command reports), panic reporting, and the tail the
-//! preview window reads. See `docs/logging.md` for the design.
+//! preview window reads. See for the design.
 //!
 //! Two env vars make the destination and the volume adjustable without a rebuild:
 //! `HEYLISTEN_LOG_DIR` relocates the file target (the E2E hook), and

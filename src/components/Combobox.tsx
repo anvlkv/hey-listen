@@ -31,9 +31,8 @@ export default function Combobox(props: {
   disabled?: boolean;
   /**
    * Called when the option list is opened — the hook for loading options lazily.
-   * Walking the OS audio stack can ask the OS for permission (see
-   * `docs/source-model.md` → OS permissions), so callers that list devices must not
-   * do it at mount.
+   * Walking the OS audio stack can ask the OS for permission, so callers that list
+   * devices must not do it at mount.
    */
   onOpen?: () => void;
 }) {

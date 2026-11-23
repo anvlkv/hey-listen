@@ -11,7 +11,7 @@
 //! only **stores bytes**. This module provides the store (list / write / delete) plus
 //! the import/export file plumbing, and the bundled themes' identity for the
 //! **headless** MCP surface (which has no webview to run the TypeScript registry).
-//! See `docs/theming.md` and ADR-15.
+//! See and ADR-15.
 
 use std::path::{Path, PathBuf};
 

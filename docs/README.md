@@ -24,8 +24,3 @@ written here, short and current. Superseded detail stays in the archive.
 Frozen, verbose, and kept for reference: architecture, ADRs, the full milestone
 history, audits, and analysis references. **Do not edit archived docs** — write
 the current answer in `development/` instead.
-
-- [`archive/roadmap.md`](archive/roadmap.md) — the full historical roadmap
-- [`archive/decisions.md`](archive/decisions.md) — architecture decision records
-- [`archive/architecture.md`](archive/architecture.md)
-- [`archive/testing.md`](archive/testing.md) — the E2E plan and test matrix

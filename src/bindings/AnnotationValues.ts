@@ -5,7 +5,7 @@ import type { SharedParams } from "./SharedParams";
 import type { SummaryItem } from "./SummaryItem";
 
 /**
- * The frozen chart readout an annotation carries as its subtitle (`docs/annotations.md`).
+ * The frozen chart readout an annotation carries as its subtitle.
  */
 export type AnnotationValues = { 
 /**

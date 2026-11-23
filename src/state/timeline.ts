@@ -39,7 +39,7 @@ const FRAME_FILL = 0.55;
  * `frame`, the viewport expands to contain the window plus ~12% padding — unless the
  * window already fills most of the visible span, so a gesture that selected roughly what
  * the user was looking at never disturbs their zoom. The Timeline's selection drag and its
- * edge-drag release are the first callers (see `docs/roadmap.md` → M23 → "Reframe → frame +
+ * edge-drag release are the first callers
  * focus").
  */
 export function reframeWindow(opts: { start: number; end: number; frame?: boolean }) {

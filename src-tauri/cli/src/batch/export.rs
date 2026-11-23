@@ -82,7 +82,7 @@ pub(super) fn run_export(
         return Err(());
     }
 
-    // CSV carries its provenance in a sidecar (`docs/exports.md`). A sidecar that cannot
+    // CSV carries its provenance in a sidecar. A sidecar that cannot
     // be written fails the export: a CSV without its provenance is not the promised
     // artifact (audit P2 #12).
     let sidecar_path = match rendered["sidecar"].as_str() {

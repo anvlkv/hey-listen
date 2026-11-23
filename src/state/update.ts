@@ -5,7 +5,7 @@ import type { DownloadEvent } from "../bindings/DownloadEvent";
 import type { UpdateMetadata } from "../bindings/UpdateMetadata";
 import { invoke, errorMessage } from "../lib/ipc";
 
-/** Where a self-update stands (M33.C). See `docs/updater.md` and ADR-30. */
+/** Where a self-update stands (M33.C). See and ADR-30. */
 export type UpdatePhase =
   | "idle" // nothing asked yet
   | "checking" // asking the feed

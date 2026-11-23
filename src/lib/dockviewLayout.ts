@@ -6,7 +6,7 @@ import type { SerializedDockview } from "dockview";
  * A compare view is never project content: `layoutJson()` runs every captured layout
  * through [`sanitizeLayout`] so a compare tab is stripped from the saved project, the
  * undo history and the dirty signature — saving while it is open writes the project
- * exactly as if it were closed. See `docs/comparison.md` → "Transient by construction".
+ * exactly as if it were closed.
  *
  * Removing a panel means more than deleting its entry from `panels`: it is also a view
  * of a grid leaf. A leaf left with no views is pruned from the tree, and an

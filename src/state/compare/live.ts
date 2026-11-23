@@ -12,8 +12,7 @@ import type { CompareLiveDto, LiveSideDto } from "./types";
  * comparison; being polled, it never needs to read the peer's whole setup.
  *
  * Responses are **latest-wins**: a slow reply that arrives after a newer request is
- * dropped, so a stalled IPC call cannot rewind the markers. See
- * `docs/comparison.md` → "Live state (both sides)".
+ * dropped, so a stalled IPC call cannot rewind the markers.
  */
 
 /** Poll interval (~20 Hz). */

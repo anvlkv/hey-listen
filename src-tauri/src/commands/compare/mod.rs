@@ -1,4 +1,4 @@
-//! Cross-project comparison commands (M25) — see `docs/comparison.md`.
+//! Cross-project comparison commands (M25).
 //!
 //! The core owns the compute: A comes from the caller's window, B from the reference
 //! label's **live** project state (own PCM, own filter) or from A's **saved snapshot**

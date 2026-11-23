@@ -36,7 +36,7 @@ interface NoticeRow {
  * one, per comparison id, and never touches the comparison itself: the badge, the
  * charts and the delta stay. A closed reference is also what a run fails on, so the
  * closed row replaces the error row rather than stacking a second warning on the same
- * failure. See `docs/comparison.md` → "The compare view".
+ * failure.
  */
 export default function CompareNotices(props: {
   comparison: ComparisonDto;

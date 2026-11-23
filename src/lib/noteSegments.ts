@@ -7,7 +7,7 @@ import type { NoteMetricsResult } from "../bindings/NoteMetricsResult";
  * `null` separates notes so a line never joins two segments across a gap.
  *
  * These are the detected note segments, not the project's user-authored notes
- * (M14) — see `docs/notes.md` → Terminology.
+ * (M14).
  */
 export interface SegmentSeries {
   xs: number[];

@@ -1,5 +1,5 @@
 /* The compare view's notice strip (M25) — split from `compare.css` to stay inside the
-   400-line budget (see `docs/code-hygiene.md`).
+   400-line budget.
 
    One quiet strip under the header: a single muted line per notice, a hairline between
    rows, and a colour only where it carries meaning — `--warn` for an actual warning,

@@ -54,7 +54,7 @@ pub fn build_info() -> BuildInfo {
 
 /// Whether this process was launched by the E2E service (`TAURI_WEBDRIVER_PORT`
 /// set), i.e. the only case where the WebDriver plugins are registered and the
-/// frontend should load `@wdio/tauri-plugin`. See `docs/testing.md`.
+/// frontend should load `@wdio/tauri-plugin`.
 #[tauri::command]
 pub fn e2e_enabled() -> bool {
     std::env::var(tauri_plugin_wdio_webdriver::PORT_ENV_VAR).is_ok()

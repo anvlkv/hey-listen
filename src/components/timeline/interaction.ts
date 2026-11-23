@@ -35,8 +35,8 @@ import { createTimelineZoom } from "./zoom";
  * drag an annotation handle / draw a lane selection, wheel zoom/pan, the toolbar zoom and the
  * **hover crosshair** (`hover.ts`). Snapping (D-12) arrives through the `snap*` deps, which are
  * the identity while it is off. Component-local capabilities arrive in
- * [`TimelineInteractionDeps`]; store reads/writes are imported. See `docs/source-model.md`,
- * `docs/roadmap.md` → M23 → "Window readout, pan and select" and "Wheel and trackpad".
+ * [`TimelineInteractionDeps`]; store reads/writes are imported.,
+ *, pan and select" and "Wheel and trackpad".
  */
 type DragKind = "start" | "end" | "move" | "pan" | "select" | "ruler";
 

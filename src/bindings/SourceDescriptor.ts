@@ -3,7 +3,7 @@ import type { GraphSpec } from "./GraphSpec";
 import type { SourceKind } from "./SourceKind";
 
 /**
- * `SOURCE` section: the project's single audio source (`docs/source-model.md`).
+ * `SOURCE` section: the project's single audio source.
  *
  * The audio itself lives in `DATA`; the descriptor records *what* the source was,
  * so the UI can restore its picker and (for files/synths) provenance is retained.

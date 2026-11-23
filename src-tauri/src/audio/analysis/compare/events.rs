@@ -3,7 +3,7 @@
 //! Event lists are paired by **nearest time** within a tolerance, never by index: the
 //! two windows may start at different points, so frame 0 means different instants.
 //! Matched pairs, only-A and only-B are all reported — an event that exists on one
-//! side only is the interesting part of a comparison. See `docs/comparison.md`.
+//! side only is the interesting part of a comparison.
 
 use serde::Serialize;
 

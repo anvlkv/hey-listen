@@ -29,7 +29,7 @@ import { valuesText } from "../state/annotations/format";
  *
  * Covers the pure contract the annotations store relies on: time/range clamping, the row
  * label + excerpt, the time subtitle, and the snapshot comparison behind the stale
- * hint. See `docs/annotations.md`.
+ * hint.
  */
 
 it("clamps the anchor time to the source", () => {

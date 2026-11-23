@@ -150,7 +150,7 @@ const TempoTooltip = (props: TooltipProps) => (
  * beats / onsets / downbeats drawn as markers on top (which sets depends on the
  * tool). One shared legend maps every mark to its theme colour, and the tempogram
  * panel names the chosen tempo beside its autocorrelation curve. Cursor and time-zoom
- * sync with the other analyzer tabs. See `docs/analysis-tools.md`.
+ * sync with the other analyzer tabs.
  */
 export default function RhythmView(props: {
   id: AnalyzerId;

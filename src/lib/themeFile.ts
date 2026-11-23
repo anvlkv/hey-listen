@@ -2,7 +2,7 @@
  * The `ThemeFile` model (M11) — a theme is **data**, a versioned JSON payload with
  * the `.heyltheme` extension. It **overlays a declared base** (`dark` / `light`)
  * rather than restating the whole palette: everything it omits falls back to that
- * built-in (see `docs/theming.md`, ADR-15).
+ * built-in (ADR-15).
  *
  * This module owns the shape and the parse/validate/normalise step only; the
  * registry, slot resolution and apply pipeline live in `state/themes/`. Parsing

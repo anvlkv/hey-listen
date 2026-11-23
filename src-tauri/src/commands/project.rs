@@ -1,4 +1,4 @@
-//! Project file commands (M6) — see `docs/project-file-format.md`.
+//! Project file commands (M6).
 //!
 //! Thin adapters over [`crate::project`]: they own the IPC boundary (argument types,
 //! `Channel`, dialogs, state) but keep the binary format in the engine. The core
@@ -49,7 +49,7 @@ pub struct CompareOpen {
 /// The request a save carries beyond the project content: everything here is **not**
 /// undoable. The content itself (name, source, setup, layout, annotations) is the core's
 /// [`ProjectSnapshot`] — the same one undo/redo records — so the file and history cannot
-/// drift (`docs/undo-redo.md` → "Phase 2"). `META`'s timestamps/version and the `DATA`
+/// drift. `META`'s timestamps/version and the `DATA`
 /// section (owned source PCM) are added by the core.
 #[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
@@ -243,7 +243,7 @@ pub async fn load_project(
         compare.iter().map(|saved| saved.info()).collect();
     window_state(&window).replace_saved_comparisons(compare);
     // A file from an older format version was migrated in memory; the project stays dirty
-    // until a save writes the current one (`docs/project-file-format.md` → Migrations).
+    // until a save writes the current one.
     window_state(&window).set_upgraded_from(upgraded_from);
 
     // End-of-stream sentinel (large chunks arrive asynchronously on the frontend).

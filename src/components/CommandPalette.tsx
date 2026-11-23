@@ -11,8 +11,8 @@ import { getBinding } from "../state/keybindings/store";
 import { openTool, openTools, TOOLS, type ToolId } from "../state/workbench";
 
 /**
- * The **Command Palette** ([`hotkeys.md`](../../../docs/hotkeys.md) → "Command
- * palette"): one fuzzy list over the command registry, the Workbench tools, and the
+ * The **Command Palette**: one fuzzy list over the command registry, the Workbench
+ * tools, and the
  * tabs already open. Mouse and keyboard share one highlight, Enter runs the highlighted
  * row, and running anything closes the dialog.
  *

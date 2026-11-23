@@ -24,7 +24,7 @@ import {
  *
  * Toggle it on/off (default off), pick the loopback port, watch a live status line,
  * and copy a ready-to-paste config snippet for an MCP client. The core owns the state
- * (see `src/state/mcpSettings.ts`); this is just a view. See `docs/mcp.md`.
+ * (`src/state/mcpSettings.ts`); this is just a view.
  */
 export default function McpPopover() {
   // The port field is edited locally and committed on blur / Enter, so typing does

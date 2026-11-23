@@ -1,7 +1,7 @@
 //! The per-family delta implementations (M25; relative matching in M25.B), split from
 //! [`super`] to keep each file inside the source-size budget. Every family is covered,
 //! so MCP and the CLI can compare any tool. Frame times arrive already on the relative
-//! axis; see [`super`] for the coordinate transform and `docs/comparison.md` → "The
+//! axis; see [`super`] for the coordinate transform and
 //! delta".
 
 use crate::audio::analysis::{

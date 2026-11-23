@@ -11,7 +11,7 @@ import { annotationRules, handleDragRules } from "../components/annotations/rule
  *
  * Covers the pure contract both the Timeline and the analyzer charts rely on: a point
  * annotation draws one edge rule and a range two, at the edges' mapped x positions, and a
- * handle drag adds the edge it started from as a ghost. See `docs/annotations.md` → Surfacing.
+ * handle drag adds the edge it started from as a ghost.
  */
 
 /** A 0–10 s view mapped to 0–100 px, so the expected positions are obvious. */

@@ -10,7 +10,7 @@ import { adjustHue, transparentize } from "color2k";
  * - **Lane tint** — the non-selected channel lanes are the same colour at reduced alpha.
  * - **Selection fill** — the live rectangle drawn while a window is being dragged out.
  *
- * See `docs/roadmap.md` → M23 → "Parallel channel lanes" and "Window readout, pan and
+ *, pan and
  * select".
  */
 

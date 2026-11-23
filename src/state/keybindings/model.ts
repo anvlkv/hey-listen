@@ -1,8 +1,8 @@
 import type { CommandId } from "./types";
 
 /**
- * The pure persistence model for bindings ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Persistence"). Bindings are app-level chrome, stored in `localStorage` — never in the
+ * The pure persistence model for bindings. Bindings are app-level chrome, stored in
+ * `localStorage` — never in the
  * project file — as a versioned overrides map:
  *
  * ```json

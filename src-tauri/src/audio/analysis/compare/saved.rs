@@ -4,7 +4,7 @@
 //! at save time: the reference's last analysis window — its setup, effective options,
 //! filter fingerprint and **full result** — plus the fine-tune offset and the pinned
 //! owner side. No reference audio is embedded, so the owner project stays
-//! self-contained for its last comparison. See `docs/comparison.md` and ADR-27.
+//! self-contained for its last comparison. See and ADR-27.
 //!
 //! A snapshot is also the core's in-memory record of the **last successful**
 //! comparison of each pair, which is what makes "the reference closed" keep its

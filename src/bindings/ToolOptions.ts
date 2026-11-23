@@ -2,7 +2,7 @@
 
 /**
  * Per-tool options (not shared across tools). Absent fields fall back to the tool
- * defaults; see `docs/analysis-tools.md`.
+ * defaults.
  *
  * Keys are canonical **camelCase**; snake_case aliases are accepted when reading a
  * request (the IPC, headless, and CLI boundaries), and unknown keys are rejected rather

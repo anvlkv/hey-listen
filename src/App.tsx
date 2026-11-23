@@ -56,7 +56,7 @@ const SIDEBAR_MAX = 520;
  * source the Source panel takes the whole row; while recording the Source controls
  * sit beside the Timeline; once a source exists (and it is not recording) the
  * Timeline takes the whole row and the Source panel is hidden (reveal it from the
- * Timeline's *Replace…* button). See `docs/ui-layout.md`.
+ * Timeline's *Replace…* button).
  */
 export default function App() {
   const [bottomHeight, setBottomHeight] = createSignal(BOTTOM_DEFAULT);
@@ -110,7 +110,7 @@ export default function App() {
     void initUiState().then(() => {
       initProjectHistory();
       // The core's dirty flag follows that push; a window opened mid-project pulls the
-      // current one (`docs/undo-redo.md` → "Phase 3").
+      // current one.
       void initDirty();
     });
     void initCapture();

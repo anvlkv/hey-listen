@@ -2,8 +2,8 @@ import { createSignal } from "solid-js";
 import { invoke } from "../../lib/ipc";
 
 /**
- * The command palette's open state ([`hotkeys.md`](../../../docs/hotkeys.md) →
- * "Command palette"). The registry's `navigate.commandPalette` command flips the signal;
+ * The command palette's open state. The registry's `navigate.commandPalette` command
+ * flips the signal;
  * `<CommandPalette>` is mounted against it.
  *
  * The **Keyboard Shortcuts** explorer is not a dialog signal: it is an app-wide Tauri

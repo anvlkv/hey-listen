@@ -9,7 +9,6 @@ import type { AnalysisHandle, AnyAnalysisResult, LevelsResult } from "../../stat
  * integrated loudness, loudness range) the body is just the labeled values — no
  * chart. (Tempo/onsets/downbeats are the `rhythm` view, which draws an envelope.)
  * The `levels` tool also draws peak / RMS meter bars (M11.A). See
- * `docs/analysis-tools.md`.
  */
 export default function ReadoutsView(props: { analysis: AnalysisHandle<AnyAnalysisResult> }) {
   const result = () => props.analysis.result();

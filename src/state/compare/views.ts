@@ -16,7 +16,7 @@ import type { CompareViewDto } from "./types";
  * comparison's **id**, not its tool. Its reference binding — a live project label, or a
  * saved snapshot — is held here (a tab) or in the core (a popout). The fine-tune offset
  * and the last successful snapshot fingerprint are per view, so the project's dirty
- * signature follows a settled reference change. See `docs/comparison.md`.
+ * signature follows a settled reference change.
  */
 
 /** What a compare view compares against. */

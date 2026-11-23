@@ -2,7 +2,7 @@
 //!
 //! Deliberately free of `tauri` types so the reducer is unit-testable; the per-project
 //! wiring (the settle recorder, the restore broadcast) lives in
-//! [`crate::state::window::history`]. See [`undo-redo.md`](../../../docs/undo-redo.md).
+//! [`crate::state::window::history`].
 
 use std::mem;
 

@@ -11,7 +11,7 @@ import { clampScrollTop } from "../lib/scroll";
  *
  * The contract: an offset always stays inside the content, so a filtered list that
  * shrinks under the current scroll position lands on its new end instead of staying
- * scrolled into empty space. See `docs/ui-layout.md` → "Scrolling".
+ * scrolled into empty space.
  */
 
 it("keeps an in-range offset and clamps one past the end", () => {

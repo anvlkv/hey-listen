@@ -1,6 +1,6 @@
 /**
  * Q2. Synth workflow (M22): the Live in-place source write and the palette drag
- * affordance. See `docs/roadmap.md` → M22 and ADR-21.
+ * affordance.
  *
  * Live runs for real, so the source PCM and the preserved UI state are observed end to
  * end. Playback is the Timeline's transport; the synth tab adds no second play control.

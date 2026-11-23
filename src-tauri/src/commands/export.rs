@@ -3,7 +3,7 @@
 //!
 //! The renderer itself lives in [`crate::export`] and is shared with the MCP server
 //! and the batch CLI, so every surface writes the same JSON envelope and CSV. This
-//! module only adapts it to IPC and the native dialogs. See `docs/exports.md`.
+//! module only adapts it to IPC and the native dialogs.
 
 use std::collections::BTreeMap;
 use std::path::Path;

@@ -4,7 +4,7 @@
 //! They are proxies, not clinical measures: jitter is the spread of a YIN f0 track
 //! detrended over its frame times, in cents; shimmer is the spread of the note's frame
 //! RMS in dB; and the HNR proxy is `oxiaudio`'s 0–1 autocorrelation periodicity — not
-//! HNR in dB. See `docs/analysis-metrics.md` → M19.
+//! HNR in dB.
 
 use oxiaudio::dsp::spectral::harmonic_ratio;
 

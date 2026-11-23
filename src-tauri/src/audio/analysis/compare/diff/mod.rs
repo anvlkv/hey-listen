@@ -3,7 +3,7 @@
 //! Every family gets a delta, so MCP and the CLI can compare any tool. Since M25.B the
 //! frames and events are matched on a **relative** axis: each side starts at 0 at its
 //! own window start, and the reference is shifted by the fine-tune offset. The delta
-//! therefore carries relative `times`, not source seconds. See `docs/comparison.md` →
+//! therefore carries relative `times`, not source seconds.
 //! "The delta".
 
 use serde::Serialize;

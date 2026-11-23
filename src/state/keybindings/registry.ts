@@ -39,7 +39,7 @@ import { openCommandPalette, openShortcutsWindow } from "./dialogs";
 import type { CommandDef, CommandId } from "./types";
 
 /**
- * The command registry ([`hotkeys.md`](../../../docs/hotkeys.md) → "Command model").
+ * The command registry.
  *
  * Each command is declared once here; the dispatcher reads its binding from the store
  * (`DEFAULT_BINDINGS` merged with user overrides), so bindings are never duplicated in

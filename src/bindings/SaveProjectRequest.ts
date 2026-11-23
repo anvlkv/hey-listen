@@ -6,7 +6,7 @@ import type { CompareOpen } from "./CompareOpen";
  * The request a save carries beyond the project content: everything here is **not**
  * undoable. The content itself (name, source, setup, layout, annotations) is the core's
  * [`ProjectSnapshot`] — the same one undo/redo records — so the file and history cannot
- * drift (`docs/undo-redo.md` → "Phase 2"). `META`'s timestamps/version and the `DATA`
+ * drift. `META`'s timestamps/version and the `DATA`
  * section (owned source PCM) are added by the core.
  */
 export type SaveProjectRequest = { 

@@ -23,7 +23,7 @@ export interface ChartLegendEntry {
  * swatches. This is the one legend: a single wrapping row along the chart's **bottom
  * edge** (the chart review's chrome convention), so it scales to many series and can
  * never cover the data. Chart colours come from `chartTheme()`, so a series colour always
- * maps to the same labelled mark. See `docs/chart-review/chart-recommendations.md` item 13.
+ * maps to the same labelled mark. See item 13.
  */
 export default function ChartLegend(props: {
   entries: ChartLegendEntry[];

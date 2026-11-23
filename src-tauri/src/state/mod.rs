@@ -4,7 +4,7 @@
 //! The Rust core owns the PCM behind the timeline (ADR-9): file decodes and synth
 //! renders write it, live capture appends to it, and preview playback reads it.
 //! The frontend keeps its own copy only for rendering the waveform (a transitional
-//! duplication — see `docs/decisions.md` → ADR-9).
+//! duplication.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ use crate::audio::graph::{GraphSpec, SynthSession};
 use crate::audio::playback::Playback;
 
 /// The bounded undo/redo stacks over [`ProjectSnapshot`] (no `tauri` types, so the
-/// reducer is unit-testable). See `docs/undo-redo.md`.
+/// reducer is unit-testable).
 mod history;
 /// The single authoritative project-state snapshot undo/redo records.
 mod snapshot;

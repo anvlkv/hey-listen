@@ -24,7 +24,6 @@ import { asArgs, optionalBool, optionalNum, optionalStr, str, type Args } from "
  * through the normal `run_window` path with its own PCM and filter. The result is
  * `{ tool, a, b, comparability, diff }`, shaped like `run_analysis` (`summaryOnly` /
  * `includeData` / `maxPoints` / `axis`). B is never changed.
- * See `docs/comparison.md` → "MCP".
  */
 export async function compareAnalysis(args: Args) {
   const tool = str(args, "tool");

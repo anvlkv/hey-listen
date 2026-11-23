@@ -24,7 +24,7 @@ import WindowEditPopover from "./WindowEditPopover";
  * `Timeline.tsx`; the remaining state is read from the stores directly. Conventional
  * controls are icon-only (with an `aria-label` and a Tooltip); only the filter switch and
  * the speed readout carry words. The analysis channel lives on the Timeline's channel
- * rail, not here. See `docs/roadmap.md` → M23 → "Transport".
+ * rail, not here.
  */
 export default function TimelineToolbar(props: {
   status: TransportStatus;

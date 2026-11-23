@@ -159,7 +159,7 @@ jobs:
 
       # `cargo test` also regenerates the ts-rs bindings into src/bindings, so this
       # doubles as the "did you regenerate the TypeScript after changing a boundary
-      # type?" check (see docs/dependencies.md → Tooling notes). One OS is enough.
+      # type?" check. One OS is enough.
       - name: Rust tests + bindings in sync
         if: matrix.os == 'ubuntu-latest'
         working-directory: src-tauri

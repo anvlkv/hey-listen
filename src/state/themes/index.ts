@@ -13,7 +13,7 @@
  *   `chart` / `colormap` / `flow` overlays are merged by their readers.
  *
  * Everything is app-level chrome, persisted in `localStorage` — a theme is **not**
- * part of the project file. See `docs/theming.md` and ADR-15.
+ * part of the project file. See ADR-15.
  *
  * The implementation lives in sibling modules:
  * `chart.ts` (base chart palettes), `basePalettes.ts` (base ramp + flow),

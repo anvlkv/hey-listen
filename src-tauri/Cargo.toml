@@ -1,7 +1,7 @@
 # One workspace, one `Cargo.lock` and one `target/` for the app and both console binaries.
 # The app stays the root package (its `tauri.conf.json` sits beside this manifest); `cli/`
 # is the batch console binary and `mcp/` the stdio MCP entry — separate packages so that
-# neither is an auto-detected bin target of the app (`docs/packaging.md`).
+# neither is an auto-detected bin target of the app.
 [workspace]
 members = ["cli", "mcp"]
 # `cargo clippy` / `cargo test` in CI run without `--workspace`: without this the console
@@ -12,7 +12,7 @@ resolver = "2"
 # What the three crates must agree on, stated once. The app and both console binaries share
 # one release version (ADR-30) — the console binaries follow the app they were staged from —
 # so a bump is one edit here. `src-tauri/tauri.conf.json` deliberately sets no `version`:
-# the bundle then takes this crate's `CARGO_PKG_VERSION` (`docs/packaging.md` → Release
+# the bundle then takes this crate's `CARGO_PKG_VERSION`
 # process).
 [workspace.package]
 version = "0.8.2"
@@ -25,8 +25,8 @@ license = "Unlicense"
 hey-listen = { path = "." }
 serde_json = "1"
 # String-safe ids: `strum` derives the `FromStr` / `Display` / variant-name plumbing for
-# the id enums that `serde` + `ts-rs` carry across the boundary (`docs/decisions.md` →
-# ADR-28, `docs/roadmap.md` → M15.B).
+# the id enums that `serde` + `ts-rs` carry across the boundary
+# ADR-28).
 strum = { version = "0.28", features = ["derive"] }
 tauri-plugin-cli = "2"
 # `platform-windows` is turned on by the windows target table below.
@@ -42,7 +42,7 @@ description = "Hey Listen — audio analysis workbench: capture, filter, and ana
 # (`heylisten-mcp`) and the batch console binary (`hey-listen-cli`) are their own crates in
 # this workspace: keeping them out of this package's bin targets is what stops the
 # rpm/msi bundles from installing a binary the GUI does not ship (and, for the sidecar,
-# installing it twice — `docs/packaging.md`).
+# installing it twice.
 default-run = "hey-listen"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -82,7 +82,7 @@ serde_json.workspace = true
 thiserror = "2"
 postcard = { version = "1", features = ["use-std"] }
 # Generate the TypeScript bindings for the IPC boundary types from the Rust
-# definitions (`docs/architecture.md`), so the two sides share one source of truth.
+# definitions, so the two sides share one source of truth.
 ts-rs = { version = "12", features = ["serde-json-impl"] }
 strum.workspace = true
 # Audio I/O and processing

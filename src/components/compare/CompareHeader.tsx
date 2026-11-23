@@ -22,7 +22,7 @@ const SAVED_VALUE = "__saved__";
  * A compare view's header (M25; saved references in M25.C): the tab's title, both
  * projects by name with their source shape, the **comparability badge**, the fine-tune
  * offset δ, and the reference picker. The common-span note and the per-setting mismatch
- * detail live in the view's notice strip ([`CompareNotices`]). See `docs/comparison.md`
+ * detail live in the view's notice strip ([`CompareNotices`]).
  * → "The compare view".
  */
 export default function CompareHeader(props: {

@@ -1,6 +1,6 @@
 /* Vertical activity bar (VSCode-style, far left): one icon per analyzer section,
    plus the two graph editors pinned at the bottom. Fixed region — not a tab, not
-   resizable. See `docs/ui-layout.md`. */
+   resizable. */
 
 .app-activitybar {
   flex: 0 0 44px;

@@ -15,7 +15,6 @@ installLogBridge();
  * nothing in the log file. `console.error` reaches the file through the bridge in
  * `src/lib/log.ts` (one line, with its `[ui …]` origin), so a startup failure is reported
  * once and lands where a bug report and a CI run can actually see it.
- * See `docs/testing.md` → "When the shell does not render".
  */
 export function reportStartupFailure(message: string, error?: unknown): void {
   console.error(`[startup] ${message}`, describe(error));

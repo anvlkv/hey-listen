@@ -8,7 +8,6 @@ import { invoke as tauriInvoke, type InvokeArgs, type InvokeOptions } from "@tau
  * non-writable, non-configurable global, so `@wdio/tauri-plugin`'s `mock()` cannot
  * intercept the bundled `invoke` — a seam in our own code can. Production never
  * installs an override, so behaviour is identical to importing `invoke` directly.
- * See `docs/testing.md` → "IPC mocking".
  */
 export type InvokeHandler = <T>(
   cmd: string,

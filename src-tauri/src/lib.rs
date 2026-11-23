@@ -93,7 +93,7 @@ pub fn run() {
 
     // Self-update (M33.C, ADR-30). GUI only: a CLI invocation (`--mcp`) has no window and
     // must not register update commands or reach the network. `tauri-plugin-updater` is a
-    // desktop-only dependency. See `docs/updater.md`.
+    // desktop-only dependency.
     #[cfg(desktop)]
     if !cli_invocation {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
@@ -103,7 +103,7 @@ pub fn run() {
     // Registered only when the E2E service launched the app — `@wdio/tauri-service`
     // (embedded provider) sets `TAURI_WEBDRIVER_PORT` on the process it spawns. A
     // normal launch must not bind port 4445 or log `[WDIO]` chatter. GUI only — a
-    // CLI process must stay a plain stdout/stderr program. See `docs/testing.md`.
+    // CLI process must stay a plain stdout/stderr program.
     let e2e = std::env::var(tauri_plugin_wdio_webdriver::PORT_ENV_VAR).is_ok();
     if !cli_invocation && e2e {
         builder = builder
@@ -117,7 +117,7 @@ pub fn run() {
 
             // Resolve the CLI entry before any window is built. `--mcp` runs the stdio
             // MCP session; neither flag means the GUI. The batch subcommands live in
-            // the `hey-listen-cli` console binary (ADR-29). See `docs/cli.md`.
+            // the `hey-listen-cli` console binary (ADR-29).
             let entry = cli::parse(app.handle());
             match entry {
                 cli::Entry::Mcp { headless } => {

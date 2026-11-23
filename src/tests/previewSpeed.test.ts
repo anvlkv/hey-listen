@@ -4,7 +4,7 @@ import { SPEED_MAX, SPEED_MIN, positionToSpeed, speedToPosition } from "../lib/p
 /**
  * Unit checks for the preview **varispeed** slider's log scale (`src/lib/previewSpeed.ts`)
  * — the mapping between the slider position (−1…1) and the playback rate the transport
- * shows and the core plays. See `docs/annotations.md` → Preview playback.
+ * shows and the core plays.
  */
 
 /** Compare to 6 decimals, so a float round-trip can use `toBe`. */

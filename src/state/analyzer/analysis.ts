@@ -1,14 +1,14 @@
 /**
  * The shared analyzer runner: every analyzer tab runs through [`createAnalysis`].
  *
- * Analysis never runs on the UI thread (see `docs/architecture.md` → "Analysis
+ * Analysis never runs on the UI thread
  * execution model"): a tab calls [`createAnalysis`], which watches the shared params,
  * its per-tool options, and the analysis window, and issues a **debounced**
  * `run_analysis` invoke (trailing ~200 ms), discarding stale responses
  * (latest-wins). The tabs request `shape: "full"` — precompaction is for the MCP/CLI
  * callers — and keep the command's `{ summary, result }` response: the result becomes the
  * tab's chart data, and the canonical summary is stored beside it for a later
- * annotation snapshot's structured items (D-19). See `docs/analysis-tools.md`.
+ * annotation snapshot's structured items (D-19).
  *
  * Every run first consults the [result cache](cache.ts): a result computed for the
  * same source, window, params and filter — or restored from the project file — is

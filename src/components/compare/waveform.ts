@@ -5,7 +5,6 @@
  * analysis window. Two results may only be overlaid **bucket for bucket** when those
  * windows are identical — bucket *i* must cover the same absolute-time span on both
  * sides — otherwise the delta is meaningless and the view draws them separately.
- * See `docs/comparison.md` → "The delta".
  */
 
 /** A `start..end` span in source seconds. */

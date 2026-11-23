@@ -7,7 +7,7 @@ import { createSignal } from "solid-js";
  * action can save a PNG that matches what the user sees (theme, zoom, visible range)
  * without a DOM-screenshot dependency. The registry is reactive: a provider appears
  * when its tab mounts and disappears on cleanup, so the Export menu can enable
- * "Chart PNG" only when a chart is actually drawn. See `docs/exports.md`.
+ * "Chart PNG" only when a chart is actually drawn.
  *
  * The uPlot-backed views expose `zoom.instance()?.ctx.canvas`; the plain-canvas
  * heatmaps expose their own canvas. Readouts (levels / LUFS / LRA) have no chart and

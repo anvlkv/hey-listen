@@ -38,7 +38,6 @@ const DB_RANGES = [40, 60, 80, 100, 120].map((value) => ({
  * horizontal axis, frequency on the vertical, colour for level (dBFS). Rendered on
  * a plain 2D canvas (the Timeline precedent, ADR-7); wheel zooms (Shift for
  * frequency), drag pans, and the overlay controls zoom/fit. See
- * `docs/analysis-tools.md`.
  *
  * The vertical axis follows the tool's **frequency scale** (M36): the FFT rows are
  * resampled into the display coordinate, and the axis labels, pointer picking and

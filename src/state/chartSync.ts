@@ -19,7 +19,6 @@ import { windowEnd, windowStart } from "./timeline";
  * - `cursorSync` — the hovered x value, tagged with its group, so a time cursor is
  *   never mirrored onto a frequency chart (and vice versa).
  *
- * See `docs/ui-layout.md`.
  */
 
 /**
@@ -76,7 +75,7 @@ export interface CursorSyncMessageBus {
  * Annotations rail is open, so a chart's annotation plugin can draw its own annotations and the one selected
  * annotation without each chart reaching into the store. Published by `state/annotations/` whenever
  * the annotations, the selection or the panel change. `panelOpen` drives the *dull* rendering used
- * when the rail is closed. See `docs/annotations.md`.
+ * when the rail is closed.
  */
 export interface AnnotationsMessage {
   annotations: Annotation[];
@@ -93,7 +92,7 @@ export interface AnnotationsMessageBus {
  * Read a bus message for a consumer, **all of its fields at once**.
  *
  * Two Solid-store rules make this worth centralising — both bit a chart (see the M14
- * follow-up in `docs/roadmap.md`):
+ * follow-up):
  *
  * - `setData` *merges* a message into its key, so only the message's **fields** notify
  *   their readers: an effect that tracked the key alone fired once and then never again;

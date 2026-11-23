@@ -40,7 +40,6 @@ import { KIND_LABEL, usesDevices, type CaptureKind } from "./types";
  * Live-capture session engine (flexaudio sources): the growing PCM buffer, the
  * input meter, the recording controls, and the `source_status` subscription. Part
  * of the capture store; see `capture/index.ts` for the public surface and
- * `docs/source-model.md`.
  *
  * A capture **session** is opened as soon as a live kind is selected, so the input
  * meter is live even when idle (monitoring); pressing Record reuses that session
@@ -278,7 +277,7 @@ async function ensureSession(): Promise<boolean> {
   setMonitoring(true);
   // The session opening is what decides microphone consent (macOS refuses to
   // enumerate inputs before it), so the device list is only fetched now — never
-  // while the consent prompt is still up. See `docs/source-model.md`.
+  // while the consent prompt is still up.
   if (usesDevices(kind) && devices().length === 0) void refreshDevices();
   return true;
 }

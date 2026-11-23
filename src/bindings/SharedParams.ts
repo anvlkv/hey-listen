@@ -3,7 +3,7 @@ import type { WindowKind } from "./WindowKind";
 
 /**
  * Shared analysis params, synced across tools in the frontend (ADR-6) and sent
- * with every `run_analysis` call. See `docs/data-model.md` → `SharedParams`.
+ * with every `run_analysis` call.
  *
  * Also `Serialize`/`Default` so the project file can persist the analysis setup.
  */

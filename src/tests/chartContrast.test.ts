@@ -14,7 +14,7 @@ import { composite, contrast, luminance, parseRgb, type Rgb } from "./support/co
  *
  * These assertions read the **base** palettes only — the values every theme inherits
  * when its overlay omits them — and use the stop colours literally, because the ramp's
- * endpoints are not interpolated. See `docs/theming.md`.
+ * endpoints are not interpolated.
  */
 
 /** Straight RGB distance — a stop need only be *seen*, not read like text. */

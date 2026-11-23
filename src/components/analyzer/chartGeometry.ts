@@ -4,7 +4,7 @@
  * pixels, time and frames. Kept separate from [`chartInteraction`](./chartInteraction.ts)
  * so the drawing modules can use it without pulling in the interaction state.
  *
- * Times here are **source seconds** (see `docs/analysis-tools.md`): a result's
+ * Times here are **source seconds**: a result's
  * `times` / its frame grid start at `windowStart`, not at 0, so anything that maps a
  * time back onto a frame needs that origin.
  */

@@ -5,7 +5,6 @@
 //! migration chain exists for: the loader must bring it forward unchanged, and the app
 //! must be able to save it as `VERSION`.
 //!
-//! See `docs/project-file-format.md` → Migrations and ADR-32.
 
 use std::io::Cursor;
 

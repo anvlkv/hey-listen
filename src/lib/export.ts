@@ -1,5 +1,5 @@
 /**
- * Analysis exports (M12): the frontend half of `docs/exports.md`.
+ * Analysis exports (M12): the frontend half of.
  *
  * The **rendering** (provenance envelope + wide-matrix CSV) happens in Rust, shared
  * with the MCP server and the batch CLI, so the app never re-implements the formats.

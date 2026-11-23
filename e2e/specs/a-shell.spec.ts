@@ -1,5 +1,5 @@
 /**
- * A. Shell & layout (M8) — matrix rows A1–A3 (`docs/testing.md`).
+ * A. Shell & layout (M8) — matrix rows A1–A3.
  *
  * The fixed regions (Sidebar / Source / Timeline / Workbench) are laid out by
  * `src/App.tsx`; the only tabbed area is the Workbench. These tests assert the

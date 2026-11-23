@@ -4,7 +4,7 @@
 //! labelled, unit-bearing `items` it is built from. The summary is computed from the
 //! **full** result before any compaction, so it is identical in the summary, compact,
 //! and full output modes, and the GUI, the headless MCP server, and the CLI all speak
-//! it. See `docs/mcp-cli-ergonomics.md`.
+//! it.
 
 mod calibrated_series;
 mod families;

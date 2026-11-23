@@ -9,7 +9,7 @@
 //! compact family shapes live in `compact.rs`, split out for the source-size budget.
 //!
 //! A summary is always computed from the **full** result ([`super::summarize`]), so it
-//! is identical in every mode. See `docs/mcp-cli-ergonomics.md`.
+//! is identical in every mode.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

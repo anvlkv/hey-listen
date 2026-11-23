@@ -12,7 +12,6 @@ import type { AxisTransform } from "../../state/chartSync";
  * - B is anchored at 0 too and shifted by δ;
  * - a core delta time is already in owner coordinates, i.e. on the display axis.
  *
- * See `docs/comparison.md` → "The compare view".
  */
 
 export interface CompareTime {

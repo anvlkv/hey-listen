@@ -3,8 +3,7 @@
 //! The core owns the dirty flag ([`crate::state::ProjectDirty`]): it compares the project
 //! snapshot the frontend pushes with the last clean point and broadcasts `project-dirty`
 //! whenever the answer changes (see `state/window/dirty.rs`). These commands are the pulls
-//! a freshly opened window makes and the save/load/new lifecycle calls — see
-//! [`undo-redo.md`](../../../docs/undo-redo.md) → "Phase 3".
+//! a freshly opened window makes and the save/load/new lifecycle calls.
 
 use tauri::{AppHandle, WebviewWindow};
 

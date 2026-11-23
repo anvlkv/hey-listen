@@ -32,7 +32,6 @@ import {
  * popover). Editing any control updates the one frontend store, so every open tool
  * re-runs with the same conditioning. Per-tool params are appended by the tool.
  *
- * See `docs/analysis-tools.md` → "Shared parameters".
  */
 export default function SharedParamsForm() {
   const fftOptions = FFT_SIZES.map((size) => ({ value: size, label: `${size}` }));

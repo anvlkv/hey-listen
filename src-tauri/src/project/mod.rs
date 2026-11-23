@@ -1,4 +1,4 @@
-//! Binary project file store (M6) — see `docs/project-file-format.md`.
+//! Binary project file store (M6).
 //!
 //! A single-file, versioned container: a fixed header, a section index, the section
 //! payloads, and a trailing checksum. Structured sections use `postcard`, the layout
@@ -39,7 +39,7 @@ pub use write::{write_project, write_project_atomic, write_project_with_pcm_form
 
 /// File magic at offset 0 (`"HEYL"`).
 pub const MAGIC: [u8; 4] = *b"HEYL";
-/// Container version (`docs/project-file-format.md`).
+/// Container version.
 pub const VERSION: u32 = 7;
 /// The oldest container version this build reads. Older files are migrated forward through
 /// the step chain in [`migrate`] (ADR-32); anything outside `MIN_READ_VERSION..=VERSION`
@@ -56,7 +56,7 @@ pub const INDEX_ENTRY_LEN: usize = 24;
 /// Trailing checksum length, in bytes.
 pub const CHECKSUM_LEN: usize = 8;
 
-// Section ids (see `docs/project-file-format.md` → Sections).
+// Section ids.
 pub const SECTION_META: u8 = 0x01;
 pub const SECTION_SOURCE: u8 = 0x02;
 pub const SECTION_DATA: u8 = 0x03;

@@ -5,12 +5,11 @@
 //! no console. It **auto-detects**: a running, MCP-enabled app serves the tools
 //! (bridge + UI following); with nothing running it starts the GUI (when it can find it)
 //! and bridges to that; otherwise it runs the core-native **headless** server.
-//! Pass `--headless` to skip the bridge probe and the launch. See `docs/mcp.md`.
+//! Pass `--headless` to skip the bridge probe and the launch.
 //!
 //! It is its own crate (`src-tauri/mcp/`, package `heylisten-mcp`) that links the app
 //! crate as a library: the app package therefore has no `heylisten-mcp` bin target, so
 //! the rpm/msi/deb bundles do not install a client binary the app never spawns (see
-//! `docs/packaging.md`).
 //!
 //! Because this binary is not a Tauri app, it does not use the `cli` plugin for its
 //! one flag (that plugin needs an app context); the app binary's flags are defined in

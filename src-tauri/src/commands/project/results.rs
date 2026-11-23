@@ -4,7 +4,6 @@
 //! `run_analysis` response carried, and `load_project` hands the cache back as typed
 //! `AnalysisResult`s so a reopened project restores its results instead of re-running
 //! every analyzer. The on-disk entry stays [`StoredResult`]; see
-//! `docs/project-file-format.md`.
 
 use std::collections::BTreeMap;
 

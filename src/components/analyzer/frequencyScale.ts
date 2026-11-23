@@ -23,7 +23,6 @@ import { formatFrequency } from "./axisFormat";
  *
  * Conversions use Zwicker's Bark rate (`13·atan(0.00076 f) + 3.5·atan((f/7500)²)`) and
  * the Glasberg–Moore ERB rate (`21.4·log10(0.00437 f + 1)`). See
- * `docs/analysis-tools.md`.
  */
 
 export type FrequencyScale = "linearHz" | "logHz" | "bark" | "erb";

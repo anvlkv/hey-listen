@@ -3,13 +3,13 @@
 //! Thin adapter over [`crate::audio::analysis`]: it slices the analysis window from
 //! the core-owned source PCM (ADR-9), conditions it exactly like preview playback
 //! (mixdown → filter → resample), and runs the CPU-bound tool on the blocking pool
-//! so the async workers stay free (see `docs/architecture.md` → "Analysis execution
+//! so the async workers stay free
 //! model").
 //!
 //! The response carries the canonical **summary** beside the (shaped) result, so the
 //! MCP handler, the CLI, and the analyzer tabs read the same contract; `shape` picks
 //! raw arrays (`full`, what the tabs ask for), the compact form (`compact`), or no
-//! result at all (`summary`). See `docs/mcp-cli-ergonomics.md`.
+//! result at all (`summary`).
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -25,7 +25,6 @@ use crate::state::window_state;
 
 /// One `run_analysis` request: the tool id, the analysis window (source seconds),
 /// the shared params, any per-tool options, and how much of the result to return
-/// (`docs/data-model.md`).
 #[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -93,7 +92,7 @@ pub fn analyzer_catalog() -> Vec<Value> {
 ///
 /// The slice + condition + run work lives in [`analysis::run_window_with`], shared with
 /// the headless MCP dispatcher; here it just runs on the blocking pool so the async
-/// workers stay free (see `docs/architecture.md` → "Analysis execution model").
+/// workers stay free.
 ///
 /// Stage progress streams back on `on_progress` (D-21), and `cancel_analysis` with the
 /// same `request_id` stops the run at its next cancellation check. The channel is

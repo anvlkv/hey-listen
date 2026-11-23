@@ -9,7 +9,7 @@ import { valuesText } from "./format";
  * The **pure** half of the annotation values snapshot (D-19): build `AnnotationValues`
  * from a result and the inputs it was computed with. Keeping it out of `./values.ts`
  * means a unit test can exercise the snapshot without loading the timeline store (and,
- * through it, the chart bus and `@dschz/solid-uplot`'s CSS) — see `docs/annotations.md`.
+ * through it, the chart bus and `@dschz/solid-uplot`'s CSS).
  */
 export interface SnapshotArgs {
   tool: AnalyzerId;

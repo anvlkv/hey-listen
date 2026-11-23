@@ -2,7 +2,7 @@
 import type { SourceKind } from "./SourceKind";
 
 /**
- * Where an exported result came from (`docs/source-model.md`): enough to recognize
+ * Where an exported result came from: enough to recognize
  * the audio later, including the path for a file source (provenance only).
  */
 export type ExportSource = { 

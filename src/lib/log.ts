@@ -12,7 +12,7 @@ import { attachLogger, LogLevel } from "@tauri-apps/plugin-log";
  *
  * Forwarding goes **directly** to `plugin:log|log`, never through `src/lib/ipc.ts`: the
  * façade logs a rejected invoke, so routing a log line through it would recurse — and the
- * E2E mock seam must not be able to swallow a log line. See `docs/logging.md`.
+ * E2E mock seam must not be able to swallow a log line.
  */
 
 /** The console methods that reach the file, and the plugin level each one reports. */

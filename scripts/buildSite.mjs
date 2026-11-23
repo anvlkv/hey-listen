@@ -2,7 +2,7 @@
 /**
  * Generate the site's documentation subpages from the repo's markdown sources:
  *   - `site/acknowledgements.html`  ←  `ACKNOWLEDGEMENTS.md`
- *   - `site/roadmap.html`           ←  `docs/roadmap.md` (milestone titles + status)
+ * - `site/roadmap.html` ← `docs/development/_roadmap.md` (milestone titles + status)
  *
  * and stamp the release version (from `package.json`) into the hand-authored page: the
  * download button in `site/index.html` and its mirror in `site/copy.json`.
@@ -178,7 +178,7 @@ function page({ title, description, content }) {
 // --- build ------------------------------------------------------------------
 
 const acknowledgements = await readFile(path.join(ROOT, "ACKNOWLEDGEMENTS.md"), "utf8");
-const roadmap = await readFile(path.join(ROOT, "docs", "roadmap.md"), "utf8");
+const roadmap = await readFile(path.join(ROOT, "docs", "development", "_roadmap.md"), "utf8");
 
 const ackHtml = markdownToHtml(acknowledgements);
 // The source's own `# Acknowledgements` heading becomes the page title; drop the

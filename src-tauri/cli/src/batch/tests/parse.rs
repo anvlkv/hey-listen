@@ -100,7 +100,7 @@ fn an_unknown_tool_is_kept_for_the_run_phase() {
 fn a_negative_b_offset_parses_as_one_token() {
     // A bare `--b-offset -0.25` reads as a flag to the plugin's parser, so a negative
     // value must be passed as `--b-offset=-0.25` (one token) — documented in
-    // `docs/cli.md`; this pins that the value itself parses.
+    //; this pins that the value itself parses.
     let m = matches(&[
         ("a", json!("a.heyl")),
         ("b", json!("b.heyl")),

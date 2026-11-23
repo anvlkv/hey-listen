@@ -2,7 +2,7 @@
  * F. Cross-cutting analyzer behavior (F1–F7).
  *
  * Search, no-duplicate tabs, shared-params re-run, cross-tab zoom sync, the
- * per-tool popovers, and the activity bar's rail toggle. See `docs/testing.md` →
+ * per-tool popovers, and the activity bar's rail toggle.
  * "F. Cross-cutting analyzer behavior".
  */
 

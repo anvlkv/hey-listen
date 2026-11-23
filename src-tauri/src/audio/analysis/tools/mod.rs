@@ -1,4 +1,4 @@
-//! Analysis tool implementations, grouped by family (see `docs/analysis-tools.md`),
+//! Analysis tool implementations, grouped by family,
 //! plus the [`run`] dispatcher that maps a tool id to its implementation.
 
 mod critical_bands;

@@ -1,7 +1,7 @@
 //! The wide-matrix CSV renderer (M12).
 //!
 //! CSV is **data only**; provenance lives in the sidecar. The shape follows the
-//! analyzer's view (`docs/exports.md` → CSV): `time_s,value` for series, a wide
+//! analyzer's view: `time_s,value` for series, a wide
 //! `frames × bins` matrix for the 2D tools (rows = time frames), `key,value` for the
 //! readouts, and an `events` block for the rhythm tools. The header carries the unit,
 //! and numbers are written at full precision.

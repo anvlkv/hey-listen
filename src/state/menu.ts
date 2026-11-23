@@ -28,7 +28,7 @@ import { flushProjectPush } from "./project/push";
  * (a running app) or `take_pending_open_paths` (a request that arrived before the
  * frontend listened, e.g. launching by double-clicking a project). A `.heyl` path
  * loads that project; any other supported audio path opens as a new project with
- * the file as its source. See `docs/ui-layout.md`.
+ * the file as its source.
  */
 
 /** Paths already handled, so a launch request is not loaded twice. */
@@ -44,7 +44,7 @@ export const [aboutOpen, setAboutOpen] = createSignal(false);
 /**
  * Whether the **Command Line Tool** dialog is open. Opened from the native
  * Help → Install Command Line Tool… item (the `installCliTool` action); rendered by
- * `App`. See `docs/updater.md`.
+ * `App`.
  */
 export const [cliToolOpen, setCliToolOpen] = createSignal(false);
 
@@ -53,7 +53,7 @@ export const [cliToolOpen, setCliToolOpen] = createSignal(false);
  * safe to proceed (nothing is dirty, the project is empty, or the user chose to
  * discard).
  *
- * The core owns the answer (`docs/undo-redo.md` → "Phase 3"): the state on screen is
+ * The core owns the answer: the state on screen is
  * pushed first, so an edit made a moment ago is part of what the guard asks about rather
  * than arriving after the check.
  */
@@ -153,7 +153,7 @@ export async function initMenu() {
           break;
         case "checkForUpdates":
           // Help → Check for Updates… opens the About dialog (its Updates section shows
-          // the result) and starts a check. See `docs/updater.md`.
+          // the result) and starts a check.
           setAboutOpen(true);
           void checkForUpdates();
           break;

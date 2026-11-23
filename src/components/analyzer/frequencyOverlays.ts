@@ -13,7 +13,7 @@ import { barkToHz, erbToHz, hzToAxis, type FrequencyScale } from "./frequencySca
  * from `chartTheme()`. Peak **detection** is a plain function kept outside the component
  * (and outside the plugin), so it can be tested and reused by a compare view.
  *
- * See `docs/chart-review/chart-recommendations.md` items 5 and 6.
+ * See items 5 and 6.
  */
 
 /** A local spectral maximum worth labelling. */

@@ -4,7 +4,7 @@
  * The `sine440` fixture (a −12 dBFS, 440 Hz tone) gives most checks a known value;
  * `tempo` uses `chirp_noise` because a steady tone has no rhythm. Where a value has
  * no UI readout we read it straight from `run_analysis` via `invokeCore` (the one
- * sanctioned non-UI path — see `docs/testing.md` → "Deliberately out of scope").
+ * sanctioned non-UI path.
  */
 
 import { analyzerPanel } from "../support/selectors.ts";

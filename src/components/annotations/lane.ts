@@ -31,7 +31,7 @@ import type { AnnotationEdge, RuleSpan } from "./rules";
  * window** — an annotation is an annotation *on* the analysis, not a request to reframe it.
  * Grabbing an annotation's handle and clicking it behave the same way: a drag moves/resizes it
  * and a click just selects it. Only the row's **Analyze** button reframes (see
- * `state/annotations/select.ts`). See `docs/annotations.md`.
+ * `state/annotations/select.ts`).
  */
 
 /** Which edge of an annotation's span a lane handle moves (see `./rules.ts`). */
