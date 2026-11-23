@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import type { Options } from "@wdio/types";
 import { writeFixtures } from "./e2e/support/fixtures.ts";
 import { restoreWindowSize } from "./e2e/support/app.ts";
+import { clearWaitOverlay, installWaitOverlay } from "./e2e/support/waitOverlay.ts";
 import { E2E_LOG_DIR } from "./e2e/support/logs.ts";
 
 /**
@@ -160,6 +161,16 @@ export const config: Options.Testrunner & {
     timeout: 120_000,
   },
 
+  /**
+   * Paint the window being driven while a wait runs (see `support/waitOverlay.ts`).
+   *
+   * This hook only wraps a command; it issues no WebDriver call, so it stays clear of the
+   * service's own `before`, which patches `browser.execute` *after* this one.
+   */
+  async before() {
+    installWaitOverlay();
+  },
+
   /** Restore the window geometry the session may have resized (see `support/app.ts`). */
   async afterSession() {
     await restoreWindowSize().catch(() => {});
@@ -177,6 +188,8 @@ export const config: Options.Testrunner & {
     await browser
       .saveScreenshot(path.join(ARTIFACTS_DIR, screenshotName(test.parent, test.title)))
       .catch(() => {});
+    // A timed-out wait deliberately left its overlay (and label) up for that screenshot.
+    await clearWaitOverlay();
   },
 
   /** Generate the deterministic fixtures before the app launches. */

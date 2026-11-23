@@ -790,6 +790,14 @@ command (the service patches in its own `before`, after ours). Ignore it unless
   back. It is best-effort by design: a compare view **scrolls** rather than collapsing its
   chart (`styles/compare.css` keeps a 200 px chart minimum), so a window manager that
   refuses the resize costs a smaller chart, not a failure.
+- **A wait says so, on screen.** `browser.waitUntil` is wrapped in `wdio.conf.ts` → `before`
+  (`e2e/support/waitOverlay.ts`): while a wait runs, the window being driven wears a dull
+  yellow diagonal pattern (`html[data-e2e-wait]::after`) and the wait's own `timeoutMsg` in
+  the corner. It is deliberately static — WebKit can pause animations while the window is
+  occluded, and a stopped animation would read as settled. A timed-out wait leaves the
+  pattern and its label up so the failure screenshot carries the reason; `afterTest` clears
+  it. The overlay paints the window the session currently addresses, not every window.
+
 
 ### Rendering the UI without the app
 

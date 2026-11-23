@@ -30,8 +30,11 @@ function isScriptTimeout(err: unknown): boolean {
  *
  * Reads only. A stalled *gesture* may well have run before its reply was lost, so re-sending
  * a `click` could act twice — those helpers stay single-shot.
+ *
+ * Exported for `waitOverlay.ts`, whose marker is also an in-page read; it is not part of the
+ * helpers barrel.
  */
-async function withRetry<T>(read: () => Promise<T>): Promise<T> {
+export async function withRetry<T>(read: () => Promise<T>): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await read();
