@@ -1,37 +1,31 @@
-# Hey Listen — Planning Docs
+# Documentation
 
-Index of the design/planning documentation. These docs are the source of truth for
-design. See [`roadmap.md`](roadmap.md) for current milestone status and
-[`FEATURES.md`](FEATURES.md) for the user-facing feature and workflow map.
+Three areas, one owner per question:
 
-| Doc | What it covers |
-| --- | --- |
-| [FEATURES.md](FEATURES.md) | Available and future user-facing features and workflows |
-| [deferred.md](deferred.md) | Deferred work: one ledger of what is not shipped, its blocker, and the phased delivery plan (the owner — area docs keep only the technical reason) |
-| [TONE_OF_VOICE.md](TONE_OF_VOICE.md) | Proposed voice directions and sample product copy |
-| [architecture.md](architecture.md) | System architecture, IPC boundary, Rust/TS module layout, data flow, threading |
-| [ui-layout.md](ui-layout.md) | The fixed-region + workbench-tabs layout rule and tab behaviors |
-| [graph-editor.md](graph-editor.md) | The fundsp graph editor: Net model, node palette, rules, planned coverage |
-| [hotkeys.md](hotkeys.md) | Keyboard control: the command registry, default bindings, command palette, and the shortcut explorer (M24.B, planned) |
-| [source-model.md](source-model.md) | Audio sources (file / input / synth) and timeline behavior |
-| [data-model.md](data-model.md) | Domain entities and their relationships |
-| [project-file-format.md](project-file-format.md) | Binary project file byte layout and streaming |
-| [analysis-tools.md](analysis-tools.md) | oxiaudio analysis inventory, tool/tab model, shared params |
-| [comparison.md](comparison.md) | Cross-project diffs: the A/B model, relative alignment + fine-tune offset, comparability, the compare view (+ popout), saved snapshots, headless comparisons, MCP/CLI surfaces (M25 / M25.A / M25.B / M25.C / M25.D) |
-| [analysis-metrics.md](analysis-metrics.md) | Analysis depth: pitch range, frame RMS, note segmentation (M16–M18), per-note voice-quality proxies (M19), and AM/FM modulation spectra (M20) — all delivered |
-| [analysis-psychoacoustics.md](analysis-psychoacoustics.md) | Psychoacoustic analyzers: critical bands, loudness / sharpness, roughness / fluctuation, masking / tonality, equal-loudness + spatial cues (M26–M31) — see the roadmap for status |
-| [psychoacoustics-references.md](psychoacoustics-references.md) | Psychoacoustics reference: the libraries, equations, and model recommendations behind M26–M31 |
-| [mcp-cli-ergonomics.md](mcp-cli-ergonomics.md) | MCP/CLI ergonomics: result summaries, compact previews, MCP tool annotations (`readOnlyHint` …), analyzer discovery (M21) |
-| [theming.md](theming.md) | Exchangeable theme files: the `ThemeFile` model, built-ins + slots, the apply pipeline |
-| [exports.md](exports.md) | Analysis exports: the provenance envelope, JSON / CSV (wide matrix), chart-PNG capture |
-| [templates.md](templates.md) | Analysis templates: source-less JSON presets (setup + graphs + layout) and window policies |
-| [annotations.md](annotations.md) | Annotations (stored as `Annotation`): markdown anchored to a time + chart, the frozen values snapshot, the right rail; the terminology split from M18 note segments |
-| [mcp.md](mcp.md) | The MCP server: agent access, the stdio bridge, UI following, tool list |
-| [cli.md](cli.md) | The batch CLI (`hey-listen-cli analyze`): analyze files / render synth from a shell, no window |
-| [dependencies.md](dependencies.md) | Dependency rationale and licenses |
-| [logging.md](logging.md) | Logging plan: one log file for the Rust core and the webview, the Help-menu log actions, the log preview window, and the E2E log destination |
-| [packaging.md](packaging.md) | Release/CI process and the platform build matrix |
-| [decisions.md](decisions.md) | Architecture decision records (ADRs) with a status index, amendments and supersessions |
-| [code-hygiene.md](code-hygiene.md) | The quality gate (the maid): format, lint, file-length budget, duplication, dead code, and the hooks/CI that run it |
-| [roadmap.md](roadmap.md) | Phased milestones |
-| [testing.md](testing.md) | E2E test plan + test matrix |
+| Area | Question it answers | Audience |
+| --- | --- | --- |
+| [`manual/`](manual/) | How do I use the app? | Users |
+| [`development/`](development/) | What are we building, and what is next? | Contributors |
+| [`archive/`](archive/) | What did we decide, and why? | Reference |
+
+## [`manual/`](manual/) — using Hey Listen
+
+Chapter-by-chapter, task-oriented, illustrated with element screenshots. Start
+at [`manual/001_open_a_source.md`](manual/001_open_a_source.md).
+
+## [`development/`](development/) — building Hey Listen
+
+Deliberately compact: the living milestone list is
+[`development/_roadmap.md`](development/_roadmap.md). New design notes are
+written here, short and current. Superseded detail stays in the archive.
+
+## [`archive/`](archive/) — history
+
+Frozen, verbose, and kept for reference: architecture, ADRs, the full milestone
+history, audits, and analysis references. **Do not edit archived docs** — write
+the current answer in `development/` instead.
+
+- [`archive/roadmap.md`](archive/roadmap.md) — the full historical roadmap
+- [`archive/decisions.md`](archive/decisions.md) — architecture decision records
+- [`archive/architecture.md`](archive/architecture.md)
+- [`archive/testing.md`](archive/testing.md) — the E2E plan and test matrix
