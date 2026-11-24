@@ -35,7 +35,7 @@ import { FIXTURES } from "../support/fixtures.ts";
 import { appLogPath, expectLogErrors } from "../support/logs.ts";
 import { invokeCore } from "../support/ipc.ts";
 import { closeCurrentWindow, windowLabels } from "../support/windows.ts";
-import { addPaletteNode, ensureFilterEnabled, toggleFilter } from "../support/graph.ts";
+import { addPaletteNode, filterSwitchOn, toggleFilter } from "../support/graph.ts";
 
 // Every case in this file forces a failure on purpose; the app log is expected to record
 // each one. Anything else in it is a surprise — and fails the spec (see `logHooks.ts`).
@@ -180,27 +180,28 @@ describe("I. Errors & warnings", () => {
 
   it("I3 — a rejected set_filter_graph shows a graph error; the toggle still works", async () => {
     await openTool("filter");
-    // The switch reads on only with a composed graph; this test bypasses an *active*
-    // filter, so compose one first (a targeted run may start from the seed).
-    await addPaletteNode("gain", "Gain");
-    await ensureFilterEnabled();
-
+    // The switch reads on only with a composed graph, so compose one first — and do it with
+    // the rejection already in place, so the push that composition triggers (debounced) is
+    // the one that fails. Mocking after composing would race the debounce.
     await mockReject("set_filter_graph", "filter push failed (mock)");
-    await toggleFilter(); // → bypassed ⇒ pushes `null` ⇒ rejected
+    await addPaletteNode("gain", "Gain");
 
     await waitFor(
       async () => (await textOf(SEL.graphError)).includes("filter push failed"),
       "the graph error did not show the mocked failure",
     );
 
-    // The toggle still responds; with the command restored, toggling pushes again and
-    // the successful push clears the error (the app stays usable).
+    // The toggle still responds. Bypassing asks for the `null` filter the core already holds
+    // (it never accepted the graph), so that push is skipped and the stale error settles with
+    // it; turning the filter back on pushes the composed graph for real.
     await restoreMocks();
-    await toggleFilter(); // → back on ⇒ push succeeds ⇒ error clears
+    await toggleFilter(); // → bypassed
     await waitFor(
       async () => (await count(SEL.graphError)) === 0,
-      "the graph error did not clear after a successful push",
+      "the graph error did not clear after the filter was bypassed",
     );
+    await toggleFilter(); // → on ⇒ the composed graph reaches the core
+    await waitFor(() => filterSwitchOn(), "the Filter switch did not come back on");
   });
 
   it("I4 — a rejected render_synth shows a graph error; the Render button re-enables", async () => {

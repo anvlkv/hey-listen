@@ -35,6 +35,14 @@ Turn on **Live** and each settled edit, or a Length change, updates the source i
 so your analysis window, annotations, and open charts keep their positions while you
 tweak the sound.
 
+## A graph in its own window
+
+Right-click a graph tab and choose **Pop out to window** to edit it in a window of its
+own — handy when you want the canvas large beside the Workbench. It is still the same
+graph: an edit made in either window is the other's, and the filter it feeds stays
+applied. A nested subsystem can be popped out the same way, from its own tab, or from
+the node's open action while its parent graph is already popped out.
+
 ## Share a graph
 
 **Export graph** writes the graph as a DOT file, and **Import graph** reads one back.

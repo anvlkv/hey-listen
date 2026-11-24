@@ -12,7 +12,7 @@ import { resetTimeline, windowEnd, windowStart } from "./state/timeline";
 import { initUiState } from "./state/uiState";
 import { initProjectHistory } from "./state/project/push";
 import { refreshThemes } from "./state/themes";
-import { toolById, type ToolId } from "./state/workbench";
+import { isGraphView, viewTitle, type ToolId } from "./state/workbench";
 import {
   comparePopoutView,
   loadComparePopout,
@@ -40,11 +40,13 @@ export default function PopoutApp(props: {
   annotationId?: string;
   compare?: CompareViewDto;
 }): JSX.Element {
-  const tool = () => (props.toolId ? toolById(props.toolId as ToolId) : null);
-  // An annotation's body is seeded once when its editor mounts, so the annotations store must be
-  // populated first — hence the annotation path renders only after the shared state arrives.
-  // The tool path renders immediately and reacts to that state as it loads.
-  const [ready, setReady] = createSignal(untrack(() => !props.annotationId));
+  // An annotation's body is seeded once when its editor mounts, so the annotations store
+  // must be populated first. A graph editor likewise must show the project's graphs (the
+  // `graphs` shared key) rather than its own seed. Both therefore render only after the
+  // shared state arrives; every other tool reacts to that state as it loads.
+  const [ready, setReady] = createSignal(
+    untrack(() => !props.annotationId && !isGraphView(props.toolId)),
+  );
   /** The compare view's fine-tune offset (restored from the saved snapshot). */
   const [offset, setOffset] = createSignal(0);
   /** The comparison id: a core-registered popout reports it; otherwise a local one. */
@@ -115,7 +117,9 @@ export default function PopoutApp(props: {
       ? "Annotation"
       : props.compare
         ? `Compare: ${analyzerById(props.compare.tool).title} — ${projectName()} ↔ ${referenceName()}`
-        : (tool()?.title ?? "Hey Listen");
+        : props.toolId
+          ? viewTitle(props.toolId)
+          : "Hey Listen";
     void getCurrentWindow()
       .setTitle(`${what} — ${projectName().replace(/ \*$/, "")}`)
       .catch(() => {});
@@ -126,12 +130,10 @@ export default function PopoutApp(props: {
       <Show
         when={props.compare}
         fallback={
-          <Show when={props.annotationId} fallback={<ToolContent id={props.toolId as ToolId} />}>
-            {(annotationId) => (
-              <Show when={ready()}>
-                <AnnotationWindow annotationId={annotationId()} />
-              </Show>
-            )}
+          <Show when={ready()}>
+            <Show when={props.annotationId} fallback={<ToolContent id={props.toolId as ToolId} />}>
+              {(annotationId) => <AnnotationWindow annotationId={annotationId()} />}
+            </Show>
           </Show>
         }
       >

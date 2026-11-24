@@ -21,6 +21,12 @@ const rolldown = {
         { name: "dockview", test: /node_modules[\\/]dockview/ },
         { name: "kobalte", test: /node_modules[\\/]@kobalte/ },
         { name: "uplot", test: /node_modules[\\/](@dschz[\\/]solid-uplot|uplot)/ },
+        // The graph editors load on demand (`ToolContent`'s lazy tabs), so solid-flow
+        // and its `@xyflow/system` core form their own chunk fetched with them.
+        {
+          name: "solid-flow",
+          test: /node_modules[\\/](@dschz[\\/]solid-flow|@xyflow[\\/]system)/,
+        },
       ],
     },
   },

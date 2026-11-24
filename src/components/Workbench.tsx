@@ -14,8 +14,9 @@ import {
   setLayoutRevision,
   setOpenTools,
   syncOpenTools,
-  popoutTool,
+  popoutView,
   isSystemPanel,
+  refreshPoppedViews,
   type ToolId,
 } from "../state/workbench";
 import { chooseCompareReference } from "../state/compare/picker";
@@ -71,9 +72,10 @@ export default function Workbench() {
       // Tabs are dragged by pointer, not HTML5 DnD: the WebView does not drive
       // HTML5 drag reliably, which left split/join (edge drops) inoperative.
       dndStrategy: "pointer",
-      // Our own tab context menu (dockview shows none unless asked). Analyzers can
-      // be popped out into a native window; a compare tab is retargeted or popped out
-      // (M25). Graph editors stay in the workbench.
+      // Our own tab context menu (dockview shows none unless asked). Every tab can be
+      // popped out into a native window — analyzers, the graph editors and a subsystem
+      // (whose graph rides the shared `graphs` state); a compare tab is retargeted or
+      // popped out (M25).
       getTabContextMenuItems: ({ panel }): ContextMenuItem[] => {
         const id = panel.id;
         const compare = parseComparePanel(id);
@@ -92,7 +94,11 @@ export default function Workbench() {
           ];
         }
         if (id === "filter" || id === "synth" || isSystemPanel(id)) {
-          return [{ label: "Close tab", action: () => panel.api.close() }];
+          return [
+            { label: "Pop out to window", action: () => void popoutView(id) },
+            "separator",
+            { label: "Close tab", action: () => panel.api.close() },
+          ];
         }
         const tool = isAnalyzerId(id) ? id : null;
         return [
@@ -105,7 +111,7 @@ export default function Workbench() {
                 },
               ]
             : []),
-          { label: "Pop out to window", action: () => void popoutTool(id as ToolId) },
+          { label: "Pop out to window", action: () => void popoutView(id) },
           // Exports (M12): the same actions as the tab's Export popover. Errors are
           // reported in the popover; a menu action has nowhere to show them, so log.
           ...(tool
@@ -173,6 +179,9 @@ export default function Workbench() {
     // initial pass, plus an observer because a layout restore and a title change both
     // touch the tab DOM after the panel events fire.
     stopObservingTabIds = observeTabIds(api, host);
+    // A project may already show a view popped out (a restored layout): the synth Live
+    // scheduler needs to know its editor is open, in a tab or a window.
+    void refreshPoppedViews();
     const sync = () => {
       syncOpenTools(api);
       scheduleStampTabIds(api);

@@ -1,13 +1,10 @@
-import { Match, Switch, type Component } from "solid-js";
+import { lazy, Match, Suspense, Switch, type Component } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import AnalyzerView from "./analyzer/AnalyzerView";
 import SpectrogramTab from "./analyzer/SpectrogramTab";
 import SpectrumTab from "./analyzer/SpectrumTab";
 import WaveformTab from "./analyzer/WaveformTab";
 import CompareTab from "./compare/CompareTab";
-import FilterGraphTab from "./FilterGraphTab";
-import SynthGraphTab from "./SynthGraphTab";
-import SubsystemTab from "./graphEditor/SubsystemTab";
 import TableTab from "./graphEditor/TableTab";
 import type { AnalyzerId } from "../state/analyzer";
 import { parseComparePanel } from "../state/compare/id";
@@ -21,6 +18,16 @@ import {
   viewFor,
 } from "../state/compare/views";
 import type { ToolId } from "../state/workbench";
+
+/**
+ * The graph editors, and the `@dschz/solid-flow` canvas behind them, are the heaviest
+ * dependency only these tabs use. Loading them on demand keeps that chunk out of the
+ * startup bundle: the first open of a graph tab fetches it (a local read, so fast).
+ * The analyzer views stay eager — they are the common tabs and share uPlot.
+ */
+const FilterGraphTab = lazy(() => import("./FilterGraphTab"));
+const SynthGraphTab = lazy(() => import("./SynthGraphTab"));
+const SubsystemTab = lazy(() => import("./graphEditor/SubsystemTab"));
 
 /** Analyzers that keep a bespoke chart; the rest use the generic [`AnalyzerView`]. */
 const SPECIAL_ANALYZER_VIEWS: Partial<Record<AnalyzerId, Component>> = {
@@ -43,37 +50,50 @@ export default function ToolContent(props: { id: ToolId | string }) {
   const compare = () => parseComparePanel(props.id);
 
   return (
-    <Switch fallback={<AnalyzerView id={props.id as AnalyzerId} />}>
-      <Match when={parseSystemScope(props.id)}>
-        <SubsystemTab scope={props.id as SubsystemScope} />
-      </Match>
-      <Match when={parseTableScope(props.id)}>
-        <TableTab scope={props.id as TableScope} />
-      </Match>
-      <Match when={compare()}>
-        {(ref) => (
-          <CompareTab
-            tool={ref().tool}
-            id={ref().id}
-            binding={() => viewFor(ref().tool, ref().id)?.binding ?? null}
-            onBindingChange={(next) => {
-              if (next.kind === "saved") void openCompareSaved(ref().tool, ref().id);
-              else setReference(ref().tool, ref().id, next.reference);
-            }}
-            offset={() => compareOffset(ref().tool, ref().id)}
-            onOffset={(seconds) => setCompareOffset(ref().tool, ref().id, seconds)}
-          />
-        )}
-      </Match>
-      <Match when={props.id === "filter"}>
-        <FilterGraphTab />
-      </Match>
-      <Match when={props.id === "synth"}>
-        <SynthGraphTab />
-      </Match>
-      <Match when={SPECIAL_ANALYZER_VIEWS[props.id as AnalyzerId]}>
-        {(Special) => <Dynamic component={Special()} />}
-      </Match>
-    </Switch>
+    <Suspense
+      fallback={
+        <div
+          class="tool-loading"
+          data-testid="tool.loading"
+          role="status"
+          aria-label="Loading editor"
+        >
+          <span class="spinner" />
+        </div>
+      }
+    >
+      <Switch fallback={<AnalyzerView id={props.id as AnalyzerId} />}>
+        <Match when={parseSystemScope(props.id)}>
+          <SubsystemTab scope={props.id as SubsystemScope} />
+        </Match>
+        <Match when={parseTableScope(props.id)}>
+          <TableTab scope={props.id as TableScope} />
+        </Match>
+        <Match when={compare()}>
+          {(ref) => (
+            <CompareTab
+              tool={ref().tool}
+              id={ref().id}
+              binding={() => viewFor(ref().tool, ref().id)?.binding ?? null}
+              onBindingChange={(next) => {
+                if (next.kind === "saved") void openCompareSaved(ref().tool, ref().id);
+                else setReference(ref().tool, ref().id, next.reference);
+              }}
+              offset={() => compareOffset(ref().tool, ref().id)}
+              onOffset={(seconds) => setCompareOffset(ref().tool, ref().id, seconds)}
+            />
+          )}
+        </Match>
+        <Match when={props.id === "filter"}>
+          <FilterGraphTab />
+        </Match>
+        <Match when={props.id === "synth"}>
+          <SynthGraphTab />
+        </Match>
+        <Match when={SPECIAL_ANALYZER_VIEWS[props.id as AnalyzerId]}>
+          {(Special) => <Dynamic component={Special()} />}
+        </Match>
+      </Switch>
+    </Suspense>
   );
 }

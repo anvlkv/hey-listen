@@ -15,7 +15,7 @@ import {
   synthSeconds,
 } from "./synth";
 import { stop, transportStatus } from "../audio/preview";
-import { openTools } from "./workbench";
+import { synthEditorOpen } from "./workbench";
 import { createSynthDebounce, liveRenderSeconds, needsSynthConfirmation } from "../lib/synthPlan";
 import type { StreamSummary } from "../bindings/StreamSummary";
 
@@ -124,9 +124,16 @@ export function initSynthLive(): () => void {
   return createRoot((dispose) => {
     createEffect(
       on(
-        [openTools, () => graphSignature(), synthSeconds, liveEnabled, outputDeviceId, status],
+        [
+          synthEditorOpen,
+          () => graphSignature(),
+          synthSeconds,
+          liveEnabled,
+          outputDeviceId,
+          status,
+        ],
         () => {
-          if (!openTools().includes("synth")) {
+          if (!synthEditorOpen()) {
             debounce.cancel();
             lastKey = "";
             return;
@@ -170,9 +177,9 @@ export function initSynthLive(): () => void {
     // against a graph the tab no longer holds (a spec or the user may have left one).
     createEffect(
       on(
-        [openTools, () => graphSignature()],
+        [synthEditorOpen, () => graphSignature()],
         () => {
-          if (openTools().includes("synth")) setSynthError(null);
+          if (synthEditorOpen()) setSynthError(null);
         },
         { defer: true },
       ),

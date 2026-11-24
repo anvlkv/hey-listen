@@ -13,8 +13,8 @@ import os from "node:os";
 import path from "node:path";
 import { SEL } from "../support/selectors.ts";
 import { FIXTURES } from "../support/fixtures.ts";
+import { projectSessionHooks } from "../support/session.ts";
 import {
-  waitForApp,
   waitFor,
   count,
   textOf,
@@ -56,11 +56,9 @@ async function storageBadge(): Promise<string> {
 }
 
 describe("B6–B9. Source storage", () => {
-  before(async () => {
-    await waitForApp();
-    // Replacing the current source asks the core to confirm; allow it in tests.
-    await mockReturn("confirm", true);
-  });
+  // The app instance outlives a spec file in a worker, so start from a clean shell (no
+  // tabs from an earlier spec, the replace prompt stubbed).
+  projectSessionHooks();
 
   it("B6 — the picker asks where the audio lives before it loads", async () => {
     await prepareFilePicker();

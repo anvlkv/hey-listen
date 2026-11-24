@@ -187,7 +187,10 @@ export default function SourcePanel() {
         )}
       </Show>
 
-      <Show when={captureError() ?? sourcesError()}>
+      {/* A capture/enumeration error belongs to a live input. A file or synth source shows
+          the summary alone: a failure from an earlier capture attempt must not follow the
+          project into a source that cannot capture anything. */}
+      <Show when={liveKind() ? (captureError() ?? sourcesError()) : null}>
         {(message) => (
           <div class="src-error" data-testid="source.error" title={message()}>
             {message()}

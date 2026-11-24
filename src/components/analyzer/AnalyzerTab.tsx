@@ -50,6 +50,12 @@ export default function AnalyzerTab(props: {
   const [aboutOpen, setAboutOpen] = createSignal(false);
   const [aboutHtml] = createResource(aboutOpen, () => renderMarkdown(def().about));
 
+  // The rendered copy, but only once it is ready: **reading a pending resource suspends**,
+  // and this tab sits inside the Workbench's `<Suspense>` (the lazy graph tabs), so a
+  // suspended read would swap the whole tab — the open popover included — for the loading
+  // fallback. While the import is in flight the panel shows the same copy as plain text.
+  const aboutReady = () => !aboutHtml.loading && aboutHtml();
+
   return (
     <div
       class="analyzer"
@@ -124,7 +130,7 @@ export default function AnalyzerTab(props: {
           >
             <div class="about-title">{def().title}</div>
             <Show
-              when={aboutHtml()}
+              when={aboutReady()}
               fallback={<p class="about-body">{markdownPlain(def().about)}</p>}
             >
               {(html) => (

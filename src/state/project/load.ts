@@ -35,7 +35,14 @@ import {
 import { askBrokenLink, setSourceStorage, syncSourceWatch } from "../sourceStorage";
 import { setView, setWindowEnd, setWindowStart } from "../timeline";
 import { flushAllUiState } from "../uiSync";
-import { dockApi, openTool, restoreLayout, TOOLS } from "../workbench";
+import {
+  dockApi,
+  isPopoutView,
+  openTool,
+  refreshPoppedViews,
+  restoreLayout,
+  TOOLS,
+} from "../workbench";
 import { basename, projectLabel } from "./paths";
 import { flushProjectPush, resetProjectHistory } from "./push";
 import { rememberRecent } from "./recents";
@@ -205,18 +212,19 @@ async function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
   restoreSavedComparisons(loaded.compare ?? []);
 
   // 5c. Reconcile the project's popout windows with the loaded layout: a load replaces
-  //    the whole project, so the previous project's popouts close and the tools this layout
+  //    the whole project, so the previous project's popouts close and the views this layout
   //    shows popped out get a window (exactly one each). The restored shared state is
-  //    flushed first (a popout pulls it as it boots and must not see the previous
-  //    project's), and the step is **awaited** so the core holds the new aliases — and the
-  //    `LAYOUT.popouts` the next push carries — inside the load's dirty baseline:
-  //    reconciled after it, that change read as an edit and a freshly loaded project came
-  //    up dirty.
+  //    flushed first (a popout pulls it as it boots — including the graphs it edits —
+  //    and must not see the previous project's), and the step is **awaited** so the core
+  //    holds the new aliases — and the `LAYOUT.popouts` the next push carries — inside the
+  //    load's dirty baseline: reconciled after it, that change read as an edit and a
+  //    freshly loaded project came up dirty.
   await flushAllUiState();
-  const popouts = (layout?.popouts ?? []).filter((id) => TOOLS.some((tool) => tool.id === id));
-  await invoke("sync_popouts", { tools: popouts }).catch((err) =>
+  const popouts = (layout?.popouts ?? []).filter(isPopoutView);
+  await invoke("sync_popouts", { views: popouts }).catch((err) =>
     console.error("could not restore the popout windows", err),
   );
+  void refreshPoppedViews();
 
   // 6. The project's annotations (M14): replace the store (this marks the project clean
   //    again via the baseline below). Applied before the undo history is reset.

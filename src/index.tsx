@@ -81,8 +81,9 @@ async function start(): Promise<void> {
 }
 
 /**
- * What this window pops out: a Workbench **tool**, an **annotation**, a **comparison**, or
- * the app-wide **log preview**.
+ * What this window pops out: a Workbench **view** (a tool tab — an analyzer or a graph
+ * editor — or a subsystem), an **annotation**, a **comparison**, or the app-wide **log
+ * preview**.
  */
 type PopoutTarget =
   | { kind: "tool"; id: string }
@@ -91,7 +92,7 @@ type PopoutTarget =
   | { kind: "log" };
 
 /**
- * The tool, annotation, comparison or log preview this popout window shows, or `null`
+ * The view, annotation, comparison or log preview this popout window shows, or `null`
  * when it is none.
  *
  * Asked only by a popout view (`!isProjectWindow`): a project window renders without it.

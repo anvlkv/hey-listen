@@ -12,7 +12,7 @@ import {
 import { resetGraph, setFilterEnabled } from "../graph";
 import { resetAnnotations } from "../annotations";
 import { closeSource } from "../source";
-import { closeAllTools } from "../workbench";
+import { closeAllTools, refreshPoppedViews } from "../workbench";
 import { resetProjectHistory } from "./push";
 import {
   setCreatedMs,
@@ -31,6 +31,7 @@ export async function newProject(): Promise<void> {
   await invoke("close_popouts").catch((err) =>
     console.error("could not close the previous popouts", err),
   );
+  void refreshPoppedViews();
   // A new project has no saved comparisons (M25.C).
   await invoke("clear_compare_saved").catch((err) =>
     console.error("could not clear the saved comparisons", err),

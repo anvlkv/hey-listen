@@ -4,7 +4,7 @@
 //! A compare popout is a native window that shows one comparison: it is **aliased** to
 //! its owner project like any popout (so commands resolve to the project's state), but
 //! it is registered in its own map with its `(tool, reference)`. Keeping it out of the
-//! tool map is what makes it transient: `popout_tools_of` never returns it (so it is
+//! view map is what makes it transient: `popout_views_of` never returns it (so it is
 //! never saved or restored), `sync_popouts` never opens it, and `close_popouts` closes
 //! it with the project's other views.
 //!

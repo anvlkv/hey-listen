@@ -4,7 +4,17 @@ import { compareSignature } from "./compare/views";
 import { analyzerBus, readBusMessage } from "./chartSync";
 import { applySharedParams, sharedParams, type SharedParamsDto } from "./analysis";
 import { setToolOptions, toolOptions } from "./analyzer";
-import { graphPristine } from "./graph";
+import {
+  filterEnabled,
+  graphLayout,
+  graphPristine,
+  graphsReady,
+  loadGraph,
+  markGraphsReady,
+  setFilterEnabled,
+  type GraphLayout,
+} from "./graph";
+import { resetSystems } from "./workbench";
 import {
   selectedAnnotationId,
   annotations,
@@ -47,6 +57,14 @@ interface ProjectState {
   path: string | null;
 }
 
+/** The two graph editors' layout plus the applied/bypassed flag, as the `graphs` key holds
+ *  it (a graph popout must know the toggle to push the same filter the project has). */
+interface GraphsState {
+  filter?: GraphLayout;
+  synth?: GraphLayout;
+  enabled?: boolean;
+}
+
 /** A marker sourceId so a remote view applies to every chart in its group. */
 const REMOTE_VIEW = "__remote__";
 
@@ -78,6 +96,21 @@ registerUiState("annotations", (value) => {
 
 registerUiState("selectedAnnotationId", (value) => {
   setSelectedAnnotationId((value as string | null) ?? null);
+});
+
+// The **graphs** ride the shared state (like the annotations): a graph-editor popout is a
+// view of one project's filter/synth graph, so it pulls them here and an edit in either
+// window lands in the other. A popout pushes nothing until this key has been applied once
+// (`graphsReady`), so its boot seed cannot overwrite the project's graphs.
+registerUiState("graphs", (value) => {
+  const layout = (value ?? {}) as GraphsState;
+  // A replaced graph takes its subsystems with it (their tabs re-open with the layout).
+  resetSystems("filter");
+  resetSystems("synth");
+  loadGraph("filter", layout.filter);
+  loadGraph("synth", layout.synth);
+  setFilterEnabled(layout.enabled ?? true);
+  markGraphsReady();
 });
 
 for (const group of ["time", "freq", "mod"] as const) {
@@ -129,6 +162,18 @@ export async function initUiState(): Promise<void> {
     createEffect(() => pushUiState("toolOptions", deepClone(toolOptions)));
     createEffect(() => pushUiState("annotations", deepClone(annotations())));
     createEffect(() => pushUiState("selectedAnnotationId", selectedAnnotationId()));
+    // Serializing the layouts reads the graph stores deeply, so any edit re-runs this.
+    createEffect(() => {
+      if (!graphsReady()) return;
+      pushUiState(
+        "graphs",
+        deepClone({
+          filter: graphLayout("filter"),
+          synth: graphLayout("synth"),
+          enabled: filterEnabled(),
+        }),
+      );
+    });
     // The project name is owned by the project window (a popout's source is only a
     // stub, so it must not push its derived name back).
     if (!isPopoutWindow) {

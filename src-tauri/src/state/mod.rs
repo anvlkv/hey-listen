@@ -393,5 +393,6 @@ pub mod watch;
 mod window;
 
 pub use window::{
-    window_state, CompareView, ProjectDirty, ProjectHistory, WindowRegistry, WindowState,
+    window_state, CompareView, PopoutView, ProjectDirty, ProjectHistory, WindowRegistry,
+    WindowState,
 };

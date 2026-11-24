@@ -1,6 +1,7 @@
 import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
 import { createStore } from "solid-js/store";
+import { isPopoutWindow } from "../lib/windowRole";
 import { nodeKind, toSpec, type GraphKind, type GraphScope, type GraphSpec } from "../lib/graph";
 import { isAnchorKind } from "./graphKinds";
 import {
@@ -45,6 +46,36 @@ registerGraph("synth", {
 
 export const FILTER_GRAPH: GraphHandle = graphFor("filter");
 export const SYNTH_GRAPH: GraphHandle = graphFor("synth");
+
+/**
+ * Whether this window's graph stores hold the project's graphs.
+ *
+ * A project window owns them (the seed is the project's graph), so it is ready at once. A
+ * **popout** starts from the seed and waits for the shared `graphs` key
+ * (`state/uiState.ts`): until that arrives it must not push anything, or its seed would
+ * overwrite the project's graphs and clear the applied filter.
+ */
+export const [graphsReady, setGraphsReady] = createSignal(!isPopoutWindow);
+
+/** The filter payload the core last received, so an unchanged one is not reinstalled. */
+let lastSent: string | undefined;
+
+/** The filter payload for the current store: `"null"` when bypassed or uncomposed. */
+function filterKey(): string {
+  return filterActive() ? JSON.stringify(filterSpec()) : "null";
+}
+
+/**
+ * Mark the graphs as initialised: the shared `graphs` key has been applied.
+ *
+ * The **first** apply in a popout is the project's own graphs, which the core already has
+ * (the project window pushed them), so the filter that comes with them must not be
+ * reinstalled — that would reload the preview when a window opens.
+ */
+export function markGraphsReady() {
+  if (!graphsReady()) lastSent = filterKey();
+  setGraphsReady(true);
+}
 
 /** The kinds of a fresh graph's nodes (see [`seed`]). */
 function seedKinds(graph: GraphKind): string[] {
@@ -155,12 +186,21 @@ export function filterSpec(): GraphSpec {
 }
 
 async function pushFilterGraph() {
+  // Skip a payload the core already has: the graphs just arrived from the shared state
+  // (a popout's boot), or nothing about the filter changed. Nothing is sent, so a stale
+  // error from an earlier attempt is settled too — the toggle reads the core's state again.
+  const key = filterKey();
+  if (key === lastSent) {
+    setFilterError(null);
+    return;
+  }
   setFilterApplying(true);
   // The identity seed is not a filter, so it is pushed as a bypass (null).
   const payload = filterActive() ? filterSpec() : null;
   try {
     await invoke("set_filter_graph", { spec: payload });
     setFilterError(null);
+    lastSent = key;
   } catch (err) {
     setFilterError(String(err));
   } finally {
@@ -185,12 +225,16 @@ export async function flushFilterGraph(): Promise<void> {
   await pushFilterGraph();
 }
 
-// Push whenever the graph (or the enable toggle) changes, and once on startup.
+// Push whenever the graph (or the enable toggle) changes, and once on startup. A popout
+// waits until the project's graphs have arrived (`graphsReady`), so the seed it boots
+// with never reaches the core.
 createRoot(() => {
   createEffect(
     on(
-      () => [filterEnabled(), JSON.stringify(filterSpec())],
-      () => scheduleFilterPush(),
+      () => [graphsReady(), filterEnabled(), JSON.stringify(filterSpec())] as const,
+      ([ready]) => {
+        if (ready) scheduleFilterPush();
+      },
     ),
   );
 });

@@ -1,7 +1,7 @@
 import { createMemo, untrack } from "solid-js";
 import GraphEditor from "../GraphEditor";
 import { ClearGraphButton, GraphFileButtons, GraphNotices } from "./GraphTabChrome";
-import { graphFor } from "../../state/graph";
+import { graphFor, hasGraph } from "../../state/graph";
 import {
   ensureSystem,
   parseSystemScope,
@@ -21,7 +21,19 @@ export default function SubsystemTab(props: { scope: SubsystemScope }) {
   // `GraphEditor` reads the store during render, so make it exist first. The scope
   // never changes for a mounted tab, so this is deliberately untracked.
   ensureSystem(untrack(() => props.scope));
-  const handle = () => graphFor(props.scope);
+  /** The owning node's nested spec, so a replaced graph re-runs `handle`. */
+  const ownedSpec = () => {
+    const ref = parseSystemScope(props.scope);
+    if (!ref || !hasGraph(ref.parent)) return undefined;
+    return graphFor(ref.parent).nodes.find((node) => node.id === ref.node)?.data.subgraph;
+  };
+  // A graph applied from this project's other window (or a project restore) replaces the
+  // nested specs and drops their stores, so re-create this one from the owning node
+  // instead of rendering a graph that no longer exists.
+  const handle = createMemo(() => {
+    ownedSpec();
+    return hasGraph(props.scope) ? graphFor(props.scope) : ensureSystem(props.scope);
+  });
   const nodes = () => handle().nodes.length;
   const links = () => handle().edges.length;
   const title = createMemo(() => {

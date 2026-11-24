@@ -12,7 +12,6 @@ use tauri::Manager;
 
 use crate::audio::analysis::compare::SavedComparison;
 use crate::audio::analysis::Cancels;
-use crate::audio::analyzers::ToolId;
 use crate::audio::capture::CaptureHandle;
 
 use super::AudioState;
@@ -22,10 +21,13 @@ mod dirty;
 mod history;
 /// Alias-chain and popout lookups (a popout is a view of its project).
 mod lookup;
+/// What a tool popout window shows (a tool, or a subsystem's nested graph).
+mod view;
 
 pub use compare::CompareView;
 pub use dirty::ProjectDirty;
 pub use history::ProjectHistory;
+pub use view::PopoutView;
 
 use lookup::{popout_showing, resolve_root};
 
@@ -137,8 +139,8 @@ struct RegistryInner {
     states: HashMap<String, Arc<WindowState>>,
     /// Popout label → parent label (a popout shares its parent's project state).
     aliases: HashMap<String, String>,
-    /// Popout label → tool id shown in that popout.
-    popout_tools: HashMap<String, ToolId>,
+    /// Popout label → the view it shows (a tool, or a subsystem's nested graph).
+    popout_views: HashMap<String, PopoutView>,
     /// Popout label → annotation id shown in that popout.
     popout_annotations: HashMap<String, String>,
     /// Popout label → the **compare** view it shows (M25). Kept apart from the tool
@@ -196,23 +198,23 @@ impl WindowRegistry {
         resolve_root(&inner.aliases, label)
     }
 
-    /// Register `popout` as a view of `parent`'s project showing `tool`.
-    pub fn add_popout(&self, popout: &str, parent: &str, tool: ToolId) {
+    /// Register `popout` as a view of `parent`'s project showing `view`.
+    pub fn add_popout(&self, popout: &str, parent: &str, view: PopoutView) {
         let mut inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         inner.aliases.insert(popout.to_string(), parent.to_string());
-        inner.popout_tools.insert(popout.to_string(), tool);
+        inner.popout_views.insert(popout.to_string(), view);
     }
 
-    /// The tool a popout window shows, or `None` for a regular project window.
-    pub fn popout_tool(&self, label: &str) -> Option<ToolId> {
+    /// The view a popout window shows, or `None` for a regular project window.
+    pub fn popout_view(&self, label: &str) -> Option<PopoutView> {
         let inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        inner.popout_tools.get(label).cloned()
+        inner.popout_views.get(label).cloned()
     }
 
     /// Register `popout` as a view of `parent`'s project showing the annotation `annotation_id`.
@@ -301,16 +303,16 @@ impl WindowRegistry {
             .collect()
     }
 
-    /// The popout window showing `tool` for `label`'s project, if one is open.
+    /// The popout window showing `view` for `label`'s project, if one is open.
     ///
-    /// Used to **raise** an already-popped-out tool instead of opening a duplicate
-    /// tab for it (the "no duplicate analyzer tabs" rule).
-    pub fn popout_for(&self, label: &str, tool: ToolId) -> Option<String> {
+    /// Used to **raise** an already-popped-out view instead of opening a duplicate tab
+    /// for it (the "no duplicate tabs" rule).
+    pub fn popout_for(&self, label: &str, view: PopoutView) -> Option<String> {
         let inner = self
             .inner
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        popout_showing(&inner, label, &inner.popout_tools, &tool)
+        popout_showing(&inner, label, &inner.popout_views, &view)
     }
 
     /// The popout window showing `annotation_id` for `label`'s project, if one is open.
@@ -335,8 +337,8 @@ impl WindowRegistry {
         inner.aliases.contains_key(label)
     }
 
-    /// The tools popped out of `label`'s project (for saving/restoring them).
-    pub fn popout_tools_of(&self, label: &str) -> Vec<ToolId> {
+    /// The views popped out of `label`'s project (for saving/restoring them).
+    pub fn popout_views_of(&self, label: &str) -> Vec<PopoutView> {
         let inner = self
             .inner
             .lock()
@@ -345,7 +347,7 @@ impl WindowRegistry {
             .aliases
             .iter()
             .filter(|(_, parent)| parent.as_str() == label)
-            .filter_map(|(popout, _)| inner.popout_tools.get(popout).copied())
+            .filter_map(|(popout, _)| inner.popout_views.get(popout).cloned())
             .collect()
     }
 
@@ -357,7 +359,7 @@ impl WindowRegistry {
                 .lock()
                 .unwrap_or_else(|poison| poison.into_inner());
             inner.aliases.remove(label);
-            inner.popout_tools.remove(label);
+            inner.popout_views.remove(label);
             inner.popout_annotations.remove(label);
             inner.popout_compares.remove(label);
             inner.log_popouts.remove(label);

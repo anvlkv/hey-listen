@@ -12,11 +12,12 @@
 //! and which runs the app in "popout" mode to show a single tool.
 
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use crate::audio::analyzers::ToolId;
+use crate::state::{PopoutView, WindowRegistry};
 
 pub mod project;
 
@@ -35,15 +36,15 @@ pub(crate) fn raise<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) {
     let _ = window.set_focus();
 }
 
-/// Create a popout window for `tool`, owned by `parent`'s project.
+/// Create a popout window for `view`, owned by `parent`'s project.
 ///
 /// The alias is registered **before** the window loads, so its frontend can ask
 /// `popout_tool` / `load_shared_source` and resolve to the parent project right away
 /// (no race with the window's first paint).
-fn create_popout(app: &AppHandle, parent: &str, tool_id: ToolId) -> Result<(), String> {
+fn create_popout(app: &AppHandle, parent: &str, view: PopoutView) -> Result<(), String> {
     let label = next_label("popout");
-    let registry = app.state::<crate::state::WindowRegistry>();
-    registry.add_popout(&label, parent, tool_id);
+    let registry = app.state::<WindowRegistry>();
+    registry.add_popout(&label, parent, view);
 
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title("Hey Listen")
@@ -59,27 +60,32 @@ fn create_popout(app: &AppHandle, parent: &str, tool_id: ToolId) -> Result<(), S
     Ok(())
 }
 
-/// Open a popout window for a single Workbench tool, or raise the one already open.
+/// Open a popout window for a single Workbench view — an analyzer or graph editor tab, or
+/// a subsystem's nested graph (`system:<parent>/<node>`) — or raise the one already open.
 ///
 /// The new window is a view of the *calling* window's project: its label is
 /// aliased to the caller's, so every command (source, analysis, preview) resolves
 /// to the same [`crate::state::WindowState`]. The frontend asks [`popout_tool`]
-/// which tool to render. One window per tool per project: popping the same tool out
+/// which view to render. One window per view per project: popping the same view out
 /// again **raises** the existing window rather than opening a duplicate.
+///
+/// `view` is the tab's panel id, parsed once here (ADR-28).
 #[tauri::command]
-pub async fn open_popout_window(
-    window: tauri::WebviewWindow,
-    tool_id: ToolId,
-) -> Result<(), String> {
+pub async fn open_popout_window(window: tauri::WebviewWindow, view: String) -> Result<(), String> {
+    let view = PopoutView::from_str(&view)?;
     let app = window.app_handle();
-    let registry = app.state::<crate::state::WindowRegistry>();
-    if let Some(existing) = registry.popout_for(window.label(), tool_id) {
+    let registry = app.state::<WindowRegistry>();
+    if let Some(existing) = registry.popout_for(window.label(), view.clone()) {
         if let Some(popout) = app.get_webview_window(&existing) {
             raise(&popout);
             return Ok(());
         }
     }
-    create_popout(app, window.label(), tool_id)
+    // Alias to the **project** window, even when a popout asks (a subsystem opened from a
+    // graph popout): the new view is one of the project's, so it is saved, restored and
+    // closed with the project's other popouts.
+    let root = registry.root_label(window.label());
+    create_popout(app, &root, view)
 }
 
 /// Close every popout window of the calling project (tool **and** annotation views).
@@ -113,40 +119,45 @@ pub async fn close_popouts(window: tauri::WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
-/// Make the calling project's tool popouts match `tools`.
+/// Make the calling project's view popouts match `views` (panel ids: tools, or subsystem
+/// scopes).
 ///
 /// Used when a project is **loaded** (or replaced by a new one): a load swaps the whole
-/// project, so the previous project's popout windows — and any duplicate for a tool —
-/// close, and the tools the loaded layout shows popped out get a window. Reconciling in
+/// project, so the previous project's popout windows — and any duplicate for a view —
+/// close, and the views the loaded layout shows popped out get a window. Reconciling in
 /// one command keeps the two halves (close then open) in a single order; doing it from
 /// the frontend as a loop could leave a duplicate between the calls.
 #[tauri::command]
-pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<ToolId>) -> Result<(), String> {
+pub async fn sync_popouts(window: tauri::WebviewWindow, views: Vec<String>) -> Result<(), String> {
+    let views = views
+        .iter()
+        .map(|view| PopoutView::from_str(view))
+        .collect::<Result<Vec<_>, _>>()?;
     let app = window.app_handle();
-    let registry = app.state::<crate::state::WindowRegistry>();
+    let registry = app.state::<WindowRegistry>();
     let root = registry.root_label(window.label());
     let live = app.webview_windows();
 
-    // What is open *now*, per tool (skip windows that are already destroyed).
-    let open: HashSet<ToolId> = registry
+    // What is open *now*, per view (skip windows that are already destroyed).
+    let open: HashSet<PopoutView> = registry
         .project_windows(&root)
         .into_iter()
         .filter(|label| label != &root && live.contains_key(label))
-        .filter_map(|label| registry.popout_tool(&label))
+        .filter_map(|label| registry.popout_view(&label))
         .collect();
 
-    // Close what the project no longer shows, and every window but the first for a tool
-    // it does show — so a load can never leave two windows for one tool.
-    let mut kept: HashSet<ToolId> = HashSet::new();
+    // Close what the project no longer shows, and every window but the first for a view
+    // it does show — so a load can never leave two windows for one view.
+    let mut kept: HashSet<PopoutView> = HashSet::new();
     for label in registry.project_windows(&root) {
         if label == root || !live.contains_key(&label) {
             continue;
         }
-        let Some(tool) = registry.popout_tool(&label) else {
-            continue; // an annotation popout, not a tool view
+        let Some(view) = registry.popout_view(&label) else {
+            continue; // an annotation popout, not a view
         };
-        let wanted = tools.iter().any(|candidate| candidate == &tool);
-        let first = kept.insert(tool);
+        let wanted = views.iter().any(|candidate| candidate == &view);
+        let first = kept.insert(view);
         if !wanted || !first {
             if let Some(popout) = app.get_webview_window(&label) {
                 let _ = popout.destroy();
@@ -155,9 +166,9 @@ pub async fn sync_popouts(window: tauri::WebviewWindow, tools: Vec<ToolId>) -> R
     }
 
     // Open the ones the project shows that had no window.
-    for tool in tools {
-        if !open.contains(&tool) {
-            create_popout(app, &root, tool)?;
+    for view in views {
+        if !open.contains(&view) {
+            create_popout(app, &root, view)?;
         }
     }
 
@@ -209,13 +220,14 @@ pub async fn open_annotation_window(
     Ok(())
 }
 
-/// The tool a popout window shows, or `None` for a regular project window.
+/// The view a popout window shows, or `None` for a regular project window.
 #[tauri::command]
-pub fn popout_tool(window: tauri::WebviewWindow) -> Option<ToolId> {
+pub fn popout_tool(window: tauri::WebviewWindow) -> Option<String> {
     window
         .app_handle()
-        .state::<crate::state::WindowRegistry>()
-        .popout_tool(window.label())
+        .state::<WindowRegistry>()
+        .popout_view(window.label())
+        .map(|view| view.to_string())
 }
 
 /// The annotation a popout window shows, or `None` for a regular project window.
@@ -308,25 +320,31 @@ pub fn popout_log(window: tauri::WebviewWindow) -> bool {
         .popout_log(window.label())
 }
 
-/// The tools currently popped out of the calling window's project.
+/// The views currently popped out of the calling window's project.
 #[tauri::command]
-pub fn popout_tools(window: tauri::WebviewWindow) -> Vec<ToolId> {
+pub fn popout_tools(window: tauri::WebviewWindow) -> Vec<String> {
     window
         .app_handle()
-        .state::<crate::state::WindowRegistry>()
-        .popout_tools_of(window.label())
+        .state::<WindowRegistry>()
+        .popout_views_of(window.label())
+        .into_iter()
+        .map(|view| view.to_string())
+        .collect()
 }
 
-/// Raise the popout window showing `tool_id` for the calling window's project.
+/// Raise the popout window showing `view` for the calling window's project.
 ///
-/// Selecting a tool that is already popped out must not open a duplicate tab in the
-/// main window (the "no duplicate analyzer tabs" rule): it raises the popout
-/// instead. Returns `true` when a popout was found and focused.
+/// Selecting a tool (or subsystem) that is already popped out must not open a duplicate
+/// tab in the main window (the "no duplicate tabs" rule): it raises the popout instead.
+/// Returns `true` when a popout was found and focused.
 #[tauri::command]
-pub fn focus_popout(window: tauri::WebviewWindow, tool_id: ToolId) -> bool {
+pub fn focus_popout(window: tauri::WebviewWindow, view: String) -> bool {
+    let Ok(view) = PopoutView::from_str(&view) else {
+        return false;
+    };
     let app = window.app_handle();
-    let registry = app.state::<crate::state::WindowRegistry>();
-    let Some(label) = registry.popout_for(window.label(), tool_id) else {
+    let registry = app.state::<WindowRegistry>();
+    let Some(label) = registry.popout_for(window.label(), view) else {
         return false;
     };
     let Some(popout) = app.get_webview_window(&label) else {

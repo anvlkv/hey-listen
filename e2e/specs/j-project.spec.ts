@@ -35,6 +35,7 @@ import {
   count,
 } from "../support/helpers.ts";
 import { popOutTab } from "../support/popouts.ts";
+import { addPaletteNode, clearFilterGraph, filterHint } from "../support/graph.ts";
 import { projectSessionHooks } from "../support/session.ts";
 import { closeCurrentWindow, closeWindowsMatching, windowLabels } from "../support/windows.ts";
 
@@ -254,5 +255,72 @@ describe("H. Project file & multi-window", () => {
       async () => (await timelineReadout()).includes("0:03"),
       "the OS-open request did not load the project",
     );
+  });
+
+  it("H6 — a graph tab pops out and edits the project's one graph", async () => {
+    await openFixture("sine440");
+    await openTool("filter");
+    await waitFor(async () => (await count(SEL.graphCanvas)) > 0, "the graph never rendered");
+    const seed = await filterHint();
+
+    // A graph tab now pops out like any other (M7): its context menu offers it.
+    const popout = await popOutTab("filter");
+    await waitFor(
+      async () => (await count(tab("filter"))) === 0,
+      "the popped-out graph tab stayed in the main Workbench",
+    );
+
+    // The popout is a view of the same graph, not a fresh seed.
+    await browser.tauri.switchWindow(popout);
+    await waitFor(
+      async () => (await count(SEL.graphCanvas)) > 0,
+      "the popout never rendered the graph",
+    );
+    expect(await filterHint()).toBe(seed);
+
+    // An edit made here is an edit of the project's graph.
+    // TEMP PROBE — record the node count, hint and any page error across the click.
+    await browser.execute(() => {
+      const w = window as unknown as { __h6: string[]; __h6t: number };
+      w.__h6 = [];
+      window.addEventListener("error", (event) => w.__h6.push(`error:${event.message}`));
+      const tick = () => {
+        const nodes = document.querySelectorAll(".solid-flow__node").length;
+        const hint = document.querySelector('[data-testid="graph.hint"]')?.textContent ?? "";
+        w.__h6.push(`${nodes}|${hint}`);
+      };
+      tick();
+      w.__h6t = setInterval(tick, 40) as unknown as number;
+    });
+    await addPaletteNode("gain", "Gain");
+    await browser.pause(1500);
+    const probe = (await browser.execute(() => {
+      const w = window as unknown as { __h6: string[]; __h6t: number };
+      clearInterval(w.__h6t);
+      return w.__h6;
+    })) as string[];
+    console.log(
+      `[h6] ${probe.length} samples; distinct: ${JSON.stringify(
+        probe.filter((entry, index) => index === 0 || entry !== probe[index - 1]),
+      )}`,
+    );
+    await waitFor(
+      async () => (await filterHint()).includes("3 nodes"),
+      "the popout did not add the node to its graph",
+    );
+
+    // Back in the project window, the graph the popout edited is the one that opens.
+    await browser.tauri.switchWindow(popout);
+    await waitForShell();
+    await closeCurrentWindow();
+    await browser.tauri.switchWindow("main").catch(() => {});
+    await waitFor(async () => !(await windowLabels()).includes(popout), "the popout did not close");
+    await openTool("filter");
+    await waitFor(
+      async () => (await filterHint()).includes("3 nodes"),
+      "the node added in the popout never reached the project's graph",
+    );
+    // Leave the project's filter graph as its seed for the specs that follow.
+    await clearFilterGraph();
   });
 });

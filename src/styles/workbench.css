@@ -60,3 +60,12 @@
 .dv-view {
   overflow: hidden !important;
 }
+
+/* Suspense fallback while a lazily-loaded Workbench tab (the graph editors) fetches
+   its chunk — a one-time local read, so the shared spinner alone is enough. */
+.tool-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}

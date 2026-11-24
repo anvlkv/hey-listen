@@ -2,7 +2,6 @@ import { createSignal } from "solid-js";
 import { invoke } from "../lib/ipc";
 import { sanitizeLayout } from "../lib/dockviewLayout";
 import type { DockviewApi, DockviewGroupPanel, SerializedDockview } from "dockview";
-import { ANALYZERS } from "./analyzer/defs";
 import { isAnalyzerId } from "./analyzer/lookup";
 import type { AnalyzerId } from "./analyzer/types";
 import { isCompareId } from "./compare/id";
@@ -10,8 +9,6 @@ import type { GraphScope } from "../lib/graph";
 import {
   dropSystem,
   ensureSystem,
-  parseSystemScope,
-  subsystems,
   systemScope,
   systemsUnder,
   type SubsystemScope,
@@ -20,6 +17,9 @@ import { parseTableScope, tableScope, type TableScope } from "./tables";
 import { graphFor, hasGraph } from "./graphHandles";
 import { nodeKind } from "../lib/graph";
 import { rowCount, rowsOf } from "../lib/graph/table";
+import { dockApi } from "./dockApi";
+import { isSystemPanel, poppedViews, popoutView, systemTitle } from "./popout";
+import { toolById, type ToolId } from "./tools";
 
 /**
  * Workbench tab registry.
@@ -28,44 +28,21 @@ import { rowCount, rowsOf } from "../lib/graph/table";
  * editors** (filter / synth) plus the **analyzer tools** (M4+). This module lets
  * the Sidebar (a sibling region) open and focus a tab through the shared dockview
  * API.
+ *
+ * The tool table lives in `tools.ts` and the popout view helpers in `popout.ts`; both
+ * are re-exported here so a caller keeps addressing the Workbench through one module.
  */
 
-import type { ToolId as GeneratedToolId } from "../bindings/ToolId";
-
-/** A Workbench tab id, generated from the Rust `ToolId` (M15.B / ADR-28). */
-export type ToolId = GeneratedToolId;
-
-export type ToolDef = {
-  id: ToolId;
-  title: string;
-  description: string;
-};
-
-export const TOOLS: ToolDef[] = [
-  {
-    id: "filter",
-    title: "Filter graph",
-    description: "Shape the signal before preview and analysis",
-  },
-  {
-    id: "synth",
-    title: "Synth graph",
-    description: "Build a fundsp synth and render it to the timeline",
-  },
-  ...ANALYZERS.map((analyzer): ToolDef => ({
-    id: analyzer.id,
-    title: analyzer.title,
-    description: analyzer.description,
-  })),
-];
-
-export function toolById(id: ToolId): ToolDef {
-  const tool = TOOLS.find((item) => item.id === id);
-  if (!tool) throw new Error(`unknown tool: ${id}`);
-  return tool;
-}
-
-export const [dockApi, setDockApi] = createSignal<DockviewApi | null>(null);
+export { dockApi, setDockApi } from "./dockApi";
+export { TOOLS, toolById, type ToolDef, type ToolId } from "./tools";
+export {
+  isGraphView,
+  isPopoutView,
+  isSystemPanel,
+  popoutView,
+  refreshPoppedViews,
+  viewTitle,
+} from "./popout";
 export const [openTools, setOpenTools] = createSignal<ToolId[]>([]);
 /**
  * Bumped on every dockview layout change (tab moves, splitter drags, a restore), so the
@@ -139,7 +116,7 @@ export async function openTool(id: ToolId, position?: ToolPosition) {
   }
   // A popped-out tool lives in its own window: selecting it must raise that window
   // instead of opening a duplicate tab here (no duplicate analyzer tabs).
-  const raised = await invoke<boolean>("focus_popout", { toolId: id }).catch(() => false);
+  const raised = await invoke<boolean>("focus_popout", { view: id }).catch(() => false);
   if (raised) return;
   // New tools always open in the **main** window, even when a popout is focused.
   addToMainGrid(api, id, toolById(id).title, position);
@@ -209,21 +186,9 @@ export function workbenchGroups() {
   }));
 }
 
-/**
- * Pop a tool out into its own window (M7).
- *
- * Only Tauri/wry manage windows — the UI just renders data — so this asks the core
- * to open a native window that shows the single tool, then removes the tab from
- * the main grid. The popout window's label is aliased to this window's project
- * state, so it analyses the same source.
- */
-export async function popoutTool(id: ToolId) {
-  try {
-    await invoke("open_popout_window", { toolId: id });
-    dockApi()?.getPanel(id)?.api.close();
-  } catch (err) {
-    console.error("could not pop out tool", err);
-  }
+/** Whether the synth editor is open anywhere: a Workbench tab, or its popout window. */
+export function synthEditorOpen(): boolean {
+  return openTools().includes("synth") || poppedViews().includes("synth");
 }
 
 /** The open Workbench tab ids, in dockview order: tools and (separately) compare views. */
@@ -238,28 +203,29 @@ export function syncOpenTools(api: DockviewApi) {
   setOpenCompareIds(api.panels.filter((panel) => isCompareId(panel.id)).map((panel) => panel.id));
 }
 
-/** Whether a panel id is a subsystem tab (`system:<parent>/<node>`). */
-export function isSystemPanel(id: string): boolean {
-  return parseSystemScope(id) != null;
-}
-
 /** Open (or focus) a subsystem's tab, creating its store from the owning node. */
 export function openSystem(scope: SubsystemScope): void {
-  ensureSystem(scope);
   const api = dockApi();
-  if (!api) return;
-  const existing = api.getPanel(scope);
+  const existing = api?.getPanel(scope);
   if (existing) {
     existing.api.setActive();
     return;
   }
-  addToMainGrid(api, scope, systemTitle(scope));
-}
-
-/** A subsystem tab's title: its user name (or kind), or a plain fallback when gone. */
-function systemTitle(scope: SubsystemScope): string {
-  const system = subsystems().find((item) => item.scope === scope);
-  return system ? `Subsystem · ${system.label}` : "Subsystem";
+  // A popped-out subsystem lives in its own window: raise that window instead of
+  // opening a duplicate tab here (like `openTool` does for a tool). With no Workbench
+  // (a graph popout), show the subsystem in a window of its own.
+  void invoke<boolean>("focus_popout", { view: scope })
+    .catch(() => false)
+    .then((raised) => {
+      if (raised) return;
+      const current = dockApi();
+      if (!current) {
+        void popoutView(scope);
+        return;
+      }
+      ensureSystem(scope);
+      addToMainGrid(current, scope, systemTitle(scope));
+    });
 }
 
 /** Keep an open subsystem tab's title in step with a renamed node. */
