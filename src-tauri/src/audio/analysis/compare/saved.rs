@@ -3,8 +3,9 @@
 //! `COMPARE` (project section `0x08`) stores a snapshot per comparison that is open
 //! at save time: the reference's last analysis window — its setup, effective options,
 //! filter fingerprint and **full result** — plus the fine-tune offset and the pinned
-//! owner side. No reference audio is embedded, so the owner project stays
-//! self-contained for its last comparison. See and ADR-27.
+//! owner side. A snapshot is result-only unless a small i16 fragment of the reference's
+//! window was captured, which lets the comparison re-grid onto the owner's grid (see
+//! [`fragment`](super::fragment)). See and ADR-27.
 //!
 //! A snapshot is also the core's in-memory record of the **last successful**
 //! comparison of each pair, which is what makes "the reference closed" keep its
@@ -19,6 +20,7 @@ use crate::audio::analysis::{SharedParams, StoredAnalysisResult, ToolOptions};
 use crate::audio::analyzers::AnalyzerId;
 
 use super::align::Span;
+use super::fragment::{ReferenceAudio, SavedFragment};
 use super::{CompareSetup, ComparisonSide, SourceShape};
 
 /// One saved comparison: the reference side of a diff, frozen at save time.
@@ -52,7 +54,7 @@ pub struct SavedComparison {
     pub result: StoredAnalysisResult,
     /// The reference project's **file path** (M25.D), so "Open reference" can open the
     /// other project again; `None` when the reference was a project that was never
-    /// saved. Appended last so an older payload is a strict prefix of this one.
+    /// saved.
     pub reference_path: Option<String>,
     /// Stable id, generated when the snapshot is taken, so several saved comparisons
     /// can share a tool (one per compare tab).
@@ -62,6 +64,15 @@ pub struct SavedComparison {
     pub owner_window: Span,
     /// The owner's channel at save time (pinned); `None` is the downmix.
     pub owner_channel: Option<usize>,
+    /// The reference's window audio, when it was captured; `None` keeps the snapshot
+    /// result-only. Appended after `owner_channel` so a v7 payload is a strict prefix of
+    /// this one.
+    #[serde(default)]
+    pub fragment: Option<SavedFragment>,
+    /// The reference's own source file (canonicalised), for "Open reference"; `None`
+    /// when the reference had no file or it was not a file source.
+    #[serde(default)]
+    pub source_path: Option<String>,
 }
 
 /// A compact view of a saved comparison for the frontend / MCP (no result payload).
@@ -85,6 +96,13 @@ pub struct SavedComparisonInfo {
     /// A content fingerprint (see [`SavedComparison::fingerprint`]); the frontend uses
     /// it in the project's dirty signature.
     pub fingerprint: String,
+    /// Whether the snapshot carries fragment audio, so the reference can be re-gridded
+    /// onto the owner's grid instead of only shown on its own.
+    pub has_fragment: bool,
+    /// The reference's own source file, when it was a file (canonicalised).
+    pub source_path: Option<String>,
+    /// The reference project's file path, so "Open reference" can reopen it.
+    pub reference_path: Option<String>,
 }
 
 impl SavedComparison {
@@ -95,7 +113,8 @@ impl SavedComparison {
     /// channel are pinned with the snapshot); `reference_path` is the reference project's
     /// file, when it has one (the app reads it from the peer's project state; the CLI and
     /// a headless session pass the file they loaded). It is stored absolute, so it still
-    /// opens from another working directory.
+    /// opens from another working directory. `audio` is the reference's captured window
+    /// audio and file, which lets a later comparison re-grid the reference.
     #[allow(clippy::too_many_arguments)] // the caller pins the pair and the reference's provenance
     pub fn from_side(
         tool: AnalyzerId,
@@ -106,6 +125,7 @@ impl SavedComparison {
         b_offset: f64,
         saved_ms: u64,
         reference_path: Option<String>,
+        audio: ReferenceAudio,
     ) -> Self {
         Self {
             tool,
@@ -137,6 +157,8 @@ impl SavedComparison {
             id,
             owner_window: owner.span(),
             owner_channel: owner.params.channel,
+            fragment: audio.fragment,
+            source_path: audio.source_path,
         }
     }
 
@@ -153,13 +175,18 @@ impl SavedComparison {
     }
 
     /// Whether this snapshot covers the same **pair** as `other`: one tool against one
-    /// reference project. An **id-less** caller reuses the pair's existing id, so a
-    /// debounced re-run updates its entry instead of appending a new one; a caller that
-    /// pins an id gets its own entry (several tabs may share a pair).
+    /// reference project **at one window**. An **id-less** caller reuses the pair's
+    /// existing id, so a debounced re-run updates its entry instead of appending a new
+    /// one; a caller that pins an id gets its own entry (several tabs may share a pair).
+    ///
+    /// The window is part of the pair because several windows of one reference project
+    /// are independent comparisons: a re-run at another window must not overwrite a
+    /// different tab's snapshot.
     pub fn same_pair(&self, other: &Self) -> bool {
         self.tool == other.tool
             && self.reference_name == other.reference_name
             && self.reference_path == other.reference_path
+            && self.window == other.window
     }
 
     /// The saved side's setup, as the comparison engine expects it.
@@ -190,6 +217,9 @@ impl SavedComparison {
             b_offset: self.b_offset,
             saved_ms: self.saved_ms,
             fingerprint: self.fingerprint(),
+            has_fragment: self.fragment.is_some(),
+            source_path: self.source_path.clone(),
+            reference_path: self.reference_path.clone(),
         }
     }
 
@@ -259,6 +289,8 @@ mod tests {
                 end: 0.75,
             },
             owner_channel: Some(1),
+            fragment: None,
+            source_path: None,
         }
     }
 

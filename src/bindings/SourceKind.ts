@@ -4,7 +4,6 @@
  * The kind of the project's single audio source.
  *
  * Serialized as the same camelCase string the project file, IPC and exports always
- * used. The serde impls are hand-written so `postcard` keeps the string encoding (a
- * derived impl would store the variant index and change the file format).
+ * used.
  */
 export type SourceKind = "file" | "mic" | "system" | "process" | "mix" | "synth";

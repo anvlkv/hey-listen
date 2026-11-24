@@ -115,6 +115,8 @@ mod tests {
                 end: 17.0,
             },
             owner_channel: None,
+            fragment: None,
+            source_path: None,
         }
     }
 

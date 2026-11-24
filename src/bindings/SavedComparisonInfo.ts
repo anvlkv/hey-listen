@@ -27,4 +27,17 @@ ownerChannel: number | null, bOffset: number, savedMs: number,
  * A content fingerprint (see [`SavedComparison::fingerprint`]); the frontend uses
  * it in the project's dirty signature.
  */
-fingerprint: string, };
+fingerprint: string, 
+/**
+ * Whether the snapshot carries fragment audio, so the reference can be re-gridded
+ * onto the owner's grid instead of only shown on its own.
+ */
+hasFragment: boolean, 
+/**
+ * The reference's own source file, when it was a file (canonicalised).
+ */
+sourcePath: string | null, 
+/**
+ * The reference project's file path, so "Open reference" can reopen it.
+ */
+referencePath: string | null, };

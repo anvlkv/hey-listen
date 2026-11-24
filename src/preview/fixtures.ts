@@ -125,6 +125,9 @@ async function openCompare(tool: AnalyzerId) {
     bOffset: 0,
     savedMs: Date.now(),
     fingerprint: "preview-fixture",
+    hasFragment: true,
+    sourcePath: null,
+    referencePath: null,
   };
   setSavedReference(tool, info.id, info);
   await whenDockReady();

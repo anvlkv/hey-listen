@@ -389,6 +389,7 @@ mod tests {
     }
 }
 
+pub mod watch;
 mod window;
 
 pub use window::{

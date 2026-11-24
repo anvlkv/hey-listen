@@ -3,7 +3,7 @@
 //! (the 400-line budget).
 
 use super::*;
-use crate::audio::analysis::compare::{compare_saved, SavedComparison};
+use crate::audio::analysis::compare::{compare_saved, ReferenceAudio, SavedComparison};
 use crate::audio::analysis::{AnalysisResult, MatrixResult, WaveformResult};
 
 #[test]
@@ -120,6 +120,7 @@ fn a_saved_reference_compares_without_a_second_project() {
         0.0,
         1_000,
         None,
+        ReferenceAudio::default(),
     );
 
     let saved = compare_saved(
@@ -166,6 +167,7 @@ fn a_snapshot_fingerprint_ignores_its_timestamp_but_tracks_the_content() {
         0.0,
         1_000,
         None,
+        ReferenceAudio::default(),
     );
     let fingerprint = snapshot.fingerprint();
 

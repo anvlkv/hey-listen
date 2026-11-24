@@ -15,11 +15,6 @@ export type SaveProjectRequest = {
  */
 createdMs: number | null, 
 /**
- * Embed the source PCM in `DATA` (default). `false` writes a **reference** project:
- * the `SOURCE` descriptor keeps the file path and the loader decodes it again.
- */
-embedSource: boolean, 
-/**
  * The frontend's analyzer result cache (the file's `RESULTS` section — not undoable).
  */
 results: Array<CachedResultInput>, 

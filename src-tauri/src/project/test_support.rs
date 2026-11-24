@@ -50,5 +50,7 @@ pub(super) fn snapshot(tool: AnalyzerId, result: AnalysisResult) -> SavedCompari
             end: 1.0,
         },
         owner_channel: None,
+        fragment: None,
+        source_path: None,
     }
 }

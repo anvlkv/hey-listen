@@ -4,8 +4,9 @@
 //! analyzer id. The owner's grid always wins: A runs from its own setup, and B is
 //! re-analysed on **A's** shared params and tool options (keeping only its own channel,
 //! window and filter), so a live comparison always produces a delta. Both sides run
-//! through the existing [`analysis::run_window`], so a comparison can never drift from
-//! a normal tool run. Nothing is written to either project; B is read-only.
+//! through the same conditioning pipeline as [`analysis::run_window`], so a comparison
+//! can never drift from a normal tool run. Nothing is written to either project; B is
+//! read-only.
 //!
 //! The module is `tauri`-free, so the whole contract is unit-tested: [`align`] decides
 //! comparability, [`diff`] computes the per-family delta, [`events`] pairs events, and
@@ -15,21 +16,24 @@
 pub mod align;
 pub mod diff;
 pub mod events;
+pub mod fragment;
 pub mod saved;
 pub mod stats;
 mod wire;
 
 pub use align::{Comparability, Span};
 pub use diff::ComparisonDiff;
+pub use fragment::{ReferenceAudio, SavedFragment};
 pub use saved::{SavedComparison, SavedComparisonInfo};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::audio::analysis::{
-    self, AnalysisError, AnalysisResult, ResultSummary, SharedParams, ToolOptions,
+    self, AnalysisError, AnalysisResult, Cancel, ResultSummary, SharedParams, ToolOptions,
 };
 use crate::audio::analyzers::AnalyzerId;
+use crate::audio::graph::GraphSpec;
 use crate::state::WindowState;
 
 /// One side's setup: the analysis window, the shared params, and the tool's options.
@@ -137,9 +141,10 @@ pub fn compare(
 }
 
 /// Compare the owner against a **saved reference snapshot** (M25.C): only A is
-/// analysed; B's result comes from the snapshot. A snapshot was produced by an earlier
-/// run, so its grid can differ from A's — that is reported, and it keeps the grid gate
-/// until the snapshot carries fragment audio to re-grid (M23 Phase 3 slice 2).
+/// analysed from live audio. A snapshot was produced by an earlier run, so its grid can
+/// differ from A's — that is reported, and it keeps the grid gate. When the snapshot
+/// carries fragment audio, B is re-run on A's grid from it instead (M23 Phase 3 slice
+/// 2); a filter fingerprint that no longer parses leaves the stored result authoritative.
 pub fn compare_saved(
     tool: AnalyzerId,
     a: SideInput<'_>,
@@ -150,19 +155,81 @@ pub fn compare_saved(
     let filters_differ = filter_fingerprint(a.state) != saved.filter_fingerprint;
     let a_result = run(tool, a.state, &a.setup, "a")?;
 
-    Ok(assemble(
+    match regrid_side(tool, &a.setup, saved)? {
+        Some((b_setup, b_result)) => {
+            let mut comparison = assemble(
+                tool,
+                PreparedSide::new(a.project.clone(), a_source, a.setup.clone(), a_result),
+                PreparedSide::new(
+                    Some(saved.reference_name.clone()),
+                    saved.source,
+                    b_setup,
+                    b_result,
+                ),
+                b_offset,
+                filters_differ,
+                false,
+            );
+            comparison.comparability.regridded = true;
+            Ok(comparison)
+        }
+        None => Ok(assemble(
+            tool,
+            PreparedSide::new(a.project.clone(), a_source, a.setup.clone(), a_result),
+            PreparedSide::new(
+                Some(saved.reference_name.clone()),
+                saved.source,
+                saved.setup(),
+                saved.analysis_result(),
+            ),
+            b_offset,
+            filters_differ,
+            true,
+        )),
+    }
+}
+
+/// Re-run the reference on the owner's grid from its stored fragment.
+///
+/// `None` when the snapshot has no fragment, or its filter fingerprint is present but
+/// is not a parseable [`GraphSpec`] — then the stored result and the grid gate stay
+/// authoritative rather than dropping the reference's filter silently.
+fn regrid_side(
+    tool: AnalyzerId,
+    owner: &CompareSetup,
+    saved: &SavedComparison,
+) -> Result<Option<(CompareSetup, AnalysisResult)>, AnalysisError> {
+    let Some(fragment) = saved.fragment.as_ref() else {
+        return Ok(None);
+    };
+    let filter = match saved.filter_fingerprint.as_deref() {
+        None => None,
+        Some(encoded) => match serde_json::from_str::<GraphSpec>(encoded) {
+            Ok(spec) => Some(spec),
+            Err(_) => return Ok(None),
+        },
+    };
+    let source = fragment.to_source();
+    let setup = align::owner_grid_setup(
+        owner,
+        &saved.setup(),
+        source.sample_rate,
+        source.sample_rate,
+    );
+    let result = analysis::run_region_with(
+        &source.samples,
+        source.channels,
+        source.sample_rate,
+        filter.as_ref(),
         tool,
-        PreparedSide::new(a.project.clone(), a_source, a.setup.clone(), a_result),
-        PreparedSide::new(
-            Some(saved.reference_name.clone()),
-            saved.source,
-            saved.setup(),
-            saved.analysis_result(),
-        ),
-        b_offset,
-        filters_differ,
-        true,
-    ))
+        &setup.params,
+        &setup.options,
+        fragment.start_secs,
+        &Cancel::never(),
+        &|_, _| {},
+    )
+    .map_err(side_error("b"))?;
+    Ok(Some((setup, result)))
 }
 
 /// One side ready to be compared: identity, shape, setup and the result.
@@ -262,12 +329,17 @@ fn run(
         &setup.params,
         &setup.options,
     )
-    .map_err(|err| match err {
+    .map_err(side_error(name))
+}
+
+/// Name the side a comparison run failed on.
+fn side_error(name: &str) -> impl Fn(AnalysisError) -> AnalysisError + '_ {
+    move |err| match err {
         AnalysisError::NoSource => {
             AnalysisError::Analysis(format!("side {name} has no audio source"))
         }
         other => AnalysisError::Analysis(format!("side {name}: {other}")),
-    })
+    }
 }
 
 /// The effective analysis rate: the source rate, or `resampleTo` when set.

@@ -19,6 +19,8 @@
 //! +end  checksum        8 bytes   CRC-32 of everything before it (stored as u64 LE)
 //! ```
 
+use std::path::{Path, PathBuf};
+
 pub mod annotations;
 mod error;
 mod migrate;
@@ -32,7 +34,7 @@ pub use migrate::DroppedSection;
 pub use read::{read_project, LoadedProject};
 pub use sections::{
     AnalysisSetup, AnalysisWindow, Annotation, AnnotationValues, Meta, SourceDescriptor,
-    SourceKind, StoredResult,
+    SourceKind, SourceStorage, StoredResult,
 };
 #[allow(unused_imports)] // `write_project` is the in-memory writer the tests use
 pub use write::{write_project, write_project_atomic, write_project_with_pcm_format, SaveProject};
@@ -40,7 +42,7 @@ pub use write::{write_project, write_project_atomic, write_project_with_pcm_form
 /// File magic at offset 0 (`"HEYL"`).
 pub const MAGIC: [u8; 4] = *b"HEYL";
 /// Container version.
-pub const VERSION: u32 = 7;
+pub const VERSION: u32 = 8;
 /// The oldest container version this build reads. Older files are migrated forward through
 /// the step chain in [`migrate`] (ADR-32); anything outside `MIN_READ_VERSION..=VERSION`
 /// is an `UnsupportedVersion` error.
@@ -129,16 +131,16 @@ impl PcmFormat {
     }
 }
 
-/// Decode a **reference** project's file source again (a project saved with
-/// `embedSource: false` has no `DATA` section; the `SOURCE` descriptor keeps the path).
-/// Returns `None` when the source is not a file or the file cannot be decoded, so a
+/// Decode a **linked** project's file source again (a project whose `storage` is
+/// [`SourceStorage::Linked`] has no `DATA` section; the `SOURCE` descriptor keeps the
+/// path). Returns `None` when the source is not a file or the file cannot be decoded, so a
 /// project with a missing external recording still opens (with an empty timeline).
-pub fn decode_reference(source: Option<&SourceDescriptor>) -> Option<crate::state::SourceData> {
-    let source = source?;
-    if source.kind != SourceKind::File {
-        return None;
-    }
-    let path = source.path.as_deref()?;
+pub fn decode_reference(
+    source: Option<&SourceDescriptor>,
+    base_dir: Option<&Path>,
+) -> Option<crate::state::SourceData> {
+    let path = resolve_link(source?, base_dir)?;
+    let path = path.to_str()?;
     let mut samples = Vec::new();
     let summary = crate::audio::decode::decode_file(path, |chunk| {
         samples.extend_from_slice(chunk);
@@ -150,6 +152,56 @@ pub fn decode_reference(source: Option<&SourceDescriptor>) -> Option<crate::stat
         sample_rate: summary.sample_rate.max(1),
         channels: summary.channels.max(1),
     })
+}
+
+/// The file a linked source points at: the project-relative path first (so a project
+/// folder moved with its recording still resolves), then the recorded path — resolved
+/// against `base_dir` when it is relative. The first candidate that is a file wins.
+pub fn resolve_link(source: &SourceDescriptor, base_dir: Option<&Path>) -> Option<PathBuf> {
+    if source.kind != SourceKind::File {
+        return None;
+    }
+    if let (Some(base), Some(relative)) = (base_dir, source.relative_path.as_deref()) {
+        let candidate = base.join(relative);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    let path = Path::new(source.path.as_deref()?);
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base_dir.map_or_else(|| path.to_path_buf(), |base| base.join(path))
+    };
+    candidate.is_file().then_some(candidate)
+}
+
+/// Record the source path relative to the project file it is being saved beside.
+///
+/// Never canonicalizes: a save must not resolve symlinks or fail on a path that does not
+/// exist yet. A path outside `project_dir` (or a source with no path) leaves
+/// `relative_path` unset.
+pub(crate) fn relativize(source: &mut SourceDescriptor, project_dir: Option<&Path>) {
+    source.relative_path = None;
+    if source.kind != SourceKind::File {
+        return;
+    }
+    let (Some(path), Some(dir)) = (source.path.as_deref(), project_dir) else {
+        return;
+    };
+    if dir.as_os_str().is_empty() {
+        return;
+    }
+    let Ok(relative) = Path::new(path).strip_prefix(dir) else {
+        return;
+    };
+    let parts: Vec<String> = relative
+        .components()
+        .map(|part| part.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    if !parts.is_empty() {
+        source.relative_path = Some(parts.join("/"));
+    }
 }
 
 // --- checksum ----------------------------------------------------------------
@@ -210,6 +262,9 @@ mod tests;
 
 #[cfg(test)]
 mod tests_compare;
+
+#[cfg(test)]
+mod tests_storage;
 
 #[cfg(test)]
 mod tests_data;

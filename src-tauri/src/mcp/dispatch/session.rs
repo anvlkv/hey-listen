@@ -10,6 +10,7 @@ use crate::audio::analysis;
 use crate::audio::analyzers::{self, AnalyzerId, ToolId};
 use crate::audio::decode;
 use crate::audio::graph::{self, GraphSpec};
+use crate::project::SourceStorage;
 use crate::state::SourceData;
 
 use super::args::{self, analyzer, tool_id};
@@ -167,6 +168,7 @@ impl HeadlessSession {
             "frames": frames,
             "duration": frames as f64 / f64::from(rate),
             "live": false,
+            "storage": self.source_storage,
         })
     }
 
@@ -194,6 +196,7 @@ impl HeadlessSession {
             .and_then(Value::as_str)
             .ok_or("`path` is required")?
             .to_string();
+        let storage = storage_arg(args)?.unwrap_or_default();
         // Keep an absolute path so a reference project can decode the source again from
         // any working directory.
         let path = std::fs::canonicalize(&path)
@@ -216,6 +219,7 @@ impl HeadlessSession {
         }));
         self.source_path = Some(path.clone());
         self.source_kind = crate::project::SourceKind::File;
+        self.source_storage = storage;
         self.synth = None;
         // Cached results belong to the previous source.
         self.results.clear();
@@ -259,6 +263,8 @@ impl HeadlessSession {
         self.synth = Some(spec);
         self.source_path = None;
         self.source_kind = crate::project::SourceKind::Synth;
+        // A rendered graph has no file to link.
+        self.source_storage = SourceStorage::Embedded;
         // Cached results belong to the previous source.
         self.results.clear();
         self.name = "Synth".to_string();
@@ -352,4 +358,21 @@ fn graph_arg(args: &Value) -> Result<Option<GraphSpec>, String> {
             .map(Some)
             .map_err(|err| format!("invalid graph: {err}")),
     }
+}
+
+/// The `storage` argument as a [`SourceStorage`]; `None` when it is absent, an error when
+/// the name is unknown (listing the variants).
+pub(super) fn storage_arg(args: &Value) -> Result<Option<SourceStorage>, String> {
+    let Some(value) = args.get("storage").filter(|value| !value.is_null()) else {
+        return Ok(None);
+    };
+    let Some(name) = value.as_str() else {
+        return Err("`storage` must be a string".to_string());
+    };
+    name.parse::<SourceStorage>().map(Some).map_err(|_| {
+        format!(
+            "unknown storage: {name} (expected one of {})",
+            <SourceStorage as strum::VariantNames>::VARIANTS.join(", ")
+        )
+    })
 }

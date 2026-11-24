@@ -27,16 +27,29 @@ export async function ensureSourcePanel(): Promise<void> {
   });
 }
 
-/** Open a file source by mocking the native picker, then clicking *Open*. */
-export async function openFileFixture(path: string): Promise<void> {
+/**
+ * Reveal the Source panel and make the *file* kind active, so its picker button exists.
+ *
+ * A fresh window starts on the file kind, but an earlier test in the same app session may
+ * have switched it (e.g. to Microphone), so every file open goes through here.
+ */
+export async function prepareFilePicker(): Promise<void> {
   await ensureSourcePanel();
-  // A prior test may have switched the kind (e.g. B4 selects Microphone); make the
-  // file kind active so the "Open audio file…" button exists.
   await openSelect('[data-testid="source.kind"]');
   await pickOption("Audio file");
-  await mockReturn("pick_audio_file", path);
   await waitForSelector(SEL.sourceOpenFile, "the file picker button did not appear");
+}
+
+/** Open a file source by mocking the native picker, then clicking *Open*. */
+export async function openFileFixture(path: string): Promise<void> {
+  await prepareFilePicker();
+  await mockReturn("pick_audio_file", path);
   await click(SEL.sourceOpenFile);
+  // The post-pick chooser stands between the picker and the load. Pin the suite's baseline
+  // (`embedded`) instead of whatever this machine remembered from an earlier run.
+  await waitForSelector(SEL.storageDialog, "the storage chooser did not open");
+  await click(SEL.storageDialogEmbedded);
+  await click(SEL.storageDialogOpen);
 }
 
 /** Wait until a source is on the timeline (the Timeline region replaced the strip). */

@@ -17,7 +17,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use hey_listen_lib::project::{
-    decode_reference, read_project, write_project_atomic, SaveProject, VERSION,
+    decode_reference, read_project, write_project_atomic, SaveProject, SourceStorage, VERSION,
 };
 
 use super::output::emit;
@@ -53,16 +53,23 @@ fn migrate_one(path: &str, embed: bool, backup: bool, now: u64) -> Result<Value,
     let mut loaded = read_project(&mut file).map_err(|err| format!("{path}: {err}"))?;
     let from_version = loaded.format_version;
     let migrated = loaded.upgraded_from.is_some();
-    // A reference project stays a reference: `--embed` is the only way to grow it into a
-    // full copy, and it decodes the `SOURCE` path exactly as the loader would.
+    // A linked project stays linked: `--embed` is the only way to grow it into a full copy,
+    // and it decodes the `SOURCE` path exactly as the loader would. The written descriptor
+    // then records the mode it now has.
     let grew = embed && loaded.pcm.is_none();
     if grew {
-        loaded.pcm = Some(decode_reference(loaded.source.as_ref()).ok_or_else(|| {
-            format!(
-                "{path}: cannot embed the source (the referenced file is missing or \
-                 cannot be decoded)"
-            )
-        })?);
+        let pcm = decode_reference(loaded.source.as_ref(), Path::new(path).parent()).ok_or_else(
+            || {
+                format!(
+                    "{path}: cannot embed the source (the linked file is missing or \
+                     cannot be decoded)"
+                )
+            },
+        )?;
+        loaded.pcm = Some(pcm);
+        if let Some(source) = loaded.source.as_mut() {
+            source.storage = SourceStorage::Embedded;
+        }
     }
     let rewritten = migrated || grew;
     let backup_path = if rewritten {

@@ -25,12 +25,14 @@ import {
   closeSource,
   currentSourceToken,
   nextSourceToken,
+  openPath,
   setError,
   setSource,
   setStatus,
   setWindowTitle,
   type ProbeInfo,
 } from "../source";
+import { askBrokenLink, setSourceStorage, syncSourceWatch } from "../sourceStorage";
 import { setView, setWindowEnd, setWindowStart } from "../timeline";
 import { flushAllUiState } from "../uiSync";
 import { dockApi, openTool, restoreLayout, TOOLS } from "../workbench";
@@ -43,7 +45,6 @@ import {
   setProjectPath,
   setProjectStatus,
   setProjectTitle,
-  setReferenceProject,
   setUpgradedFrom,
 } from "./signals";
 import type { AnalysisWindowDto, LayoutDto, SourceDescriptorDto } from "./types";
@@ -100,6 +101,19 @@ function applyDescriptor(descriptor: SourceDescriptorDto | null) {
   setMixSystemDeviceId(descriptor.mixSystemDeviceId ?? null);
   setTargetPid(descriptor.targetPid ?? null);
   setGainLevel(descriptor.gain);
+  // The file's storage choice is project content: the panel shows it and a re-save keeps it.
+  setSourceStorage(descriptor.storage);
+}
+
+/**
+ * A project whose source file could not be decoded opens with an empty timeline; offer
+ * to locate the file again. Cancel keeps the empty timeline (the panel still shows the
+ * mode the project was saved with).
+ */
+async function promptMissingLink(path: string | null) {
+  if ((await askBrokenLink("open", path)) !== "locate") return;
+  const picked = await invoke<string | null>("pick_audio_file");
+  if (picked) await openPath(picked, false, "linked");
 }
 
 /** Restore every store from a loaded project (the PCM already streamed in). */
@@ -261,8 +275,6 @@ export async function loadProject(path: string): Promise<boolean> {
       setProjectPath(path);
       setProjectTitle(projectLabel(path));
       setCreatedMs(loaded.createdMs || null);
-      // A reference project (no `DATA`) re-saves as a reference, not as a full copy.
-      setReferenceProject(!loaded.embedded);
       // A file from an older format version is migrated in memory; the core keeps the
       // project dirty until a save writes the current one (see `signals.ts`).
       setUpgradedFrom(loaded.upgradedFrom ?? null);
@@ -272,6 +284,9 @@ export async function loadProject(path: string): Promise<boolean> {
       // flush the coalesced push so the settle that `end_project_baseline` arms locks a
       // baseline of exactly this state rather than of the last push to land.
       await flushProjectPush();
+      // A live-link project watches its file while it is open (the core owns the watcher).
+      void syncSourceWatch();
+      if (loaded.linkMissing) void promptMissingLink(loaded.snapshot.source?.path ?? null);
       return true;
     } finally {
       // Re-arm the baseline even when the restore failed: state was partially replaced,

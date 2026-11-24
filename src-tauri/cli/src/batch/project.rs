@@ -10,6 +10,7 @@ use std::io::Write;
 use serde_json::{json, Value};
 
 use hey_listen_lib::mcp::dispatch::HeadlessSession;
+use hey_listen_lib::project::SourceStorage;
 
 use super::output::emit;
 use super::types::{Command, Request};
@@ -29,9 +30,16 @@ pub(super) fn run_project_save(
         open_tools,
         annotations,
         reference,
+        storage,
     } = &request.command
     else {
         return 2;
+    };
+    // `--storage` wins over the legacy `--reference` flag.
+    let storage = match storage {
+        Some(storage) => Some(*storage),
+        None if *reference => Some(SourceStorage::Linked),
+        None => None,
     };
 
     let summary = match open_source(session, source.as_deref(), synth.as_ref()) {
@@ -60,16 +68,19 @@ pub(super) fn run_project_save(
         }
     }
 
-    let saved = match session.dispatch(
-        "save_project",
-        json!({
-            "path": path,
-            "name": name,
-            "openTools": open_tools,
-            "annotations": Value::Array(annotations.clone()),
-            "embedSource": !reference,
-        }),
-    ) {
+    // The session's `save_project` takes one mode: `storage`, or the legacy `embedSource`
+    // boolean when the caller named none.
+    let mut args = json!({
+        "path": path,
+        "name": name,
+        "openTools": open_tools,
+        "annotations": Value::Array(annotations.clone()),
+    });
+    match storage {
+        Some(storage) => args["storage"] = json!(storage),
+        None => args["embedSource"] = json!(!*reference),
+    }
+    let saved = match session.dispatch("save_project", args) {
         Ok(saved) => saved,
         Err(message) => return fail(out, &message),
     };

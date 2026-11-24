@@ -7,7 +7,8 @@ use std::path::Path;
 
 use super::*;
 use hey_listen_lib::project::{
-    read_project, write_project_atomic, SaveProject, SourceDescriptor, SourceKind, VERSION,
+    read_project, write_project_atomic, SaveProject, SourceDescriptor, SourceKind, SourceStorage,
+    VERSION,
 };
 
 /// The committed **version-1** project (`e2e/fixtures/v1.heyl`), written by a 0.5.x build.
@@ -23,7 +24,7 @@ fn temp(name: &str) -> String {
         .into_owned()
 }
 
-/// A **reference** project (no `DATA`) at the current format version.
+/// A **linked** project (no `DATA`) at the current format version.
 fn reference_project(name: &str, wav: &str) -> String {
     let path = temp(name);
     let save = SaveProject {
@@ -32,6 +33,7 @@ fn reference_project(name: &str, wav: &str) -> String {
         source: Some(SourceDescriptor {
             kind: SourceKind::File,
             path: Some(wav.to_string()),
+            storage: SourceStorage::Linked,
             ..Default::default()
         }),
         setup: Default::default(),
@@ -163,6 +165,52 @@ fn a_v1_project_upgrades_in_place_with_a_backup() {
     assert_eq!(read_project(&mut backup).unwrap().format_version, 1);
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_current_linked_project_stays_linked() {
+    let path = reference_project("linked", "/nonexistent/recording.wav");
+    let before = bytes(&path);
+
+    let value = run_single(&migrate_request(vec![path.clone()], false, true));
+    assert_eq!(value["migrated"], false);
+    assert_eq!(value["embedded"], false);
+    assert_eq!(
+        bytes(&path),
+        before,
+        "a current linked project is not rewritten"
+    );
+
+    let mut file = std::fs::File::open(&path).unwrap();
+    let loaded = read_project(&mut file).unwrap();
+    assert!(loaded.pcm.is_none(), "a linked project keeps no DATA");
+    assert_eq!(
+        loaded.source.expect("a source").storage,
+        SourceStorage::Linked
+    );
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn embed_records_an_embedded_source() {
+    let wav = std::env::temp_dir().join(format!("hey_cli_embed_{}.wav", std::process::id()));
+    write_sine_wav(&wav, 8_000, 4_000);
+    let path = reference_project("embed-mode", &wav.to_string_lossy());
+
+    let value = run_single(&migrate_request(vec![path.clone()], true, false));
+    assert_eq!(value["embedded"], true);
+
+    let mut file = std::fs::File::open(&path).unwrap();
+    let loaded = read_project(&mut file).unwrap();
+    assert!(loaded.pcm.is_some());
+    assert_eq!(
+        loaded.source.expect("a source").storage,
+        SourceStorage::Embedded
+    );
+
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(&wav);
 }
 
 #[test]

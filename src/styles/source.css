@@ -213,3 +213,168 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* --- Storage mode (Source panel + the post-pick chooser) ---------------- */
+
+/* Three stacked radio cards (Kobalte `RadioGroup`); see `StorageCards.tsx`. The selected
+   card carries `storage-card-selected` from the controlled value, so the styling never
+   depends on which element Kobalte puts `data-checked` on. */
+.storage-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.storage-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  padding: 5px 7px;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.storage-card:hover {
+  background: var(--control);
+}
+
+/* Keyboard focus lands on Kobalte's hidden radio input; light up the whole card. */
+.storage-card:focus-within {
+  border-color: var(--accent);
+}
+
+.storage-card-selected {
+  background: var(--control);
+  border-color: var(--accent);
+}
+
+.storage-card-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.storage-card-disabled:hover {
+  background: var(--panel-3);
+}
+
+/* Keep the native radio (the focus/announcement target) out of sight and the layout. */
+.storage-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.storage-card-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+  background: var(--control-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+.storage-card-selected .storage-card-control {
+  border-color: var(--accent);
+}
+
+.storage-card-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.storage-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.storage-card-label {
+  font-size: 0.75rem;
+  color: var(--fg);
+}
+
+.storage-card-hint {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--fg-muted);
+}
+
+/* Why a card cannot be picked (one-way embedding), in place of its hint. */
+.storage-card-blocked {
+  font-size: 0.6875rem;
+  font-style: italic;
+  color: var(--fg-dim);
+}
+
+/* The compact "Add audio" strip has no room for three hints; the labels carry it. */
+/* The source summary's mode badge ("Linked", "Live link · watching"). */
+.source-storage-badge {
+  flex: none;
+  padding: 0 5px;
+  font-size: 0.625rem;
+  line-height: 1.5;
+  color: var(--fg-dim);
+  background: var(--control);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* --- Storage dialogs (post-pick chooser + missing link) ----------------- */
+
+/* The file the dialog is about: monospace, one truncated line. */
+.source-link-path {
+  margin: 10px 0 0;
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  color: var(--fg-dim);
+  background: var(--panel-3);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* The chooser's primary action ("Open"); the same tokens as the graph editor's. */
+.storage-dialog-primary {
+  color: var(--accent-soft-fg);
+  background: var(--primary-bg);
+  border-color: var(--border-accent);
+}
+
+.storage-dialog-primary:hover:not(:disabled) {
+  background: var(--primary-bg-hover);
+}
+
+/* Missing link: one row per action, with the one-line explanation beside it. */
+.source-link-choices {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 14px;
+}
+
+.source-link-hint {
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+}

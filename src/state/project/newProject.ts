@@ -19,7 +19,6 @@ import {
   setProjectError,
   setProjectPath,
   setProjectTitle,
-  setReferenceProject,
   setUpgradedFrom,
 } from "./signals";
 
@@ -52,7 +51,6 @@ export async function newProject(): Promise<void> {
   setProjectPath(null);
   setProjectTitle(null);
   setCreatedMs(null);
-  setReferenceProject(false);
   setUpgradedFrom(null);
   resetAnnotations();
   // Rebase the undo history on the fresh project, so it records no step and cannot step

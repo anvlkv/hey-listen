@@ -7,8 +7,13 @@ carries the source, the graphs, the settings, the analysis window, your annotati
 Workbench layout, and any saved comparisons. Reopen it and you are back where you were.
 
 The Toolbar shows the project name and marks unsaved changes. When you close a project
-with unsaved work, Hey Listen asks first. File audio can be **embedded** in the project
-or **referenced** by path.
+with unsaved work, Hey Listen asks first. File audio is **embedded**, **linked** by
+path, or **live-linked** — see [Open or record a source](002_sources.md).
+
+A linked project whose file has gone missing still opens, with an empty Timeline; a
+dialog offers to **locate the file** again, and saving with a link that cannot be
+resolved offers to embed the audio still in memory instead of writing a project that
+could not reopen.
 
 Older project files open normally and are upgraded on open; save them to keep the
 newer format. Open a project from the recent list, from the file picker, or straight from

@@ -9,6 +9,7 @@ import {
   fetchSaved,
   openCompare,
   openCompareSaved,
+  savedInfo,
   setReference,
   setSavedReference,
 } from "./views";
@@ -129,6 +130,31 @@ export async function pickSavedComparison(tool: AnalyzerId, info: SavedCompariso
   } else {
     await openCompareSaved(tool, undefined, info);
   }
+}
+
+/**
+ * The open project that **is** the saved reference's project, or `null`.
+ *
+ * Both sides are absolute paths as the core recorded them, so they compare as plain
+ * strings. This lives here rather than in `views.ts` because `picker.ts` already imports
+ * `views.ts`; the other direction would close a module cycle.
+ */
+export function openReferenceTarget(tool: AnalyzerId, id: string): CompareTargetDto | null {
+  const path = savedInfo(tool, id)?.referencePath;
+  if (!path) return null;
+  return compareTargets().find((target) => target.path === path) ?? null;
+}
+
+/**
+ * Refresh a saved comparison from the reference project that is now open, by binding the
+ * view to it: it re-runs as a live comparison, which also refreshes the snapshot, its
+ * stored audio and the result. Returns whether a target matched; never opens a tab.
+ */
+export async function updateFromOpenReference(tool: AnalyzerId, id: string): Promise<boolean> {
+  const target = openReferenceTarget(tool, id);
+  if (!target) return false;
+  setReference(tool, id, target.label);
+  return true;
 }
 
 /** A project's one-line shape label (`48 kHz · 1 ch · 12.4 s`). */

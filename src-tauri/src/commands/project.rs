@@ -18,7 +18,9 @@ use crate::audio::analysis::compare::SavedComparisonInfo;
 use crate::audio::analyzers::AnalyzerId;
 use crate::audio::STREAM_CHUNK_SAMPLES;
 use crate::commands::stream;
-use crate::project::{read_project, write_project_atomic, ProjectError, SaveProject};
+use crate::project::{
+    read_project, write_project_atomic, ProjectError, SaveProject, SourceKind, SourceStorage,
+};
 use crate::state::{window_state, ProjectSnapshot};
 
 pub mod open_paths;
@@ -58,10 +60,6 @@ pub struct SaveProjectRequest {
     /// Preserve the creation time when re-saving a loaded project; `None` = now.
     #[serde(default)]
     pub created_ms: Option<u64>,
-    /// Embed the source PCM in `DATA` (default). `false` writes a **reference** project:
-    /// the `SOURCE` descriptor keeps the file path and the loader decodes it again.
-    #[serde(default = "embed_source_default")]
-    pub embed_source: bool,
     /// The frontend's analyzer result cache (the file's `RESULTS` section — not undoable).
     #[serde(default)]
     pub results: Vec<results::CachedResultInput>,
@@ -69,10 +67,6 @@ pub struct SaveProjectRequest {
     /// The core writes each one's last successful reference snapshot from its own state.
     #[serde(default)]
     pub compare_open: Vec<CompareOpen>,
-}
-
-fn embed_source_default() -> bool {
-    true
 }
 
 /// What [`load_project`] returns. The `DATA` samples stream separately over the
@@ -90,6 +84,8 @@ pub struct LoadedProjectDto {
     pub compare: Vec<SavedComparisonInfo>,
     /// Whether the file embedded its audio (`DATA`).
     pub embedded: bool,
+    /// The file referenced the source but it could not be decoded (the link is missing).
+    pub link_missing: bool,
     /// The format version the file was migrated from, or `None`.
     pub upgraded_from: Option<u32>,
     /// The project's creation time (Unix ms).
@@ -120,18 +116,35 @@ pub async fn save_project(
     let compare = state.saved_comparisons_for(&open_ids);
 
     tauri::async_runtime::spawn_blocking(move || {
-        // A reference project only makes sense for a file source: the loader can
-        // decode the path again. Synths and live captures keep their audio.
-        let reference = !request.embed_source
-            && snapshot.source.as_ref().is_some_and(|source| {
-                source.kind == crate::project::SourceKind::File && source.path.is_some()
-            });
+        // `DATA` is written iff the (normalised) source is embedded. A linked source keeps
+        // its path in `SOURCE` and the loader decodes it again; a synth or live capture
+        // has no file to link and is always embedded.
+        let embed = snapshot
+            .source
+            .as_ref()
+            .is_none_or(|source| source.storage == SourceStorage::Embedded);
+        if !embed {
+            let base = Path::new(&path).parent();
+            if let Some(source) = snapshot.source.as_ref() {
+                if crate::project::resolve_link(source, base).is_none() {
+                    let linked = source
+                        .path
+                        .clone()
+                        .or_else(|| source.relative_path.clone())
+                        .unwrap_or_default();
+                    return Err(ProjectError::Io(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("the linked source is missing: {linked}"),
+                    )));
+                }
+            }
+        }
         // Snapshot the PCM under a **short** lock: the disk write must not hold it, or a
         // large save to slow storage stalls the capture appender (audit P2 #4).
-        let pcm = if reference {
-            None
-        } else {
+        let pcm = if embed {
             state.audio.snapshot_source()
+        } else {
+            None
         };
         let save = SaveProject {
             name: snapshot.name,
@@ -177,12 +190,14 @@ pub async fn load_project(
     .ok_or(ProjectError::Superseded)?;
 
     let loaded = tauri::async_runtime::spawn_blocking(move || {
+        let base_dir = Path::new(&path).parent().map(Path::to_path_buf);
         let mut file = File::open(&path)?;
         let mut loaded = read_project(&mut file)?;
-        // A reference project has no `DATA`; decode its file source in the same
-        // blocking task (a long recording must not stall the async runtime).
+        // A linked project has no `DATA`; decode its file source in the same blocking task
+        // (a long recording must not stall the async runtime).
         if loaded.pcm.is_none() {
-            loaded.pcm = crate::project::decode_reference(loaded.source.as_ref());
+            loaded.pcm =
+                crate::project::decode_reference(loaded.source.as_ref(), base_dir.as_deref());
         }
         Ok::<_, ProjectError>(loaded)
     })
@@ -206,6 +221,11 @@ pub async fn load_project(
     // The project content travels as one projection; its `compare` stays empty because a
     // load's comparisons are the saved snapshots the compact field below restores.
     let created_ms = meta.created_ms;
+    let link_missing = !embedded
+        && source
+            .as_ref()
+            .is_some_and(|source| source.kind == SourceKind::File)
+        && pcm.is_none();
     let snapshot = ProjectSnapshot {
         name: meta.name,
         source,
@@ -255,6 +275,7 @@ pub async fn load_project(
         results: to_cached(stored_results),
         compare: compare_infos,
         embedded,
+        link_missing,
         upgraded_from,
         created_ms,
         sample_rate,
@@ -290,4 +311,45 @@ pub async fn pick_project_save_path(app: AppHandle, default_name: String) -> Opt
 
 fn join_error(err: impl std::fmt::Display) -> ProjectError {
     ProjectError::Io(std::io::Error::other(err.to_string()))
+}
+
+/// Whether a project's source link still resolves, for the save dialog's warning.
+#[derive(Debug, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SourceLinkCheck {
+    /// How the project would persist its audio.
+    pub storage: SourceStorage,
+    /// The recorded source path (`None` for a synth or live capture).
+    pub path: Option<String>,
+    /// Whether the audio is available: always `true` for an embedded source.
+    pub exists: bool,
+}
+
+/// Check the current source link against the project file's folder.
+#[tauri::command]
+pub fn source_link_check(window: WebviewWindow) -> SourceLinkCheck {
+    let state = window_state(&window);
+    let source = state.project_snapshot().source;
+    let project_dir = state
+        .ui_snapshot()
+        .get("project")
+        .and_then(|value| value.get("path"))
+        .and_then(|path| path.as_str())
+        .filter(|path| !path.is_empty())
+        .and_then(|path| Path::new(path).parent().map(Path::to_path_buf));
+    let Some(source) = source else {
+        return SourceLinkCheck {
+            storage: SourceStorage::Embedded,
+            path: None,
+            exists: true,
+        };
+    };
+    let exists = source.storage == SourceStorage::Embedded
+        || crate::project::resolve_link(&source, project_dir.as_deref()).is_some();
+    SourceLinkCheck {
+        storage: source.storage,
+        path: source.path,
+        exists,
+    }
 }

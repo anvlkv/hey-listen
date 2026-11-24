@@ -136,6 +136,9 @@ pub struct Comparability {
     pub mismatches: Vec<Mismatch>,
     /// Both sides are compared **as processed**; a differing filter is listed, not fixed.
     pub filters_differ: bool,
+    /// The saved reference was re-run on this grid from its stored fragment, so `aligned`
+    /// describes the rebuilt result rather than the snapshot's original grid.
+    pub regridded: bool,
 }
 
 /// The grid a tool's result sits on, as far as a numeric delta is concerned.
@@ -231,6 +234,7 @@ pub fn comparability(
         overlap,
         mismatches,
         filters_differ,
+        regridded: false,
     }
 }
 

@@ -37,6 +37,9 @@ const DEBOUNCE_MS = 200;
 /** How often the elapsed run time is republished to the view, in ms. */
 const ELAPSED_TICK_MS = 500;
 
+/** The successful run's closing note when the saved reference was re-gridded (M25.C). */
+const REGRIDDED_RUN_NOTE = "reference re-gridded onto this window's grid";
+
 export interface CompareHandle {
   comparison: () => ComparisonDto | null;
   error: () => string | null;
@@ -171,7 +174,9 @@ export function createComparison(
         reply.comparability.filtersDiffer,
       );
       if (warning) log.warn(warning);
-      log.finish("ok");
+      // A re-gridded saved reference is not a warning: its stored audio was re-analysed on
+      // this window's grid, which is why the delta has a counterpart everywhere.
+      log.finish("ok", reply.comparability.regridded ? REGRIDDED_RUN_NOTE : undefined);
     } catch (err) {
       if (token !== generation) {
         log?.finish("cancelled", "superseded");

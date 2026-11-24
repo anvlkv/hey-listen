@@ -2,6 +2,7 @@
 
 use super::*;
 use hey_listen_lib::audio::analyzers::ToolId;
+use hey_listen_lib::project::SourceStorage;
 
 #[test]
 fn project_maps_source_tabs_annotations_and_window() {
@@ -46,6 +47,39 @@ fn project_maps_source_tabs_annotations_and_window() {
     assert_eq!(request.start, Some(0.1));
     assert_eq!(request.end, Some(0.2));
     let _ = std::fs::remove_file(annotations_path);
+}
+
+#[test]
+fn project_parses_storage_and_keeps_the_reference_flag() {
+    // `--reference` stays the legacy spelling of "linked"; `--storage` is the explicit one.
+    let reference = matches(&[
+        ("dest", json!("/tmp/out.heyl")),
+        ("source", json!("/tmp/in.wav")),
+        ("reference", json!(true)),
+    ]);
+    let request = build_request("project", &reference).unwrap();
+    match &request.command {
+        Command::ProjectSave {
+            reference, storage, ..
+        } => {
+            assert!(*reference);
+            assert_eq!(*storage, None);
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+
+    let explicit = matches(&[
+        ("dest", json!("/tmp/out.heyl")),
+        ("source", json!("/tmp/in.wav")),
+        ("storage", json!("live-link")),
+    ]);
+    let request = build_request("project", &explicit).unwrap();
+    match &request.command {
+        Command::ProjectSave { storage, .. } => {
+            assert_eq!(*storage, Some(SourceStorage::LiveLink));
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
 }
 
 #[test]

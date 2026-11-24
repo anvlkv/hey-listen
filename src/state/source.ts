@@ -1,11 +1,25 @@
 import { invoke } from "../lib/ipc";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { createSignal } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import { pcmStream } from "../lib/pcmStream";
 import type { ProbeInfo } from "../bindings/ProbeInfo";
+import type { SourceStorage } from "../bindings/SourceStorage";
 import type { StreamSummary } from "../bindings/StreamSummary";
 import type { ChannelPick, Peaks } from "../lib/waveform";
-import { resetTimeline } from "./timeline";
+import { annotations } from "./annotations/signals";
+import { replaceAnnotations } from "./annotations/mutations";
+import { askStorage, rememberedStorage, setSourceStorage, syncSourceWatch } from "./sourceStorage";
+import {
+  resetTimeline,
+  setView,
+  setWindowEnd,
+  setWindowStart,
+  viewEnd,
+  viewStart,
+  windowEnd,
+  windowStart,
+} from "./timeline";
+import { clampViewRange } from "./timelineView";
 import { resetChartViews } from "./chartSync";
 
 const BASE_TITLE = "Hey Listen";
@@ -124,6 +138,10 @@ export function closeSource() {
   resetChartViews();
   setSourceRevision((revision) => revision + 1);
   void setWindowTitle();
+  // Nothing is left to store as the project's source: go back to the remembered default
+  // (the panel preselects it) and stop watching a file the project no longer has.
+  setSourceStorage(rememberedStorage());
+  void syncSourceWatch();
 }
 
 /**
@@ -166,12 +184,91 @@ export function finalizeSource(opts: {
   void setWindowTitle(opts.name);
 }
 
+/** The shortest window an in-place shrink leaves behind (matches the Timeline's floor). */
+const MIN_WINDOW_SECONDS = 1e-3;
+
+/**
+ * Clamp the analysis window and the viewport into a shrunken source, preserving as much
+ * as possible. Growing never moves either.
+ */
+function clampTimeline(duration: number) {
+  const start = Math.max(0, Math.min(windowStart(), duration));
+  const end = Math.max(0, Math.min(windowEnd(), duration));
+  if (end - start >= MIN_WINDOW_SECONDS) {
+    setWindowStart(start);
+    setWindowEnd(end);
+  } else {
+    const span = Math.max(
+      MIN_WINDOW_SECONDS,
+      Math.min(Math.max(0, windowEnd() - windowStart()), duration),
+    );
+    const nextEnd = Math.min(duration, Math.max(end, span));
+    setWindowStart(Math.max(0, nextEnd - span));
+    setWindowEnd(nextEnd);
+  }
+  const [lo, hi] = clampViewRange(viewStart(), viewEnd(), duration);
+  setView(lo, hi);
+}
+
+/**
+ * Overwrite the current source **in place** (no timeline/window/history reset).
+ *
+ * The caller has already installed the PCM in the core — a synth render, or a reload of
+ * a live-linked file — so the transport may reload rather than stop. `origin` is kept
+ * from the current source unless the caller names one, so an in-place file reload of a
+ * file source stays a file source.
+ */
+export function applySourceInPlace(opts: {
+  samples: Float32Array;
+  sampleRate: number;
+  channels: number;
+  origin?: AudioSource["origin"];
+  /** File metadata to replace; omitted, the current source's probe is kept. */
+  probe?: ProbeInfo;
+}) {
+  const current = source();
+  if (!current) return;
+  const channels = Math.max(1, opts.channels);
+  const frames = Math.floor(opts.samples.length / channels);
+  const duration = opts.sampleRate > 0 ? frames / opts.sampleRate : 0;
+  const next: AudioSource = {
+    ...current,
+    samples: opts.samples,
+    frames,
+    sampleRate: opts.sampleRate,
+    channels,
+    duration,
+    origin: opts.origin ?? current.origin,
+    probe: opts.probe ?? current.probe,
+    live: false,
+    peaks: undefined,
+    peaksChannel: undefined,
+  };
+  markKeepsTransport(next);
+  // Shrinking can push an annotation past the new end; growing never does.
+  const shrunk = duration < current.duration;
+  // One batch: the transport and the project push both subscribe to these stores, so a
+  // separate write per store would cascade a full pass for each one.
+  batch(() => {
+    setSource(next);
+    clampTimeline(duration);
+    if (shrunk) replaceAnnotations(annotations());
+  });
+}
+
 /**
  * Open a file source: probe it, then stream + assemble the decoded PCM.
  * Replaces any existing source (the whole timeline changes). Returns whether the file
  * became the source (a failed or superseded open returns `false`).
+ *
+ * `storage` is how the project will keep this audio; omitted, the remembered default
+ * applies (an MCP caller names it, the picker dialog asks).
  */
-export async function openPath(path: string, confirm = true): Promise<boolean> {
+export async function openPath(
+  path: string,
+  confirm = true,
+  storage?: SourceStorage,
+): Promise<boolean> {
   // Replacing an existing source discards the timeline (and its analysis window).
   // The MCP server can pass `confirm = false` when the agent explicitly replaces.
   if (confirm && source() != null) {
@@ -235,11 +332,19 @@ export async function openPath(path: string, confirm = true): Promise<boolean> {
     channels,
     probe,
   });
+  // The audio is this file's now, stored the way the user (or a script) asked — or the
+  // way they last chose. A live link then starts the core's watcher on it.
+  setSourceStorage(storage ?? rememberedStorage());
+  void syncSourceWatch();
   return true;
 }
 
-/** Show the native file picker and open the chosen file, if any. */
+/** Show the native file picker, ask how to store the audio, and open the chosen file. */
 export async function openFileDialog() {
   const path = await invoke<string | null>("pick_audio_file");
-  if (path) await openPath(path);
+  if (!path) return;
+  const storage = await askStorage(path);
+  // A cancelled chooser cancels the open, not just the mode.
+  if (!storage) return;
+  await openPath(path, true, storage);
 }

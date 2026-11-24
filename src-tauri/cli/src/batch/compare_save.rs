@@ -8,7 +8,9 @@
 
 use hey_listen_lib::audio::analysis::compare::SavedComparison;
 use hey_listen_lib::project::side::Side;
-use hey_listen_lib::project::{write_project_atomic, AnalysisWindow, SaveProject, SourceKind};
+use hey_listen_lib::project::{
+    write_project_atomic, AnalysisWindow, SaveProject, SourceKind, SourceStorage,
+};
 
 use super::types::{Command, Request};
 
@@ -47,10 +49,17 @@ pub(super) fn save_owner(
 
     // A reference project stays a reference project (no PCM); anything else embeds the
     // audio we decoded, so the saved owner is self-contained.
-    let can_reference = !a.embedded
-        && a.source
-            .as_ref()
-            .is_some_and(|source| source.kind == SourceKind::File && source.path.is_some());
+    let mut source = a.source.clone();
+    let can_reference = source.as_ref().is_some_and(|descriptor| {
+        descriptor.storage != SourceStorage::Embedded
+            && descriptor.kind == SourceKind::File
+            && descriptor.path.is_some()
+    });
+    if !can_reference {
+        if let Some(descriptor) = source.as_mut() {
+            descriptor.storage = SourceStorage::Embedded;
+        }
+    }
     let guard = a
         .state
         .audio
@@ -60,7 +69,7 @@ pub(super) fn save_owner(
     let save = SaveProject {
         name: a.name.clone(),
         created_ms: Some(a.created_ms),
-        source: a.source.clone(),
+        source,
         setup,
         layout,
         results: Vec::new(),

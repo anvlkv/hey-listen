@@ -21,8 +21,8 @@ pub(super) fn tools() -> Vec<Value> {
              and reopens as a compare tab. In headless mode `path` is required and the file is \
              built from the session's source + setup + the `annotations` you pass (there is no \
              Workbench layout; `openTools` are restored as tabs when the app opens the file, \
-             defaulting to the tabs opened with `open_tool`). `embedSource: false` writes a \
-             reference project instead of embedding the audio.",
+             defaulting to the tabs opened with `open_tool`). `storage: \"linked\"` keeps the \
+             source path instead of embedding the audio (a synth or capture cannot be linked).",
             json!({
                 "type": "object",
                 "properties": {
@@ -40,7 +40,12 @@ pub(super) fn tools() -> Vec<Value> {
                     },
                     "embedSource": {
                         "type": "boolean",
-                        "description": "Embed the source PCM in DATA (default true). false writes a reference project for a file source: the SOURCE path is kept and the loader decodes it again. Ignored for synth sources.",
+                        "description": "Legacy alias for `storage`: false is `linked`, true is `embedded`. Used only when `storage` is absent.",
+                    },
+                    "storage": {
+                        "type": "string",
+                        "enum": ["embedded", "linked", "liveLink"],
+                        "description": "How the file persists the audio. `linked` keeps the source path and the loader decodes it again; a synth or capture cannot be linked.",
                     },
                 },
                 "additionalProperties": false,

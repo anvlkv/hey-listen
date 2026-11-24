@@ -14,7 +14,16 @@ import type { MismatchDto, Span } from "./types";
  */
 
 /** One kind of notice a comparison can raise. */
-export type NoticeKind = "saved" | "closed" | "error" | "span" | "clipped" | "mismatch";
+export type NoticeKind =
+  | "saved"
+  | "closed"
+  | "error"
+  | "span"
+  | "clipped"
+  | "mismatch"
+  | "regridded"
+  | "no-fragment"
+  | "update";
 
 /** The reference is the project's saved snapshot rather than a live project. */
 export const SAVED_REFERENCE_NOTE =
@@ -31,6 +40,24 @@ export const CLIPPED_NOTE =
 /** The shifted windows share no span at all, so there is nothing to diff. */
 export const NO_MEETING_NOTE = "The shifted windows do not meet — adjust the fine-tune offset";
 
+/**
+ * The saved reference carries its window's audio, so the core re-analysed it on **this**
+ * window's grid: the delta has a counterpart on every frame (M25.C).
+ */
+export const REGRIDDED_NOTE =
+  "The reference audio is stored with the comparison, so it was re-analysed on this window's grid.";
+
+/** A pre-v8 snapshot has no stored audio, so it can only be shown on its own grid. */
+export const NO_FRAGMENT_NOTE =
+  "This saved reference has no stored audio (saved before v8), so it is shown on its own grid.";
+
+/** The reference project is open, so the comparison can be re-linked to it. */
+export const UPDATE_NOTE =
+  "The reference project is open, so the comparison can be refreshed from it.";
+
+/** The update row's action: bind the view to that open project (a live comparison). */
+export const UPDATE_ACTION_LABEL = "Update from the open reference";
+
 /** The dismiss button's accessible name, per notice kind. */
 const DISMISS_LABELS: Record<NoticeKind, string> = {
   saved: "Dismiss the saved-reference notice",
@@ -39,6 +66,9 @@ const DISMISS_LABELS: Record<NoticeKind, string> = {
   span: "Dismiss the common-span notice",
   clipped: "Dismiss the clipping notice",
   mismatch: "Dismiss the differing-settings notice",
+  regridded: "Dismiss the re-gridded notice",
+  "no-fragment": "Dismiss the no-stored-audio notice",
+  update: "Dismiss the update-reference notice",
 };
 
 export function dismissLabel(kind: NoticeKind): string {

@@ -72,7 +72,7 @@ export function startRun(kind: RunKind, label: string, note?: () => string | nul
     finished = true;
     clearTimer();
     const extra = detail ? `: ${detail}` : "";
-    if (outcome === "ok") emit("info", `${kind} ${label} finished in ${elapsed()}`);
+    if (outcome === "ok") emit("info", `${kind} ${label} finished in ${elapsed()}${extra}`);
     else if (outcome === "cancelled")
       emit("info", `${kind} ${label} cancelled after ${elapsed()}${extra}`);
     else emit("warn", `${kind} ${label} failed after ${elapsed()}${extra}`);

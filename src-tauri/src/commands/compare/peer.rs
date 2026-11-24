@@ -123,6 +123,8 @@ pub struct CompareTarget {
     pub source: Option<SourceShape>,
     pub window: Option<Span>,
     pub has_filter: bool,
+    /// The project's file path, when it has been saved (a comparison records it).
+    pub path: Option<String>,
     /// A project with no source (or a brand-new window) is listed but disabled.
     pub ready: bool,
 }
@@ -146,6 +148,7 @@ pub fn compare_targets(window: WebviewWindow) -> Vec<CompareTarget> {
                 name: project_name(&state).unwrap_or_else(|| label.clone()),
                 window: Some(UiWindow::read(&state.ui_snapshot(), &state).span()),
                 has_filter: has_filter(&state),
+                path: project_path(&state),
                 ready: source.is_some(),
                 source,
                 label,

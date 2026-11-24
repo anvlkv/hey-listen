@@ -73,6 +73,10 @@ export interface ComparabilityDto {
   overlap: Span | null;
   mismatches: MismatchDto[];
   filtersDiffer: boolean;
+  /** The saved reference was re-analysed on **this** window's grid from the audio stored
+   * with the comparison, so the delta always has a counterpart (M25.C). `false` for a live
+   * reference and for a pre-v8 snapshot, which has no stored audio. */
+  regridded: boolean;
 }
 
 /** The stats of a numeric delta (`B − A`). */
@@ -269,6 +273,9 @@ export interface CompareTargetDto {
   hasFilter: boolean;
   /** False for a project with no source: listed but disabled. */
   ready: boolean;
+  /** The open project's `.heyl` file, as the core recorded it; `null` for a project that
+   * was never saved. A saved reference's `referencePath` is matched against it. */
+  path: string | null;
 }
 
 /** A compare view a popout shows (registered in the core). */

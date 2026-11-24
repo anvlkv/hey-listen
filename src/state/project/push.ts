@@ -9,6 +9,7 @@ import { annotations, replaceAnnotations } from "../annotations";
 import { filterEnabled, graphLayout, loadGraph, setFilterEnabled } from "../graph";
 import { resetSystems } from "../workbench";
 import { source, sourceRevision } from "../source";
+import { sourceStorage } from "../sourceStorage";
 import {
   setView,
   setWindowEnd,
@@ -163,6 +164,9 @@ function trackProjectState() {
   viewStart();
   viewEnd();
   openTools();
+  // The source's storage mode is project content (`SOURCE.storage`), so a switch to
+  // linked or live-link is an undoable edit like any other.
+  sourceStorage();
   // The dockview layout is tracked by its revision, not by serializing it here.
   layoutRevision();
   source();

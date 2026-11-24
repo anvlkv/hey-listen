@@ -5,6 +5,7 @@ import {
   compareSignature,
   openCompareTabs,
   pruneViews,
+  savedInfo,
   setCompareFingerprint,
   setCompareViews,
   setReference,
@@ -56,6 +57,7 @@ function comparisonFor(
       overlap: null,
       mismatches: [],
       filtersDiffer: false,
+      regridded: false,
     },
   } as ComparisonDto;
 }
@@ -92,6 +94,9 @@ it("a saved reference restores its offset, and retargeting a live project resets
     bOffset: 0.25,
     savedMs: 1,
     fingerprint: "abc",
+    hasFragment: true,
+    sourcePath: null,
+    referencePath: "/tmp/ref.heyl",
   };
   setSavedReference("spectrum", "cmp-test", info);
   expect(compareOffset("spectrum", "cmp-test")).toBe(0.25);
@@ -99,10 +104,16 @@ it("a saved reference restores its offset, and retargeting a live project resets
     kind: "saved",
     reference: "Ref project",
   });
+  expect(savedInfo("spectrum", "cmp-test")).toEqual({
+    hasFragment: true,
+    sourcePath: null,
+    referencePath: "/tmp/ref.heyl",
+  });
 
   // Reconnecting a live project resets the fine-tune offset (M25.C).
   setReference("spectrum", "cmp-test", "project-1");
   expect(compareOffset("spectrum", "cmp-test")).toBe(0);
+  expect(savedInfo("spectrum", "cmp-test")).toBeNull();
   expect(viewFor("spectrum", "cmp-test")?.binding).toEqual({
     kind: "live",
     reference: "project-1",

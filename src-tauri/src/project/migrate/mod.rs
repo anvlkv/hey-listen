@@ -38,12 +38,14 @@ mod v3;
 mod v4;
 mod v5;
 mod v6;
+mod v7;
 
 /// Convert a frozen `SavedComparisonVn` into today's [`SavedComparison`].
 ///
 /// Every step that freezes a snapshot beside the *result* field writes the same field
 /// list, so the conversion lives here **once**: a step names its frozen type and the
-/// macro expands the `From` impl.
+/// macro expands the `From` impl. Every frozen type predates the trailing `fragment` and
+/// `source_path`, so both are `None`.
 macro_rules! frozen_saved_comparison {
     ($frozen:ty) => {
         impl From<$frozen> for $crate::audio::analysis::compare::SavedComparison {
@@ -63,6 +65,8 @@ macro_rules! frozen_saved_comparison {
                     id: old.id,
                     owner_window: old.owner_window,
                     owner_channel: old.owner_channel,
+                    fragment: None,
+                    source_path: None,
                 }
             }
         }
@@ -168,7 +172,8 @@ pub(crate) struct Step {
 /// a snapshot its pair id and pinned owner side; `v3` appends `gate` / `bandLabels` to the
 /// stored comparison result; `v4` appends the annotation `summary`; `v5` drops the
 /// analysis output that nests the changed `ModulationResult` (D-18); `v6` adds the
-/// optional nested `subgraph` to the source graph's nodes (M40).
+/// optional nested `subgraph` to the source graph's nodes (M40); `v7` adds the source's
+/// `storage` / `relativePath` and the comparison's reference audio.
 const STEPS: &[Step] = &[
     Step {
         from: 1,
@@ -193,6 +198,10 @@ const STEPS: &[Step] = &[
     Step {
         from: 6,
         apply: v6::from_v6_to_v7,
+    },
+    Step {
+        from: 7,
+        apply: v7::from_v7_to_v8,
     },
 ];
 

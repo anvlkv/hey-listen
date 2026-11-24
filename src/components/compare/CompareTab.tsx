@@ -178,6 +178,8 @@ export default function CompareTab(props: {
                   onRetry={retry}
                 />
                 <CompareNotices
+                  tool={props.tool}
+                  id={props.id}
                   comparison={comparison()}
                   live={live}
                   error={run.error}

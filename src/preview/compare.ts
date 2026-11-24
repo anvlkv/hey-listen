@@ -165,6 +165,7 @@ export function comparisonFixture(
       overlap: WINDOW,
       mismatches: [],
       filtersDiffer: false,
+      regridded: false,
     },
     diff,
     savedFingerprint: "preview-fixture",

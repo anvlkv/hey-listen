@@ -10,6 +10,7 @@ import { parseComparePanel } from "../compare/id";
 import type { CompareViewDto } from "../compare/types";
 import { filterActive, filterEnabled, graphLayout, FILTER_GRAPH, SYNTH_GRAPH } from "../graph";
 import { source } from "../source";
+import { sourceStorage } from "../sourceStorage";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { layoutJson, openCompareIds, openTools } from "../workbench";
 import { projectLabel } from "./paths";
@@ -24,7 +25,7 @@ import type { AnalysisSetupDto, CompareOpenDto, LayoutDto, SourceDescriptorDto }
  * and the save that writes them.
  */
 
-/** Fill a `SOURCE` descriptor's unused fields with null (the core defaults them too). */
+/** Fill a `SOURCE` descriptor's unused fields (the core defaults them too). */
 function descriptor(
   fields: Partial<SourceDescriptor> & Pick<SourceDescriptor, "kind">,
 ): SourceDescriptor {
@@ -36,6 +37,9 @@ function descriptor(
     targetPid: null,
     gain: 1,
     graph: null,
+    // Synth and capture sources are always embedded; a file source overrides this.
+    storage: "embedded",
+    relativePath: null,
     ...fields,
   };
 }
@@ -45,7 +49,14 @@ export function currentDescriptor(): SourceDescriptorDto | null {
   const current = source();
   if (!current) return null;
   const pick = choice();
-  if (pick === "file") return descriptor({ kind: "file", path: current.probe?.path ?? null });
+  if (pick === "file") {
+    return descriptor({
+      kind: "file",
+      path: current.probe?.path ?? null,
+      // How a save persists the audio is the user's choice (`state/sourceStorage.ts`).
+      storage: sourceStorage(),
+    });
+  }
   if (pick === "synth") {
     return descriptor({ kind: "synth", graph: toSpec(SYNTH_GRAPH.nodes, SYNTH_GRAPH.edges) });
   }

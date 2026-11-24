@@ -3,8 +3,12 @@ import Button from "../Button";
 import Icon from "../Icon";
 import {
   CLIPPED_NOTE,
+  NO_FRAGMENT_NOTE,
   REFERENCE_CLOSED_NOTE,
+  REGRIDDED_NOTE,
   SAVED_REFERENCE_NOTE,
+  UPDATE_ACTION_LABEL,
+  UPDATE_NOTE,
   commonSpanNote,
   dismissLabel,
   mismatchDetail,
@@ -12,6 +16,9 @@ import {
   type CompareNoticeState,
   type NoticeKind,
 } from "../../state/compare/notices";
+import { openReferenceTarget, updateFromOpenReference } from "../../state/compare/picker";
+import { savedInfo } from "../../state/compare/views";
+import type { AnalyzerId } from "../../state/analyzer";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { ComparisonDto } from "../../state/compare/types";
 import type { CompareTime } from "./time";
@@ -24,6 +31,8 @@ interface NoticeRow {
   text: string;
   /** Per-key lines, rendered as a disclosure (`mismatch` only). */
   detail?: string[];
+  /** One small text button on the row (`update` only). */
+  action?: { label: string; testId: string; run: () => void };
 }
 
 /**
@@ -37,8 +46,15 @@ interface NoticeRow {
  * charts and the delta stay. A closed reference is also what a run fails on, so the
  * closed row replaces the error row rather than stacking a second warning on the same
  * failure.
+ *
+ * A **saved** reference adds what its snapshot can and cannot do: whether it was
+ * re-gridded from stored audio, or has none (a pre-v8 snapshot) — and, when its project
+ * is open, the row action that re-links the view to it.
  */
 export default function CompareNotices(props: {
+  /** The comparison's tool and id: the saved snapshot's capabilities are keyed by them. */
+  tool: AnalyzerId;
+  id: string;
   comparison: ComparisonDto;
   live: CompareLiveHandle;
   /** The run error, when a re-run failed and the last result is still shown. */
@@ -55,8 +71,34 @@ export default function CompareNotices(props: {
 
   const rows = createMemo<NoticeRow[]>(() => {
     const list: NoticeRow[] = [];
+    const mismatches = props.comparison.comparability.mismatches;
     if (props.saved) {
       list.push({ kind: "saved", testId: "compare.saved-banner", text: SAVED_REFERENCE_NOTE });
+    }
+    // How the saved reference met this window's grid: re-gridded from its stored audio,
+    // or — with none, a pre-v8 snapshot — shown on its own grid (which is why settings
+    // can differ). The two are mutually exclusive: re-gridding needs the stored audio.
+    if (props.comparison.comparability.regridded) {
+      list.push({ kind: "regridded", testId: "compare.regridded", text: REGRIDDED_NOTE });
+    } else if (
+      props.saved &&
+      !savedInfo(props.tool, props.id)?.hasFragment &&
+      mismatches.length > 0
+    ) {
+      list.push({ kind: "no-fragment", testId: "compare.no-fragment", text: NO_FRAGMENT_NOTE });
+    }
+    // The reference project itself is open: one click rebinds this view to it.
+    if (props.saved && openReferenceTarget(props.tool, props.id)) {
+      list.push({
+        kind: "update",
+        testId: "compare.update",
+        text: UPDATE_NOTE,
+        action: {
+          label: UPDATE_ACTION_LABEL,
+          testId: "compare.update.action",
+          run: () => void updateFromOpenReference(props.tool, props.id),
+        },
+      });
     }
     const failure = props.error();
     if (closed()) {
@@ -72,7 +114,6 @@ export default function CompareNotices(props: {
     if (props.comparison.diff?.kind === "waveform" && clipped && common()) {
       list.push({ kind: "clipped", testId: "compare.waveform.note", text: CLIPPED_NOTE });
     }
-    const mismatches = props.comparison.comparability.mismatches;
     if (mismatches.length > 0) {
       list.push({
         kind: "mismatch",
@@ -101,6 +142,17 @@ export default function CompareNotices(props: {
                       <For each={lines()}>{(line) => <li>{line}</li>}</For>
                     </ul>
                   </details>
+                )}
+              </Show>
+              <Show when={row.action}>
+                {(action) => (
+                  <Button
+                    class="compare-notice-action"
+                    data-testid={action().testId}
+                    onClick={action().run}
+                  >
+                    {action().label}
+                  </Button>
                 )}
               </Show>
               <Button

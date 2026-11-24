@@ -58,6 +58,7 @@ import {
   saveProjectTo,
 } from "../project";
 import { closeSource, openPath } from "../source";
+import { resolveStorage, setSourceStorage } from "../sourceStorage";
 import { renderSynth } from "../synth";
 import { setView, windowEnd, windowStart } from "../timeline";
 import {
@@ -103,21 +104,23 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "get_state":
       return getState(target);
     case "list_analyzers":
-      // The Rust catalog is the one source of truth (ids, options, result family), so
-      // the bridge and headless report the same shape.
+      // The Rust catalog is the one source of truth, so the bridge and headless agree.
       return invoke("analyzer_catalog");
     case "get_analyzer": {
       const id = str(args, "id");
       if (!isAnalyzerId(id)) throw new Error(`unknown analyzer: ${id}`);
-      // The Rust catalog owns the option metadata and summary keys (one source of
-      // truth with the headless server); the webview overlays the longer `about` copy.
+      // The Rust catalog owns the option metadata; the webview overlays the longer `about` copy.
       const detail = await invoke<Record<string, unknown>>("analyzer_detail", { id });
       return { ...detail, about: analyzerById(id).about };
     }
 
     // --- source -------------------------------------------------------------
     case "open_audio_file":
-      await openPath(str(args, "path"), !optionalBool(args, "replace"));
+      await openPath(
+        str(args, "path"),
+        !optionalBool(args, "replace"),
+        resolveStorage(optionalStr(args, "storage")),
+      );
       return sourceSummary();
     case "close_source":
       closeSource();
@@ -162,14 +165,10 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
       });
       return result ?? { cancelled: true };
     }
-    case "set_analysis_window": {
-      const span = setAnalysisWindow(num(args, "start"), num(args, "end"));
-      return { window: span };
-    }
-    case "set_view": {
-      const span = clampSet(num(args, "start"), num(args, "end"), setView);
-      return { view: span };
-    }
+    case "set_analysis_window":
+      return { window: setAnalysisWindow(num(args, "start"), num(args, "end")) };
+    case "set_view":
+      return { view: clampSet(num(args, "start"), num(args, "end"), setView) };
     case "set_shared_params":
       applySharedParams(asArgs(args.params) as Partial<SharedParamsDto>);
       return { params: sharedParams() };
@@ -195,9 +194,7 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
     case "list_nodes":
       return NODE_KINDS;
     case "get_node":
-      return invoke<Record<string, unknown>>("graph_node_detail", {
-        kind: str(args, "kind"),
-      });
+      return invoke<Record<string, unknown>>("graph_node_detail", { kind: str(args, "kind") });
     case "get_graph": {
       const graph = graphKind(args);
       const layout = deepClone(graphLayout(graph));
@@ -272,8 +269,10 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
         );
       }
       const path = optionalStr(args, "path");
+      const mode = resolveStorage(optionalStr(args, "storage"), optionalBool(args, "embedSource"));
+      if (mode) setSourceStorage(mode);
       if (path) {
-        const ok = await saveProjectTo(path, optionalBool(args, "embedSource") ?? true);
+        const ok = await saveProjectTo(path);
         if (!ok) throw new Error("could not save the project");
       } else {
         await saveProject();
@@ -284,9 +283,8 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
       await loadProject(str(args, "path"));
       return getState();
     case "open_project_window": {
-      // A new window at a project file (M25.D): the current project is untouched, and
-      // the core raises one already showing that path. The label is returned so the
-      // caller can `target` it (or pass it as `compare_analysis`'s `with`).
+      // A new window at a project file (M25.D); the core raises one already showing that
+      // path, so the label can `target` it (or the caller's `compare_analysis` `with`).
       const path = str(args, "path");
       return invoke<{ label: string; path: string; reused: boolean }>(
         "open_project_window_at_path",
@@ -299,8 +297,7 @@ export async function run(tool: string, args: Args, target?: string): Promise<un
 
     // --- annotations (app-only; an annotation lives in a project) ------------------------
     case "list_annotations":
-      // Compact by default (a body excerpt + values line); `full: true` returns the
-      // markdown bodies and frozen snapshots.
+      // Compact by default; `full: true` returns the markdown bodies and frozen snapshots.
       return {
         annotations:
           (optionalBool(args, "full") ?? false)

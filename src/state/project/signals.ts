@@ -38,9 +38,3 @@ export const [createdMs, setCreatedMs] = createSignal<number | null>(null);
  * signal is the notice's display.
  */
 export const [upgradedFrom, setUpgradedFrom] = createSignal<number | null>(null);
-/**
- * Whether the project is a **reference** project: it references its source file instead of
- * embedding the audio. A re-save
- * keeps it that way, so a small project does not silently grow into a full copy.
- */
-export const [referenceProject, setReferenceProject] = createSignal(false);

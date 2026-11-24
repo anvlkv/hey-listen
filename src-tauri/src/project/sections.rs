@@ -29,60 +29,99 @@ pub struct Meta {
     pub format_version: u32,
 }
 
-/// The kind of the project's single audio source.
-///
-/// Serialized as the same camelCase string the project file, IPC and exports always
-/// used. The serde impls are hand-written so `postcard` keeps the string encoding (a
-/// derived impl would store the variant index and change the file format).
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Default,
-    strum::EnumString,
-    strum::Display,
-    strum::AsRefStr,
-    strum::IntoStaticStr,
-    strum::EnumIter,
-    strum::VariantNames,
-    ts_rs::TS,
-)]
-#[strum(serialize_all = "camelCase")]
-#[ts(export, rename_all = "camelCase")]
-pub enum SourceKind {
-    /// A decoded audio file.
-    #[default]
-    File,
-    /// The microphone.
-    Mic,
-    /// System-output loopback.
-    System,
-    /// A captured process.
-    Process,
-    /// Microphone + system mixed.
-    Mix,
-    /// A rendered synth graph.
-    Synth,
+/// Generate a `camelCase` string id enum whose **hand-written** serde keeps the string
+/// encoding under `postcard` (a derived impl would store the variant index and change the
+/// file format). `$label` names the id in the unknown-value error.
+macro_rules! postcard_id_enum {
+    (
+        $label:literal
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+            $($(#[$variant_meta:meta])* $variant:ident),* $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(
+            Debug,
+            Clone,
+            Copy,
+            PartialEq,
+            Eq,
+            Default,
+            strum::EnumString,
+            strum::Display,
+            strum::AsRefStr,
+            strum::IntoStaticStr,
+            strum::EnumIter,
+            strum::VariantNames,
+            ts_rs::TS,
+        )]
+        #[strum(serialize_all = "camelCase")]
+        #[ts(export, rename_all = "camelCase")]
+        pub enum $name {
+            $($(#[$variant_meta])* $variant),*
+        }
+
+        impl Serialize for $name {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                let value: &'static str = self.into();
+                serializer.serialize_str(value)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                let value = String::deserialize(deserializer)?;
+                value.parse().map_err(|_| {
+                    de::Error::custom(format!(
+                        "unknown {}: {value} (expected one of {})",
+                        $label,
+                        <$name as strum::VariantNames>::VARIANTS.join(", ")
+                    ))
+                })
+            }
+        }
+    };
 }
 
-impl Serialize for SourceKind {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let value: &'static str = self.into();
-        serializer.serialize_str(value)
+postcard_id_enum! {
+    "source kind"
+    /// The kind of the project's single audio source.
+    ///
+    /// Serialized as the same camelCase string the project file, IPC and exports always
+    /// used.
+    pub enum SourceKind {
+        /// A decoded audio file.
+        #[default]
+        File,
+        /// The microphone.
+        Mic,
+        /// System-output loopback.
+        System,
+        /// A captured process.
+        Process,
+        /// Microphone + system mixed.
+        Mix,
+        /// A rendered synth graph.
+        Synth,
     }
 }
 
-impl<'de> Deserialize<'de> for SourceKind {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        value.parse().map_err(|_| {
-            de::Error::custom(format!(
-                "unknown source kind: {value} (expected one of {})",
-                <SourceKind as strum::VariantNames>::VARIANTS.join(", ")
-            ))
-        })
+postcard_id_enum! {
+    "source storage"
+    /// How a save persists the project's audio.
+    ///
+    /// The serde impls are the same as [`SourceKind`]'s (one macro generates both), so
+    /// `postcard` keeps the string encoding.
+    pub enum SourceStorage {
+        /// The audio is written into the file's `DATA` section.
+        #[default]
+        Embedded,
+        /// The `SOURCE` path is kept and decoded again on load.
+        Linked,
+        /// The `SOURCE` path is kept, decoded again on load, and re-read whenever the
+        /// linked file changes.
+        LiveLink,
     }
 }
 
@@ -118,6 +157,14 @@ pub struct SourceDescriptor {
     /// Synth sources: the fundsp graph that was rendered.
     #[serde(default)]
     pub graph: Option<GraphSpec>,
+    /// How a save persists the audio (appended after `graph`, so an older payload is a
+    /// strict prefix of this one).
+    #[serde(default)]
+    pub storage: SourceStorage,
+    /// File sources: the path relative to the project file, written at save time so a
+    /// moved project folder still resolves its audio.
+    #[serde(default)]
+    pub relative_path: Option<String>,
 }
 
 /// `SETUP` section: open tools, per-tool options, shared params, and the windows.

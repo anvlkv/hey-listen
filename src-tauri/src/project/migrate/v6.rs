@@ -78,6 +78,9 @@ impl From<SourceDescriptorV6> for SourceDescriptor {
             target_pid: old.target_pid,
             gain: old.gain,
             graph: old.graph.map(GraphSpec::from),
+            // A v6 file has no storage mode; the v7 step infers it from `DATA`.
+            storage: crate::project::SourceStorage::Embedded,
+            relative_path: None,
         }
     }
 }

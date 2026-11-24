@@ -7,6 +7,8 @@
 //! the same ([`build_request`]), and the JSONL envelope is unchanged — the rehost is
 //! pinned by `src/batch/tests/console.rs`, which maps the same command lines through both
 //! parsers and compares the output.
+//!
+//! The project-file subcommands' arguments live in [`project`], beside the shared ones.
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -15,6 +17,10 @@ use clap::{ArgMatches, Args, CommandFactory, Parser, Subcommand};
 
 use super::args::ArgSource;
 use super::build_request;
+
+mod project;
+
+use project::{MigrateArgs, ProjectArgs};
 
 /// The parser. `arg_required_else_help` makes a bare `hey-listen-cli` print its help
 /// (exit `2` via clap's `DisplayHelpOnMissingArgumentOrSubcommand`).
@@ -246,61 +252,6 @@ struct CompareArgs {
     /// With --save, override the saved project's Workbench tabs (repeatable)
     #[arg(long, value_name = "ID")]
     open_tool: Vec<String>,
-}
-
-#[derive(Args)]
-struct ProjectArgs {
-    /// Destination .heyl path (parent folders are created)
-    #[arg(value_name = "OUT.heyl")]
-    dest: Option<String>,
-    /// Audio file to decode as the project source
-    #[arg(long, value_name = "AUDIO")]
-    source: Option<String>,
-    /// Synth graph (DOT file/string; legacy JSON accepted) to render as the source
-    #[arg(long, value_name = "GRAPH")]
-    synth: Option<String>,
-    /// Rendered length for --synth (default 5)
-    #[arg(long, value_name = "SEC")]
-    seconds: Option<String>,
-    /// Project display name (default: the output file stem)
-    #[arg(long, value_name = "NAME")]
-    name: Option<String>,
-    /// Analyzer tab to restore when the project opens (repeatable)
-    #[arg(long, value_name = "ID")]
-    open_tool: Vec<String>,
-    /// Annotations JSON file: an array of annotation objects (title/body/timeSecs/…)
-    #[arg(long, value_name = "FILE.json")]
-    annotations: Option<String>,
-    /// Write a reference project (no embedded audio) for a file source
-    #[arg(long)]
-    reference: bool,
-    /// Analysis window start in seconds (default 0)
-    #[arg(long, value_name = "SEC")]
-    start: Option<String>,
-    /// Analysis window end in seconds (default: full duration)
-    #[arg(long, value_name = "SEC")]
-    end: Option<String>,
-    #[command(flatten)]
-    patches: PatchArgs,
-    /// Save this filter graph (DOT file/string; legacy JSON accepted) into the project
-    #[arg(long, value_name = "FILE|DOT")]
-    filter: Option<String>,
-    /// Pretty-print the saved-project record
-    #[arg(long)]
-    pretty: bool,
-}
-
-#[derive(Args)]
-struct MigrateArgs {
-    /// Project file(s) to upgrade in place
-    #[arg(value_name = "FILE.heyl")]
-    file: Vec<String>,
-    /// Embed a reference project's audio instead of keeping it a reference
-    #[arg(long)]
-    embed: bool,
-    /// Do not keep a `.bak` copy beside each rewritten file
-    #[arg(long)]
-    no_backup: bool,
 }
 
 /// clap's argument id is the derive field name, i.e. the `plugins.cli` name with

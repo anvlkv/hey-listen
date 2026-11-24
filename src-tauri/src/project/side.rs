@@ -60,9 +60,12 @@ pub fn load_side(path: &str, filter_override: Option<&GraphSpec>) -> Result<Side
     let mut file = std::fs::File::open(path).map_err(|err| format!("cannot open {path}: {err}"))?;
     let loaded = read_project(&mut file).map_err(|err| format!("{path}: {err}"))?;
     let embedded = loaded.embedded;
-    let pcm = loaded
-        .pcm
-        .or_else(|| crate::project::decode_reference(loaded.source.as_ref()));
+    let pcm = loaded.pcm.or_else(|| {
+        crate::project::decode_reference(
+            loaded.source.as_ref(),
+            std::path::Path::new(path).parent(),
+        )
+    });
     let Some(pcm) = pcm else {
         return Err(format!(
             "{path}: the project has no audio (embed it, or keep the referenced file available)"

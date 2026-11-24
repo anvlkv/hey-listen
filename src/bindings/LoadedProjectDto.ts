@@ -26,6 +26,10 @@ compare: Array<SavedComparisonInfo>,
  */
 embedded: boolean, 
 /**
+ * The file referenced the source but it could not be decoded (the link is missing).
+ */
+linkMissing: boolean, 
+/**
  * The format version the file was migrated from, or `None`.
  */
 upgradedFrom: number | null, 

@@ -1,32 +1,19 @@
 import { invoke } from "../lib/ipc";
-import { batch, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { toSpec } from "../lib/graph";
 import { loadBoolPref, saveBoolPref } from "../lib/prefStore";
 import { pcmStream } from "../lib/pcmStream";
 import { recording, setChoice, stopCapture } from "./capture";
 import { SYNTH_GRAPH } from "./graph";
-import { annotations, replaceAnnotations } from "./annotations";
-import { clampViewRange } from "./timelineView";
 import {
+  applySourceInPlace,
   currentSourceToken,
   finalizeSource,
-  markKeepsTransport,
   nextSourceToken,
   setError,
-  setSource,
   setStatus,
   source,
-  type AudioSource,
 } from "./source";
-import {
-  setView,
-  setWindowEnd,
-  setWindowStart,
-  viewEnd,
-  viewStart,
-  windowEnd,
-  windowStart,
-} from "./timeline";
 import { seek, stop } from "../audio/preview";
 import type { StreamSummary } from "../bindings/StreamSummary";
 
@@ -63,65 +50,6 @@ export const [synthError, setSynthError] = createSignal<string | null>(null);
 /** A Live render is in flight. */
 export const [liveRendering, setLiveRendering] = createSignal(false);
 
-/** The shortest window an in-place shrink leaves behind (matches the Timeline's floor). */
-const MIN_WINDOW_SECONDS = 1e-3;
-
-/**
- * Clamp the analysis window and the viewport into a shrunken source, preserving as much
- * as possible. Growing never moves either.
- */
-function clampTimeline(duration: number) {
-  const start = Math.max(0, Math.min(windowStart(), duration));
-  const end = Math.max(0, Math.min(windowEnd(), duration));
-  if (end - start >= MIN_WINDOW_SECONDS) {
-    setWindowStart(start);
-    setWindowEnd(end);
-  } else {
-    const span = Math.max(
-      MIN_WINDOW_SECONDS,
-      Math.min(Math.max(0, windowEnd() - windowStart()), duration),
-    );
-    const nextEnd = Math.min(duration, Math.max(end, span));
-    setWindowStart(Math.max(0, nextEnd - span));
-    setWindowEnd(nextEnd);
-  }
-  const [lo, hi] = clampViewRange(viewStart(), viewEnd(), duration);
-  setView(lo, hi);
-}
-
-/** Overwrite the current synth source **in place** (no timeline/window/history reset). */
-function applyInPlace(samples: Float32Array, sampleRate: number, channels: number) {
-  const current = source();
-  if (!current) return;
-  const ch = Math.max(1, channels);
-  const frames = Math.floor(samples.length / ch);
-  const duration = sampleRate > 0 ? frames / sampleRate : 0;
-  const next: AudioSource = {
-    ...current,
-    samples,
-    frames,
-    sampleRate,
-    channels: ch,
-    duration,
-    origin: "synth",
-    live: false,
-    peaks: undefined,
-    peaksChannel: undefined,
-  };
-  // The core already installed this PCM (the command streamed the same render), so the
-  // transport can reload in place instead of stopping (see `state/source.ts`).
-  markKeepsTransport(next);
-  // Shrinking can push an annotation past the new end; growing never does.
-  const shrunk = duration < current.duration;
-  // One batch: the transport and the project push both subscribe to these stores, so a
-  // separate write per store would cascade a full pass for each one.
-  batch(() => {
-    setSource(next);
-    clampTimeline(duration);
-    if (shrunk) replaceAnnotations(annotations());
-  });
-}
-
 /**
  * Adopt a render. The first synth adoption defines a new timeline (resets the window and
  * view); later renders overwrite the source in place, so the window, view, annotations
@@ -129,7 +57,9 @@ function applyInPlace(samples: Float32Array, sampleRate: number, channels: numbe
  */
 export function applySynthSource(samples: Float32Array, sampleRate: number, channels: number) {
   if (source()?.origin === "synth") {
-    applyInPlace(samples, sampleRate, channels);
+    // The shared in-place adoption (`state/source.ts`): a live-link reload uses the same
+    // helper, and only the origin differs.
+    applySourceInPlace({ samples, sampleRate, channels, origin: "synth" });
     return;
   }
   finalizeSource({

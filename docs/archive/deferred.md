@@ -30,9 +30,9 @@ the owning milestone/doc records the delivery.
 
 ### Phase 2 — decision-gated (`decision`)
 
-| ID | Item | Depends on | Plan |
-| --- | --- | --- | --- |
-| D-23 | Fragment-audio re-gridding + re-link for saved references | A new ADR that reverses "result-only", plus a container bump and a migration | ADR-24/27/34 make a saved comparison a **result snapshot**, so a saved reference is shown on its own grid. Storage, re-gridding and re-link are one change, not three. |
+> **Empty.** D-23 (fragment-audio re-gridding + re-link for saved references) shipped
+> with the source-storage milestone;
+> see [`../development/saved-references.md`](../development/saved-references.md).
 
 ### Phase 3 — milestone-gated (`milestone`)
 
@@ -70,7 +70,6 @@ in [ADR-35](decisions.md#adr-35--non-goals-for-the-1x-line); reviving one needs 
 
 ```mermaid
 graph TD
-    ADR[New ADR + container bump] --> P2[Phase 2: fragment audio]
     M13[M13 templates] --> P3[Milestone: templates]
     PLAT[AudioUnit-free enumeration] --> P4[Platform: CLI devices]
 ```

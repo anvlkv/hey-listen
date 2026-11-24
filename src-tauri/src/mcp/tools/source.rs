@@ -13,12 +13,19 @@ pub(super) fn tools() -> Vec<Value> {
             "Open audio file",
             ToolClass::REPLACE,
             "Open an audio file as the project source (replaces the whole timeline). \
-             Pass `replace: true` to skip the confirmation the UI would show.",
+             Pass `replace: true` to skip the confirmation the UI would show. `storage` says \
+             whether a later save embeds the audio (`embedded`, the default) or keeps the path \
+             (`linked`).",
             json!({
                 "type": "object",
                 "properties": {
                     "path": { "type": "string", "description": "Absolute path to an audio file." },
                     "replace": { "type": "boolean", "description": "Replace the current source without prompting." },
+                    "storage": {
+                        "type": "string",
+                        "enum": ["embedded", "linked", "liveLink"],
+                        "description": "How a later save persists this source (default: embedded).",
+                    },
                 },
                 "required": ["path"],
                 "additionalProperties": false,

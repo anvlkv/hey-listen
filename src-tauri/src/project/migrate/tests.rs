@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 mod v1;
 mod v4;
 mod v5;
+mod v7;
 
 use super::v1::{SavedComparisonV1, StoredAnalysisResultV1};
 use super::v2::SavedComparisonV2;

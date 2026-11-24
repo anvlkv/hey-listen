@@ -8,11 +8,20 @@ import {
   refreshCompareTargets,
   showCompareNotice,
 } from "../../state/compare/picker";
-import { fetchSaved, showReference } from "../../state/compare/views";
+import {
+  fetchSaved,
+  savedInfo as savedCapabilities,
+  showReference,
+} from "../../state/compare/views";
 import type { CompareLiveHandle } from "../../state/compare/live";
 import type { CompareBinding } from "../../state/compare/views";
 import type { CompareSideDto, ComparisonDto } from "../../state/compare/types";
-import { mismatchSummary, spanLabel } from "../../state/compare/notices";
+import {
+  NO_FRAGMENT_NOTE,
+  REGRIDDED_NOTE,
+  mismatchSummary,
+  spanLabel,
+} from "../../state/compare/notices";
 import { compareSideColor } from "./palette";
 
 /** The select value that reconnects the compare view to the project's saved snapshot. */
@@ -113,8 +122,19 @@ export default function CompareHeader(props: {
     return { text: "Aligned", cls: "ok" };
   };
 
-  /** The common-span note moved to the notice strip; the badge keeps one compact line. */
-  const badgeTitle = () => mismatchSummary(comparability().mismatches);
+  /**
+   * The badge's one-line tooltip, most consequential fact first: a re-gridded reference
+   * (its audio was re-analysed on this grid), then a snapshot with no stored audio, and
+   * only otherwise the per-setting mismatch summary. The full rows are in the strip.
+   */
+  const badgeTitle = () => {
+    const facts = props.comparison.comparability;
+    if (facts.regridded) return REGRIDDED_NOTE;
+    if (props.saved && savedCapabilities(props.tool, props.id)?.hasFragment === false) {
+      return NO_FRAGMENT_NOTE;
+    }
+    return mismatchSummary(facts.mismatches);
+  };
 
   return (
     <header class="compare-header" data-testid="compare.header">

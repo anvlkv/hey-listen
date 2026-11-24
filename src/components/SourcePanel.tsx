@@ -4,9 +4,11 @@ import Icon from "./Icon";
 import LiveControls from "./source/LiveControls";
 import LiveSourceInputs from "./source/LiveSourceInputs";
 import SourceKindSelect from "./source/SourceKindSelect";
+import StorageCards from "./source/StorageCards";
 import Tooltip from "./Tooltip";
 import { createNumberDrag } from "../lib/dragNumber";
 import { openFileDialog, source } from "../state/source";
+import { setStorage, sourceStorage, storageLabel, switchBlocked } from "../state/sourceStorage";
 import { openTool } from "../state/workbench";
 import {
   captureError,
@@ -130,6 +132,18 @@ export default function SourcePanel() {
                 <Icon name="folder-open" />
               </Button>
             </Tooltip>
+            {/* How a save keeps this file's audio. The post-pick chooser decides it for
+                the first open; here it can be switched (or frozen) while the source is
+                loaded. A mode the current source cannot switch to shows why instead of
+                disappearing. */}
+            <Show when={source()}>
+              <StorageCards
+                value={sourceStorage()}
+                onChange={setStorage}
+                disabledReason={(mode) => switchBlocked(sourceStorage(), mode)}
+                testIdPrefix="source.storage"
+              />
+            </Show>
           </Show>
 
           <Show when={choice() === "synth"}>
@@ -146,28 +160,34 @@ export default function SourcePanel() {
         </Show>
       </div>
 
-      <Show
-        when={captureError() ?? sourcesError()}
-        fallback={
-          <Show when={source()}>
-            {(s) => (
-              <div
-                class="source-summary"
-                data-testid="source.summary"
-                title={s().probe?.path ?? s().name}
-              >
-                <span class="source-name">
-                  {s().name}
-                  {s().live ? " ●" : ""}
-                </span>
-                <span class="source-meta">
-                  {s().detail} · {s().sampleRate} Hz · {s().channels} ch
-                </span>
-              </div>
-            )}
-          </Show>
-        }
-      >
+      {/* The summary and the error are separate facts: an error about a capture attempt must
+          not hide which source the project holds — or how it will be stored. */}
+      <Show when={source()}>
+        {(s) => (
+          <div
+            class="source-summary"
+            data-testid="source.summary"
+            title={s().probe?.path ?? s().name}
+          >
+            <span class="source-name">
+              {s().name}
+              {s().live ? " ●" : ""}
+            </span>
+            <span class="source-meta">
+              {s().detail} · {s().sampleRate} Hz · {s().channels} ch
+            </span>
+            {/* Synth and capture sources are always embedded, so only a file says how. */}
+            <Show when={choice() === "file"}>
+              <span class="source-storage-badge" data-testid="source.storage.badge">
+                {storageLabel(sourceStorage())}
+                {sourceStorage() === "liveLink" ? " · watching" : ""}
+              </span>
+            </Show>
+          </div>
+        )}
+      </Show>
+
+      <Show when={captureError() ?? sourcesError()}>
         {(message) => (
           <div class="src-error" data-testid="source.error" title={message()}>
             {message()}

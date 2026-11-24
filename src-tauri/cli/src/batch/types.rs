@@ -6,6 +6,7 @@ use serde_json::Value;
 use hey_listen_lib::audio::analyzers::{AnalyzerId, ToolId};
 use hey_listen_lib::audio::graph::GraphSpec;
 use hey_listen_lib::export::ExportFormat;
+use hey_listen_lib::project::SourceStorage;
 
 /// The batch subcommand names — one variant per subcommand of this binary.
 #[derive(
@@ -91,6 +92,8 @@ pub enum Command {
         annotations: Vec<Value>,
         /// Write a reference project (no embedded audio) for a file source.
         reference: bool,
+        /// How the file persists its audio (`--storage`); wins over `reference`.
+        storage: Option<SourceStorage>,
     },
     /// `migrate <FILE.heyl>...` — upgrade project files to the current format version.
     Migrate {
@@ -118,6 +121,15 @@ pub enum AnnotationsOp {
     },
     /// Remove one annotation by id.
     Delete { id: String },
+}
+
+/// Parse a `--storage` spelling: the wire name (`embedded`, `linked`, `liveLink`) or its
+/// kebab-case console spelling (`live-link`).
+pub fn parse_storage(text: &str) -> Result<SourceStorage, String> {
+    let normalized = if text == "live-link" { "liveLink" } else { text };
+    normalized
+        .parse()
+        .map_err(|_| format!("unknown --storage: {text} (expected embedded, linked or live-link)"))
 }
 
 /// One per-tool option patch, scoped to a tool.

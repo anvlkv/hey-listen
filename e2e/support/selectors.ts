@@ -83,6 +83,21 @@ export const SEL = {
   sourcePause: '[data-testid="source.pause"]',
   sourceError: '[data-testid="source.error"]',
   sourceSummary: '[data-testid="source.summary"]',
+  // Source storage (M42): the panel's cards and badge, the post-pick chooser, and the
+  // missing-link dialog.
+  sourceStorageEmbedded: '[data-testid="source.storage.embedded"]',
+  sourceStorageLinked: '[data-testid="source.storage.linked"]',
+  sourceStorageLiveLink: '[data-testid="source.storage.liveLink"]',
+  sourceStorageBadge: '[data-testid="source.storage.badge"]',
+  storageDialog: '[data-testid="storage.dialog"]',
+  storageDialogEmbedded: '[data-testid="storage.dialog.mode.embedded"]',
+  storageDialogLinked: '[data-testid="storage.dialog.mode.linked"]',
+  storageDialogLiveLink: '[data-testid="storage.dialog.mode.liveLink"]',
+  storageDialogOpen: '[data-testid="storage.dialog.open"]',
+  storageDialogCancel: '[data-testid="storage.dialog.cancel"]',
+  linkMissing: '[data-testid="source.link.missing"]',
+  linkLocate: '[data-testid="source.link.locate"]',
+  linkEmbed: '[data-testid="source.link.embed"]',
 
   // Timeline.
   timelineCanvas: '[data-testid="timeline.canvas"]',

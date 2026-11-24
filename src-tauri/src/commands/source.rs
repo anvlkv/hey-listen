@@ -1,10 +1,12 @@
 //! Source management commands.
 
-use tauri::{AppHandle, WebviewWindow};
+use std::path::PathBuf;
+
+use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::audio::capture::{CAPTURE_CHANNELS, CAPTURE_RATE};
-use crate::state::window_state;
+use crate::state::{self, window_state, WindowRegistry};
 
 /// File extensions we advertise in the open dialog and accept as OS-open requests
 /// (all decodable via symphonia's `all` feature set).
@@ -80,6 +82,19 @@ pub fn clear_audio_source(window: WebviewWindow, request_id: Option<u64>) {
             state.audio.clear();
         }
     }
+}
+
+/// Point this project's live-source watch at `path`; `path: None` stops watching (the
+/// source is no longer linked, or the project is going away).
+///
+/// A popout resolves to the project it views, so its call acts on that project's watcher.
+/// The core only reports the change ([`state::watch::SOURCE_CHANGED_EVENT`]); the frontend
+/// re-reads the file in place.
+#[tauri::command]
+pub fn sync_source_watch(window: WebviewWindow, path: Option<String>) {
+    let app = window.app_handle().clone();
+    let root = app.state::<WindowRegistry>().root_label(window.label());
+    state::watch::sync(&root, path.map(PathBuf::from), app);
 }
 
 /// Start a fresh core recording buffer at Record; only the audio after this point

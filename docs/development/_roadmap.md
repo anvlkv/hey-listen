@@ -162,3 +162,6 @@ Every node, nested systems, live taps.
 
 ## M41 — Multi-channel outputs and variadic tables ✅
 Per-channel graph outputs and table nodes.
+
+## M42 — Source storage: embedded, linked, live link ✅
+Where the audio lives; saved references carry their own audio and re-grid (D-23).

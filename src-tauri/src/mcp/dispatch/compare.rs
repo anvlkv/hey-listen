@@ -130,13 +130,15 @@ impl HeadlessSession {
                 }
                 let b_offset = b_offset.unwrap_or(0.0);
                 let side = load_side(&path, None)?;
+                let b_setup = side.setup_for(tool);
+                let audio = compare::ReferenceAudio::from_state(&side.state, b_setup.span());
                 let comparison = compare::compare(
                     tool,
                     a,
                     SideInput {
                         project: Some(side.name.clone()),
                         state: &side.state,
-                        setup: side.setup_for(tool),
+                        setup: b_setup,
                     },
                     b_offset,
                 )
@@ -150,6 +152,7 @@ impl HeadlessSession {
                     b_offset,
                     crate::recent::now_ms(),
                     Some(path.clone()),
+                    audio,
                 );
                 let mut snapshot = snapshot;
                 snapshot.id = self.state.pin_comparison_id(id, &snapshot);

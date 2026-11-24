@@ -21,7 +21,7 @@ use crate::audio::analysis::{canonical_option_key, ToolOptions};
 use crate::audio::analyzers::ToolId;
 use crate::project::{
     read_project, write_project_atomic, AnalysisSetup, AnalysisWindow, Annotation, SaveProject,
-    SourceDescriptor, SourceKind,
+    SourceDescriptor, SourceKind, SourceStorage,
 };
 
 use super::args::{default_params, restore_options};
@@ -32,7 +32,8 @@ impl HeadlessSession {
     ///
     /// Arguments: `path` (required), `name`, `annotations` (an array of `Annotation` objects;
     /// `id`/`createdMs`/`updatedMs` default harmlessly), `openTools` (tool ids to
-    /// restore when the app opens the file), and `embedSource` (default `true`).
+    /// restore when the app opens the file), and `storage` ([`SourceStorage`]; the legacy
+    /// `embedSource` boolean is still accepted when `storage` is absent).
     pub(super) fn save_project(&mut self, args: &Value) -> Result<Value, String> {
         let path = args
             .get("path")
@@ -64,24 +65,53 @@ impl HeadlessSession {
                     .collect()
             })
             .unwrap_or_else(|| self.open_tools.clone());
-        let embed_source = args
-            .get("embedSource")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        // A reference project only makes sense for a file source: the loader can decode
-        // the path again. Synths keep their rendered audio.
-        let reference = !embed_source && self.source_path.is_some();
+        let storage = match super::session::storage_arg(args)? {
+            Some(storage) => storage,
+            // The deprecated alias applies only when `storage` is absent.
+            None => match args.get("embedSource").and_then(Value::as_bool) {
+                Some(false) => SourceStorage::Linked,
+                Some(true) => SourceStorage::Embedded,
+                // Neither named: re-save the project in the mode it was opened with.
+                None => self.source_storage,
+            },
+        };
         let setup = self.analysis_setup(open_tools.clone());
         self.open_tools = open_tools;
-        let source = self.source_descriptor();
+        // The mode is written into the descriptor before the save, so the file records how
+        // its audio is stored and the writer's embedding decision matches it.
+        let mut source = self.source_descriptor();
+        // A session with no source has no audio to persist.
+        let storage = if source.is_some() {
+            storage
+        } else {
+            SourceStorage::Embedded
+        };
+        if let Some(source) = source.as_mut() {
+            source.storage = storage;
+        }
+        let embedded = source
+            .as_ref()
+            .is_none_or(|source| source.storage == SourceStorage::Embedded);
+        if !embedded
+            && source
+                .as_ref()
+                .and_then(|source| source.path.as_deref())
+                .is_none()
+        {
+            return Err(
+                "a linked project needs a file source with a path — a synth or capture \
+                 cannot be linked"
+                    .to_string(),
+            );
+        }
         let annotations_len = annotations.len();
 
         // Snapshot the PCM under a short lock and release it before the disk write, so a
         // slow save cannot stall live capture (audit P2 #4).
-        let pcm = if reference {
-            None
-        } else {
+        let pcm = if embedded {
             self.state.audio.snapshot_source()
+        } else {
+            None
         };
         {
             let save = SaveProject {
@@ -103,10 +133,12 @@ impl HeadlessSession {
 
         self.project_path = Some(path.clone());
         self.project_name = Some(name.clone());
+        self.source_storage = storage;
         Ok(json!({
             "path": path,
             "name": name,
-            "embedded": !reference,
+            "embedded": embedded,
+            "storage": storage,
             "annotations": annotations_len,
         }))
     }
@@ -121,10 +153,9 @@ impl HeadlessSession {
         let mut file = File::open(path).map_err(|err| format!("could not open {path}: {err}"))?;
         let loaded = read_project(&mut file).map_err(|err| err.to_string())?;
 
-        let pcm = loaded
-            .pcm
-            .clone()
-            .or_else(|| crate::project::decode_reference(loaded.source.as_ref()));
+        let pcm = loaded.pcm.clone().or_else(|| {
+            crate::project::decode_reference(loaded.source.as_ref(), Path::new(path).parent())
+        });
         self.state.audio.set_source(pcm);
         self.state.audio.set_filter(None);
         // The loaded project's saved comparisons (M25.C) become the session's snapshots;
@@ -171,6 +202,10 @@ impl HeadlessSession {
             .source
             .as_ref()
             .map_or(SourceKind::File, |source| source.kind);
+        self.source_storage = loaded
+            .source
+            .as_ref()
+            .map_or(SourceStorage::Embedded, |source| source.storage);
         Ok(self.get_state())
     }
 
@@ -186,6 +221,7 @@ impl HeadlessSession {
         self.synth = None;
         self.source_path = None;
         self.source_kind = SourceKind::File;
+        self.source_storage = SourceStorage::Embedded;
         self.results.clear();
         self.project_path = None;
         self.project_name = None;

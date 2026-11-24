@@ -230,6 +230,41 @@ pub fn run_window_with(
     };
     cancel.check()?;
 
+    run_region_with(
+        &region,
+        channels,
+        sample_rate,
+        filter.as_ref(),
+        tool,
+        params,
+        options,
+        start,
+        cancel,
+        progress,
+    )
+}
+
+/// Run a tool over an already-sliced, interleaved region and condition it exactly like
+/// preview (mixdown → filter → resample).
+///
+/// `channels` is the region's interleaved channel count and `rebase` is its absolute
+/// start in source seconds: the tools see times from 0, so [`AnalysisResult::rebase`]
+/// shifts the result onto source seconds. [`run_window_with`] slices a project window
+/// into this call, and a saved comparison re-grids its stored fragment through it, so
+/// both paths share one conditioning pipeline.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_region_with(
+    region: &[f32],
+    channels: u16,
+    sample_rate: u32,
+    filter: Option<&GraphSpec>,
+    tool: AnalyzerId,
+    params: &SharedParams,
+    options: &ToolOptions,
+    rebase: f64,
+    cancel: &Cancel,
+    progress: &dyn Fn(AnalysisPhase, f32),
+) -> Result<AnalysisResult, AnalysisError> {
     // The `spatial` tool is the documented exception to the channel params: it needs
     // the interleaved left/right pair **before** the mixdown/filter/resample path, so
     // it bypasses `condition` and reads stereo directly.
@@ -237,26 +272,26 @@ pub fn run_window_with(
         progress(AnalysisPhase::Analysing, 0.2);
         cancel.check()?;
         let mut result = AnalysisResult::Spatial(spatial::spatial(
-            &region,
+            region,
             channels,
             sample_rate,
-            filter.as_ref(),
+            filter,
             params,
             options,
         )?);
         cancel.check()?;
         progress(AnalysisPhase::Shaping, 0.9);
-        result.rebase(start);
+        result.rebase(rebase);
         progress(AnalysisPhase::Done, 1.0);
         return Ok(result);
     }
 
     progress(AnalysisPhase::Conditioning, 0.2);
     let (mono, rate) = condition_with(
-        &region,
+        region,
         channels,
         sample_rate,
-        filter.as_ref(),
+        filter,
         params.channel,
         params.resample_to,
         cancel,
@@ -269,7 +304,7 @@ pub fn run_window_with(
     let mut result = run_with(tool, &mono, rate, params, options, cancel)?;
     cancel.check()?;
     progress(AnalysisPhase::Shaping, 0.9);
-    result.rebase(start);
+    result.rebase(rebase);
     progress(AnalysisPhase::Done, 1.0);
     Ok(result)
 }

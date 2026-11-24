@@ -55,14 +55,32 @@
 }
 
 .compare-notice-dismiss,
-.compare-notice-dismiss-all {
+.compare-notice-dismiss-all,
+.compare-notice-action {
   flex: 0 0 auto;
-  padding: 0 2px;
   border: 0;
   background: none;
   font-size: 0.75rem;
-  color: var(--fg-faint);
   cursor: pointer;
+}
+
+.compare-notice-dismiss,
+.compare-notice-dismiss-all {
+  padding: 0 2px;
+  color: var(--fg-faint);
+}
+
+/* A row's action (re-link the reference) reads as inline text, not as a banner button: no
+   padding beside it, the accent colour, and an underline only on hover. */
+.compare-notice-action {
+  align-self: center;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.compare-notice-action:hover {
+  text-decoration: underline;
 }
 
 .compare-notice-dismiss {

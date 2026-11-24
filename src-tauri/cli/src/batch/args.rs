@@ -115,6 +115,10 @@ pub fn build_request(name: &str, matches: &dyn ArgSource) -> Result<Request, Str
                 open_tools: tool_ids(matches, "open-tool")?,
                 annotations,
                 reference: flag(matches, "reference"),
+                storage: match string(matches, "storage") {
+                    Some(text) => Some(super::types::parse_storage(&text)?),
+                    None => None,
+                },
             };
         }
         BatchCommand::Migrate => {

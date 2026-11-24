@@ -142,6 +142,8 @@ fn saved_comparison() -> SavedComparison {
             end: 1.25,
         },
         owner_channel: Some(1),
+        fragment: None,
+        source_path: None,
     }
 }
 
@@ -281,13 +283,13 @@ fn reference_sources_fall_back_cleanly() {
         path: Some("/nonexistent/hey-listen.wav".to_string()),
         ..Default::default()
     };
-    assert!(decode_reference(Some(&missing)).is_none());
+    assert!(decode_reference(Some(&missing), None).is_none());
     let synth = SourceDescriptor {
         kind: SourceKind::Synth,
         ..Default::default()
     };
-    assert!(decode_reference(Some(&synth)).is_none());
-    assert!(decode_reference(None).is_none());
+    assert!(decode_reference(Some(&synth), None).is_none());
+    assert!(decode_reference(None, None).is_none());
 }
 
 #[test]

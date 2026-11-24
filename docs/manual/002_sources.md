@@ -11,6 +11,22 @@ Use **Open audio file** in the Source panel, drag a file onto the window, or ope
 recording straight from your operating system. Hey Listen decodes it and draws it on the
 Timeline.
 
+## Where the audio lives
+
+After you pick a file, Hey Listen asks how the project should store it:
+
+- **Embedded** — the samples are written into the project file; the project travels alone.
+- **Linked** — the project points at the audio file. Keep the two together (the path is
+  stored relative to the project when they sit in the same folder).
+- **Live link** — like linked, and the Timeline reloads whenever the file changes, so a
+  re-export or a re-render behind the app lands without reopening anything.
+
+The Source panel keeps the choice visible and lets you switch between linked and live
+link. A project stored as embedded can only become linked by replacing the source, since
+the audio in memory cannot vouch for the file on disk. Your last choice is remembered for
+the next file you open. See [Projects](009_projects.md) for what happens when a linked
+file goes missing.
+
 ## Record a live source
 
 Choose what to capture — a **microphone**, **system** output, a **selected process**, or

@@ -68,6 +68,20 @@ pub fn resample_linear(input: &[f32], from: u32, to: u32) -> Vec<f32> {
     output
 }
 
+/// Quantise an `f32` sample to the project file's i16 convention.
+///
+/// Clamped to `[-1, 1]` first: scaling by `32767` keeps `+1.0` inside an `i16`, while
+/// the matching [`dequantize_i16`] divides by `32768`, so the error stays below one
+/// least-significant bit and silence round-trips exactly.
+pub fn quantize_i16(sample: f32) -> i16 {
+    (sample.clamp(-1.0, 1.0) * 32767.0).round() as i16
+}
+
+/// Restore an `i16` sample to `f32` (see [`quantize_i16`]).
+pub fn dequantize_i16(value: i16) -> f32 {
+    f32::from(value) / 32768.0
+}
+
 /// Blackman-windowed sinc low-pass applied before decimation.
 ///
 /// The cutoff is 90% of the target Nyquist; the tap count is chosen so the
@@ -122,6 +136,29 @@ fn anti_alias_lowpass(input: &[f32], from: u32, to: u32) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quantize_clamps_at_full_scale() {
+        assert_eq!(quantize_i16(1.0), 32767);
+        assert_eq!(quantize_i16(-1.0), -32767);
+        // Out-of-range input cannot wrap: it clamps like full scale.
+        assert_eq!(quantize_i16(2.0), 32767);
+        assert_eq!(quantize_i16(-3.0), -32767);
+    }
+
+    #[test]
+    fn silence_round_trips_exactly() {
+        assert_eq!(quantize_i16(0.0), 0);
+        assert_eq!(dequantize_i16(0), 0.0);
+    }
+
+    #[test]
+    fn dequantize_uses_the_half_scale_denominator() {
+        // The 32767 / 32768 asymmetry keeps ±1 inside an `i16`.
+        assert_eq!(dequantize_i16(32767), 32767.0 / 32768.0);
+        assert_eq!(dequantize_i16(-32767), -32767.0 / 32768.0);
+        assert_eq!(dequantize_i16(i16::MIN), -1.0);
+    }
 
     #[test]
     fn mixdown_averages_channels() {

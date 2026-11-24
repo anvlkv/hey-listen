@@ -37,7 +37,11 @@ being shown, in its own absolute time.
 
 ## Keep it
 
-**Save** stores the last successful comparison in the owning project, so you can reopen
-it later without the reference project. Close the compare tab and it is still there.
+**Save** stores the last successful comparison in the owning project, together with the
+reference's **window audio**, so you can reopen it later without the reference project —
+and it still produces a delta after you change the FFT size, hop or tool options. Close
+the compare tab and it is still there. When the reference project is open in another
+window, the strip offers **Update from the open reference** to refresh the comparison
+from it.
 
 Next: [Preview and keyboard](008_preview.md)

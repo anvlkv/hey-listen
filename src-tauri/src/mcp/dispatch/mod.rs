@@ -38,7 +38,7 @@ use serde_json::{json, Value};
 use crate::audio::analysis::{SharedParams, ToolOptions};
 use crate::audio::analyzers::{self, AnalyzerId};
 use crate::audio::graph::{self, GraphSpec};
-use crate::project::{SourceKind, StoredResult};
+use crate::project::{SourceKind, SourceStorage, StoredResult};
 use crate::state::WindowState;
 
 use args::{analyzer, clamp_span, default_params, merge_options, merge_params, number};
@@ -60,6 +60,8 @@ pub struct HeadlessSession {
     source_path: Option<String>,
     /// What kind of source the session holds (for exports / a project `SOURCE` section).
     source_kind: SourceKind,
+    /// How a project saved from this session would persist the audio.
+    source_storage: SourceStorage,
     /// The .heyl path and project name once the session has saved/opened a project.
     project_path: Option<String>,
     project_name: Option<String>,
@@ -85,6 +87,7 @@ impl Default for HeadlessSession {
             synth: None,
             source_path: None,
             source_kind: SourceKind::File,
+            source_storage: SourceStorage::Embedded,
             project_path: None,
             project_name: None,
             open_tools: Vec::new(),
@@ -110,6 +113,7 @@ impl HeadlessSession {
                 self.name.clear();
                 self.source_path = None;
                 self.source_kind = SourceKind::File;
+                self.source_storage = SourceStorage::Embedded;
                 self.synth = None;
                 self.results.clear();
                 self.window = (0.0, 0.0);

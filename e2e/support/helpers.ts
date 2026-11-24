@@ -58,6 +58,7 @@ export {
 export {
   timelineReadoutText,
   ensureSourcePanel,
+  prepareFilePicker,
   openFileFixture,
   waitForSourceLoaded,
   openFixture,

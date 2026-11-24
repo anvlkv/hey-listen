@@ -10,7 +10,7 @@ use std::io::Write;
 use serde_json::json;
 
 use hey_listen_lib::audio::analysis::compare::{
-    self as comparison, SavedComparison, SideInput, Span,
+    self as comparison, ReferenceAudio, SavedComparison, SideInput, Span,
 };
 use hey_listen_lib::audio::analysis::{Axis, Shape};
 use hey_listen_lib::project::side::{load_side, Side};
@@ -59,6 +59,8 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
     let mut snapshots: Vec<SavedComparison> = Vec::new();
     for &tool in &tools {
         let owner = a.setup_for(tool);
+        let b_setup = b.setup_for(tool);
+        let audio = reference_audio(&b, b_setup.span());
         let result = comparison::compare(
             tool,
             SideInput {
@@ -69,7 +71,7 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
             SideInput {
                 project: Some(b.file.clone()),
                 state: &b.state,
-                setup: b.setup_for(tool),
+                setup: b_setup,
             },
             request.b_offset,
         );
@@ -91,6 +93,7 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
                     request.b_offset,
                     saved_ms,
                     Some(b.file.clone()),
+                    audio,
                 ));
             }
             Err(err) => {
@@ -122,6 +125,18 @@ pub(super) fn run_compare(request: &Request, out: &mut impl Write) -> i32 {
     } else {
         0
     }
+}
+
+/// Capture the reference's analysis window so a saved snapshot can be re-gridded.
+fn reference_audio(side: &Side, span: Span) -> ReferenceAudio {
+    side.state
+        .audio
+        .source
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        .as_ref()
+        .map(|pcm| ReferenceAudio::capture(pcm, span, side.source.as_ref()))
+        .unwrap_or_default()
 }
 
 fn shape_of(request: &Request) -> Shape {

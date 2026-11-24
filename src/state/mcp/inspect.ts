@@ -10,6 +10,7 @@ import { selectedAnnotationId, annotationsSorted } from "../annotations";
 import { outputDeviceId, outputGain } from "../output";
 import { dirty, projectDisplayName, projectPath } from "../project";
 import { source } from "../source";
+import { sourceStorage } from "../sourceStorage";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../timeline";
 import { openTools, workbenchGroups } from "../workbench";
 import { openCompareTabs } from "../compare/views";
@@ -81,5 +82,8 @@ export function sourceSummary() {
     frames: current.frames,
     duration: current.duration,
     live: current.live ?? false,
+    // How a save would persist the audio (the same field the headless session reports).
+    storage: sourceStorage(),
+    path: current.probe?.path ?? null,
   };
 }

@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 
 use super::error::ProjectError;
 use super::read::LoadedProject;
-use super::sections::{AnalysisSetup, Annotation, Meta, SourceDescriptor, StoredResult};
+use super::sections::{
+    AnalysisSetup, Annotation, Meta, SourceDescriptor, SourceKind, SourceStorage, StoredResult,
+};
 use super::{
     Crc32, PcmFormat, DATA_CHUNK_SAMPLES, DATA_FOOTER_LEN, DATA_HEADER_LEN, DATA_INDEX_ENTRY_LEN,
     FLAGS, HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, SECTION_ANNOTATIONS, SECTION_COMPARE, SECTION_DATA,
@@ -63,7 +65,7 @@ pub fn write_project<W: Write>(
     save: &SaveProject,
     now_ms: u64,
 ) -> Result<(), ProjectError> {
-    write_project_with_pcm_format(writer, save, now_ms, PcmFormat::F32)
+    write_project_inner(writer, save, now_ms, PcmFormat::F32, None)
 }
 
 /// Write a complete project file to `writer`, encoding `DATA` as `format`.
@@ -78,6 +80,37 @@ pub fn write_project_with_pcm_format<W: Write>(
     now_ms: u64,
     format: PcmFormat,
 ) -> Result<(), ProjectError> {
+    write_project_inner(writer, save, now_ms, format, None)
+}
+
+/// The `SOURCE` payload a save writes: the caller's descriptor with its storage
+/// normalised and its path made relative to the project file.
+///
+/// A synth or live capture has no file to link, so it is always embedded; a file source
+/// keeps the caller's choice.
+fn encoded_source(save: &SaveProject, project_dir: Option<&Path>) -> Option<SourceDescriptor> {
+    let mut source = save.source.clone()?;
+    if source.kind != SourceKind::File {
+        source.storage = SourceStorage::Embedded;
+    }
+    super::relativize(&mut source, project_dir);
+    Some(source)
+}
+
+/// Whether the (normalised) source puts its audio in `DATA`. A project with no source
+/// still writes an empty `DATA` section, so the section layout does not depend on it.
+fn embeds_audio(source: Option<&SourceDescriptor>) -> bool {
+    source.is_none_or(|source| source.storage == SourceStorage::Embedded)
+}
+
+/// Write the file, resolving a relative `SOURCE` path against `project_dir`.
+fn write_project_inner<W: Write>(
+    writer: W,
+    save: &SaveProject,
+    now_ms: u64,
+    format: PcmFormat,
+    project_dir: Option<&Path>,
+) -> Result<(), ProjectError> {
     let meta = Meta {
         name: save.name.clone(),
         created_ms: save.created_ms.unwrap_or(now_ms),
@@ -86,8 +119,17 @@ pub fn write_project_with_pcm_format<W: Write>(
         format_version: VERSION,
     };
 
+    // The one value both the encoded payload and the embedding decision come from, so a
+    // save can never write `DATA` for a linked source (or omit it for an embedded one).
+    let source = encoded_source(save, project_dir);
+    let pcm = if embeds_audio(source.as_ref()) {
+        save.pcm
+    } else {
+        None
+    };
+
     let meta_bytes = postcard::to_stdvec(&meta).map_err(encode)?;
-    let source_bytes = postcard::to_stdvec(&save.source).map_err(encode)?;
+    let source_bytes = postcard::to_stdvec(&source).map_err(encode)?;
     let setup_bytes = postcard::to_stdvec(&save.setup).map_err(encode)?;
     let layout_bytes = serde_json::to_vec(&save.layout).map_err(encode)?;
     let results_bytes = postcard::to_stdvec(&save.results).map_err(encode)?;
@@ -98,7 +140,7 @@ pub fn write_project_with_pcm_format<W: Write>(
     let plan = [
         (SECTION_META, meta_bytes.len() as u64),
         (SECTION_SOURCE, source_bytes.len() as u64),
-        (SECTION_DATA, data_len(save.pcm, format)),
+        (SECTION_DATA, data_len(pcm, format)),
         (SECTION_SETUP, setup_bytes.len() as u64),
         (SECTION_LAYOUT, layout_bytes.len() as u64),
         (SECTION_RESULTS, results_bytes.len() as u64),
@@ -134,7 +176,7 @@ pub fn write_project_with_pcm_format<W: Write>(
     // Section payloads.
     hashing.write_all(&meta_bytes)?;
     hashing.write_all(&source_bytes)?;
-    write_data(&mut hashing, save.pcm, format)?;
+    write_data(&mut hashing, pcm, format)?;
     hashing.write_all(&setup_bytes)?;
     hashing.write_all(&layout_bytes)?;
     hashing.write_all(&results_bytes)?;
@@ -168,7 +210,7 @@ pub fn write_project_atomic(
         std::fs::create_dir_all(parent)?;
     }
     let temp = temp_sibling(path);
-    let written = write_temp(&temp, save, now_ms);
+    let written = write_temp(&temp, save, now_ms, path.parent());
     if let Err(err) = written {
         let _ = std::fs::remove_file(&temp);
         return Err(err);
@@ -181,9 +223,14 @@ pub fn write_project_atomic(
 }
 
 /// Write the complete project to `temp`, then flush and sync it to disk.
-fn write_temp(temp: &Path, save: &SaveProject, now_ms: u64) -> Result<(), ProjectError> {
+fn write_temp(
+    temp: &Path,
+    save: &SaveProject,
+    now_ms: u64,
+    project_dir: Option<&Path>,
+) -> Result<(), ProjectError> {
     let mut writer = io::BufWriter::new(std::fs::File::create(temp)?);
-    write_project(&mut writer, save, now_ms)?;
+    write_project_inner(&mut writer, save, now_ms, PcmFormat::F32, project_dir)?;
     writer.flush()?;
     let file = writer.into_inner().map_err(|err| err.into_error())?;
     file.sync_all()?;
@@ -216,12 +263,6 @@ fn data_len(pcm: Option<&SourceData>, format: PcmFormat) -> u64 {
         + total as u64 * format.byte_width()
         + chunk_count * DATA_INDEX_ENTRY_LEN
         + DATA_FOOTER_LEN
-}
-
-/// Quantize a normalized `f32` sample to `i16`: clamp to `[-1, 1]`, scale by `32767` and
-/// round to the nearest integer.
-fn quantize_i16(sample: f32) -> i16 {
-    (sample.clamp(-1.0, 1.0) * 32767.0).round() as i16
 }
 
 /// Write the `DATA` section: header, interleaved-`f32`/`i16` chunks, trailing chunk
@@ -263,7 +304,9 @@ fn write_data<W: Write>(
         for &sample in chunk {
             match format {
                 PcmFormat::F32 => bytes.extend_from_slice(&sample.to_le_bytes()),
-                PcmFormat::I16 => bytes.extend_from_slice(&quantize_i16(sample).to_le_bytes()),
+                PcmFormat::I16 => {
+                    bytes.extend_from_slice(&crate::audio::pcm::quantize_i16(sample).to_le_bytes())
+                }
             }
         }
         writer.write_all(&bytes)?;

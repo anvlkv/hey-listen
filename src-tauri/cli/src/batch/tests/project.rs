@@ -3,7 +3,7 @@
 
 use super::*;
 use hey_listen_lib::audio::analyzers::{AnalyzerId, ToolId};
-use hey_listen_lib::project::read_project;
+use hey_listen_lib::project::{decode_reference, read_project, SourceStorage};
 
 fn project_request(out: String, source: String) -> Request {
     let mut request = analyze_request(Vec::new(), Vec::new());
@@ -15,6 +15,7 @@ fn project_request(out: String, source: String) -> Request {
         open_tools: vec![ToolId::Spectrum, ToolId::Waveform],
         annotations: vec![serde_json::json!({ "title": "n1", "body": "b", "timeSecs": 0.1 })],
         reference: false,
+        storage: None,
     };
     request
 }
@@ -78,6 +79,36 @@ fn project_save_writes_a_reference_project() {
     // symlink to `/private/var`, so compare against the canonicalized path.
     let expected = std::fs::canonicalize(&wav).expect("canonicalize the wav");
     assert_eq!(source.path.as_deref(), expected.to_str());
+    assert_eq!(source.storage, SourceStorage::Linked);
+
+    let _ = std::fs::remove_file(&out);
+    let _ = std::fs::remove_file(&wav);
+}
+
+#[test]
+fn a_linked_save_writes_no_data_and_reopens_from_the_file() {
+    let wav = std::env::temp_dir().join(format!("hey_cli_project_link_{}.wav", std::process::id()));
+    write_sine_wav(&wav, 8_000, 4_000);
+    let out =
+        std::env::temp_dir().join(format!("hey_cli_project_link_{}.heyl", std::process::id()));
+
+    let mut request = project_request(
+        out.to_string_lossy().into_owned(),
+        wav.to_string_lossy().into_owned(),
+    );
+    if let Command::ProjectSave { storage, .. } = &mut request.command {
+        *storage = Some(SourceStorage::Linked);
+    }
+    run_single(&request);
+
+    let mut file = std::fs::File::open(&out).unwrap();
+    let loaded = read_project(&mut file).unwrap();
+    assert!(loaded.pcm.is_none(), "a linked save writes no DATA");
+    let source = loaded.source.expect("a source descriptor");
+    assert_eq!(source.storage, SourceStorage::Linked);
+    // The app decodes the linked file again on load.
+    let pcm = decode_reference(Some(&source), out.parent()).expect("the audio decodes");
+    assert_eq!(pcm.samples.len(), 4_000, "the whole recording comes back");
 
     let _ = std::fs::remove_file(&out);
     let _ = std::fs::remove_file(&wav);

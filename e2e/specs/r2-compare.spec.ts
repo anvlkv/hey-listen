@@ -172,10 +172,16 @@ describe("R2. Comparison", () => {
     );
     expect(await count(BANNER)).toBe(0);
     await waitForCompareChart("spectrum");
-    const saved = await invokeCore<{ tool: string; referenceName: string }[]>("compare_saved", {});
+    const saved = await invokeCore<{ tool: string; referenceName: string; hasFragment: boolean }[]>(
+      "compare_saved",
+      {},
+    );
     const info = saved.find((entry) => entry.tool === "spectrum");
     expect(info).toBeTruthy();
     expect(info!.referenceName.length).toBeGreaterThan(0);
+    // The snapshot carries the reference's window audio, so a later grid change still
+    // produces a delta (the re-grid path is pinned by the core's unit tests).
+    expect(info!.hasFragment).toBe(true);
 
     // The analyzer tab it was opened from is restored too. The restored compare tab is
     // the active one, and dockview only mounts a **visible** panel — so the analyzer's

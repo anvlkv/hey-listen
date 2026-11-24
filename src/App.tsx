@@ -8,6 +8,8 @@ import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker
 import AnnotationsPanel from "./components/AnnotationsPanel";
 import Sidebar from "./components/Sidebar";
 import SourcePanel from "./components/SourcePanel";
+import BrokenLinkDialog from "./components/source/BrokenLinkDialog";
+import StorageDialog from "./components/source/StorageDialog";
 import Splitter from "./components/Splitter";
 import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
@@ -18,6 +20,7 @@ import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu, aboutOpen, cliToolOpen, setAboutOpen, setCliToolOpen } from "./state/menu";
 import { initMcp } from "./state/mcp";
 import { initDispatcher } from "./state/keybindings/dispatcher";
+import { initLiveLink } from "./state/liveLink";
 import { initProjectHistory } from "./state/project/push";
 import { initDirty } from "./state/project/unsaved";
 import { initSynthLive } from "./state/synthLive";
@@ -65,6 +68,7 @@ export default function App() {
   let disposeDragDrop: (() => void) | undefined;
   let disposeDispatcher: (() => void) | undefined;
   let disposeSynthLive: (() => void) | undefined;
+  let disposeLiveLink: (() => void) | undefined;
 
   const clamp = (height: number) => {
     const max = Math.max(BOTTOM_MIN, (main?.clientHeight ?? 0) - TOP_MIN);
@@ -121,6 +125,7 @@ export default function App() {
     disposeDragDrop = initDragDrop();
     disposeDispatcher = initDispatcher();
     disposeSynthLive = initSynthLive();
+    disposeLiveLink = initLiveLink();
     window.addEventListener("resize", handleResize);
   });
   onCleanup(() => {
@@ -129,6 +134,7 @@ export default function App() {
     disposeDragDrop?.();
     disposeDispatcher?.();
     disposeSynthLive?.();
+    disposeLiveLink?.();
   });
 
   return (
@@ -228,6 +234,10 @@ export default function App() {
       <CommandPalette />
       <ComparePicker />
       <CompareNotice />
+      {/* The storage-mode chooser and the missing-link notice: promise-based, awaited by
+          the open and save paths (`state/sourceStorage.ts`). */}
+      <StorageDialog />
+      <BrokenLinkDialog />
     </div>
   );
 }

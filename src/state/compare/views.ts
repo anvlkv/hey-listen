@@ -23,6 +23,16 @@ import type { CompareViewDto } from "./types";
 export type CompareBinding =
   { kind: "live"; reference: string } | { kind: "saved"; reference: string };
 
+/** What a saved snapshot can do, beyond its name and window (M25.C). */
+export interface SavedReferenceInfo {
+  /** Whether the snapshot carries the reference's window audio; a pre-v8 one does not. */
+  hasFragment: boolean;
+  /** The reference's own audio file, when it was a file. */
+  sourcePath: string | null;
+  /** The reference project's file, so the open project that *is* the reference is found. */
+  referencePath: string | null;
+}
+
 /** One open compare tab's state. */
 export interface CompareViewState {
   /** The analyzer this comparison runs (several comparisons may share one). */
@@ -32,6 +42,9 @@ export interface CompareViewState {
   offset: number;
   /** The content fingerprint of the last successful comparison, or `null`. */
   fingerprint: string | null;
+  /** The snapshot's capabilities while the reference is saved; dropped when the view is
+   * retargeted to a live project (a live reference has no snapshot to describe). */
+  saved?: SavedReferenceInfo;
 }
 
 /** Comparison id → the state of its **open compare tab**. */
@@ -48,7 +61,8 @@ export function compareOffset(tool: AnalyzerId, id: string): number {
   return viewFor(tool, id)?.offset ?? 0;
 }
 
-/** Point a comparison at a live reference project; a retarget resets the offset. */
+/** Point a comparison at a live reference project; a retarget resets the offset and drops
+ * the saved snapshot's capabilities (there is no snapshot behind a live project). */
 export function setReference(tool: AnalyzerId, id: string, reference: string) {
   setCompareViews((views) => {
     const current = views[id];
@@ -73,6 +87,15 @@ export function setReference(tool: AnalyzerId, id: string, reference: string) {
   });
 }
 
+/** The capability slice of a saved snapshot's info. */
+function savedReferenceInfo(info: SavedComparisonInfo): SavedReferenceInfo {
+  return {
+    hasFragment: info.hasFragment,
+    sourcePath: info.sourcePath,
+    referencePath: info.referencePath,
+  };
+}
+
 /** Point a comparison at the project's saved snapshot, restoring its offset. */
 export function setSavedReference(tool: AnalyzerId, id: string, info: SavedComparisonInfo) {
   setCompareViews((views) => ({
@@ -82,8 +105,17 @@ export function setSavedReference(tool: AnalyzerId, id: string, info: SavedCompa
       binding: { kind: "saved", reference: info.referenceName },
       offset: info.bOffset,
       fingerprint: info.fingerprint,
+      saved: savedReferenceInfo(info),
     },
   }));
+}
+
+/**
+ * The saved reference's capabilities, or `null` when the view is bound to a live project
+ * (or is not open). `referencePath` is what finds the reference project's open window.
+ */
+export function savedInfo(tool: AnalyzerId, id: string): SavedReferenceInfo | null {
+  return viewFor(tool, id)?.saved ?? null;
 }
 
 /** Move a view's fine-tune offset. */

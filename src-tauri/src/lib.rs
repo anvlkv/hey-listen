@@ -202,6 +202,9 @@ pub fn run() {
         // the project, not a project of its own).
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
+                // A destroyed project window stops watching its live-linked source; a
+                // popout is a view and normally watches nothing.
+                state::watch::stop(window.label());
                 let app = window.app_handle();
                 let registry = app.state::<state::WindowRegistry>();
                 for popout in registry.popouts_of(window.label()) {
@@ -220,6 +223,7 @@ pub fn run() {
             commands::source::begin_capture_source,
             commands::source::end_capture_source,
             commands::source::load_shared_source,
+            commands::source::sync_source_watch,
             commands::decode::probe_file,
             commands::decode::stream_file,
             commands::capture::list_devices,
@@ -292,6 +296,7 @@ pub fn run() {
             commands::project::load_project,
             commands::project::pick_project_open_path,
             commands::project::pick_project_save_path,
+            commands::project::source_link_check,
             commands::project::open_paths::take_pending_open_paths,
             commands::project::open_paths::add_recent_project,
             commands::project::siblings::adjacent_project,
@@ -347,6 +352,8 @@ fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::
     match event {
         // Stop the MCP server (and drop its advertisement) on exit.
         tauri::RunEvent::Exit => {
+            // Nothing is left to notify: a live-source watcher ends with the process.
+            state::watch::stop_all();
             // `Exit` can also be emitted when the app stops before `setup` ran.
             if let Some(mcp) = app.try_state::<mcp::settings::McpController>() {
                 mcp.stop(app);

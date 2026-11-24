@@ -15,7 +15,7 @@ mod relative;
 
 const RATE: u32 = 48_000;
 
-fn state_with(samples: Vec<f32>) -> WindowState {
+pub(super) fn state_with(samples: Vec<f32>) -> WindowState {
     let state = WindowState::default();
     state.audio.set_source(Some(SourceData {
         samples,
@@ -26,7 +26,7 @@ fn state_with(samples: Vec<f32>) -> WindowState {
 }
 
 /// A mono sine over `secs` seconds.
-fn tone(secs: f64, hz: f32, amp: f32) -> Vec<f32> {
+pub(super) fn tone(secs: f64, hz: f32, amp: f32) -> Vec<f32> {
     let frames = (secs * f64::from(RATE)) as usize;
     (0..frames)
         .map(|frame| {
@@ -49,7 +49,7 @@ fn params() -> SharedParams {
     }
 }
 
-fn setup(start: f64, end: f64) -> CompareSetup {
+pub(super) fn setup(start: f64, end: f64) -> CompareSetup {
     CompareSetup {
         start,
         end,
@@ -58,7 +58,7 @@ fn setup(start: f64, end: f64) -> CompareSetup {
     }
 }
 
-fn compare_pair(
+pub(super) fn compare_pair(
     tool: AnalyzerId,
     a: (&WindowState, CompareSetup),
     b: (&WindowState, CompareSetup),

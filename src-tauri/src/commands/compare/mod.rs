@@ -139,6 +139,8 @@ pub async fn run_comparison(
             let b_project = project_name(&b_state);
             let b_path = project_path(&b_state);
             let b_filter = compare::filter_fingerprint(&b_state);
+            // Capture the reference's window audio before `b_setup` moves into `SideInput`.
+            let audio = compare::ReferenceAudio::from_state(&b_state, b_setup.span());
             let comparison = compare::compare(
                 tool,
                 a,
@@ -159,6 +161,7 @@ pub async fn run_comparison(
                 b_offset,
                 crate::recent::now_ms(),
                 b_path,
+                audio,
             );
             (comparison, snapshot)
         };
