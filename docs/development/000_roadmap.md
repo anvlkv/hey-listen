@@ -165,3 +165,6 @@ Per-channel graph outputs and table nodes.
 
 ## M42 — Source storage: embedded, linked, live link ✅
 Where the audio lives; saved references carry their own audio and re-grid (D-23).
+
+## M43 — Audio import/export (drafted)
+Sources move into the Sidebar; the analysis window exports as audio.
