@@ -1,7 +1,7 @@
 # Audio import and export (M43)
 
-> **Status: drafted.** Source configuration moves into the Sidebar, and the analysis
-> window becomes exportable as audio.
+> **Status: delivered.** Source configuration lives in the Sidebar, and the analysis
+> window is exportable as audio.
 
 ## The sources rail
 

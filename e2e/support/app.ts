@@ -167,7 +167,7 @@ export async function newEmptyProject(): Promise<void> {
   await mockReturn("confirm", true);
   await menuAction("new");
   await waitFor(
-    async () => (await count(SEL.timeline)) === 0,
+    async () => (await count(SEL.timelineEmpty)) > 0,
     "New Project did not clear the timeline",
   );
 }

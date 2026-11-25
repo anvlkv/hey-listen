@@ -44,6 +44,7 @@ import {
   count,
   openFixture,
   openTool,
+  prepareSynthSource,
   timelineReadoutText,
   waitFor,
   waitForSourceLoaded,
@@ -100,6 +101,8 @@ describe("S4. Graph DOT interchange (M39)", () => {
 
   it("V2 — the synth editor renders an imported DOT patch and exports it", async () => {
     await openTool("synth");
+    // The render controls live in the Sources rail (M43); choose the synth kind there.
+    await prepareSynthSource();
     // Live is persisted app chrome: an earlier spec (or the developer's own session) can
     // leave it on, and then every settled graph edit re-renders the source.
     await quietSynthLive();

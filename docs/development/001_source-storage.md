@@ -27,7 +27,7 @@ and still open.
 
 ## Choosing the mode
 
-The Source panel shows the modes as radio cards, and the same component is the modal
+The Sources rail shows the modes as radio cards, and the same component is the modal
 shown right after an audio file is picked. The first open defaults to `embedded`; every
 explicit choice — the chooser's confirmation or the panel's switch — is remembered in
 `localStorage`, so the next open starts there.

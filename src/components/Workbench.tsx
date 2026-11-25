@@ -50,7 +50,7 @@ function WatermarkHint() {
       <span class="empty-state-hint">
         {hasSource()
           ? "Pick a graph or analyzer from the Sidebar on the left."
-          : "Add a file, recording, or synth in the Source panel below, then open a graph or analyzer here."}
+          : "Add a file, recording, or synth in the Sources tab on the left, then open a graph or analyzer here."}
       </span>
     </>
   );

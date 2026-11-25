@@ -1,6 +1,6 @@
 /**
  * Small, dependency-free formatting helpers shared across the app chrome (Toolbar,
- * Source panel, …). Keeping the math in one place avoids the meter helpers drifting
+ * Sources rail, …). Keeping the math in one place avoids the meter helpers drifting
  * apart between the input and output meters.
  */
 

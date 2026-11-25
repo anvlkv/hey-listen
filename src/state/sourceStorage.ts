@@ -26,7 +26,7 @@ export interface StorageOption {
 }
 
 /**
- * The three modes, in card order — the one table the Source panel and the post-pick
+ * The three modes, in card order — the one table the Sources rail and the post-pick
  * dialog both render. Never spell the modes out again: import this.
  */
 export const STORAGE_OPTIONS: readonly StorageOption[] = [

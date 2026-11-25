@@ -2,7 +2,7 @@
  * Source & fixtures (M8): reveal the Source panel, open a file (with the native
  * picker mocked), and wait for the swap to land on the Timeline.
  */
-import { SEL } from "./selectors.ts";
+import { SEL, activityTab } from "./selectors.ts";
 import { FIXTURES } from "./fixtures.ts";
 import { click, count, waitForSelector } from "./dom.ts";
 import { mockReturn } from "./ipc.ts";
@@ -16,14 +16,25 @@ export async function timelineReadoutText(): Promise<string> {
 }
 
 /**
- * Make the Source panel reachable: once a source exists the panel is hidden behind
- * the Timeline's *Replace…* button, so click it when the panel is absent.
+ * Show the Sources rail: the activity bar's pinned Sources tab (M43). A no-op when the
+ * rail already shows it. Revealing it never collapses the rail.
+ */
+export async function showSources(): Promise<void> {
+  if ((await count(SEL.source)) > 0) return;
+  await click(activityTab("sources"));
+  await waitForSelector(SEL.source, "the Sources rail did not open");
+}
+
+/**
+ * Make the Sources rail reachable. It lives in the Sidebar (M43), so reveal it from the
+ * Timeline's *Replace* button when a source exists, else select its activity tab.
  */
 export async function ensureSourcePanel(): Promise<void> {
   if ((await count(SEL.source)) > 0) return;
   if ((await count(SEL.timelineReplace)) > 0) await click(SEL.timelineReplace);
+  else await click(activityTab("sources"));
   await browser.waitUntil(async () => (await count(SEL.source)) > 0, {
-    timeoutMsg: "the source panel did not open",
+    timeoutMsg: "the Sources rail did not open",
   });
 }
 
@@ -52,11 +63,11 @@ export async function openFileFixture(path: string): Promise<void> {
   await click(SEL.storageDialogOpen);
 }
 
-/** Wait until a source is on the timeline (the Timeline region replaced the strip). */
+/** Wait until the Timeline reports a settled source (M43 keeps it mounted always). */
 export async function waitForSourceLoaded(timeout = 30_000): Promise<void> {
-  await browser.waitUntil(async () => (await count(SEL.timeline)) > 0, {
+  await browser.waitUntil(async () => (await count(SEL.timelineEmpty)) === 0, {
     timeout,
-    timeoutMsg: "the timeline never replaced the source strip (no source loaded?)",
+    timeoutMsg: "the timeline never became active (no source loaded?)",
   });
 }
 
@@ -70,6 +81,21 @@ const FIXTURE_SECONDS: Record<keyof typeof FIXTURES, number> = {
 };
 
 /**
+ * Show the Sources rail and choose the **Synth** kind, so its render controls exist.
+ *
+ * The synth graph tab is a pure editor (M43): Length, Render and Live live in Sources and
+ * are shown for the chosen kind, so a script that renders the synth must select it here.
+ */
+export async function prepareSynthSource(): Promise<void> {
+  await showSources();
+  if ((await count(SEL.graphRender)) === 0) {
+    await openSelect('[data-testid="source.kind"]');
+    await pickOption("Synth (graph)");
+  }
+  await waitForSelector(SEL.graphRender, "the synth render controls did not appear");
+}
+
+/**
  * Open one of the generated fixtures and wait for the **new** source to land. The
  * core prompts before replacing an existing source, so the confirm is auto-answered.
  * If a fixture of the same duration is already loaded (the app is one long-lived
@@ -79,7 +105,10 @@ export async function openFixture(name: keyof typeof FIXTURES): Promise<void> {
   const seconds = FIXTURE_SECONDS[name];
   const clock = `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
   const before = await timelineReadoutText();
-  if (before && seconds > 0 && before.includes(clock)) return; // already loaded
+  // Only an **active** timeline means a source is loaded: a failed open clears the source
+  // but leaves the last window in the readout, so the readout alone would skip the reload.
+  const active = (await count(SEL.timelineEmpty)) === 0;
+  if (active && before && seconds > 0 && before.includes(clock)) return; // already loaded
 
   await ensureSourcePanel();
   await mockReturn("confirm", true);

@@ -4,7 +4,7 @@ import { returnToStart } from "../../audio/preview";
 import { transportFollow, toggleTransportFollow } from "../../audio/transportFollow";
 import type { TransportStatus } from "../../audio/transport";
 import { filterActive, filterComposed, setFilterEnabled } from "../../state/graph";
-import { setSourcePanelPinned, sourcePanelPinned } from "../../state/settings";
+import { showTab } from "../../state/activityBar";
 import { source, status } from "../../state/source";
 import { windowEnd, windowStart } from "../../state/timeline";
 import { canGoBack, canGoForward, nextWindow, previousWindow } from "../../state/windowHistory";
@@ -198,9 +198,8 @@ export default function TimelineToolbar(props: {
             <Button
               class="timeline-btn icon-btn"
               data-testid="timeline.replace"
-              aria-pressed={sourcePanelPinned()}
               aria-label="Replace source"
-              onClick={() => setSourcePanelPinned(!sourcePanelPinned())}
+              onClick={() => showTab("sources")}
             >
               <Icon name="folder-open" />
             </Button>

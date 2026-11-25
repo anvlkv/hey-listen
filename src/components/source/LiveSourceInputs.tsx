@@ -42,7 +42,7 @@ function processOptions() {
 }
 
 /** The device / application / mix inputs for live kinds. */
-export default function LiveSourceInputs(props: { compact?: boolean }) {
+export default function LiveSourceInputs() {
   return (
     <>
       <Show when={choice() === "mic" || choice() === "system"}>
@@ -60,7 +60,7 @@ export default function LiveSourceInputs(props: { compact?: boolean }) {
       </Show>
 
       <Show when={choice() === "process"}>
-        <div class={props.compact ? "src-field" : "src-stack"}>
+        <div class="src-stack">
           <span class="src-label">Application</span>
           <Combobox
             options={processOptions()}
@@ -83,7 +83,7 @@ export default function LiveSourceInputs(props: { compact?: boolean }) {
       </Show>
 
       <Show when={choice() === "mix"}>
-        <div class={props.compact ? "src-field" : "src-stack"}>
+        <div class="src-stack">
           <Combobox
             options={toOptions(micDevices())}
             value={mixMicDeviceId()}

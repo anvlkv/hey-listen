@@ -16,6 +16,7 @@ export default function SelectField<T>(props: {
   label?: string;
   class?: string;
   ariaLabel?: string;
+  testId?: string;
   disabled?: boolean;
 }) {
   // A memo, not a plain function, so the lookup (and the option the `Select` receives as
@@ -32,6 +33,7 @@ export default function SelectField<T>(props: {
       onChange={props.onChange}
       placeholder=""
       ariaLabel={props.ariaLabel ?? props.label}
+      testId={props.testId}
       disabled={props.disabled}
     />
   );

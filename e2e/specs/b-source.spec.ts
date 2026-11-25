@@ -14,6 +14,7 @@ import {
   openTool,
   openFixture,
   ensureSourcePanel,
+  prepareSynthSource,
   openSelect,
   pickOption,
   mockReturn,
@@ -50,6 +51,7 @@ describe("B. Source kinds", () => {
 
   it("B2 — a synth source renders from its PCM", async () => {
     await openTool("synth");
+    await prepareSynthSource();
     await click(SEL.graphRender);
     // The default sine→output graph renders 4 s; the readout confirms it replaced
     // the file source, and the timeline still draws the new PCM.
@@ -73,13 +75,14 @@ describe("B. Source kinds", () => {
 
     // Render the default synth, replacing the file (one source per project).
     await openTool("synth");
+    await prepareSynthSource();
     await click(SEL.graphRender);
     await waitFor(
       async () => (await timelineReadout()).includes("0:04"),
       "the synth source did not replace the file source",
     );
 
-    expect(await count(SEL.timeline)).toBe(1);
+    expect(await count(SEL.timelineEmpty)).toBe(0);
     await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline waveform never rendered");
   });
 

@@ -8,6 +8,8 @@
  * process listing), `countdown` (the start timer), and `session` (the session engine
  * and recording actions).
  */
+import "./monitor";
+
 export { KIND_LABEL } from "./types";
 export type { CaptureKind, SourceChoice } from "./types";
 export {
@@ -44,7 +46,6 @@ export {
   initCapture,
   disposeCapture,
   stopFollowing,
-  startMonitor,
   stopMonitor,
   startCapture,
   stopCapture,

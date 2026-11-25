@@ -47,7 +47,7 @@ function looksLikeAudio(path: string): boolean {
  * Register the window drag-and-drop listener: raise the overlay on `enter`/`over`
  * and open the first dropped file on `drop`. A Hey Listen project (`.heyl`) opens
  * as the project — with the same unsaved-work guard as File → Open; any other file
- * replaces the source, like the Source panel's "Open audio file…".
+ * replaces the source, like the Sources rail's "Open audio file…".
  *
  * Returns a disposable that unlistens. `onDragDropEvent` resolves to the unlisten
  * function asynchronously, so the disposable chains off that promise to stay

@@ -39,12 +39,13 @@ hears.
 
 ## Making a synth source
 
-In the synth editor, set the **Length**, build the patch, and **Render**. The result
-becomes the project's source.
+Build the patch in the synth editor, then set the **Length** and press **Render** in the
+Sources rail (the synth tab is a pure graph editor). The result becomes the project's
+source.
 
-Turn on **Live** and each settled edit, or a Length change, updates the source in place —
-so your analysis window, annotations, and open charts keep their positions while you
-tweak the sound.
+Turn on **Live** in the Sources rail and each settled edit, or a Length change, updates the
+source in place — so your analysis window, annotations, and open charts keep their positions
+while you tweak the sound.
 
 ## A graph in its own window
 

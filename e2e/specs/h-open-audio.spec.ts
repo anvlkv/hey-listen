@@ -46,8 +46,8 @@ describe("H. Open an audio file from the OS as a new project", () => {
       "the audio file never landed on the timeline as a source",
     );
     await waitFor(
-      async () => (await count(SEL.timeline)) > 0,
-      "the Timeline never came back after the OS-open",
+      async () => (await count(SEL.timelineEmpty)) === 0,
+      "the Timeline never became active after the OS-open",
     );
 
     // It is a new (untitled) project named after the file, not a loaded project path.

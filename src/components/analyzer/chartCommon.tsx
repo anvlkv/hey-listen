@@ -140,9 +140,9 @@ export function UplotChartPlot(props: {
 }
 
 const NO_AUDIO_HINT =
-  "Open a file, record, or render a synth from the Source panel — the analysis appears here.";
+  "Open a file, record, or render a synth from Sources — the analysis appears here.";
 /** The overlay variant sits over a still-visible chart, so it drops the trailing hint. */
-const NO_AUDIO_HINT_OVERLAY = "Open a file, record, or render a synth from the Source panel.";
+const NO_AUDIO_HINT_OVERLAY = "Open a file, record, or render a synth from Sources.";
 
 /**
  * The analyzer "no audio to analyse" empty state. `overlay` renders it over a

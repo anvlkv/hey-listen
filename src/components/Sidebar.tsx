@@ -1,8 +1,10 @@
-import { createMemo, For, Show, type JSX } from "solid-js";
+import { createMemo, For, Match, Show, Switch, type JSX } from "solid-js";
 import Icon from "./Icon";
 import MarkdownHint from "./MarkdownHint";
 import ScrollArea from "./ScrollArea";
 import Tooltip from "./Tooltip";
+import AudioExportPanel from "./export/AudioExportPanel";
+import SourcePanel from "./SourcePanel";
 import { GRAPH_ICONS, VIEW_ICONS, type IconName } from "../lib/icons";
 import { markdownSummary } from "../lib/markdown";
 import { openTool, openSystem, openTools, toolById, type ToolDef } from "../state/workbench";
@@ -13,19 +15,19 @@ import {
   matchesQuery,
   type AnalyzerDef,
 } from "../state/analyzer";
-import { activeTab } from "../state/activityBar";
+import { activeTab, isAnalyzerTab, isGraphTab, isSourcesTab } from "../state/activityBar";
 import { analyzerQuery, setAnalyzerQuery } from "../state/sidebarSearch";
 
 /**
- * Sidebar (fixed region): the tool picker. It shows the cards of the activity bar's
- * **active tab** — one analyzer section, or the two graph editors. A **search box**
- * (hidden on the Graphs tab) filters the active section's analyzers by title,
- * description, and keywords; the query is the list's `resetKey`, so a new search
- * starts at the top, and it lives in [`sidebarSearch`](../state/sidebarSearch.ts)
- * so the Activity bar can mark the sections it matches while another one is showing.
- * Clicking an entry opens (or focuses) its Workbench tab.
+ * Sidebar (fixed region): the content of the activity bar's **active tab**.
  *
- * Each analyzer row carries the tool's **chart-type** icon in its bottom-right corner
+ * - an analyzer section — its cards, filtered by the **search box**;
+ * - the **Graphs** tab — the two graph editors plus any open subsystems;
+ * - the **Sources** rail — the source picker and capture controls ([`SourcePanel`]);
+ * - the **Export** rail — the audio export controls ([`AudioExportPanel`]).
+ *
+ * The search box is shown only for analyzer sections, the only content it filters. Each
+ * analyzer row carries the tool's **chart-type** icon in its bottom-right corner
  * (`lib/icons.ts` → `VIEW_ICONS`); the graph rows carry their editor icons
  * (`GRAPH_ICONS`). Hover copy is a [`Tooltip`](./Tooltip.tsx): analyzers show a
  * **formatted**, compact markdown hint ([`MarkdownHint`](./MarkdownHint.tsx)) trimmed
@@ -66,15 +68,16 @@ function parentLabel(parent: string): string {
 export default function Sidebar(props: { style?: JSX.CSSProperties }) {
   const matches = (def: AnalyzerDef) => matchesQuery(def, analyzerQuery());
 
-  const isGraph = () => activeTab() === "graph";
-  const section = () => ANALYZER_SECTIONS.find((item) => item.id === activeTab());
+  const section = () => {
+    const active = activeTab();
+    return isAnalyzerTab(active) ? ANALYZER_SECTIONS.find((item) => item.id === active) : undefined;
+  };
 
-  /** The active section's analyzer cards (empty on the Graphs tab). */
+  /** The active analyzer section's cards (empty on every other tab). */
   const sectionTools = createMemo(() => {
     const active = activeTab();
-    if (active === "graph") return [];
-    const def = ANALYZER_SECTIONS.find((item) => item.id === active);
-    return def ? analyzersInSection(def.id).filter(matches).map(toTool) : [];
+    if (!isAnalyzerTab(active)) return [];
+    return analyzersInSection(active).filter(matches).map(toTool);
   });
 
   const Tools = (props: { tools: SidebarTool[] }) => (
@@ -101,62 +104,76 @@ export default function Sidebar(props: { style?: JSX.CSSProperties }) {
 
   return (
     <aside class="app-sidebar" data-testid="region.sidebar" style={props.style}>
-      <Show when={!isGraph()}>
-        <div class="sidebar-search-wrap">
-          <Icon name="magnifying-glass" class="sidebar-search-icon" />
-          <input
-            class="sidebar-search"
-            data-testid="sidebar.search"
-            type="search"
-            placeholder="Search analyzers…"
-            aria-label="Search analyzers"
-            value={analyzerQuery()}
-            onInput={(event) => setAnalyzerQuery(event.currentTarget.value)}
-          />
-        </div>
-      </Show>
-
-      <ScrollArea class="sidebar-scroll" resetKey={analyzerQuery()}>
-        <div class="sidebar-section-title">{isGraph() ? "Graphs" : "Analyzers"}</div>
-        <Show
-          when={isGraph()}
-          fallback={
-            <Show
-              when={sectionTools().length > 0}
-              fallback={
-                <div class="sidebar-empty" data-testid="sidebar.empty">
-                  No analyzers match “{analyzerQuery()}”.
-                </div>
-              }
-            >
-              <div class="sidebar-subtitle">{section()?.title}</div>
-              <Tools tools={sectionTools()} />
-            </Show>
-          }
-        >
-          <Tools tools={graphTools()} />
-          <Show when={subsystems().length > 0}>
-            <div class="sidebar-subtitle">Subsystems</div>
-            <div class="sidebar-tools">
-              <For each={subsystems()}>
-                {(system) => (
-                  <button
-                    type="button"
-                    class="sidebar-tool"
-                    data-testid="sidebar.subsystem"
-                    data-scope={system.scope}
-                    onClick={() => openSystem(system.scope)}
-                  >
-                    <span class="sidebar-tool-name">{system.label}</span>
-                    <span class="sidebar-tool-desc">nested in {parentLabel(system.parent)}</span>
-                    <Icon name={GRAPH_ICONS.filter} class="sidebar-tool-icon" />
-                  </button>
-                )}
-              </For>
+      <Switch>
+        <Match when={isSourcesTab(activeTab())}>
+          <SourcePanel />
+        </Match>
+        <Match when={activeTab() === "export"}>
+          <AudioExportPanel />
+        </Match>
+        <Match when={isGraphTab(activeTab()) || isAnalyzerTab(activeTab())}>
+          <Show when={isAnalyzerTab(activeTab())}>
+            <div class="sidebar-search-wrap">
+              <Icon name="magnifying-glass" class="sidebar-search-icon" />
+              <input
+                class="sidebar-search"
+                data-testid="sidebar.search"
+                type="search"
+                placeholder="Search analyzers…"
+                aria-label="Search analyzers"
+                value={analyzerQuery()}
+                onInput={(event) => setAnalyzerQuery(event.currentTarget.value)}
+              />
             </div>
           </Show>
-        </Show>
-      </ScrollArea>
+
+          <ScrollArea class="sidebar-scroll" resetKey={analyzerQuery()}>
+            <div class="sidebar-section-title">
+              {isGraphTab(activeTab()) ? "Graphs" : "Analyzers"}
+            </div>
+            <Show
+              when={isGraphTab(activeTab())}
+              fallback={
+                <Show
+                  when={sectionTools().length > 0}
+                  fallback={
+                    <div class="sidebar-empty" data-testid="sidebar.empty">
+                      No analyzers match “{analyzerQuery()}”.
+                    </div>
+                  }
+                >
+                  <div class="sidebar-subtitle">{section()?.title}</div>
+                  <Tools tools={sectionTools()} />
+                </Show>
+              }
+            >
+              <Tools tools={graphTools()} />
+              <Show when={subsystems().length > 0}>
+                <div class="sidebar-subtitle">Subsystems</div>
+                <div class="sidebar-tools">
+                  <For each={subsystems()}>
+                    {(system) => (
+                      <button
+                        type="button"
+                        class="sidebar-tool"
+                        data-testid="sidebar.subsystem"
+                        data-scope={system.scope}
+                        onClick={() => openSystem(system.scope)}
+                      >
+                        <span class="sidebar-tool-name">{system.label}</span>
+                        <span class="sidebar-tool-desc">
+                          nested in {parentLabel(system.parent)}
+                        </span>
+                        <Icon name={GRAPH_ICONS.filter} class="sidebar-tool-icon" />
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </Show>
+          </ScrollArea>
+        </Match>
+      </Switch>
     </aside>
   );
 }

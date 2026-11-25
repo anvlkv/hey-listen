@@ -57,6 +57,8 @@ export {
 // --- Source ----------------------------------------------------------------
 export {
   timelineReadoutText,
+  showSources,
+  prepareSynthSource,
   ensureSourcePanel,
   prepareFilePicker,
   openFileFixture,

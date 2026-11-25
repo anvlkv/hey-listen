@@ -1,6 +1,6 @@
-/* Vertical activity bar (VSCode-style, far left): one icon per analyzer section,
-   plus the two graph editors pinned at the bottom. Fixed region — not a tab, not
-   resizable. */
+/* Vertical activity bar (VSCode-style, far left): one icon per analyzer section
+   plus the graph editors, with the Sources and Export rails pinned at the bottom.
+   Fixed region — not a tab, not resizable. */
 
 .app-activitybar {
   flex: 0 0 44px;
@@ -18,7 +18,7 @@
   width: 100%;
 }
 
-/* The graph editors sit at the bottom, below a divider-less gap (VSCode's layout). */
+/* The source rails sit at the bottom, below a divider-less gap (VSCode's layout). */
 .activitybar-group-bottom {
   margin-top: auto;
 }

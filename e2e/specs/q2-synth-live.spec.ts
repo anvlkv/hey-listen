@@ -17,6 +17,7 @@ import {
   openTool,
   openFixture,
   waitForSourceLoaded,
+  prepareSynthSource,
   timelineReadoutText,
   startInvokeCounts,
   takeInvokeCounts,
@@ -65,9 +66,16 @@ describe("Q2. Synth workflow", () => {
   it("Q2.1 — Live overwrites the source without resetting the window, view or annotations", async () => {
     await openFixture("sine440");
     await openTool("synth");
-    await waitFor(async () => (await count(SEL.graphRender)) > 0, "the synth tab did not open");
+    await prepareSynthSource();
+    await waitFor(
+      async () => (await count(SEL.graphRender)) > 0,
+      "the synth render controls did not open",
+    );
     // Live is persisted chrome: start from off so the click below turns it *on*.
     await quietSynthLive();
+    // Length is app-session state and an earlier spec may have loaded a synth source of
+    // another length (project load restores it), so pin the render this case expects.
+    await setInputValue(SEL.synthLength, "4");
 
     // Make the synth the source once, so Live takes the in-place path (no adoption reset).
     await click(SEL.graphRender);
@@ -135,7 +143,11 @@ describe("Q2. Synth workflow", () => {
 
   it("Q2.2 — a failed live render keeps the last good audio", async () => {
     await openTool("synth");
-    await waitFor(async () => (await count(SEL.synthLive)) > 0, "the synth tab did not open");
+    await prepareSynthSource();
+    await waitFor(
+      async () => (await count(SEL.graphRender)) > 0,
+      "the synth render controls did not open",
+    );
     // As above: off, so the click turns Live on and the rejection is this case's.
     await quietSynthLive();
     const before = await timelineReadoutText();
@@ -207,7 +219,11 @@ describe("Q2. Synth workflow", () => {
   it("Q2.4 — Live never shortens the source: a length over the cap is skipped", async () => {
     await openFixture("sine440");
     await openTool("synth");
-    await waitFor(async () => (await count(SEL.synthLength)) > 0, "the synth tab did not open");
+    await prepareSynthSource();
+    await waitFor(
+      async () => (await count(SEL.synthLength)) > 0,
+      "the synth controls did not open",
+    );
     // Off first, so the switch below is this case's own turn-on.
     await quietSynthLive();
 

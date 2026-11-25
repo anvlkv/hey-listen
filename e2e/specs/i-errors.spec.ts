@@ -30,6 +30,7 @@ import {
   count,
   closeAllTabs,
   textOf,
+  prepareSynthSource,
 } from "../support/helpers.ts";
 import { FIXTURES } from "../support/fixtures.ts";
 import { appLogPath, expectLogErrors } from "../support/logs.ts";
@@ -147,8 +148,8 @@ describe("I. Errors & warnings", () => {
     const err = await $(SEL.toolbarError);
     await err.waitForExist();
     expect((await err.getText()).trim().length).toBeGreaterThan(0);
-    // The Timeline only renders once a source exists, so it must be absent.
-    expect(await $(SEL.timeline).isExisting()).toBe(false);
+    // The Timeline stays mounted with its empty-state overlay (M43).
+    expect(await $(SEL.timelineEmpty).isExisting()).toBe(true);
 
     // A valid file recovers: the error clears and the waveform renders.
     await openFixture("sine440");
@@ -160,7 +161,7 @@ describe("I. Errors & warnings", () => {
   });
 
   it("I2 — a rejected run_analysis shows an analyzer error; the tab stays open", async () => {
-    if (!(await $(SEL.timeline).isExisting())) await openFixture("sine440");
+    if ((await count(SEL.timelineEmpty)) > 0) await openFixture("sine440");
     await openTool("spectrum");
     await waitForAnalyzer("spectrum");
 
@@ -206,6 +207,7 @@ describe("I. Errors & warnings", () => {
 
   it("I4 — a rejected render_synth shows a graph error; the Render button re-enables", async () => {
     await openTool("synth");
+    await prepareSynthSource();
     const render = await $(SEL.graphRender);
     await render.waitForExist();
 
@@ -262,7 +264,7 @@ describe("I. Errors & warnings", () => {
   });
 
   it("I6 — a failed preview surfaces in the toolbar and clears on retry", async () => {
-    if (!(await $(SEL.timeline).isExisting())) await openFixture("sine440");
+    if ((await count(SEL.timelineEmpty)) > 0) await openFixture("sine440");
     await waitFor(() => canvasHasInk(SEL.timelineCanvas), "the timeline never rendered");
 
     // The device-dependent region load fails (the real command does on a runner with

@@ -27,6 +27,7 @@ import {
   openFixture,
   canvasHasInk,
   restoreMocks,
+  prepareSynthSource,
   click,
   count,
   textOf,
@@ -126,7 +127,8 @@ describe("C. Graph editors", () => {
     await openTool("synth");
     expect(await count(tab("synth"))).toBe(1);
 
-    // The default seed is `sine → output`; render it to the timeline.
+    // The default seed is `sine → output`; render it from Sources (M43).
+    await prepareSynthSource();
     await click(SEL.graphRender);
     await waitForSourceLoaded();
 

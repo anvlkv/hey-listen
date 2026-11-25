@@ -15,7 +15,11 @@ export const SEL = {
   workbench: '[data-testid="region.workbench"]',
   bottom: '[data-testid="region.bottom"]',
   timeline: '[data-testid="region.timeline"]',
+  // The Timeline stays mounted with no source (M43): its overlay marks that state.
+  timelineEmpty: '[data-testid="timeline.empty"]',
   source: '[data-testid="region.source"]',
+  // The Export activity tab's rail (M43).
+  exportRegion: '[data-testid="region.export"]',
   // The shell a popout window renders instead of the app (ADR-11).
   popout: '[data-testid="region.popout"]',
   splitterTimeline: '[data-testid="splitter.timeline"]',
@@ -177,10 +181,22 @@ export const SEL = {
   graphDropSplice: '[data-testid="graph.drop.splice"]',
   graphDropHint: '[data-testid="graph.drop.hint"]',
 
-  // Synth Live (M22).
+  // Synth Live (M22) — the controls live in the Sources rail (M43).
   synthLength: '[data-testid="synth.length"]',
   synthLive: '[data-testid="synth.live"]',
   synthLiveCap: '[data-testid="synth.live.cap"]',
+
+  // Audio export (M43).
+  exportFormat: '[data-testid="export.format"]',
+  exportDepth: '[data-testid="export.depth"]',
+  exportChannels: '[data-testid="export.channels"]',
+  exportChannel: '[data-testid="export.channel"]',
+  exportFilter: '[data-testid="export.filter"]',
+  exportRun: '[data-testid="export.run"]',
+  exportRange: '[data-testid="export.range"]',
+  exportReason: '[data-testid="export.reason"]',
+  exportResult: '[data-testid="export.result"]',
+  exportError: '[data-testid="export.error"]',
 
   // Analyzer shell.
   analyzerError: '[data-testid="analyzer.error"]',

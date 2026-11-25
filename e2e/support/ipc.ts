@@ -25,6 +25,7 @@ const DIALOG_DEFAULTS: Record<string, MockEntry> = {
   pick_audio_file: { reject: false, value: null },
   pick_project_save_path: { reject: false, value: null },
   pick_project_open_path: { reject: false, value: null },
+  pick_audio_export_path: { reject: false, value: null },
 };
 
 /**

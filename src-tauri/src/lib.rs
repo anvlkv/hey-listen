@@ -279,6 +279,8 @@ pub fn run() {
             commands::export::pick_directory,
             commands::export::write_text,
             commands::export::write_bytes,
+            commands::audio_export::export_audio,
+            commands::audio_export::pick_audio_export_path,
             commands::ui::get_ui_state,
             commands::ui::set_ui_state,
             commands::history::push_project_state,

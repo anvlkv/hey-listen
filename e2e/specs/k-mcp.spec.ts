@@ -60,8 +60,8 @@ describe("K. MCP server (agent access + UI following)", () => {
     expect(state.source?.channels).toBe(1);
     expect(state.source?.duration).toBeCloseTo(2, 1);
 
-    // …and the user's window follows: the Timeline replaced the "Add audio" strip.
-    await browser.waitUntil(async () => (await count(SEL.timeline)) > 0, {
+    // …and the user's window follows: the Timeline becomes active.
+    await browser.waitUntil(async () => (await count(SEL.timelineEmpty)) === 0, {
       timeoutMsg: "the source opened over MCP never reached the timeline",
     });
   });

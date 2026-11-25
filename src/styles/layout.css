@@ -38,31 +38,12 @@
   background: var(--control);
 }
 
-/* Bottom row: Source picker (bottom-left) + Timeline; same, resizable height. */
+/* Bottom row: the Timeline (M43 — always mounted; the Sources rail lives in the
+   Sidebar). Resizable height. */
 .app-bottom {
   flex: none;
   display: flex;
   min-height: 0;
-}
-
-/* Solo bottom row (no source yet): a compact, fixed-height "Add audio" strip.
-   The source panel is a two-column grid (copy left, controls right) so the controls
-   keep a usable width instead of being squeezed into one wrapping row. */
-.app-bottom-solo {
-  align-items: stretch;
-}
-
-.app-bottom-solo .app-source {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
-  border-right: none;
-  display: grid;
-  grid-template-columns: minmax(200px, 22rem) minmax(0, 1fr);
-  align-items: center;
-  gap: 12px 24px;
-  padding: 10px 16px;
-  overflow: hidden;
 }
 
 /* Fixed region — not a tab, not draggable/closable. */

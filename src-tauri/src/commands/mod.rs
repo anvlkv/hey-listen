@@ -6,6 +6,7 @@
 
 pub mod analysis;
 pub mod app;
+pub mod audio_export;
 pub mod capture;
 pub mod cli_install;
 pub mod compare;

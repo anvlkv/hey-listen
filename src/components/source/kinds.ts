@@ -1,7 +1,7 @@
 import type { SourceChoice } from "../../state/capture";
 import type { SelectOption } from "../SelectTrigger";
 
-/** The source kinds the picker offers (synth renders from its Workbench tab). */
+/** The source kinds the picker offers (the synth renders from the Sources rail). */
 export const SOURCE_CHOICES: SelectOption<SourceChoice>[] = [
   { value: "file", label: "Audio file" },
   { value: "mic", label: "Microphone" },

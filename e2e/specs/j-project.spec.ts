@@ -33,6 +33,7 @@ import {
   waitForAnalyzer,
   invokeCore,
   count,
+  ensureSourcePanel,
 } from "../support/helpers.ts";
 import { popOutTab } from "../support/popouts.ts";
 import { addPaletteNode, clearFilterGraph, filterHint } from "../support/graph.ts";
@@ -52,12 +53,10 @@ function fileVersion(file: string): number {
 }
 
 /**
- * Reveal the Source panel when a source is already loaded (it hides once loaded).
+ * Reveal the Sources rail, whichever tab the shared app instance left active.
  */
 async function revealSourcePanel(): Promise<void> {
-  if (!(await $('[data-testid="source.kind"]').isExisting())) {
-    await (await $(SEL.timelineReplace)).click();
-  }
+  await ensureSourcePanel();
 }
 
 describe("H. Project file & multi-window", () => {
@@ -66,6 +65,7 @@ describe("H. Project file & multi-window", () => {
   projectSessionHooks(/^popout-\d+$/);
 
   it("H1 — a saved project reloads its source and setup", async () => {
+    await waitForApp();
     await openFixture("sine440");
 
     const tmpFile = path.join(os.tmpdir(), `heylisten-e2e-${Date.now()}.heyl`);
@@ -244,7 +244,7 @@ describe("H. Project file & multi-window", () => {
 
     await mockReturn("confirm", true);
     await menuAction("new");
-    await waitFor(async () => (await count(SEL.timeline)) === 0, "the project did not clear");
+    await waitFor(async () => (await count(SEL.timelineEmpty)) > 0, "the project did not clear");
 
     // The OS file-association delivery: the core queues the path and emits
     // `app:open-project` to the focused window (`commands/project/open_paths.rs`).

@@ -78,7 +78,7 @@ export function applySynthSource(samples: Float32Array, sampleRate: number, chan
     keepsTransport: true,
   });
   // The saved project descriptor derives its kind from the picker, so the synth must be
-  // the picker's choice too (and the Source panel stops monitoring capture inputs).
+  // the picker's choice too (and the Sources rail stops monitoring capture inputs).
   setChoice("synth");
   // The synth owns the source now: reset the playhead.
   seek(0);

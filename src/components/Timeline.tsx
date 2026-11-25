@@ -353,12 +353,14 @@ export default function Timeline() {
           <ChannelRail channels={laneChannels()} filterOutputs={laneFilterOutputs()} />
         </Show>
         <Show when={!active()}>
-          <div class="timeline-overlay">
-            <Show when={status() === "empty"}>Open a file or record a source to begin</Show>
+          <div class="timeline-overlay" data-testid="timeline.empty">
+            <Show when={status() === "empty"}>
+              Open a file or record a source in Sources to begin
+            </Show>
             <Show when={status() === "probing"}>Reading metadata…</Show>
             <Show when={status() === "decoding"}>Decoding audio…</Show>
             <Show when={status() === "error"}>
-              <span class="timeline-error">Source failed — see the Source panel</span>
+              <span class="timeline-error">Source failed — see Sources</span>
             </Show>
           </div>
         </Show>

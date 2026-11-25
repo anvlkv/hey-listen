@@ -7,14 +7,13 @@ import CommandPalette from "./components/CommandPalette";
 import ComparePicker, { CompareNotice } from "./components/compare/ComparePicker";
 import AnnotationsPanel from "./components/AnnotationsPanel";
 import Sidebar from "./components/Sidebar";
-import SourcePanel from "./components/SourcePanel";
 import BrokenLinkDialog from "./components/source/BrokenLinkDialog";
 import StorageDialog from "./components/source/StorageDialog";
 import Splitter from "./components/Splitter";
 import Timeline from "./components/Timeline";
 import Toolbar from "./components/Toolbar";
 import Workbench from "./components/Workbench";
-import { disposeCapture, initCapture, recording } from "./state/capture";
+import { disposeCapture, initCapture } from "./state/capture";
 import { sidebarOpen } from "./state/activityBar";
 import { dragActive, initDragDrop } from "./state/dragdrop";
 import { initMenu, aboutOpen, cliToolOpen, setAboutOpen, setCliToolOpen } from "./state/menu";
@@ -28,19 +27,15 @@ import {
   annotationsPanelOpen,
   annotationsPanelWidth,
   setAnnotationsPanelWidth,
-  sourcePanelPinned,
 } from "./state/settings";
 import { createSplitter } from "./lib/splitter";
-import { source } from "./state/source";
 import { refreshThemes } from "./state/themes";
 import { initUiState } from "./state/uiState";
 
-/** Bottom row (Source + Timeline): default height and drag limits, in px. */
+/** Bottom row (Timeline): default height and drag limits, in px. */
 const BOTTOM_DEFAULT = 280;
 const BOTTOM_MIN = 180;
 const TOP_MIN = 200;
-/** Fixed height for the compact "Add audio" strip (no timeline yet). */
-const BOTTOM_EMPTY = 104;
 
 /** Sidebar column: default width and drag limits, in px. */
 const SIDEBAR_DEFAULT = 260;
@@ -50,16 +45,13 @@ const SIDEBAR_MAX = 520;
 /**
  * Hey Listen shell.
  *
- * Layout rule: Timeline, Sidebar, Workbench, and Source are FIXED regions (not
- * tabs). The only tabs are analyzer tabs, and they live inside the Workbench —
+ * Layout rule: Timeline, Sidebar, Workbench, and the Annotations rail are FIXED regions
+ * (not tabs). The only tabs are analyzer tabs, and they live inside the Workbench —
  * so `dockview` is mounted only there.
  *
- * The Source picker sits in the bottom-left corner, at the intersection of the
- * Sidebar column and the Timeline row. The bottom row is **contextual**: with no
- * source the Source panel takes the whole row; while recording the Source controls
- * sit beside the Timeline; once a source exists (and it is not recording) the
- * Timeline takes the whole row and the Source panel is hidden (reveal it from the
- * Timeline's *Replace…* button).
+ * The **source controls are a Sidebar view** selected from the activity bar's pinned
+ * Sources tab (M43), not a region of their own. The bottom row is always the Timeline: it
+ * stays mounted with its empty-state overlay until a source arrives.
  */
 export default function App() {
   const [bottomHeight, setBottomHeight] = createSignal(BOTTOM_DEFAULT);
@@ -101,12 +93,6 @@ export default function App() {
   });
 
   const handleResize = () => setBottomHeight((height) => clamp(height));
-
-  // The bottom row swaps the Source panel and the Timeline *in place* by context:
-  // the Source panel is shown when there is nothing on the timeline yet, while
-  // recording, or when the user asks to replace the source.
-  const showSource = () => source() == null || recording() || sourcePanelPinned();
-  const showTimeline = () => source() != null || recording();
 
   onMount(() => {
     // The history push must start only once the shared state has been pulled, so its
@@ -175,27 +161,19 @@ export default function App() {
             />
           </Show>
         </div>
-        <Show when={showTimeline()}>
-          <Splitter
-            orientation="horizontal"
-            testId="splitter.timeline"
-            label="Drag to resize the timeline"
-            ariaLabel="Resize the timeline"
-            handlers={timelineSplitter}
-          />
-        </Show>
+        <Splitter
+          orientation="horizontal"
+          testId="splitter.timeline"
+          label="Drag to resize the timeline"
+          ariaLabel="Resize the timeline"
+          handlers={timelineSplitter}
+        />
         <div
           class="app-bottom"
           data-testid="region.bottom"
-          classList={{ "app-bottom-solo": !showTimeline() }}
-          style={{ height: `${showTimeline() ? bottomHeight() : BOTTOM_EMPTY}px` }}
+          style={{ height: `${bottomHeight()}px` }}
         >
-          <Show when={showSource()}>
-            <SourcePanel />
-          </Show>
-          <Show when={showTimeline()}>
-            <Timeline />
-          </Show>
+          <Timeline />
         </div>
       </main>
       <Show when={dragActive()}>

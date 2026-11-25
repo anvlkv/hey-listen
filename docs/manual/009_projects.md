@@ -39,8 +39,10 @@ source starts a fresh history.
 - **Copy CSV** — the same data onto your clipboard.
 - **Export every open analysis** — one file per tool in a folder.
 - **Chart PNG** — the chart exactly as drawn, with its theme and zoom.
+- **Audio** — the analysis window as WAV, FLAC, or AIFF, with the channels and optional
+  filter you choose in the Export rail.
 
 Data export also works from a script or agent without the window open; the chart image
-needs the app.
+and the audio need the app.
 
 Next: [Themes, agents, and the command line](010_themes_and_agents.md)

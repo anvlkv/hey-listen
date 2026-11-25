@@ -8,6 +8,7 @@ import { METER_FLOOR_LINEAR } from "../../lib/format";
 import type { CaptureInfo } from "../../bindings/CaptureInfo";
 import type { CaptureEvent } from "../../bindings/CaptureEvent";
 import { channel, channelFor } from "../analysis";
+import { setSidebarLocked, showTab } from "../activityBar";
 import { closeSource, setError, setSource, setStatus, source } from "../source";
 import { resetTimeline, setView, setWindowEnd, setWindowStart } from "../timeline";
 import { finishCountdown, runCountdown } from "./countdown";
@@ -338,6 +339,9 @@ export async function startCapture() {
   setPaused(false);
   setElapsed(0);
   setStatus("capturing");
+  // The recording's Stop lives in the Sources rail: open it and keep it there.
+  setSidebarLocked(true);
+  showTab("sources");
   publish(target, true);
   resetTimeline(0);
   if (!raf) raf = requestAnimationFrame(tick);
@@ -351,6 +355,7 @@ export async function stopCapture() {
   if (!recording()) return;
   setRecording(false);
   setPaused(false);
+  setSidebarLocked(false);
   finishCountdown(false);
 
   const target = session;

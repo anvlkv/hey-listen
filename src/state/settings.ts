@@ -3,9 +3,9 @@ import { createSignal } from "solid-js";
 /**
  * UI settings (app-level chrome preferences).
  *
- * Currently just the **font scale** — a user-adjustable zoom for the whole interface
+ * Currently the **font scale** — a user-adjustable zoom for the whole interface
  * (text and text-bearing controls), default `1` (100%), clamped to 0.8–1.4 in 0.05
- * steps (plus the Source panel pin below).
+ * steps (plus the Annotations rail prefs below).
  *
  * Font scale is applied by writing `--ui-scale` on the document root; `src/styles/`
  * derives the root `font-size` from it, and text rules use `rem` (1rem = scaled
@@ -77,14 +77,6 @@ export function nudgeFontScale(direction: number) {
 }
 
 export { fontScale };
-
-/**
- * Whether the Source panel is force-shown while a source already exists, so the
- * user can replace it. The panel is shown automatically when there is no source
- * or while recording (see `App.tsx`), so this is only the "reveal it anyway"
- * override — transient, not persisted.
- */
-export const [sourcePanelPinned, setSourcePanelPinned] = createSignal(false);
 
 /**
  * The **Annotations panel** (M14) — a right rail, the mirror of the Sidebar. It is UI

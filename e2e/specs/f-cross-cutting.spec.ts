@@ -29,6 +29,7 @@ import {
   dismissPopovers,
   closeAllTabs,
   activateTab,
+  showAnalyzerSidebar,
   click,
   count,
   waitFor,
@@ -56,6 +57,8 @@ describe("F. Cross-cutting analyzer behavior", () => {
   });
 
   it("F1 search filters the analyzer list but keeps the activity bar", async () => {
+    // The rail opens on Sources (M43); switch to an analyzer section first.
+    await showAnalyzerSidebar();
     const total = await $$(SIDEBAR_TOOL).length;
     expect(total).toBeGreaterThan(0);
 

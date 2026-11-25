@@ -1,10 +1,11 @@
-import { createEffect, on, onCleanup, Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import Button from "./Button";
 import Icon from "./Icon";
 import LiveControls from "./source/LiveControls";
 import LiveSourceInputs from "./source/LiveSourceInputs";
 import SourceKindSelect from "./source/SourceKindSelect";
 import StorageCards from "./source/StorageCards";
+import SynthSourceControls from "./source/SynthSourceControls";
 import Tooltip from "./Tooltip";
 import { createNumberDrag } from "../lib/dragNumber";
 import { openFileDialog, source } from "../state/source";
@@ -13,33 +14,29 @@ import { openTool } from "../state/workbench";
 import {
   captureError,
   choice,
-  deviceId,
-  mixMicDeviceId,
-  mixSystemDeviceId,
   recording,
   refreshProcesses,
   setStartDelay,
   setTargetDuration,
   sourcesError,
   startDelay,
-  startMonitor,
-  stopMonitor,
   targetDuration,
-  targetPid,
 } from "../state/capture";
 
 /**
- * Source picker (fixed region): chooses the project's audio source — file, mic,
- * system, process, or mix — and (for live sources) holds the capture controls.
+ * Sources rail (M43): chooses the project's audio source — file, mic, system, process,
+ * mix, or synth — and holds the controls that produce it.
  *
- * When there is no source yet the whole bottom row is a compact, horizontal
- * "Add audio" strip; once a source exists (or while
- * recording) the panel is the narrow left-hand column beside the timeline. Both
- * layouts show the *same* controls — the strip is a two-column grid (copy, then a
- * grid of controls with usable minimum widths).
+ * It is a **Sidebar view** selected from the activity bar's pinned Sources tab, not a
+ * fixed region of its own: the controls stack in the rail beside the Workbench, and the
+ * Timeline below shows whatever this rail loads. The synth **Length / Render / Live**
+ * controls live here too, so the graph is edited in the Workbench and rendered from the
+ * rail.
  *
  * Controls are Kobalte primitives (`Select`, `Combobox`, `Slider`, `NumberField`,
- * `Meter`, `Button`); see ADR-8. The pieces live under `components/source/`.
+ * `Meter`, `Button`); see ADR-8. The pieces live under `components/source/`. The capture
+ * session's monitor lifecycle is owned by `state/capture/session.ts`, so switching
+ * activity tabs never closes a live input.
  */
 export default function SourcePanel() {
   let processesRequested = false;
@@ -58,19 +55,11 @@ export default function SourcePanel() {
     min: 0,
   });
 
-  // The panel is hidden once a source exists (see `App.tsx`), so release the live
-  // capture session on unmount — a hidden panel should not hold the microphone open.
-  onCleanup(() => {
-    void stopMonitor();
-  });
-
   // Fetch the process list the first time "Application" is selected. Capture
   // *devices* are never listed here: `ensureSession` requests them after the
   // monitoring session opens, because macOS refuses to enumerate inputs until that
   // session has answered the microphone consent prompt — asking earlier would show
   // an error while the prompt was still up.
-  // permissions.
-
   createEffect(() => {
     if (choice() === "process" && !processesRequested) {
       processesRequested = true;
@@ -78,42 +67,17 @@ export default function SourcePanel() {
     }
   });
 
-  // Keep a capture session open for live kinds, so the input meter shows level
-  // while idle. Re-opens whenever the kind or its device/process selection changes.
-  createEffect(
-    on(
-      () => [choice(), deviceId(), targetPid(), mixMicDeviceId(), mixSystemDeviceId()] as const,
-      ([kind, , pid]) => {
-        if (kind === "file" || kind === "synth" || (kind === "process" && pid == null))
-          void stopMonitor();
-        else void startMonitor();
-      },
-    ),
-  );
-
   /** Live kinds (mic/system/process/mix) expose gain, meter and record controls. */
   const liveKind = () => choice() !== "file" && choice() !== "synth";
 
-  /** No source yet, not recording → the compact horizontal "Add audio" strip. */
-  const isEmpty = () => source() == null && !recording();
-
   return (
-    <aside
-      class="app-source"
-      data-testid="region.source"
-      classList={{ "app-source-hero": isEmpty() }}
-    >
-      <Show
-        when={isEmpty()}
-        fallback={<div class="src-heading">{source() ? "Replace source" : "Add audio"}</div>}
-      >
-        <div class="src-hero-copy">
-          <span class="src-hero-title">Add audio</span>
-          <span class="src-hero-hint">
-            Open a file, record from a mic / system / application, or build a synth — it becomes the
-            timeline.
-          </span>
-        </div>
+    <div class="app-source" data-testid="region.source">
+      <div class="src-heading">{source() ? "Replace source" : "Add audio"}</div>
+      <Show when={!source()}>
+        <span class="src-hero-hint">
+          Open a file, record from a mic / system / application, or build a synth — it becomes the
+          timeline.
+        </span>
       </Show>
 
       <div class="src-controls">
@@ -150,9 +114,10 @@ export default function SourcePanel() {
             <Button class="src-button" onClick={() => openTool("synth")}>
               Open synth graph…
             </Button>
+            <SynthSourceControls />
           </Show>
 
-          <LiveSourceInputs compact={isEmpty()} />
+          <LiveSourceInputs />
         </Show>
 
         <Show when={liveKind()}>
@@ -197,6 +162,6 @@ export default function SourcePanel() {
           </div>
         )}
       </Show>
-    </aside>
+    </div>
   );
 }

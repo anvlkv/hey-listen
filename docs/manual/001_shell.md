@@ -10,20 +10,22 @@ never move, so you always know where things are.
 - **Toolbar** (top). Project name, the analysis parameters, the filter switch, the MCP
   control, output gain and meter, the Annotations toggle, and the About button.
 - **Activity bar** (left, narrow). Switches the Sidebar between the analyzer sections —
-  *Time*, *Spectral*, *Pitch*, *Rhythm*, *Loudness* — and *Graph*.
-- **Sidebar**. The tools for the selected activity: searchable analyzer entries, or the
-  filter and synth graphs.
+  *Time*, *Spectral*, *Pitch*, *Rhythm*, *Loudness* — and *Graph*, with **Sources** and
+  **Export** pinned at the bottom.
+- **Sidebar**. The content of the selected activity: searchable analyzer entries, the
+  filter and synth graphs, the source controls, or the audio export.
 - **Workbench** (centre). The largest area; everything you open lives here as tabs.
 - **Annotations** (right). Your notes for this project; collapse it with the Toolbar
   toggle.
-- **Timeline** (bottom). The waveform, the analysis window, and the transport.
-- **Source** (bottom, beside the Timeline). What you are listening to.
+- **Timeline** (bottom). The waveform, the analysis window, and the transport. It stays
+  visible from the start, with a placeholder until a source arrives.
 
 ## Tabs live only in the Workbench
 
 Graph editors and analyzers are the only things that open as tabs, and they open inside
-the Workbench. The other regions are not tabs and cannot be dragged into one. Reopen,
-reorder, split, join, or pop out a tab from its tab strip.
+the Workbench. The other regions are not tabs and cannot be dragged into one. The source
+controls and the audio export are **Sidebar views** chosen from the activity bar, not
+separate regions. Reopen, reorder, split, join, or pop out a tab from its tab strip.
 
 ## Make room
 

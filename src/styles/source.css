@@ -1,14 +1,15 @@
-/* Fixed region — not a tab, not draggable/closable. */
+/* A Sidebar rail (M43): the Sources and Export views. Fills the rail's width; the
+   Sidebar owns the frame, so this has no width or border of its own. */
 .app-source {
-  width: 260px;
-  flex: 0 0 260px;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   padding: 8px;
   overflow: auto;
   background: var(--panel-2);
-  border-right: 1px solid var(--border);
 }
 
 .src-button {
@@ -66,8 +67,7 @@
   color: var(--fg);
 }
 
-/* "Add audio" hero empty state: a horizontal strip (title/hint left, the
-   controls right) so it fits the compact bottom row without scrolling. */
+/* "Add audio" hero copy: title/hint for the empty rail. */
 .src-hero-copy {
   display: flex;
   flex-direction: column;
@@ -88,8 +88,7 @@
   max-width: 30rem;
 }
 
-/* The picker + capture controls. Stacks vertically in the narrow corner panel;
-   the empty-state strip lays them out on a grid of fixed-minimum cells. */
+/* The picker + capture controls. */
 .src-controls {
   display: flex;
   flex-direction: column;
@@ -97,12 +96,11 @@
   min-width: 0;
 }
 
-.app-bottom-solo .src-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, max-content));
-  justify-content: flex-start;
-  align-items: center;
-  gap: 8px 16px;
+/* Export rail rows: a label above its control. */
+.export-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
 }
 
