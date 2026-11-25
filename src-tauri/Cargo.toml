@@ -15,7 +15,7 @@ resolver = "2"
 # the bundle then takes this crate's `CARGO_PKG_VERSION`
 # process).
 [workspace.package]
-version = "0.8.2"
+version = "0.8.3"
 edition = "2021"
 license = "Unlicense"
 

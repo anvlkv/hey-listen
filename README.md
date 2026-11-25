@@ -49,7 +49,7 @@ thread with debounced auto-run.
 
 - [`docs/manual/`](docs/manual/) — how to use the app, chapter by chapter.
 - [`docs/development/`](docs/development/) — compact, current notes; start with the
-  [roadmap](docs/development/_roadmap.md).
+  [roadmap](docs/development/000_roadmap.md).
 - `docs/archive/` — frozen design history. Do not edit it; write the current answer
   under `development/`.
 

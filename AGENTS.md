@@ -14,7 +14,7 @@ save source + setup + results to a binary project file.
 
 ## Workflow
 
-1. **Read the plan first.** Start with `docs/development/_roadmap.md` (the living,
+1. **Read the plan first.** Start with `docs/development/000_roadmap.md` (the living,
    compact milestone list) and the design note for the area you're touching under
    `docs/development/`. Archived design history is in `docs/archive/`; keep new design
    decisions in `docs/development/`.
@@ -232,7 +232,7 @@ src/          SolidJS frontend (UI, layout, charts, graph editor)
 src-tauri/    Rust core (commands, audio engines, project store)
 docs/         Three areas — see `docs/README.md`
   manual/       user-facing chapters (from the E2E behaviour) + captured element shots
-  development/  compact, current design notes; `_roadmap.md` is the living milestone list
+  development/  compact, current design notes; `000_roadmap.md` is the living milestone list
   archive/      frozen design history: architecture, ADRs, full roadmap, audits
 ```
 
@@ -240,6 +240,6 @@ Do not edit `docs/archive/`; add the current answer under `docs/development/` in
 
 ## Milestones
 
-`docs/development/_roadmap.md` tracks progress. Deliver strictly one milestone at a time;
+`docs/development/000_roadmap.md` tracks progress. Deliver strictly one milestone at a time;
 confirm current status from that file before starting. The detailed history of each
 delivered milestone is in `docs/archive/`.

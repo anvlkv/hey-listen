@@ -16,7 +16,7 @@ at [`manual/001_open_a_source.md`](manual/001_open_a_source.md).
 ## [`development/`](development/) — building Hey Listen
 
 Deliberately compact: the living milestone list is
-[`development/_roadmap.md`](development/_roadmap.md). New design notes are
+[`development/000_roadmap.md`](development/000_roadmap.md). New design notes are
 written here, short and current. Superseded detail stays in the archive.
 
 ## [`archive/`](archive/) — history
