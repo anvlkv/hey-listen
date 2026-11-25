@@ -16,7 +16,6 @@ import {
   filterError,
   filterOutputs,
 } from "../state/graph";
-import { source } from "../state/source";
 
 /**
  * Filter graph tab: builds the fundsp net applied to the signal **before** preview
@@ -27,7 +26,7 @@ export default function FilterGraphTab() {
   const nodes = () => FILTER_GRAPH.nodes.length;
   const links = () => FILTER_GRAPH.edges.length;
   const outputs = () => filterOutputs();
-  const channelPicks = () => channelOptions(source()?.channels ?? 1, outputs());
+  const channelPicks = () => channelOptions(outputs(), outputs());
 
   return (
     <GraphEditor graph="filter">
@@ -38,12 +37,12 @@ export default function FilterGraphTab() {
       </span>
       <GraphNotices graph="filter" silent="Output is not connected — the graph is silent" />
       <Show when={outputs() > 1}>
-        <Tooltip label="A graph with several Output nodes is analysed one channel at a time">
+        <Tooltip label="A graph with several Output nodes plays and is analysed one output at a time">
           <label class="graph-field" data-testid="graph.channel">
-            <span>Analyse</span>
+            <span>Output</span>
             <SelectField
               class="graph-channel-select"
-              ariaLabel="Analysis channel"
+              ariaLabel="Filter output"
               options={channelPicks()}
               value={channel()}
               onChange={(pick) => setChannel(pick)}

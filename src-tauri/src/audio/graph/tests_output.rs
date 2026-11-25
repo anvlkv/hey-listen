@@ -1,4 +1,4 @@
-//! Unit tests for multi-channel filter-graph output
+//! Unit tests for multi-channel filter-graph input and output
 //! "Output channels"). Split out of `tests.rs` to stay inside the source-size budget.
 
 use super::tests::{edge, edge_to, node};
@@ -26,8 +26,8 @@ fn a_filter_graph_outputs_one_channel_per_output_node() {
     let spec = two_output_spec();
     assert_eq!(output_channels(&spec).expect("channels"), 2);
 
-    let first = apply_channel(&spec, &[1.0f32; 64], 48_000, Some(0)).expect("apply");
-    let second = apply_channel(&spec, &[1.0f32; 64], 48_000, Some(1)).expect("apply");
+    let first = apply_channel(&spec, &[1.0f32; 64], 1, 48_000, Some(0)).expect("apply");
+    let second = apply_channel(&spec, &[1.0f32; 64], 1, 48_000, Some(1)).expect("apply");
     assert!((first[63] - 1.0).abs() < 1e-6, "channel 0 = {}", first[63]);
     assert!(
         (second[63] - 0.5).abs() < 1e-6,
@@ -38,7 +38,7 @@ fn a_filter_graph_outputs_one_channel_per_output_node() {
     // The downmix pick (and an index the graph does not have) averages the channels.
     let mix = apply_mono(&spec, &[1.0f32; 64], 48_000).expect("apply");
     assert!((mix[63] - 0.75).abs() < 1e-6, "mix = {}", mix[63]);
-    let beyond = apply_channel(&spec, &[1.0f32; 64], 48_000, Some(7)).expect("apply");
+    let beyond = apply_channel(&spec, &[1.0f32; 64], 1, 48_000, Some(7)).expect("apply");
     assert!(
         (beyond[63] - 0.75).abs() < 1e-6,
         "out of range = {}",
@@ -49,7 +49,7 @@ fn a_filter_graph_outputs_one_channel_per_output_node() {
 #[test]
 fn a_filter_graph_renders_every_output_channel_interleaved() {
     let spec = two_output_spec();
-    let (pcm, channels) = apply_channels(&spec, &[1.0f32; 64], 48_000).expect("apply");
+    let (pcm, channels) = apply_channels(&spec, &[1.0f32; 64], 1, 48_000).expect("apply");
     assert_eq!(channels, 2);
     assert_eq!(pcm.len(), 128);
     // Channel 0 is the pass-through, channel 1 the gain-0.5 branch, frame by frame.
@@ -107,8 +107,82 @@ fn a_channel_nobody_claims_is_silent() {
     let mut spec = two_output_spec();
     spec.nodes[3].params = vec![2.0];
     assert_eq!(output_channels(&spec).expect("channels"), 3);
-    let gap = apply_channel(&spec, &[1.0f32; 32], 48_000, Some(1)).expect("apply");
+    let gap = apply_channel(&spec, &[1.0f32; 32], 1, 48_000, Some(1)).expect("apply");
     assert!(gap.iter().all(|sample| *sample == 0.0), "gap sounded");
-    let top = apply_channel(&spec, &[1.0f32; 32], 48_000, Some(2)).expect("apply");
+    let top = apply_channel(&spec, &[1.0f32; 32], 1, 48_000, Some(2)).expect("apply");
     assert!((top[31] - 0.5).abs() < 1e-6, "channel 2 = {}", top[31]);
+}
+
+// --- input channels --------------------------------------------------------
+
+/// `Input (Ch) → Output`: the graph reads one source channel, or downmixes.
+fn input_spec(channel: Option<f32>) -> GraphSpec {
+    GraphSpec {
+        nodes: vec![
+            node("in", "input", &channel.into_iter().collect::<Vec<_>>()),
+            node("out", "output", &[]),
+        ],
+        edges: vec![edge("in", "out")],
+    }
+}
+
+#[test]
+fn an_input_node_reads_the_source_channel_its_ch_names() {
+    // Two interleaved stereo frames: (1.0, 0.25) then (0.5, 0.75).
+    let stereo = [1.0f32, 0.25, 0.5, 0.75];
+    let read = |channel: Option<f32>| {
+        apply_channel(&input_spec(channel), &stereo, 2, 48_000, Some(0)).expect("apply")
+    };
+
+    assert_eq!(read(Some(0.0)), vec![1.0, 0.5]);
+    assert_eq!(read(Some(1.0)), vec![0.25, 0.75]);
+    // `-1` — and a node with no `Ch` at all — downmixes every source channel.
+    assert_eq!(read(Some(-1.0)), vec![0.625, 0.625]);
+    assert_eq!(read(None), vec![0.625, 0.625]);
+}
+
+#[test]
+fn an_input_channel_a_mono_source_lacks_downmixes() {
+    let mono =
+        apply_channel(&input_spec(Some(2.0)), &[0.5f32, 0.25], 1, 48_000, Some(0)).expect("apply");
+    assert_eq!(mono, vec![0.5, 0.25]);
+}
+
+#[test]
+fn several_input_nodes_read_their_own_source_channels() {
+    let spec = GraphSpec {
+        nodes: vec![
+            node("left", "input", &[0.0]),
+            node("half", "gain", &[0.5]),
+            node("right", "input", &[1.0]),
+            node("out0", "output", &[0.0]),
+            node("out1", "output", &[1.0]),
+        ],
+        edges: vec![
+            edge("left", "half"),
+            edge("half", "out0"),
+            edge("right", "out1"),
+        ],
+    };
+    assert_eq!(
+        input_channels(&spec).expect("inputs"),
+        vec![Some(0), Some(1)]
+    );
+
+    let (pcm, channels) = apply_channels(&spec, &[1.0f32, 0.25], 2, 48_000).expect("apply");
+    assert_eq!(channels, 2);
+    // Left through the gain, right straight out: one frame, two lanes.
+    assert_eq!(pcm, vec![0.5, 0.25]);
+}
+
+#[test]
+fn an_input_channel_must_be_in_range() {
+    assert!(matches!(
+        input_channels(&input_spec(Some(99.0))),
+        Err(GraphError::InputChannel(99, _))
+    ));
+    assert!(matches!(
+        input_channels(&input_spec(Some(-2.0))),
+        Err(GraphError::InputChannel(-2, _))
+    ));
 }

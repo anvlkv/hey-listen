@@ -23,6 +23,7 @@
 
 mod args;
 mod cache;
+mod channels;
 mod compare;
 mod export;
 mod project;

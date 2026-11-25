@@ -14,14 +14,25 @@ node is for* plus the non-obvious facts, not a restatement of the catalog.
 
 | | Filter graph | Synth graph |
 | --- | --- | --- |
-| Global input | **1** (mono) — the `input` node | **0** — sound generators |
+| Global input | **one per `input` node** — each reads a source `Ch` (or the downmix) | **0** — sound generators |
 | Global output | **1…16 channels** — one `output` node per channel | **1…16 channels** — one `output` node per channel |
-| Where it runs | Upstream of **preview and every analyzer** (after channel select → mono) | Rendered to **48 kHz PCM** by `render_synth` → becomes the source |
+| Where it runs | Upstream of **preview and every analyzer** | Rendered to **48 kHz PCM** by `render_synth` → becomes the source |
 | Installed by | `set_filter_graph` | `render_synth` / Live |
 
 Both compile to a fundsp `Net`. There is **no implicit summing** — only what is wired
 into an `output` is heard. `GraphSpec`/DOT/subsystems/snoop are identical across the two;
 the only difference is the anchors and whether generators are offered.
+
+### Input channels
+
+An `input` node has a **`Ch`** parameter naming the **source** channel it reads; `-1` (the
+default) downmixes every source channel. A filter graph may carry several `input` nodes
+(one per source channel it reads), so the analysis `channel` pick never doubles as a source
+pick — the graph decides what it hears.
+
+A `Ch` the source does not have (`2` on a mono file) falls back to the downmix, so a graph
+outliving its source still makes sound. Two `input` nodes on one channel are allowed (both
+read the same signal); the channel must be in `-1..=15`.
 
 ### Output channels
 
@@ -29,17 +40,16 @@ An `output` node has a **`Ch`** parameter, so either graph can produce several c
 split into bands and wire each one to its own `Output`. Channels are 0-based and unique; a
 channel nobody claims is silent.
 
-- **Filter graph.** The analysis `channel` param selects the output channel. The same pick
-  is applied twice: it mixes the source down to that channel (out of range → downmix) and
-  then keeps that output, so a 2-channel source can still reach output 3. `channel: null`
-  ("Downmix") averages every output. This is the way to analyse a band on its own.
+- **Filter graph.** The analysis `channel` param selects the **output** channel, and
+  `channel: null` ("Downmix") averages every output. This is the way to analyse a band on
+  its own; setting `channel` never changes what the graph reads (that is `input`'s `Ch`).
 - **Synth graph.** The render keeps every channel: the source becomes **interleaved
   multi-channel PCM**, the Timeline shows one lane per channel, and the analysis `channel`
   picks a source channel as usual. `render_mono` (headless analysis helpers) averages.
 
 ### Stereo nodes
 
-The global **input** is mono even though nodes may be **stereo internally** (`split`
+Each global **input** is mono, even though nodes may be **stereo internally** (`split`
 1→2, `pan` 1→2, `panner`/`rotate`/`limiter_stereo`/`reverb*_stereo` 2→2, `join` 2→1).
 Wire `input → split → (stereo FX) → join → output`; a floating stereo channel is simply
 not heard, and `join` **averages**. To keep both halves, give them their own `output`
@@ -47,14 +57,16 @@ nodes (channels 0 and 1) instead of `join`ing.
 
 ### Anchors
 
-- `input` (filter only, 0→1) — the graph's entry, fed from the global input. Exactly one.
+- `input` (filter only, 0→1) — one of the graph's entries, each fed from a source `Ch`.
+  One or more; the first reads the downmix unless its `Ch` says otherwise.
 - `output` (1→0) — one channel of the graph's result, with its own `Ch`. One or more, in
   either graph.
 - A fresh filter seeds as `input → output` (identity); a synth seeds as `sine → output`.
 
 ### Rules (enforced in UI and core)
 
-- Exactly one `input` (filter). One `output` per channel; channels are unique and in range.
+- At least one `input` (filter), each `Ch` in range. One `output` per channel; channels
+  are unique and in range.
 - **One source per input** — a second edge into an occupied input is rejected
   (`InputConflict`).
 - No cycles, no self-links. Unknown kinds/ports/params are errors.
@@ -81,7 +93,8 @@ take cut-off/Q/gain from extra inputs fed by `dc`/`sine_lfo` (input 0 is always 
 
 ### IO / routing (`Io`, `Mixer`)
 
-`input` (filter only), `output` (one per output channel; its `Ch` param picks which),
+`input` (filter only; its `Ch` picks the source channel, `-1` = downmix),
+`output` (one per output channel; its `Ch` param picks which),
 `mix` (sum A+B, 2→1), `split` (1→2 copy), `join` (2→1 average). `mix` is the routing twin
 of the math `add` — for two inputs they are equivalent; prefer `mix` to *route* and `add`
 to *arithmetic*.

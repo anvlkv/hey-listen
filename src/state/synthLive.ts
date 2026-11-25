@@ -9,6 +9,7 @@ import { source, sourceRevision, currentSourceToken, nextSourceToken, status } f
 import {
   applySynthSource,
   liveEnabled,
+  rendering,
   setLiveEnabled,
   setLiveRendering,
   setSynthError,
@@ -16,10 +17,13 @@ import {
 } from "./synth";
 import { stop, transportStatus } from "../audio/preview";
 import { synthEditorOpen } from "./workbench";
-import { createSynthDebounce, liveRenderSeconds, needsSynthConfirmation } from "../lib/synthPlan";
+import {
+  createSynthDebounce,
+  liveRenderSeconds,
+  liveTooLong,
+  needsSynthConfirmation,
+} from "../lib/synthPlan";
 import type { StreamSummary } from "../bindings/StreamSummary";
-
-export { LIVE_MAX_SECONDS } from "../lib/synthPlan";
 
 /**
  * The synth **Live** scheduler (M22 / ADR-21).
@@ -54,6 +58,13 @@ function sourceBusy(): boolean {
 /** Run one settled render (the debounce's latest token). */
 async function render(token: number) {
   if (!debounce.isCurrent(token) || !liveEnabled()) return;
+  // A **Render** in flight already writes this graph at the Length field's value; a Live
+  // pass now would supersede it (both claim a source token) for the same audio.
+  if (rendering()) return;
+  // A Live render must not change the timeline's length: over the cap it could only
+  // truncate the source (and with it the saved project), so it is skipped and the tab
+  // points at **Render**.
+  if (liveTooLong(synthSeconds())) return;
 
   if (needsSynthConfirmation(source())) {
     const ok = await invoke<boolean>("confirm", {

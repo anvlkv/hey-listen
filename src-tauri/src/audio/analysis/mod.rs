@@ -310,7 +310,8 @@ pub(crate) fn run_region_with(
 }
 
 /// Reduce the windowed interleaved region to mono and condition it the same way
-/// preview does: mixdown → filter → resample. Returns `(mono, sample_rate)`.
+/// preview does: filter (reading the source channels the graph's `input` nodes name) →
+/// resample, or a plain mixdown when no filter is applied. Returns `(mono, sample_rate)`.
 pub fn condition(
     region: &[f32],
     channels: u16,
@@ -345,14 +346,13 @@ pub fn condition_with(
     let rate = sample_rate.max(1);
 
     cancel.check()?;
-    let mono = pcm::mixdown(region, channels, channel);
-    cancel.check()?;
-    // The same pick selects the filter graph's **output** channel: a graph with several
-    // `output` nodes is analysed one channel at a time (see `graph::apply_channel`).
+    // `channel` is the **output** channel of the filter graph (a graph with several
+    // `output` nodes is analysed one channel at a time); the graph itself reads the source
+    // channel its `input` nodes name. Without a filter the pick selects a source channel.
     let mono = match filter {
-        Some(spec) => graph::apply_channel(spec, &mono, rate, channel)
+        Some(spec) => graph::apply_channel(spec, region, channels, rate, channel)
             .map_err(|err| AnalysisError::Filter(err.to_string()))?,
-        None => mono,
+        None => pcm::mixdown(region, channels, channel),
     };
     cancel.check()?;
     let rate = resample_to

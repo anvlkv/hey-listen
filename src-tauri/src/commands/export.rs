@@ -245,7 +245,9 @@ pub async fn pick_directory(app: AppHandle, title: Option<String>) -> Option<Str
 /// Write UTF-8 text (JSON / CSV) to an absolute path.
 #[tauri::command]
 pub fn write_text(path: String, contents: String) -> Result<(), String> {
-    std::fs::write(&path, contents).map_err(|err| format!("cannot write {path}: {err}"))
+    let target = std::path::Path::new(&path);
+    crate::export::ensure_parent(target)?;
+    std::fs::write(target, contents).map_err(|err| format!("cannot write {path}: {err}"))
 }
 
 /// Write binary data (a chart PNG) to an absolute path. The bytes cross IPC
@@ -255,5 +257,7 @@ pub fn write_bytes(path: String, data: String) -> Result<(), String> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data)
         .map_err(|err| format!("invalid base64 data: {err}"))?;
-    std::fs::write(&path, bytes).map_err(|err| format!("cannot write {path}: {err}"))
+    let target = std::path::Path::new(&path);
+    crate::export::ensure_parent(target)?;
+    std::fs::write(target, bytes).map_err(|err| format!("cannot write {path}: {err}"))
 }

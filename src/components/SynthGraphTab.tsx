@@ -22,7 +22,7 @@ import {
   synthError,
   synthSeconds,
 } from "../state/synth";
-import { LIVE_MAX_SECONDS } from "../state/synthLive";
+import { LIVE_MAX_SECONDS, liveTooLong } from "../lib/synthPlan";
 
 /**
  * Synth graph tab: build a fundsp synth in `solid-flow` (`generators → … → Output`).
@@ -99,9 +99,9 @@ export default function SynthGraphTab() {
             </Switch.Control>
           </Switch>
         </Tooltip>
-        <Show when={liveEnabled() && length() > LIVE_MAX_SECONDS}>
+        <Show when={liveEnabled() && liveTooLong(length())}>
           <span class="graph-warn" data-testid="synth.live.cap">
-            Live renders {LIVE_MAX_SECONDS} s — use Render once for longer
+            Live is limited to {LIVE_MAX_SECONDS} s — use Render once for longer
           </span>
         </Show>
         <Button

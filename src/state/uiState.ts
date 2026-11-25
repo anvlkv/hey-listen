@@ -68,6 +68,36 @@ interface GraphsState {
 /** A marker sourceId so a remote view applies to every chart in its group. */
 const REMOTE_VIEW = "__remote__";
 
+/**
+ * The graph layout of one scope as JSON, for a cheap change test.
+ *
+ * A remote `graphs` patch must not rebuild stores it does not change: Node arrays are
+ * replaced, their effects re-run (the filter push, the Timeline, the synth Live loop), and
+ * two windows would spend every edit re-applying each other's graphs. Comparing the
+ * serialized layout first keeps a filter edit from touching the synth graph (and vice
+ * versa) and makes an echo a true no-op.
+ */
+function layoutKey(layout: GraphLayout | undefined): string {
+  return JSON.stringify(layout ?? null);
+}
+
+/** Whether applying `layout` would change `scope`'s graph. */
+function graphChanged(scope: "filter" | "synth", layout: GraphLayout | undefined): boolean {
+  return layoutKey(layout) !== layoutKey(graphLayout(scope));
+}
+
+/** The `graphs` value this window last pushed or applied (see the effect in `initUiState`). */
+let lastGraphsKey: string | undefined;
+
+/** The whole `graphs` payload as JSON, with its defaults filled in. */
+function graphsKey(layout: GraphsState): string {
+  return JSON.stringify({
+    filter: layout.filter ?? null,
+    synth: layout.synth ?? null,
+    enabled: layout.enabled ?? true,
+  });
+}
+
 registerUiState("timeline", (value) => {
   const v = value as TimelineState;
   setWindowStart(v.windowStart);
@@ -104,12 +134,24 @@ registerUiState("selectedAnnotationId", (value) => {
 // (`graphsReady`), so its boot seed cannot overwrite the project's graphs.
 registerUiState("graphs", (value) => {
   const layout = (value ?? {}) as GraphsState;
-  // A replaced graph takes its subsystems with it (their tabs re-open with the layout).
-  resetSystems("filter");
-  resetSystems("synth");
-  loadGraph("filter", layout.filter);
-  loadGraph("synth", layout.synth);
+  // Apply each graph only when it actually changed. A replaced graph takes its subsystems
+  // with it (their tabs re-open with the layout), so this also stops a filter edit from
+  // closing the synth's subsystem tabs and vice versa.
+  if (graphChanged("filter", layout.filter)) {
+    resetSystems("filter");
+    loadGraph("filter", layout.filter);
+  }
+  if (graphChanged("synth", layout.synth)) {
+    resetSystems("synth");
+    loadGraph("synth", layout.synth);
+  }
   setFilterEnabled(layout.enabled ?? true);
+  // Remember what we just applied, so the push effect below does not echo it back.
+  lastGraphsKey = graphsKey({
+    filter: graphLayout("filter"),
+    synth: graphLayout("synth"),
+    enabled: filterEnabled(),
+  });
   markGraphsReady();
 });
 
@@ -163,16 +205,19 @@ export async function initUiState(): Promise<void> {
     createEffect(() => pushUiState("annotations", deepClone(annotations())));
     createEffect(() => pushUiState("selectedAnnotationId", selectedAnnotationId()));
     // Serializing the layouts reads the graph stores deeply, so any edit re-runs this.
+    // Skip an unchanged value, so a window that only applied a remote layout (or whose
+    // editor touched a derived flag) does not push it back.
     createEffect(() => {
       if (!graphsReady()) return;
-      pushUiState(
-        "graphs",
-        deepClone({
-          filter: graphLayout("filter"),
-          synth: graphLayout("synth"),
-          enabled: filterEnabled(),
-        }),
-      );
+      const payload = {
+        filter: graphLayout("filter"),
+        synth: graphLayout("synth"),
+        enabled: filterEnabled(),
+      };
+      const key = graphsKey(payload);
+      if (key === lastGraphsKey) return;
+      lastGraphsKey = key;
+      pushUiState("graphs", deepClone(payload));
     });
     // The project name is owned by the project window (a popout's source is only a
     // stub, so it must not push its derived name back).

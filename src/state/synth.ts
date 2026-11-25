@@ -56,6 +56,12 @@ export const [liveRendering, setLiveRendering] = createSignal(false);
  * and open analyzer tabs stay exactly where the user put them (ADR-21).
  */
 export function applySynthSource(samples: Float32Array, sampleRate: number, channels: number) {
+  // The Length field describes the source it produced, so a render at 31.2 s leaves
+  // Length at 31.2 s: a later Live tick then asks for the same piece instead of
+  // replacing it with a shorter (default-length) render (`liveRenderSeconds`).
+  const frames = Math.floor(samples.length / Math.max(1, channels));
+  const seconds = sampleRate > 0 ? frames / sampleRate : 0;
+  setSynthSeconds(Math.round(seconds * 1000) / 1000);
   if (source()?.origin === "synth") {
     // The shared in-place adoption (`state/source.ts`): a live-link reload uses the same
     // helper, and only the origin differs.
@@ -96,6 +102,11 @@ export async function renderSynth(seconds: number, confirm = true) {
 
   setRendering(true);
   setSynthError(null);
+
+  // Publish the length **before** the render, so a Live tick that this change schedules
+  // agrees with it instead of re-rendering the source at the old (default) length and
+  // superseding the render in flight.
+  setSynthSeconds(seconds);
 
   // Rendering replaces the source, so end any recording first.
   if (recording()) await stopCapture();

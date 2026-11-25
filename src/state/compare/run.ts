@@ -119,6 +119,13 @@ export function createComparison(
     if (windowEnd() <= windowStart()) {
       return;
     }
+    // A source replacement clears the core's PCM (`clear_audio_source`) before the decoded
+    // audio lands, so a run started in that gap fails with "no audio source is loaded" —
+    // reported by the IPC façade as an error nobody asked for. Skip instead: `source` is an
+    // effect dependency, so the run happens again once the new source is installed.
+    if (!source()) {
+      return;
+    }
     const token = ++generation;
     setLoading(true);
     startClock();

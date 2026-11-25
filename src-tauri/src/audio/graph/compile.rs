@@ -10,10 +10,11 @@ use fundsp::prelude64::*;
 
 use super::units::{finite, DynamicsUnit, GainLaw, MathOp, MathUnit, SumUnit, UnaryOp, UnaryUnit};
 use super::{
-    is_input_kind, is_subsystem, kind_arity, output_channels, GraphError, GraphNode, GraphSpec,
+    input_channels, is_input_kind, is_subsystem, kind_arity, output_channels, GraphError,
+    GraphNode, GraphSpec,
 };
 
-use super::outputs::output_channel;
+use super::channels::output_channel;
 
 /// Halfway response time (seconds) of the one-pole smoother applied to a node's
 /// **control-rate** inputs, so live knob moves glide instead of stepping.
@@ -268,16 +269,13 @@ pub(super) fn make_unit(
 
 /// Compile a [`GraphSpec`] into a fundsp [`Net`] (push + connect).
 ///
-/// `global_inputs` is 1 for a filter graph (the `input` node receives it) and 0 for
-/// a synth graph. The net always has exactly one (mono) output, fed by the `output`
-/// node. The scope is derived from `global_inputs`, which is what the two editors and
-/// analysis use; [`build_scoped`] is the explicit form for subsystems.
+/// `global_inputs` says which editor the graph belongs to: non-zero for a filter graph
+/// (a net input per `input` node), 0 for a synth graph (no inputs). The net has one
+/// output per declared `output` channel. The scope is derived from `global_inputs`,
+/// which is what the two editors and analysis use; [`build_scoped`] is the explicit form
+/// for subsystems.
 pub fn build(spec: &GraphSpec, global_inputs: usize, sample_rate: u32) -> Result<Net, GraphError> {
-    let scope = if global_inputs == 1 {
-        "filter"
-    } else {
-        "synth"
-    };
+    let scope = if global_inputs > 0 { "filter" } else { "synth" };
     build_scoped(spec, global_inputs, sample_rate, scope)
 }
 
@@ -303,9 +301,13 @@ pub(super) fn build_with_ids(
     sample_rate: u32,
     scope: &str,
 ) -> Result<(Net, HashMap<String, NodeId>), GraphError> {
-    // One `Net` output per distinct `output`-node channel (see `output_channels`).
+    // One `Net` output per distinct `output`-node channel (see `output_channels`), and
+    // one global input per `input` node (see `input_channels`) — a filter graph reads as
+    // many source channels as it declares inputs for.
+    let picks = input_channels(spec)?;
     let net_outputs = output_channels(spec)?;
-    let mut net = Net::new(global_inputs, net_outputs);
+    let net_inputs = if global_inputs > 0 { picks.len() } else { 0 };
+    let mut net = Net::new(net_inputs, net_outputs);
     // A rebuild replaces every snoop in this scope; drop the stale frontends first.
     super::snoop::clear_scope(scope);
 
@@ -330,11 +332,9 @@ pub(super) fn build_with_ids(
     }
 
     // 2) Validate the anchors.
-    if global_inputs == 1 {
-        match inputs.len() {
-            0 => return Err(GraphError::MissingInput),
-            1 => {}
-            _ => return Err(GraphError::DuplicateAnchor("input".to_string())),
+    if global_inputs > 0 {
+        if picks.is_empty() {
+            return Err(GraphError::MissingInput);
         }
     } else if let Some(id) = inputs.first() {
         return Err(GraphError::InputInSynth((*id).to_string()));
@@ -372,10 +372,13 @@ pub(super) fn build_with_ids(
         net.connect(from, edge.from_port, to, edge.to_port);
     }
 
-    // 4) Bridge the anchors to the net's global input/output.
-    if global_inputs == 1 {
-        let input_id = ids[inputs[0]];
-        net.set_source(input_id, 0, Source::Global(0));
+    // The anchors bridge to the net's global inputs/outputs. Input node `i` reads global
+    // input `i`, in node order (the order `input_channels` reports, so a renderer can fill
+    // the same slots).
+    if global_inputs > 0 {
+        for (index, id) in inputs.iter().enumerate() {
+            net.set_source(ids[*id], 0, Source::Global(index));
+        }
     }
     // Each `output` node feeds the channel its `Ch` param names; an unwired channel
     // (no output node claims it) stays silent.

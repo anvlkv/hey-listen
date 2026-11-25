@@ -13,8 +13,11 @@ import type { WindowKind } from "../bindings/WindowKind";
  */
 
 /**
- * Which channel of the source to analyse: `"mix"` downmixes every channel to
- * mono, a number selects a 0-based channel.
+ * Which lane to analyse: `"mix"` downmixes every lane to mono, a number selects a
+ * 0-based lane. The source's channels are the base lanes; while a filter is applied the
+ * graph's **output** channels are drawn (and selected) on top of them, and the graph's
+ * `input` nodes choose what it reads — one pick for the Timeline, the preview and every
+ * analyzer (ADR-6).
  */
 export const [channel, setChannel] = createSignal<ChannelPick>("mix");
 
@@ -34,22 +37,30 @@ export interface ChannelOption {
   label: string;
 }
 
-/** Selector options for the analysis channel.
+/** Selector options for the analysis channel: the downmix entry, then one per lane.
  *
- * `channels` is the source's channel count; `filterOutputs` is how many channels the
- * filter graph declares. The picker offers the union, because one pick is applied to
- * both: it mixes the source down to that channel and then selects that **output** of
- * the filter graph (so a 2-channel source can still reach output 4).
+ * `lanes` is how many lane rows the Timeline shows (see `laneChannels`): one per source
+ * channel, plus any filter output channels beyond them. `filterOutputs` says how many of
+ * the **leading** rows are the filter graph's outputs, so a row is labelled for what it
+ * actually shows. One pick serves both, so a graph that splits its input into more
+ * branches than the source has channels is still reachable lane by lane.
  */
-export function channelOptions(channels: number, filterOutputs = 1): ChannelOption[] {
-  const count = Math.max(1, channels, filterOutputs);
+export function channelOptions(lanes: number, filterOutputs = 0): ChannelOption[] {
+  const count = Math.max(1, lanes);
+  const outputs = Math.min(count, Math.max(0, filterOutputs));
   const options: ChannelOption[] = [{ value: "mix", label: "Downmix (mono)" }];
   for (let i = 0; i < count; i++) {
-    // Only name the sides when the pair really is a stereo source and outputs.
-    const label = count === 2 ? (i === 0 ? "Left" : "Right") : `Channel ${i + 1}`;
-    options.push({ value: i, label });
+    options.push({ value: i, label: laneLabel(i, count, outputs) });
   }
   return options;
+}
+
+/** The picker's label for lane `index`: named for what that lane shows. */
+function laneLabel(index: number, count: number, filterOutputs: number): string {
+  if (index < filterOutputs) return `Output ${index + 1}`;
+  // Only name the sides when the whole view really is a stereo source.
+  const stereo = count === 2 && filterOutputs === 0;
+  return stereo ? (index === 0 ? "Left" : "Right") : `Channel ${index + 1}`;
 }
 
 // --- frame analysis params -------------------------------------------------
@@ -175,16 +186,38 @@ export function sharedParams(): SharedParamsDto {
   };
 }
 
-/** Restore the shared params from a saved project's setup. */
+/**
+ * Merge a shared-params patch over a base snapshot.
+ *
+ * A key that is **absent** is left alone; `channel`/`resampleTo` are nullable, so an
+ * explicit `null` there clears them ("Downmix" / no resample). Treating absent as null
+ * would make every partial patch — `set_shared_params {fftSize}`, a `run_analysis`
+ * `params` override — silently reset the channel the caller chose.
+ */
+export function mergeParams(
+  base: SharedParamsDto,
+  patch: Partial<SharedParamsDto>,
+): SharedParamsDto {
+  const next = { ...base };
+  if (patch.fftSize != null) next.fftSize = patch.fftSize;
+  if (patch.hop != null) next.hop = patch.hop;
+  if (patch.randomizedOverlap != null) next.randomizedOverlap = patch.randomizedOverlap;
+  if (patch.windowFn != null) next.windowFn = patch.windowFn;
+  if ("channel" in patch) next.channel = patch.channel ?? null;
+  if ("resampleTo" in patch) next.resampleTo = patch.resampleTo ?? null;
+  if (patch.freqMinHz != null) next.freqMinHz = patch.freqMinHz;
+  if (patch.freqMaxHz != null) next.freqMaxHz = patch.freqMaxHz;
+  return next;
+}
+
+/** Apply a shared-params patch to the stores (see [`mergeParams`] for the rule). */
 export function applySharedParams(shared: Partial<SharedParamsDto>) {
   if (shared.fftSize != null) setFftSize(shared.fftSize);
   if (shared.hop != null) setHop(shared.hop);
   if (shared.randomizedOverlap != null) setRandomizedOverlap(shared.randomizedOverlap);
   if (shared.windowFn != null) setWindowFn(shared.windowFn);
-  if (shared.channel != null) setChannel(shared.channel);
-  else setChannel("mix");
-  if (shared.resampleTo != null) setResampleTo(shared.resampleTo);
-  else setResampleTo(null);
+  if ("channel" in shared) setChannel(shared.channel ?? "mix");
+  if ("resampleTo" in shared) setResampleTo(shared.resampleTo ?? null);
   if (shared.freqMinHz != null) setFreqMinHz(shared.freqMinHz);
   if (shared.freqMaxHz != null) setFreqMaxHz(shared.freqMaxHz);
 }

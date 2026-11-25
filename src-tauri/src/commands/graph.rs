@@ -172,16 +172,15 @@ pub async fn update_synth_source(
     render_source(&window, spec, seconds, sample_rate, request_id, &on_chunk).await
 }
 
-/// Stream the **whole** source conditioned exactly like preview/analysis
-/// (channel mixdown → active filter) as interleaved PCM at the source sample rate, so
-/// the Timeline can draw the filtered signal. Every filter output channel is rendered
-/// (the summary's `channels` says how many), so a graph that splits the input into
-/// several branches shows one lane per branch. Does not resample (so frames align 1:1
-/// with the raw waveform) and does not mutate the source.
+/// Stream the **whole** source conditioned exactly like preview/analysis (the active
+/// filter, reading the source channels its `input` nodes name) as interleaved PCM at the
+/// source sample rate, so the Timeline can draw the filtered signal. Every filter output
+/// channel is rendered (the summary's `channels` says how many), so a graph that splits
+/// the input into several branches shows one lane per branch. Does not resample (so frames
+/// align 1:1 with the raw waveform) and does not mutate the source.
 #[tauri::command]
 pub async fn render_filtered(
     window: WebviewWindow,
-    channel: Option<usize>,
     on_chunk: Channel<InvokeResponseBody>,
 ) -> Result<StreamSummary, GraphError> {
     // Snapshot the source PCM and the active filter under the lock, then release it
@@ -214,12 +213,14 @@ pub async fn render_filtered(
     };
 
     let (pcm, outputs) = tauri::async_runtime::spawn_blocking(move || {
-        // The filter net's global input is mono: mix the selected source channel (or all
-        // of them) down first, then render every output channel the graph declares.
-        let mono = crate::audio::pcm::mixdown(&samples, usize::from(channels), channel);
+        // The graph reads the source channel each of its `input` nodes names, so it gets
+        // the interleaved source; every output channel it declares is rendered.
         match filter.as_ref() {
-            Some(spec) => graph::apply_channels(spec, &mono, sample_rate),
-            None => Ok((mono, 1)),
+            Some(spec) => graph::apply_channels(spec, &samples, usize::from(channels), sample_rate),
+            None => Ok((
+                crate::audio::pcm::mixdown(&samples, usize::from(channels), None),
+                1,
+            )),
         }
         .map_err(|err| GraphError::Stream(err.to_string()))
     })

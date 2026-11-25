@@ -26,6 +26,17 @@ The Toolbar's filter switch shows whether the graph is **applied** or **bypassed
 While applied, every analyzer, the preview, and the waveform measure the filtered
 signal. Compare the processed waveform with the original to see what changed.
 
+For several parallel results, wire each branch to its own `Output` node: every output is
+its own channel, so the Timeline keeps the source lanes in the background and draws one
+filtered lane per output over them; the channel rail selects among the lanes (each new
+`Output` takes the next free channel).
+
+The `Input` node has a `Ch` too: it names the **source** channel the graph reads, and `-1`
+(the default) downmixes the source to mono. Add a second `Input` to read another source
+channel — each new one takes the next free channel — so a stereo source can run one branch
+per side. The rail's pick is the **output** channel; the graph's `Input` nodes are what it
+hears.
+
 ## Making a synth source
 
 In the synth editor, set the **Length**, build the patch, and **Render**. The result

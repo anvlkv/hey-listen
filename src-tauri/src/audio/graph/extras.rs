@@ -69,6 +69,11 @@ pub(super) fn make_unit(
                 Ok(net) => net,
                 Err(err) => return Some(Err(err)),
             };
+            // The subsystem is wrapped in a 1-in/1-out unit, so its inner graph must be
+            // exactly that — one `input` (none for a generator) and one `output` node.
+            if net.inputs() != global_inputs || net.outputs() != 1 {
+                return Some(Err(GraphError::SubsystemAnchors(node.id.clone())));
+            }
             if node.kind == "resample" {
                 Box::new(resample(unit::<U0, U1>(Box::new(net))))
             } else {

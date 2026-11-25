@@ -1,6 +1,7 @@
 import "@dschz/solid-flow/styles";
 import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js";
 import { Background, Controls, MiniMap, SolidFlow, type NodeTypes } from "@dschz/solid-flow";
+import { surplusAnchors, withDeletable } from "../lib/graph/deletable";
 import { nodeKind, type GraphScope, type NodeKindDef } from "../lib/graph";
 import { layoutGraph } from "../lib/graphLayout";
 import { bezierPoints } from "../lib/graphEdges";
@@ -65,18 +66,16 @@ export default function GraphEditor(props: { graph: GraphScope; children?: JSX.E
 
   const handle = () => graphFor(props.graph);
 
-  // One `output` must remain, but a filter graph may declare several channels. Keep the
-  // `deletable` flags truthful so only the last exit is protected (a surplus output can
-  // be removed again, and an `input` never can).
+  // The last `input` and the last `output` must remain, but a filter graph may read
+  // several source channels and declare several channels. Keep the `deletable` flags
+  // truthful so only the last anchor of each kind is protected.
   createEffect(() => {
     const nodes = handle().nodes;
-    const outputs = nodes.filter((node) => node.data.kind === "output");
-    const surplus = outputs.length > 1;
-    for (const node of outputs) {
-      if (surplus && node.deletable === false) {
-        handle().setNodes((current) => current.id === node.id, "deletable", true);
-      } else if (!surplus && node.deletable !== false) {
-        handle().setNodes((current) => current.id === node.id, "deletable", false);
+    const surplus = surplusAnchors(nodes);
+    for (const node of nodes) {
+      const { deletable } = withDeletable(node, surplus);
+      if (deletable !== undefined && node.deletable !== deletable) {
+        handle().setNodes((current) => current.id === node.id, "deletable", deletable);
       }
     }
   });

@@ -126,6 +126,10 @@ pub(super) fn make_unit(
         // `snoop::clear_scope` already wipes it on the next rebuild.
         let voice_scope = format!("{scope}/{}/note-{index}", node.id);
         let net = build_scoped(inner, 1, sample_rate, &voice_scope)?;
+        // A voice is wrapped in a 1-in/1-out unit, so its inner graph must be exactly that.
+        if net.inputs() != 1 || net.outputs() != 1 {
+            return Err(GraphError::SubsystemAnchors(node.id.clone()));
+        }
         let voice = unit::<U1, U1>(Box::new(net));
         let hz = midi_hz(f64::from(note.pitch)) as f32;
         let start = f64::from(note.start.max(0.0));

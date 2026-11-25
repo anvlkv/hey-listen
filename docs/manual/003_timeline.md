@@ -28,6 +28,19 @@ showing a stale view.
 On multichannel audio each channel gets its own lane, with a rail to pick the channel
 you are inspecting or analyzing, including a mono downmix. The selected lane stands out.
 
+A filter graph can produce **several output channels** (one `Output` node per channel).
+While the filter is applied the source lanes stay as the background and each output is
+drawn over them in the filtered colour, one lane row per output — labelled `Output 1`,
+`Output 2`, … in the rail — so every branch is visible, analyzable and playable side by
+side. A graph with more outputs than the source has channels simply adds rows; turning the
+filter off removes them again. Adding an `Output` node takes the next free channel
+automatically.
+
+Which source channel the graph reads is the graph's own choice, set by the `Ch` of its
+`Input` node (`-1` downmixes). Add another `Input` to read another source channel, so a
+stereo source can feed one branch per side. That leaves the rail doing one thing: picking
+which lane you listen to and analyse.
+
 ## Right-click
 
 Right-click the waveform for the quick actions: set the window start or end here, select

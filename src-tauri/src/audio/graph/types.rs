@@ -80,12 +80,12 @@ pub enum GraphError {
     MissingInput,
     #[error("the graph needs an output node")]
     NoOutput,
-    #[error("the graph must contain exactly one '{0}' node")]
-    DuplicateAnchor(String),
     #[error("two Output nodes both read channel {0}")]
     DuplicateOutput(usize),
     #[error("output channel {0} is outside 0..={1}")]
     OutputChannel(usize, usize),
+    #[error("input channel {0} is outside -1..={1}")]
+    InputChannel(i32, usize),
     #[error("the '{0}' node is only valid in a filter graph")]
     InputInSynth(String),
     #[error("the '{0}' node kind needs a subsystem graph")]
@@ -96,7 +96,7 @@ pub enum GraphError {
     UnknownSubsystem(String),
     #[error("the '{0}' node kind does not take a subsystem graph")]
     UnexpectedSubsystem(String),
-    #[error("a subsystem graph needs an input and an output node")]
+    #[error("a subsystem graph needs exactly one input and one output node")]
     SubsystemAnchors(String),
     #[error("an edge references the unknown node '{0}'")]
     UnknownNode(String),

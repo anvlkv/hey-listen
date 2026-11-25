@@ -48,6 +48,10 @@ Templates (M13) are planned, not yet exposed.
 
 ## Run, read, compare
 
+`run_analysis { tool, channels: [0, 1, 2] }` runs the tool once per **output** channel and
+returns one envelope each under `channels` (with `channel` on the entry). Use it to compare
+a filter graph's bands in one call; it overrides `params.channel` and is always transient.
+
 `compare_analysis` diffs the **same** analyzer on two sides:
 
 - `with` — a project label from `list_projects` (bridged), a project **file path** (`.heyl`,
@@ -144,9 +148,9 @@ save_project { path }                                  # saves the live tabs + c
 - `export_all { dir, formats }` — every open tab (or, headless, an explicit `tools` list).
 - `export_chart { tool, path }` — one tab's chart as PNG (app-only).
 
-**Gotchas:** exports capture the current window (set it first); paths must be **absolute**
-and parents are **not** created (unlike `save_project`); exports are always full-res — thin
-via `run_analysis { maxPoints }` instead.
+**Gotchas:** exports capture the current window (set it first); paths must be **absolute**;
+missing parent folders are created for you; exports are always full-res — thin via
+`run_analysis { maxPoints }` instead.
 
 ## Annotations
 
@@ -179,7 +183,8 @@ can't tell when one pass ended.
   default `47100`); the bridge discovers it automatically.
 - **Analyzer ids are case-sensitive.** Use exact ids from `list_analyzers` (`framerms` →
   "unknown analyzer").
-- **`set_shared_params` can't return a param to "unset"** (e.g. `channel` back to `null`).
+- **`set_shared_params` is a patch:** a key you omit keeps its current value, and an
+explicit `null` clears `channel` (Downmix) or `resampleTo`.
 
 ## What still needs the app
 

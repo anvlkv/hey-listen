@@ -3,6 +3,7 @@ import {
   LIVE_MAX_SECONDS,
   createSynthDebounce,
   liveRenderSeconds,
+  liveTooLong,
   needsSynthConfirmation,
 } from "../lib/synthPlan";
 
@@ -15,9 +16,18 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("asks for the requested length, capped for responsiveness", () => {
+it("asks for the requested length instead of truncating it", () => {
+  // A Live render that shortened the request would shorten the source, and the project
+  // saved from it; the scheduler skips those lengths instead (`liveTooLong`).
   expect(liveRenderSeconds(4)).toBe(4);
-  expect(liveRenderSeconds(30)).toBe(LIVE_MAX_SECONDS);
+  expect(liveRenderSeconds(30)).toBe(30);
+});
+
+it("skips a length above the Live cap rather than truncating it", () => {
+  expect(liveTooLong(4)).toBe(false);
+  expect(liveTooLong(LIVE_MAX_SECONDS)).toBe(false);
+  expect(liveTooLong(LIVE_MAX_SECONDS + 0.1)).toBe(true);
+  expect(liveTooLong(31.2)).toBe(true);
 });
 
 it("keeps a tiny or non-finite length usable", () => {

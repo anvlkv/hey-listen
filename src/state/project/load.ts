@@ -34,6 +34,7 @@ import {
 } from "../source";
 import { askBrokenLink, setSourceStorage, syncSourceWatch } from "../sourceStorage";
 import { setView, setWindowEnd, setWindowStart } from "../timeline";
+import { setSynthSeconds } from "../synth";
 import { flushAllUiState } from "../uiSync";
 import {
   dockApi,
@@ -151,6 +152,10 @@ async function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
     closeSource();
   } else {
     const duration = loaded.sampleRate > 0 ? frames / loaded.sampleRate : 0;
+    const isSynth = snapshot.source?.kind === "synth";
+    // The Length field follows the synth source it describes, so Live re-renders the
+    // same piece rather than a default-length (shorter) one (`state/synth.ts`).
+    if (isSynth) setSynthSeconds(Math.round(duration * 1000) / 1000);
     setSource({
       name: sourceName(snapshot.source),
       detail: sourceDetail(snapshot.source),
@@ -161,7 +166,7 @@ async function applyProject(loaded: LoadedProjectDto, samples: Float32Array) {
       samples,
       // A saved synth project keeps its origin, so re-rendering it later is silent
       // (ADR-21) instead of asking to replace a file.
-      origin: snapshot.source?.kind === "synth" ? "synth" : undefined,
+      origin: isSynth ? "synth" : undefined,
       probe:
         snapshot.source?.kind === "file" && snapshot.source.path
           ? fileProbe(snapshot.source.path, loaded)

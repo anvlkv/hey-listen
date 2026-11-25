@@ -9,6 +9,8 @@ import {
   type NodeKindDef,
 } from "../lib/graph";
 import { defaultRows } from "../lib/graph/table";
+import { surplusAnchors, withDeletable, withoutDeletable } from "../lib/graph/deletable";
+import { nextInputChannel, nextOutputChannel } from "../lib/graph/anchorChannel";
 import { DROP_NODE_HEIGHT, DROP_NODE_WIDTH } from "../lib/graphDrop";
 import { layoutGraph } from "../lib/graphLayout";
 import { isAnchorKind } from "./graphKinds";
@@ -80,15 +82,30 @@ export const ANCHOR_LEFT_X = 40;
 export const ANCHOR_RIGHT_X = 760;
 const ANCHOR_Y = 150;
 
-function makeNode(kind: string, scope: GraphScope, x: number, y: number): GraphNode {
+function makeNode(
+  kind: string,
+  scope: GraphScope,
+  x: number,
+  y: number,
+  /** Sibling nodes to scan for a free channel; omit to read the scope's store. */
+  siblings?: readonly GraphNode[],
+): GraphNode {
   const def = nodeKind(kind);
+  const params = def ? defaultParams(def) : {};
+  if (def) {
+    const nodes = siblings ?? (hasGraph(scope) ? graphFor(scope).nodes : []);
+    // A new Output takes the next output channel, a new (second, third, …) Input the next
+    // free source channel; the graph's first Input stays on the downmix.
+    const channel = nextOutputChannel(def, nodes) ?? nextInputChannel(def, nodes);
+    if (channel != null) params.channel = channel;
+  }
   const node: GraphNode = {
     id: `${kind}-${nextId++}`,
     type: "graph",
     position: { x, y },
     data: {
       kind,
-      params: def ? defaultParams(def) : {},
+      params,
       graph: scope,
       // A subsystem starts valid: its tab opens on a minimal inner graph, and it takes
       // the next free default name (`Feedback 1`, `Feedback 2`, …) so the Sidebar and
@@ -105,8 +122,8 @@ function makeNode(kind: string, scope: GraphScope, x: number, y: number): GraphN
     },
   };
   if (isAnchorKind(kind)) {
-    // Anchors cannot be deleted (there must always be one input/output), but they
-    // stay draggable so the user can place them freely.
+    // The last Input and the last Output cannot be deleted (a graph needs both), but a
+    // surplus one can, and they stay draggable so the user can place them freely.
     node.deletable = false;
   }
   return node;
@@ -181,22 +198,25 @@ function link(source: string, target: string, targetPort = 0): GraphEdge {
  * `sequence` voice is `Input → Saw (cv) → Output`.
  */
 export function seed(scope: GraphScope, kind?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  // A seed is a **fresh** graph, so it ignores any nodes still in the scope's store (a
+  // Clear replaces them) and its single Output starts on channel 0.
+  const fresh: GraphNode[] = [];
   if (scope === "synth" || kind === "resample") {
-    const osc = makeNode("sine", scope, ANCHOR_LEFT_X, ANCHOR_Y);
-    const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y);
+    const osc = makeNode("sine", scope, ANCHOR_LEFT_X, ANCHOR_Y, fresh);
+    const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y, fresh);
     return { nodes: [osc, output], edges: [link(osc.id, output.id)] };
   }
   if (kind === "sequence") {
-    const input = makeNode("input", scope, ANCHOR_LEFT_X, ANCHOR_Y);
-    const osc = makeNode("saw_cv", scope, (ANCHOR_LEFT_X + ANCHOR_RIGHT_X) / 2, ANCHOR_Y);
-    const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y);
+    const input = makeNode("input", scope, ANCHOR_LEFT_X, ANCHOR_Y, fresh);
+    const osc = makeNode("saw_cv", scope, (ANCHOR_LEFT_X + ANCHOR_RIGHT_X) / 2, ANCHOR_Y, fresh);
+    const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y, fresh);
     return {
       nodes: [input, osc, output],
       edges: [link(input.id, osc.id), link(osc.id, output.id)],
     };
   }
-  const input = makeNode("input", scope, ANCHOR_LEFT_X, ANCHOR_Y);
-  const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y);
+  const input = makeNode("input", scope, ANCHOR_LEFT_X, ANCHOR_Y, fresh);
+  const output = makeNode("output", scope, ANCHOR_RIGHT_X, ANCHOR_Y, fresh);
   return { nodes: [input, output], edges: [link(input.id, output.id)] };
 }
 
@@ -305,10 +325,12 @@ export interface GraphLayout {
   edges: GraphEdge[];
 }
 
-/** Snapshot a graph's editor state for the project file. */
+/** Snapshot a graph's editor state for the project file and the shared UI state. */
 export function graphLayout(scope: GraphScope): GraphLayout {
   const handle = graphFor(scope);
-  return { nodes: handle.nodes, edges: handle.edges };
+  // `deletable` is editor-local (see `lib/graph/deletable.ts`), so two windows can never
+  // disagree about it in the shared layout.
+  return { nodes: handle.nodes.map(withoutDeletable), edges: handle.edges };
 }
 
 /** Restore a graph's editor state from a saved project. */
@@ -319,12 +341,11 @@ export function loadGraph(scope: GraphScope, state: Partial<GraphLayout> | undef
     return;
   }
   const handle = graphFor(scope);
+  // Derive `deletable` here too, so a window whose editor is not mounted still protects
+  // the graph's anchors (and can remove a surplus one).
+  const surplus = surplusAnchors(state.nodes);
   handle.setEdges(state.edges ?? []);
-  handle.setNodes(
-    state.nodes.map((node) =>
-      isAnchorKind(node.data.kind) ? { ...node, deletable: false } : node,
-    ),
-  );
+  handle.setNodes(state.nodes.map((node) => withDeletable(node, surplus)));
   bumpNextId([...state.nodes, ...(state.edges ?? [])]);
 }
 

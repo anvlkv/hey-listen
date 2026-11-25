@@ -5,29 +5,35 @@
 /// is `None`, the "downmix") or a single 0-based channel (`Some(n)`).
 pub fn mixdown(interleaved: &[f32], channels: usize, pick: Option<usize>) -> Vec<f32> {
     let channels = channels.max(1);
-    let frames = interleaved.len() / channels;
-    let mut mono = Vec::with_capacity(frames);
+    (0..interleaved.len() / channels)
+        .map(|frame| mixdown_frame(interleaved, channels, frame, pick))
+        .collect()
+}
 
+/// One frame of interleaved PCM reduced to mono by `pick` — the per-sample form of
+/// [`mixdown`], for a caller that feeds a graph frame by frame.
+///
+/// A `pick` the buffer does not have falls back to the downmix, so a channel number
+/// from a graph that outlives its source (`Ch 3` on a stereo file) still makes sound.
+pub fn mixdown_frame(
+    interleaved: &[f32],
+    channels: usize,
+    frame: usize,
+    pick: Option<usize>,
+) -> f32 {
+    let channels = channels.max(1);
+    let base = frame * channels;
     match pick {
-        Some(channel) if channel < channels => {
-            for frame in 0..frames {
-                mono.push(interleaved[frame * channels + channel]);
-            }
-        }
+        Some(channel) if channel < channels => interleaved[base + channel],
         _ => {
             let inv = 1.0 / channels as f32;
-            for frame in 0..frames {
-                let base = frame * channels;
-                let mut sum = 0.0;
-                for c in 0..channels {
-                    sum += interleaved[base + c];
-                }
-                mono.push(sum * inv);
+            let mut sum = 0.0;
+            for c in 0..channels {
+                sum += interleaved[base + c];
             }
+            sum * inv
         }
     }
-
-    mono
 }
 
 /// Linear-interpolating resample of mono PCM. Returns the input unchanged when

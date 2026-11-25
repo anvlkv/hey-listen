@@ -127,7 +127,9 @@ export default function GraphNode(props: NodeProps<GraphNodeData, "graph">) {
         />
       </Show>
 
-      <Show when={!isAnchor() && (def()?.params.length ?? 0) > 0}>
+      {/* The anchors carry a `Ch` param (an Input reads a source channel, an Output writes
+          one), so anchors are not excluded from the fields. */}
+      <Show when={(def()?.params.length ?? 0) > 0}>
         <div class="graph-node-params">
           <For each={def()?.params ?? []}>
             {(param) => (

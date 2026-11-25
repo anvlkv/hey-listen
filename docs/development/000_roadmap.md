@@ -161,7 +161,12 @@ Graphs as text across the app, MCP and the CLI.
 Every node, nested systems, live taps.
 
 ## M41 — Multi-channel outputs and variadic tables ✅
-Per-channel graph outputs and table nodes.
+Per-channel graph outputs and table nodes. Each `Output` node declares a `Ch`; adding one
+takes the next free channel, and a filter graph draws the source lanes with one filtered
+lane per output over them, the channel rail selecting among the rows; a synth render keeps
+every channel as a source. Each `Input` node declares the **source** `Ch` it reads (`-1`
+downmixes), and a graph may carry several inputs, so the rail's pick is only ever the
+output channel.
 
 ## M42 — Source storage: embedded, linked, live link ✅
 Where the audio lives; saved references carry their own audio and re-grid (D-23).

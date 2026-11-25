@@ -1,6 +1,7 @@
 import { invoke } from "../lib/ipc";
 import { listenThisWindow } from "../lib/windowEvents";
 import type { UiSnapshot } from "../bindings/UiSnapshot";
+import { applyOnFrame } from "./frameApply";
 
 /**
  * Cross-window UI-state sync.
@@ -12,15 +13,21 @@ import type { UiSnapshot } from "../bindings/UiSnapshot";
  * core, which broadcasts them — so the main window and its popouts are views of one
  * state instead of diverging copies.
  *
- * A push is **coalesced** ([`PUSH_THROTTLE_MS`]). The keys this carries include ones
- * that change on every pointermove of a gesture — the analysis window, the timeline
- * view, a shared param, a per-tool option. Each push is an IPC round trip plus a
- * broadcast to every other window of the project, and each broadcast re-runs that
- * window's effects and repaints. At pointer rate that queued work faster than it
- * drained, so dragging the analysis window with a popout open stopped responding: the
- * in-page handler stayed cheap (~3 ms) while the cross-window callbacks piled up behind
- * it. Now a burst pushes its first value at once and then at most one per throttle
- * window, always with the latest value, so another window still follows a drag.
+ * A push is **coalesced** ([`PUSH_THROTTLE_MS`]), and so is a remote apply
+ * ([`applyOnFrame`]). The keys this carries include ones that change on every pointermove
+ * of a gesture — the analysis window and timeline view, a shared param, a per-tool option,
+ * and the shared chart cursor and zoom. Each push is an IPC round trip plus a broadcast to
+ * every other window of the project, and each broadcast re-runs that window's effects and
+ * repaints. At pointer rate that queued work faster than it drained, so a drag with a
+ * popout open stopped responding: the in-page handler stayed cheap (~3 ms) while the
+ * cross-window callbacks piled up behind it. A burst now pushes its first value at once and
+ * then at most one per throttle window, always with the latest value, so another window
+ * still follows a drag.
+ *
+ * The **receive** side is coalesced to the animation frame for the mirror reason: a window
+ * that is covered keeps receiving patches while its `requestAnimationFrame` is suspended,
+ * so applying each patch on arrival meant draining a backlog of repaints on return. See
+ * [`applyOnFrame`](./frameApply.ts).
  *
  * See `src-tauri/src/commands/ui.rs`.
  */
@@ -53,6 +60,38 @@ const queued = new Map<string, unknown>();
 const lastPushed = new Map<string, number>();
 /** Keys with a flush already scheduled. */
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * The last value this window **sent or applied** per key, as JSON.
+ *
+ * A window applies a remote patch into its stores, which re-runs the effects that push
+ * those same stores — so every key was echoed back to the core (and a key whose local
+ * shape differs slightly from the wire form, like a graph layout, could ping-pong between
+ * two windows). Remembering the applied value makes that echo a cheap no-op, for every
+ * key and every kind of popout, not just the graph editors.
+ */
+const lastValue = new Map<string, string>();
+
+/** A value's JSON form, or `undefined` when it cannot be serialized. */
+function valueKey(value: unknown): string | undefined {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Remember a remote value, so this window's own effects do not echo it back. */
+function remember(key: string, value: unknown) {
+  const serialized = valueKey(value);
+  if (serialized !== undefined) lastValue.set(key, serialized);
+}
+
+/** Apply a **remote** value now — the startup snapshot must land before the push effects. */
+function applyRemote(key: string, value: unknown) {
+  remember(key, value);
+  applies.get(key)?.(value);
+}
 
 /** Register how a state `key` is applied to the local stores. */
 export function registerUiState(key: string, apply: Apply) {
@@ -94,9 +133,20 @@ function flush(key: string) {
   const value = queued.get(key);
   queued.delete(key);
   lastPushed.set(key, performance.now());
+  // Drop an echo: the value is what a remote patch (or our own last push) already put in
+  // the core, so sending it again would only make the other windows re-apply it.
+  const serialized = valueKey(value);
+  if (serialized !== undefined) {
+    if (serialized === lastValue.get(key)) return;
+    lastValue.set(key, serialized);
+  }
   const call = invoke("set_ui_state", { key, value }).then(
     () => undefined,
-    (err) => console.error(`ui-state push failed for "${key}"`, err),
+    (err) => {
+      // The core never got it: forget the value, so the next identical push retries.
+      if (serialized !== undefined && lastValue.get(key) === serialized) lastValue.delete(key);
+      console.error(`ui-state push failed for "${key}"`, err);
+    },
   );
   inFlight.set(key, call);
   void call.then(() => {
@@ -143,22 +193,26 @@ export async function initUiSync(): Promise<void> {
   const queued: UiStateEvent[] = [];
   let receiving = true;
   await listenThisWindow<UiStateEvent>("ui-state", (event) => {
+    const { key, value } = event.payload;
     if (receiving) {
       queued.push(event.payload);
       return;
     }
-    applies.get(event.payload.key)?.(event.payload.value);
+    // The echo is ours to ignore from the moment the patch arrives, even though the store
+    // write itself waits for the frame (`applyOnFrame`).
+    remember(key, value);
+    applyOnFrame(key, () => applies.get(key)?.(value));
   });
 
   const snapshot = await invoke<UiSnapshot>("get_ui_state");
-  for (const [key, value] of Object.entries(snapshot.values)) applies.get(key)?.(value);
+  for (const [key, value] of Object.entries(snapshot.values)) applyRemote(key, value);
 
   // Replay the patches the snapshot does not already contain, oldest first.
   receiving = false;
   queued
     .filter((event) => (event.revision ?? 0) > snapshot.revision)
     .sort((a, b) => (a.revision ?? 0) - (b.revision ?? 0))
-    .forEach((event) => applies.get(event.key)?.(event.value));
+    .forEach((event) => applyRemote(event.key, event.value));
 
   synced = true;
 }

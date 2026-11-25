@@ -35,6 +35,7 @@ import {
   waitForHint,
 } from "../support/graph.ts";
 import { quietSynthLive } from "../support/synth.ts";
+import { setInputValue } from "../support/timelinePrecision.ts";
 import {
   activateTab,
   activateToolSection,
@@ -102,13 +103,16 @@ describe("S4. Graph DOT interchange (M39)", () => {
     // Live is persisted app chrome: an earlier spec (or the developer's own session) can
     // leave it on, and then every settled graph edit re-renders the source.
     await quietSynthLive();
+    // Length is app-session state and an earlier spec (q2 renders 12 s, then 2 s) leaves it
+    // where it stopped, so pin it instead of trusting the 4 s default.
+    await setInputValue(SEL.synthLength, "4");
     await importGraph(GRAPH_FIXTURES.synth);
     await waitForHint("14 nodes", "the imported pad never reached the synth editor");
     expect(await count(graphNode("poly_saw"))).toBe(2);
     expect(await count(graphNode("reverb_stereo"))).toBe(1);
     expect(await count(SEL.graphError)).toBe(0);
 
-    // Render the pad (the default 4 s) and adopt it as the timeline source.
+    // Render the pad at its pinned 4 s and adopt it as the timeline source.
     await click(SEL.graphRender);
     await waitForSourceLoaded();
     await waitFor(

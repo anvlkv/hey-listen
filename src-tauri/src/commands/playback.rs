@@ -32,14 +32,15 @@ pub async fn list_output_devices() -> Vec<OutputDeviceDto> {
         .unwrap_or_default()
 }
 
-/// Preview `start..end` (seconds, source time). `channel` is a 0-based channel or
-/// `None` to downmix; `device` selects an output device (or the default); `speed` is the
-/// playback rate (varispeed, default/nonsense = 1×, clamped to
-/// [`MIN_SPEED`]..[`MAX_SPEED`]); `offset` is where inside the region to start playing
-/// (source seconds relative to `start`, default 0) so a reload resumes at the playhead.
+/// Preview `start..end` (seconds, source time). `channel` is the 0-based **filter output**
+/// channel when a filter is applied (or the source channel when none is), and `None`
+/// downmixes; `device` selects an output device (or the default); `speed` is the playback
+/// rate (varispeed, default/nonsense = 1×, clamped to [`MIN_SPEED`]..[`MAX_SPEED`]);
+/// `offset` is where inside the region to start playing (source seconds relative to
+/// `start`, default 0) so a reload resumes at the playhead.
 ///
-/// The region is mixed down, filtered by the project graph, resampled to the
-/// device rate, and looped by the core.
+/// The project graph (if any) reads the source channels its `input` nodes name; the result
+/// is resampled to the device rate and looped by the core.
 #[allow(clippy::too_many_arguments)] // a Tauri command's flat args mirror the JS invoke object
 #[tauri::command]
 pub async fn preview_region(
@@ -98,17 +99,19 @@ pub async fn preview_region(
     let logical_rate = logical_rate(device_rate, speed);
 
     let mono = tauri::async_runtime::spawn_blocking(move || {
-        let mono = pcm::mixdown(&region, channels, channel);
+        // A filter graph reads the source channel each of its `input` nodes names, so it
+        // gets the interleaved region; `channel` then picks the graph's **output** channel.
+        // With no filter, the pick selects the source channel to preview.
         let mono = match filter {
-            Some(spec) => match graph::apply_channel(&spec, &mono, rate, channel) {
+            Some(spec) => match graph::apply_channel(&spec, &region, channels, rate, channel) {
                 Ok(filtered) => filtered,
                 Err(err) => {
                     // Should not happen: the graph is validated when installed.
                     log::error!("filter graph failed to apply, previewing raw: {err}");
-                    mono
+                    pcm::mixdown(&region, channels, channel)
                 }
             },
-            None => mono,
+            None => pcm::mixdown(&region, channels, channel),
         };
         pcm::resample_linear(&mono, rate, logical_rate)
     })

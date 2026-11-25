@@ -9,8 +9,8 @@ pub(super) const ROUTING: &[NodeDef] = &[
         Io,
         [],
         ["out"],
-        [],
-        "Where the mono signal enters the filter graph."
+        [param("channel", "Ch", -1.0, -1.0, 15.0, 1.0, None)],
+        "Reads one source channel (-1 downmixes them all). Add another Input for another channel."
     ),
     def!(
         "output",
@@ -19,7 +19,7 @@ pub(super) const ROUTING: &[NodeDef] = &[
         ["in"],
         [],
         [param("channel", "Ch", 0.0, 0.0, 15.0, 1.0, None)],
-        "Reads one of the graph's output channels. Add another Output for another channel."
+        "Writes one of the graph's output channels. Add another Output for another channel."
     ),
     def!(
         "mix",

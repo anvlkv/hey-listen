@@ -1,6 +1,5 @@
 import { invoke } from "../lib/ipc";
 import { createEffect, createRoot, createSignal, on } from "solid-js";
-import { channel } from "./analysis";
 import { pcmStream } from "../lib/pcmStream";
 import { filterActive, filterRevision } from "./graph";
 import { source } from "./source";
@@ -11,12 +10,12 @@ import type { StreamSummary } from "../bindings/StreamSummary";
  * `render_filtered` command and drawn as the Timeline waveform.
  *
  * The core renders **every output channel** of the active filter graph (interleaved),
- * so a graph that splits the input into several branches shows one lane per branch.
- * It conditions the input exactly like preview/analysis (channel mixdown → filter) at
- * the **source** sample rate, so every frame lines up 1:1 with the raw waveform. This
- * is a read-only view: it never mutates the core source. It is cleared (`null`) while
- * no filter is applied (bypassed, or the graph is still the identity seed) or there is
- * no source.
+ * so a graph that splits the input into several branches shows one lane per branch. Each
+ * of the graph's `input` nodes reads its own source channel (`Ch`), so the conditioning
+ * happens at the **source** sample rate and every frame lines up 1:1 with the raw
+ * waveform. This is a read-only view: it never mutates the core source. It is cleared
+ * (`null`) while no filter is applied (bypassed, or the graph is still the identity seed)
+ * or there is no source.
  */
 
 /** Interleaved filtered PCM plus the channel count the graph declared. */
@@ -49,14 +48,11 @@ async function fetchFiltered() {
   }
   const current = ++token;
 
-  // Mirror the analysis pick exactly. The pick mixes the source down (an out-of-range
-  // index falls back to the downmix) before the graph reads it; every output channel is
-  // rendered, so the Timeline can show all of them.
-  const pick = channel();
+  // Mirror analysis: the graph reads the source channels its `input` nodes name, and
+  // every output channel is rendered, so the Timeline can show all of them.
   const stream = pcmStream();
   try {
     const summary = await invoke<StreamSummary>("render_filtered", {
-      channel: typeof pick === "number" ? pick : null,
       onChunk: stream.channel,
     });
     await stream.done;
@@ -76,12 +72,12 @@ function scheduleFiltered() {
   timer = window.setTimeout(() => void fetchFiltered(), DEBOUNCE_MS);
 }
 
-// Re-fetch whenever the source, the filter graph (revision), the enable toggle, or
-// the channel changes, and once on startup.
+// Re-fetch whenever the source, the filter graph (revision) or the enable toggle changes,
+// and once on startup. The output pick does not matter here: every channel is rendered.
 createRoot(() => {
   createEffect(
     on(
-      () => [source(), filterRevision(), filterActive(), channel()],
+      () => [source(), filterRevision(), filterActive()],
       () => scheduleFiltered(),
     ),
   );

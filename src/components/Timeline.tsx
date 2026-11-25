@@ -11,6 +11,7 @@ import {
 } from "solid-js";
 import { transportFollow } from "../audio/transportFollow";
 import { transportPosition } from "../audio/preview";
+import { channel } from "../state/analysis";
 import { computePeaks, type Peaks } from "../lib/waveform";
 import { onDevicePixelRatioChange } from "../lib/devicePixelRatio";
 import { stopFollowing } from "../state/capture";
@@ -30,8 +31,8 @@ import { PLOT_PAD, RAIL_W } from "./timeline/constants";
 import ChannelRail from "./timeline/ChannelRail";
 import {
   createFilteredLanes,
-  createFilteredOverlay,
   laneChannels as laneChannelsFor,
+  laneFilterOutputs,
 } from "./timeline/filteredLanes";
 import TimelineContextMenu from "./timeline/TimelineContextMenu";
 import { drawTimeline, type TimelineDrawDeps } from "./timeline/draw";
@@ -76,7 +77,7 @@ export default function Timeline() {
 
   const duration = () => source()?.duration ?? 0;
   const span = () => Math.max(1e-9, viewEnd() - viewStart());
-  /** Lanes shown: the filter graph's outputs when several, else the source channels. */
+  /** Lanes shown: the filter graph's outputs when it is applied, else the source channels. */
   const laneChannels = () => laneChannelsFor(source()?.channels ?? 1);
   /** Width of the channel rail: only a 2+ lane view has one. */
   const railW = () => (laneChannels() > 1 ? RAIL_W : 0);
@@ -102,10 +103,7 @@ export default function Timeline() {
     return lanes;
   });
 
-  /** Envelope of a single-output filter, drawn as an overlay over the raw lanes. */
-  const filteredOverlay = createFilteredOverlay();
-
-  /** One envelope per filter output channel, for a multi-output graph's lanes. */
+  /** One envelope per filter output channel, for the lanes a filter draws. */
   const filteredLanes = createFilteredLanes();
 
   const t2x = (t: number) => plotLeft() + ((t - viewStart()) / span()) * plotW();
@@ -197,8 +195,8 @@ export default function Timeline() {
     cssW,
     cssH,
     filteredLanes,
-    filteredOverlay,
     channelPeaks,
+    laneChannels,
     railW,
     playSec: preview.playSec,
     playSecPlaying: () => preview.status() === "playing",
@@ -260,6 +258,7 @@ export default function Timeline() {
     windowEnd();
     preview.playSec();
     preview.status();
+    channel();
     filteredPcm();
     filterActive();
     annotationsSorted();
@@ -351,7 +350,7 @@ export default function Timeline() {
           onPointerLeave={interaction.onPointerLeave}
         />
         <Show when={railW() > 0}>
-          <ChannelRail channels={laneChannels()} />
+          <ChannelRail channels={laneChannels()} filterOutputs={laneFilterOutputs()} />
         </Show>
         <Show when={!active()}>
           <div class="timeline-overlay">

@@ -18,6 +18,22 @@ use serde::{Deserialize, Serialize};
 
 pub use envelope::{render, ExportContext, ExportSource, RenderedExport};
 
+/// Create the directory an explicit output path names.
+///
+/// An agent (or the CLI) names a path, whereas a save dialog always sits in an existing
+/// folder — so a write to `new/folder/a.json` must not fail just because `new/folder` is
+/// missing. A bare file name has no parent and needs nothing.
+pub fn ensure_parent(path: &std::path::Path) -> Result<(), String> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    if parent.as_os_str().is_empty() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(parent)
+        .map_err(|err| format!("cannot create {}: {err}", parent.display()))
+}
+
 /// The data formats an analysis can be exported as.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]

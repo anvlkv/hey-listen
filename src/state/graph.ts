@@ -124,9 +124,9 @@ export function outputConnected(scope: GraphScope): boolean {
 
 /**
  * How many output channels the filter graph declares: one per `output` node's `Ch`
- * parameter (each node reads one channel), at least 1. The chosen analysis channel can
- * exceed the source's channel count — that is how a graph splits one signal into several
- * branches and is analysed one branch at a time.
+ * parameter (each node writes one channel), at least 1. The analysis channel picks among
+ * them, and the Timeline draws one lane each — a graph can split its input into more
+ * branches than the source has channels (see `laneChannels`).
  */
 export function filterOutputs(): number {
   let high = 0;

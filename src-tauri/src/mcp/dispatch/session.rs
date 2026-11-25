@@ -276,6 +276,13 @@ impl HeadlessSession {
     }
 
     pub(super) fn run_analysis(&mut self, args: &Value) -> Result<Value, String> {
+        match args::channels(args)? {
+            None => self.run_analysis_one(args),
+            Some(channels) => self.run_analysis_channels(args, &channels),
+        }
+    }
+
+    pub(super) fn run_analysis_one(&mut self, args: &Value) -> Result<Value, String> {
         let tool = analyzer(args, "tool")?;
 
         // `transient` applies `start`/`end`/`params`/`options` to this call only; the

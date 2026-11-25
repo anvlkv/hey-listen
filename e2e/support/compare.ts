@@ -75,8 +75,15 @@ export async function compareToolFromMain(tool: string, reference: string): Prom
   );
 }
 
-/** The compare view's root (the header + chart), per tool. */
-export const compareView = (tool: string) => `[data-testid="compare.${tool}"]`;
+/**
+ * The compare view's **root** (the tab, or the whole compare popout), per tool.
+ *
+ * Keyed by `data-compare-id`, which only the root carries. Several family charts reuse the
+ * plain `compare.<tool>` test id (the waveform, matrix, events, notes and modulation chart
+ * roots in `components/compare/`), so the bare selector counts the root *and* its chart —
+ * a wait for exactly one would fail as soon as the result renders (R2.11).
+ */
+export const compareView = (tool: string) => `[data-testid="compare.${tool}"][data-compare-id]`;
 
 /**
  * A compare tab, matched by its panel-id prefix.

@@ -1,7 +1,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import { errorMessage, invoke } from "../../lib/ipc";
 import { hopWidenedNote, runSpanLabel, startRun } from "../../lib/runLog";
-import { applySharedParams, sharedParams, type SharedParamsDto } from "../analysis";
+import { applySharedParams, mergeParams, sharedParams, type SharedParamsDto } from "../analysis";
 import {
   applyOptionPatch,
   engineOptions,
@@ -32,8 +32,55 @@ interface AnalysisReply {
  * The core returns `{ summary, result }`; `shape` picks the amount of result —
  * `compact` by default, `full` with `includeData`, or none with `summaryOnly`. The
  * summary is always present, so an agent never has to read arrays to get the answer.
+ *
+ * `channels: [0, 1, 2]` runs the tool once per output channel and returns one envelope
+ * each under `channels` — the way to compare a filter graph's bands in one call.
  */
 export async function runAnalysis(args: Args) {
+  const channels = channelSweep(args);
+  return channels ? sweepChannels(args, channels) : runOne(args);
+}
+
+/** A `channels` argument (two or more), or null for a normal single-channel call. */
+function channelSweep(args: Args): number[] | null {
+  const raw = args.channels;
+  if (raw == null) return null;
+  if (!Array.isArray(raw) || raw.length < 2) {
+    throw new Error("`channels` needs at least two output channels");
+  }
+  return raw.map((value) => {
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 15) {
+      throw new Error(`\`channels\` entries must be output channels 0..15 (got ${String(value)})`);
+    }
+    return value;
+  });
+}
+
+/**
+ * Run the tool once per channel. The sweep is always **transient**: each entry would
+ * otherwise leave its own channel behind as the project's setting, and the last one
+ * would win. The analyzer tab still opens once when `display` allows it.
+ */
+async function sweepChannels(args: Args, channels: number[]) {
+  const tool = str(args, "tool");
+  if (!isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
+  const patch = asArgs(args.params ?? {});
+  const entries: unknown[] = [];
+  for (const channel of channels) {
+    const envelope = await runOne({
+      ...args,
+      params: { ...patch, channel },
+      transient: true,
+      display: false,
+    });
+    entries.push({ channel, ...(envelope as Record<string, unknown>) });
+  }
+  if (optionalBool(args, "display") ?? true) await openTool(tool);
+  return { tool, channels: entries };
+}
+
+/** One analyzer run over one channel (the shape every `run_analysis` documented). */
+async function runOne(args: Args) {
   const tool = str(args, "tool");
   if (!isAnalyzerId(tool)) throw new Error(`unknown analyzer: ${tool}`);
 
@@ -125,20 +172,6 @@ export async function runAnalysis(args: Args) {
   };
   if (response.result !== undefined) envelope.result = response.result;
   return envelope;
-}
-
-/** Merge a shared-params patch over a base snapshot (mirrors `applySharedParams`). */
-function mergeParams(base: SharedParamsDto, patch: Partial<SharedParamsDto>): SharedParamsDto {
-  const out = { ...base };
-  if (patch.fftSize != null) out.fftSize = patch.fftSize;
-  if (patch.hop != null) out.hop = patch.hop;
-  if (patch.randomizedOverlap != null) out.randomizedOverlap = patch.randomizedOverlap;
-  if (patch.windowFn != null) out.windowFn = patch.windowFn;
-  if ("channel" in patch) out.channel = patch.channel ?? null;
-  if ("resampleTo" in patch) out.resampleTo = patch.resampleTo ?? null;
-  if (patch.freqMinHz != null) out.freqMinHz = patch.freqMinHz;
-  if (patch.freqMaxHz != null) out.freqMaxHz = patch.freqMaxHz;
-  return out;
 }
 
 /** Clamp `start..end` to the source and set the analysis window. */

@@ -103,6 +103,8 @@ impl HeadlessSession {
             "fileName": file_name,
         });
         if let Some(path) = args.get("path").and_then(Value::as_str) {
+            // An agent names the path, so its folder may not exist yet.
+            export::ensure_parent(Path::new(path))?;
             std::fs::write(path, &text).map_err(|err| format!("cannot write {path}: {err}"))?;
             out["path"] = Value::from(path);
             if include_sidecar {

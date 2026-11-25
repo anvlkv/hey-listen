@@ -3,17 +3,16 @@ import { channel, channelOptions, setChannel } from "../../state/analysis";
 import { RAIL_W, RULER_H } from "./constants";
 
 /**
- * The Timeline's **channel rail** (M23): the analysis channel picked next to the
- * waveform — one radio per channel lane plus a **Downmix** toggle. It writes the shared
- * analysis param (`state/analysis.ts`), so the waveform, the preview and every analyzer
- * agree (ADR-6). Rendered for a 2+ lane view (`Timeline.tsx` decides the count: the
- * source's channels, or the filter graph's output channels when it declares several),
- * and it replaces the old toolbar `ChannelSelect`.
- * "Parallel channel lanes".
+ * The Timeline's **channel rail** (M23): the lane picked next to the waveform — one radio
+ * per lane plus a **Downmix** toggle. It writes the shared analysis param
+ * (`state/analysis.ts`), so the waveform, the preview and every analyzer agree (ADR-6).
+ * Rendered for a 2+ lane view; `Timeline.tsx` decides the count, and `filterOutputs` says
+ * how many leading lanes are the filter graph's outputs, so a lane is labelled for what it
+ * shows (`Output n`, or a source channel).
  */
-export default function ChannelRail(props: { channels: number }) {
+export default function ChannelRail(props: { channels: number; filterOutputs: number }) {
   /** One option per lane (`channelOptions` leads with the downmix entry). */
-  const picks = () => channelOptions(props.channels).slice(1);
+  const picks = () => channelOptions(props.channels, props.filterOutputs).slice(1);
 
   // Fall back to the mix when the shown lanes no longer include the pick.
   createEffect(

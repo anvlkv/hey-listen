@@ -203,4 +203,41 @@ describe("Q2. Synth workflow", () => {
 
     await clearFilterGraph();
   });
+
+  it("Q2.4 — Live never shortens the source: a length over the cap is skipped", async () => {
+    await openFixture("sine440");
+    await openTool("synth");
+    await waitFor(async () => (await count(SEL.synthLength)) > 0, "the synth tab did not open");
+    // Off first, so the switch below is this case's own turn-on.
+    await quietSynthLive();
+
+    // Render once at a length Live will not re-render (over LIVE_MAX_SECONDS = 10).
+    await setInputValue(SEL.synthLength, "12");
+    await click(SEL.graphRender);
+    await waitForSourceLoaded();
+    await waitFor(
+      async () => (await timelineReadoutText()).includes("0:12"),
+      "the 12 s render never became the timeline source",
+    );
+
+    // Live must *skip* it rather than overwrite the source with a shorter render: the
+    // truncation this guards against shortened the timeline and the saved project.
+    await startInvokeCounts();
+    await click(SEL.synthLive);
+    await waitFor(
+      async () => (await count(SEL.synthLiveCap)) === 1,
+      "the Live length warning did not show",
+    );
+    const counts = await takeInvokeCounts();
+    expect(counts.update_synth_source ?? 0).toBe(0);
+    expect(await timelineReadoutText()).toContain("0:12");
+
+    // Below the cap it renders again, and the source really does change.
+    await setInputValue(SEL.synthLength, "2");
+    await waitFor(
+      async () => (await timelineReadoutText()).includes("0:02"),
+      "Live did not re-render the shorter source",
+    );
+    expect(await count(SEL.synthLiveCap)).toBe(0);
+  });
 });

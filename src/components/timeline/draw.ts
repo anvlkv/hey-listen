@@ -6,7 +6,7 @@ import { source } from "../../state/source";
 import { chartTheme } from "../../state/themes";
 import { viewEnd, viewStart, windowEnd, windowStart } from "../../state/timeline";
 import { HANDLE_TAB_W, LABEL_GAP, MOVE_HANDLE_H, PLOT_PAD, RULER_H } from "./constants";
-import { drawFilteredLanes, drawFilteredOverlay } from "./filteredWaveform";
+import { drawFilteredLanes } from "./filteredWaveform";
 import { formatRulerTime, formatTime, niceStep } from "./format";
 import { drawWaveformLanes } from "./waveformLanes";
 import { drawTimelineAnnotations } from "./annotationOverlay";
@@ -27,11 +27,11 @@ export interface TimelineDrawDeps {
   cssH: () => number;
   /** One envelope per filter output channel, in channel order (`[]` when inactive). */
   filteredLanes: () => Peaks[];
-  /** Envelope of a **single-output** filter, drawn as an overlay over the raw lanes. */
-  filteredOverlay: () => Peaks | null;
   /** One envelope per source channel, in channel order (see `lib/waveform.ts`). */
   channelPeaks: () => Peaks[];
-  /** Width of the channel rail on the left (`0` for a mono source). */
+  /** Lane rows the waveform is split into (see `timeline/filteredLanes.ts`). */
+  laneChannels: () => number;
+  /** Width of the channel rail on the left (`0` when there is no rail). */
   railW: () => number;
   playSec: () => number | null;
   /** Whether the playhead is live (a paused/stopped line is drawn dimmed). */
@@ -89,11 +89,13 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
     ctx.fillRect(ws, waveTop, we - ws, waveH);
   }
 
-  // Waveform: the filtered graph's output lanes when it declares several channels,
-  // otherwise one lane per source channel with the filtered output as a tint. A graph
-  // can split its input into more branches than the source has channels, so the lanes
-  // follow the **outputs** whenever there are several of them.
+  // Waveform: the source's channels are the background, one lane each; a filter graph's
+  // output channels are painted over them, one row each. A graph reads the source channel
+  // each of its `Input` nodes names and may split the signal into more branches than the
+  // source has channels, so the lanes are the union of the two.
   if (s && s.frames > 0) {
+    const lanes = filterActive() ? deps.filteredLanes() : [];
+    const rows = Math.max(deps.laneChannels(), lanes.length);
     const area = {
       top: waveTop,
       height: waveH,
@@ -101,28 +103,27 @@ export function drawTimeline(ctx: CanvasRenderingContext2D | null, deps: Timelin
       right: w - PLOT_PAD,
       sampleRate: s.sampleRate,
     };
-    const filteredStyle = { wave: t.filtered, dimmed: colors.laneDim, midline: t.midline };
-    const lanes = filterActive() ? deps.filteredLanes() : [];
-    if (!drawFilteredLanes(ctx, area, filteredStyle, lanes, deps.x2t)) {
-      drawWaveformLanes(
-        ctx,
-        {
-          ...area,
-          samples: s.samples,
-          frames: s.frames,
-          channels: s.channels,
-          peaks: deps.channelPeaks(),
-        },
-        {
-          wave: t.series,
-          dimmed: colors.laneDim,
-          midline: t.midline,
-          active: channel(),
-        },
-        deps.x2t,
-      );
-      drawFilteredOverlay(ctx, area, deps.filteredOverlay(), t.filtered, deps.x2t);
-    }
+    drawWaveformLanes(
+      ctx,
+      {
+        ...area,
+        rows,
+        samples: s.samples,
+        frames: s.frames,
+        channels: s.channels,
+        peaks: deps.channelPeaks(),
+      },
+      { wave: t.series, midline: t.midline, active: channel() },
+      deps.x2t,
+    );
+    drawFilteredLanes(
+      ctx,
+      area,
+      { wave: t.filtered, casing: t.surface, active: channel() },
+      lanes,
+      rows,
+      deps.x2t,
+    );
   }
 
   drawRuler(ctx, w, deps);

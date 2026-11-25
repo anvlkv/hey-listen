@@ -86,7 +86,10 @@ pub(super) fn tools() -> Vec<Value> {
              these are written back to the project unless `transient: true`. The gated series \
              tools accept `gateDb`/`gateFloorDb` (0 = off); `noteMetrics` accepts \
              `syllableGapMs`; pitch results carry `voicedFrames`/`f0Reliable` and modulation \
-             carries `fmReliable`. Call `get_analyzer` \
+             carries `fmReliable`. `channels: [0, 1, 2]` runs the tool once per output \
+             channel and returns one envelope each under `channels` (the way to compare a \
+             filter graph's bands in one call; a sweep is always transient). Call \
+             `get_analyzer` \
              for the option keys, their ranges, the result family, and the summary keys.",
             json!({
                 "type": "object",
@@ -103,6 +106,7 @@ pub(super) fn tools() -> Vec<Value> {
                     "maxPoints": { "type": "integer", "minimum": 2, "description": "With `includeData`, thin series/matrix arrays to at most this many points (keeping first/last). Event and note lists are never thinned; scalars are unchanged." },
                     "previewRecords": { "type": "integer", "minimum": 1, "maximum": 50, "description": "Records kept in each compact event/note/object list preview (default 5)." },
                     "axis": { "type": "string", "enum": ["array", "compact"], "description": "With `includeData`, `compact` turns a `times` array into `{ start, hop, length, end }` (`firstHop`/`lastHop` carry a differing edge frame; default `array`)." },
+                    "channels": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 15 }, "minItems": 2, "maxItems": 16, "description": "Run the tool once per output channel and return one envelope each under `channels`, with `channel` on each entry. Overrides `params.channel` and is always transient (it never writes a channel back)." },
                 },
                 "required": ["tool"],
                 "additionalProperties": false,

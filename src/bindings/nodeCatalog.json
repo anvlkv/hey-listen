@@ -7,10 +7,20 @@
     "outputPorts": [
       "out"
     ],
-    "params": [],
+    "params": [
+      {
+        "key": "channel",
+        "label": "Ch",
+        "default": -1.0,
+        "min": -1.0,
+        "max": 15.0,
+        "step": 1.0,
+        "unit": null
+      }
+    ],
     "filterOnly": true,
     "synthOnly": false,
-    "hint": "Where the mono signal enters the filter graph.",
+    "hint": "Reads one source channel (-1 downmixes them all). Add another Input for another channel.",
     "subsystem": false,
     "table": null
   },
@@ -35,7 +45,7 @@
     ],
     "filterOnly": false,
     "synthOnly": false,
-    "hint": "Reads one of the graph's output channels. Add another Output for another channel.",
+    "hint": "Writes one of the graph's output channels. Add another Output for another channel.",
     "subsystem": false,
     "table": null
   },

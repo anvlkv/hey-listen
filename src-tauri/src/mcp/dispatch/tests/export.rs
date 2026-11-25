@@ -17,6 +17,28 @@ fn synth_session() -> HeadlessSession {
 }
 
 #[test]
+fn export_analysis_creates_a_missing_folder() {
+    let mut session = synth_session();
+    // An agent names the path; the folder it names need not exist yet.
+    let root = std::env::temp_dir().join(format!(
+        "hey_listen_mcp_export_nested_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    let path = root.join("a/b/levels.json");
+
+    let out = session
+        .dispatch(
+            "export_analysis",
+            json!({ "tool": "levels", "path": path.to_string_lossy() }),
+        )
+        .unwrap();
+    assert_eq!(out["path"], path.to_string_lossy().as_ref());
+    assert!(path.exists(), "the nested export was not written");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn export_analysis_renders_text_without_writing_a_file() {
     let mut session = synth_session();
 

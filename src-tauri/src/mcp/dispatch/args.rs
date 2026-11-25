@@ -99,6 +99,34 @@ pub(super) fn analyzer(args: &Value, key: &str) -> Result<AnalyzerId, String> {
     value.parse().map_err(|_| unknown_analyzer(value))
 }
 
+/// Read an optional `channels` sweep: two or more output channels to run the tool over.
+///
+/// A sweep exists because the analysis `channel` is a single shared setting: comparing a
+/// filter graph's bands would otherwise be one call per band. It is always **transient**
+/// (each entry would leave its own channel behind as the project's setting).
+pub(super) fn channels(args: &Value) -> Result<Option<Vec<usize>>, String> {
+    let Some(value) = args.get("channels") else {
+        return Ok(None);
+    };
+    let list = value
+        .as_array()
+        .ok_or_else(|| "`channels` must be an array".to_string())?;
+    if list.len() < 2 {
+        return Err("`channels` needs at least two output channels".to_string());
+    }
+    let mut out = Vec::with_capacity(list.len());
+    for entry in list {
+        let channel = number_in(entry, "channels", 0.0, 15.0)?;
+        if channel.fract() != 0.0 {
+            return Err(format!(
+                "`channels` entries must be whole output channels (got {channel})"
+            ));
+        }
+        out.push(channel as usize);
+    }
+    Ok(Some(out))
+}
+
 /// Read a required Workbench tool id: an analyzer id, `filter`, or `synth`.
 pub(super) fn tool_id(args: &Value) -> Result<ToolId, String> {
     let value = args

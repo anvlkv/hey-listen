@@ -1,23 +1,23 @@
 import { createMemo } from "solid-js";
 import { computePeaks, type Peaks } from "../../lib/waveform";
 import { filteredFrames, filteredPcm } from "../../state/filtered";
-import { filterActive, filterOutputs } from "../../state/graph";
+import { filterActive } from "../../state/graph";
 
 /**
- * Envelopes for the Timeline's filtered waveform (canvas painting lives in
- * [`draw.ts`](./draw.ts)).
+ * The lanes for the Timeline's waveform (canvas painting lives in
+ * [`filteredWaveform.ts`](./filteredWaveform.ts)).
  *
- * A filter graph may declare several output channels — one lane per branch. A single
- * output stays a **tint overlay** over the raw source lanes, so its effect reads as a
- * tint rather than a replacement; several outputs replace the lanes, because there is
- * no one source lane per output to tint.
+ * The source lanes are always drawn, one per source channel. While a filter is applied,
+ * the graph's **output channels** are drawn over them, one row each — so a graph that
+ * splits the signal into several branches adds rows instead of replacing the source, and
+ * turning the filter off takes those rows (and their selection entries) away again.
  */
 
-/** One envelope per filter output channel, in channel order (`[]` when not multi). */
+/** One envelope per filter output channel, in channel order (`[]` when not applied). */
 export function createFilteredLanes(): () => Peaks[] {
   return createMemo<Peaks[]>(() => {
     const f = filteredPcm();
-    if (!filterActive() || !f || f.channels <= 1) return [];
+    if (!filterActive() || !f) return [];
     const frames = filteredFrames(f);
     if (frames === 0) return [];
     const lanes: Peaks[] = [];
@@ -28,25 +28,16 @@ export function createFilteredLanes(): () => Peaks[] {
   });
 }
 
-/** Envelope of a **single-output** filter, drawn as an overlay over the raw lanes. */
-export function createFilteredOverlay(): () => Peaks | null {
-  return createMemo<Peaks | null>(() => {
-    const f = filteredPcm();
-    if (!filterActive() || !f || f.channels !== 1) return null;
-    const frames = filteredFrames(f);
-    if (frames === 0) return null;
-    return computePeaks(f.samples, frames, 1, 0);
-  });
+/** How many leading lane rows are the filter graph's outputs (0 while it is not applied). */
+export function laneFilterOutputs(): number {
+  return filterActive() ? Math.max(0, filteredPcm()?.channels ?? 0) : 0;
 }
 
 /**
- * How many lanes the waveform area is split into: one per filter **output channel** when
- * the active graph declares several (even for a mono source), otherwise one per source
- * channel. The rail, the canvas and click-to-select all read this one count.
+ * How many lanes the waveform area is split into: one per source channel, plus any filter
+ * output rows beyond them. The rail, the canvas and click-to-select all read this one
+ * count, so the lane a click picks is always the lane that is drawn.
  */
 export function laneChannels(sourceChannels: number): number {
-  const source = Math.max(1, sourceChannels);
-  if (!filterActive()) return source;
-  const outputs = Math.max(1, filterOutputs(), filteredPcm()?.channels ?? 0);
-  return Math.max(source, outputs);
+  return Math.max(1, sourceChannels, laneFilterOutputs());
 }

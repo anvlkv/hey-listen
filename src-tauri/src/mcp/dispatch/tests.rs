@@ -8,6 +8,7 @@ use super::HeadlessSession;
 
 mod analysis;
 mod cache;
+mod channels;
 mod compare;
 mod dot;
 mod export;
