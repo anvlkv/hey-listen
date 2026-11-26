@@ -1,41 +1,32 @@
 /**
- * Marketing screenshot capture — **not** part of the E2E suite.
+ * Landing screenshots — **not** part of the E2E suite.
  *
- * Runs only through `screenshots.wdio.conf.ts` (`npm run screenshots`), which points
- * `specs` at this one file. It lives outside `e2e/specs/` on purpose: CI only runs the
- * `*.spec.ts` files in that directory, so a normal run never captures marketing PNGs.
+ * Runs only through `screenshots.wdio.conf.ts` (`npm run landing:shots`). It lives
+ * outside `e2e/specs/` on purpose: CI only runs the `*.spec.ts` files in that
+ * directory, so a normal run never captures landing PNGs.
  *
- * The shots come from a **project file** rather than a hand-built sequence of MCP
- * calls: the file carries the source (embedded PCM), the Workbench grid, the filter,
- * the analysis window and the annotations, so the page cannot drift from the app's real
- * state — and the analyzer *grid* is only reachable by restoring a saved layout (the
- * app opens every new tab into the focused group, so a split cannot be scripted).
+ * Every image is an **element crop** of the running app, like the manual's capture:
+ *   - the analyzer panel for each Sidebar section (never an exported chart);
+ *   - the whole workbench, as the analysis section's main screenshot;
+ *   - the analysis-result Export popover and the audio-export rail;
+ *   - the empty project's Sources rail in its linked-file, application and synth
+ *     states, plus the open source-kind list.
  *
- * It writes five PNGs into `site/assets/`:
- *   - `hero.png`      — the whole window: Spectrogram + Tempo over Level meters, with
- *                       the annotations rail open and the phrase annotation's span drawn.
- *   - `pitch.png`     — the Pitch (autocorrelation) popout window, on its own.
- *   - `spectrum.png`  — clipped to the spectrum panel.
- *   - `tempo.png`     — clipped to the tempo (rhythm) panel.
- *   - `filter.png`    — the filter graph editor, showing the band-pass the project
- *                       carries (it is what makes the analyzers read a clean signal).
- *
- * Capture-specific details:
- *   - The core's replace-source / discard-changes `confirm` is mocked to `true` so no
- *     native dialog can appear and block a capture.
- *   - A synthetic pointer position is emulated over a chart so its crosshair (and
- *     hover tooltip / readouts) render in the shot.
- *   - The embedded driver's "take element screenshot" returns the full viewport, so
- *     the detail shots are captured full-viewport and cropped with ImageMagick; every
- *     asset is then capped to a sensible width (the app may well be running
- *     maximized, and a page never wants a 3k-wide PNG).
+ * The recording is `video/story-assets/analysis-example.heyl`, the same project the
+ * manual illustrates, so the landing cannot drift from a real app state.
  */
 
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { capWidth as capWidthTo, captureElement, hoverAt } from "../support/capture.ts";
+
+import { newEmptyProject } from "../support/app.ts";
+import { captureElement, captureRegion, hoverAt, trimUniform } from "../support/capture.ts";
+import { FIXTURES } from "../support/fixtures.ts";
+import { dismissPopovers, openSelect, pickOption } from "../support/popups.ts";
 import { analyzerPanel, SEL } from "../support/selectors.ts";
-import { closeWindowsMatching, windowLabels } from "../support/windows.ts";
+import { prepareFilePicker, showSources } from "../support/source.ts";
+import { closeWindowsMatching } from "../support/windows.ts";
 import {
   canvasHasInk,
   click,
@@ -48,212 +39,208 @@ import {
   waitFor,
   waitForAnalyzer,
   waitForApp,
-  waitForReadouts,
   waitForSourceLoaded,
 } from "../support/helpers.ts";
 
-/** `site/assets/` — two levels up from this `e2e/screenshots/` directory. */
-const ASSETS_DIR = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "site",
-  "assets",
-);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-/** The project the shots are taken from. */
-const PROJECT = "/Users/anvlkv/Downloads/blue capped ifrit.heyl";
+/** `landing/public/images/` — two levels up from this `e2e/screenshots/` directory. */
+const IMAGES_DIR = path.resolve(HERE, "..", "..", "landing", "public", "images");
+const ANALYZER_DIR = path.join(IMAGES_DIR, "analyzers");
+const SOURCE_DIR = path.join(IMAGES_DIR, "sources");
 
-/** The heading of the annotation selected for the shots — the call-phrase **range** annotation. */
-const FOCUS_ANNOTATION_HEADING = "Call phrase";
+/** The shared story project: 31.2 s of Grieg with its annotations. */
+const PROJECT = path.resolve(HERE, "..", "..", "video", "story-assets", "analysis-example.heyl");
 
-/** Cap each asset's width, in device px (the page shows them at 960 CSS px, so 2x). */
-const ASSET_WIDTH = 1954;
+/** Cap each crop in device px; the page shows them at panel width. */
+const SHOT_WIDTH = 1600;
 
-/** The canvas element(s) inside each analyzer panel that render a crosshair on hover. */
-const CHART_TARGETS = {
-  spectrum: '[data-testid="analyzer.spectrum"] canvas',
-  spectrogram: '[data-testid="analyzer.spectrogram"] canvas',
-  tempo: '[data-testid="analyzer.tempo"] canvas',
-} as const;
+const ANALYZERS = [
+  { id: "waveform", name: "time" },
+  { id: "spectrum", name: "spectral" },
+  { id: "pitchYin", name: "pitch" },
+  { id: "tempo", name: "rhythm" },
+  { id: "loudnessMomentary", name: "loudness" },
+  { id: "sharpness", name: "perception" },
+] as const;
 
-/** The first annotation row's heading (`ids are uuid-based, so match the prefix`). */
-const FIRST_ANNOTATION_HEADING =
-  '[data-testid^="annotation.row."] [data-testid^="annotation.heading."]';
+const image = (dir: string, name: string) => path.join(dir, `${name}.png`);
 
-/** Drive the app's own MCP surface (the same path an agent uses). */
-let mcpId = 1;
-async function mcp(tool: string, args: Record<string, unknown>): Promise<void> {
-  await emitEvent("mcp:request", { id: mcpId++, tool, arguments: args });
+/** Open a source-kind option in the Sources rail. */
+async function chooseSourceKind(label: string): Promise<void> {
+  await openSelect('[data-testid="source.kind"]');
+  await pickOption(label);
 }
 
-/** The PNG a marketing label is written to. */
-const shotFile = (label: string) => path.join(ASSETS_DIR, `${label}.png`);
-
-/** Cap an asset's width (no upscaling) so a maximized window cannot bloat the page. */
-function capWidth(label: string, maxWidth: number): void {
-  capWidthTo(shotFile(label), maxWidth);
+/** Clear a synthetic click's focus ring so it does not frame the screenshot. */
+async function blurActive(): Promise<void> {
+  await browser.execute(() => (document.activeElement as HTMLElement | null)?.blur());
 }
 
-/** Capture the viewport, crop it to `selector`'s bounding box, and write it as `label`. */
-async function cropElement(label: string, selector: string): Promise<void> {
-  await captureElement(selector, shotFile(label), ASSET_WIDTH);
-}
-
-/** Save an analyzer panel, cropped, once its chart has ink and a crosshair placed. */
-async function captureAnalyzer(id: keyof typeof CHART_TARGETS): Promise<void> {
-  await browser.waitUntil(async () => canvasHasInk(`${analyzerPanel(id)} canvas`), {
-    timeout: 30_000,
-    timeoutMsg: `the "${id}" canvas never drew anything to capture`,
-  });
-  await hoverAt(CHART_TARGETS[id]);
-  await cropElement(id, analyzerPanel(id));
-}
-
-/** Capture the app's one analyzer popout window (the project restores it on load). */
-async function capturePopout(label: string, tool: string, popout: string): Promise<void> {
-  await browser.tauri.switchWindow(popout);
-  await hoverAt(`[data-testid="analyzer.${tool}"] canvas`);
-  await browser.saveScreenshot(path.join(ASSETS_DIR, `${label}.png`));
-  capWidth(label, ASSET_WIDTH);
-  await browser.tauri.switchWindow("main");
-}
-
-/**
- * Wait for the popout window the project restores, and for its chart to draw — then
- * come back to `main`. Returns the popout's window label.
- *
- * Waiting is also what makes the filter correct: opening a project restores the graph
- * into the editor, but the **analysis** only picks it up once the graph is pushed to the
- * core again (the popout window boots its own seeded copy and lands it in the *shared*
- * core after the project's own). So the caller re-applies the filter once this returns.
- */
-async function waitForPopout(tool: string): Promise<string> {
-  let popout = "";
-  await waitFor(async () => {
-    popout = (await windowLabels()).find((name) => /^popout-\d+$/.test(name)) ?? "";
-    return popout !== "";
-  }, "the project's popout window never appeared");
-
-  await browser.tauri.switchWindow(popout);
-  await browser.waitUntil(async () => (await count(analyzerPanel(tool))) > 0, {
-    timeout: 60_000,
-    timeoutMsg: `the popout never rendered the "${tool}" panel`,
-  });
-  await browser.waitUntil(async () => canvasHasInk(`[data-testid="analyzer.${tool}"] canvas`), {
-    timeout: 30_000,
-    timeoutMsg: `the popout's "${tool}" chart never drew anything`,
-  });
-  await browser.tauri.switchWindow("main");
-  return popout;
-}
-
-/** Make sure the annotations rail is open, and that it has the project's rows. */
-async function openAnnotationsRail(): Promise<void> {
-  if ((await count(SEL.annotationsRegion)) === 0) {
-    await click(SEL.toolbarAnnotations);
-    await waitFor(
-      async () => (await count(SEL.annotationsRegion)) > 0,
-      "the annotations rail did not open",
+/** Close the Kobalte select's portaled listbox. */
+async function closeSelect(): Promise<void> {
+  await browser.execute(() => {
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
     );
-  }
-  await waitFor(
-    async () => (await count(FIRST_ANNOTATION_HEADING)) > 0,
-    "the annotations rail showed no annotation rows",
-  );
+  });
+  await browser.waitUntil(async () => (await count(".pop-item")) === 0, {
+    timeoutMsg: "the source-kind list did not close",
+  });
 }
 
-/**
- * Select the annotation headed `heading` (its markdown's first line) by clicking the row.
- * Selecting is what highlights an annotation — and a selected annotation only draws its full-height
- * span while the rail is open, which is exactly what the hero shows.
- */
-async function selectAnnotation(heading: string): Promise<void> {
-  const clicked = (await browser.execute((wanted: string) => {
-    const headings = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-testid^="annotation.heading."]'),
-    );
-    const match = headings.find((el) => (el.textContent ?? "").trim() === wanted);
-    if (!match) return false;
-    match.click();
-    return true;
-  }, heading)) as boolean;
-  if (!clicked) throw new Error(`no annotation row is headed "${heading}"`);
+/** Capture one analyzer panel with ink and a crosshair, never the exported chart. */
+async function captureAnalyzer(id: string, name: string): Promise<void> {
+  await closeAllTabs();
+  await openTool(id);
+  await waitForAnalyzer(id);
+  const canvas = `${analyzerPanel(id)} canvas`;
+  await browser.waitUntil(async () => canvasHasInk(canvas), {
+    timeout: 30_000,
+    timeoutMsg: `the "${id}" chart never drew anything`,
+  });
+  await hoverAt(canvas);
+  await captureElement(analyzerPanel(id), image(ANALYZER_DIR, name), SHOT_WIDTH);
 }
 
-describe("Marketing screenshots", () => {
-  // The popout is this spec's to close: the next session must start on a single window.
+describe("Landing screenshots", () => {
   after(async () => {
-    await closeWindowsMatching(/^(popout|annotation)-\d+$/);
+    await closeWindowsMatching(/^(popout|compare|project)-\d+$/);
     await browser.tauri.switchWindow("main").catch(() => {});
   });
 
-  it("captures the workbench, the pitch popout, and the analyzer details", async () => {
+  it("captures the analyzers, the export surfaces, and the source deck", async () => {
+    await mkdir(ANALYZER_DIR, { recursive: true });
+    await mkdir(SOURCE_DIR, { recursive: true });
+
     await waitForApp();
-    // Auto-answer the core's replace-source / discard-changes confirm so no native
-    // dialog can appear or block a capture.
+    await browser.tauri.switchWindow("main");
     await mockReturn("confirm", true);
+    // A persisted UI scale (a developer's session) would make the element box and the
+    // screenshot disagree by a few pixels, pulling a sliver of the annotations rail into
+    // every analyzer crop. Capture at 100% so the crops are exactly the panel.
+    await browser.execute(() => {
+      try {
+        localStorage.setItem("hey-listen:font-scale", "1");
+      } catch {
+        // A read-only storage is fine; the CSS variable below still applies.
+      }
+      document.documentElement.style.setProperty("--ui-scale", "1");
+    });
+    // Give the Workbench enough height for the analyzer panel and its legend; the
+    // default window leaves the panel a few pixels under the timeline.
+    await browser.setWindowSize(1280, 860).catch(() => {});
+    await browser.pause(300);
     await closeAllTabs();
 
-    // Open the project the shots describe: source, Workbench grid, filter, analysis
-    // window and annotations all travel with the file.
+    // The story project: source, window, annotations and tabs all come from the file.
     await emitEvent("app:open-project", [PROJECT]);
-    await waitForSourceLoaded();
+    await waitForSourceLoaded(120_000);
     await waitFor(
-      async () => (await textOf(SEL.projectName)).includes("blue capped"),
-      "the project never became the current one",
+      async () => (await textOf(SEL.projectName)).includes("analysis-example"),
+      "the story project never became the current one",
     );
-
-    // Its Workbench: a left column of Spectrogram over Tempo, and Level meters beside.
-    // Every panel is its own group, so all three mount (and compute) at once.
-    for (const id of ["spectrogram", "tempo", "levels"]) {
-      await waitFor(async () => (await count(`[data-testid="tab.${id}"]`)) > 0, `no "${id}" tab`);
+    // The open annotations rail overlays the analyzer panel's right edge when the
+    // window is narrow; the landing images should be the panel alone.
+    if ((await count(SEL.annotationsRegion)) > 0) {
+      await click(SEL.toolbarAnnotations);
+      await waitFor(
+        async () => (await count(SEL.annotationsRegion)) === 0,
+        "the annotations rail did not close",
+      );
     }
+    await closeAllTabs();
+
+    for (const analyzer of ANALYZERS) {
+      await captureAnalyzer(analyzer.id, analyzer.name);
+    }
+
+    // The whole workbench, for the analysis section's main screenshot.
+    await closeAllTabs();
+    await openTool("spectrogram");
     await waitForAnalyzer("spectrogram");
-    await waitForAnalyzer("tempo");
-    // Level meters is a readout-card analyzer, so it has no chart to wait on.
-    await waitForReadouts("levels");
+    const spectrogramCanvas = `${analyzerPanel("spectrogram")} canvas`;
+    await browser.waitUntil(async () => canvasHasInk(spectrogramCanvas), {
+      timeout: 30_000,
+      timeoutMsg: "the spectrogram never drew anything",
+    });
+    await hoverAt(spectrogramCanvas);
+    await blurActive();
+    await captureElement(SEL.app, image(IMAGES_DIR, "analysis-workbench"), SHOT_WIDTH);
 
-    // The popout window boots a copy of the app; once it (and its chart) is up, re-apply
-    // the project's filter so every *analysis* below runs against the filtered audio.
-    const popout = await waitForPopout("pitchAutocorr");
-    await mcp("set_filter_graph", { enabled: true });
-    await browser.pause(1200); // let every open chart re-run against the filtered audio
-
-    // The rail carries the annotations, and the selected annotation draws across every
-    // time-based chart — so select the phrase annotation before the shot.
-    await openAnnotationsRail();
-    await selectAnnotation(FOCUS_ANNOTATION_HEADING);
-
-    // Hero: a crosshair on the spectrogram, and preview running so the toolbar's
-    // output meter reads live levels.
-    await hoverAt(CHART_TARGETS.spectrogram);
-    await mcp("preview", {});
-    await browser.pause(800); // let the output meter fill
-    await browser.saveScreenshot(path.join(ASSETS_DIR, "hero.png"));
-    capWidth("hero", ASSET_WIDTH);
-    await mcp("stop_preview", {});
-
-    // The Pitch (autocorrelation) popout the project restores, captured on its own.
-    await capturePopout("pitch", "pitchAutocorr", popout);
-
-    // Detail shots: one analyzer alone in the Workbench (the crop excludes the rail).
+    // The analysis-result Export popover, on a live analysis.
     await closeAllTabs();
     await openTool("spectrum");
-    await captureAnalyzer("spectrum");
-
-    await closeAllTabs();
-    await openTool("tempo");
-    await captureAnalyzer("tempo");
-
-    // The filter graph last: the project's band-pass is applied to every analysis
-    // above, so this shot needs no setup beyond opening the tab.
-    await closeAllTabs();
-    await openTool("filter");
+    await waitForAnalyzer("spectrum");
+    await click('[data-testid="analyzer.export.spectrum"]');
     await waitFor(
-      async () => (await textOf(SEL.graphHint)).includes("applied"),
-      "the filter graph did not report as applied",
+      async () => (await count(".pop-panel-export")) > 0,
+      "the analysis export popover did not open",
     );
-    await cropElement("filter", ".graph-editor");
+    await blurActive();
+    await captureElement(".pop-panel-export", image(IMAGES_DIR, "export-popover"), 1200);
+    await dismissPopovers();
+
+    // The Export rail: the analysis window as an audio file.
+    await click('[data-testid="activity.tab.export"]');
+    await waitFor(async () => (await count(SEL.exportRegion)) > 0, "the Export rail did not open");
+    await captureElement(SEL.exportRegion, image(IMAGES_DIR, "export-rail"), 1200);
+    trimUniform(image(IMAGES_DIR, "export-rail"));
+
+    // The Sources deck: an **empty** project, so the rail shows the choices rather than
+    // the story project's already-loaded file.
+    await newEmptyProject();
+    await showSources();
+
+    await chooseSourceKind("Audio file");
+    await waitFor(
+      async () => (await count(SEL.sourceOpenFile)) > 0,
+      "the empty file source did not render",
+    );
+
+    await openSelect('[data-testid="source.kind"]');
+    await waitFor(async () => (await count(".pop-content")) > 0, "the source list did not open");
+    await captureRegion([SEL.source, ".pop-content"], image(SOURCE_DIR, "kinds"), SHOT_WIDTH);
+    await closeSelect();
+
+    // Add audio: a file loaded as **linked**, so the panel offers all three storage
+    // cards (embedded is always available, and both link modes are unlocked).
+    await prepareFilePicker();
+    await mockReturn("pick_audio_file", FIXTURES.sine440);
+    await click(SEL.sourceOpenFile);
+    await waitFor(
+      async () => (await count(SEL.storageDialog)) > 0,
+      "the storage chooser did not open",
+    );
+    await click(SEL.storageDialogLinked);
+    await browser.pause(250);
+    await click(SEL.storageDialogOpen);
+    await waitForSourceLoaded();
+    await waitFor(
+      async () => (await textOf(SEL.sourceStorageBadge)).includes("Linked"),
+      "the source badge never settled on Linked",
+    );
+    await blurActive();
+    await captureElement(SEL.source, image(SOURCE_DIR, "add-audio"), SHOT_WIDTH);
+
+    // The live-input state. **Application** opens no capture session until an app is
+    // chosen, so the shot is the controls rather than a permission error.
+    await newEmptyProject();
+    await showSources();
+    await chooseSourceKind("Application");
+    await waitFor(
+      async () => (await count(SEL.sourceRecord)) > 0,
+      "the application source did not render",
+    );
+    await blurActive();
+    await captureElement(SEL.source, image(SOURCE_DIR, "application"), SHOT_WIDTH);
+
+    await chooseSourceKind("Synth (graph)");
+    await waitFor(
+      async () => (await count(SEL.graphRender)) > 0,
+      "the synth source did not render",
+    );
+    await blurActive();
+    await captureElement(SEL.source, image(SOURCE_DIR, "synth"), SHOT_WIDTH);
   });
 });

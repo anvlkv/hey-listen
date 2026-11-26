@@ -1,9 +1,9 @@
 /**
  * A tiny, dependency-free static file server over Node's built-in `http`/`fs`.
  *
- * Shared by `scripts/serveSite.ts` (the marketing-site preview) and the Lighthouse
- * runner/report server, so the MIME table and the "never escape the root" guard live
- * in one place. Returns a handle with the bound URL and a `close()`.
+ * Used by the Lighthouse runner and report server, so the MIME table and the
+ * "never escape the root" guard live in one place. Returns a handle with the bound
+ * URL and a `close()`.
  */
 
 import { createServer } from "node:http";

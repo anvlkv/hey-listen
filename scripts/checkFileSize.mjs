@@ -37,7 +37,7 @@ const SKIP_DIRS = new Set([
   // Downloaded CI artifacts/logs (gitignored): not source, not part of the budget.
   ".gh-cache",
   "dist",
-  "site",
+  "landing",
   "logs",
   "target",
   "gen",

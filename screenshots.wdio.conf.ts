@@ -5,21 +5,21 @@ import { fileURLToPath } from "node:url";
 import { config as base } from "./wdio.conf.ts";
 
 /**
- * WebdriverIO config for the **marketing screenshot capture** (not the E2E suite).
+ * WebdriverIO config for the **landing screenshot capture** (not the E2E suite).
  *
  * It reuses `wdio.conf.ts` verbatim — same embedded `@wdio/tauri-service`,
  * `resetStaleApps` guard, fixtures, and reporters — and only swaps `specs` for the
- * single capture spec, plus ensures `site/assets/` exists before the run.
+ * single capture spec, plus ensures the landing's image directories exist.
  *
- * Run with `npm run screenshots`. This is deliberately outside `e2e/specs/` so
+ * Run with `npm run landing:shots`. This is deliberately outside `e2e/specs/` so
  * `npm run test:e2e` (and CI, which runs only that directory's `*.spec.ts` files)
- * never pick it up: capturing marketing PNGs is a manual, GUI-only task, not a test.
+ * never pick it up: capturing landing PNGs is a manual, GUI-only task.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** Where the marketing PNGs (+ the copied app icon) live. */
-const ASSETS_DIR = path.join(here, "site", "assets");
+/** Where the landing's captured element crops live. */
+const IMAGES_DIR = path.join(here, "landing", "public", "images");
 
 export const config: typeof base = {
   ...base,
@@ -31,6 +31,7 @@ export const config: typeof base = {
     for (const hook of Array.isArray(prepare) ? prepare : prepare ? [prepare] : []) {
       await hook(config, capabilities);
     }
-    await mkdir(ASSETS_DIR, { recursive: true });
+    await mkdir(path.join(IMAGES_DIR, "analyzers"), { recursive: true });
+    await mkdir(path.join(IMAGES_DIR, "sources"), { recursive: true });
   },
 };

@@ -1,0 +1,27 @@
+---
+import { getEntry, render } from "astro:content";
+
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import { getDocNav, titleFromBody } from "../../lib/docs";
+
+const nav = await getDocNav();
+const entry = await getEntry("docs", "readme");
+
+if (!entry) {
+  throw new Error("docs/manual/README.md is missing");
+}
+
+const { Content, headings } = await render(entry);
+const title = titleFromBody(entry.body);
+---
+
+<DocsLayout
+  title={title}
+  description="How to use Hey Listen, chapter by chapter."
+  nav={nav}
+  current="readme"
+  headings={headings}
+  next={nav[0] ? { title: nav[0].title, href: nav[0].href } : undefined}
+>
+  <Content />
+</DocsLayout>

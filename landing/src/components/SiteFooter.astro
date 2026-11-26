@@ -1,0 +1,73 @@
+---
+import { ISSUES, link, PROFILE, REPO, UNLICENSE } from "../lib/site";
+
+const columns = [
+  {
+    title: "Explore",
+    links: [
+      { label: "Home", href: link("") },
+      { label: "Features", href: `${link("")}#features` },
+      { label: "Download", href: `${link("")}#download` },
+    ],
+  },
+  {
+    title: "Read",
+    links: [
+      { label: "Manual", href: link("docs/") },
+      { label: "Roadmap", href: link("roadmap/") },
+      { label: "Acknowledgements", href: link("acknowledgements/") },
+      { label: "Sponsor", href: link("sponsor/") },
+    ],
+  },
+  {
+    title: "Code",
+    links: [
+      { label: "GitHub", href: REPO, external: true },
+      { label: "Issues", href: ISSUES, external: true },
+      { label: "Unlicense", href: UNLICENSE, external: true },
+    ],
+  },
+];
+---
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-about">
+      <a class="brand" href={link("")}>
+        <img class="brand-mark" src={link("images/icon.png")} alt="" width="32" height="32" />
+        <span class="brand-name">Hey Listen</span>
+      </a>
+      <p>An audio analysis workbench for files, live inputs, and synthesis.</p>
+      <p class="footer-small">In active development. Built with AI agents.</p>
+    </div>
+
+    {
+      columns.map((column) => (
+        <nav class="footer-column" aria-label={column.title}>
+          <h2>{column.title}</h2>
+          <ul>
+            {column.links.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  target={"external" in item && item.external ? "_blank" : undefined}
+                  rel={"external" in item && item.external ? "noopener" : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
+  </div>
+
+  <div class="container footer-bottom">
+    <p>Released into the public domain under the Unlicense.</p>
+    <p>
+      Made by <a href={PROFILE} target="_blank" rel="noopener">a.nvlkv</a>. This landing is
+      built from the repository with Astro.
+    </p>
+  </div>
+</footer>

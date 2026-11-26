@@ -1,0 +1,37 @@
+---
+import RoadmapTimeline from "../components/RoadmapTimeline.tsx";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { readRoadmap } from "../lib/roadmap";
+import { NEW_BUG, NEW_FEATURE } from "../lib/site";
+
+const { intro, milestones } = readRoadmap();
+---
+
+<BaseLayout
+  title="Roadmap — Hey Listen"
+  description="The milestones Hey Listen has shipped, the ones in draft, and the ones still planned."
+>
+  <section class="page-hero container">
+    <p class="eyebrow">Roadmap</p>
+    <h1>What is built, and what is next.</h1>
+    <p>{intro}</p>
+  </section>
+
+  <section class="container roadmap-page" aria-label="Milestones">
+    <RoadmapTimeline client:idle items={milestones} />
+
+    <aside class="roadmap-cta">
+      <p class="eyebrow">The next milestone</p>
+      <h2>Have a better idea?</h2>
+      <p>
+        The roadmap is a plan, not a promise. If something is missing or wrong, open an
+        issue: a clear example and the version you are running are the most useful
+        starting point.
+      </p>
+      <div class="roadmap-cta__actions">
+        <a class="button button--large" href={NEW_FEATURE}>Propose a feature</a>
+        <a class="button button--ghost button--large" href={NEW_BUG}>Report an issue</a>
+      </div>
+    </aside>
+  </section>
+</BaseLayout>

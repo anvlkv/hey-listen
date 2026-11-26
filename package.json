@@ -4,14 +4,17 @@
   "description": "Hey Listen — audio analysis workbench: capture, filter, and analyze audio from files, inputs, and synthesis.",
   "type": "module",
   "workspaces": [
-    "video"
+    "video",
+    "landing"
   ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "serve:site": "tsx scripts/serveSite.ts",
-    "build:site": "node scripts/buildSite.mjs",
+    "dev:landing": "npm run dev -w landing",
+    "build:landing": "npm run build -w landing",
+    "preview:landing": "npm run preview -w landing",
+    "check:landing": "npm run check -w landing",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p e2e/tsconfig.json",
     "test:unit": "vitest run",
@@ -21,7 +24,7 @@
     "setup:updater": "node scripts/setup-updater.mjs",
     "test:e2e": "wdio run wdio.conf.ts",
     "test:e2e:build": "npm run tauri build && npm run test:e2e",
-    "screenshots": "wdio run screenshots.wdio.conf.ts",
+    "landing:shots": "wdio run screenshots.wdio.conf.ts",
     "manual:shots": "wdio run manual.wdio.conf.ts",
     "lighthouse": "tsx scripts/lighthouse/run.ts",
     "lighthouse:fixtures": "tsx scripts/lighthouse/generate-fixtures.ts",

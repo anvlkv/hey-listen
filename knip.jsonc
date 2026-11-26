@@ -38,7 +38,8 @@
     // `wdio.conf.ts` (`mochaOpts.require`), so no import reaches it.
     "e2e/support/logHooks.ts",
     "e2e/screenshots/**/*.spec.ts",
-    // Manual screenshot capture for `docs/manual/` (same shape as the marketing one).
+    // Manual screenshot capture for `docs/manual/` and the landing (both are GUI-only,
+    // outside `e2e/specs/` so CI never picks them up).
     "e2e/manual/**/*.spec.ts",
     "screenshots.wdio.conf.ts",
     "manual.wdio.conf.ts",
@@ -52,15 +53,15 @@
   "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts", "scripts/**/*.{ts,mjs}", "*.ts"],
 
   // --- Nested workspaces -----------------------------------------------------
-  // `video/` is a separate npm workspace (the Remotion project) with its own
-  // package.json and tooling. It is out of scope for the repo gates, so keep its
-  // files out of the dead-code report too.
-  "ignoreWorkspaces": ["video"],
+  // `video/` (Remotion) and `landing/` (Astro) are separate npm workspaces with
+  // their own package.json and tooling. They are out of scope for the repo gates,
+  // so keep their files out of the dead-code report too.
+  "ignoreWorkspaces": ["video", "landing"],
 
   // --- Generated / vendored trees (never dead-code findings) ------------------
   // Only `src/bindings/**` needs listing: it is ts-rs output rewritten by
   // `cargo test`, but it is *committed*, so knip cannot exclude it via .gitignore
-  // (unlike `dist/`, `site/`, `public/`, `src-tauri/target/`, `src-tauri/gen/` and
+  // (unlike `dist/`, `landing/`, `public/`, `src-tauri/target/`, `src-tauri/gen/` and
   // `e2e/artifacts/`, which are git-ignored build output and already outside the
   // `project` globs below).
   "ignore": ["src/bindings/**"],

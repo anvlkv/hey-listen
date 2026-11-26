@@ -7,7 +7,7 @@
  * sensible width because the app may be maximized.
  *
  * Shared by `e2e/manual/capture.spec.ts` (documentation) and
- * `e2e/screenshots/capture.spec.ts` (marketing) so the technique lives in one place.
+ * `e2e/screenshots/capture.spec.ts` (the landing) so the technique lives in one place.
  */
 
 import { execFileSync } from "node:child_process";
@@ -62,27 +62,42 @@ export function capWidth(file: string, maxWidth: number): void {
 }
 
 /**
- * Capture the viewport and crop it to `selector`'s bounding box (CSS px ×
- * `devicePixelRatio`) with ImageMagick, then cap its width. Writes `file`.
+ * Trim a screenshot's uniform padding — a rail's empty lower half — and restore a
+ * small margin in the panel's own background colour.
+ *
+ * The background is read from the image's top-left pixel, so a theme change does not
+ * leave a mismatched border. A failed trim keeps the original image.
  */
-export async function captureElement(
-  selector: string,
-  file: string,
-  maxWidth: number,
-): Promise<void> {
-  const box = (await browser.execute((sel: string) => {
-    const el = document.querySelector(sel);
-    if (!el) throw new Error(`captureElement: no element for ${sel}`);
-    const r = el.getBoundingClientRect();
-    return {
-      left: r.left,
-      top: r.top,
-      width: r.width,
-      height: r.height,
-      dpr: window.devicePixelRatio || 1,
-    };
-  }, selector)) as { left: number; top: number; width: number; height: number; dpr: number };
+export function trimUniform(file: string, padding = 14): void {
+  try {
+    const background = execFileSync("magick", [file, "-format", "%[pixel:p{0,0}]", "info:"], {
+      encoding: "utf8",
+    }).trim();
+    execFileSync("magick", [
+      file,
+      "-trim",
+      "+repage",
+      "-bordercolor",
+      background,
+      "-border",
+      String(padding),
+      file,
+    ]);
+  } catch (err) {
+    console.warn(`magick trim for "${file}" failed; keeping the full-size PNG:`, err);
+  }
+}
 
+interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  dpr: number;
+}
+
+/** Crop the current viewport to `box` (CSS px × DPR), cap its width, and write `file`. */
+async function captureBox(box: Box, file: string, maxWidth: number): Promise<void> {
   const full = `${file}.full.png`;
   await browser.saveScreenshot(full);
 
@@ -99,4 +114,58 @@ export async function captureElement(
   } finally {
     rmSync(full, { force: true });
   }
+}
+
+/** Capture the viewport and crop it to `selector`'s bounding box. Writes `file`. */
+export async function captureElement(
+  selector: string,
+  file: string,
+  maxWidth: number,
+): Promise<void> {
+  const box = (await browser.execute((sel: string) => {
+    const el = document.querySelector(sel);
+    if (!el) throw new Error(`captureElement: no element for ${sel}`);
+    const r = el.getBoundingClientRect();
+    return {
+      left: r.left,
+      top: r.top,
+      width: r.width,
+      height: r.height,
+      dpr: window.devicePixelRatio || 1,
+    };
+  }, selector)) as Box;
+
+  await captureBox(box, file, maxWidth);
+}
+
+/**
+ * Crop the union of several elements. Useful when a portaled popup belongs with
+ * the panel that opened it (the menu is not inside the panel's DOM box).
+ */
+export async function captureRegion(
+  selectors: string[],
+  file: string,
+  maxWidth: number,
+): Promise<void> {
+  const boxes = (await browser.execute((sels: string[]) => {
+    return sels.map((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, width: r.width, height: r.height };
+    });
+  }, selectors)) as ({ left: number; top: number; width: number; height: number } | null)[];
+
+  const found = boxes.filter(
+    (box): box is { left: number; top: number; width: number; height: number } => box !== null,
+  );
+  if (found.length === 0) throw new Error(`captureRegion: none of ${selectors.join(", ")} exist`);
+
+  const left = Math.min(...found.map((box) => box.left));
+  const top = Math.min(...found.map((box) => box.top));
+  const right = Math.max(...found.map((box) => box.left + box.width));
+  const bottom = Math.max(...found.map((box) => box.top + box.height));
+  const dpr = (await browser.execute(() => window.devicePixelRatio || 1)) as number;
+
+  await captureBox({ left, top, width: right - left, height: bottom - top, dpr }, file, maxWidth);
 }

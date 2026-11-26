@@ -21,7 +21,9 @@ export default tseslint.config(
     ignores: [
       "node_modules/**",
       "dist/**",
-      "site/**",
+      // The landing is an Astro workspace with its own build and `astro check`
+      // type pass; its `.astro` files are not part of this ESLint program.
+      "landing/**",
       ".npm-cache/**",
       "logs/**",
       "e2e/artifacts/**",

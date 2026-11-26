@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      landing: ${{ steps.filter.outputs.landing }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -49,6 +50,38 @@ jobs:
               - 'knip.jsonc'
               - '.husky/**'
               - '.github/workflows/ci.yml'
+            landing:
+              - 'landing/**'
+              - 'docs/manual/**'
+              - 'docs/development/000_roadmap.md'
+              - 'ACKNOWLEDGEMENTS.md'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/pages.yml'
+
+  # The landing is a separate Astro workspace. It reads the manual, roadmap and
+  # acknowledgements at build time, so a docs-only change still exercises it.
+  landing:
+    name: Landing
+    needs: changes
+    if: needs.changes.outputs.landing == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (astro check)
+        run: npm run check:landing
+
+      - name: Build
+        run: npm run build:landing
 
   frontend:
     name: Frontend

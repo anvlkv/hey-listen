@@ -1,8 +1,8 @@
-name: Deploy marketing page
+name: Deploy landing page
 
-# Intentionally no paths filter: docs/ and ACKNOWLEDGEMENTS feed the generated site,
-# so a docs-only push to main must still rebuild and deploy it. Code-only pushes also
-# run it (harmless), which keeps the version stamp current when package.json changes.
+# Intentionally no paths filter: docs/manual, the roadmap and ACKNOWLEDGEMENTS feed the
+# generated landing, so a docs-only push to main must still rebuild and deploy it.
+# Code-only pushes also run it (harmless), which keeps the release version current.
 on:
   push:
     branches: [main]
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build site/
+    name: Build landing/
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,18 +30,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
+          cache: npm
 
-      # Regenerate the documentation subpages (acknowledgements + roadmap) from the
-      # repo's markdown sources, and stamp the release version (from package.json) into
-      # the hand-authored page, so the published site never drifts from the repo.
-      - name: Build the site (doc subpages + version)
-        run: node scripts/buildSite.mjs
+      - name: Install dependencies
+        run: npm ci
 
       - uses: actions/configure-pages@v5
 
+      # Astro reads the manual, roadmap and acknowledgements straight from the repo,
+      # copies the manual screenshots into `landing/public/manual-assets/` and reads
+      # the release version from package.json. There is no checked-in build output.
+      - name: Build the landing
+        run: npm run build:landing
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: landing/dist
 
   deploy:
     name: Deploy

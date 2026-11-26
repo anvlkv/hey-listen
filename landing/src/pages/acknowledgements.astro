@@ -1,0 +1,28 @@
+---
+import { marked } from "marked";
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { readRepoFile } from "../lib/repo";
+
+const source = readRepoFile("ACKNOWLEDGEMENTS.md")
+  .replace(/^#\s+.+\r?\n/, "")
+  .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]|\u{FE0F}/gu, "");
+
+const html = marked.parse(source, { gfm: true, async: false });
+---
+
+<BaseLayout
+  title="Acknowledgements — Hey Listen"
+  description="The maintainers whose work Hey Listen is built on."
+>
+  <section class="page-hero container">
+    <p class="eyebrow">Acknowledgements</p>
+    <h1>Built on other people's work.</h1>
+    <p>
+      Hey Listen depends on open-source libraries and the people who maintain them.
+      This list is generated from <code>ACKNOWLEDGEMENTS.md</code> in the repository.
+    </p>
+  </section>
+
+  <section class="container prose prose--wide" set:html={html}></section>
+</BaseLayout>

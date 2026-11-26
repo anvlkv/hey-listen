@@ -1,0 +1,126 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import type { DocNavItem } from "../lib/docs";
+import { link } from "../lib/site";
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Link {
+  title: string;
+  href: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  nav: DocNavItem[];
+  current: string;
+  headings: Heading[];
+  prev?: Link;
+  next?: Link;
+}
+
+const { title, description, nav, current, headings, prev, next } = Astro.props;
+
+const isCurrent = (item: DocNavItem) => item.id === current;
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+---
+
+<BaseLayout title={`${title} — Hey Listen manual`} description={description}>
+  <div class="container docs-shell">
+    <aside class="docs-sidebar">
+      <a class="docs-home" href={link("docs/")} class:list={{ "is-current": current === "readme" }}>
+        <span class="docs-home__label">Manual</span>
+        <span class="docs-home__hint">How to use Hey Listen</span>
+      </a>
+
+      <nav class="docs-nav" aria-label="Manual chapters">
+        <ol>
+          {
+            nav.map((item) => (
+              <li>
+                <a href={item.href} class:list={{ "is-current": isCurrent(item) }}>
+                  <span class="docs-nav__number">{item.number}</span>
+                  <span>{item.title}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+    </aside>
+
+    <details class="docs-drawer">
+      <summary>Manual chapters</summary>
+      <nav aria-label="Manual chapters">
+        <ol>
+          <li>
+            <a href={link("docs/")}>Manual</a>
+          </li>
+          {
+            nav.map((item) => (
+              <li>
+                <a href={item.href} aria-current={isCurrent(item) ? "page" : undefined}>
+                  {item.number} — {item.title}
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+    </details>
+
+    <article class="docs-content">
+      <header class="docs-head">
+        <p class="eyebrow">Manual</p>
+        <h1>{title}</h1>
+      </header>
+
+      <div class="prose">
+        <slot />
+      </div>
+
+      {
+        (prev || next) && (
+          <nav class="docs-pager" aria-label="Manual navigation">
+            {prev ? (
+              <a class="docs-pager__card" href={prev.href}>
+                <span>Previous</span>
+                <strong>{prev.title}</strong>
+              </a>
+            ) : (
+              <span />
+            )}
+            {next ? (
+              <a class="docs-pager__card docs-pager__card--next" href={next.href}>
+                <span>Next</span>
+                <strong>{next.title}</strong>
+              </a>
+            ) : (
+              <span />
+            )}
+          </nav>
+        )
+      }
+    </article>
+
+    {
+      toc.length > 0 && (
+        <aside class="docs-toc">
+          <p>On this page</p>
+          <nav aria-label="On this page">
+            {toc.map((heading) => (
+              <a href={`#${heading.slug}`} class:list={{ "is-sub": heading.depth === 3 }}>
+                {heading.text}
+              </a>
+            ))}
+          </nav>
+        </aside>
+      )
+    }
+  </div>
+</BaseLayout>

@@ -1,0 +1,24 @@
+{
+  "name": "landing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-assets.mjs",
+    "dev": "npm run sync && node scripts/astro.mjs dev",
+    "build": "npm run sync && node scripts/astro.mjs build",
+    "preview": "node scripts/astro.mjs preview",
+    "check": "npm run sync && node scripts/astro.mjs check"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.10",
+    "@astrojs/solid-js": "^7.1.6",
+    "astro": "^7.1.6",
+    "marked": "^18.1.1",
+    "solid-js": "^1.9.17"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "typescript": "~6.0.3"
+  }
+}

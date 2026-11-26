@@ -1,0 +1,40 @@
+---
+import { getCollection, render } from "astro:content";
+
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import { getDocNav, titleFromBody } from "../../lib/docs";
+
+export async function getStaticPaths() {
+  const nav = await getDocNav();
+  const entries = await getCollection("docs", (entry) => entry.id !== "readme");
+
+  return entries.map((entry) => {
+    const index = nav.findIndex((item) => item.id === entry.id);
+    return {
+      params: { slug: entry.id },
+      props: {
+        entry,
+        nav,
+        prev: index > 0 ? nav[index - 1] : undefined,
+        next: index >= 0 && index < nav.length - 1 ? nav[index + 1] : undefined,
+      },
+    };
+  });
+}
+
+const { entry, nav, prev, next } = Astro.props;
+const { Content, headings } = await render(entry);
+const title = titleFromBody(entry.body);
+---
+
+<DocsLayout
+  title={title}
+  description={`${title} — how to use Hey Listen.`}
+  nav={nav}
+  current={entry.id}
+  headings={headings}
+  prev={prev ? { title: prev.title, href: prev.href } : undefined}
+  next={next ? { title: next.title, href: next.href } : undefined}
+>
+  <Content />
+</DocsLayout>

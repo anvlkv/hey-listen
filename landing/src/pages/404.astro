@@ -1,0 +1,23 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { link } from "../lib/site";
+---
+
+<BaseLayout
+  title="Not found — Hey Listen"
+  description="That page is not here."
+  noindex
+>
+  <section class="page-hero container">
+    <p class="eyebrow">404</p>
+    <h1>That page is not here.</h1>
+    <p>
+      The link may be old, or the page may have moved. The manual and the roadmap are
+      the two places worth trying first.
+    </p>
+    <div class="hero-actions">
+      <a class="button" href={link("")}>Back to the landing</a>
+      <a class="button button--ghost" href={link("docs/")}>Read the manual</a>
+    </div>
+  </section>
+</BaseLayout>

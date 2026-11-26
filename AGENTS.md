@@ -27,8 +27,8 @@ hey-listen/
 │   └── capabilities/    Tauri permission manifests
 ├── e2e/                 WebdriverIO specs, support helpers, fixtures
 ├── docs/                manual/ · development/ · archive/ — see `docs/README.md`
-├── scripts/             maid gates, sidecar staging, site build
-├── site/                static website sources
+├── scripts/             maid gates, sidecar staging
+├── landing/             Astro landing page and the published manual/docs
 ├── public/              fonts and icons
 └── video/               Remotion workspace (separate npm project)
 ```
@@ -62,6 +62,7 @@ Load via the `skill` tool before working in that area.
 | --- | --- |
 | Tauri core, commands, events, channels, capabilities | `tauri-2` |
 | Frontend (SolidJS + TypeScript) | `solid-ts` |
+| Landing (Astro + Solid islands) | `astro` |
 | Workbench docking / tabs | `dockview-vanilla` |
 | fundsp graph editor (filter/synth) | `solid-flow` |
 | Charts | `solid-uplot` (use `uplot` for chart semantics) |
@@ -81,6 +82,7 @@ Run the narrowest command that covers the change, then stop.
 | Rust logic | `cargo check` in `src-tauri/`; add a filtered `cargo test -p <crate> <filter>` for the touched tests |
 | A boundary type (IPC / project) | `cargo test` — it regenerates `src/bindings/`; commit the result |
 | UI, layout or CSS only | `npm run dev`, then `http://localhost:1420/preview.html`; no cargo |
+| Landing, manual pages, roadmap, acknowledgements | `npm run check:landing`; `npm run build:landing` |
 | E2E-visible behaviour | `npm run test:e2e -- --spec e2e/specs/<file>.spec.ts` |
 | Lint / format / dup / size | the matching `maid:*` script; full `npm run maid` once before handing off |
 

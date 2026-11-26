@@ -3,6 +3,12 @@ dist
 .npm-cache
 *.tsbuildinfo
 
+# Landing (Astro): build output, generated content-layer types, and screenshots
+# copied from docs/manual by landing/scripts/sync-assets.mjs.
+/landing/dist/
+/landing/.astro/
+/landing/public/manual-assets/
+
 # E2E (M8): generated fixtures and run artifacts (report + logs)
 /e2e/.fixtures/
 /e2e/artifacts/

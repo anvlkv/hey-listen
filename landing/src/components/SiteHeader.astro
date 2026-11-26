@@ -1,0 +1,133 @@
+---
+import GithubIcon from "./GithubIcon.astro";
+import { link, REPO } from "../lib/site";
+
+interface NavItem {
+  label: string;
+  href: string;
+  external?: boolean;
+  match?: string;
+  /** The landing section this link highlights while it is in view. */
+  spy?: string;
+}
+
+const nav: NavItem[] = [
+  { label: "Home", href: `${link("")}#home`, match: link(""), spy: "home" },
+  { label: "Features", href: `${link("")}#features`, spy: "features" },
+  { label: "Download", href: `${link("")}#download`, spy: "download" },
+  { label: "Docs", href: link("docs/"), match: link("docs/") },
+  { label: "Roadmap", href: link("roadmap/"), match: link("roadmap/") },
+  { label: "Acknowledgements", href: link("acknowledgements/"), match: link("acknowledgements/") },
+  { label: "Sponsor", href: link("sponsor/"), match: link("sponsor/") },
+  { label: "GitHub", href: REPO, external: true },
+];
+
+const pathname = Astro.url.pathname;
+
+function isActive(item: NavItem): boolean {
+  if (!item.match) return false;
+  if (item.match === link("")) return pathname === item.match || pathname === `${link("")}`;
+  return pathname === item.match || pathname.startsWith(item.match);
+}
+---
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href={link("")} aria-label="Hey Listen home">
+      <img class="brand-mark" src={link("images/icon.png")} alt="" width="32" height="32" />
+      <span class="brand-name">Hey Listen</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      {
+        nav.map((item) => (
+          <a
+            href={item.href}
+            class:list={{ "is-current": isActive(item), "is-external": item.external }}
+            aria-current={isActive(item) ? "page" : undefined}
+            data-spy={item.spy}
+            target={item.external ? "_blank" : undefined}
+            rel={item.external ? "noopener" : undefined}
+          >
+            {item.external && <GithubIcon size={15} />}
+            <span>{item.label}</span>
+          </a>
+        ))
+      }
+    </nav>
+
+    <details class="nav-drawer">
+      <summary aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </summary>
+      <nav aria-label="Primary">
+        {
+          nav.map((item) => (
+            <a
+              href={item.href}
+              class:list={{ "is-current": isActive(item), "is-external": item.external }}
+              aria-current={isActive(item) ? "page" : undefined}
+              data-spy={item.spy}
+              target={item.external ? "_blank" : undefined}
+              rel={item.external ? "noopener" : undefined}
+            >
+              {item.external && <GithubIcon size={15} />}
+              <span>{item.label}</span>
+            </a>
+          ))
+        }
+      </nav>
+    </details>
+  </div>
+</header>
+
+<script>
+  // The mobile menu is a native <details>; close it when a link is followed.
+  for (const link of document.querySelectorAll(".nav-drawer a")) {
+    link.addEventListener("click", () => link.closest("details")?.removeAttribute("open"));
+  }
+
+  // Scroll spy for the landing's three main sections. On a page without them (the
+  // manual, roadmap, …) the server-rendered page link stays current.
+  const spyLinks = Array.from(document.querySelectorAll<HTMLElement>("[data-spy]"));
+  const spied = spyLinks
+    .map((link) => ({ link, section: document.getElementById(link.dataset.spy ?? "") }))
+    .filter((entry): entry is { link: HTMLElement; section: HTMLElement } => entry.section != null);
+
+  if (spied.length > 0) {
+    let frame = 0;
+
+    const update = () => {
+      frame = 0;
+      // The section around the viewport's middle is the one being read. Unlike a
+      // header line, this also activates a short final section (Download) as soon as
+      // it occupies the reading area.
+      const line = window.innerHeight * 0.45;
+      let current = spied[0];
+
+      for (const entry of spied) {
+        if (entry.section.getBoundingClientRect().top <= line) current = entry;
+      }
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 2) {
+        current = spied[spied.length - 1];
+      }
+
+      const currentSpy = current.link.dataset.spy;
+      for (const { link } of spied) {
+        const active = link.dataset.spy === currentSpy;
+        link.classList.toggle("is-current", active);
+        if (active) link.setAttribute("aria-current", "location");
+        else link.removeAttribute("aria-current");
+      }
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
+  }
+</script>
