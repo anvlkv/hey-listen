@@ -116,7 +116,7 @@ export function CompareNotice() {
   return (
     <Show when={compareNotice()}>
       {(text) => (
-        <div class="compare-notice" role="status" data-testid="compare.notice">
+        <div class="compare-hint" role="status" data-testid="compare.notice">
           {text()}
         </div>
       )}

@@ -1,64 +1,79 @@
-# 004 — Filter and synthesize
+# 004 — Shape the sound
 
-Two graph editors shape sound. **Filter** processes the source before any analyzer sees
-it; **Synth** generates a source of its own.
+**In short.** Two graph editors change the audio: **Filter** processes the source before
+any analyzer sees it, and **Synth** generates a source of its own. Both are built from the
+same nodes and share the same text format.
 
-![A filter graph](assets/004-filter-graph.png)
+![A filter chain: input, tone shaping, space, and a limiter](assets/004-filter.png)
 
-## Build a graph
+## The simple path
 
-Open **Graph** in the activity bar and choose a graph. In the editor:
+1. Open **Graphs** in the activity bar and pick **Filter** or **Synth**.
+2. Add a node: search the palette, then click it, or drag it onto the canvas. Dropping a
+   node **on a wire** inserts it between the two nodes.
+3. Wire nodes by dragging from one labelled port to another. Incompatible ports are
+   refused rather than connected.
+4. Adjust a node's parameters on its card. Its context menu resets the node.
+5. Press **Layout** if the graph has drifted; the canvas fits itself to the result.
 
-- Search the palette and click to place a node, or drag one onto the canvas.
-- Drop a node onto a wire to insert it between two nodes.
-- Wire nodes by dragging from one labeled port to another.
-- Adjust a node's parameters right on its card; reset it from its context menu.
-- Zoom, and use the minimap to move around a large graph.
+To hear and measure the filtered signal, switch **Filter** on in the Timeline toolbar.
+While it is applied, every analyzer, the preview, and the waveform read the processed
+signal; comparing the two waveforms is how you check what the graph did.
 
-Nodes cover generators, routing, math, filters, dynamics, modulation, reverb, and
-control. A graph can nest a subsystem and tap a signal with a snoop to watch it live.
+For a synth, the graph is only the recipe: open **Sources**, choose **Synth (graph)**, set
+**Length**, and press **Render**. See [Open, record, or synthesize a source](002_sources.md).
 
-![A nested subsystem and a snoop tap](assets/004-subsystem.png)
+## Advanced — options and keys
 
-## Filtering what you measure
+- **Several outputs.** Wire each branch to its own `Output` node. Every output is its own
+  channel, drawn as its own lane, so one filter can show, say, three bands side by side.
+  The graph's `Input` nodes choose the *source* channel each branch reads.
+- **Subsystems.** A graph can nest another graph. The nested node shows a thumbnail; open
+  it in its own tab to edit it, and the parent updates as you do.
+- **Snoop.** Add a `snoop` node to tap a signal and watch its level live while you adjust
+  the graph.
+- **Tables.** Table nodes (wavetables, note sequences) carry their rows with the graph and
+  are edited or imported in their own tab.
+- **Its own window.** Right-click the graph tab and choose **Pop out to window** to edit a
+  large canvas beside the Workbench. It is the same graph in both places.
+- **Text as the format.** **Export** writes a DOT file; **Import** reads one back. The
+  same text drives the CLI and an agent, so a patch can leave the app and return
+  unchanged — including nested systems and the tables inside them.
 
-The Toolbar's filter switch shows whether the graph is **applied** or **bypassed**.
-While applied, every analyzer, the preview, and the waveform measure the filtered
-signal. Compare the processed waveform with the original to see what changed.
+![A nested subsystem with a snoop tap](assets/004-subsystem.png)
 
-For several parallel results, wire each branch to its own `Output` node: every output is
-its own channel, so the Timeline keeps the source lanes in the background and draws one
-filtered lane per output over them; the channel rail selects among the lanes (each new
-`Output` takes the next free channel).
+| Key | Does |
+| --- | --- |
+| `Cmd/Ctrl+Enter` | Render the synth, from a graph tab |
+| `Cmd/Ctrl+Z` / `Shift+Cmd/Ctrl+Z` | Undo / redo a graph edit, with the project |
 
-The `Input` node has a `Ch` too: it names the **source** channel the graph reads, and `-1`
-(the default) downmixes the source to mono. Add a second `Input` to read another source
-channel — each new one takes the next free channel — so a stereo source can run one branch
-per side. The rail's pick is the **output** channel; the graph's `Input` nodes are what it
-hears.
+## With an agent
 
-## Making a synth source
+```text
+get_graph         { graph: "filter" }          # canonical DOT, plus the editor layout
+set_filter_graph  { graph: "digraph { … }", enabled: true }
+get_graph         { graph: "synth" }
+set_synth_graph   { graph }                     # app only
+render_synth      { graph, seconds: 8 }         # render and adopt as the source
+list_nodes        { }                           # kinds, ports, parameter ranges
+get_node          { kind: "reverb" }            # a DOT skeleton at default values
+```
 
-Build the patch in the synth editor, then set the **Length** and press **Render** in the
-Sources rail (the synth tab is a pure graph editor). The result becomes the project's
-source.
+A DOT string is the canonical form in both directions: read a graph, edit the text, send
+it back. `list_nodes` and `get_node` come from the same table the parser and the editor
+read, so a port name an agent sees is a port name the app accepts.
 
-Turn on **Live** in the Sources rail and each settled edit, or a Length change, updates the
-source in place — so your analysis window, annotations, and open charts keep their positions
-while you tweak the sound.
+## From the command line
 
-## A graph in its own window
+```sh
+hey-listen-cli nodes                        # every node kind
+hey-listen-cli nodes reverb                 # its params and a ready DOT skeleton
+hey-listen-cli synth pad.dot --seconds 8    # render a synth graph
+hey-listen-cli analyze song.wav --filter chain.dot -t spectrum --summary
+hey-listen-cli project out.heyl --source song.wav --filter chain.dot
+```
 
-Right-click a graph tab and choose **Pop out to window** to edit it in a window of its
-own — handy when you want the canvas large beside the Workbench. It is still the same
-graph: an edit made in either window is the other's, and the filter it feeds stays
-applied. A nested subsystem can be popped out the same way, from its own tab, or from
-the node's open action while its parent graph is already popped out.
+`--filter` on `analyze` and `synth` applies a graph for that run; on `project` it is saved
+into the file, along with its applied/bypassed state.
 
-## Share a graph
-
-**Export graph** writes the graph as a DOT file, and **Import graph** reads one back.
-The same format works through the command-line tool and an agent, so a patch can leave
-the app and return unchanged.
-
-Next: [Analyze the sound](005_analyzers.md)
+Next: [Measure what the window contains](005_analyzers.md)

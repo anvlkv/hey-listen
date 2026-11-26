@@ -199,9 +199,9 @@
   margin-top: 10px;
 }
 
-/* --- transient notice ------------------------------------------------------ */
+/* --- transient hint -------------------------------------------------------- */
 
-.compare-notice {
+.compare-hint {
   position: fixed;
   left: 50%;
   bottom: 28px;

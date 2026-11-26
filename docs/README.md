@@ -10,8 +10,9 @@ Three areas, one owner per question:
 
 ## [`manual/`](manual/) — using Hey Listen
 
-Chapter-by-chapter, task-oriented, illustrated with element screenshots. Start
-at [`manual/001_open_a_source.md`](manual/001_open_a_source.md).
+Chapter-by-chapter and task-oriented: every chapter is layered summary → simple path →
+options and keys → agent → CLI, and illustrated with element screenshots from the same
+example project. Start at [`manual/001_shell.md`](manual/001_shell.md).
 
 ## [`development/`](development/) — building Hey Listen
 

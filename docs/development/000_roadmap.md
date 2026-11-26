@@ -139,8 +139,10 @@ Acting on the audit's findings.
 ## M33 — Reliability, a console CLI, and self-update ✅
 Hardening, `hey-listen-cli`, signed updates.
 
-## M34 — Improved documentation and help
-Archive / development / manual split; in-app help next.
+## M34 — Improved documentation and help ✅
+Archive / development / manual split, then the manual rebuilt: every chapter is layered
+summary → simple path → options and keys → agent → CLI, and illustrated from
+`video/story-assets/analysis-example.heyl`. In-app help moves with the site pass (M35).
 
 ## M35 — Landing page rework + Remotion workflow video (drafted)
 A new site and a short workflow film.

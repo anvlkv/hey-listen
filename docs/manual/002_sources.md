@@ -1,77 +1,108 @@
-# 002 — Open or record a source
+# 002 — Open, record, or synthesize a source
 
-A project has exactly one source. Everything you analyze, filter, or annotate belongs to
-that source, and changing the source replaces the whole timeline.
+**In short.** A project has exactly one source, and everything you measure, filter, or
+annotate belongs to it. Pick the source in the **Sources** rail: a file, a live input, or
+a synth render.
 
-![The Sources rail](assets/002-source-panel.png)
+![The Sources rail, with the file's storage choice](assets/002-sources.png)
 
-The source controls live in the Sidebar's **Sources** view, pinned at the bottom of the
-activity bar. Opening Sources never hides the Timeline; the two sit side by side.
+## The simple path
 
-## Open a file
+1. Open **Sources** — the pinned tab at the bottom of the activity bar, or the
+   **Replace source** button on the Timeline once a source exists.
+2. Choose **Audio file**, then the folder button, and pick a recording.
+3. Choose how the project should keep the audio (see below), then **Open**. Hey Listen
+   decodes it and draws it on the Timeline.
 
-Use **Open audio file** in the Sources rail, drag a file onto the window, or open a
-recording straight from your operating system. Hey Listen decodes it and draws it on the
-Timeline.
+The rail shows what is loaded: name, format, sample rate, channels, and how a save will
+store it. Opening or recording a new source **replaces** the current one; if there is
+unsaved work, the app asks first.
 
-## Where the audio lives
+### Where the audio lives
 
-After you pick a file, Hey Listen asks how the project should store it:
+| Choice | What it means |
+| --- | --- |
+| **Embedded** | The samples are written into the project file. The project travels alone. |
+| **Linked** | The project points at the audio file. Keep the two together; in the same folder the path is stored relative. |
+| **Live link** | Like linked, and the Timeline reloads whenever the file changes — so a re-export lands without reopening anything. |
 
-- **Embedded** — the samples are written into the project file; the project travels alone.
-- **Linked** — the project points at the audio file. Keep the two together (the path is
-  stored relative to the project when they sit in the same folder).
-- **Live link** — like linked, and the Timeline reloads whenever the file changes, so a
-  re-export or a re-render behind the app lands without reopening anything.
+Your last choice is remembered for the next file. A source already embedded can only
+become linked by replacing it, because the audio in memory cannot vouch for a file on
+disk. The rail says so rather than hiding the option.
 
-The Sources rail keeps the choice visible and lets you switch between linked and live
-link. A project stored as embedded can only become linked by replacing the source, since
-the audio in memory cannot vouch for the file on disk. Your last choice is remembered for
-the next file you open. See [Projects](009_projects.md) for what happens when a linked
-file goes missing.
+A linked project whose file has gone missing still opens, with an empty Timeline and a
+dialog to **locate the file** again. Saving a link that cannot be resolved offers to
+embed the audio still in memory, instead of writing a project that could not reopen.
 
-## Record a live source
+### Record a live source
 
-Choose what to capture — a **microphone**, **system** output, a **selected process**, or
-a **microphone-and-system mix** — set the input and gain, and monitor before you record.
-You can pause and resume, and stop when you are done; what you captured becomes the
-project's source. While you record, the Sources rail stays open (its Stop lives there)
-and cannot be collapsed.
+Pick **Microphone**, **System audio**, **Application**, or **Mic + system**. Set the
+device (or the application), the input **Gain**, and watch the **Level** meter. Then:
 
-## Make a sound
+- **Start in** delays the recording; **Stop after** ends it automatically (`0` = until you
+  stop).
+- **Record** starts, **Pause** and **Resume** hold and continue, **Stop** ends the take.
 
-Build a synth graph in the Workbench, then use the **Length**, **Render** and **Live**
-controls in the Sources rail. The rendered audio becomes the source, exactly like a
-recording would.
+What you captured becomes the source. While a capture is running, the Sources rail stays
+open — its Stop lives there.
 
-![A rendered synth source on the Timeline](assets/002-synth-source.png)
+### Make a sound
 
-## Replace the source
+Open the **Synth** graph in the Workbench and build the patch. Then, in Sources, choose
+**Synth (graph)**:
 
-Opening or recording a new source replaces the current one. If the project has unsaved
-work, Hey Listen asks before discarding it. You cannot keep two sources in one project —
-that is what a second project window is for (see [Projects](009_projects.md)).
+- **Length** sets how many seconds to render (up to 60).
+- **Render** creates the source, exactly as a recording would.
+- **Live** re-renders in place as graph edits settle, so the analysis window, the
+  annotations, and the open charts keep their positions. Live renders are capped at 10 s;
+  use Render once for anything longer.
 
-## When something goes wrong
+![A rendered synth source on the Timeline](assets/002-synth.png)
 
-A file that cannot be decoded shows an error in the Toolbar and leaves the Timeline
-empty, rather than opening silence. A capture that fails to start says so in the Sources
-rail.
+## Advanced — options and keys
 
-## Export the audio
+- Switching storage is immediate for linked ↔ live link. A missing link is reported in
+  the rail and at save time, never silently.
+- A capture that fails to start shows the reason in the rail; the previous source is
+  left alone.
+- Opening a file from your operating system (double-click, or drag it onto the window)
+  starts a **new project** with that file as its source; a dragged `.heyl` opens as a
+  project instead.
+- There is no source shortcut. Replacing the source starts a fresh undo history (see
+  [Projects and export](009_projects.md)).
 
-Choose **Export** at the bottom of the activity bar to write the current analysis window
-as an audio file:
+## With an agent
 
-- **Format** — WAV, FLAC, or AIFF.
-- **Depth** — every depth the format supports (float WAV is exact; integer depths clamp at
-  full scale and report any clipping).
-- **Channels** — all channels, a downmix to mono, or one chosen channel. With the filter
-  applied, the channels are the graph's outputs.
-- **Apply the filter graph** — process the exported audio through your filter, independent
-  of the Toolbar's filter switch.
+All of these are app-and-headless unless noted:
 
-The export never changes the source, the filter switch, or the analysis window. Your last
-format and depth are remembered.
+```text
+open_audio_file { path, storage: "embedded" | "linked" | "liveLink", replace: true }
+render_synth    { graph: "digraph { … }", seconds: 8, replace: true }
+set_synth_graph { graph }                    # app only: fills the synth editor
+start_capture   { kind: "mic" | "system" | "process" | "mix", deviceId, gain }
+stop_capture    { }
+list_input_devices { }   list_processes { }   list_output_devices { }
+close_source    { }                          # clears the timeline
+```
 
-Next: [Navigate the timeline](003_timeline.md)
+`get_state` reports the loaded source's shape, so an agent can check that the audio it
+thinks it opened is the audio that is there.
+
+## From the command line
+
+The CLI renders a synth graph and can build a project from either kind of source:
+
+```sh
+# Render a DOT synth graph for 8 s and analyze the result
+hey-listen-cli synth pad.dot --seconds 8 -t spectrum --summary
+
+# Build a .heyl from an audio file, linking (not embedding) the audio
+hey-listen-cli project song.heyl --source music.wav --storage linked --name "Song"
+
+# …or from a synth graph
+hey-listen-cli project pad.heyl --synth pad.dot --seconds 8 --open-tool spectrogram
+```
+
+Live capture needs a window, a device, and a person, so the CLI does not record.
+
+Next: [Frame the question on the Timeline](003_timeline.md)
