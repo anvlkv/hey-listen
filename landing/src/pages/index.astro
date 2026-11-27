@@ -44,9 +44,8 @@ const tree = `hey-listen/
       <p class="eyebrow">Audio analysis workbench</p>
       <h1>Hear more.<br /><span>Spend less time searching.</span></h1>
       <p class="hero-lede">
-        Let an agent find the interesting moments. Open the same project to listen,
-        inspect the measurements, and decide what they mean. Or start at the waveform
-        and work by hand.
+        Ask an agent to surface the interesting moments, then listen and judge them
+        yourself. Or start at the waveform and explore by hand.
       </p>
       <div class="hero-actions">
         <a class="button" href="#download">Download Hey Listen</a>
@@ -59,10 +58,8 @@ const tree = `hey-listen/
   <section class="brief container" aria-labelledby="brief-title">
     <h2 id="brief-title" class="sr-only">What Hey Listen does</h2>
     <p class="brief-lede">
-      Hey Listen keeps one source, its graphs, and the views you open in one project.
-      Open a file, capture a live input, or synthesize a sound. Narrow the analysis
-      window, then look at it with the tools you need. The app measures; you decide
-      what the numbers mean.
+      One project holds the source, the graphs, and the views you open. Narrow the
+      window, open a tool, and decide what the numbers mean.
     </p>
 
     <div class="notes">
@@ -71,9 +68,8 @@ const tree = `hey-listen/
         <div>
           <h3>In active development</h3>
           <p>
-            Features and file formats can still change between releases. If a number
-            matters, check it against the window, the settings, and a second
-            measurement.
+            Features and file formats can still change. If a number matters, check it
+            against the window and the settings.
           </p>
         </div>
       </article>
@@ -82,8 +78,8 @@ const tree = `hey-listen/
         <div>
           <h3>Built with AI agents</h3>
           <p>
-            AI coding agents contributed to the code and the documentation. Read and
-            test what you rely on, including this page.
+            AI coding agents helped write the code and the documentation. Read and test
+            what you rely on.
           </p>
         </div>
       </article>
@@ -95,11 +91,7 @@ const tree = `hey-listen/
       <header class="section-head">
         <p class="eyebrow">Features</p>
         <h2 id="features-title">One source. Several ways to know it.</h2>
-        <p>
-          Each section below links to the chapter of the manual that covers it. The
-          manual is part of this site, and it is built from the same repository as the
-          app.
-        </p>
+        <p>Each section links to the chapter of the manual that covers it.</p>
       </header>
 
       <FeatureSection
@@ -109,14 +101,13 @@ const tree = `hey-listen/
         title="Start with the sound you have."
       >
         <p>
-          Open an audio file, record a microphone, system output, one process, or a
-          mic-and-system mix. Or build a Synth graph and render it into the timeline.
-          A project has exactly one source, and replacing it replaces the timeline.
+          Open a file, record a microphone, system output, one app, or a mix. Or build
+          a Synth graph and render it into the timeline.
         </p>
         <ul class="points">
-          <li>Files, live capture, and fundsp synthesis.</li>
-          <li>Embedded, linked, or live-linked storage for a file source.</li>
-          <li>Recording controls stay in the Sources rail while a capture runs.</li>
+          <li>Files, live capture, and synthesis.</li>
+          <li>Embedded, linked, or live-linked storage.</li>
+          <li>Recording controls stay while a capture runs.</li>
         </ul>
         <p><a class="text-link" href={link("docs/002-sources/")}>Open, record, or synthesize a source →</a></p>
 
@@ -127,19 +118,17 @@ const tree = `hey-listen/
         id="analysis"
         label="02 — Analysis"
         icon="analysis"
-        title="Open a tool. Read the chart. Check the caveat."
+        title="See what you're hearing."
       >
         <p>
           Pick a section — Time, Spectral, Pitch, Rhythm, Loudness, or Perception — and
-          open a tool. It becomes a Workbench tab, and opening it again focuses the same
-          tab. Shared FFT, window, channel, and frequency settings keep two charts
-          describing the same thing. Every tool has an About panel that says what it
-          measures.
+          open a tool. Shared settings keep your charts describing the same thing, and
+          each tool's About panel says what it measures.
         </p>
         <ul class="points">
-          <li>Readouts, charts, and tables from the same analysis window.</li>
-          <li>Charts share a playhead, so previewing moves every view together.</li>
-          <li>A slow run keeps its tab, shows progress, and can be cancelled.</li>
+          <li>Readouts, charts, and tables from the same window.</li>
+          <li>Charts share a playhead, so preview moves every view together.</li>
+          <li>A slow run keeps its tab and can be cancelled.</li>
         </ul>
         <p><a class="text-link" href={link("docs/005-analyzers/")}>Measure what the window contains →</a></p>
 
@@ -167,15 +156,14 @@ const tree = `hey-listen/
         reverse
       >
         <p>
-          The Filter graph runs upstream of playback and every analyzer, so you hear
-          and measure the same signal. The Synth graph renders fundsp synthesis into
-          the timeline. Both editors accept DOT text, so a graph can live in a script,
-          an issue, or an agent's message.
+          The Filter graph runs before playback and every analyzer, so you hear and
+          measure the same signal. The Synth graph renders sound into the timeline.
+          Both accept DOT text, so a graph can live in a script or a message.
         </p>
         <ul class="points">
-          <li>Filter and Synth are Workbench tabs, beside the analyzers.</li>
-          <li>DOT is the canonical graph form across the app, MCP, and the CLI.</li>
-          <li>The node catalog includes nested subsystems and live taps.</li>
+          <li>Filter and Synth sit beside the analyzers.</li>
+          <li>DOT is the same graph form everywhere.</li>
+          <li>The node catalog includes subsystems and live taps.</li>
         </ul>
         <p><a class="text-link" href={link("docs/004-graphs/")}>Shape the sound →</a></p>
 
@@ -197,15 +185,14 @@ const tree = `hey-listen/
         title="Drive it from an agent, or from a shell."
       >
         <p>
-          Enable the MCP server and an agent can open sources, change settings, run
-          analyses, preview, annotate, compare, export, and save on the window you are
-          watching. The same analysis engine runs headless in
-          <code>hey-listen-cli</code>.
+          Turn on the MCP server and an agent can open sources, run analyses, preview,
+          annotate, compare, and export on the window you're watching. The same engine
+          runs headless in <code>hey-listen-cli</code>.
         </p>
         <ul class="points">
-          <li>The live window follows the agent's calls.</li>
-          <li>Ask for a summary, a compact preview, or the full arrays.</li>
-          <li>A one-off run can skip opening a tab or changing your setup.</li>
+          <li>The window follows the agent's calls.</li>
+          <li>Ask for a summary, a preview, or the full data.</li>
+          <li>A one-off run can skip touching your setup.</li>
         </ul>
         <p><a class="text-link" href={link("docs/")}>The manual's agent and command-line sections →</a></p>
 
@@ -239,15 +226,14 @@ const tree = `hey-listen/
         reverse
       >
         <p>
-          Export the analysis window as WAV, FLAC, or AIFF, with the depth and channel
-          layout you need. Save a tool's result as provenance JSON or a wide CSV with a
-          sidecar, and a chart as PNG. The <code>.heyl</code> project keeps the source,
-          graphs, setup, and results together.
+          Export the window as WAV, FLAC, or AIFF. Save a result as JSON or CSV, and a
+          chart as PNG. The <code>.heyl</code> project keeps source, graphs, setup, and
+          results together.
         </p>
         <ul class="points">
-          <li>Audio export can apply the filter independently of the toolbar switch.</li>
-          <li>CSV rows carry their units and provenance in a sidecar file.</li>
-          <li>A chart PNG matches the active theme and the zoom you set.</li>
+          <li>Audio export can apply the filter.</li>
+          <li>CSV keeps its units and provenance.</li>
+          <li>A chart PNG matches your theme and zoom.</li>
         </ul>
         <p><a class="text-link" href={link("docs/009-projects/")}>Keep, undo, and take the data out →</a></p>
 
@@ -268,13 +254,13 @@ const tree = `hey-listen/
         title="Public domain, not a demo."
       >
         <p>
-          Hey Listen is released under the Unlicense. You can read the source, fork it,
-          and ship your own build. There is no account and no paid tier.
+          Hey Listen is released under the Unlicense. Read the source, fork it, or ship
+          your own build.
         </p>
         <ul class="points">
-          <li>The app, the core, the CLI, and this landing live in one repository.</li>
+          <li>App, core, CLI, and this site live in one repository.</li>
           <li>Issues and feature proposals are welcome.</li>
-          <li>The manual is part of the repository and this site.</li>
+          <li>The manual is part of the repository.</li>
         </ul>
         <p>
           <a class="text-link" href={REPO} target="_blank" rel="noopener">
@@ -297,8 +283,8 @@ const tree = `hey-listen/
       <p class="eyebrow">Download</p>
       <h2 id="download-title">Take it for a listen.</h2>
       <p class="download-lede">
-        One public-domain build for macOS, Windows, and Linux. The latest release page
-        lists the installers and what changed.
+        One public-domain build for macOS, Windows, and Linux. The latest release lists
+        the installers.
       </p>
       <div class="download-actions">
         <a class="button button--large" href={releaseUrl}>
@@ -309,12 +295,11 @@ const tree = `hey-listen/
       </div>
       <ul class="download-facts">
         <li>Free and public domain</li>
-        <li>macOS, Windows, and Linux</li>
-        <li>Release notes on GitHub</li>
+        <li>No account, no sign-up</li>
+        <li>Installers on GitHub</li>
       </ul>
       <p class="download-note">
-        No account, no paid tier. If the latest release does not start, open an issue
-        with the version and your platform.
+        If it doesn't start, open an issue with your version and platform.
       </p>
     </div>
   </section>
