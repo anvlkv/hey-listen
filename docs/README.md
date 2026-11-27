@@ -12,7 +12,9 @@ Three areas, one owner per question:
 
 Chapter-by-chapter and task-oriented: every chapter is layered summary → the task →
 options and keys → agent → CLI, and illustrated with element screenshots from the same
-example project. Start at [`manual/001_shell.md`](manual/001_shell.md).
+example project. The agent reference (`audio-analysis/`, a symlink to the packaged skill)
+is published with the manual, under *For agents*. Start at
+[`manual/README.md`](manual/README.md).
 
 ## [`development/`](development/) — building Hey Listen
 

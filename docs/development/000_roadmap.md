@@ -143,9 +143,11 @@ Hardening, `hey-listen-cli`, signed updates.
 Archive / development / manual split, then the manual rebuilt: every chapter is layered
 summary → the task → options and keys → agent → CLI, names only the keys that belong to
 that area, answers "which tool for this question" up front, and is illustrated with two
-or three shots from `video/story-assets/analysis-example.heyl`. The agent skill is
-available beside the manual as `docs/manual/audio-analysis`. In-app help moves with the
-site pass (M35).
+or three shots from `video/story-assets/analysis-example.heyl`, captured by
+`npm run capture:manual`. The manual speaks to a user, not a contributor: no repository
+paths, no build steps. The agent skill is symlinked into `docs/manual/audio-analysis` and
+publishes beside the chapters, so the MCP/CLI reference is part of the same site. In-app
+help moves with the site pass (M35).
 
 ## M35 — Landing page rework ✅
 An Astro landing with Solid islands; the manual, roadmap and acknowledgements published

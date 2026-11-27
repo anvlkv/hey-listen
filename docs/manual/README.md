@@ -15,7 +15,7 @@ app you can open today, one task per chapter.
 | Hear the window and work without the mouse | [008](008_preview.md) |
 | Save the project, or take the data elsewhere | [009](009_projects.md) |
 | Bring in audio, or make it | [002](002_sources.md) |
-| Let an agent do the first pass | the *With an agent* layer in any chapter |
+| Let an agent do the first pass | the *With an agent* layer in any chapter, then [the agent reference](audio-analysis/SKILL.md) |
 
 ## How each chapter is layered
 
@@ -53,29 +53,24 @@ number depends on.
 
 ## A project to follow along
 
-Every screenshot is driven from the same project, `video/story-assets/analysis-example.heyl`:
-a Grieg prelude with its analysis window framed on a 31.2 s loop, and the annotations
-that record why that loop was chosen. The comparison chapter adds a second, shorter
-project. Open the example and the numbers in one picture match the next.
+The examples come from one recording: a Grieg prelude with a 31-second loop framed as the
+analysis window, and the annotations that record why that loop was chosen. When you open
+that project and follow a chapter, the numbers in one picture match the next. The
+comparison chapter adds a second, shorter project so there is something to compare
+against.
 
-## Regenerating the screenshots
+## The same work, for an agent
 
-The images in `assets/` are captured from the running app by `e2e/manual/capture.spec.ts`,
-driving the example project above:
+An agent drives the same engine over the Model Context Protocol (MCP) or the batch CLI.
+The reference for that surface sits with this manual, so the two never disagree:
 
-```sh
-npm run capture:manual
-```
+| Page | Covers |
+| --- | --- |
+| [Driving the analysis engine](audio-analysis/SKILL.md) | Which surface to use, and the workflow both share |
+| [MCP server](audio-analysis/mcp.md) | Tools, tabs, windows, projects, annotations, export |
+| [Batch CLI](audio-analysis/cli.md) | `analyze`, `nodes`, `synth`, `compare`, `project`, `annotations` |
+| [Analyzers](audio-analysis/analyzers.md) | What each tool is for, and where it is not the right one |
+| [Filter and synth graphs](audio-analysis/graphs.md) | Node catalog, DOT, subsystems, sound design |
 
-It needs the desktop app and its WebDriver, like the rest of the end-to-end suite.
-
-## The same surfaces, for an agent
-
-The programmatic side of this manual — MCP tools, the batch CLI, analyzer and graph
-catalogues — is also packaged as an agent skill at `docs/manual/audio-analysis/`, a
-symlink to `.agents/skills/audio-analysis/`. Start at its `SKILL.md`; it routes to the
-MCP, CLI, analyzer, and graph references. It is not part of the published manual site or
-the in-app help bundle.
-
-The design and history of the app live in [`../development/`](../development/) and
-[`../archive/`](../archive/), not here.
+Each chapter above ends with the one or two calls that do its work, so the agent layer is
+never far from the place you learned the task.

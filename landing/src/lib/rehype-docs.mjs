@@ -13,6 +13,8 @@
 const CHAPTER_LINK = /^([0-9]{3}_[\w-]+|README)\.md(#.*)?$/i;
 const DEV_LINK = /^\.\.\/development\/(.*)$/;
 const ARCHIVE_LINK = /^\.\.\/archive\/(.*)$/;
+/** A page inside the agent skill: `graphs.md`, `./graphs.md`, `audio-analysis/graphs.md`. */
+const SKILL_LINK = /^(?:\.\/)?(?:audio-analysis\/)?([A-Za-z][\w-]*)\.md$/i;
 
 function stripHash(href) {
   const index = href.indexOf("#");
@@ -60,6 +62,11 @@ function rewriteHref(href, base, repo, chapters) {
     return target
       ? `${repo}/blob/main/docs/archive/${target}`
       : `${repo}/tree/main/docs/archive`;
+  }
+
+  const skill = SKILL_LINK.exec(path);
+  if (skill) {
+    return `${base}/docs/audio-analysis/${skill[1].toLowerCase()}/${hash}`;
   }
 
   return href;

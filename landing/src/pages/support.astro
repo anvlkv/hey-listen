@@ -1,0 +1,83 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { link, NEW_BUG, NEW_FEATURE, NEW_STORY, REPO } from "../lib/site";
+---
+
+<BaseLayout
+  title="Support — Hey Listen"
+  description="Star the repository, take Hey Listen for a test drive, or buy me a coffee. All three are appreciated, none are required."
+>
+  <section class="page-hero container">
+    <p class="eyebrow">Support</p>
+    <h1>Help Hey Listen keep going.</h1>
+    <p>
+      Hey Listen is free, public domain, and built in the open. The most useful support
+      costs nothing: a star, a test drive, and a note about what you found. If you still
+      feel like saying thanks with coffee, that is here too.
+    </p>
+  </section>
+
+  <section class="container support-grid" aria-label="Ways to support Hey Listen">
+    <div class="support-ways">
+      <article class="support-step">
+        <p class="support-step__index">01</p>
+        <h2>Star the repository</h2>
+        <p>
+          One click, no account needed. Stars are how other people find the project, so
+          they go further than you would expect.
+        </p>
+        <div class="roadmap-cta__actions">
+          <a class="button" href={REPO} target="_blank" rel="noopener">Star on GitHub</a>
+        </div>
+      </article>
+
+      <article class="support-step">
+        <p class="support-step__index">02</p>
+        <h2>Take it for a test drive</h2>
+        <p>
+          Open a file, run a few analyzers, break something. Then tell me about it in an
+          issue — a bug report, a missing feature, or a success story, whichever fits.
+        </p>
+        <ul class="points">
+          <li>Something is broken: a bug report with your version and platform.</li>
+          <li>Something is missing: a feature proposal with the problem it solves.</li>
+          <li>Something worked well: a success story. Those are the most fun to read.</li>
+        </ul>
+        <div class="roadmap-cta__actions">
+          <a class="button" href={NEW_BUG} target="_blank" rel="noopener">Report a bug</a>
+          <a class="button button--ghost" href={NEW_FEATURE} target="_blank" rel="noopener">
+            Propose a feature
+          </a>
+          <a class="button button--ghost" href={NEW_STORY} target="_blank" rel="noopener">
+            Share a success story
+          </a>
+        </div>
+      </article>
+    </div>
+
+    <aside class="donate-card" aria-labelledby="donate-heading">
+      <p class="eyebrow">Optional</p>
+      <h2 id="donate-heading">Buy me a coffee</h2>
+      <p>
+        If the project saved you some time and you would like to say thanks, you can.
+        Nothing changes if you don't — Hey Listen stays free and public domain either
+        way.
+      </p>
+      <div class="donate-frame">
+        <iframe
+          src="https://nowpayments.io/embeds/donation-widget?api_key=HG884X0-W3HMPWD-GGW2CW7-HSFHEQX"
+          title="Donation widget"
+          width="346"
+          height="623"
+          loading="lazy"></iframe>
+      </div>
+      <p class="donate-card__note">
+        Donations are handled by NOWPayments. This page stores nothing about you.
+      </p>
+    </aside>
+  </section>
+
+  <p class="container page-back">
+    <a class="text-link" href={link("")}>← Back to the landing</a>
+  </p>
+</BaseLayout>

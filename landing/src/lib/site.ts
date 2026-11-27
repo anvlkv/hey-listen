@@ -3,6 +3,7 @@ export const PROFILE = "https://github.com/anvlkv";
 export const ISSUES = `${REPO}/issues`;
 export const NEW_FEATURE = `${REPO}/issues/new?labels=enhancement&title=Feature%20proposal%3A%20`;
 export const NEW_BUG = `${REPO}/issues/new?labels=bug&title=Bug%3A%20`;
+export const NEW_STORY = `${REPO}/issues/new?labels=show-and-tell&title=Success%20story%3A%20`;
 export const UNLICENSE = "https://unlicense.org/";
 
 const rawBase = import.meta.env.BASE_URL || "/";

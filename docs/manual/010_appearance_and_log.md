@@ -18,8 +18,8 @@ Themes apply instantly, to the Workbench and to the charts drawn inside it.
 ## Find help, updates, and the log
 
 - *Help → Hey Listen Manual* (`F1`) opens this manual in its own window. It is the copy
-  bundled with the app, so every chapter and screenshot works offline, and a link to the
-  repository opens in your browser rather than replacing the page.
+  bundled with the app, so every chapter works offline; a link out to the web opens in
+  your browser rather than replacing the page.
 - *Help → Check for Updates…* checks and reports in the About dialog.
 - *Help → Install Command Line Tool…* reads the real install state and offers the matching
   action: **Install** when absent, **Update** when stale, **Repair** otherwise, plus

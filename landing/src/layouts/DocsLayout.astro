@@ -30,6 +30,9 @@ const { title, description, nav, current, headings, prev, next } = Astro.props;
 const isCurrent = (item: DocNavItem) => item.id === current;
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
 
+const chapters = nav.filter((item) => item.group === "manual");
+const agentPages = nav.filter((item) => item.group === "agent");
+
 /** The in-app build (`npm run help`) drops the landing's chrome: it is a reader window. */
 const help = import.meta.env.PUBLIC_HELP === "1";
 const Layout = help ? HelpLayout : BaseLayout;
@@ -46,7 +49,7 @@ const Layout = help ? HelpLayout : BaseLayout;
       <nav class="docs-nav" aria-label="Manual chapters">
         <ol>
           {
-            nav.map((item) => (
+            chapters.map((item) => (
               <li>
                 <a href={item.href} class:list={{ "is-current": isCurrent(item) }}>
                   <span class="docs-nav__number">{item.number}</span>
@@ -56,6 +59,24 @@ const Layout = help ? HelpLayout : BaseLayout;
             ))
           }
         </ol>
+
+        {
+          agentPages.length > 0 && (
+            <>
+              <p class="docs-nav__label">For agents</p>
+              <ol>
+                {agentPages.map((item) => (
+                  <li>
+                    <a href={item.href} class:list={{ "is-current": isCurrent(item) }}>
+                      <span class="docs-nav__number">·</span>
+                      <span>{item.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )
+        }
       </nav>
     </aside>
 
@@ -67,10 +88,26 @@ const Layout = help ? HelpLayout : BaseLayout;
             <a href={link("docs/")}>Manual</a>
           </li>
           {
-            nav.map((item) => (
+            chapters.map((item) => (
               <li>
                 <a href={item.href} aria-current={isCurrent(item) ? "page" : undefined}>
                   {item.number} — {item.title}
+                </a>
+              </li>
+            ))
+          }
+          {
+            agentPages.length > 0 && (
+              <li>
+                <span class="docs-nav__label">For agents</span>
+              </li>
+            )
+          }
+          {
+            agentPages.map((item) => (
+              <li>
+                <a href={item.href} aria-current={isCurrent(item) ? "page" : undefined}>
+                  {item.title}
                 </a>
               </li>
             ))
