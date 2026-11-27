@@ -127,6 +127,8 @@ Run the narrowest command that covers the change, then stop.
 
 ## Local notes
 
+- **Search scopes:** `grep`/`find_path` globs match the full path including the root dir —
+  write `hey-listen/src/**/*.tsx`, not `src/**/*.tsx`; an unscoped `grep` searches everything.
 - **npm cache:** `~/.npm` may hold root-owned files and throw `EPERM`. Use
   `npm_config_cache=…/.npm-cache npm install …` (gitignored), or fix it once with
   `sudo chown -R 501:20 ~/.npm`.

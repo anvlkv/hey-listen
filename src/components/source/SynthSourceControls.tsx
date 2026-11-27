@@ -64,7 +64,7 @@ export default function SynthSourceControls() {
         >
           <Switch.Label class="toolbar-label">
             Live
-            <span class="graph-live-state">
+            <span class="src-live-state">
               {liveRendering() ? "rendering" : liveEnabled() ? "on" : "off"}
             </span>
           </Switch.Label>

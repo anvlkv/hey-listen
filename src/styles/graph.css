@@ -66,21 +66,6 @@
   background: var(--control-hover);
 }
 
-/* The Live switch (Kobalte): the shared toolbar switch with the graph's own label. */
-.graph-live-switch .toolbar-switch-control[data-checked] .toolbar-switch-thumb {
-  transform: translateX(12px);
-}
-
-.graph-live-state {
-  font-size: 0.65rem;
-  letter-spacing: 0.02em;
-  color: var(--fg-dim);
-}
-
-.graph-live-switch[data-checked] .graph-live-state {
-  color: var(--fg-accent);
-}
-
 .graph-btn:disabled {
   opacity: 0.5;
   cursor: default;

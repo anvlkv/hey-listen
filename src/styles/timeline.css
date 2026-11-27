@@ -60,7 +60,7 @@
 }
 
 /* Text-only switch label: the words carry the meaning, so it takes no icon. The
-   label/state gap is shared with the graph's Live switch (`shared.css`). */
+   label/state gap and state word are shared with every toolbar switch (`shared.css`). */
 .timeline-filter .toolbar-label {
   font-size: 0.75rem;
   color: var(--fg-body);
@@ -80,16 +80,6 @@
 .timeline-filter .toolbar-switch[data-checked] .toolbar-switch-thumb,
 .timeline-filter .toolbar-switch-control[data-checked] .toolbar-switch-thumb {
   transform: translateX(12px);
-}
-
-.timeline-filter-state {
-  font-size: 0.65rem;
-  letter-spacing: 0.02em;
-  color: var(--fg-dim);
-}
-
-.timeline-filter[data-checked] .timeline-filter-state {
-  color: var(--fg-accent);
 }
 
 /* The last divider absorbs the free space, so the zoom zone sits at the right edge. */

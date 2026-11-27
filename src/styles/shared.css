@@ -152,12 +152,25 @@
 }
 
 /* A switch label that also spells its state beside the name ("Filter on", "Live off").
-   The state word needs its own gap, or the pair reads as one word. */
-.timeline-filter .toolbar-label,
-.graph-live-switch .toolbar-label {
+   The state word needs its own gap, or the pair reads as one word. Applied to every
+   toolbar switch label, so the gap is the same wherever a state word is added. */
+.toolbar-switch .toolbar-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* The state word beside a switch name: small and dim, accent once the switch is on. */
+.timeline-filter-state,
+.src-live-state {
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  color: var(--fg-dim);
+}
+
+.timeline-filter[data-checked] .timeline-filter-state,
+.src-live-switch[data-checked] .src-live-state {
+  color: var(--fg-accent);
 }
 
 /* The compact single-row chart legend (M36): one shared mark vocabulary for every
