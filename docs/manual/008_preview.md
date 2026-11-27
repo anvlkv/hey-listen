@@ -6,21 +6,21 @@ without leaving the recording.
 
 ![The transport, under the waveform](assets/008-transport.png)
 
-## The simple path
+## Play the window
 
 1. Press **Play** (or `Space`) to loop the analysis window. **Stop** keeps the playhead
    where it is; the return-to-start button jumps back.
 2. Choose the **output device** and **gain** in the Toolbar, and watch the **Level** meter.
 3. Move the analysis window while it plays and the preview reloads onto the new region
    instead of playing audio you can no longer see.
-4. Open the speed popover to change the rate: 0.25× to 4×, with 1× at the centre. The
-   scale is logarithmic, so half and double speed feel equally far from normal.
-   Slowing down changes what you hear, never what is measured.
+4. Open the speed popover to change the rate. Slowing down changes what you hear, never
+   what is measured.
 
-While you listen, the playhead is drawn on every time-based chart — waveform,
-spectrogram, pitch track — so a moment you hear is a moment you can read.
+The scale is logarithmic, so half and double speed feel equally far from normal. While you
+listen, the playhead is drawn on every time-based chart — waveform, spectrogram, pitch
+track — so a moment you hear is a moment you can read.
 
-## Advanced — options and keys
+## Advanced — loop, follow, and bindings
 
 - **Loop** (on by default) plays the window round; with it off, playback stops at the end.
 - **Follow the playhead** scrolls the Timeline to keep a playing playhead visible.
@@ -36,11 +36,11 @@ spectrogram, pitch track — so a moment you hear is a moment you can read.
 | `Alt+←` / `Alt+→` | Seek by one sample frame |
 | `Home` / `End` | Playhead to the start / end |
 | `F` | Follow the playhead |
-| `N` | Add an annotation at the playhead |
-| `Cmd/Ctrl+K` | Command palette |
 | `?` | Keyboard Shortcuts |
 
-**Change your bindings.** The Keyboard Shortcuts window lists every command by category
+![The Keyboard Shortcuts window: every command, its default and current chord](assets/008-shortcuts.png)
+
+**Change your bindings.** The window lists every command by category
 with its current chord, plus the native menu's fixed keys (New, Open, Save, Save As, New
 Window, Quit). Search for a command, then record a new binding: `Escape` cancels, a bare
 `Backspace` unbinds, and a chord already used by another command in an overlapping scope

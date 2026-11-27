@@ -6,7 +6,7 @@ becomes a specific one ("what happens between 52.0 and 83.2 seconds?").
 
 ![The Timeline with its window and channel rail](assets/003-timeline.png)
 
-## The simple path
+## Set the analysis window
 
 1. Drag across the waveform to select a new analysis window, the way you select text.
 2. Drag either edge to adjust it.
@@ -16,17 +16,16 @@ becomes a specific one ("what happens between 52.0 and 83.2 seconds?").
    region. Charts re-fit to it instead of showing a stale view.
 5. **Zoom to the window** frames the selection; **Fit the whole source** shows everything.
 
-Those last two are different tools: one changes what you *see*, the other changes what
-you *measure*. The readout above the waveform always states both the window and the
-source duration, so the two never get confused.
+![The numeric window fields, for a window you already know](assets/003-window.png)
 
-## Advanced — options and keys
+Those last two are different tools: one changes what you *see*, the other changes what you
+*measure*. The readout above the waveform always states both the window and the source
+duration, so the two never get confused.
 
-**Zoom and scroll.** Scroll over the waveform to zoom, and use the bar along the bottom to
-pan while zoomed in.
+## Read the lanes
 
-**Channels.** On multichannel audio each channel gets its own lane, with a rail that picks
-the lane you listen to and analyze, plus a mono downmix. The selected lane stands out.
+On multichannel audio each channel gets its own lane, with a rail that picks the lane you
+listen to and analyze, plus a mono downmix. The selected lane stands out.
 
 A filter graph can produce several output channels (one `Output` node each). While the
 filter is applied, the source lanes stay as background and each output is drawn over them
@@ -34,24 +33,36 @@ in the filtered colour, one lane row per output — `Output 1`, `Output 2`, … 
 Every branch is visible, analyzable, and playable side by side. Which *source* channel the
 graph reads is the graph's own business, set by its `Input` node's `Ch` (`-1` downmixes).
 
-**Right-click the waveform** for the quick actions: *Set window start here*, *Set window
-end here*, *Add an annotation here*, *Window: whole source*, *Zoom to window*, *Fit all*,
-and *Snap to grid and markers*.
+## Advanced — the menu, snapping, and zoom
+
+Right-click the waveform for the quick actions: *Set window start here*, *Set window end
+here*, *Add an annotation here*, *Window: whole source*, *Zoom to window*, *Fit all*, and
+*Snap to grid and markers*.
+
+![The Timeline's right-click menu](assets/003-menu.png)
+
+**Snapping** is off by default. Turn it on when a handle should land on the ruler grid or
+a marker rather than under your pointer; turn it off when you want the exact frame you
+dragged to.
+
+**Zoom and scroll.** Scroll over the waveform to zoom, and use the bar along the bottom to
+pan while zoomed in. Zoom and the analysis window are independent — zoom never re-runs a
+tool.
 
 | Key | Does |
 | --- | --- |
 | `←` / `→` | Move the playhead (1% of the visible span); `Shift` for ten steps |
 | `Alt+←` / `Alt+→` | Move the playhead by one sample frame |
-| `[` / `]` | Set the window start / end at the playhead |
 | `Home` / `End` | Playhead to the source start / end |
+| `[` / `]` | Set the window start / end at the playhead |
 | `PageUp` / `PageDown` | Previous / next analysis window |
 | `Z` | Zoom the view to the analysis window |
 | `0` | Fit the whole source |
 | `=` / `-` | Zoom in / out |
-| `F` | Keep a playing playhead in view |
 
 The Timeline announces what a keyboard move did — the time and the window — so you can
-frame a window without watching the numbers.
+frame a window without watching the numbers. Play and loop keys are in
+[Listen, and drive by keyboard](008_preview.md).
 
 ## With an agent
 

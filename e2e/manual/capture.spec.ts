@@ -17,25 +17,39 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { captureElement, hoverAt } from "../support/capture.ts";
+import { captureElement, captureRegion, hoverAt, trimUniform } from "../support/capture.ts";
 import { compareToolFromMain, compareView, waitForCompareChart } from "../support/compare.ts";
 import { FIXTURES, GRAPH_FIXTURES, SUBSYSTEM_FIXTURES } from "../support/fixtures.ts";
 import { importGraph } from "../support/graph.ts";
 import { expectLogErrors } from "../support/logs.ts";
 import { analyzerAbout, analyzerPanel, SEL } from "../support/selectors.ts";
-import { setInputValue } from "../support/timelinePrecision.ts";
-import { closeWindowsMatching, openProjectWindow } from "../support/windows.ts";
+import {
+  setInputValue,
+  openTimelineMenu,
+  closeTimelineMenu,
+} from "../support/timelinePrecision.ts";
+import {
+  closeCurrentWindow,
+  closeWindowsMatching,
+  openProjectWindow,
+  windowLabels,
+} from "../support/windows.ts";
 import {
   canvasHasInk,
   click,
   closeAllTabs,
   count,
   dismissPopovers,
+  invokeCore,
   menuAction,
   mockReturn,
   openFileFixture,
+  openSelect,
   openTool,
+  pickOption,
+  prepareFilePicker,
   prepareSynthSource,
+  pressChord,
   textOf,
   waitFor,
   waitForAnalyzer,
@@ -71,6 +85,36 @@ const REFERENCE_PROJECT = path.resolve(
 
 /** Cap each asset's width in device px; the manual shows them at the panel's size. */
 const SHOT_WIDTH = 1600;
+
+/** Force the shipped look, so every screenshot in one run shares it. */
+async function forceDefaultTheme(): Promise<void> {
+  await dismissPopovers();
+  await click(SEL.toolbarView);
+  await waitFor(async () => (await count(".pop-panel")) > 0, "the Appearance popover did not open");
+  await click('.pop-panel [aria-label="Dark mode"]');
+  await openSelect('.pop-panel [aria-label="Dark slot theme"]');
+  await pickOption("Retrowave Neon");
+  await dismissPopovers();
+}
+
+/** Open the Keyboard Shortcuts window, capture it, and return to `main`. */
+async function captureShortcuts(): Promise<void> {
+  await pressChord("?");
+  await browser.waitUntil(async () => (await windowLabels()).includes("shortcuts"), {
+    timeout: 15_000,
+    timeoutMsg: "the shortcuts window never opened",
+  });
+  await browser.tauri.switchWindow("shortcuts");
+  await waitFor(
+    async () => (await count(SEL.shortcutsDialog)) === 1,
+    "the shortcuts window never rendered",
+  );
+  await browser.pause(400);
+  await capture(SEL.shortcutsDialog, "008-shortcuts");
+  await closeCurrentWindow();
+  await browser.tauri.switchWindow("main");
+  await waitForShell();
+}
 
 const shot = (name: string) => path.join(ASSETS_DIR, `${name}.png`);
 
@@ -133,6 +177,7 @@ describe("Manual screenshots", () => {
     await waitForApp();
     await browser.tauri.switchWindow("main");
     await mockReturn("confirm", true);
+    await forceDefaultTheme();
     await closeAllTabs();
 
     // The example project: 31.2 s of Grieg framed on the loop, with its annotations.
@@ -154,8 +199,32 @@ describe("Manual screenshots", () => {
     await waitFor(async () => (await count(SEL.source)) > 0, "the Sources rail did not open");
     await capture(SEL.source, "002-sources");
 
+    // 002 (second shot) — the storage chooser every new file passes through.
+    await prepareFilePicker();
+    await mockReturn("pick_audio_file", "video/story-assets/Grieg_Holberg_Suite_1_Praeludium.wav");
+    await click(SEL.sourceOpenFile);
+    await waitFor(
+      async () => (await count(SEL.storageDialog)) > 0,
+      "the storage chooser did not open",
+    );
+    await capture(SEL.storageDialog, "002-storage");
+    await click(SEL.storageDialogCancel);
+
     // 003 — the Timeline of the recording, with its analysis window and channel rail.
     await capture(SEL.timeline, "003-timeline");
+
+    // 003 (second shot) — the numeric window fields; (third) the right-click menu.
+    await click(SEL.timelineWindowEdit);
+    await waitFor(
+      async () => (await count(".pop-panel")) > 0,
+      "the window-fields popover did not open",
+    );
+    await captureRegion([SEL.bottom, ".pop-panel"], shot("003-window"), SHOT_WIDTH);
+    await dismissPopovers();
+
+    await openTimelineMenu(0.55);
+    await captureRegion([SEL.bottom, SEL.timelineMenu], shot("003-menu"), SHOT_WIDTH);
+    await closeTimelineMenu();
 
     // 004 — a filter graph on the loaded music, then a nested subsystem.
     await closeAllTabs();
@@ -166,6 +235,10 @@ describe("Manual screenshots", () => {
     );
     await importGraph(GRAPH_FIXTURES.filter);
     await settleGraphLayout();
+
+    // 004 (first shot) — the palette, before folding it away for the chain view.
+    await capture(".graph-palette", "004-palette");
+
     await click("button.graph-palette-toggle");
     await browser.pause(300);
     await capture(SEL.workbench, "004-filter");
@@ -189,6 +262,15 @@ describe("Manual screenshots", () => {
     await capture(".pop-panel-about", "005-about");
     await dismissPopovers();
 
+    // 005 (third shot) — the shared params every open tool reads.
+    await click(SEL.toolbarParams);
+    await waitFor(
+      async () => (await count(".pop-panel")) > 0,
+      "the shared-params popover did not open",
+    );
+    await capture(".pop-panel", "005-params");
+    await dismissPopovers();
+
     // 006 — the annotations the project already carries, one selected so it is drawn on
     // the chart and the timeline as well as in the rail.
     await openAnnotationsRail();
@@ -196,7 +278,25 @@ describe("Manual screenshots", () => {
     await browser.pause(400);
     await capture(SEL.app, "006-annotations");
 
-    // 009 (second shot) — the audio-export rail for the framed analysis window.
+    // 006 (second shot) — editing one annotation in place.
+    await click('[data-testid^="annotation.edit."]');
+    await waitFor(
+      async () => (await count('[data-testid^="annotation.bodyInput."]')) > 0,
+      "the annotation editor did not open",
+    );
+    await capture(SEL.app, "006-editor");
+    await click('[data-testid^="annotation.cancel."]');
+
+    // 009 (second shot) — the per-tab analysis export menu.
+    await click('[data-testid="analyzer.export.spectrum"]');
+    await waitFor(
+      async () => (await count(".pop-panel-export")) > 0,
+      "the analysis export menu did not open",
+    );
+    await capture(".pop-panel-export", "009-export-menu");
+    await dismissPopovers();
+
+    // 009 (third shot) — the audio-export rail for the framed analysis window.
     await click('[data-testid="activity.tab.export"]');
     await waitFor(async () => (await count(SEL.exportRegion)) > 0, "the Export rail did not open");
     await capture(SEL.exportRegion, "009-export");
@@ -214,8 +314,23 @@ describe("Manual screenshots", () => {
     await browser.pause(900);
     await capture(compareView("spectrum"), "007-compare");
 
-    // 008 — the transport, 009 — the project chrome, 010 — the Appearance popover.
+    // 007 (second shot) — a matrix comparison switched to Δ.
+    await closeAllTabs();
+    await compareToolFromMain("melSpectrogram", reference);
+    await waitForCompareChart("melSpectrogram");
+    await click('[data-testid="compare.matrix.mode.delta"]');
+    await waitFor(
+      async () => (await count('[data-testid="compare.matrix.legend"]')) === 1,
+      "the Δ legend never appeared",
+    );
+    await browser.pause(500);
+    await capture(compareView("melSpectrogram"), "007-matrix");
+    await closeAllTabs();
+
+    // 008 — the transport, then the Keyboard Shortcuts window.
     await capture(SEL.timeline, "008-transport");
+    await captureShortcuts();
+
     await capture(SEL.toolbar, "009-project");
 
     await dismissPopovers();
@@ -226,6 +341,19 @@ describe("Manual screenshots", () => {
     );
     await capture(".pop-panel", "010-appearance");
     await dismissPopovers();
+
+    // 010 (second shot) — the app log, opened the way Help does.
+    const logWindow = await invokeCore<string>("open_log_window");
+    await browser.tauri.switchWindow(logWindow);
+    await waitFor(async () => (await count(SEL.logWindow)) > 0, "the log window never rendered");
+    await browser.pause(500);
+    await setInputValue(SEL.logFilter, "analysis");
+    await browser.pause(600);
+    await capture(SEL.logWindow, "010-log");
+    trimUniform(shot("010-log"));
+    await closeCurrentWindow();
+    await browser.tauri.switchWindow("main");
+    await waitForShell();
 
     // 011 — a Toolbar error from a file the app cannot decode. Close the compare tab and
     // its reference first: replacing main's source would otherwise make an open

@@ -6,7 +6,7 @@ menus installs the CLI and opens the log when you need to see what the app was d
 
 ![The Appearance popover](assets/010-appearance.png)
 
-## The simple path
+## Change the look
 
 1. Open **Appearance** in the Toolbar.
 2. Set **Text size** if everything feels small or large.
@@ -15,23 +15,33 @@ menus installs the CLI and opens the log when you need to see what the app was d
 
 Themes apply instantly, to the Workbench and to the charts drawn inside it.
 
-## Advanced — options and keys
+## Find help, updates, and the log
 
-- **The manual.** *Help → Hey Listen Manual* (`F1`) opens this manual in its own window. It
-  is the copy bundled with the app, so every chapter and screenshot works offline, and a
-  link to the repository opens in your browser rather than replacing the page.
-- **Themes.** Import a `.heyltheme` file to add one, export the current theme to share it,
-  delete a theme you no longer want, or reveal the themes folder to edit a file by hand.
+- *Help → Hey Listen Manual* (`F1`) opens this manual in its own window. It is the copy
+  bundled with the app, so every chapter and screenshot works offline, and a link to the
+  repository opens in your browser rather than replacing the page.
+- *Help → Check for Updates…* checks and reports in the About dialog.
+- *Help → Install Command Line Tool…* reads the real install state and offers the matching
+  action: **Install** when absent, **Update** when stale, **Repair** otherwise, plus
+  **Uninstall**. The installed copy's version follows the app.
+- *Help → Show Log…* opens a window over the app log; *Open Log Folder* reveals the file.
+
+![The log window, with its filter and follow toggle](assets/010-log.png)
+
+Every analysis and comparison is written when it starts and finishes, with its elapsed
+time and outcome, and repeats while it is still running — so a slow run is identifiable
+instead of silent.
+
+## Advanced — themes as files
+
+- **Import** a `.heyltheme` file to add one, **export** the current theme to share it,
+  **delete** a theme you no longer want, or reveal the themes folder to edit a file by
+  hand.
 - **Charts are themed too.** A chart's colours come from the theme, so a screenshot taken
   in one theme matches the app in that theme.
-- **Updates.** *Help → Check for Updates…* checks and reports in the About dialog.
-- **The command line tool.** *Help → Install Command Line Tool…* reads the real install
-  state and offers the matching action: **Install** when absent, **Update** when stale,
-  **Repair** otherwise, plus **Uninstall**. The installed copy's version follows the app.
-- **The log.** Every analysis and comparison is written when it starts and finishes, with
-  its elapsed time and outcome, and repeats while it is still running — so a slow run is
-  identifiable instead of silent. *Help → Show Log…* opens a window over it (with a filter
-  and a follow toggle); *Open Log Folder* reveals the file.
+- A theme is chrome only: it never changes a project, a measurement, or an exported
+  value.
+- The theme preference is stored for the app, not in the `.heyl` file.
 
 ## With an agent
 

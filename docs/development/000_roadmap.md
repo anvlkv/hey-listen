@@ -141,8 +141,11 @@ Hardening, `hey-listen-cli`, signed updates.
 
 ## M34 — Improved documentation and help ✅
 Archive / development / manual split, then the manual rebuilt: every chapter is layered
-summary → simple path → options and keys → agent → CLI, and illustrated from
-`video/story-assets/analysis-example.heyl`. In-app help moves with the site pass (M35).
+summary → the task → options and keys → agent → CLI, names only the keys that belong to
+that area, answers "which tool for this question" up front, and is illustrated with two
+or three shots from `video/story-assets/analysis-example.heyl`. The agent skill is
+available beside the manual as `docs/manual/audio-analysis`. In-app help moves with the
+site pass (M35).
 
 ## M35 — Landing page rework ✅
 An Astro landing with Solid islands; the manual, roadmap and acknowledgements published

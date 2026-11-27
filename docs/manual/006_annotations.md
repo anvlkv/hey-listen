@@ -7,7 +7,7 @@ annotations; those are the analyzer's output, not your writing.
 
 ![A selected annotation, drawn in the rail and on the Timeline](assets/006-annotations.png)
 
-## The simple path
+## Mark a moment
 
 1. Add one: the **+** in the Annotations rail, **Add an annotation here** on the Timeline
    right-click, the **+** on the Timeline toolbar (at the playhead), or the same command
@@ -19,15 +19,19 @@ annotations; those are the analyzer's output, not your writing.
    Timeline's annotation lane, and on every time-based chart, so one moment is findable
    everywhere.
 
+![Editing an existing annotation in place](assets/006-editor.png)
+
 Each card carries what the note is attached to: the tool (or *Timeline*) and the time or
 span. An annotation with a range can be analyzed as a window in one click.
 
-## Advanced — options and keys
+## Advanced — frozen values, ranges, and the trail
 
 - **Frozen values.** A chart annotation stores the reading and the settings that produced
   it. Change the FFT or re-run later and the card keeps your snapshot; when the live value
   differs, it is shown struck through beside the frozen one, so drift is visible instead
   of silent.
+- **Ranges.** Drag across the Timeline's annotation lane, or a chart's lane, to mark a
+  span. Its edges are draggable; **Analyze** then uses that span as the window.
 - **Analyze** moves the analysis window onto the annotation when you decide to; browsing
   the rail never re-frames the analysis.
 - **Open the chart** focuses the tool the annotation came from.

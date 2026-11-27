@@ -10,7 +10,7 @@ Three areas, one owner per question:
 
 ## [`manual/`](manual/) — using Hey Listen
 
-Chapter-by-chapter and task-oriented: every chapter is layered summary → simple path →
+Chapter-by-chapter and task-oriented: every chapter is layered summary → the task →
 options and keys → agent → CLI, and illustrated with element screenshots from the same
 example project. Start at [`manual/001_shell.md`](manual/001_shell.md).
 

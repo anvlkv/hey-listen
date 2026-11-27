@@ -6,7 +6,7 @@ still says where it came from.
 
 ![The Toolbar: the project's name and its unsaved marker](assets/009-project.png)
 
-## The simple path
+## Save and step back
 
 1. **Save** (`Cmd/Ctrl+S`) writes the project; **Save As…** (`Shift+Cmd/Ctrl+S`) writes a
    copy. The name in the Toolbar carries a dot while there is unsaved work.
@@ -23,7 +23,34 @@ the shared parameters and per-tool options, the analysis window, your annotation
 Workbench tabs, and any saved comparisons — including the reference audio those
 comparisons need.
 
-## Advanced — options and keys
+## Take the data out
+
+**One analysis.** The **Export** popover on any analyzer tab, and the same actions on its
+tab menu:
+
+![The per-tab export menu](assets/009-export-menu.png)
+
+- **Data → JSON…** — a self-describing envelope: what ran, on which window, with which
+  settings.
+- **Data → CSV…** — a wide matrix, with a metadata sidecar (the checkbox controls it).
+- **Chart → PNG…** — the chart exactly as drawn, with its theme and zoom.
+- **Copy CSV** — the same matrix onto the clipboard.
+- **Export all open analyses…** — one file per open tool, into a folder.
+
+**The audio of the window.** The **Export** activity tab writes the analysis window as a
+file.
+
+![The audio export rail](assets/009-export.png)
+
+Choose **Format** (WAV, FLAC, AIFF), **Depth** (every depth the format supports), and
+**Channels** (all, a mono downmix, or one channel — with the filter applied, the graph's
+outputs). **Apply the filter graph** processes the export through your filter,
+independent of the Timeline's filter switch. The export never changes the source, the
+switch, or the window, and your last format and depth are remembered.
+
+Data export also works without a window; the chart image and the audio need the app.
+
+## Advanced — versions, links, and two windows
 
 - **Older files** open normally and are upgraded on open; the Toolbar says `upgraded from
   vN` until you save, which writes the current version.
@@ -35,27 +62,13 @@ comparisons need.
   audio that is no longer there.
 - Closing a project with unsaved work asks first.
 
-**Data out.** The **Export** popover on any analyzer tab, and the same actions on its tab
-menu:
-
-- **Data → JSON…** — a self-describing envelope: what ran, on which window, with which
-  settings.
-- **Data → CSV…** — a wide matrix, with a metadata sidecar (the checkbox controls it).
-- **Chart → PNG…** — the chart exactly as drawn, with its theme and zoom.
-- **Copy CSV** — the same matrix onto the clipboard.
-- **Export all open analyses…** — one file per open tool, into a folder.
-
-**Audio out.** The **Export** activity tab writes the analysis window as a file.
-
-![The audio export rail](assets/009-export.png)
-
-Choose **Format** (WAV, FLAC, AIFF), **Depth** (every depth the format supports), and
-**Channels** (all, a mono downmix, or one channel — with the filter applied, the graph's
-outputs). **Apply the filter graph** processes the export through your filter,
-independent of the Timeline's filter switch. The export never changes the source, the
-switch, or the window, and your last format and depth are remembered.
-
-Data export also works without a window; the chart image and the audio need the app.
+| Key | Does |
+| --- | --- |
+| `Cmd/Ctrl+S` / `Shift+Cmd/Ctrl+S` | Save / Save As |
+| `Cmd/Ctrl+O` / `Cmd/Ctrl+N` | Open Project / New Project |
+| `Shift+Cmd/Ctrl+N` | New Window |
+| `Alt+Cmd/Ctrl+←` / `→` | Previous / next project in the folder |
+| `Cmd/Ctrl+Z` / `Shift+Cmd/Ctrl+Z` | Undo / redo |
 
 ## With an agent
 

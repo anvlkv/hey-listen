@@ -6,7 +6,7 @@ same nodes and share the same text format.
 
 ![A filter chain: input, tone shaping, space, and a limiter](assets/004-filter.png)
 
-## The simple path
+## Build a chain
 
 1. Open **Graphs** in the activity bar and pick **Filter** or **Synth**.
 2. Add a node: search the palette, then click it, or drag it onto the canvas. Dropping a
@@ -16,6 +16,8 @@ same nodes and share the same text format.
 4. Adjust a node's parameters on its card. Its context menu resets the node.
 5. Press **Layout** if the graph has drifted; the canvas fits itself to the result.
 
+![The palette, where every node kind is searchable](assets/004-palette.png)
+
 To hear and measure the filtered signal, switch **Filter** on in the Timeline toolbar.
 While it is applied, every analyzer, the preview, and the waveform read the processed
 signal; comparing the two waveforms is how you check what the graph did.
@@ -23,13 +25,20 @@ signal; comparing the two waveforms is how you check what the graph did.
 For a synth, the graph is only the recipe: open **Sources**, choose **Synth (graph)**, set
 **Length**, and press **Render**. See [Open, record, or synthesize a source](002_sources.md).
 
-## Advanced — options and keys
+## Nest a subsystem
+
+A graph can nest another graph. The nested node shows a thumbnail; open it in its own tab
+to edit it, and the parent updates as you do. Use a subsystem when one chain belongs
+inside another — a reverb send, a drum voice, a shared tone stage — instead of copying its
+nodes into every patch.
+
+![A nested subsystem with a snoop tap](assets/004-subsystem.png)
+
+## Advanced — outputs, tables, and DOT
 
 - **Several outputs.** Wire each branch to its own `Output` node. Every output is its own
   channel, drawn as its own lane, so one filter can show, say, three bands side by side.
   The graph's `Input` nodes choose the *source* channel each branch reads.
-- **Subsystems.** A graph can nest another graph. The nested node shows a thumbnail; open
-  it in its own tab to edit it, and the parent updates as you do.
 - **Snoop.** Add a `snoop` node to tap a signal and watch its level live while you adjust
   the graph.
 - **Tables.** Table nodes (wavetables, note sequences) carry their rows with the graph and
@@ -40,12 +49,12 @@ For a synth, the graph is only the recipe: open **Sources**, choose **Synth (gra
   same text drives the CLI and an agent, so a patch can leave the app and return
   unchanged — including nested systems and the tables inside them.
 
-![A nested subsystem with a snoop tap](assets/004-subsystem.png)
-
 | Key | Does |
 | --- | --- |
 | `Cmd/Ctrl+Enter` | Render the synth, from a graph tab |
-| `Cmd/Ctrl+Z` / `Shift+Cmd/Ctrl+Z` | Undo / redo a graph edit, with the project |
+
+Undo and redo apply to a graph edit with the rest of the project; see [Keep, undo, and
+take the data out](009_projects.md).
 
 ## With an agent
 

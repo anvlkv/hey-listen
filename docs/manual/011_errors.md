@@ -6,7 +6,7 @@ Timeline and a message, not silence that looks like a quiet recording.
 
 ![A file that could not be decoded](assets/011-error.png)
 
-## The simple path
+## Read the message where it appears
 
 1. Read the message where it appeared — the Toolbar, the Sources rail, the analyzer tab,
    or the graph editor.
@@ -14,7 +14,11 @@ Timeline and a message, not silence that looks like a quiet recording.
 3. If an edit went wrong, undo it. If a whole session went wrong, reopen the saved
    `.heyl` — a file is a repeatable starting point.
 
-## Advanced — options and keys
+The rule is one message per surface: a failed source does not also dim an analyzer, and a
+failed analyzer run does not close its tab. That way the message you see names the thing
+that needs fixing.
+
+## Advanced — every message, what it means
 
 | What you see | What it means |
 | --- | --- |

@@ -3,15 +3,30 @@
 Hey Listen measures a sound, and keeps what you learn beside it. This manual follows the
 app you can open today, one task per chapter.
 
+## Start with the question
+
+| You want to… | Read |
+| --- | --- |
+| Find where something happens in a recording | [001](001_shell.md), then [003](003_timeline.md) |
+| Know what a moment sounds like by the numbers | [005](005_analyzers.md) |
+| Clean up or isolate part of the signal | [004](004_graphs.md) |
+| Keep a decision you made, with its evidence | [006](006_annotations.md) |
+| Check one recording against another | [007](007_compare.md) |
+| Hear the window and work without the mouse | [008](008_preview.md) |
+| Save the project, or take the data elsewhere | [009](009_projects.md) |
+| Bring in audio, or make it | [002](002_sources.md) |
+| Let an agent do the first pass | the *With an agent* layer in any chapter |
+
 ## How each chapter is layered
 
-Read the top once; afterwards, jump to the layer you need.
+Read the top once; afterwards, jump to the layer you need. The middle section is named
+for the task it completes, not for a fixed stage.
 
 | Layer | What it gives you |
 | --- | --- |
 | **In short** | The question the chapter answers, in a few sentences. |
-| **The simple path** | The steps that get the job done, with no options. |
-| **Advanced — options and keys** | Every control in that area, and the shortcuts that reach it. |
+| **The task** (chapter-named) | The steps that get the job done, in the order you do them. |
+| **Advanced — options and keys** | Every control in that area, and only the shortcuts that belong to it. |
 | **With an agent** | The Model Context Protocol (MCP) tools that do the same work. |
 | **From the command line** | The `hey-listen-cli` command for a batch, a script, or CI. |
 
@@ -28,7 +43,7 @@ number depends on.
 | [002 — Open, record, or synthesize a source](002_sources.md) | Where the audio comes from, and where it is stored |
 | [003 — Frame the question on the Timeline](003_timeline.md) | What the analysis window is; zoom, channels, snapping |
 | [004 — Shape the sound](004_graphs.md) | Filter, Synth, subsystems, and DOT interchange |
-| [005 — Measure what the window contains](005_analyzers.md) | Finding a tool, reading a chart, shared parameters |
+| [005 — Measure what the window contains](005_analyzers.md) | Which tool answers which question, and how to read it |
 | [006 — Keep what you find](006_annotations.md) | Annotations: the note, the frozen values, the trail |
 | [007 — Compare two projects](007_compare.md) | A/B and Δ, alignment, and when a delta is unreliable |
 | [008 — Listen, and drive by keyboard](008_preview.md) | Transport, speed, shortcuts, and rebinding |
@@ -38,10 +53,10 @@ number depends on.
 
 ## A project to follow along
 
-Every screenshot comes from the same project, `video/story-assets/analysis-example.heyl`:
+Every screenshot is driven from the same project, `video/story-assets/analysis-example.heyl`:
 a Grieg prelude with its analysis window framed on a 31.2 s loop, and the annotations
-that record why that loop was chosen. Open it and the numbers in one picture match the
-next.
+that record why that loop was chosen. The comparison chapter adds a second, shorter
+project. Open the example and the numbers in one picture match the next.
 
 ## Regenerating the screenshots
 
@@ -53,6 +68,14 @@ npm run capture:manual
 ```
 
 It needs the desktop app and its WebDriver, like the rest of the end-to-end suite.
+
+## The same surfaces, for an agent
+
+The programmatic side of this manual — MCP tools, the batch CLI, analyzer and graph
+catalogues — is also packaged as an agent skill at `docs/manual/audio-analysis/`, a
+symlink to `.agents/skills/audio-analysis/`. Start at its `SKILL.md`; it routes to the
+MCP, CLI, analyzer, and graph references. It is not part of the published manual site or
+the in-app help bundle.
 
 The design and history of the app live in [`../development/`](../development/) and
 [`../archive/`](../archive/), not here.

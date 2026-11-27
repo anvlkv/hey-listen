@@ -1,22 +1,23 @@
 # 002 — Open, record, or synthesize a source
 
 **In short.** A project has exactly one source, and everything you measure, filter, or
-annotate belongs to it. Pick the source in the **Sources** rail: a file, a live input, or
-a synth render.
+annotate belongs to it. Pick it in the **Sources** rail: a file, a live input, or a
+synth render. A new source replaces the old one; the app asks first when there is unsaved
+work.
 
-![The Sources rail, with the file's storage choice](assets/002-sources.png)
+![The Sources rail, with the loaded file and how a save will store it](assets/002-sources.png)
 
-## The simple path
+## Open a file
 
 1. Open **Sources** — the pinned tab at the bottom of the activity bar, or the
    **Replace source** button on the Timeline once a source exists.
 2. Choose **Audio file**, then the folder button, and pick a recording.
-3. Choose how the project should keep the audio (see below), then **Open**. Hey Listen
-   decodes it and draws it on the Timeline.
+3. Choose where the audio should live (below), then **Open**. Hey Listen decodes it and
+   draws it on the Timeline.
 
 The rail shows what is loaded: name, format, sample rate, channels, and how a save will
-store it. Opening or recording a new source **replaces** the current one; if there is
-unsaved work, the app asks first.
+store it. Opening or recording a new source **replaces** the current one; the previous
+source is not kept.
 
 ### Where the audio lives
 
@@ -30,11 +31,13 @@ Your last choice is remembered for the next file. A source already embedded can 
 become linked by replacing it, because the audio in memory cannot vouch for a file on
 disk. The rail says so rather than hiding the option.
 
+![The storage chooser: the only place a new file becomes a link](assets/002-storage.png)
+
 A linked project whose file has gone missing still opens, with an empty Timeline and a
 dialog to **locate the file** again. Saving a link that cannot be resolved offers to
 embed the audio still in memory, instead of writing a project that could not reopen.
 
-### Record a live source
+## Record a live input
 
 Pick **Microphone**, **System audio**, **Application**, or **Mic + system**. Set the
 device (or the application), the input **Gain**, and watch the **Level** meter. Then:
@@ -46,7 +49,7 @@ device (or the application), the input **Gain**, and watch the **Level** meter. 
 What you captured becomes the source. While a capture is running, the Sources rail stays
 open — its Stop lives there.
 
-### Make a sound
+## Render a synth
 
 Open the **Synth** graph in the Workbench and build the patch. Then, in Sources, choose
 **Synth (graph)**:
@@ -59,7 +62,7 @@ Open the **Synth** graph in the Workbench and build the patch. Then, in Sources,
 
 ![A rendered synth source on the Timeline](assets/002-synth.png)
 
-## Advanced — options and keys
+## Advanced — storage and capture details
 
 - Switching storage is immediate for linked ↔ live link. A missing link is reported in
   the rail and at save time, never silently.
@@ -69,7 +72,7 @@ Open the **Synth** graph in the Workbench and build the patch. Then, in Sources,
   starts a **new project** with that file as its source; a dragged `.heyl` opens as a
   project instead.
 - There is no source shortcut. Replacing the source starts a fresh undo history (see
-  [Projects and export](009_projects.md)).
+  [Keep, undo, and take the data out](009_projects.md)).
 
 ## With an agent
 

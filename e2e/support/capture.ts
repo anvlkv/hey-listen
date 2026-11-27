@@ -20,27 +20,39 @@ import { rmSync } from "node:fs";
  * uPlot's cursor and the spectrogram's pointer handler both read `clientX` / `clientY`,
  * so a synthetic `pointermove` + `mousemove` at the element's own rect is enough — no
  * trusted pointer required. `fx`/`fy` are fractional offsets into the element's box
- * (default centre).
+ * (default centre). `settleMs` is how long to let the reactive repaint before returning;
+ * the default is a visible paint, a burst of frames can pass a smaller value.
  */
-export async function hoverAt(selector: string, fx = 0.5, fy = 0.5): Promise<void> {
+export async function hoverAt(selector: string, fx = 0.5, fy = 0.5, settleMs = 200): Promise<void> {
   await browser.execute(
     (sel: string, fx: number, fy: number) => {
       const els = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
       if (els.length === 0) throw new Error(`hoverAt: no element for ${sel}`);
-      // Position from the first match; uPlot's over canvas shares the plot box.
-      const rect = els[0].getBoundingClientRect();
+      // uPlot's cursor binds to its `.u-over` div, a **sibling** of the canvases — so an
+      // event on the canvas alone never reaches the cursor plugin (and a drill-down card
+      // never appears). Prefer the over box when the element lives in a uPlot chart.
+      const over =
+        (els[0].closest(".uplot")?.querySelector(".u-over") as HTMLElement | null) ?? null;
+      const anchor = over ?? els[0];
+      const rect = anchor.getBoundingClientRect();
       const clientX = rect.left + rect.width * fx;
       const clientY = rect.top + rect.height * fy;
-      const init = { bubbles: true, cancelable: true, clientX, clientY, view: window };
-      for (const el of els) {
-        el.dispatchEvent(
-          new PointerEvent("pointermove", {
-            ...init,
-            pointerId: 1,
-            pointerType: "mouse",
-            isPrimary: true,
-          }),
-        );
+      const init = {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        clientX,
+        clientY,
+        view: window,
+      };
+      const pointer = { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true };
+      const targets = over ? [over, ...els] : els;
+      for (const el of targets) {
+        el.dispatchEvent(new PointerEvent("pointerenter", pointer));
+        el.dispatchEvent(new PointerEvent("pointerover", pointer));
+        el.dispatchEvent(new MouseEvent("mouseenter", init));
+        el.dispatchEvent(new MouseEvent("mouseover", init));
+        el.dispatchEvent(new PointerEvent("pointermove", pointer));
         el.dispatchEvent(new MouseEvent("mousemove", init));
       }
     },
@@ -49,7 +61,7 @@ export async function hoverAt(selector: string, fx = 0.5, fy = 0.5): Promise<voi
     fy,
   );
   // Let the reactive redraw paint the crosshair before the next capture.
-  await browser.pause(200);
+  await browser.pause(settleMs);
 }
 
 /** Cap an image's width (no upscaling) so a maximized window cannot bloat the page. */

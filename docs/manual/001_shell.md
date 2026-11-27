@@ -1,19 +1,18 @@
 # 001 — Find your way around the window
 
-**In short.** One recording, one screen. The regions of that screen never move, so once
-you have read them once, you can go straight to the part you need. Only the Workbench is
-tabbed.
+**In short.** One recording, one screen. The regions stay put, so you learn them once
+and then go straight to the part you need. Only the Workbench is tabbed.
 
-![The whole window](assets/001-shell.png)
+![The whole window, with the spectrogram of the framed window open](assets/001-shell.png)
 
-## The simple path
+## Read the window, region by region
 
 1. **Toolbar** (top). The project's name and its previous/next arrows, the shared
    analysis parameters, the preview output (gain, level, device), Appearance, MCP, and
    the Annotations toggle.
 2. **Activity bar** (far left). One tab per analyzer section — *Time domain*, *Spectral*,
-   *Pitch / melody*, *Rhythm / tempo*, *Loudness*, *Perception* — then *Graphs*. **Sources**
-   and **Export** are pinned at the bottom.
+   *Pitch / melody*, *Rhythm / tempo*, *Loudness*, *Perception* — then *Graphs*.
+   **Sources** and **Export** are pinned at the bottom.
 3. **Sidebar**. The content of the selected activity: searchable tool entries, the graph
    editors, the source controls, or the audio export.
 4. **Workbench** (centre). The largest area. Analyzers and graph editors open here as
@@ -26,7 +25,11 @@ Choosing the activity-bar tab that is already showing **collapses** the Sidebar 
 its width to the Workbench. Sources and Export are Sidebar views, not separate regions:
 they sit where the analyzer list would be.
 
-## Advanced — options and keys
+If you only remember one thing: the **analysis window** on the Timeline decides what
+every open tool measures. [Frame the question on the Timeline](003_timeline.md) is about
+choosing one.
+
+## Advanced — layout and keys
 
 - Drag the dividers to resize. Each region keeps a minimum, so the Timeline can never be
   dragged away entirely.
@@ -36,6 +39,8 @@ they sit where the analyzer list would be.
   beats hunting a truncated title.
 - Right-click a tab for its actions: *Compare with…*, *Pop out to window*, the exports,
   and *Close tab*.
+- A small dot on an activity tab means the current search has matches in a section you
+  are not looking at.
 
 | Key | Does |
 | --- | --- |

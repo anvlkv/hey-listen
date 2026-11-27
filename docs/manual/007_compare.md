@@ -6,7 +6,7 @@ not that the curves differ; it is whether they differ for a reason you can trust
 
 ![A comparison, with its delta and its caveats](assets/007-compare.png)
 
-## The simple path
+## Set up a comparison
 
 1. Open the second recording in its own project window: **File → New Window**, then open
    or record its source.
@@ -17,12 +17,14 @@ not that the curves differ; it is whether they differ for a reason you can trust
 5. Read the header first. It names both sides — project, window, channel — and the badge
    says whether they are **Aligned**.
 
-## Advanced — options and keys
+## Read the difference
 
 **The chart.** A line chart draws A, B, and Δ (B − A) together, with the delta's own scale
 in the readout above it (`Δ mean`, `max |Δ|`, correlation). A heatmap or matrix view draws
 one side at a time and offers an A / B / Δ switch, because two images on one canvas would
 only hide each other.
+
+![A matrix comparison, switched to Δ](assets/007-matrix.png)
 
 **The notice strip.** Above the chart, one quiet line per fact a comparison has to admit:
 
@@ -37,20 +39,21 @@ only hide each other.
 recordings of different lengths still compare fairly. **Fine-tune B** shifts the reference
 on that relative axis; **Reset** returns it to zero.
 
-**Keeping it.** A comparison lives in the owning project. Closing the compare tab, or the
-reference window, keeps the last result — live updates stop and a banner says so. The
-reference dropdown retargets the same tab instead of opening another, and **Open
-reference** / **Show reference** brings the other project forward. **Pop out to window**
-gives the comparison its own window.
+## Advanced — keeping it, and when a delta is unreliable
+
+A comparison lives in the owning project. Closing the compare tab, or the reference
+window, keeps the last result — live updates stop and a banner says so. The reference
+dropdown retargets the same tab instead of opening another, and **Open reference** /
+**Show reference** brings the other project forward. **Pop out to window** gives the
+comparison its own window.
 
 A **saved** comparison stores the reference's window audio, so it reopens without the
 reference project and still produces a delta after you change the FFT or the tool's
 options; the reference's audio is re-analysed on this side's grid.
 
-| Key | Does |
-| --- | --- |
-| `Cmd/Ctrl+1…9` | Switch between the analyzer and its comparison |
-| `Cmd/Ctrl+Z` / `Shift+Cmd/Ctrl+Z` | Undo / redo the project's own changes (a comparison is read-only) |
+Trust a delta when the badge says **Aligned** and the notice strip is quiet. Treat it as
+an indicator when the grids differ, the filters differ, or the windows barely overlap:
+those are the cases where a difference can come from the setup rather than the sound.
 
 ## With an agent
 
@@ -66,9 +69,10 @@ and the per-family delta. `bOffset` shifts the reference on the relative axis, e
 **Fine-tune B** does. B is read-only: a comparison never changes the reference project's
 audio, window, parameters, or tabs.
 
-The last successful comparison is stored in the owner project, so `save_project` writes it
-and the app reopens it as a compare tab. `open_project_window` opens a reference in a
-second window when you want to watch a live comparison.
+Read `mismatches` and `alignment.common` before claiming a difference. The last successful
+comparison is stored in the owner project, so `save_project` writes it and the app reopens
+it as a compare tab. `open_project_window` opens a reference in a second window when you
+want to watch a live comparison.
 
 ## From the command line
 
