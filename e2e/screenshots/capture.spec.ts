@@ -1,7 +1,7 @@
 /**
  * Landing screenshots — **not** part of the E2E suite.
  *
- * Runs only through `screenshots.wdio.conf.ts` (`npm run landing:shots`). It lives
+ * Runs only through `screenshots.wdio.conf.ts` (`npm run capture:landing`). It lives
  * outside `e2e/specs/` on purpose: CI only runs the `*.spec.ts` files in that
  * directory, so a normal run never captures landing PNGs.
  *

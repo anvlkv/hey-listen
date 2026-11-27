@@ -9,7 +9,7 @@
  *
  * The analyzer panels, the whole-workbench shot, the export surfaces and the source
  * rails are **captured** from the running app into `public/images/` by
- * `npm run landing:shots`; they are committed and are not part of this sync.
+ * `npm run capture:landing`; they are committed and are not part of this sync.
  */
 
 import { copyFile, mkdir, readdir, rm } from "node:fs/promises";

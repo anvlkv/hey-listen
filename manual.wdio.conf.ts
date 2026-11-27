@@ -11,7 +11,7 @@ import { config as base } from "./wdio.conf.ts";
  * `@wdio/tauri-service`, stale-app guard, fixtures, and reporters) and only swaps
  * `specs` for the single capture spec, plus ensures `docs/manual/assets/` exists.
  *
- * Run with `npm run manual:shots`. Kept out of `e2e/specs/` so a normal run (and CI)
+ * Run with `npm run capture:manual`. Kept out of `e2e/specs/` so a normal run (and CI)
  * never captures documentation PNGs: this is a manual, GUI-only task.
  */
 

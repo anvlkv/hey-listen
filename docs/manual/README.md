@@ -49,7 +49,7 @@ The images in `assets/` are captured from the running app by `e2e/manual/capture
 driving the example project above:
 
 ```sh
-npm run manual:shots
+npm run capture:manual
 ```
 
 It needs the desktop app and its WebDriver, like the rest of the end-to-end suite.

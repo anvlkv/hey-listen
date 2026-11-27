@@ -118,7 +118,7 @@ controls are disabled with the reason.
   session monitoring; an export invocation carries the expected
   format/depth/channels/filter arguments; with no source the export controls are disabled.
 - **Manual**: update `docs/manual/001_shell.md`, `002_sources.md`, `004_graphs.md` and
-  `009_projects.md`, and re-capture the affected screenshots (`manual:shots`).
+  `009_projects.md`, and re-capture the affected screenshots (`npm run capture:manual`).
 
 ## Delivery order
 

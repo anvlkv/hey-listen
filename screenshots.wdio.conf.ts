@@ -11,7 +11,7 @@ import { config as base } from "./wdio.conf.ts";
  * `resetStaleApps` guard, fixtures, and reporters — and only swaps `specs` for the
  * single capture spec, plus ensures the landing's image directories exist.
  *
- * Run with `npm run landing:shots`. This is deliberately outside `e2e/specs/` so
+ * Run with `npm run capture:landing`. This is deliberately outside `e2e/specs/` so
  * `npm run test:e2e` (and CI, which runs only that directory's `*.spec.ts` files)
  * never pick it up: capturing landing PNGs is a manual, GUI-only task.
  */

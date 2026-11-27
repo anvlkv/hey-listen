@@ -12,7 +12,7 @@
  * would actually meet: 31.2 s of music framed on the loop, its annotations, and a
  * second project to compare against.
  *
- * Run with `npm run manual:shots` (needs the desktop app + WebDriver, like the suite).
+ * Run with `npm run capture:manual` (needs the desktop app + WebDriver, like the suite).
  */
 
 import path from "node:path";

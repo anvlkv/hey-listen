@@ -33,7 +33,7 @@ changed (`scripts/build-help.mjs --if-needed`).
 runs before `dev` and `build`, so a fresh checkout needs no extra step.
 
 The analyzer, source and export images under `public/images/` are element crops
-from the running app. Regenerate them with `npm run landing:shots` (needs the
+from the running app. Regenerate them with `npm run capture:landing` (needs the
 release binary and WebDriver, like the manual captures).
 
 ## Hero film
