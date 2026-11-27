@@ -9,7 +9,8 @@
   },
   "private": true,
   "dependencies": {
-    "@remotion/cli": "4.0.541",
+    "@remotion/cli": "^4.0.541",
+    "@remotion/mac-cursors": "4.0.541",
     "@remotion/zod-types": "4.0.541",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -26,6 +27,8 @@
   },
   "scripts": {
     "dev": "remotion studio",
+    "stage:hero": "node scripts/stage-hero.mjs",
+    "render:hero": "npm run stage:hero && remotion render src/index.ts HeroFilm ../landing/public/media/hero.mp4",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
