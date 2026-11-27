@@ -1,106 +1,32 @@
 /**
- * Landing **hero film** capture support (M35.A).
+ * Landing **hero film** scenario helpers (M35.A).
  *
  * The film is a montage of **real app motion**, not a slideshow: each scene captures either
  * a still (with its normalized rects) or a short **burst** of frames while an interaction
- * runs — a crosshair sweep, a timeline zoom, the compare offset slide, MCP switching on.
- * Remotion plays the bursts and uses the rects to push into a named element, without knowing
- * the display's DPR.
+ * runs — a crosshair sweep, a timeline zoom, MCP switching on. Remotion plays the bursts and
+ * uses the rects to push into a named element, without knowing the display's DPR.
  *
- * This module owns the parts that are easy to get subtly wrong: frame capture and rects,
- * the PNG size, pinning the analysis window + view, the app-level theme (with a restore),
- * and the interaction drivers the bursts use. The scenario lives in `e2e/hero/capture.spec.ts`.
+ * This module owns the parts the scenario drives: the app theme (with a restore), pinning
+ * the analysis window + view, the interaction drivers, and the cursor-aware hover. The
+ * frame/shot/manifest primitives live in `heroCapture.ts` and are re-exported here so the
+ * scenario imports one module.
  */
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-
-import { SEL, analyzerPanel, firstAnnotationRow } from "./selectors.ts";
+import { SEL, analyzerPanel } from "./selectors.ts";
 import { click, count, waitFor, wheelOver } from "./dom.ts";
 import { dismissPopovers } from "./popups.ts";
 import { invokeCore } from "./ipc.ts";
-import { hoverAt } from "./capture.ts";
 import { canvasHasInk } from "./analyzers.ts";
 import { openFileFixture, waitForSourceLoaded } from "./source.ts";
+import { hoverAndRecord } from "./heroCapture.ts";
+import type { ThemeMode } from "./heroCapture.ts";
 
-export type ThemeMode = "auto" | "dark" | "light";
-export type ShotKind = "still" | "burst";
-
-/** A rect as a fraction of the viewport: 0–1, origin top-left. */
-export interface NormalizedRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/** One captured frame of a clip. */
-export interface HeroFrame {
-  /** Path relative to the hero asset directory. */
-  image: string;
-  imageSize: { width: number; height: number };
-  capturedAt: string;
-  /** Milliseconds since the clip's first frame. */
-  atMs: number;
-  rects: Record<string, NormalizedRect>;
-}
-
-/**
- * A filmable clip: a still (one frame) or a burst (a short interaction).
- *
- * `seconds` is the intended on-screen time for the motion — the composition retimes the
- * frames to it; `fps` is the measured capture rate, for reference.
- */
-export interface HeroShot {
-  id: string;
-  kind: ShotKind;
-  theme: Exclude<ThemeMode, "auto">;
-  note: string;
-  seconds: number;
-  capturedMs: number;
-  fps: number;
-  viewport: { width: number; height: number };
-  dpr: number;
-  frames: HeroFrame[];
-}
-
-export interface HeroManifestMeta {
-  project: string;
-  /** The full track the Timeline shows (the project's source). */
-  source: string;
-  /** The 31.2 s loop the film plays. */
-  audio: string;
-  loop: { sourceStart: number; sourceEnd: number; duration: number };
-  analysis: string[];
-  /** The reference window the compare scene opened, when it ran. */
-  compare?: { source: string; window: [number, number]; tool: string };
-}
-
-/** The chrome and regions every frame records (first match; absent when not rendered). */
-const BASE_RECTS: Record<string, string> = {
-  app: SEL.app,
-  toolbar: SEL.toolbar,
-  activitybar: SEL.activitybar,
-  sidebar: SEL.sidebar,
-  workbench: SEL.workbench,
-  timeline: SEL.timeline,
-  "timeline.canvas": SEL.timelineCanvas,
-  source: SEL.source,
-  annotations: SEL.annotationsRegion,
-  "annotations.rows": SEL.annotationsRows,
-  "first.annotation": firstAnnotationRow,
-  export: SEL.exportRegion,
-  "graph.canvas": SEL.graphCanvas,
-  "toolbar.mcp": SEL.toolbarMcp,
-  "toolbar.appearance": SEL.toolbarView,
-};
-
-/** The analyzer panel + its first canvas, as extra rects for one clip. */
-export function analyzerRects(id: string): Record<string, string> {
-  return {
-    [`analyzer.${id}`]: analyzerPanel(id),
-    [`analyzer.${id}.canvas`]: `${analyzerPanel(id)} canvas`,
-  };
-}
+export {
+  analyzerRects,
+  captureHeroBurst,
+  captureHeroShot,
+  writeHeroManifest,
+} from "./heroCapture.ts";
+export type { HeroManifestMeta, HeroShot } from "./heroCapture.ts";
 
 /** Open the original audio as a fresh project's source and wait for it to settle. */
 export async function openAudioSource(file: string): Promise<void> {
@@ -133,8 +59,22 @@ export async function ensureAnnotationsRail(): Promise<void> {
 /** Wait for a chart, then put the crosshair at `fx` (a still's preparation). */
 export async function chartAt(id: string, fx: number, fy = 0.5): Promise<void> {
   await ensureChartInk(id);
-  await hoverAt(`${analyzerPanel(id)} canvas`, fx, fy);
-  await browser.pause(150);
+  await heroHover(`${analyzerPanel(id)} canvas`, fx, fy, 150);
+}
+
+/**
+ * Hover an element **and remember where**, so the frame records a drawable cursor.
+ *
+ * `hoverAt` dispatches no trusted pointer, and the app paints none; recording the point
+ * lets the composition draw a cursor that lands on the crosshair/tooltip the frame shows.
+ */
+export async function heroHover(
+  selector: string,
+  fx = 0.5,
+  fy = 0.5,
+  settleMs = 200,
+): Promise<void> {
+  await hoverAndRecord(selector, fx, fy, settleMs);
 }
 
 /** The persisted preference mode (`hey-listen:theme` → `mode`), defaulting to `auto`. */
@@ -200,144 +140,6 @@ export async function ensureChartInk(id: string): Promise<void> {
   });
 }
 
-/** The viewport's CSS size and device pixel ratio. */
-async function readViewport(): Promise<{ width: number; height: number; dpr: number }> {
-  return (await browser.execute(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    dpr: window.devicePixelRatio || 1,
-  }))) as { width: number; height: number; dpr: number };
-}
-
-/** Read normalized rects for `selectors` (first match each; absent when not rendered). */
-async function readRects(
-  selectors: Record<string, string>,
-): Promise<Record<string, NormalizedRect>> {
-  const names = Object.keys(selectors);
-  const values = Object.values(selectors);
-  return (await browser.execute(
-    (names: string[], values: string[]) => {
-      const out: Record<string, { x: number; y: number; width: number; height: number }> = {};
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      for (let index = 0; index < names.length; index += 1) {
-        const element = document.querySelector(values[index] ?? "");
-        if (!element) continue;
-        const rect = element.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) continue;
-        out[names[index] ?? ""] = {
-          x: Math.max(0, Math.min(1, rect.left / width)),
-          y: Math.max(0, Math.min(1, rect.top / height)),
-          width: Math.max(0, Math.min(1, rect.width / width)),
-          height: Math.max(0, Math.min(1, rect.height / height)),
-        };
-      }
-      return out;
-    },
-    names,
-    values,
-  )) as Record<string, NormalizedRect>;
-}
-
-/** A PNG's pixel size from its IHDR header (bytes 16–24), independent of DPR. */
-async function pngSize(file: string): Promise<{ width: number; height: number }> {
-  const header = (await readFile(file)).subarray(0, 24);
-  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
-}
-
-/** Screenshot the window into `<dir>/shots/<base>.png` and read its rects. */
-async function takeFrame(
-  dir: string,
-  base: string,
-  extraRects?: Record<string, string>,
-): Promise<Omit<HeroFrame, "atMs">> {
-  // A synthetic click's focus ring must not frame the shot; blur whatever is focused.
-  await browser.execute(() => (document.activeElement as HTMLElement | null)?.blur());
-  const file = path.join(dir, "shots", `${base}.png`);
-  await browser.saveScreenshot(file);
-  return {
-    image: `shots/${base}.png`,
-    imageSize: await pngSize(file),
-    capturedAt: new Date().toISOString(),
-    rects: await readRects({ ...BASE_RECTS, ...(extraRects ?? {}) }),
-  };
-}
-
-export interface CaptureInput {
-  id: string;
-  theme: Exclude<ThemeMode, "auto">;
-  note: string;
-  /** Intended on-screen seconds (0/omitted for a still). */
-  seconds?: number;
-  /** Extra `name → selector` rects to record for this clip. */
-  extraRects?: Record<string, string>;
-  /** Extra settle time before the (single) frame, in ms. */
-  settleMs?: number;
-}
-
-/** Capture a single **still** clip. */
-export async function captureHeroShot(dir: string, input: CaptureInput): Promise<HeroShot> {
-  await browser.pause(input.settleMs ?? 300);
-  const viewport = await readViewport();
-  const frame = { ...(await takeFrame(dir, input.id, input.extraRects)), atMs: 0 };
-  return {
-    id: input.id,
-    kind: "still",
-    theme: input.theme,
-    note: input.note,
-    seconds: input.seconds ?? 0,
-    capturedMs: 0,
-    fps: 0,
-    viewport: { width: viewport.width, height: viewport.height },
-    dpr: viewport.dpr,
-    frames: [frame],
-  };
-}
-
-export interface BurstInput extends Omit<CaptureInput, "settleMs"> {
-  /** How many frames to capture. */
-  frames: number;
-  /** Pause between a frame's interaction and its screenshot, in ms. */
-  intervalMs?: number;
-  /** The interaction to drive before frame `index` (0-based). */
-  act: (index: number, total: number) => Promise<void>;
-}
-
-/**
- * Capture a **burst**: drive `act(index)` then screenshot, `frames` times.
- *
- * This is what makes the film move: the frames are consecutive states of one real
- * interaction, so Remotion plays them (retimed to `seconds`) instead of faking a push-in.
- */
-export async function captureHeroBurst(dir: string, input: BurstInput): Promise<HeroShot> {
-  const viewport = await readViewport();
-  const frames: HeroFrame[] = [];
-  const started = Date.now();
-  for (let index = 0; index < input.frames; index += 1) {
-    await input.act(index, input.frames);
-    if (input.intervalMs) await browser.pause(input.intervalMs);
-    const frame = await takeFrame(
-      dir,
-      `${input.id}-${String(index).padStart(2, "0")}`,
-      input.extraRects,
-    );
-    frames.push({ ...frame, atMs: Date.now() - started });
-  }
-  const capturedMs = Date.now() - started;
-  return {
-    id: input.id,
-    kind: "burst",
-    theme: input.theme,
-    note: input.note,
-    seconds: input.seconds ?? capturedMs / 1000,
-    capturedMs,
-    fps: frames.length / Math.max(capturedMs / 1000, 0.001),
-    viewport: { width: viewport.width, height: viewport.height },
-    dpr: viewport.dpr,
-    frames,
-  };
-}
-
 /**
  * An interaction that sweeps an analyzer's crosshair from `(fx0, fy0)` to `(fx1, fy1)`.
  *
@@ -354,7 +156,7 @@ export function sweepChart(
   const canvas = `${analyzerPanel(id)} canvas`;
   return async (index, total) => {
     const t = total <= 1 ? 0 : index / (total - 1);
-    await hoverAt(canvas, fx0 + (fx1 - fx0) * t, fy0 + (fy1 - fy0) * t, settleMs);
+    await heroHover(canvas, fx0 + (fx1 - fx0) * t, fy0 + (fy1 - fy0) * t, settleMs);
   };
 }
 
@@ -365,31 +167,4 @@ export function zoomTimeline(deltaY = 60, pauseMs = 40): (index: number) => Prom
     await wheelOver(SEL.timelineCanvas, deltaY);
     await browser.pause(pauseMs);
   };
-}
-
-/** Write `manifest.json` for the clips captured so far (safe to call repeatedly). */
-export async function writeHeroManifest(
-  dir: string,
-  shots: HeroShot[],
-  meta: HeroManifestMeta,
-): Promise<void> {
-  const manifest = {
-    version: 2,
-    generatedAt: new Date().toISOString(),
-    project: meta.project,
-    source: meta.source,
-    audio: meta.audio,
-    loop: meta.loop,
-    analysis: meta.analysis,
-    compare: meta.compare ?? null,
-    capture: shots[0]
-      ? { width: shots[0].viewport.width, height: shots[0].viewport.height, dpr: shots[0].dpr }
-      : null,
-    shots,
-  };
-  await writeFile(
-    path.join(dir, "manifest.json"),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    "utf8",
-  );
 }

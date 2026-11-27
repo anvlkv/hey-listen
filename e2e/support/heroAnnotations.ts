@@ -12,6 +12,7 @@
  */
 import { analyzerPanel } from "./selectors.ts";
 import { click, count, waitFor } from "./dom.ts";
+import { hoverAt } from "./capture.ts";
 
 export interface HeroAnnotation {
   /** The analyzer whose chart the pin belongs to (and must be open). */
@@ -69,17 +70,14 @@ export const HERO_ANNOTATIONS = {
 /** Open a chart's reframe menu at a plot-relative point (uPlot over box, or the canvas). */
 async function openChartMenuAt(tool: string, fx: number, fy = 0.5): Promise<void> {
   const selector = `${analyzerPanel(tool)} canvas`;
+  // `hoverAt` resolves the uPlot `.u-over` box and returns the point it used.
+  const { x, y } = await hoverAt(selector, fx, fy, 0);
   await browser.execute(
-    (sel: string, fx: number, fy: number) => {
-      const els = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
-      if (els.length === 0) throw new Error(`openChartMenuAt: no chart for ${sel}`);
-      const over =
-        (els[0].closest(".uplot")?.querySelector(".u-over") as HTMLElement | null) ?? null;
-      const anchor = over ?? els[0];
-      const rect = anchor.getBoundingClientRect();
-      const clientX = rect.left + rect.width * fx;
-      const clientY = rect.top + rect.height * fy;
-      (over ?? els[0]).dispatchEvent(
+    (sel: string, clientX: number, clientY: number) => {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (!el) throw new Error(`openChartMenuAt: no chart for ${sel}`);
+      const over = el.closest(".uplot")?.querySelector(".u-over") as HTMLElement | null;
+      (over ?? el).dispatchEvent(
         new MouseEvent("contextmenu", {
           bubbles: true,
           cancelable: true,
@@ -93,8 +91,8 @@ async function openChartMenuAt(tool: string, fx: number, fy = 0.5): Promise<void
       );
     },
     selector,
-    fx,
-    fy,
+    x,
+    y,
   );
   await waitFor(async () => (await count(".reframe-menu")) > 0, "the chart menu did not open");
 }

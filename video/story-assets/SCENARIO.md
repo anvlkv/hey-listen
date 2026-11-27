@@ -117,8 +117,11 @@ agents (MCP)**.
 | Mobile | the page switches to `16 / 9; object-fit: contain`, so the full frame shows |
 | Background | theme panel colour of the active shot; no black bars inside the frame |
 
-The app window is captured at **≈1440 × 900 CSS px** (inner), at the display's DPR. The
-manifest records normalized rects, so Remotion maps them regardless of DPR.
+The app window is captured at **≈1440 CSS px wide** and its inner height (≈847 px after the
+OS chrome, as `window.innerHeight` reports). At DPR 2 that is a **2880 × 1694** PNG: the
+harness crops the native window's flat 28 px bottom pad, so `imageSize` equals the viewport
+and the normalized rects map 1:1. Remotion scales the frame to 1600×900 and uses the rects
+regardless of capture DPR.
 
 ---
 
@@ -159,10 +162,10 @@ chart lanes fill as the film goes.
 | `05-chromagram-light` | burst 12 | light | **adds the seam pin**; sweep fx 0.40 → 0.60, fy 0.35 → 0.60 across the pitch-class bands | `analyzer.chromagram`, `annotations.rows` | Harmony, measured. |
 | `06-roughness-light` | burst 12 | light | **adds the roughness pin**; crosshair sweeps **0.51 → 0.62**; the **hover drill-down card** follows (band profile + band × rate grid) | `analyzer.roughness`, `drilldown.card` | Roughness, band by band. |
 | `07-compare-hover` | burst 12 | light | **second window** at 14.2–43.6 s; compare; the cursor crosses the A/B overlay, updating the readouts (no slider) | `compare`, `compare.canvas` | Check it against another passage. |
-| `08-filter-light` | still | light | tone-stack imported + auto-laid out; **filter bypassed** | `graph.canvas`, `analyzer.filter` | Shape it before you measure it. |
-| `09-export-light` | still | light | **Export** rail (analysis window as WAV/FLAC/AIFF) | `export` | — |
+| `08-filter-light` | still | light | tone-stack imported + auto-laid out; **filter bypassed**; cursor parked on the graph | `graph.canvas`, `analyzer.filter` | Shape it before you measure it. |
+| `09-export-light` | still | light | **Export** rail (analysis window as WAV/FLAC/AIFF); cursor on **Export audio…** | `export`, `export.run` | — |
 | `09-export-dark` | still | dark | **identical** to `09-export-light`, dark base (dissolve pair) | same | Take the data with you. |
-| `10-mcp-on` | burst 3 | dark | off → toggle → “listening on 127.0.0.1:” | `mcp`, `mcp.status`, `toolbar.mcp` | Or let an agent drive it. |
+| `10-mcp-on` | burst 3 | dark | off → toggle → “listening on 127.0.0.1:”; cursor on the switch | `mcp`, `mcp.switch`, `mcp.status`, `toolbar.mcp` | Or let an agent drive it. |
 | `11-return-dark` | still | dark | **New Project + the OGG again** (clears the pins); re-stage **frame 0** of `01-timeline-zoom` | same as `01` | — |
 
 Notes:
@@ -172,6 +175,15 @@ Notes:
   and crossfades adjacent frames. Stills are for holds, push-ins and the two dissolves.
   Total **89 burst frames + 4 stills**, so ~11 s of the 31.2 s has true frame-to-frame
   changes.
+- **The cursor is recorded, not baked.** The app paints no pointer, and the crosshair/tooltip
+  the hover produces *is* in the pixels. Every frame still records the CSS-px point the
+  scenario hovered (`cursor`), so the composition draws a cursor that lands on the crosshair
+  or drill-down card the frame already shows. `hoverAt` returns that point; `heroHover`
+  normalizes it to the viewport.
+- **Frames are cropped to the viewport.** `saveScreenshot` returns the whole native window,
+  which on macOS is ~28 CSS px taller than `window.innerHeight` (a flat strip below the app).
+  Each PNG is cropped to `viewport × dpr` from the top-left, so `imageSize` and the normalized
+  rects share one coordinate space (`2880 × 1694`, not `2880 × 1750`).
 - **Pins are UI-created.** Each is: right-click the chart → “Add annotation here” → write the
   markdown → Save. The annotation attaches to that chart, so its rail row carries the frozen
   values and its chart lane gets a marker. The rail starts empty (S1) and holds six rows by
@@ -310,9 +322,10 @@ WebdriverIO, the embedded Tauri driver and the **release** binary — same harne
 
 ```
 e2e/hero/capture.spec.ts        the scenario (not under e2e/specs/, so CI never runs it)
-e2e/support/hero.ts             theme, window pin, shot + rect capture, manifest writer
+e2e/support/hero.ts             theme, window pin, hover/cursor, interaction drivers
+e2e/support/heroCapture.ts      viewport-cropped frames, rects/rows/cursor, shot + manifest writer
 e2e/support/heroAnnotations.ts  the pins: chart menu → Add → markdown → Save
-e2e/support/capture.ts          hoverAt (uPlot `.u-over`) and the element crops
+e2e/support/capture.ts          hoverAt (uPlot `.u-over`, returns the pointer) and element crops
 hero.wdio.conf.ts               base config with specs = ["./e2e/hero/capture.spec.ts"]
 ```
 
@@ -329,11 +342,12 @@ shots/11-return-dark.png
 manifest.json
 ```
 
-`manifest.json` shape (**v2** — a clip has one frame or a burst):
+`manifest.json` shape (**v3** — a clip has one frame or a burst; every frame is cropped
+to the web viewport and carries the hovered cursor position and the rail's rows):
 
 ```jsonc
 {
-  "version": 2,
+  "version": 3,
   "generatedAt": "2026-…",
   "project": "unsaved project",
   "source": "Grieg_Holberg_Suite_1_Praeludium.ogg",
@@ -341,7 +355,11 @@ manifest.json
   "loop": { "sourceStart": 52.0, "sourceEnd": 83.2, "duration": 31.2 },
   "analysis": ["tempo", "spectralCentroid", "chromagram", "downbeats"],
   "compare": { "source": "Grieg_Holberg_Suite_1_Praeludium.ogg", "window": [14.2, 43.6], "tool": "spectralCentroid" },
-  "capture": { "width": 1440, "height": 900, "dpr": 2 },
+  "capture": { "width": 1440, "height": 847, "dpr": 2, "imageWidth": 2880, "imageHeight": 1694 },
+  "dissolves": [
+    { "from": "02-centroid-dark", "to": "03-centroid-light" },
+    { "from": "09-export-light", "to": "09-export-dark" }
+  ],
   "shots": [
     {
       "id": "02-centroid-dark",
@@ -351,20 +369,31 @@ manifest.json
       "seconds": 1.5,
       "capturedMs": 2650,
       "fps": 4.5,
-      "viewport": { "width": 1440, "height": 900 },
+      "nominalFps": 8,
+      "viewport": { "width": 1440, "height": 847 },
       "frames": [
         {
           "image": "shots/02-centroid-dark-00.png",
-          "imageSize": { "width": 2880, "height": 1800 },
+          "imageSize": { "width": 2880, "height": 1694 },
           "capturedAt": "2026-…",
           "atMs": 0,
           "rects": {
             "app": { "x": 0, "y": 0, "width": 1, "height": 1 },
             "analyzer.spectralCentroid": { "x": 0.18, "y": 0.06, "width": 0.55, "height": 0.73 }
             // … normalized 0–1, origin top-left
-          }
+          },
+          // Where the scenario hovered, for drawing the synthetic cursor.
+          "cursor": { "x": 612, "y": 300, "nx": 0.425, "ny": 0.354 },
+          // The annotation rail's rows, top to bottom (absent while empty).
+          "rows": [ { "x": 0.80, "y": 0.09, "width": 0.19, "height": 0.08 } ]
         }
       ]
+    },
+    {
+      "id": "03-centroid-light",
+      "kind": "burst",
+      // … a same-state pair: it dissolves from 02's last frame (palette only).
+      "dissolveFrom": "02-centroid-dark"
     },
     {
       "id": "11-return-dark",
@@ -377,7 +406,12 @@ manifest.json
 ```
 
 Rects are **normalized to the viewport**, so a 1× or 2× screenshot is addressed the same
-way. A missing selector is simply absent (never a zero rect).
+way. A missing selector is simply absent (never a zero rect). `imageSize` is always exactly
+`capture.width × dpr` by `capture.height × dpr`: `saveScreenshot` returns the whole native
+window, which is ~28 CSS px taller than `window.innerHeight` on macOS, so the harness crops
+the flat pad below the app off the top-left. `cursor` is the point `hoverAt`/`heroHover`
+dispatched (the app paints no pointer), so Remotion draws a cursor that sits on the crosshair
+or tooltip each frame already shows. `rows` is the annotation rail's per-row rects.
 
 The capture **does not open a saved project**. It starts a new project, opens the original
 OGG, changes tabs/theme/window, adds the pins through the UI, and never saves. It opens a
@@ -433,9 +467,10 @@ npx remotion render src/index.ts HeroFilm ../landing/public/media/hero.mp4
 1. **MCP** — reachable for planning (`list_projects` / `get_state`); the capture itself does
    not depend on it.
 2. **Numbers** — the four JSONs still cover 52.0–83.2 s and the event table in §1 matches.
-3. **Capture** — `npm run capture:hero` exits 0; every clip id in §5 exists; the manifest’s
-   `imageSize` matches each PNG; `11` and `01` are pixel-compatible framing; the rail is empty
-   in both; the roughness card is present in at least one `06` frame.
+3. **Capture** — `npm run capture:hero` exits 0; every clip id in §5 exists; every frame's
+   `imageSize` is exactly `capture.imageWidth × capture.imageHeight`, and every chart frame
+   carries a `cursor`; `11` and `01` are pixel-compatible framing; the rail is empty in both;
+   the roughness card is present in at least one `06` frame.
 4. **Render** — `npx remotion render …` writes `hero.mp4`; `ffprobe` reports **31.2 s**,
    1600×900, 30 fps, AAC audio; the first and last frames match.
 5. **Page** — `npm run dev:landing`, confirm the loop has no visible seam at desktop width

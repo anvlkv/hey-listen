@@ -37,3 +37,4 @@ logs/
 .husky/_/
 .gh-cache/
 *.tmp
+*.log

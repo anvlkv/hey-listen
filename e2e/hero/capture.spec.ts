@@ -29,7 +29,6 @@ import {
   waitForShell,
   waitForSourceLoaded,
 } from "../support/helpers.ts";
-import { hoverAt } from "../support/capture.ts";
 import { compareFromTabMenu, compareView, waitForCompareChart } from "../support/compare.ts";
 import { GRAPH_FIXTURES } from "../support/fixtures.ts";
 import { filterSwitchOn, importGraph, toggleFilter, waitForHint } from "../support/graph.ts";
@@ -42,6 +41,7 @@ import {
   captureHeroShot,
   chartAt,
   ensureAnnotationsRail,
+  heroHover,
   openAudioSource,
   pinLoop,
   pinUiScale,
@@ -168,6 +168,7 @@ describe("Landing hero film capture", () => {
           seconds: 1.5,
           frames: 12,
           intervalMs: 20,
+          dissolveFrom: "02-centroid-dark",
           act: sweepChart("spectralCentroid", 0.218, 0.255),
           extraRects: analyzerRects("spectralCentroid"),
         }),
@@ -242,7 +243,6 @@ describe("Landing hero film capture", () => {
       await waitForShell();
       await compareFromTabMenu("spectralCentroid", second);
       await waitForCompareChart("spectralCentroid");
-      await hoverAt(`${compareView("spectralCentroid")} canvas`, 0.35, 0.5);
       META.compare = {
         source: path.basename(OGG),
         window: [RUNNER_UP.start, RUNNER_UP.end],
@@ -257,7 +257,7 @@ describe("Landing hero film capture", () => {
           frames: 12,
           act: async (index, total) => {
             const t = total <= 1 ? 0 : index / (total - 1);
-            await hoverAt(`${compareView("spectralCentroid")} canvas`, 0.25 + 0.35 * t, 0.5, 40);
+            await heroHover(`${compareView("spectralCentroid")} canvas`, 0.25 + 0.35 * t, 0.5, 40);
           },
           extraRects: {
             compare: compareView("spectralCentroid"),
@@ -292,6 +292,7 @@ describe("Landing hero film capture", () => {
           theme: "light",
           note: "Filter graph: tone-stack.dot imported, bypassed.",
           seconds: 2.0,
+          cursor: { selector: SEL.graphCanvas },
           extraRects: {
             "analyzer.filter": analyzerPanel("filter"),
             "sidebar.graph": SEL.sidebar,
@@ -311,6 +312,7 @@ describe("Landing hero film capture", () => {
           theme: "light",
           note: "Export rail: the analysis window as an audio file, light.",
           seconds: 1.9,
+          cursor: { selector: SEL.exportRun },
         }),
       );
       await setThemeMode("Dark");
@@ -320,6 +322,8 @@ describe("Landing hero film capture", () => {
           theme: "dark",
           note: "Identical to 09-export-light, dark base (dissolve pair).",
           seconds: 1.9,
+          cursor: { selector: SEL.exportRun },
+          dissolveFrom: "09-export-light",
         }),
       );
 
@@ -337,7 +341,12 @@ describe("Landing hero film capture", () => {
           frames: 3,
           intervalMs: 200,
           act: async (index) => {
-            if (index === 1) await click(".pop-panel .toolbar-switch-control");
+            const toggle = ".pop-panel .toolbar-switch-control";
+            if (index === 0) await heroHover(toggle, 0.5, 0.5, 0);
+            if (index === 1) {
+              await heroHover(toggle, 0.5, 0.5, 0);
+              await click(toggle);
+            }
             if (index === 2) {
               await waitFor(
                 async () => (await textOf(SEL.mcpStatus)).includes("listening on 127.0.0.1:"),

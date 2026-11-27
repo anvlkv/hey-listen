@@ -24,6 +24,11 @@ const HERO_DIR = path.join(here, "video", "story-assets", "hero");
 export const config: typeof base = {
   ...base,
   specs: ["./e2e/hero/capture.spec.ts"],
+  // The scenario drives a full editor session (analyzers load, annotations, a theme
+  // dissolve, a second window, the filter graph, MCP) and captures ~95 full-window PNGs,
+  // so it runs far past the suite's 120 s analysis ceiling. Scope a longer timeout here
+  // so `npm run test:e2e` keeps its tight one.
+  mochaOpts: { ...base.mochaOpts, timeout: 20 * 60_000 },
   async onPrepare(config, capabilities) {
     // Keep the base behavior (kill stale apps, generate fixtures) intact. WDIO types a
     // hook as `Fn | Fn[]` (a config may chain hooks), so normalize before calling.

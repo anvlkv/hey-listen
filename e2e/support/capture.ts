@@ -21,10 +21,16 @@ import { rmSync } from "node:fs";
  * so a synthetic `pointermove` + `mousemove` at the element's own rect is enough — no
  * trusted pointer required. `fx`/`fy` are fractional offsets into the element's box
  * (default centre). `settleMs` is how long to let the reactive repaint before returning;
- * the default is a visible paint, a burst of frames can pass a smaller value.
+ * the default is a visible paint, a burst of frames can pass a smaller value. Returns the
+ * pointer position it dispatched (CSS px in the page), so a caller can record the cursor.
  */
-export async function hoverAt(selector: string, fx = 0.5, fy = 0.5, settleMs = 200): Promise<void> {
-  await browser.execute(
+export async function hoverAt(
+  selector: string,
+  fx = 0.5,
+  fy = 0.5,
+  settleMs = 200,
+): Promise<{ x: number; y: number }> {
+  const point = (await browser.execute(
     (sel: string, fx: number, fy: number) => {
       const els = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
       if (els.length === 0) throw new Error(`hoverAt: no element for ${sel}`);
@@ -55,13 +61,15 @@ export async function hoverAt(selector: string, fx = 0.5, fy = 0.5, settleMs = 2
         el.dispatchEvent(new PointerEvent("pointermove", pointer));
         el.dispatchEvent(new MouseEvent("mousemove", init));
       }
+      return { x: clientX, y: clientY };
     },
     selector,
     fx,
     fy,
-  );
+  )) as { x: number; y: number };
   // Let the reactive redraw paint the crosshair before the next capture.
   await browser.pause(settleMs);
+  return point;
 }
 
 /** Cap an image's width (no upscaling) so a maximized window cannot bloat the page. */
