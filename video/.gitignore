@@ -9,3 +9,6 @@ out
 # Staged hero-film assets: captured frames copied into `public/` for the Remotion render.
 # The source of truth is `story-assets/hero/` (see story-assets/SCENARIO.md).
 public/hero/
+
+# Captured hero frames + manifest are regenerable by `npm run capture:hero`; never commit them.
+story-assets/hero/
