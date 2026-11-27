@@ -27,6 +27,7 @@
     "test:e2e:build": "npm run tauri build && npm run test:e2e",
     "capture:landing": "wdio run screenshots.wdio.conf.ts",
     "capture:manual": "wdio run manual.wdio.conf.ts",
+    "capture:hero": "wdio run hero.wdio.conf.ts",
     "lighthouse": "tsx scripts/lighthouse/run.ts",
     "lighthouse:fixtures": "tsx scripts/lighthouse/generate-fixtures.ts",
     "lighthouse:serve": "tsx scripts/lighthouse/serve.ts",

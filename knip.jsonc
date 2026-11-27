@@ -38,11 +38,14 @@
     // `wdio.conf.ts` (`mochaOpts.require`), so no import reaches it.
     "e2e/support/logHooks.ts",
     "e2e/screenshots/**/*.spec.ts",
+    // The landing hero film's frame capture (M35.A): GUI-only, outside `e2e/specs/`.
+    "e2e/hero/**/*.spec.ts",
     // Manual screenshot capture for `docs/manual/` and the landing (both are GUI-only,
     // outside `e2e/specs/` so CI never picks them up).
     "e2e/manual/**/*.spec.ts",
     "screenshots.wdio.conf.ts",
     "manual.wdio.conf.ts",
+    "hero.wdio.conf.ts",
   ],
 
   // The files knip may analyse: the app, the suite, the repo scripts and the root
