@@ -19,7 +19,20 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::state::{PopoutView, WindowRegistry};
 
+pub mod help;
 pub mod project;
+
+/// Label of the app-wide **Keyboard Shortcuts** window.
+const SHORTCUTS_LABEL: &str = "shortcuts";
+
+/// Whether `label` is an app-wide window that never carries a project (the manual, the
+/// shortcut sheet).
+///
+/// Menu actions and OS file-opens skip these when picking the window to address, so an
+/// action still reaches the project behind them.
+pub(crate) fn is_app_window(label: &str) -> bool {
+    label == help::HELP_LABEL || label == SHORTCUTS_LABEL
+}
 
 /// Monotonic counter for unique window labels within this process.
 static WINDOW_SEQ: AtomicU32 = AtomicU32::new(1);
@@ -290,12 +303,12 @@ pub async fn open_log_window(window: tauri::WebviewWindow) -> Result<String, Str
 pub(crate) fn open_shortcuts_window_for<R: tauri::Runtime>(
     app: &AppHandle<R>,
 ) -> Result<(), String> {
-    if let Some(existing) = app.get_webview_window("shortcuts") {
+    if let Some(existing) = app.get_webview_window(SHORTCUTS_LABEL) {
         raise(&existing);
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(app, "shortcuts", WebviewUrl::App("index.html".into()))
+    WebviewWindowBuilder::new(app, SHORTCUTS_LABEL, WebviewUrl::App("index.html".into()))
         .title("Keyboard Shortcuts — Hey Listen")
         .inner_size(760.0, 720.0)
         .min_inner_size(520.0, 420.0)

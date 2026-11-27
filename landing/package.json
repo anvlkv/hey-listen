@@ -7,6 +7,8 @@
     "sync": "node scripts/sync-assets.mjs",
     "dev": "npm run sync && node scripts/astro.mjs dev",
     "build": "npm run sync && node scripts/astro.mjs build",
+    "help": "node scripts/build-help.mjs",
+    "help:if-needed": "node scripts/build-help.mjs --if-needed",
     "preview": "node scripts/astro.mjs preview",
     "check": "npm run sync && node scripts/astro.mjs check"
   },

@@ -30,21 +30,30 @@ pub mod window;
 use tauri::{AppHandle, Manager, Runtime};
 
 /// The label of the **project** window the user is looking at, else `main`, else any
-/// window.
+/// project window.
 ///
 /// Shared by the menu (routing File/Edit actions to the project the user is looking
 /// at) and the file-open handling in [`project`], so both pick the same window.
 ///
 /// A focused **popout** resolves to the project window that owns it: a popout is a view
 /// and does not listen for `app:menu` / `app:open-project`, so addressing it would drop
-/// the action.
+/// the action. The app-wide windows (the manual, the shortcut sheet) carry no project at
+/// all, so they are skipped too: an action fired while one has focus still reaches the
+/// project behind it.
 pub(crate) fn focused_label<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
     let windows = app.webview_windows();
-    let focused = windows
-        .iter()
-        .find(|(_, window)| window.is_focused().unwrap_or(false))
-        .map(|(label, _)| label.clone())
+    let project = |focused_only: bool| {
+        windows
+            .iter()
+            .find(|(label, window)| {
+                !crate::commands::window::is_app_window(label)
+                    && (!focused_only || window.is_focused().unwrap_or(false))
+            })
+            .map(|(label, _)| label.clone())
+    };
+    let focused = project(true)
         .or_else(|| windows.contains_key("main").then(|| "main".to_string()))
+        .or_else(|| project(false))
         .or_else(|| windows.keys().next().cloned());
     focused.map(|label| {
         // `focused_label` is also reached from OS callbacks that can arrive before

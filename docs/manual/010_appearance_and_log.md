@@ -17,6 +17,9 @@ Themes apply instantly, to the Workbench and to the charts drawn inside it.
 
 ## Advanced — options and keys
 
+- **The manual.** *Help → Hey Listen Manual* (`F1`) opens this manual in its own window. It
+  is the copy bundled with the app, so every chapter and screenshot works offline, and a
+  link to the repository opens in your browser rather than replacing the page.
 - **Themes.** Import a `.heyltheme` file to add one, export the current theme to share it,
   delete a theme you no longer want, or reveal the themes folder to edit a file by hand.
 - **Charts are themed too.** A chart's colours come from the theme, so a screenshot taken

@@ -5,6 +5,9 @@ landing
 .npm-cache
 logs
 
+# In-app manual: the Astro help build copied here by landing/scripts/build-help.mjs
+public/help
+
 # The Remotion `video/` subproject is a separate npm project with its own prettier
 # config. It is out of scope for the repo-wide maid (see docs/code-hygiene.md).
 /video

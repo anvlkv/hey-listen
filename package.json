@@ -8,9 +8,10 @@
     "landing"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "npm run help:if-needed -w landing && vite",
+    "build": "npm run help:if-needed -w landing && vite build",
     "preview": "vite preview",
+    "help": "npm run help -w landing",
     "dev:landing": "npm run dev -w landing",
     "build:landing": "npm run build -w landing",
     "preview:landing": "npm run preview -w landing",

@@ -158,6 +158,16 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         None::<&str>,
     )?;
 
+    // The manual ships inside the app (`help/docs/`, built by `npm run help`), so the
+    // chapters are readable offline in their own window. F1 is the conventional help key.
+    let manual = MenuItem::with_id(
+        app,
+        MenuAction::Manual.as_ref(),
+        "Hey Listen Manual",
+        true,
+        Some("F1"),
+    )?;
+
     // The shortcut sheet is frontend content: the menu only opens it. Placed beside the
     // other Help items on every platform (on macOS About lives in the app menu).
     let shortcuts = MenuItem::with_id(
@@ -192,6 +202,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         "Help",
         true,
         &[
+            &manual,
             &show_log,
             &open_log_folder,
             &check_updates,
@@ -206,6 +217,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         &[
             &about,
+            &manual,
             &show_log,
             &open_log_folder,
             &check_updates,

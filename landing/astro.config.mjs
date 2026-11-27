@@ -15,15 +15,29 @@ const chapters = readdirSync(manualDir)
   .map((file) => file.replace(/\.md$/, ""));
 
 /**
+ * Two builds share this source:
+ *
+ * - the published landing (`npm run build:landing`), served from GitHub Pages under
+ *   `/hey-listen/`;
+ * - the in-app manual (`npm run help`): the same docs pages with docs-only chrome,
+ *   rooted at `/help/` and copied into the app bundle. `PUBLIC_HELP` is the flag the
+ *   layouts (and nothing else) read.
+ */
+const help = process.env.LANDING_HELP === "1";
+
+/**
  * GitHub Pages serves a project site under `/<repo>/`. Astro's `base` makes the Vite
  * asset URLs match; the rehype plugin receives the same value so links inside the
- * manual point at `/hey-listen/docs/<chapter>/` too.
+ * manual point at the same root too. The help build is served by the app's asset
+ * protocol, which mounts the frontend at `/`, so its tree lives under `/help/`.
  */
-const base = "/hey-listen";
+const base = help ? "/help" : "/hey-listen";
 
 export default defineConfig({
   site: "https://anvlkv.github.io",
   base,
+  // The help build must not overwrite the landing the preview server serves.
+  outDir: help ? "help-dist" : "dist",
   output: "static",
   compressHTML: true,
   integrations: [solid()],

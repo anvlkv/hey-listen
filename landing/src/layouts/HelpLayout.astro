@@ -1,0 +1,42 @@
+---
+import "../styles/global.css";
+
+/**
+ * The in-app manual's document shell (Help → Hey Listen Manual).
+ *
+ * It renders the same `.docs-shell` as the published manual, without the landing's
+ * header, nav and footer: the window is a reader for the docs that ship with the app,
+ * so every link in it stays inside the manual (the core refuses anything else).
+ */
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08090d" />
+    <meta name="robots" content="noindex" />
+    <!-- Paint the canvas dark before the stylesheet arrives, so the window never flashes white. -->
+    <style is:inline>
+      html {
+        background: #08090d;
+      }
+    </style>
+  </head>
+  <body class="help-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <main id="main">
+      <slot />
+    </main>
+  </body>
+</html>

@@ -57,6 +57,8 @@ pub enum MenuAction {
     Compare,
     CheckForUpdates,
     InstallCliTool,
+    /// Open the bundled manual in its own window (handled natively: the core raises it).
+    Manual,
     /// Open the app-wide Keyboard Shortcuts window (handled natively: the core raises it).
     Shortcuts,
     /// Show the log preview (handled natively: the core raises the window).
@@ -126,6 +128,16 @@ pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
                     if let Err(err) = crate::commands::window::open_log_window_for(&handle, &parent)
                     {
                         log::warn!("could not open the log preview: {err}");
+                    }
+                });
+                return;
+            }
+            MenuAction::Manual => {
+                // Same reason as ShowLog: build the window off the menu's (main) thread.
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(err) = crate::commands::window::help::open_help_window_for(&handle) {
+                        log::warn!("could not open the manual: {err}");
                     }
                 });
                 return;
@@ -208,6 +220,7 @@ mod tests {
         assert_eq!(MenuAction::Compare.as_ref(), "compare");
         assert_eq!(MenuAction::CheckForUpdates.as_ref(), "checkForUpdates");
         assert_eq!(MenuAction::InstallCliTool.as_ref(), "installCliTool");
+        assert_eq!(MenuAction::Manual.as_ref(), "manual");
         assert_eq!(MenuAction::Shortcuts.as_ref(), "shortcuts");
         assert_eq!(MenuAction::ShowLog.as_ref(), "showLog");
         assert_eq!(MenuAction::OpenLogFolder.as_ref(), "openLogFolder");

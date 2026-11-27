@@ -1554,6 +1554,18 @@ h4 {
   text-align: right;
 }
 
+/*
+ * In-app manual (Help → Hey Listen Manual): the same docs shell without the landing's
+ * header, so the sticky sidebar and contents start at the top of the window.
+ */
+.help-body {
+  --header: 0px;
+}
+
+.docs-shell--help {
+  padding-block: 1.6rem 3rem;
+}
+
 /* --- Prose (manual, acknowledgements) ------------------------------------- */
 
 .prose {

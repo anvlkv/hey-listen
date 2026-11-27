@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
+import HelpLayout from "./HelpLayout.astro";
 import type { DocNavItem } from "../lib/docs";
 import { link } from "../lib/site";
 
@@ -28,10 +29,14 @@ const { title, description, nav, current, headings, prev, next } = Astro.props;
 
 const isCurrent = (item: DocNavItem) => item.id === current;
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+
+/** The in-app build (`npm run help`) drops the landing's chrome: it is a reader window. */
+const help = import.meta.env.PUBLIC_HELP === "1";
+const Layout = help ? HelpLayout : BaseLayout;
 ---
 
-<BaseLayout title={`${title} — Hey Listen manual`} description={description}>
-  <div class="container docs-shell">
+<Layout title={`${title} — Hey Listen manual`} description={description}>
+  <div class="container docs-shell" class:list={{ "docs-shell--help": help }}>
     <aside class="docs-sidebar">
       <a class="docs-home" href={link("docs/")} class:list={{ "is-current": current === "readme" }}>
         <span class="docs-home__label">Manual</span>
@@ -123,4 +128,4 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
       )
     }
   </div>
-</BaseLayout>
+</Layout>

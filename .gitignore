@@ -6,8 +6,13 @@ dist
 # Landing (Astro): build output, generated content-layer types, and screenshots
 # copied from docs/manual by landing/scripts/sync-assets.mjs.
 /landing/dist/
+/landing/help-dist/
 /landing/.astro/
 /landing/public/manual-assets/
+
+# In-app manual: the Astro docs build copied into the app bundle by
+# landing/scripts/build-help.mjs (Vite serves it in dev and copies it into dist/).
+/public/help/
 
 # E2E (M8): generated fixtures and run artifacts (report + logs)
 /e2e/.fixtures/

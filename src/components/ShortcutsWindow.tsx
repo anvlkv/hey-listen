@@ -48,6 +48,7 @@ const NATIVE_MENU: { label: string; binding: string }[] = [
   { label: "Save", binding: "Mod+S" },
   { label: "Save As…", binding: "Shift+Mod+S" },
   { label: "New Window", binding: "Shift+Mod+N" },
+  { label: "Hey Listen Manual", binding: "F1" },
   { label: "Quit", binding: "Mod+Q" },
 ];
 

@@ -145,7 +145,9 @@ summary → simple path → options and keys → agent → CLI, and illustrated 
 `video/story-assets/analysis-example.heyl`. In-app help moves with the site pass (M35).
 
 ## M35 — Landing page rework ✅
-An Astro landing with Solid islands; the manual, roadmap and acknowledgements published beside it.
+An Astro landing with Solid islands; the manual, roadmap and acknowledgements published
+beside it. The same chapters are bundled as the in-app **Help → Hey Listen Manual**
+window (`F1`): docs-only chrome, no browser, offline.
 
 ## M35.A — Remotion workflow film (drafted)
 A short film for the top of the landing.
