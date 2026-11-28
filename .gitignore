@@ -10,6 +10,10 @@ dist
 /landing/.astro/
 /landing/public/manual-assets/
 
+# The hero film is embedded from YouTube (`hero.webm`/`hero.mp4` here are render
+# output from `video/`, never committed).
+/landing/public/media/
+
 # In-app manual: the Astro docs build copied into the app bundle by
 # landing/scripts/build-help.mjs (Vite serves it in dev and copies it into dist/).
 /public/help/

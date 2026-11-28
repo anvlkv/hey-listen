@@ -24,7 +24,7 @@ changed (`scripts/build-help.mjs --if-needed`).
 | --- | --- |
 | `docs/manual/*.md` | `/docs/` pages, sidebar and pager |
 | `docs/manual/assets/*.png` | copied to `public/manual-assets/` by `scripts/sync-assets.mjs` |
-| `video/` (Remotion) | `public/media/hero.webm` and `hero.mp4`, rendered with `npm run render:hero` |
+| `video/` (Remotion) | the film embedded from YouTube; `npm run render:hero` is the source render |
 | running app captures | `public/images/analyzers/`, `sources/`, `export-popover.png` |
 | `docs/development/000_roadmap.md` | `/roadmap/` timeline |
 | `ACKNOWLEDGEMENTS.md` | `/acknowledgements/` |
@@ -39,14 +39,18 @@ release binary and WebDriver, like the manual captures).
 
 ## Hero film
 
-`public/media/hero.webm` and `hero.mp4` are rendered from the `video/` Remotion project:
+The landing embeds the film from YouTube (`lOKQdIMHQlI`) rather than shipping the
+file: a poster and a play button are rendered locally, and the player only loads
+when someone clicks, so no third-party request is made before then.
+
+The film itself is produced in the `video/` Remotion project — see
+`video/README.md` for the edit, the capture manifest and the per-file layout:
 
 ```sh
-cd video && npm run render:hero
+cd video && npm run dev           # preview HeroFilm
+cd video && npm run render:hero   # render to landing/public/media/ (git-ignored)
 ```
 
-The composition is `HeroFilm`; `video/README.md` covers the edit, the capture
-manifest and the per-file layout. The page plays the WebM and falls back to the MP4.
 The music is Grieg's *Holberg Suite — Praeludium* (CC BY-SA 3.0), credited under the
 film.
 

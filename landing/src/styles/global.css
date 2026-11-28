@@ -381,16 +381,58 @@ h4 {
   z-index: 1;
   pointer-events: none;
   /*
-   * Only a top vignette. The film carries its own lower scrim in the render, so a
-   * second bottom ramp here would overlap it and show a seam — and because the
-   * video is `object-fit: cover`, the burned-in captions sit at no fixed height on
-   * screen, so any page-side ramp would land on them at some viewport sizes.
+   * Only a top vignette, and only over the unplayed poster: nothing is printed there,
+   * and once the YouTube player is mounted its own controls own the frame, so the
+   * scrim is hidden (see `.hero-film__frame:has(iframe)`) rather than covered up.
    */
   background: linear-gradient(
     180deg,
     rgba(8, 9, 13, 0.48) 0%,
     transparent 20%
   );
+}
+
+.hero-film__frame:has(iframe) .hero-film__scrim {
+  display: none;
+}
+
+.hero-film__play {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #000;
+  cursor: pointer;
+}
+
+.hero-film__play-mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: rgba(8, 9, 13, 0.62);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+  transform: translate(-50%, -50%);
+  transition: border-color 0.16s ease, transform 0.16s ease;
+}
+
+.hero-film__play-mark svg {
+  width: 26px;
+  height: 26px;
+  margin-left: 3px;
+}
+
+.hero-film__play:hover .hero-film__play-mark,
+.hero-film__play:focus-visible .hero-film__play-mark {
+  border-color: var(--accent);
+  transform: translate(-50%, -50%) scale(1.06);
 }
 
 .hero-film-credit {
@@ -410,42 +452,6 @@ h4 {
 .hero-film-credit a:hover {
   color: var(--text);
   border-bottom-color: var(--accent);
-}
-
-.hero-film__controls {
-  position: absolute;
-  right: clamp(1rem, 3vw, 2rem);
-  bottom: clamp(1rem, 3vw, 2rem);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-
-.film-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.38rem;
-  padding: 0.45rem 0.72rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: rgba(8, 9, 13, 0.58);
-  color: var(--text);
-  font-size: 0.78rem;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-
-.film-button svg {
-  width: 15px;
-  height: 15px;
-}
-
-.film-button:hover {
-  border-color: var(--accent);
 }
 
 /* --- Hero copy ------------------------------------------------------------ */
@@ -1931,14 +1937,6 @@ h4 {
 
   .hero-film__scrim {
     display: none;
-  }
-
-  .hero-film__controls {
-    position: static;
-    justify-content: flex-end;
-    padding: 0.55rem 0.7rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
   }
 
   .hero-copy h1 {
