@@ -21,7 +21,7 @@ coordinates onto the frame.
 ```console
 npm run stage:hero   # story-assets/hero -> public/hero (images + audio)
 npm run dev          # preview HeroFilm
-npm run render:hero  # stage + render ../landing/public/media/hero.mp4
+npm run render:hero  # stage + render ../landing/public/media/hero.mp4 + hero.webm (VP9)
 ```
 
 - `src/hero/manifest.ts` — manifest types, capture geometry, cursor/burst helpers.

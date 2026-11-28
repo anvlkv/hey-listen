@@ -28,7 +28,7 @@
   "scripts": {
     "dev": "remotion studio",
     "stage:hero": "node scripts/stage-hero.mjs",
-    "render:hero": "npm run stage:hero && remotion render src/index.ts HeroFilm ../landing/public/media/hero.mp4",
+    "render:hero": "npm run stage:hero && remotion render src/index.ts HeroFilm ../landing/public/media/hero.mp4 && remotion render src/index.ts HeroFilm ../landing/public/media/hero.webm --codec vp9",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"

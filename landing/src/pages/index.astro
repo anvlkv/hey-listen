@@ -35,9 +35,23 @@ const tree = `hey-listen/
       <HeroVideo
         client:load
         src={link("media/hero.mp4")}
+        webm={link("media/hero.webm")}
         poster={link("manual-assets/001-shell.png")}
         alt="A short tour of the Hey Listen workbench: the timeline, a filter graph, a spectrum, annotations, a comparison, and the export rail."
       />
+      <p class="hero-film-credit">
+        Music: {" "}
+        <a
+          href="https://commons.wikimedia.org/wiki/File:Grieg_Holberg_Suite_1_Praeludium.ogg"
+          target="_blank"
+          rel="noopener"
+        >
+          Edvard Grieg, Holberg Suite, Praeludium
+        </a>{" "}
+        (<a href="https://creativecommons.org/licenses/by-sa/3.0" target="_blank" rel="noopener">
+          CC BY-SA 3.0
+        </a>)
+      </p>
     </div>
 
     <div class="container hero-copy">

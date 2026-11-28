@@ -24,6 +24,7 @@ changed (`scripts/build-help.mjs --if-needed`).
 | --- | --- |
 | `docs/manual/*.md` | `/docs/` pages, sidebar and pager |
 | `docs/manual/assets/*.png` | copied to `public/manual-assets/` by `scripts/sync-assets.mjs` |
+| `video/` (Remotion) | `public/media/hero.webm` and `hero.mp4`, rendered with `npm run render:hero` |
 | running app captures | `public/images/analyzers/`, `sources/`, `export-popover.png` |
 | `docs/development/000_roadmap.md` | `/roadmap/` timeline |
 | `ACKNOWLEDGEMENTS.md` | `/acknowledgements/` |
@@ -38,14 +39,16 @@ release binary and WebDriver, like the manual captures).
 
 ## Hero film
 
-`public/media/hero.mp4` is generated from the manual screenshots:
+`public/media/hero.webm` and `hero.mp4` are rendered from the `video/` Remotion project:
 
 ```sh
-node landing/scripts/make-hero-video.mjs
+cd video && npm run render:hero
 ```
 
-It needs `ffmpeg`. The film's audio is a quiet generated pad; the page autoplays it
-muted and turns sound on when the film is focused.
+The composition is `HeroFilm`; `video/README.md` covers the edit, the capture
+manifest and the per-file layout. The page plays the WebM and falls back to the MP4.
+The music is Grieg's *Holberg Suite — Praeludium* (CC BY-SA 3.0), credited under the
+film.
 
 ## Notes
 

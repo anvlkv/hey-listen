@@ -2,6 +2,8 @@ import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 interface Props {
   src: string;
+  /** Preferred WebM source; the browser falls back to `src` (MP4) when it can't play it. */
+  webm?: string;
   poster: string;
   alt: string;
 }
@@ -143,7 +145,6 @@ export default function HeroVideo(props: Props) {
           <video
             ref={video}
             class="hero-film__video"
-            src={props.src}
             poster={props.poster}
             autoplay
             muted
@@ -155,6 +156,8 @@ export default function HeroVideo(props: Props) {
               setFailed(true);
             }}
           >
+            {props.webm && <source src={props.webm} type="video/webm" />}
+            <source src={props.src} type="video/mp4" />
             <img src={props.poster} alt={props.alt} />
           </video>
         </Show>

@@ -8,9 +8,11 @@ import {
 } from "remotion";
 import {Cursor} from "./components/Cursor";
 import {DisplayMatrix} from "./components/DisplayMatrix";
-import {Caption, LowerScrim} from "./components/LowerThird";
+import {Glow} from "./components/Glow";
+import {LowerScrim} from "./components/LowerThird";
 import {Camera} from "./components/Camera";
 import {ShotLayer} from "./components/ShotLayer";
+import {brightness, downbeatPulse, intensity} from "./analysis";
 import {APP_H, APP_W, burstProgress, FILM_H, FILM_W, getShot} from "./manifest";
 import type {SceneSpec} from "./plan";
 import {BACKDROP} from "./theme";
@@ -48,12 +50,25 @@ export const Scene: React.FC<{spec: SceneSpec; durationInFrames: number}> = ({
   const outgoing = spec.outgoing ? getShot(spec.outgoing.shot) : undefined;
   const burstStart = (spec.burstOffsetSec ?? 0) * fps;
 
-  const scale = interpolate(
+  // The audio's dynamics, sampled at this exact film frame. The keyframes below set
+  // *where* the camera looks; these terms set *how hard* it breathes with the music.
+  const filmSec = spec.fromSec + frame / fps;
+  const energy = intensity(filmSec);
+  const light = brightness(filmSec);
+  const downbeat = downbeatPulse(filmSec, 0.5);
+
+  const baseScale = interpolate(
     frame,
     spec.scale.map(([at]) => at),
     spec.scale.map(([, value]) => value),
     {easing: DRAMA, extrapolateLeft: "clamp", extrapolateRight: "clamp"},
   );
+
+  // The camera swells with the loop's density and punches on its downbeats. It only
+  // pushes in (never below the keyframed baseline), so the screenshot keeps covering
+  // the frame and the loop's end still lands on the frame it started from.
+  const breath = 1 + energy * 0.04 + downbeat * 0.015;
+  const scale = baseScale * breath;
   const focusX = clampFocus(
     interpolate(
       frame,
@@ -151,14 +166,9 @@ export const Scene: React.FC<{spec: SceneSpec; durationInFrames: number}> = ({
         ) : null}
       </Camera>
 
+      <Glow brightness={light} />
       <DisplayMatrix strength={matrix} />
       <LowerScrim />
-      <Caption
-        text={spec.caption}
-        frame={frame}
-        startAt={burstStart + 10}
-        endAt={durationInFrames - 12}
-      />
     </AbsoluteFill>
   );
 };

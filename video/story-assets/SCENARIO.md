@@ -457,8 +457,8 @@ npx remotion render src/index.ts HeroFilm ../landing/public/media/hero.mp4
   `width={1600}`, `height={900}`.
 - Optionally add a small `Caption` component and an `AgentLog` component (§6.1); keep both
   inside the safe area and out of the chart's data.
-- Update `landing/README.md` (“Hero film”) once `make-hero-video.mjs` is retired, and keep
-  that script until the Remotion render is committed.
+- `landing/README.md` (“Hero film”) points at `video/` and `npm run render:hero`; the
+  ffmpeg recipe (`make-hero-video.mjs`) has been retired.
 
 ---
 

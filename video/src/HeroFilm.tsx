@@ -1,5 +1,5 @@
 import type React from "react";
-import {AbsoluteFill, Audio, Sequence, staticFile, useVideoConfig} from "remotion";
+import {AbsoluteFill, Html5Audio, Sequence, staticFile, useVideoConfig} from "remotion";
 import {AgentLog} from "./hero/components/AgentLog";
 import {manifest} from "./hero/manifest";
 import {SCENES} from "./hero/plan";
@@ -15,7 +15,7 @@ export const HeroFilm: React.FC = () => {
 
   return (
     <AbsoluteFill style={{backgroundColor: BACKDROP.dark}}>
-      <Audio src={staticFile(`hero/${manifest.audio}`)} />
+      <Html5Audio src={staticFile(`hero/${manifest.audio}`)} />
 
       {SCENES.map((spec) => {
         const from = Math.round(spec.fromSec * fps);

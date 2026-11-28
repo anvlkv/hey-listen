@@ -380,15 +380,36 @@ h4 {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(8, 9, 13, 0.28) 0%,
-      transparent 20%,
-      transparent 60%,
-      rgba(8, 9, 13, 0.94) 100%
-    ),
-    radial-gradient(70% 55% at 50% 110%, rgba(8, 9, 13, 0.62), transparent);
+  /*
+   * Only a top vignette. The film carries its own lower scrim in the render, so a
+   * second bottom ramp here would overlap it and show a seam — and because the
+   * video is `object-fit: cover`, the burned-in captions sit at no fixed height on
+   * screen, so any page-side ramp would land on them at some viewport sizes.
+   */
+  background: linear-gradient(
+    180deg,
+    rgba(8, 9, 13, 0.48) 0%,
+    transparent 20%
+  );
+}
+
+.hero-film-credit {
+  margin: 0;
+  padding: 0.4rem clamp(1rem, 3vw, 2rem) 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: right;
+}
+
+.hero-film-credit a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.hero-film-credit a:hover {
+  color: var(--text);
+  border-bottom-color: var(--accent);
 }
 
 .hero-film__controls {

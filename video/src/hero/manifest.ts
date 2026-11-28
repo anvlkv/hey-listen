@@ -50,6 +50,7 @@ export type Manifest = {
   audio: string;
   loop: {sourceStart: number; sourceEnd: number; duration: number};
   capture: {width: number; height: number; dpr: number};
+  dissolves: {from: string; to: string}[];
   shots: Shot[];
 };
 
@@ -65,6 +66,16 @@ export const APP_H = (APP_W * manifest.capture.height) / manifest.capture.width;
 const byId = new Map(manifest.shots.map((shot) => [shot.id, shot]));
 
 export const getShot = (id: string): Shot | undefined => byId.get(id);
+
+/** The theme-dissolve pairs the capture declared (SCENARIO §4). */
+export const dissolves: {from: string; to: string}[] = manifest.dissolves;
+
+/** The shot that dissolves into `id`, if the capture paired one. */
+export const dissolveSource = (id: string): string | undefined =>
+  dissolves.find((d) => d.to === id)?.from;
+
+/** Length of one seamless loop pass, in seconds. */
+export const LOOP_DURATION_SECONDS = manifest.loop.duration;
 
 export const shotSrc = (image: string) => `hero/${image}`;
 
