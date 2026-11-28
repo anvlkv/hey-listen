@@ -364,75 +364,29 @@ h4 {
 .hero-film__frame {
   position: relative;
   isolation: isolate;
-}
-
-.hero-film__video {
-  display: block;
-  width: 100%;
-  height: clamp(320px, 62vh, 720px);
+  /*
+   * Match the player's own 16:9 so the whole film is visible: a fixed pixel height
+   * either crops it (cover) or letterboxes it (contain). Height is derived from the
+   * full-bleed width, so nothing is cut off at any viewport shape.
+   */
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
   border-block: 1px solid var(--border);
   background: #000;
-  object-fit: cover;
 }
 
-.hero-film__scrim {
+.hero-film__player {
   position: absolute;
   inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  /*
-   * Only a top vignette, and only over the unplayed poster: nothing is printed there,
-   * and once the YouTube player is mounted its own controls own the frame, so the
-   * scrim is hidden (see `.hero-film__frame:has(iframe)`) rather than covered up.
-   */
-  background: linear-gradient(
-    180deg,
-    rgba(8, 9, 13, 0.48) 0%,
-    transparent 20%
-  );
+  overflow: hidden;
 }
 
-.hero-film__frame:has(iframe) .hero-film__scrim {
-  display: none;
-}
-
-.hero-film__play {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: #000;
-  cursor: pointer;
-}
-
-.hero-film__play-mark {
+.hero-film__player iframe {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  width: 76px;
-  height: 76px;
-  place-content: center;
-  border: 1px solid var(--border-strong);
-  border-radius: 50%;
-  background: rgba(8, 9, 13, 0.62);
-  color: var(--text);
-  backdrop-filter: blur(8px);
-  transform: translate(-50%, -50%);
-  transition: border-color 0.16s ease, transform 0.16s ease;
-}
-
-.hero-film__play-mark svg {
-  width: 26px;
-  height: 26px;
-  margin-left: 3px;
-}
-
-.hero-film__play:hover .hero-film__play-mark,
-.hero-film__play:focus-visible .hero-film__play-mark {
-  border-color: var(--accent);
-  transform: translate(-50%, -50%) scale(1.06);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 .hero-film-credit {
@@ -1919,24 +1873,6 @@ h4 {
 @media (max-width: 640px) {
   .container {
     width: min(100% - 2rem, var(--max));
-  }
-
-  /* Keep the whole tour frame on a phone instead of cropping it to the centre. */
-  .hero-film__frame {
-    display: flex;
-    flex-direction: column;
-    background: #000;
-  }
-
-  .hero-film__video {
-    height: auto;
-    aspect-ratio: 16 / 9;
-    border-bottom: 0;
-    object-fit: contain;
-  }
-
-  .hero-film__scrim {
-    display: none;
   }
 
   .hero-copy h1 {
